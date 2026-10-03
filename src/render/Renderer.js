@@ -7,7 +7,10 @@ import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT } from '../sim/fixed.js';
 import {
   buildingModel, scaffold, serfModel, treeGeometries, pileModel, shaftModel, spotModel, mat, PROF_COLORS, campfireModel,
+  unitModel, heroModel, gadgetModel, healthBar,
 } from './models.js';
+import { UNITS, HEROES } from '../sim/data/units.js';
+import { maxHp } from '../sim/systems/military.js';
 
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
 
@@ -140,6 +143,10 @@ export class Renderer {
 
   onEvents(events) {
     for (const ev of events) {
+      if (ev.type === 'shot') this.addProjectile(ev);
+      else if (ev.type === 'hit') (this.hitAt ??= new Map()).set(ev.by, this.time ?? 0);
+      else if (ev.type === 'explosion') this.addExplosion(ev.x / UNIT, ev.y / UNIT);
+      else if (ev.type === 'weather') this.applyWeather(ev.state);
       if (ev.type === 'nodeDepleted') {
         this.removeTree(ev.node);
         const p = this.piles.get(ev.node);
@@ -164,17 +171,23 @@ export class Renderer {
     for (const e of sim.entities.values()) {
       if (e.kind === 'building') { seen.add(e.id); this.syncBuilding(e); }
       else if (e.kind === 'unit' || e.kind === 'worker') { seen.add(e.id); this.syncUnit(e, alpha, prev.get(e.id), dt); }
+      else if (e.px !== undefined) { seen.add(e.id); this.syncFighter(e, alpha, prev.get(e.id)); }
       else if (e.kind === 'pile') {
         const g = this.piles.get(e.id);
         if (g) g.scale.setScalar(0.55 + 0.45 * Math.min(1, e.amount / 400));
       }
     }
     for (const [id, g] of this.buildings) if (!seen.has(id)) { this.scene.remove(g); this.buildings.delete(id); }
-    for (const [id, g] of this.units) if (!seen.has(id)) { this.scene.remove(g); this.units.delete(id); }
+    for (const [id, g] of this.units) if (!seen.has(id)) {
+      this.scene.remove(g);
+      if (g.userData.hb) this.scene.remove(g.userData.hb);
+      this.units.delete(id);
+    }
 
     // hide markers as soon as something is built there
     for (const m of this.markers) m.g.visible = sim.map.owner[sim.map.idx(m.x, m.y)] === 0;
 
+    this.updateEffects(dt);
     this.syncSelection(view.selected);
     this.syncGhost(view.ghost);
 
@@ -255,6 +268,139 @@ export class Renderer {
     }
   }
 
+  /** Captains, soldiers, heroes, traps and siege weapons. */
+  syncFighter(e, alpha, prev) {
+    let g = this.units.get(e.id);
+    if (!g) {
+      if (e.kind === 'hero') g = heroModel(e.hero, e.owner);
+      else if (e.kind === 'leader' || e.kind === 'soldier') g = unitModel(UNITS[e.def].line, e.owner, e.kind === 'leader');
+      else g = gadgetModel(e.kind, e.owner);
+      g.userData.def = e.def;
+      g.traverse((m) => { m.userData.entity = e.kind === 'soldier' ? e.leader : e.id; });
+      if (e.kind === 'leader' || e.kind === 'hero') { const hb = healthBar(); hb.name = 'hb'; this.scene.add(hb); g.userData.hb = hb; }
+      this.scene.add(g);
+      this.units.set(e.id, g);
+    }
+    const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
+    const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
+    const x = px / UNIT, z = py / UNIT;
+    const moving = prev && (prev.px !== e.px || prev.py !== e.py);
+    if (moving) g.rotation.y = Math.atan2(e.px - prev.px, e.py - prev.py);
+    else if (e.targetId) {
+      const t = this.sim.entities.get(e.targetId);
+      if (t) {
+        const tx = t.kind === 'building' ? t.x + t.w / 2 : (t.px ?? t.x * UNIT) / UNIT, tz = t.kind === 'building' ? t.y + t.h / 2 : (t.py ?? t.y * UNIT) / UNIT;
+        g.rotation.y = Math.atan2(tx - x, tz - z);
+      }
+    }
+    g.position.set(x, this.terrain.heightAt(x, z), z);
+    const { body, legs, arm, horse } = g.userData;
+    const ph = this.time * 9 + e.id;
+    if (legs) {
+      legs[0] && (legs[0].rotation.x = moving ? Math.sin(ph) * 0.6 : 0);
+      legs[1] && (legs[1].rotation.x = moving ? -Math.sin(ph) * 0.6 : 0);
+    }
+    if (horse) horse.position.y = moving ? Math.abs(Math.sin(ph)) * 0.04 : 0;
+    const hit = this.hitAt?.get(e.id);
+    if (arm) arm.rotation.x = hit !== undefined && this.time - hit < 0.35 ? -Math.sin(((this.time - hit) / 0.35) * Math.PI) * 1.6 : 0;
+    if (body && e.kind === 'hero') body.rotation.x = e.down ? -1.4 : 0;
+    const hb = g.userData.hb;
+    if (hb) {
+      let frac;
+      if (e.kind === 'leader') {
+        const d = UNITS[e.def];
+        const total = d.hp + d.soldierHp * d.soldiers;
+        let cur = e.hp;
+        for (const id of e.soldiers) cur += this.sim.entities.get(id)?.hp ?? 0;
+        frac = Math.max(0, cur / total);
+      } else frac = Math.max(0, e.hp / HEROES[e.hero].hp);
+      hb.position.set(x, g.position.y + (e.kind === 'hero' ? 1.45 : 1.25), z);
+      hb.quaternion.copy(this.camera.quaternion);
+      const fg = hb.getObjectByName('fg');
+      fg.scale.x = Math.max(0.001, frac); fg.position.x = -0.3 * (1 - frac);
+      fg.material.color.setHex(frac > 0.5 ? 0x6fcf7a : frac > 0.25 ? 0xe0a93b : 0xef6b6b);
+    }
+  }
+
+  addProjectile(ev) {
+    const from = new THREE.Vector3(ev.from.x / UNIT, 0, ev.from.y / UNIT);
+    const to = new THREE.Vector3(ev.to.x / UNIT, 0, ev.to.y / UNIT);
+    from.y = this.terrain.heightAt(from.x, from.z) + (ev.kind === 'bolt' ? 2.6 : 0.6);
+    to.y = this.terrain.heightAt(to.x, to.z) + 0.4;
+    const geo = ev.kind === 'ball' ? (this.ballGeo ??= new THREE.SphereGeometry(0.08, 6, 4)) : (this.arrowGeo ??= new THREE.BoxGeometry(0.02, 0.02, 0.4));
+    const m = new THREE.Mesh(geo, mat(ev.kind === 'ball' ? 0x2a2a2e : 0x5a3b22));
+    m.position.copy(from); m.lookAt(to);
+    this.scene.add(m);
+    (this.projectiles ??= []).push({ m, from, to, t: 0, dur: Math.max(0.15, from.distanceTo(to) / 22) });
+  }
+
+  addExplosion(x, z) {
+    const m = new THREE.Mesh(this.boomGeo ??= new THREE.SphereGeometry(0.5, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffb040, transparent: true, opacity: 0.85 }));
+    m.position.set(x, this.terrain.heightAt(x, z) + 0.3, z);
+    this.scene.add(m);
+    (this.booms ??= []).push({ m, t: 0 });
+  }
+
+  updateEffects(dt) {
+    for (const p of this.projectiles ?? []) {
+      p.t += dt / p.dur;
+      const k = Math.min(1, p.t);
+      p.m.position.lerpVectors(p.from, p.to, k);
+      p.m.position.y += Math.sin(k * Math.PI) * 0.8;
+      if (k >= 1) this.scene.remove(p.m);
+    }
+    this.projectiles = (this.projectiles ?? []).filter((p) => p.t < 1);
+    for (const b of this.booms ?? []) {
+      b.t += dt * 2.5;
+      b.m.scale.setScalar(1 + b.t * 3);
+      b.m.material.opacity = Math.max(0, 0.85 * (1 - b.t));
+      if (b.t >= 1) { this.scene.remove(b.m); b.m.material.dispose(); }
+    }
+    this.booms = (this.booms ?? []).filter((b) => b.t < 1);
+    if (this.rain) {
+      const pos = this.rain.geometry.attributes.position;
+      const t = this.rig.target;
+      for (let i = 0; i < pos.count; i += 2) {
+        let y = pos.getY(i) - dt * 18;
+        if (y < t.y - 2) {
+          y = t.y + 18;
+          const x = t.x + (Math.random() - 0.5) * 50, z = t.z + (Math.random() - 0.5) * 50;
+          pos.setX(i, x); pos.setZ(i, z); pos.setX(i + 1, x); pos.setZ(i + 1, z);
+        }
+        pos.setY(i, y); pos.setY(i + 1, y + 0.5);
+      }
+      pos.needsUpdate = true;
+    }
+  }
+
+  /** Make weather visible: rain as falling streaks, winter as bright terrain and ice. */
+  applyWeather(state) {
+    if (this.rain) { this.scene.remove(this.rain); this.rain = null; }
+    const t = this.terrain;
+    if (!t.baseColors) t.baseColors = t.mesh.geometry.attributes.color.array.slice();
+    const col = t.mesh.geometry.attributes.color;
+    const base = t.baseColors;
+    const snow = state === 'winter';
+    for (let i = 0; i < col.array.length; i++) col.array[i] = snow ? base[i] * 0.35 + 0.62 : base[i];
+    col.needsUpdate = true;
+    t.water.material.color.setHex(snow ? 0xd8e8f0 : 0x4f8fb8);
+    t.water.material.opacity = snow ? 0.95 : 0.82;
+    const fogColor = state === 'rain' ? 0x8a9aa6 : snow ? 0xc8d6e0 : 0xa9c8dc;
+    this.scene.background.setHex(fogColor);
+    this.scene.fog.color.setHex(fogColor);
+    if (state === 'rain') {
+      const n = 1200, pos = new Float32Array(n * 6);
+      const c = this.rig.target;
+      for (let i = 0; i < n; i++) {
+        const x = c.x + (Math.random() - 0.5) * 50, z = c.z + (Math.random() - 0.5) * 50, y = c.y + Math.random() * 20;
+        pos.set([x, y, z, x, y + 0.5, z], i * 6);
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      this.rain = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xc8d8e8, transparent: true, opacity: 0.5 }));
+      this.scene.add(this.rain);
+    }
+  }
+
   syncSelection(selected) {
     const marks = (this.selMarks ??= new Map());
     for (const [id, m] of marks) {
@@ -268,7 +414,7 @@ export class Renderer {
       const e = this.sim.entities.get(id);
       if (!e) continue;
       let m = marks.get(id);
-      if (e.kind === 'unit') {
+      if (e.kind !== 'building') {
         const u = this.units.get(id);
         if (!u) continue;
         if (!m) {

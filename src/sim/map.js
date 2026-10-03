@@ -13,6 +13,8 @@ export class TileMap {
     this.flags = new Uint8Array(width * height);
     /** Entity ID per tile (0 = none) for buildings, trees, piles */
     this.owner = new Int32Array(width * height);
+    /** Winter: water is frozen and walkable */
+    this.frozen = false;
   }
 
   idx(x, y) { return y * this.width + x; }
@@ -20,7 +22,9 @@ export class TileMap {
 
   walkable(x, y) {
     if (!this.inBounds(x, y)) return false;
-    return (this.flags[this.idx(x, y)] & (WATER | OCCUPIED)) === 0;
+    const f = this.flags[this.idx(x, y)];
+    if (f & OCCUPIED) return false;
+    return !(f & WATER) || this.frozen;
   }
 
   /** Occupy or release a rectangle. */

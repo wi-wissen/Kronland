@@ -301,3 +301,155 @@ export function campfireModel() {
   f.position.y = 0.2; f.name = 'flame'; g.add(f);
   return g;
 }
+
+// ---------- Military ----------
+
+const METAL = 0x9aa0a8, LEATHER = 0x7a5a3a;
+
+function humanoid(tunic, owner, opts = {}) {
+  const g = new THREE.Group();
+  const b = new THREE.Group(); g.add(b);
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(s * 0.05, 0.25, 0);
+    hip.add(box(0.07, 0.25, 0.07, 0x3a3028, 0, -0.25, 0)); b.add(hip); legs.push(hip);
+  }
+  b.add(cyl(0.1, 0.15, 0.32, tunic, 0, 0.24, 0));
+  const head = mesh(new THREE.SphereGeometry(0.09, 8, 6), 0xe6c2a0); head.position.y = 0.64; b.add(head);
+  if (opts.helmet !== false) b.add(cyl(0.07, 0.1, 0.08, opts.helmetColor ?? METAL, 0, 0.68, 0));
+  // shoulder sash in player colour
+  b.add(box(0.22, 0.05, 0.16, PLAYER_COLORS[owner % 4], 0, 0.5, 0));
+  const arm = new THREE.Group(); arm.position.set(0.14, 0.5, 0); b.add(arm);
+  g.userData = { body: b, legs, arm };
+  return g;
+}
+
+/** Foot soldier, rider or cannon. */
+export function unitModel(line, owner, leader = false) {
+  if (line === 'cannon') {
+    const g = new THREE.Group();
+    const barrel = cyl(0.09, 0.12, 0.8, 0x3a3a40, 0, 0, 0, 8);
+    barrel.rotation.x = Math.PI / 2 - 0.25; barrel.position.set(0, 0.32, 0.1); g.add(barrel);
+    for (const s of [-1, 1]) {
+      const w = mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 10), BEAM);
+      w.rotation.z = Math.PI / 2; w.position.set(s * 0.18, 0.2, -0.05); g.add(w);
+    }
+    g.add(box(0.26, 0.08, 0.5, BEAM, 0, 0.14, -0.1));
+    g.add(box(0.12, 0.12, 0.12, PLAYER_COLORS[owner % 4], 0, 0.22, -0.35));
+    g.userData = { body: g, legs: [], arm: new THREE.Group() };
+    return g;
+  }
+  const cav = line === 'lightCav' || line === 'heavyCav';
+  const tunic = line === 'sword' ? 0x6a6f78 : line === 'spear' ? 0x6b5a3a : line === 'bow' ? 0x4f6a3a : line === 'heavyCav' ? 0x8a8f98 : 0x6b5a3a;
+  const g = humanoid(tunic, owner);
+  const { arm } = g.userData;
+  if (line === 'sword' || line === 'heavyCav') arm.add(box(0.03, 0.42, 0.03, METAL, 0, -0.05, 0.08));
+  if (line === 'spear') { const s = box(0.025, 0.9, 0.025, BEAM, 0, -0.25, 0.05); arm.add(s); arm.add(cone(0.035, 0.1, METAL, 0, 0.65, 0.05, 5)); }
+  if (line === 'bow' || line === 'lightCav') {
+    const bow = mesh(new THREE.TorusGeometry(0.18, 0.015, 4, 10, Math.PI), BEAM);
+    bow.rotation.y = Math.PI / 2; bow.position.set(0.02, 0, 0.05); arm.add(bow);
+  }
+  if (line === 'sword') {
+    const shield = mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 8), PLAYER_COLORS[owner % 4]);
+    shield.rotation.z = Math.PI / 2; shield.position.set(-0.15, 0.36, 0.05); g.userData.body.add(shield);
+  }
+  if (leader) {
+    const pole = box(0.02, 0.7, 0.02, BEAM, -0.08, 0.45, -0.1); g.userData.body.add(pole);
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.16), mat(PLAYER_COLORS[owner % 4], { side: THREE.DoubleSide }));
+    fl.position.set(-0.08 + 0.12, 1.07, -0.1); fl.rotation.y = Math.PI / 2; g.userData.body.add(fl);
+  }
+  if (cav) {
+    const horse = new THREE.Group();
+    horse.add(box(0.22, 0.28, 0.75, line === 'heavyCav' ? 0x4a3a2a : 0x8a6a4a, 0, 0.32, 0));
+    horse.add(box(0.14, 0.32, 0.16, 0x6a5038, 0, 0.55, 0.38));
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) horse.add(box(0.06, 0.32, 0.06, 0x3a2a1c, sx * 0.08, 0, sz * 0.28));
+    g.add(horse);
+    g.userData.body.position.y = 0.38;
+    g.userData.legs.forEach((l) => { l.visible = false; });
+    g.userData.horse = horse;
+  }
+  g.scale.setScalar(1.25);
+  return g;
+}
+
+/** Hero: bigger, with a cape. */
+export function heroModel(hero, owner) {
+  const colors = { bertram: 0x9aa0a8, hedda: 0x5a7a4a, gerold: 0x8a5a3a };
+  const g = humanoid(colors[hero] ?? 0x9aa0a8, owner, { helmet: hero === 'bertram' });
+  const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.4), mat(PLAYER_COLORS[owner % 4], { side: THREE.DoubleSide }));
+  cape.position.set(0, 0.32, -0.12); cape.rotation.x = 0.15; g.userData.body.add(cape);
+  const { arm } = g.userData;
+  if (hero === 'bertram') arm.add(box(0.035, 0.5, 0.035, METAL, 0, -0.05, 0.1));
+  if (hero === 'hedda') arm.add(box(0.03, 0.8, 0.03, BEAM, 0, -0.1, 0.05));
+  if (hero === 'gerold') { const h = box(0.18, 0.08, 0.08, 0x3a3a40, 0, -0.2, 0.08); arm.add(h); arm.add(box(0.03, 0.35, 0.03, BEAM, 0, -0.05, 0.08)); }
+  const ring = mesh(new THREE.TorusGeometry(0.1, 0.012, 4, 12), 0xe0b13a);
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.78; g.userData.body.add(ring);
+  g.scale.setScalar(1.45);
+  return g;
+}
+
+/** Trap, bomb, self-firing cannon. */
+export function gadgetModel(kind, owner) {
+  const g = new THREE.Group();
+  if (kind === 'trap') {
+    g.add(cyl(0.25, 0.25, 0.04, 0x5a4a3a));
+    for (let i = 0; i < 6; i++) g.add(cone(0.03, 0.12, METAL, Math.cos(i) * 0.18, 0.04, Math.sin(i) * 0.18, 4));
+  } else if (kind === 'bomb') {
+    const b = mesh(new THREE.SphereGeometry(0.14, 8, 6), 0x2a2a2e); b.position.y = 0.14; g.add(b);
+    g.add(box(0.02, 0.1, 0.02, 0xffa632, 0, 0.27, 0));
+  } else {
+    g.add(unitModel('cannon', owner));
+  }
+  return g;
+}
+
+Object.assign(BUILDERS, {
+  barracks(g, w, d, level, pc) {
+    house(g, { w: w - 1, d: d - 1.6, h: 1.3 + level * 0.3, wall: 0xb9a68c, roof: 0x6b4a2e, z: -0.5 });
+    for (let i = 0; i < 3; i++) g.add(box(0.03, 0.6, 0.03, METAL, -0.6 + i * 0.25, 0, d / 2 - 0.5));
+    g.add(box(1.0, 0.05, 0.05, BEAM, -0.35, 0.5, d / 2 - 0.5));
+    flag(g, pc, w / 2 - 0.5, 0, d / 2 - 0.5);
+  },
+  archery(g, w, d, level, pc) {
+    house(g, { w: 1.8, d: 1.6, h: 1.2 + level * 0.3, roof: 0x6b4a2e, x: -w / 2 + 1.2, z: -0.2 });
+    for (let i = 0; i < 2; i++) {
+      const t = mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.06, 12), 0xe6dcc4);
+      t.rotation.x = Math.PI / 2; t.position.set(w / 2 - 0.7, 0.5, -0.8 + i * 1.2); g.add(t);
+      const c = mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.07, 10), 0xa83232);
+      c.rotation.x = Math.PI / 2; c.position.set(w / 2 - 0.7, 0.5, -0.8 + i * 1.2); g.add(c);
+    }
+    flag(g, pc, 0.3, 0, d / 2 - 0.4);
+  },
+  stable(g, w, d, level, pc) {
+    house(g, { w: w - 0.8, d: d - 1.8, h: 1.2 + level * 0.3, wall: 0x8a6a4a, roof: THATCH, z: -0.6 });
+    for (let i = 0; i < 4; i++) g.add(box(0.06, 0.4, 0.06, BEAM, -w / 2 + 0.6 + i * ((w - 1.2) / 3), 0, d / 2 - 0.4));
+    g.add(box(w - 1.2, 0.05, 0.05, BEAM, 0, 0.3, d / 2 - 0.4));
+    flag(g, pc, w / 2 - 0.4, 0, -d / 2 + 0.4);
+  },
+  foundry(g, w, d, level, pc) {
+    house(g, { w: 2, d: 1.6, h: 1.3 + level * 0.3, wall: 0x9a8a7a, roof: 0x4a4a52, x: -0.6, z: -0.3 });
+    g.add(box(0.4, 2.2, 0.4, 0x6d5a4a, 0.8, 0, -0.6));
+    const c = unitModel('cannon', 0); c.position.set(0.9, 0, d / 2 - 0.6); c.scale.setScalar(1.1); g.add(c);
+    flag(g, pc, -w / 2 + 0.4, 0, d / 2 - 0.4);
+  },
+  tower(g, w, d, level, pc) {
+    g.add(box(1.3, 2.4 + level * 0.4, 1.3, STONE));
+    const top = 2.4 + level * 0.4;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(box(0.25, 0.25, 0.25, STONE, sx * 0.52, top, sz * 0.52));
+    if (level === 0) g.add(cone(0.9, 0.8, pc, 0, top, 0, 4));
+    if (level === 1) { g.add(box(0.5, 0.12, 0.12, BEAM, 0, top + 0.1, 0)); g.add(box(0.08, 0.1, 0.6, BEAM, 0, top + 0.2, 0.1)); }
+    if (level === 2) { const c = unitModel('cannon', 0); c.position.y = top; c.scale.setScalar(0.9); g.add(c); }
+    flag(g, pc, -0.5, top, -0.5);
+  },
+});
+
+/** Health bar (billboard). */
+export function healthBar() {
+  const g = new THREE.Group();
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.07), new THREE.MeshBasicMaterial({ color: 0x1a1a1a, depthTest: false }));
+  const fg = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.07), new THREE.MeshBasicMaterial({ color: 0x6fcf7a, depthTest: false }));
+  fg.position.z = 0.001; fg.name = 'fg';
+  bg.renderOrder = 10; fg.renderOrder = 11;
+  g.add(bg, fg);
+  return g;
+}

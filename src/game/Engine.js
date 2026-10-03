@@ -8,6 +8,10 @@ import { RESOURCES } from '../sim/data/resources.js';
 import { TECHS, researchPoints } from '../sim/data/technologies.js';
 import { BLESSINGS, PROFESSIONS, WORKER } from '../sim/data/professions.js';
 import { averageMotivation, workerSlots, maxMotivation } from '../sim/systems/workers.js';
+import { UNITS, LINES, HEROES, unitOf, fullCost, LINE_UPGRADE_COST } from '../sim/data/units.js';
+import { targetable } from '../sim/systems/military.js';
+import { WEATHER_NAMES } from '../sim/data/weather.js';
+import { AiPlayer } from '../ai/AiPlayer.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
 import { Input } from './Input.js';
@@ -20,16 +24,23 @@ export const BUILD_MENU = [
   'clayMine', 'stoneMine', 'ironMine', 'sulfurMine',
   'brickworks', 'sawmill', 'stonemason', 'smithy', 'alchemist', 'bank',
   'chapel', 'storehouse', 'clock', 'windwheel',
+  'tower', 'barracks', 'archery', 'stable', 'foundry',
 ];
 
 export class Engine {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ seed?: number, onUi?: (state: any) => void }} opts
+   * @param {{ seed?: number, onUi?: (state: any) => void, difficulty?: string, players?: number, hero?: string }} opts
    */
   constructor(canvas, opts = {}) {
     this.player = 0;
-    this.sim = new Sim({ seed: opts.seed ?? 1 });
+    const players = opts.players ?? 2;
+    const heroes = ['bertram', 'hedda', 'gerold', 'bertram'];
+    if (opts.hero) { const i = heroes.indexOf(opts.hero); if (i > 0) [heroes[0], heroes[i]] = [heroes[i], heroes[0]]; }
+    this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes });
+    /** AI opponents for all other players */
+    this.ais = [];
+    for (let p = 1; p < players; p++) this.ais.push(new AiPlayer(this.sim, p, opts.difficulty ?? 'normal'));
     this.renderer = new Renderer(canvas, this.sim);
     this.onUi = opts.onUi ?? (() => {});
     /** @type {Set<number>} */
@@ -90,15 +101,22 @@ export class Engine {
 
   stepOnce() {
     this.prev = new Map();
-    for (const e of this.sim.entities.values()) if (e.kind === 'unit' || e.kind === 'worker') this.prev.set(e.id, { px: e.px, py: e.py });
+    for (const e of this.sim.entities.values()) if (e.px !== undefined) this.prev.set(e.id, { px: e.px, py: e.py });
+    for (const ai of this.ais) ai.update();
     const events = this.sim.step(this.queue);
     this.queue = [];
     this.renderer.onEvents(events);
     for (const ev of events) {
+      if (ev.type === 'weather') this.toast(`Wetter: ${WEATHER_NAMES[ev.state]}`);
+      if (ev.type === 'buildingDestroyed' && ev.owner === this.player) this.toast(`${BUILDINGS[ev.buildingType].levels[0].name} zerstört!`);
+      if (ev.type === 'killed' && ev.kind === 'hero' && ev.owner === this.player) this.toast('Euer Held ist bewusstlos');
+      if (ev.type === 'victory' || (ev.type === 'defeated' && ev.player === this.player)) this.emitUi();
       if (ev.player !== this.player) continue;
       if (ev.type === 'rejected') this.toast(ev.reason);
       if (ev.type === 'buildingDone') this.toast(`${BUILDINGS[ev.buildingType].levels[ev.level ?? 0].name} fertig`);
       if (ev.type === 'researchDone') this.toast(`„${ev.name}“ erforscht`);
+      if (ev.type === 'lineUpgraded') this.toast(`${LINES[ev.line].name}: Stufe ${ev.tier}`);
+      if (ev.type === 'heroRevived') this.toast('Euer Held ist wieder auf den Beinen');
       if (ev.type === 'workerLeft' && ev.reason === 'motivation') this.toast('Ein Arbeiter hat die Siedlung verlassen');
     }
     for (const id of this.selected) if (!this.sim.entities.has(id)) this.selected.delete(id);
@@ -118,18 +136,33 @@ export class Engine {
   ownSerfIds() {
     return [...this.selected].filter((id) => {
       const e = this.sim.entities.get(id);
-      return e?.kind === 'unit' && e.owner === this.player;
+      return e?.kind === 'unit' && e.owner === this.player && !e.militia;
     });
   }
 
-  clearSelection() { this.selected.clear(); this.emitUi(); }
+  /** Own military selection: captains, heroes, militia. */
+  ownArmyIds() {
+    return [...this.selected].filter((id) => {
+      const e = this.sim.entities.get(id);
+      return e && e.owner === this.player && (e.kind === 'leader' || e.kind === 'hero' || (e.kind === 'unit' && e.militia));
+    });
+  }
+
+  /** Selectable entity for an ID (soldier → his captain). */
+  selectable(id) {
+    let e = id ? this.sim.entities.get(id) : null;
+    if (e?.kind === 'soldier') e = this.sim.entities.get(e.leader);
+    return e;
+  }
+
+  clearSelection() { this.selected.clear(); this.attackMode = false; this.emitUi(); }
 
   selectAt(cx, cy, additive = false) {
-    const id = this.renderer.pickEntity(cx, cy);
-    const e = id ? this.sim.entities.get(id) : null;
+    const e = this.selectable(this.renderer.pickEntity(cx, cy));
+    const id = e?.id;
     if (!additive) this.selected.clear();
     if (e) {
-      if (e.kind === 'unit' && e.owner === this.player) {
+      if ((e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero') && e.owner === this.player) {
         if (additive && this.selected.has(id)) this.selected.delete(id); else this.selected.add(id);
       } else {
         this.selected.clear();
@@ -143,7 +176,7 @@ export class Engine {
     if (!additive) this.selected.clear();
     const [l, r] = [Math.min(x1, x2), Math.max(x1, x2)], [t, b] = [Math.min(y1, y2), Math.max(y1, y2)];
     for (const e of this.sim.entities.values()) {
-      if (e.kind !== 'unit' || e.owner !== this.player) continue;
+      if (!(e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero') || e.owner !== this.player) continue;
       const x = e.px / UNIT, z = e.py / UNIT;
       const s = this.renderer.project(x, this.renderer.terrain.heightAt(x, z) + 0.3, z);
       if (!s.behind && s.x >= l && s.x <= r && s.y >= t && s.y <= b) this.selected.add(e.id);
@@ -184,9 +217,13 @@ export class Engine {
   // ---------- Commands ----------
 
   /** Context command for the selected serfs at a screen position. */
-  commandAt(cx, cy) {
+  commandAt(cx, cy, attackMove = false) {
+    const army = this.ownArmyIds();
+    let done = false;
+    if (army.length) done = this.armyCommandAt(army, cx, cy, attackMove || this.attackMode);
+    this.attackMode = false;
     const units = this.ownSerfIds();
-    if (!units.length) return false;
+    if (!units.length) { this.emitUi(); return done; }
     const id = this.renderer.pickEntity(cx, cy);
     const hit = id ? this.sim.entities.get(id) : null;
     if (hit?.kind === 'building') {
@@ -214,13 +251,44 @@ export class Engine {
     return false;
   }
 
+  armyCommandAt(units, cx, cy, attackMove) {
+    const hit = this.selectable(this.renderer.pickEntity(cx, cy));
+    if (hit && hit.owner !== this.player && hit.owner !== undefined && targetable(this.sim, hit.kind === 'leader' && hit.soldiers.length ? this.sim.entities.get(hit.soldiers[0]) : hit)) {
+      const target = hit.kind === 'leader' && hit.soldiers.length ? hit.soldiers[0] : hit.id;
+      this.issue({ type: 'order', units, order: 'attack', target });
+      return true;
+    }
+    const g = this.renderer.pickGround(cx, cy);
+    if (!g) return false;
+    this.issue({ type: 'order', units, order: attackMove ? 'attackMove' : 'move', x: Math.floor(g.x), y: Math.floor(g.z) });
+    return true;
+  }
+
+  /** Military commands from the UI. */
+  armyOrder(order) {
+    const units = this.ownArmyIds();
+    if (!units.length) return;
+    if (order === 'attackMove') { this.attackMode = !this.attackMode; this.emitUi(); return; }
+    this.issue({ type: 'order', units, order });
+  }
+  refillSoldiers() {
+    for (const id of this.ownArmyIds()) {
+      const e = this.sim.entities.get(id);
+      if (e?.kind === 'leader' && e.soldiers.length < UNITS[e.def].soldiers) this.issue({ type: 'buySoldiers', leader: id });
+    }
+  }
+  ability(hero, ability) { this.issue({ type: 'ability', hero, ability }); }
+  recruit(building, line, full) { this.issue({ type: 'recruit', building, line, full }); }
+  upgradeLine(line) { this.issue({ type: 'upgradeLine', line }); }
+  militia(on) { this.issue({ type: 'militia', on }); }
+
   /** Tap on touch devices: select, give a command or choose a building spot. */
   tap(cx, cy) {
     if (this.placing) { this.hover(cx, cy); this.emitUi(); return; }
-    const id = this.renderer.pickEntity(cx, cy);
-    const e = id ? this.sim.entities.get(id) : null;
-    const haveSerfs = this.ownSerfIds().length > 0;
-    if (e?.kind === 'unit' && e.owner === this.player) {
+    const e = this.selectable(this.renderer.pickEntity(cx, cy));
+    const id = e?.id;
+    const haveSerfs = this.ownSerfIds().length > 0 || this.ownArmyIds().length > 0;
+    if ((e?.kind === 'unit' || e?.kind === 'leader' || e?.kind === 'hero') && e.owner === this.player) {
       if (haveSerfs && this.multi) this.selected.has(id) ? this.selected.delete(id) : this.selected.add(id);
       else { this.selected.clear(); this.selected.add(id); }
       this.emitUi();
@@ -287,6 +355,31 @@ export class Engine {
     this.emitUi();
   }
 
+  /** Recruit and upgrade options of a military building. */
+  recruitOptions(b) {
+    const lines = Object.entries(LINES).filter(([, L]) => L.building === b.type);
+    if (!lines.length) return null;
+    const sim = this.sim, pl = sim.players[this.player];
+    const free = sim.popLimit(this.player) - sim.popUsed(this.player);
+    return lines.map(([line, L]) => {
+      const tier = pl.unitTier[line];
+      const def = unitOf(line, tier);
+      const full = fullCost(def);
+      const popFull = def.pop * (1 + def.soldiers);
+      const nextCost = LINE_UPGRADE_COST[`${line}${tier}`];
+      const next = unitOf(line, tier + 1);
+      let upReason = null;
+      if (nextCost) upReason = sim.checkLineTier(this.player, line, tier + 1) ?? (sim.canPay(this.player, nextCost) ? null : 'Nicht genug Rohstoffe');
+      return {
+        line, lineName: L.name, name: def.name, tier, soldiers: def.soldiers,
+        leaderCost: Object.entries(def.leaderCost), fullCost: Object.entries(full),
+        leaderReason: free < def.pop ? 'Bevölkerungslimit' : sim.canPay(this.player, def.leaderCost) ? null : 'Zu teuer',
+        fullReason: free < popFull ? 'Bevölkerungslimit' : sim.canPay(this.player, full) ? null : 'Zu teuer',
+        upgrade: nextCost && next ? { name: next.name, cost: Object.entries(nextCost), reason: upReason } : null,
+      };
+    });
+  }
+
   // ---------- UI ----------
 
   emitUi() { this.onUi(this.uiState()); }
@@ -298,8 +391,32 @@ export class Engine {
     const now = performance.now();
     this.toasts = this.toasts.filter((t) => now - t.at < 4000);
     const serfs = this.ownSerfIds();
+    const army = this.ownArmyIds().map((id) => sim.entities.get(id));
     let selection = null;
-    if (serfs.length) {
+    if (army.length) {
+      const groups = {};
+      let soldiers = 0, refill = false;
+      const heroes = [];
+      for (const e of army) {
+        if (e.kind === 'leader') {
+          const d = UNITS[e.def];
+          groups[d.name] = (groups[d.name] ?? 0) + 1;
+          soldiers += e.soldiers.length;
+          if (e.soldiers.length < d.soldiers) refill = true;
+        } else if (e.kind === 'hero') {
+          const h = HEROES[e.hero];
+          heroes.push({
+            id: e.id, name: h.name, title: h.title, hp: e.hp, maxHp: h.hp, down: e.down,
+            abilities: Object.entries(h.abilities).map(([id, a]) => ({ id, name: a.name, readyIn: Math.max(0, Math.ceil(((e.ready[id] ?? 0) - sim.tick) / 10)) })),
+          });
+        } else groups.Miliz = (groups.Miliz ?? 0) + 1;
+      }
+      selection = {
+        kind: 'army', serfs: serfs.length, soldiers, refill, heroes,
+        groups: Object.entries(groups).map(([name, count]) => ({ name, count })),
+        attackMode: !!this.attackMode,
+      };
+    } else if (serfs.length) {
       const idle = serfs.filter((id) => !sim.entities.get(id).job).length;
       selection = { kind: 'serfs', count: serfs.length, idle };
     } else if (this.selected.size === 1) {
@@ -331,6 +448,8 @@ export class Engine {
             reason: b.minLevel && e.level < b.minLevel ? 'Nur in der Kathedrale' : pl.faith < WORKER.blessingFaith ? 'Nicht genug Glaube' : null,
           })) : null,
           tax: own && e.type === 'headquarters' ? { level: pl.taxLevel, allowed: pl.techs.has('education') } : null,
+          militia: own && e.type === 'headquarters' ? [...sim.entities.values()].some((u) => u.kind === 'unit' && u.owner === this.player && u.militia) : null,
+          recruit: own && e.done ? this.recruitOptions(e) : null,
         };
       } else if (e?.kind === 'unit') {
         selection = { kind: 'enemy', owner: e.owner };
@@ -345,6 +464,7 @@ export class Engine {
       return { type, name: def.levels[0].name, cost: Object.entries(cost), reason };
     }) : [];
     const ticksToPay = BALANCE.paydayTicks - (sim.tick % BALANCE.paydayTicks);
+    const gameOver = pl.defeated ? { won: false } : sim.winner !== null ? { won: sim.winner === pl.team } : null;
     return {
       tick: sim.tick,
       res,
@@ -361,6 +481,8 @@ export class Engine {
       placing: this.placing ? { type: this.placing.type, name: BUILDINGS[this.placing.type].levels[0].name, valid: this.placing.valid, reason: this.placing.reason, hasPos: this.placing.hasPos } : null,
       toasts: this.toasts.map((t) => ({ id: t.id, text: t.text })),
       touch: this.touch,
+      weather: { name: WEATHER_NAMES[sim.weather.state], state: sim.weather.state, in: Math.ceil((sim.weather.until - sim.tick) / 10) },
+      gameOver,
       serfCost: BALANCE.serf.cost.gold,
     };
   }

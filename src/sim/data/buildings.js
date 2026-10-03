@@ -115,6 +115,44 @@ function refiner(id, n1, n2, cost, requires, workers) {
   };
 }
 
+// Military (cost (A), HP/armor from dedk.de)
+BUILDINGS.barracks = {
+  id: 'barracks', w: 4, h: 4, placement: 'free', requires: 'conscription', armor: 4,
+  levels: [
+    { name: 'Kaserne', cost: { wood: 300, stone: 250 }, buildTime: 90, hp: 1500 },
+    { name: 'Garnison', cost: { gold: 200, stone: 400 }, buildTime: 70, hp: 2000 },
+  ],
+};
+BUILDINGS.archery = {
+  id: 'archery', w: 4, h: 3, placement: 'free', requires: 'standingArmy', armor: 4,
+  levels: [
+    { name: 'Schießplatz', cost: { wood: 300, stone: 200 }, buildTime: 80, hp: 1500 },
+    { name: 'Schießanlage', cost: { gold: 200, stone: 400 }, buildTime: 70, hp: 2000 },
+  ],
+};
+BUILDINGS.stable = {
+  id: 'stable', w: 4, h: 4, placement: 'free', requires: 'tactics', armor: 4,
+  levels: [
+    { name: 'Reiterei', cost: { wood: 400, stone: 300 }, buildTime: 90, hp: 1500 },
+    { name: 'Stall', cost: { gold: 300, stone: 400 }, buildTime: 80, hp: 2000 },
+  ],
+};
+BUILDINGS.foundry = {
+  id: 'foundry', w: 4, h: 3, placement: 'free', requires: 'metallurgy', armor: 3,
+  levels: [
+    { name: 'Kanonengießerei', cost: { stone: 400, iron: 300 }, buildTime: 90, hp: 1200 },
+    { name: 'Kanonenmanufaktur', cost: { gold: 300, stone: 400, iron: 300 }, buildTime: 80, hp: 2000 },
+  ],
+};
+BUILDINGS.tower = {
+  id: 'tower', w: 2, h: 2, placement: 'free', requires: 'construction', armor: 6,
+  levels: [
+    { name: 'Wachturm', cost: { wood: 200, stone: 300 }, buildTime: 60, hp: 1000 },
+    { name: 'Ballistaturm', cost: { stone: 300, iron: 100 }, buildTime: 50, hp: 1200 },
+    { name: 'Kanonenturm', cost: { stone: 400, iron: 200, sulfur: 100 }, buildTime: 60, hp: 1400 },
+  ],
+};
+
 // Ornamental buildings: raise the maximum motivation permanently and the current one once (source: dedk.de).
 BUILDINGS.clock = {
   id: 'clock', w: 2, h: 2, placement: 'free', requires: 'construction', motivationEffect: 4,
@@ -144,4 +182,15 @@ export const UPGRADE_REQUIRES = {
   bank: [null, 'libraries'],
   chapel: [null, 'printing', 'libraries'],
   storehouse: [null, 'trade'],
+  barracks: [null, 'pulley'],
+  archery: [null, 'pulley'],
+  stable: [null, 'horseBreeding'],
+  foundry: [null, 'chemistry'],
+  tower: [null, 'gears', 'metallurgy'],
 };
+
+/** Armor of a building (source: dedk.de, otherwise 3). */
+export function buildingArmor(type, level) {
+  if (type === 'headquarters') return 6 + level;
+  return BUILDINGS[type].armor ?? 3;
+}

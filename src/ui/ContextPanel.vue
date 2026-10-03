@@ -15,6 +15,42 @@
       </div>
     </template>
 
+    <!-- Troops and heroes -->
+    <template v-else-if="ui.selection?.kind === 'army'">
+      <div class="head">
+        <strong>Truppen</strong>
+        <span class="hint">
+          <template v-for="(g, i) in sel.groups" :key="g.name">{{ i ? ' · ' : '' }}{{ g.count }}× {{ g.name }}</template>
+          <template v-if="sel.soldiers"> · {{ sel.soldiers }} Soldaten</template>
+          <template v-if="sel.serfs"> · {{ sel.serfs }} Leibeigene</template>
+        </span>
+        <button class="close" title="Auswahl aufheben" @click="$emit('deselect')">×</button>
+      </div>
+      <div class="scroll">
+        <div v-for="h in sel.heroes" :key="h.id" class="block">
+          <span class="label">{{ h.name }}, {{ h.title }} · {{ h.down ? 'bewusstlos' : `LP ${h.hp}/${h.maxHp}` }}</span>
+          <div class="row">
+            <button
+              v-for="a in h.abilities"
+              :key="a.id"
+              :disabled="h.down || a.readyIn > 0"
+              :data-testid="'ability-' + a.id"
+              @click="$emit('action', { kind: 'ability', hero: h.id, ability: a.id })"
+            >{{ a.name }}<span v-if="a.readyIn" class="num"> · {{ a.readyIn }}s</span></button>
+          </div>
+        </div>
+        <div class="row">
+          <button :class="{ active: sel.attackMode }" data-testid="order-attack" @click="$emit('action', { kind: 'order', order: 'attackMove' })">
+            {{ sel.attackMode ? (ui.touch ? 'Ziel antippen …' : 'Ziel anklicken …') : 'Angreifen' }}
+          </button>
+          <button @click="$emit('action', { kind: 'order', order: 'hold' })">Halten</button>
+          <button @click="$emit('action', { kind: 'order', order: 'defend' })">Verteidigen</button>
+          <button v-if="sel.refill" title="Hauptmann muss am Militärgebäude stehen" @click="$emit('action', { kind: 'refill' })">Soldaten auffüllen</button>
+        </div>
+        <p class="hint">{{ ui.touch ? 'Tippe auf den Boden zum Laufen, auf Feinde zum Angreifen.' : 'Rechtsklick: laufen bzw. angreifen · Strg+Rechtsklick: Angriffsbewegung' }}</p>
+      </div>
+    </template>
+
     <!-- Leibeigene -->
     <template v-else-if="ui.selection?.kind === 'serfs'">
       <div class="head">
@@ -60,6 +96,28 @@
         <div v-if="sel.own && sel.done && sel.type === 'headquarters'" class="row">
           <button class="primary" data-testid="buy-serf" @click="$emit('buy-serf', 1)">Leibeigenen kaufen ({{ ui.serfCost }} Taler)</button>
           <button @click="$emit('buy-serf', 5)">5 kaufen</button>
+        </div>
+
+        <div v-if="sel.militia !== null && sel.militia !== undefined" class="row">
+          <button :class="{ danger: !sel.militia, active: sel.militia }" data-testid="militia" @click="$emit('action', { kind: 'militia', on: !sel.militia })">
+            {{ sel.militia ? 'Entwarnung (Miliz auflösen)' : 'Zu den Waffen! (Leibeigene bewaffnen)' }}
+          </button>
+        </div>
+
+        <div v-for="r in sel.recruit ?? []" :key="r.line" class="block">
+          <span class="label">{{ r.lineName }} · Stufe {{ r.tier }}: {{ r.name }}</span>
+          <div class="row">
+            <button class="primary" :disabled="!!r.fullReason" :title="r.fullReason || ''" :data-testid="'recruit-full-' + r.line" @click="$emit('action', { kind: 'recruit', id: sel.id, line: r.line, full: true })">
+              Volle Einheit (1+{{ r.soldiers }}) · <span class="num">{{ costText(r.fullCost) }}</span>
+            </button>
+            <button :disabled="!!r.leaderReason" :title="r.leaderReason || ''" @click="$emit('action', { kind: 'recruit', id: sel.id, line: r.line, full: false })">
+              Nur Hauptmann · <span class="num">{{ costText(r.leaderCost) }}</span>
+            </button>
+            <button v-if="r.upgrade" :disabled="!!r.upgrade.reason" :title="r.upgrade.reason || ''" @click="$emit('action', { kind: 'upgradeLine', line: r.line })">
+              Aufwerten zu {{ r.upgrade.name }} · <span class="num">{{ costText(r.upgrade.cost) }}</span>
+            </button>
+          </div>
+          <p v-if="r.upgrade?.reason" class="hint">{{ r.upgrade.name }}: {{ r.upgrade.reason }}</p>
         </div>
 
         <div v-if="sel.tax" class="block">

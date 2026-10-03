@@ -119,11 +119,12 @@ export class Input {
         this.engine.selectBox(p.sx, p.sy, e.clientX, e.clientY, e.shiftKey);
       } else if (!moved) {
         if (this.engine.placing) this.engine.confirmPlacement(e.shiftKey);
+        else if (this.engine.attackMode) this.engine.commandAt(e.clientX, e.clientY, true);
         else this.engine.selectAt(e.clientX, e.clientY, e.shiftKey);
       }
     } else if (p.button === 2 && !moved) {
       if (this.engine.placing) this.engine.cancelPlacement();
-      else this.engine.commandAt(e.clientX, e.clientY);
+      else this.engine.commandAt(e.clientX, e.clientY, e.ctrlKey);
     }
     this.gesture = null;
   }

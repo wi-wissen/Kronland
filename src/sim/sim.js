@@ -13,6 +13,9 @@ import { Hasher } from './hash.js';
 import { updateSerf, clearJob, assignJob } from './systems/serfs.js';
 import { updatePayday } from './systems/payday.js';
 import { updateSpawning, updateWorker, removeWorker, workersOf, maxMotivation } from './systems/workers.js';
+import { updateMilitary, setMilitia, useAbility, slotOffset } from './systems/military.js';
+import { UNITS, LINES, unitOf, fullCost, LINE_UPGRADE_COST, HEROES } from './data/units.js';
+import { WEATHER_CYCLE } from './data/weather.js';
 
 /** @typedef {import('./data/resources.js').ResourceId} ResourceId */
 
@@ -106,13 +109,37 @@ export class Sim {
     for (let p = 0; p < gen.starts.length; p++) {
       const stock = emptyStock();
       for (const r of RESOURCES) stock[r] = START_RESOURCES[r];
-      this.players.push({ id: p, stock, raw: emptyStock(), taxLevel: BALANCE.tax.defaultLevel, techs: new Set(), defeated: false, faith: 0 });
+      this.players.push({
+        id: p, stock, raw: emptyStock(), taxLevel: BALANCE.tax.defaultLevel, techs: new Set(), defeated: false, faith: 0,
+        unitTier: { sword: 1, spear: 1, bow: 1, lightCav: 1, heavyCav: 1, cannon: 1 }, team: opts.teams?.[p] ?? p,
+      });
       const hq = gen.hqs[p];
       this.createBuilding(p, 'headquarters', hq.x, hq.y, true);
       const spot = this.spots.find((s) => this.isOwnStartSpot(s, gen.starts[p]));
       if (spot) this.createBuilding(p, 'villageCenter', spot.x, spot.y, true);
       for (let i = 0; i < BALANCE.startSerfs; i++) this.spawnSerf(p);
+      const hero = opts.heroes?.[p] ?? ['bertram', 'hedda', 'gerold'][p % 3];
+      if (hero) this.spawnHero(p, hero);
     }
+    /** Weather: state and tick of the next change */
+    this.weatherCycle = opts.weatherCycle ?? WEATHER_CYCLE;
+    this.weather = { state: this.weatherCycle[0][0], index: 0, until: this.weatherCycle[0][1] };
+    /** @type {number|null} winner team */
+    this.winner = null;
+  }
+
+  allied(a, b) { return this.players[a]?.team === this.players[b]?.team; }
+
+  spawnHero(owner, hero) {
+    const hq = this.findBuilding(owner, 'headquarters');
+    const ring = this.map.ring(hq.x, hq.y, hq.w, hq.h);
+    const t = ring[(ring.length >> 1) % ring.length];
+    const h = {
+      id: this.nextId++, kind: 'hero', hero, owner, px: tileCenter(t % this.map.width), py: tileCenter((t / this.map.width) | 0),
+      path: [], hp: HEROES[hero].hp, down: false, downTimer: 0, ready: {}, order: { type: 'idle' }, targetId: 0, cooldown: 0,
+    };
+    this.entities.set(h.id, h);
+    return h;
   }
 
   isOwnStartSpot(spot, start) {
@@ -138,7 +165,7 @@ export class Sim {
     const b = {
       id: this.nextId++, kind: 'building', type, owner, x, y, w: def.w, h: def.h,
       level: 0, done, progress: 0, work: secondsToTicks(lvl.buildTime) * BALANCE.serf.maxBuildersPerSite,
-      hp: done ? lvl.hp : Math.max(1, Math.trunc(lvl.hp / 10)), builders: [],
+      hp: done ? lvl.hp : Math.max(1, Math.trunc(lvl.hp / 10)), builders: [], cooldown: 0,
       workers: [], residents: [], eaters: [], overtime: false, research: null,
     };
     this.entities.set(b.id, b);
@@ -218,7 +245,11 @@ export class Sim {
 
   popUsed(owner) {
     let n = 0;
-    for (const e of this.entities.values()) if ((e.kind === 'unit' || e.kind === 'worker') && e.owner === owner) n++;
+    for (const e of this.entities.values()) {
+      if (e.owner !== owner) continue;
+      if (e.kind === 'unit' || e.kind === 'worker') n++;
+      else if (e.kind === 'leader' || e.kind === 'soldier') n += UNITS[e.def].pop;
+    }
     return n;
   }
 
@@ -275,6 +306,12 @@ export class Sim {
       case 'research': return this.cmdResearch(cmd);
       case 'setOvertime': return this.cmdOvertime(cmd);
       case 'bless': return this.cmdBless(cmd);
+      case 'recruit': return this.cmdRecruit(cmd);
+      case 'buySoldiers': return this.cmdBuySoldiers(cmd);
+      case 'upgradeLine': return this.cmdUpgradeLine(cmd);
+      case 'order': return this.cmdOrder(cmd);
+      case 'ability': return this.cmdAbility(cmd);
+      case 'militia': setMilitia(this, cmd.player, !!cmd.on); return true;
       default: return this.reject(cmd, 'Unbekannter Befehl');
     }
   }
@@ -495,6 +532,176 @@ export class Sim {
     return true;
   }
 
+  // ---------- Military ----------
+
+  /** Reason why tier `tier` of a line is not available, or null. */
+  checkLineTier(owner, line, tier) {
+    if (!unitOf(line, tier)) return 'Diese Stufe gibt es nicht';
+    const L = LINES[line];
+    const recruit = [...this.entities.values()].filter((e) => e.kind === 'building' && e.owner === owner && e.type === L.building && e.done);
+    if (!recruit.length) return `${BUILDINGS[L.building].levels[0].name} nötig`;
+    if (tier >= 2 && L.refiner && !this.findDone(owner, L.refiner)) return `${BUILDINGS[L.refiner].levels[0].name} nötig`;
+    if (tier >= 2 && !L.refiner && line !== 'cannon' && !recruit.some((b) => b.level >= 1)) return `Erst zu ${BUILDINGS[L.building].levels[1].name} ausbauen`;
+    if (tier >= 3 && !recruit.some((b) => b.level >= 1)) return `Erst zu ${BUILDINGS[L.building].levels[1].name} ausbauen`;
+    if (tier >= 4 && (this.findBuilding(owner, 'headquarters')?.level ?? 0) < 1) return 'Erst die Burg zur Festung ausbauen';
+    return null;
+  }
+
+  findDone(owner, type) {
+    for (const e of this.entities.values()) if (e.kind === 'building' && e.owner === owner && e.type === type && e.done) return e;
+    return null;
+  }
+
+  cmdRecruit(cmd) {
+    const b = this.ownBuilding(cmd);
+    const L = LINES[cmd.line];
+    if (!b || !L || b.type !== L.building || !b.done) return this.reject(cmd, 'Passendes Militärgebäude nötig');
+    const p = this.players[cmd.player];
+    const def = unitOf(cmd.line, p.unitTier[cmd.line]);
+    const soldiers = cmd.full ? def.soldiers : 0;
+    const cost = cmd.full ? fullCost(def) : def.leaderCost;
+    if (this.popUsed(cmd.player) + def.pop * (1 + soldiers) > this.popLimit(cmd.player)) return this.reject(cmd, 'Bevölkerungslimit erreicht');
+    if (!this.pay(cmd.player, cost)) return this.reject(cmd, 'Nicht genug Rohstoffe');
+    const ring = this.map.ring(b.x, b.y, b.w, b.h);
+    const t = ring[(this.tick + b.id) % ring.length];
+    const leader = this.spawnLeader(cmd.player, def.id, t % this.map.width, (t / this.map.width) | 0, soldiers);
+    this.events.push({ type: 'recruited', player: cmd.player, leader: leader.id, def: def.id });
+    return true;
+  }
+
+  /** Create a squad leader with soldiers on a tile (without cost). */
+  spawnLeader(owner, defId, tx, ty, soldiers = UNITS[defId].soldiers) {
+    const def = UNITS[defId];
+    const px = tileCenter(tx), py = tileCenter(ty);
+    const leader = {
+      id: this.nextId++, kind: 'leader', def: def.id, owner, px, py, path: [], hp: def.hp,
+      soldiers: [], order: { type: 'idle' }, anchor: { x: px, y: py }, targetId: 0, cooldown: 0, buff: null,
+    };
+    this.entities.set(leader.id, leader);
+    for (let i = 0; i < soldiers; i++) this.addSoldier(leader);
+    return leader;
+  }
+
+  addSoldier(leader) {
+    const def = UNITS[leader.def];
+    const off = slotOffset(leader.soldiers.length);
+    let px = leader.px + off.x, py = leader.py + off.y;
+    if (!this.map.walkable(toTile(px), toTile(py))) { px = leader.px; py = leader.py; }
+    const s = { id: this.nextId++, kind: 'soldier', leader: leader.id, def: def.id, owner: leader.owner, px, py, path: [], hp: def.soldierHp, targetId: 0, cooldown: 0 };
+    this.entities.set(s.id, s);
+    leader.soldiers.push(s.id);
+    return s;
+  }
+
+  cmdBuySoldiers(cmd) {
+    const L = this.entities.get(cmd.leader);
+    if (!L || L.kind !== 'leader' || L.owner !== cmd.player) return this.reject(cmd, 'Kein eigener Hauptmann');
+    const def = UNITS[L.def];
+    const free = def.soldiers - L.soldiers.length;
+    if (free <= 0) return this.reject(cmd, 'Truppe ist vollständig');
+    const near = [...this.entities.values()].some((b) => b.kind === 'building' && b.owner === cmd.player && b.done && b.type === def.building
+      && L.px >= (b.x - 5) * UNIT && L.px <= (b.x + b.w + 5) * UNIT && L.py >= (b.y - 5) * UNIT && L.py <= (b.y + b.h + 5) * UNIT);
+    if (!near) return this.reject(cmd, `Hauptmann muss bei ${BUILDINGS[def.building].levels[0].name} stehen`);
+    const n = Math.min(free, cmd.count ?? free);
+    for (let i = 0; i < n; i++) {
+      if (this.popUsed(cmd.player) + def.pop > this.popLimit(cmd.player)) return this.reject(cmd, 'Bevölkerungslimit erreicht');
+      if (!this.pay(cmd.player, def.soldierCost)) return this.reject(cmd, 'Nicht genug Rohstoffe');
+      this.addSoldier(L);
+    }
+    return true;
+  }
+
+  cmdUpgradeLine(cmd) {
+    const p = this.players[cmd.player];
+    const tier = p.unitTier[cmd.line];
+    if (!tier) return this.reject(cmd, 'Unbekannte Truppengattung');
+    const cost = LINE_UPGRADE_COST[`${cmd.line}${tier}`];
+    if (!cost) return this.reject(cmd, 'Höchste Stufe erreicht');
+    const err = this.checkLineTier(cmd.player, cmd.line, tier + 1);
+    if (err) return this.reject(cmd, err);
+    if (!this.pay(cmd.player, cost)) return this.reject(cmd, 'Nicht genug Rohstoffe');
+    p.unitTier[cmd.line] = tier + 1;
+    const next = unitOf(cmd.line, tier + 1);
+    for (const e of this.entities.values()) {
+      if ((e.kind === 'leader' || e.kind === 'soldier') && e.owner === cmd.player && UNITS[e.def].line === cmd.line) e.def = next.id;
+    }
+    this.events.push({ type: 'lineUpgraded', player: cmd.player, line: cmd.line, tier: tier + 1 });
+    return true;
+  }
+
+  cmdOrder(cmd) {
+    const units = (cmd.units ?? []).map((id) => this.entities.get(id))
+      .filter((e) => e && e.owner === cmd.player && (e.kind === 'leader' || e.kind === 'hero' || (e.kind === 'unit' && e.militia)));
+    if (!units.length) return this.reject(cmd, 'Keine Truppen ausgewählt');
+    units.forEach((e, i) => {
+      if (e.kind === 'hero' && e.down) return;
+      e.path = []; e.targetId = 0;
+      if (cmd.order === 'move' || cmd.order === 'attackMove') {
+        // Fan out the targets so the squads do not stand on top of each other
+        const ox = ((i % 4) * 2 - 3) * 1000, oy = Math.floor(i / 4) * 2000;
+        let x = cmd.x * UNIT + 500 + ox, y = cmd.y * UNIT + 500 + oy;
+        if (!this.map.walkable(toTile(x), toTile(y))) { x = cmd.x * UNIT + 500; y = cmd.y * UNIT + 500; }
+        e.order = { type: cmd.order, x, y };
+      } else if (cmd.order === 'attack') e.order = { type: 'attack', target: cmd.target };
+      else if (cmd.order === 'hold') e.order = { type: 'hold' };
+      else { e.order = { type: 'idle' }; e.anchor = { x: e.px, y: e.py }; }
+    });
+    return true;
+  }
+
+  cmdAbility(cmd) {
+    const h = this.entities.get(cmd.hero);
+    if (!h || h.kind !== 'hero' || h.owner !== cmd.player) return this.reject(cmd, 'Kein eigener Held');
+    const x = cmd.x !== undefined ? cmd.x * UNIT + 500 : undefined, y = cmd.y !== undefined ? cmd.y * UNIT + 500 : undefined;
+    const err = useAbility(this, h, cmd.ability, x, y);
+    if (err) return this.reject(cmd, err);
+    return true;
+  }
+
+  // ---------- Weather and victory ----------
+
+  updateWeather() {
+    if (this.tick < this.weather.until) return;
+    const i = (this.weather.index + 1) % this.weatherCycle.length;
+    const [state, dur] = this.weatherCycle[i];
+    const wasWinter = this.weather.state === 'winter';
+    this.weather = { state, index: i, until: this.tick + dur };
+    this.map.frozen = state === 'winter';
+    this.events.push({ type: 'weather', state });
+    if (wasWinter && !this.map.frozen) {
+      // Thaw: whoever stands on the ice drowns; heroes return to the castle
+      for (const e of [...this.entities.values()]) {
+        if (e.px === undefined || !(this.map.flags[this.map.idx(toTile(e.px), toTile(e.py))] & WATER)) continue;
+        if (e.kind === 'hero') {
+          const hq = this.findBuilding(e.owner, 'headquarters');
+          if (hq) { e.px = tileCenter(hq.x + 2); e.py = tileCenter(hq.y + hq.h + 1); e.path = []; }
+        } else if (e.kind === 'worker') removeWorker(this, e, 'drowned');
+        else if (e.kind === 'leader') { for (const s of e.soldiers) this.entities.delete(s); this.entities.delete(e.id); }
+        else if (e.kind === 'soldier') {
+          const L = this.entities.get(e.leader);
+          if (L) L.soldiers = L.soldiers.filter((x) => x !== e.id);
+          this.entities.delete(e.id);
+        } else this.entities.delete(e.id);
+      }
+    }
+  }
+
+  /** Players without a castle are eliminated; the last team wins. */
+  checkDefeat(owner) {
+    const p = this.players[owner];
+    if (p.defeated || this.findBuilding(owner, 'headquarters')) return;
+    p.defeated = true;
+    for (const e of [...this.entities.values()]) {
+      if (e.owner === owner && e.kind !== 'building') this.entities.delete(e.id);
+    }
+    this.events.push({ type: 'defeated', player: owner });
+    const teams = new Set(this.players.filter((q) => !q.defeated).map((q) => q.team));
+    if (teams.size === 1) {
+      this.winner = [...teams][0];
+      this.events.push({ type: 'victory', team: this.winner });
+    }
+  }
+
   // ---------- Tick ----------
 
   /** Compute one tick (100 ms). @param {any[]} [commands] additional commands for this tick */
@@ -507,10 +714,12 @@ export class Sim {
     updateSpawning(this);
     for (const e of [...this.entities.values()]) {
       if (!this.entities.has(e.id)) continue;
-      if (e.kind === 'unit') updateSerf(this, e);
+      if (e.kind === 'unit' && !e.militia) updateSerf(this, e);
       else if (e.kind === 'worker') updateWorker(this, e);
     }
+    updateMilitary(this);
     updatePayday(this);
+    this.updateWeather();
     this.tick++;
     return this.events;
   }
@@ -535,6 +744,7 @@ export class Sim {
       h.int(e.id).str(e.kind);
       if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length);
       else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state);
+      else if (e.px !== undefined) h.int(e.px).int(e.py).int(e.hp ?? 0).int(e.targetId ?? 0).int(e.cooldown ?? 0);
       else if (e.kind === 'building') h.str(e.type).int(e.x).int(e.y).int(e.progress).int(e.done ? 1 : 0).int(e.level).int(e.hp);
       else h.int(e.x).int(e.y).int(e.amount);
     }

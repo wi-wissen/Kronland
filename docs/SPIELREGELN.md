@@ -87,7 +87,17 @@ dazu Techs in Burg, Dorfzentrum, Veredlern und Militärgebäuden.
   Tabelle in `src/sim/data/combat.js`.
 - Türme: Wachturm → Ballistaturm → Kanonenturm.
 - Helden: 600 LP, werden bewusstlos statt zu sterben, stehen nach 10 s ohne Feinde
-  mit halben LP wieder auf. Eigene Heldenfiguren mit Fähigkeiten nach Vorbild des Originals.
+  mit halben LP wieder auf. Eigene Heldenfiguren mit Fähigkeiten nach Vorbild des Originals:
+  - **Bertram**, Ritter: Wirbelschlag (80 Flächenschaden), Aura der Stärke (Angriff ×2, 60 s)
+  - **Hedda**, Kräuterkundige: Heilen (170 LP im Umkreis), Falle (36 Schaden)
+  - **Gerold**, Sprengmeister: Bombe (50 Schaden nach 2 s), Selbstschuss-Kanone (4 Schuss)
+- Rekrutieren: volle Einheit oder nur Hauptmann; Soldaten nachkaufen am Militärgebäude.
+- Aufwerten einer Truppengattung (Stufe 2: passender Veredler, Stufe 3: ausgebautes
+  Militärgebäude, Stufe 4: zusätzlich Festung) wertet auch bestehende Truppen auf.
+- Befehle: Laufen, Angreifen (Ziel oder Angriffsbewegung), Halten, Verteidigen (Standard:
+  Feinde in 9 Kacheln Umkreis angreifen, höchstens 14 Kacheln vom Ankerpunkt weg) **(A)**.
+- Regen: Fernkampf −30 % **(A)**. Winter: −25 % Tempo **(A)**.
+- Miliz: „Zu den Waffen!“ in der Burg bewaffnet alle Leibeigenen.
 
 ## 9. Wetter
 

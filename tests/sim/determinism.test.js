@@ -42,3 +42,20 @@ describe('Determinism', () => {
     expect([...sim.entities.values()].some((e) => e.kind === 'building' && e.type === 'residence' && e.done)).toBe(true);
   });
 });
+
+describe('Determinism in combat', () => {
+  const fight = () => {
+    const sim = new Sim({ seed: 7 });
+    const hq = sim.findBuilding(0, 'headquarters');
+    const a = sim.spawnLeader(0, 'sword1', hq.x + 8, hq.y + 8);
+    const b = sim.spawnLeader(1, 'bow1', hq.x + 14, hq.y + 8);
+    const c = sim.spawnLeader(1, 'spear1', hq.x + 14, hq.y + 10);
+    sim.command({ type: 'order', player: 0, units: [a.id], order: 'attackMove', x: hq.x + 16, y: hq.y + 9 });
+    sim.command({ type: 'order', player: 1, units: [b.id, c.id], order: 'attackMove', x: hq.x + 6, y: hq.y + 8 });
+    sim.run(1500);
+    return sim.hash();
+  };
+  it('same battle, same result', () => {
+    expect(fight()).toBe(fight());
+  });
+});

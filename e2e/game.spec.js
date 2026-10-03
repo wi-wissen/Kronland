@@ -72,3 +72,19 @@ test('Start research in the university', async ({ page }) => {
   await expect(page.getByTestId('tech-education')).toContainText('läuft');
   await expect(page.getByTestId('res-gold')).toHaveText('450');
 });
+
+test('Recruit squads in the barracks', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const e = window.__kronland, s = e.sim, p = s.players[0];
+    p.techs.add('conscription');
+    p.stock.iron = 500;
+    const hq = s.findBuilding(0, 'headquarters');
+    const pos = s.findPlacement(0, 'barracks', hq.x + 3, hq.y + 8, 30);
+    const b = s.createBuilding(0, 'barracks', pos.x, pos.y, true);
+    e.selected.clear(); e.selected.add(b.id); e.emitUi();
+  });
+  await page.getByTestId('recruit-full-sword').click();
+  await expect.poll(() => page.evaluate(() => [...window.__kronland.sim.entities.values()].filter((e) => e.kind === 'soldier' && e.owner === 0).length)).toBe(4);
+  await expect(page.getByTestId('res-gold')).toHaveText(String(500 - 100 - 4 * 30));
+});

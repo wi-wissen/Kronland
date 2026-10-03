@@ -1,4 +1,5 @@
 import { Sim } from '../../src/sim/sim.js';
+import { TECHS } from '../../src/sim/data/technologies.js';
 
 export const newSim = (seed = 42) => new Sim({ seed });
 
@@ -43,11 +44,13 @@ export function quickBuild(sim, type, owner = 0, near = null) {
   const hq = hqOf(sim, owner);
   const c = near ?? { x: hq.x + 2, y: hq.y + 2 };
   const pos = sim.findPlacement(owner, type, c.x, c.y, 30) ?? (() => {
-    // bypass technology lock for tests
-    const had = sim.players[owner].techs;
-    sim.players[owner].techs = new Set([...had, 'education', 'construction', 'gears', 'alchemy', 'printing']);
+    // bypass technology and cost locks for tests
+    const pl = sim.players[owner];
+    const had = pl.techs, stock = { ...pl.stock };
+    pl.techs = new Set([...had, ...Object.keys(TECHS)]);
+    for (const r of Object.keys(pl.stock)) pl.stock[r] += 100000;
     const p = sim.findPlacement(owner, type, c.x, c.y, 30);
-    sim.players[owner].techs = had;
+    pl.techs = had; pl.stock = stock;
     return p;
   })();
   if (!pos) throw new Error('No spot for ' + type);
