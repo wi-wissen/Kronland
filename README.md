@@ -29,6 +29,10 @@ npm run build   # Produktionsbuild nach dist/
 
 - Im Startmenü Gegnerzahl (1–3), Stärke, Helden und Karte wählen.
 - Direktstart per Adresse: `?seed=42&ai=hard&players=3&hero=hedda`
+- Grafikstufe: automatisch (Handy/ohne Grafikkarte niedrig, Desktop hoch), erzwingbar per `?quality=low|medium|high`
+  (wird gemerkt; im Code: `setQuality()` aus `src/render/quality.js`).
+- Karten werden aus dem Seed erzeugt: Hügel, Täler, Gebirge mit Gipfeln, Flüsse mit Furten, Seen, Küsten.
+  Steilhänge und Gipfel (Klippen) sind unpassierbar und nicht bebaubar. Größen 96/128/160 (`generateMap(seed, { size })`).
 - Auf dem Handy als App installierbar (PWA); der Spielcode ist danach offline verfügbar.
 - Steuerung: siehe [Architektur](docs/ARCHITEKTUR.md#steuerung) oder Menü → „Steuerung anzeigen“.
 

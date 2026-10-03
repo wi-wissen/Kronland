@@ -58,13 +58,19 @@ export class CameraRig {
     if (k.has('-') || k.has('pagedown')) this.dist *= 1 + dt;
     this.clamp();
 
-    this.target.y = this.groundAt(this.target.x, this.target.z);
+    // Ease the target height along the terrain (no jumping over mountains); dt = 0 sets it immediately
+    const ground = this.groundAt(this.target.x, this.target.z);
+    this.target.y = dt > 0 && this.settled ? this.target.y + (ground - this.target.y) * Math.min(1, dt * 6) : ground;
+    this.settled = true;
     const cp = Math.cos(this.pitch);
     this.camera.position.set(
       this.target.x + Math.sin(this.yaw) * cp * this.dist,
       this.target.y + Math.sin(this.pitch) * this.dist,
       this.target.z + Math.cos(this.yaw) * cp * this.dist,
     );
+    // Never below the terrain (high mountains between camera and target)
+    const under = this.groundAt(this.camera.position.x, this.camera.position.z) + 1.5;
+    if (this.camera.position.y < under) this.camera.position.y = under;
     this.camera.lookAt(this.target);
   }
 }

@@ -29,7 +29,13 @@ export const BUILDING_ASSETS = {
 /** Heroes → figure. */
 export const HERO_ASSETS = { bertram: 'Knight', hedda: 'Mage', gerold: 'Barbarian' };
 
-const NEUTRAL = ['buildings/scaffolding', 'nature/tree_single_A', 'nature/tree_single_B'];
+const NEUTRAL = [
+  'buildings/scaffolding',
+  'nature/tree_single_A', 'nature/tree_single_B',
+  'nature/rock_single_A', 'nature/rock_single_B', 'nature/rock_single_C', 'nature/rock_single_D', 'nature/rock_single_E',
+  'nature/mountain_A', 'nature/mountain_B', 'nature/mountain_C',
+  'nature/waterlily_A', 'nature/waterlily_B',
+];
 
 /** @type {Map<string, {scene: THREE.Object3D, animations: THREE.AnimationClip[]}>} */
 const cache = new Map();
@@ -109,6 +115,14 @@ export function instancedParts(name) {
   a.scene.traverse((m) => {
     if (!m.isMesh) return;
     const g = m.geometry.clone();
+    // meshopt stores positions quantised (normalised Int16); convert to float before transforming,
+    // otherwise values outside [-1, 1] are clipped.
+    for (const [k, a] of Object.entries(g.attributes)) {
+      if (a.array instanceof Float32Array && !a.isInterleavedBufferAttribute) continue;
+      const f = new Float32Array(a.count * a.itemSize);
+      for (let i = 0; i < a.count; i++) for (let c = 0; c < a.itemSize; c++) f[i * a.itemSize + c] = a.getComponent(i, c);
+      g.setAttribute(k, new THREE.BufferAttribute(f, a.itemSize));
+    }
     g.applyMatrix4(m.matrixWorld);
     parts.push({ geometry: g, material: m.material });
   });

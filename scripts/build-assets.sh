@@ -16,7 +16,12 @@ done
 for b in scaffolding stage_A stage_B stage_C destroyed grain; do
   opt "$HEX/buildings/neutral/building_$b.gltf" "$OUT/buildings/$b.glb"
 done
-for n in tree_single_A tree_single_B tree_single_A_cut trees_A_small trees_B_small rock_single_A rock_single_B rock_single_C rock_single_D rock_single_E; do
+# Nature: trees, stumps, rocks, mountain and hill decoration, water plants
+for n in tree_single_A tree_single_B tree_single_A_cut tree_single_B_cut \
+         trees_A_small trees_B_small trees_A_medium trees_B_medium trees_A_large trees_B_large \
+         rock_single_A rock_single_B rock_single_C rock_single_D rock_single_E \
+         mountain_A mountain_B mountain_C hill_single_A hill_single_B hill_single_C \
+         waterplant_A waterplant_B waterlily_A waterlily_B; do
   opt "$HEX/decoration/nature/$n.gltf" "$OUT/nature/$n.glb"
 done
 for p in resource_lumber resource_stone sack crate_A_big barrel weaponrack target; do

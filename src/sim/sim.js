@@ -2,7 +2,7 @@
 
 import { Rng } from './rng.js';
 import { generateMap } from './mapgen.js';
-import { OCCUPIED, RESERVED, WATER } from './map.js';
+import { OCCUPIED, RESERVED, WATER, CLIFF } from './map.js';
 import { BUILDINGS, UPGRADE_REQUIRES } from './data/buildings.js';
 import { TECHS } from './data/technologies.js';
 import { BLESSINGS, WORKER } from './data/professions.js';
@@ -340,12 +340,12 @@ export class Sim {
     const m = this.map;
     if (def.placement === 'settlement') {
       if (!this.spots.some((s) => s.x === x && s.y === y)) return 'Nur auf Siedlungsplätzen';
-      if (!m.rectFree(x, y, def.w, def.h, WATER | OCCUPIED)) return 'Platz belegt';
+      if (!m.rectFree(x, y, def.w, def.h, WATER | OCCUPIED | CLIFF)) return 'Platz belegt';
     } else if (def.placement === 'shaft') {
       if (!this.shafts.some((s) => s.x === x && s.y === y && s.res === def.shaftResource)) return 'Nur auf passendem Schacht';
-      if (!m.rectFree(x, y, def.w, def.h, WATER | OCCUPIED)) return 'Platz belegt';
+      if (!m.rectFree(x, y, def.w, def.h, WATER | OCCUPIED | CLIFF)) return 'Platz belegt';
     } else {
-      if (!m.rectFree(x, y, def.w, def.h, WATER | OCCUPIED | RESERVED)) return 'Platz nicht frei';
+      if (!m.rectFree(x, y, def.w, def.h, WATER | OCCUPIED | RESERVED | CLIFF)) return 'Platz nicht frei';
       if (m.slope(x, y, def.w, def.h) > BALANCE.maxSlope) return 'Gelände zu steil';
     }
     if (!this.canPay(owner, def.levels[0].cost)) return 'Nicht genug Rohstoffe';
@@ -372,7 +372,7 @@ export class Sim {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const x = cx + dx, y = cy + dy;
         // Leave a one-tile border free so that paths do not become overgrown.
-        if (!this.map.rectFree(x - 1, y - 1, def.w + 2, def.h + 2, WATER | OCCUPIED)) continue;
+        if (!this.map.rectFree(x - 1, y - 1, def.w + 2, def.h + 2, WATER | OCCUPIED | CLIFF)) continue;
         if (!this.checkPlacement(owner, type, x, y)) return { x, y };
       }
     }

@@ -3,6 +3,7 @@
 export const WATER = 1;      // not walkable, not buildable
 export const OCCUPIED = 2;   // building, tree, resource pile: not walkable
 export const RESERVED = 4;   // settlement spot or shaft: walkable, only for the matching building
+export const CLIFF = 8;      // steep slope or peak: never walkable, never buildable (not even in winter)
 
 export class TileMap {
   /** @param {number} width @param {number} height */
@@ -23,7 +24,7 @@ export class TileMap {
   walkable(x, y) {
     if (!this.inBounds(x, y)) return false;
     const f = this.flags[this.idx(x, y)];
-    if (f & OCCUPIED) return false;
+    if (f & (OCCUPIED | CLIFF)) return false;
     return !(f & WATER) || this.frozen;
   }
 
@@ -49,7 +50,7 @@ export class TileMap {
   }
 
   /** Checks whether a rectangle is free of certain flags and lies within the map area. */
-  rectFree(x, y, w, h, mask = WATER | OCCUPIED | RESERVED) {
+  rectFree(x, y, w, h, mask = WATER | OCCUPIED | RESERVED | CLIFF) {
     if (x < 1 || y < 1 || x + w > this.width - 1 || y + h > this.height - 1) return false;
     for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) {
       if (this.flags[this.idx(i, j)] & mask) return false;

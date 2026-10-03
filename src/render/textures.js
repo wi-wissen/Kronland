@@ -1,0 +1,311 @@
+// Procedural, tileable terrain textures (canvas → CanvasTexture). No downloads, no foreign images.
+// Each texture covers TEX_REPEAT world units; size per graphics level.
+
+import * as THREE from 'three';
+
+/** World units that one texture tile covers (grass, meadow, earth, sand, snow). */
+export const TEX_REPEAT = 6;
+/** Rock is tiled more coarsely so that layers are readable on cliffs. */
+export const ROCK_REPEAT = 9;
+
+/** Small deterministic random (mulberry32) – for rendering only. */
+function rand(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Periodic value noise (0…1) on size×size, grid with `cells` cells, repeating seamlessly.
+ * @returns {Float32Array}
+ */
+function periodicNoise(size, cells, seed) {
+  const r = rand(seed);
+  const grid = new Float32Array(cells * cells);
+  for (let i = 0; i < grid.length; i++) grid[i] = r();
+  const out = new Float32Array(size * size);
+  const step = cells / size;
+  for (let y = 0; y < size; y++) {
+    const gy = y * step, y0 = Math.floor(gy), fy = gy - y0;
+    const sy = fy * fy * (3 - 2 * fy);
+    const r0 = (y0 % cells) * cells, r1 = ((y0 + 1) % cells) * cells;
+    for (let x = 0; x < size; x++) {
+      const gx = x * step, x0 = Math.floor(gx), fx = gx - x0;
+      const sx = fx * fx * (3 - 2 * fx);
+      const c0 = x0 % cells, c1 = (x0 + 1) % cells;
+      const a = grid[r0 + c0] + (grid[r0 + c1] - grid[r0 + c0]) * sx;
+      const b = grid[r1 + c0] + (grid[r1 + c1] - grid[r1 + c0]) * sx;
+      out[y * size + x] = a + (b - a) * sy;
+    }
+  }
+  return out;
+}
+
+/** Fractal periodic noise, normalised to 0…1. */
+function fbm(size, cells, octaves, seed) {
+  const out = new Float32Array(size * size);
+  let amp = 1, total = 0;
+  for (let o = 0; o < octaves; o++) {
+    const n = periodicNoise(size, Math.min(size, cells << o), seed + o * 31);
+    for (let i = 0; i < out.length; i++) out[i] += n[i] * amp;
+    total += amp;
+    amp *= 0.5;
+  }
+  let mn = Infinity, mx = -Infinity;
+  for (let i = 0; i < out.length; i++) { out[i] /= total; mn = Math.min(mn, out[i]); mx = Math.max(mx, out[i]); }
+  const k = 1 / Math.max(1e-6, mx - mn);
+  for (let i = 0; i < out.length; i++) out[i] = (out[i] - mn) * k;
+  return out;
+}
+
+const hex = (h) => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
+const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
+/** Fill the base surface from noise with a colour gradient. */
+function paintBase(ctx, size, stops, noise, jitter = 0, seed = 1) {
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  const r = rand(seed);
+  const cols = stops.map(([t, c]) => [t, hex(c)]);
+  for (let i = 0; i < size * size; i++) {
+    const t = noise(i);
+    let k = 0;
+    while (k < cols.length - 2 && t > cols[k + 1][0]) k++;
+    const [t0, c0] = cols[k], [t1, c1] = cols[k + 1];
+    const c = mixc(c0, c1, Math.max(0, Math.min(1, (t - t0) / Math.max(1e-6, t1 - t0))));
+    const j = (r() - 0.5) * jitter;
+    d[i * 4] = c[0] + j; d[i * 4 + 1] = c[1] + j; d[i * 4 + 2] = c[2] + j; d[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+/** Draws f at all necessary offsets so that shapes continue seamlessly across the edge. */
+function wrapDraw(size, x, y, reach, f) {
+  for (const ox of [0, -size, size]) for (const oy of [0, -size, size]) {
+    const px = x + ox, py = y + oy;
+    if (px < -reach || py < -reach || px > size + reach || py > size + reach) continue;
+    f(px, py);
+  }
+}
+
+const rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+
+function canvas(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  // force a CPU canvas: otherwise thousands of draw commands end up in the GPU queue
+  // and later block the first WebGL frame (several seconds on software GPUs).
+  c.getContext('2d', { willReadFrequently: true });
+  return c;
+}
+
+/** Grass blades in tufts. */
+function drawBlades(ctx, size, r, count, palette, len, width) {
+  ctx.lineCap = 'round';
+  for (let i = 0; i < count; i++) {
+    const x = r() * size, y = r() * size;
+    const n = 2 + ((r() * 4) | 0);
+    const base = palette[(r() * palette.length) | 0];
+    for (let b = 0; b < n; b++) {
+      const l = len * (0.6 + r() * 0.8);
+      const a = -Math.PI / 2 + (r() - 0.5) * 1.3;
+      const bx = x + (r() - 0.5) * len * 0.5, by = y + (r() - 0.5) * len * 0.3;
+      const ex = bx + Math.cos(a) * l, ey = by + Math.sin(a) * l;
+      const shade = 0.75 + r() * 0.5;
+      const lw = width * (0.7 + r() * 0.6), bend = (r() - 0.5) * width * 2;
+      const dark = rgb(base.map((v) => v * shade * 0.72)), light = rgb(base.map((v) => Math.min(255, v * shade * 1.18)));
+      wrapDraw(size, bx, by, len * 2, (px, py) => {
+        const dx = ex - bx, dy = ey - by;
+        const mx = px + dx * 0.45 + bend * 0.5, my = py + dy * 0.45;
+        ctx.lineWidth = lw;
+        ctx.strokeStyle = dark;
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(mx, my); ctx.stroke();
+        ctx.lineWidth = lw * 0.8;
+        ctx.strokeStyle = light;
+        ctx.beginPath(); ctx.moveTo(mx, my); ctx.quadraticCurveTo(px + dx * 0.7 + bend, py + dy * 0.75, px + dx, py + dy); ctx.stroke();
+      });
+    }
+  }
+}
+
+function makeGrass(size, meadow) {
+  const c = canvas(size), ctx = c.getContext('2d', { willReadFrequently: true });
+  const n1 = fbm(size, 4, 4, meadow ? 11 : 7), n2 = fbm(size, 16, 2, meadow ? 13 : 9);
+  const stops = meadow
+    ? [[0, 0x5f8c34], [0.45, 0x79a33f], [0.75, 0x92b04a], [1, 0xa8b85a]]
+    : [[0, 0x4c7d2c], [0.4, 0x5f9234], [0.75, 0x74a63e], [1, 0x86b04a]];
+  paintBase(ctx, size, stops, (i) => n1[i] * 0.75 + n2[i] * 0.25, 10, 3);
+  const r = rand(meadow ? 77 : 55);
+  const s = size / 1024;
+  const greens = meadow ? [[118, 160, 64], [140, 172, 70], [100, 146, 56], [160, 176, 80]] : [[92, 140, 52], [110, 158, 60], [76, 124, 44], [126, 166, 66]];
+  drawBlades(ctx, size, r, Math.round(2600 * s * s * 4) / 4 | 0, greens, 22 * s, 2.6 * s + 0.6);
+  if (meadow) {
+    // flowers: small dabs in groups
+    const flowers = [[250, 248, 236], [252, 214, 70], [214, 120, 196], [240, 150, 70], [170, 180, 250]];
+    for (let g = 0; g < 70 * s * s * 4 / 4 + 20; g++) {
+      const cx = r() * size, cy = r() * size, col = flowers[(r() * flowers.length) | 0];
+      const n = 3 + ((r() * 7) | 0);
+      for (let k = 0; k < n; k++) {
+        const x = cx + (r() - 0.5) * 40 * s, y = cy + (r() - 0.5) * 40 * s, rad = (2.2 + r() * 2) * s + 0.5;
+        wrapDraw(size, x, y, 8, (px, py) => {
+          ctx.fillStyle = rgb(col);
+          ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(255,230,120,0.9)';
+          ctx.beginPath(); ctx.arc(px, py, rad * 0.4, 0, Math.PI * 2); ctx.fill();
+        });
+      }
+    }
+  }
+  return c;
+}
+
+function makeDirt(size) {
+  const c = canvas(size), ctx = c.getContext('2d', { willReadFrequently: true });
+  const n1 = fbm(size, 5, 4, 21), n2 = fbm(size, 24, 2, 23);
+  paintBase(ctx, size, [[0, 0x6e4f33], [0.45, 0x86623f], [0.8, 0x9b7650], [1, 0xa8845c]], (i) => n1[i] * 0.7 + n2[i] * 0.3, 14, 5);
+  const r = rand(91), s = size / 1024;
+  // pebbles
+  for (let i = 0; i < 900 * s * s + 40; i++) {
+    const x = r() * size, y = r() * size, rx = (2 + r() * 6) * s + 0.6, ry = rx * (0.6 + r() * 0.3), a = r() * Math.PI;
+    const g = 110 + r() * 70;
+    wrapDraw(size, x, y, 10, (px, py) => {
+      ctx.fillStyle = `rgba(${g * 0.55 | 0},${g * 0.45 | 0},${g * 0.32 | 0},0.6)`;
+      ctx.beginPath(); ctx.ellipse(px + rx * 0.25, py + ry * 0.35, rx, ry, a, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = `rgb(${g | 0},${g * 0.9 | 0},${g * 0.78 | 0})`;
+      ctx.beginPath(); ctx.ellipse(px, py, rx, ry, a, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+  // footprint-like dark patches
+  for (let i = 0; i < 160 * s * s + 10; i++) {
+    const x = r() * size, y = r() * size, rad = (6 + r() * 16) * s;
+    wrapDraw(size, x, y, 30, (px, py) => {
+      ctx.fillStyle = 'rgba(70,48,28,0.12)';
+      ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+  return c;
+}
+
+function makeSand(size) {
+  const c = canvas(size), ctx = c.getContext('2d', { willReadFrequently: true });
+  const n1 = fbm(size, 4, 3, 31), n2 = fbm(size, 64, 2, 33);
+  const ripple = fbm(size, 3, 2, 35);
+  paintBase(ctx, size, [[0, 0xc4a875], [0.5, 0xd9c08a], [1, 0xe8d4a2]], (i) => {
+    const x = i % size, y = (i / size) | 0;
+    const w = Math.sin(((y / size) * 18 + ripple[i] * 3 + (x / size) * 2) * Math.PI * 2) * 0.5 + 0.5;
+    return n1[i] * 0.5 + n2[i] * 0.3 + w * 0.2;
+  }, 18, 7);
+  const r = rand(97), s = size / 1024;
+  for (let i = 0; i < 500 * s * s + 30; i++) {
+    const x = r() * size, y = r() * size, rad = (1 + r() * 2.5) * s + 0.4;
+    const g = r() < 0.5 ? 'rgba(150,120,80,0.6)' : 'rgba(250,240,215,0.7)';
+    wrapDraw(size, x, y, 4, (px, py) => { ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fill(); });
+  }
+  return c;
+}
+
+function makeRock(size) {
+  const c = canvas(size), ctx = c.getContext('2d', { willReadFrequently: true });
+  const n1 = fbm(size, 4, 5, 41), warp = fbm(size, 3, 2, 43), n3 = fbm(size, 12, 3, 45);
+  paintBase(ctx, size, [[0, 0x5f5a54], [0.35, 0x7a756d], [0.7, 0x948e84], [1, 0xaaa398]], (i) => {
+    const y = (i / size) | 0;
+    // rock layers (horizontal, bent)
+    const band = Math.sin(((y / size) * 7 + warp[i] * 2.2) * Math.PI * 2) * 0.5 + 0.5;
+    return n1[i] * 0.55 + band * 0.25 + n3[i] * 0.2;
+  }, 12, 9);
+  const r = rand(101), s = size / 1024;
+  // cracks
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 70 * s + 10; i++) {
+    let x = r() * size, y = r() * size;
+    let a = r() < 0.6 ? (r() - 0.5) * 0.6 : Math.PI / 2 + (r() - 0.5) * 0.6;
+    const segs = 4 + ((r() * 8) | 0);
+    const pts = [[x, y]];
+    for (let k = 0; k < segs; k++) {
+      a += (r() - 0.5) * 0.9;
+      x += Math.cos(a) * 18 * s; y += Math.sin(a) * 18 * s;
+      pts.push([x, y]);
+    }
+    wrapDraw(size, pts[0][0], pts[0][1], 200 * s, (px, py) => {
+      const dx = px - pts[0][0], dy = py - pts[0][1];
+      ctx.strokeStyle = 'rgba(40,36,32,0.55)';
+      ctx.lineWidth = 2.4 * s + 0.5;
+      ctx.beginPath(); ctx.moveTo(pts[0][0] + dx, pts[0][1] + dy);
+      for (const [qx, qy] of pts) ctx.lineTo(qx + dx, qy + dy);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(200,192,180,0.35)';
+      ctx.lineWidth = 1.2 * s + 0.3;
+      ctx.beginPath(); ctx.moveTo(pts[0][0] + dx + 2 * s, pts[0][1] + dy + 2 * s);
+      for (const [qx, qy] of pts) ctx.lineTo(qx + dx + 2 * s, qy + dy + 2 * s);
+      ctx.stroke();
+    });
+  }
+  // lichen
+  for (let i = 0; i < 220 * s * s + 12; i++) {
+    const x = r() * size, y = r() * size, rad = (3 + r() * 9) * s;
+    const col = r() < 0.5 ? 'rgba(150,160,90,0.35)' : 'rgba(190,170,110,0.3)';
+    wrapDraw(size, x, y, 20, (px, py) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fill(); });
+  }
+  return c;
+}
+
+function makeSnow(size) {
+  const c = canvas(size), ctx = c.getContext('2d', { willReadFrequently: true });
+  const n1 = fbm(size, 4, 4, 51), n2 = fbm(size, 32, 2, 53);
+  paintBase(ctx, size, [[0, 0xc8d4e2], [0.4, 0xe2e9f2], [0.8, 0xf4f7fb], [1, 0xffffff]], (i) => n1[i] * 0.7 + n2[i] * 0.3, 6, 11);
+  const r = rand(111), s = size / 1024;
+  for (let i = 0; i < 600 * s * s + 20; i++) {
+    const x = r() * size, y = r() * size, rad = (0.8 + r() * 1.6) * s + 0.3;
+    wrapDraw(size, x, y, 3, (px, py) => { ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fill(); });
+  }
+  return c;
+}
+
+/** Large-scale brightness and colour variation (against visible repetition). */
+function makeMacro(size) {
+  const c = canvas(size), ctx = c.getContext('2d', { willReadFrequently: true });
+  const a = fbm(size, 3, 4, 61), b = fbm(size, 5, 3, 63), d = fbm(size, 8, 3, 65);
+  const img = ctx.createImageData(size, size);
+  for (let i = 0; i < size * size; i++) {
+    img.data[i * 4] = a[i] * 255; img.data[i * 4 + 1] = b[i] * 255; img.data[i * 4 + 2] = d[i] * 255; img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+/** @type {Map<number, Record<string, THREE.Texture>>} */
+const cache = new Map();
+
+/**
+ * All terrain textures in the desired size (cached).
+ * @param {number} size edge length in pixels (power of two)
+ * @param {number} anisotropy
+ */
+export function terrainTextures(size, anisotropy = 1) {
+  if (cache.has(size)) return cache.get(size);
+  const wrap = (cv, srgb = true) => {
+    const t = new THREE.CanvasTexture(cv);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.anisotropy = anisotropy;
+    t.generateMipmaps = true;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    return t;
+  };
+  const set = {
+    grass: wrap(makeGrass(size, false)),
+    meadow: wrap(makeGrass(size, true)),
+    dirt: wrap(makeDirt(size)),
+    sand: wrap(makeSand(size)),
+    rock: wrap(makeRock(size)),
+    snow: wrap(makeSnow(size)),
+    macro: wrap(makeMacro(Math.max(128, size >> 2)), false),
+  };
+  cache.set(size, set);
+  return set;
+}

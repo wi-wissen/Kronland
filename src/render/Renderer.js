@@ -2,11 +2,19 @@
 
 import * as THREE from 'three';
 import { Terrain } from './terrain.js';
+import { Water } from './water.js';
+import { Environment } from './environment.js';
+import { getQuality } from './quality.js';
+import {
+  treeVariants, stumpVariant, scatterKinds, depositModel, shaftMarker, spotMarker, markerUniforms, rng,
+} from './nature.js';
 import { CameraRig } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT } from '../sim/fixed.js';
+import { WATER, CLIFF, OCCUPIED, RESERVED } from '../sim/map.js';
+
 import {
-  buildingModel, scaffold, serfModel, treeGeometries, pileModel, shaftModel, spotModel, mat, PROF_COLORS, campfireModel,
+  buildingModel, scaffold, serfModel, mat, PROF_COLORS, campfireModel,
   unitModel, heroModel, gadgetModel, healthBar,
 } from './models.js';
 import { UNITS, HEROES } from '../sim/data/units.js';
@@ -21,36 +29,35 @@ export class Renderer {
   /** @param {HTMLCanvasElement} canvas @param {import('../sim/sim.js').Sim} sim */
   constructor(canvas, sim) {
     this.sim = sim;
-    const small = Math.min(window.innerWidth, window.innerHeight) < 700;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !small, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, small ? 1.5 : 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    /** Graphics level (pixel density, shadows, textures, decoration density, water) */
+    const q = this.quality = getQuality();
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, q.maxPixelRatio));
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xa9c8dc);
-    this.scene.fog = new THREE.Fog(0xa9c8dc, 90, 170);
-    this.camera = new THREE.PerspectiveCamera(40, 1, 0.3, 400);
+    this.camera = new THREE.PerspectiveCamera(40, 1, 0.3, 700);
+    this.env = new Environment(this.renderer, this.scene, q);
+    this.sun = this.env.sun;
+    /** Shared uniforms of nature (wind, snow) */
+    this.natureUniforms = { uTime: { value: 0 }, uSnow: { value: 0 } };
 
-    this.terrain = new Terrain(sim.map, sim.waterLevel);
-    this.scene.add(this.terrain.mesh, this.terrain.water);
+    this.terrain = new Terrain(sim.map, sim.waterLevel, q);
+    this.water = new Water(this.terrain, q);
+    this.terrain.water = this.water.mesh; // compatibility for older accesses
+    this.scene.add(this.terrain.mesh, this.water.mesh);
     this.rig = new CameraRig(this.camera, { w: sim.map.width, h: sim.map.height });
     this.rig.groundAt = (x, z) => this.terrain.heightAt(x, z);
 
-    this.scene.add(new THREE.HemisphereLight(0xe6f2ff, 0x6b5a3a, 1.1));
-    this.sun = new THREE.DirectionalLight(0xfff0d4, 1.9);
-    this.sun.castShadow = true;
-    const sm = small ? 1024 : 2048;
-    this.sun.shadow.mapSize.set(sm, sm);
-    this.sun.shadow.bias = -0.0008;
-    this.scene.add(this.sun, this.sun.target);
-
-    this.buildTrees();
+    // Trees, decoration and markers are only created at the first frame (see buildWorld)
     this.piles = new Map();
     this.markers = [];
-    this.buildMarkers();
+    /** @type {Map<number, {v:number, i:number, x:number, z:number, s:number}>} */
+    this.treeIndex = new Map();
+    this.scatter = [];
     /** @type {Map<number, THREE.Group>} */
     this.buildings = new Map();
+    /** Building surfaces for which the ground is trampled/levelled */
+    this.padIds = new Set();
     /** @type {Map<number, THREE.Group>} */
     this.units = new Map();
     this.lastPos = new Map();
@@ -64,6 +71,25 @@ export class Renderer {
     if (hq) this.rig.lookAt(hq.x + hq.w / 2, hq.y + hq.h / 2 + 3);
   }
 
+  /**
+   * Compile and bind all shader programs (incl. shadow pass) at the first frame, with all
+   * objects visible. Deliberately not in the constructor so that the game start is not blocked.
+   */
+  warmUp() {
+    try {
+      this.rig.update(0);
+      this.env.follow(this.rig.target, this.rig.dist);
+      const r = this.renderer;
+      const size = r.getSize(new THREE.Vector2());
+      r.setSize(32, 32, false);
+      const cull = [];
+      this.scene.traverse((o) => { if (o.frustumCulled) { cull.push(o); o.frustumCulled = false; } });
+      r.render(this.scene, this.camera);
+      for (const o of cull) o.frustumCulled = true;
+      r.setSize(Math.max(1, size.x), Math.max(1, size.y), false);
+    } catch { /* without GL context */ }
+  }
+
   setSize(w, h) {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
@@ -74,87 +100,310 @@ export class Renderer {
 
   // ---------- Static objects ----------
 
+  /**
+   * Build trees, decoration and markers. Runs at the first frame instead of in the constructor: the game loop
+   * thus starts without a long block before it (otherwise game time only slowly catches up).
+   */
+  buildWorld() {
+    this.buildTrees();
+    this.buildScatter();
+    this.buildMarkers();
+    if (this.weather && this.weather !== 'summer') this.applyWeather(this.weather);
+  }
+
+  /** Height above the water level in world units. */
+  altitude(x, z) { return this.terrain.heightAt(x, z) - this.terrain.waterLevelY; }
+
+  /**
+   * Trees as InstancedMesh per variant: broadleaf trees and birches in the valley, conifers at altitude.
+   * In addition non-fellable ornamental trees outside the map and on mountain slopes.
+   */
   buildTrees() {
+    const q = this.quality;
     const trees = [...this.sim.entities.values()].filter((e) => e.kind === 'tree');
-    // variants: KayKit trees if loaded, otherwise procedural conifers and broadleaf trees
-    const variants = [];
-    for (const name of ['nature/tree_single_A', 'nature/tree_single_B']) {
-      const parts = instancedParts(name);
-      if (parts) variants.push({ parts, scale: 1.35, tint: false });
-    }
-    if (!variants.length) {
-      const { trunk, conifer, leafy } = treeGeometries();
-      variants.push({ parts: [{ geometry: trunk, material: mat(0x6b4626) }, { geometry: conifer, material: mat(0xffffff) }], scale: 1, tint: true, greens: [0x2f6b3a, 0x3a7a42, 0x2c6235] });
-      variants.push({ parts: [{ geometry: trunk, material: mat(0x6b4626) }, { geometry: leafy, material: mat(0xffffff) }], scale: 1, tint: true, greens: [0x5c9440, 0x4f8a3c, 0x6aa14a] });
-    }
-    const pick = (t) => {
-      const hsh = (t.id * 2654435761) >>> 0;
-      const high = this.terrain.heightAt(t.x + 0.5, t.y + 0.5) > 4;
-      return high ? 0 : hsh % variants.length;
+    const variants = treeVariants(q.treeDetail, this.natureUniforms);
+    const byKind = { leafy: [], birch: [], conifer: [] };
+    variants.forEach((v, i) => byKind[v.kind].push(i));
+    const pickVariant = (x, z, h) => {
+      const alt = this.altitude(x, z);
+      const r = h % 1000 / 1000;
+      // share of conifers rises with altitude
+      const pc = Math.max(0, Math.min(1, (alt - 2.2) / 4.5)) * 0.9 + 0.1;
+      let kind = r < pc ? 'conifer' : (h >>> 10) % 5 === 0 ? 'birch' : 'leafy';
+      const list = byKind[kind];
+      return list[(h >>> 13) % list.length];
     };
+    /** @type {{x:number,z:number,v:number,s:number,rot:number,h:number,id:number}[]} */
+    const items = [];
+    for (const t of trees) {
+      const h = (Math.imul(t.id, 2654435761) ^ Math.imul(t.x * 31 + t.y, 40503)) >>> 0;
+      const x = t.x + 0.5 + ((h >>> 4) % 36 - 18) / 100, z = t.y + 0.5 + ((h >>> 12) % 36 - 18) / 100;
+      items.push({ x, z, v: pickVariant(x, z, h), s: 0.78 + (h % 45) / 100, rot: (h % 628) / 100, h, id: t.id });
+    }
+    // ornamental trees: map edge (outside) and walkable slopes without game value stay empty; cliff ledges get conifers
+    const deco = this.decorTreeSpots();
+    for (const d of deco) items.push({ ...d, v: pickVariant(d.x, d.z, d.h), id: 0 });
+
     const counts = variants.map(() => 0);
-    for (const t of trees) counts[pick(t)]++;
+    for (const it of items) counts[it.v]++;
     variants.forEach((v, k) => {
-      v.meshes = v.parts.map((p) => {
-        const m = new THREE.InstancedMesh(p.geometry, p.material, Math.max(1, counts[k]));
-        m.count = counts[k];
-        m.castShadow = true; m.receiveShadow = true;
-        this.scene.add(m);
-        return m;
-      });
-      v.next = 0;
+      const m = new THREE.InstancedMesh(v.geometry, v.material, Math.max(1, counts[k]));
+      m.count = 0;
+      m.castShadow = true; m.receiveShadow = true;
+      m.name = 'trees';
+      this.scene.add(m);
+      v.mesh = m;
     });
-    /** @type {Map<number, {v:number, i:number}>} */
+    /** @type {Map<number, {v:number, i:number, x:number, z:number, s:number}>} */
     this.treeIndex = new Map();
     this.treeVariants = variants;
     const c = new THREE.Color();
     const up = new THREE.Vector3(0, 1, 0);
-    for (const t of trees) {
-      const k = pick(t), v = variants[k], i = v.next++;
-      const hsh = (t.id * 2654435761) >>> 0;
-      const s = (0.8 + (hsh % 50) / 100) * v.scale;
-      const x = t.x + 0.5 + ((hsh >> 8) % 30 - 15) / 100, z = t.y + 0.5 + ((hsh >> 16) % 30 - 15) / 100;
-      tmpP.set(x, this.terrain.heightAt(x, z), z);
-      tmpQ.setFromAxisAngle(up, (hsh % 628) / 100);
-      tmpS.set(s, s, s);
+    for (const it of items) {
+      const v = variants[it.v], m = v.mesh, i = m.count++;
+      const s = it.s * v.scale;
+      tmpP.set(it.x, this.terrain.heightAt(it.x, it.z) - 0.04, it.z);
+      tmpQ.setFromAxisAngle(up, it.rot);
+      tmpS.set(s, s * (0.9 + ((it.h >>> 20) % 25) / 100), s);
       tmpM.compose(tmpP, tmpQ, tmpS);
-      for (const m of v.meshes) m.setMatrixAt(i, tmpM);
-      if (v.tint) { c.setHex(v.greens[hsh % 3]); v.meshes[1].setColorAt(i, c); }
-      this.treeIndex.set(t.id, { v: k, i });
+      m.setMatrixAt(i, tmpM);
+      // colour variation per tree (autumn dabs on broadleaf trees)
+      const r = ((it.h >>> 7) % 100) / 100;
+      c.setRGB(0.88 + r * 0.22, 0.9 + r * 0.16, 0.86 + ((it.h >>> 15) % 20) / 100);
+      if (v.kind !== 'conifer' && (it.h >>> 22) % 23 === 0) c.setRGB(1.35, 1.05, 0.55);
+      m.setColorAt(i, c);
+      if (it.id) this.treeIndex.set(it.id, { v: it.v, i, x: it.x, z: it.z, s });
     }
+    for (const v of variants) {
+      v.mesh.instanceMatrix.needsUpdate = true;
+      if (v.mesh.instanceColor) v.mesh.instanceColor.needsUpdate = true;
+      v.mesh.computeBoundingSphere();
+    }
+    // tree stumps (felled trees)
+    const st = stumpVariant(this.natureUniforms);
+    this.stumps = new THREE.InstancedMesh(st.geometry, st.material, Math.max(1, trees.length));
+    this.stumps.count = 0;
+    this.stumps.castShadow = true; this.stumps.receiveShadow = true;
+    this.stumps.frustumCulled = false;
+    this.scene.add(this.stumps);
+  }
+
+  /** Spots for ornamental trees outside the map and on forestable cliff ledges. */
+  decorTreeSpots() {
+    const { map } = this.sim;
+    const W = map.width, H = map.height, M = this.terrain.M;
+    const out = [];
+    const r = rng(this.sim.seed * 7 + 3);
+    const dens = this.quality.tier === 'low' ? 0.5 : 1;
+    for (let z = -M + 1; z < H + M - 1; z++) for (let x = -M + 1; x < W + M - 1; x++) {
+      const inside = x >= 0 && z >= 0 && x < W && z < H;
+      const h = (Math.imul(x + 1000, 73856093) ^ Math.imul(z + 1000, 19349663)) >>> 0;
+      const n = (Math.sin(x * 0.21 + this.sim.seed) + Math.sin(z * 0.17 + x * 0.05) + 2) / 4; // forest patches
+      if (!inside) {
+        const d = Math.max(-x, -z, x - W + 1, z - H + 1);
+        if (d < 2) continue;
+        if (this.altitude(x + 0.5, z + 0.5) < 0.4) continue;
+        if (r() > (n > 0.45 ? 0.55 : 0.12) * dens) continue;
+      } else {
+        const f = map.flags[map.idx(x, z)];
+        if (!(f & CLIFF) || f & WATER) continue;
+        // only moderately steep cliffs at medium height
+        const alt = this.altitude(x + 0.5, z + 0.5);
+        if (alt > 7.2 || this.slopeAt(x + 0.5, z + 0.5) > 0.9) continue;
+        if (r() > 0.22 * dens) continue;
+      }
+      out.push({ x: x + 0.2 + r() * 0.6, z: z + 0.2 + r() * 0.6, s: 0.7 + r() * 0.5, rot: r() * 6.28, h });
+    }
+    return out;
+  }
+
+  /** Slope of the terrain (height change per unit). */
+  slopeAt(x, z) {
+    const t = this.terrain;
+    const dx = t.heightAt(x + 0.5, z) - t.heightAt(x - 0.5, z), dz = t.heightAt(x, z + 0.5) - t.heightAt(x, z - 0.5);
+    return Math.hypot(dx, dz);
   }
 
   removeTree(id) {
     const t = this.treeIndex.get(id);
     if (!t) return;
-    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
-    for (const m of this.treeVariants[t.v].meshes) {
-      m.setMatrixAt(t.i, zero);
-      m.instanceMatrix.needsUpdate = true;
-    }
+    const m = this.treeVariants[t.v].mesh;
+    m.setMatrixAt(t.i, new THREE.Matrix4().makeScale(0, 0, 0));
+    m.instanceMatrix.needsUpdate = true;
     this.treeIndex.delete(id);
+    // leave stump standing
+    if (this.stumps.count < this.stumps.instanceMatrix.count) {
+      const s = 0.8 + t.s * 0.25;
+      tmpP.set(t.x, this.terrain.heightAt(t.x, t.z) - 0.02, t.z);
+      tmpQ.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (id % 628) / 100);
+      tmpS.set(s, s, s);
+      tmpM.compose(tmpP, tmpQ, tmpS);
+      this.stumps.setMatrixAt(this.stumps.count++, tmpM);
+      this.stumps.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  /** Non-blocking decoration: grass, flowers, bushes, pebbles, reeds, rocks (density per graphics level). */
+  buildScatter() {
+    const { map } = this.sim;
+    const W = map.width, H = map.height;
+    const t = this.terrain;
+    const kinds = scatterKinds(this.natureUniforms);
+    const dens = this.quality.scatter;
+    const r = rng(this.sim.seed * 13 + 1);
+    /** @type {Record<string, {x:number,z:number,s:number,rot:number,tile:number}[]>} */
+    const lists = Object.fromEntries(Object.keys(kinds).map((k) => [k, []]));
+    const kk = Object.keys(kinds).filter((k) => k.startsWith('kk'));
+    const mt = Object.keys(kinds).filter((k) => k.startsWith('mt'));
+    const lily = Object.keys(kinds).filter((k) => k.startsWith('lily'));
+    const splat = (x, z) => {
+      const gx = Math.round((x + t.M) * t.R), gz = Math.round((z + t.M) * t.R);
+      const k = Math.max(0, Math.min(t.GH - 1, gz)) * t.GW + Math.max(0, Math.min(t.GW - 1, gx));
+      return [t.splatA[k * 4], t.splatA[k * 4 + 1], t.splatA[k * 4 + 2], t.splatA[k * 4 + 3], t.splatB[k * 4]];
+    };
+    const near = (x, y, mask) => {
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (map.inBounds(x + dx, y + dy) && map.flags[map.idx(x + dx, y + dy)] & mask) return true;
+      }
+      return false;
+    };
+    const add = (kind, x, z, s, tile) => lists[kind]?.push({ x, z, s, rot: r() * 6.283, tile });
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const k = map.idx(x, y), f = map.flags[k];
+      if (f & WATER) {
+        // water lilies on calm, moderately deep water
+        const depth = -this.altitude(x + 0.5, y + 0.5);
+        if (lily.length && depth > 0.35 && depth < 1.6 && r() < 0.05 * dens) {
+          for (let i = 0; i < 3; i++) lists[lily[(r() * lily.length) | 0]].push({ x: x + r(), z: y + r(), s: 1.6 + r() * 1.2, rot: r() * 6.283, tile: k, water: true });
+        }
+        // reeds in shallow water at the shore
+        if (near(x, y, 0xff) && this.altitude(x + 0.5, y + 0.5) > -0.45 && r() < 0.35 * dens) {
+          let shore = false;
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (map.inBounds(x + dx, y + dy) && !(map.flags[map.idx(x + dx, y + dy)] & WATER)) shore = true;
+          if (shore) add('reeds', x + r(), y + r(), 0.8 + r() * 0.6, k);
+        }
+        continue;
+      }
+      if (f & CLIFF) {
+        // boulders at cliffs and peaks
+        // on steep flanks more scree than on the peak surfaces
+        const steep = this.slopeAt(x + 0.5, y + 0.5);
+        // rock peaks (KayKit) scattered on high ridges
+        const mh = (Math.imul(x, 73856093) ^ Math.imul(y, 19349663)) >>> 0;
+        if (mt.length && this.altitude(x + 0.5, y + 0.5) > 6.5 && mh % 61 === 0) {
+          add(mt[(r() * mt.length) | 0], x + 0.5, y + 0.5, 1.2 + r() * 0.9, k);
+          continue;
+        }
+        const chance = (steep > 0.7 ? 0.42 : 0.14) * Math.max(0.5, dens);
+        if (r() < chance) {
+          const kind = kk.length && r() < 0.6 ? kk[(r() * kk.length) | 0] : r() < 0.5 ? 'rock' : 'rockB';
+          add(kind, x + r(), y + r(), kind.startsWith('kk') ? 2.2 + r() * 2.5 : 0.8 + r() * 0.9, k);
+        }
+        continue;
+      }
+      const occupied = (f & (OCCUPIED | RESERVED)) !== 0;
+      const n = Math.round((4 + r() * 3) * dens);
+      for (let i = 0; i < n; i++) {
+        const px = x + r(), pz = y + r();
+        const [meadow, dirt, sand, rock, snow] = splat(px, pz);
+        if (snow > 0.5) continue;
+        if (occupied && r() < 0.85) continue; // under trees and on spots only a little
+        const roll = r();
+        if (sand > 0.5) { if (roll < 0.25) add('pebbles', px, pz, 0.6 + r() * 0.6, k); else if (roll < 0.4) add('grassDry', px, pz, 0.8 + r() * 0.4, k); continue; }
+        if (rock > 0.45) { if (roll < 0.2) add(r() < 0.5 ? 'rock' : 'pebbles', px, pz, 0.4 + r() * 0.5, k); else if (roll < 0.5) add('grassDry', px, pz, 0.8, k); continue; }
+        if (dirt > 0.55) { if (roll < 0.15) add('pebbles', px, pz, 0.5 + r() * 0.5, k); else if (roll < 0.5) add('grassDry', px, pz, 0.8 + r() * 0.4, k); continue; }
+        if (roll < 0.62) add(r() < 0.2 ? 'grassDry' : 'grass', px, pz, 0.75 + r() * 0.7, k);
+        else if (meadow > 0.4 && roll < 0.82) add(['flowerW', 'flowerY', 'flowerP', 'flowerR'][(r() * 4) | 0], px, pz, 0.8 + r() * 0.5, k);
+        else if (roll < 0.86 && near(x, y, OCCUPIED) && !occupied) add(r() < 0.5 ? 'bush' : 'bushB', px, pz, 0.7 + r() * 0.6, k);
+        else if (roll < 0.868) add('pebbles', px, pz, 0.5 + r() * 0.4, k);
+        else if (roll < 0.88) add('rock', px, pz, 0.35 + r() * 0.3, k);
+      }
+    }
+    /** Per tile the instances (for fading out under buildings) */
+    this.scatterByTile = new Map();
+    this.scatter = [];
+    const up = new THREE.Vector3(0, 1, 0);
+    for (const [name, list] of Object.entries(lists)) {
+      if (!list.length) continue;
+      const kind = kinds[name];
+      const m = new THREE.InstancedMesh(kind.geometry, kind.material, list.length);
+      const big = name.startsWith('kk') || name.startsWith('mt') || name.startsWith('rock') || name.startsWith('bush');
+      m.castShadow = big; m.receiveShadow = true;
+      m.name = 'scatter-' + name;
+      list.forEach((it, i) => {
+        // let rocks sink in a little; water lilies float on the water
+        const y = it.water ? t.waterY + 0.01 : t.heightAt(it.x, it.z) - (name.startsWith('mt') ? 0.35 * it.s : big ? 0.06 * it.s : 0.01);
+        tmpP.set(it.x, y, it.z);
+        tmpQ.setFromAxisAngle(up, it.rot);
+        tmpS.set(it.s, it.s * (name.startsWith('kk') ? 0.8 : 1), it.s);
+        tmpM.compose(tmpP, tmpQ, tmpS);
+        m.setMatrixAt(i, tmpM);
+        if (!this.scatterByTile.has(it.tile)) this.scatterByTile.set(it.tile, []);
+        this.scatterByTile.get(it.tile).push([m, i]);
+      });
+      m.instanceMatrix.needsUpdate = true;
+      m.computeBoundingSphere();
+      m.userData.winter = kind.winter;
+      this.scene.add(m);
+      this.scatter.push(m);
+    }
+  }
+
+  /** Hide decoration under a surface (new buildings). */
+  hideScatter(x, y, w, h) {
+    const { map } = this.sim;
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (let j = y - 1; j <= y + h; j++) for (let i = x - 1; i <= x + w; i++) {
+      if (!map.inBounds(i, j)) continue;
+      const list = this.scatterByTile.get(map.idx(i, j));
+      if (!list) continue;
+      for (const [m, k] of list) { m.setMatrixAt(k, zero); m.instanceMatrix.needsUpdate = true; }
+      this.scatterByTile.delete(map.idx(i, j));
+    }
   }
 
   buildMarkers() {
     for (const e of this.sim.entities.values()) {
       if (e.kind !== 'pile') continue;
-      const g = pileModel(e.res);
-      g.position.set(e.x + 0.5, this.terrain.heightAt(e.x + 0.5, e.y + 0.5), e.y + 0.5);
+      const g = new THREE.Group();
+      const d = depositModel(e.res, e.id);
+      d.rotation.y = (e.id * 1.7) % 6.28;
+      g.add(d);
+      g.position.set(e.x + 0.5, this.terrain.heightAt(e.x + 0.5, e.y + 0.5) - 0.03, e.y + 0.5);
       this.scene.add(g);
       this.piles.set(e.id, g);
     }
     for (const s of this.sim.shafts) {
-      const g = shaftModel(s.res);
-      g.position.set(s.x + 1.5, this.terrain.rectHeight(s.x, s.y, 3, 3), s.y + 1.5);
+      const g = shaftMarker(s.res);
+      g.position.set(s.x + 1.5, this.terrain.rectHeight(s.x, s.y, 3, 3) - 0.1, s.y + 1.5);
+      g.rotation.y = ((s.x * 7 + s.y * 3) % 4) * (Math.PI / 2);
       this.scene.add(g);
       this.markers.push({ g, x: s.x, y: s.y });
     }
     for (const s of this.sim.spots) {
-      const g = spotModel();
-      g.position.set(s.x + 2, this.terrain.rectHeight(s.x, s.y, 4, 4), s.y + 2);
+      const g = spotMarker();
+      g.position.set(s.x + 2, this.terrain.rectHeight(s.x, s.y, 4, 4) - 0.1, s.y + 2);
       this.scene.add(g);
       this.markers.push({ g, x: s.x, y: s.y });
     }
+  }
+
+  /** Adapt trampled ground and levelling to the current buildings. */
+  syncGround() {
+    const ids = this.buildings;
+    let changed = ids.size !== this.padIds.size;
+    if (!changed) for (const id of ids.keys()) if (!this.padIds.has(id)) { changed = true; break; }
+    if (!changed) return;
+    const rects = [];
+    for (const id of this.padIds) if (!ids.has(id)) this.terrain.restorePad(id);
+    for (const id of ids.keys()) {
+      const e = this.sim.entities.get(id);
+      if (!e) continue;
+      rects.push(e);
+      if (!this.padIds.has(id)) { this.terrain.flattenPad(id, e.x, e.y, e.w, e.h); this.hideScatter(e.x, e.y, e.w, e.h); }
+    }
+    this.padIds = new Set(ids.keys());
+    this.terrain.setTrampled(rects);
   }
 
   // ---------- Events ----------
@@ -182,6 +431,7 @@ export class Renderer {
    * @param {{ selected: Set<number>, ghost: null|{type:string,x:number,y:number,valid:boolean} }} view
    */
   frame(alpha, dt, prev, view) {
+    if (!this.warmed) { this.warmed = true; this.buildWorld(); this.warmUp(); }
     const sim = this.sim;
     this.frameDt = dt;
     this.time = (this.time ?? 0) + dt;
@@ -210,13 +460,17 @@ export class Renderer {
     this.syncSelection(view.selected);
     this.syncGhost(view.ghost);
 
+    this.syncGround();
+    this.natureUniforms.uTime.value = this.time;
+    this.water.update(this.time);
+    for (const m of this.markers) {
+      const b = m.g.getObjectByName('banner');
+      if (b) b.rotation.y = Math.sin(this.time * 2.2 + m.x) * 0.25;
+    }
+
     this.rig.update(dt);
-    const t = this.rig.target;
-    this.sun.position.set(t.x + 25, t.y + 45, t.z + 15);
-    this.sun.target.position.copy(t);
-    const r = Math.max(25, this.rig.dist * 1.1);
-    Object.assign(this.sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: 1, far: 140 });
-    this.sun.shadow.camera.updateProjectionMatrix();
+    this.env.follow(this.rig.target, this.rig.dist);
+    this.env.tick();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -417,30 +671,29 @@ export class Renderer {
     }
   }
 
-  /** Make weather visible: rain as falling streaks, winter as bright terrain and ice. */
+  /** Make weather visible: rain as falling streaks, winter with snow on terrain, trees and ice. */
   applyWeather(state) {
-    if (this.rain) { this.scene.remove(this.rain); this.rain = null; }
-    const t = this.terrain;
-    if (!t.baseColors) t.baseColors = t.mesh.geometry.attributes.color.array.slice();
-    const col = t.mesh.geometry.attributes.color;
-    const base = t.baseColors;
+    if (this.rain) { this.scene.remove(this.rain); this.rain.geometry.dispose(); this.rain = null; }
     const snow = state === 'winter';
-    for (let i = 0; i < col.array.length; i++) col.array[i] = snow ? base[i] * 0.35 + 0.62 : base[i];
-    col.needsUpdate = true;
-    t.water.material.color.setHex(snow ? 0xd8e8f0 : 0x4f8fb8);
-    t.water.material.opacity = snow ? 0.95 : 0.82;
-    const fogColor = state === 'rain' ? 0x8a9aa6 : snow ? 0xc8d6e0 : 0xa9c8dc;
-    this.scene.background.setHex(fogColor);
-    this.scene.fog.color.setHex(fogColor);
+    this.weather = state;
+    this.env.setMood(state);
+    this.terrain.uniforms.uSnow.value = snow ? 1 : 0;
+    this.terrain.uniforms.uWet.value = state === 'rain' ? 1 : 0;
+    this.natureUniforms.uSnow.value = snow ? 1 : 0;
+    markerUniforms.uSnow.value = snow ? 1 : 0;
+    this.water.setWeather(state);
+    // hide grass and flowers in winter
+    for (const m of this.scatter ?? []) m.visible = snow ? m.userData.winter : true;
     if (state === 'rain') {
-      const n = 1200, pos = new Float32Array(n * 6);
+      const n = this.quality.tier === 'low' ? 600 : 1400, pos = new Float32Array(n * 6);
       const c = this.rig.target;
       for (let i = 0; i < n; i++) {
         const x = c.x + (Math.random() - 0.5) * 50, z = c.z + (Math.random() - 0.5) * 50, y = c.y + Math.random() * 20;
-        pos.set([x, y, z, x, y + 0.5, z], i * 6);
+        pos.set([x, y, z, x + 0.06, y + 0.5, z + 0.03], i * 6);
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      this.rain = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xc8d8e8, transparent: true, opacity: 0.5 }));
+      this.rain = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xd0dce8, transparent: true, opacity: 0.45 }));
+      this.rain.frustumCulled = false;
       this.scene.add(this.rain);
     }
   }
@@ -508,9 +761,22 @@ export class Renderer {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
-    const hit = this.raycaster.intersectObject(this.terrain.mesh, false)[0];
-    if (!hit) return null;
-    return { x: hit.point.x, z: hit.point.z };
+    // let the ray run over the height field (faster than a raycast against the fine mesh)
+    const { origin, direction } = this.raycaster.ray;
+    const t = this.terrain;
+    const above = (d) => origin.y + direction.y * d - t.heightAt(origin.x + direction.x * d, origin.z + direction.z * d);
+    let prev = 0, step = 0.35;
+    if (above(0) < 0) return null;
+    for (let d = step; d < 700; d += step) {
+      if (above(d) <= 0) {
+        let lo = prev, hi = d;
+        for (let i = 0; i < 18; i++) { const mid = (lo + hi) / 2; if (above(mid) > 0) lo = mid; else hi = mid; }
+        return { x: origin.x + direction.x * hi, z: origin.z + direction.z * hi };
+      }
+      prev = d;
+      step = Math.min(2, step * 1.04);
+    }
+    return null;
   }
 
   /** Entity under a screen position (units and buildings via raycast). */
