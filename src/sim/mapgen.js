@@ -13,7 +13,7 @@ function hash32(x, y, s) {
 }
 
 /** Value noise 0…1023 with smoothed interpolation, integers only. */
-function valueNoise(x, y, cell, s) {
+export function valueNoise(x, y, cell, s) {
   const gx = Math.floor(x / cell), gy = Math.floor(y / cell);
   const fx = x - gx * cell, fy = y - gy * cell;
   const c2 = cell * cell;

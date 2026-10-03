@@ -7,7 +7,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "author": "Julian Dorn",
   "license": "UNLICENSED",
@@ -16,6 +17,7 @@
     "vue": "^3.5.43"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@vitejs/plugin-vue": "^6.0.9",
     "vite": "^8.3.2",
     "vitest": "^5.0.3"

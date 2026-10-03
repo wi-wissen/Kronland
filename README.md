@@ -9,7 +9,8 @@ Arbeitstitel; Name, Grafiken und Texte sind eigene.
 ```bash
 npm install
 npm run dev     # Entwicklungsserver
-npm test        # alle Tests
+npm test        # Simulationstests (Vitest)
+npm run test:e2e  # Oberflächentests Desktop + Handy (Playwright)
 npm run build   # Produktionsbuild nach dist/
 ```
 
@@ -18,7 +19,7 @@ npm run build   # Produktionsbuild nach dist/
 | Phase | Inhalt | Status |
 |---|---|---|
 | 1 | Simulationskern: Karte, Leibeigene, Bauen, Abbau, Zahltag, Determinismus | fertig |
-| 2 | 3D-Darstellung und Steuerung (Desktop + Touch) | offen |
+| 2 | 3D-Darstellung und Steuerung (Desktop + Touch) | fertig |
 | 3 | Arbeiter, Veredelung, Motivation, Steuern, Forschung | offen |
 | 4 | Militär, Kampf, Türme, Helden, Wetter, Siegbedingung | offen |
 | 5 | Computergegner | offen |
