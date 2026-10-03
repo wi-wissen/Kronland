@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { buildingAssetName, fittedModel } from './assets.js';
 
 export const PLAYER_COLORS = [0x2f5d9e, 0xa8323a, 0x3d8a4a, 0xc08a2a];
 export const RES_COLORS = {
@@ -202,6 +203,15 @@ BUILDERS.sulfurMine = mineBuilder('sulfur');
 export function buildingModel(type, w, d, level, owner) {
   const g = new THREE.Group();
   foundation(g, w - 0.2, d - 0.2);
+  const asset = buildingAssetName(type, level, owner);
+  if (asset) {
+    // castle and towers fill their area, workshops leave some margin
+    const fill = type === 'headquarters' ? 1.05 : type === 'tower' ? 1.0 : type.endsWith('Mine') ? 1.05 : 0.92;
+    const body = fittedModel(asset, w, d, fill);
+    body.name = 'body';
+    g.add(body);
+    return g;
+  }
   const inner = new THREE.Group();
   (BUILDERS[type] ?? BUILDERS.residence)(inner, w, d, level, PLAYER_COLORS[owner % 4]);
   inner.name = 'body';
@@ -211,6 +221,8 @@ export function buildingModel(type, w, d, level, owner) {
 
 /** Scaffolding for construction sites. */
 export function scaffold(w, d) {
+  const kk = fittedModel('buildings/scaffolding', w, d, 0.95);
+  if (kk) return kk;
   const g = new THREE.Group();
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(box(0.08, 1.6, 0.08, 0xb08a5a, sx * (w / 2 - 0.4), 0, sz * (d / 2 - 0.4)));
   for (const y of [0.6, 1.3]) {

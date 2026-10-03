@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Asset preview</title><style>body{margin:0;background:#a9c8dc}canvas{display:block}</style></head>
+<body><script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+const files = (new URLSearchParams(location.search).get('f') || '').split(',');
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(innerWidth, innerHeight); document.body.appendChild(r.domElement);
+const s = new THREE.Scene(); s.add(new THREE.HemisphereLight(0xffffff, 0x666666, 1.2)); const d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(5, 10, 7); s.add(d);
+const cam = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 200);
+const L = new GLTFLoader(); L.setMeshoptDecoder(MeshoptDecoder);
+const cols = Math.ceil(Math.sqrt(files.length)); const info = [];
+await Promise.all(files.map((f, i) => new Promise((res) => L.load('/assets/' + f + '.glb', (g) => {
+  const o = g.scene; const b = new THREE.Box3().setFromObject(o); const sz = b.getSize(new THREE.Vector3());
+  info.push(f + ' ' + sz.toArray().map((v) => v.toFixed(2)).join('x') + ' minY ' + b.min.y.toFixed(2));
+  o.position.set((i % cols) * 3, 0, Math.floor(i / cols) * 3); s.add(o); res();
+}, undefined, (e) => { info.push('ERR ' + f + ' ' + e); res(); }))));
+cam.position.set(cols * 1.5 - 1.5 + 6, 9, cols * 1.5 + 8); cam.lookAt(cols * 1.5 - 1.5, 0, cols * 1.5 - 1.5);
+s.add(new THREE.GridHelper(40, 40)); r.render(s, cam); window.__info = info; document.title = 'ready';
+</script></body></html>

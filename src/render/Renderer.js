@@ -10,7 +10,10 @@ import {
   unitModel, heroModel, gadgetModel, healthBar,
 } from './models.js';
 import { UNITS, HEROES } from '../sim/data/units.js';
-import { maxHp } from '../sim/systems/military.js';
+import { instancedParts, heroAsset } from './assets.js';
+import { PLAYER_COLORS } from './models.js';
+
+const PLAYER_COLORS_HEX = (owner) => PLAYER_COLORS[owner % 4];
 
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
 
@@ -73,36 +76,51 @@ export class Renderer {
 
   buildTrees() {
     const trees = [...this.sim.entities.values()].filter((e) => e.kind === 'tree');
-    const { trunk, conifer, leafy } = treeGeometries();
-    const n = trees.length;
-    this.trunks = new THREE.InstancedMesh(trunk, mat(0x6b4626), n);
-    this.conifers = new THREE.InstancedMesh(conifer, mat(0xffffff), n);
-    this.leafies = new THREE.InstancedMesh(leafy, mat(0xffffff), n);
-    /** @type {Map<number, {i:number, kind:'conifer'|'leafy'}>} */
-    this.treeIndex = new Map();
-    const greens = [0x2f6b3a, 0x3a7a42, 0x2c6235, 0x5c9440, 0x4f8a3c, 0x6aa14a];
-    const c = new THREE.Color();
-    trees.forEach((t, i) => {
+    // variants: KayKit trees if loaded, otherwise procedural conifers and broadleaf trees
+    const variants = [];
+    for (const name of ['nature/tree_single_A', 'nature/tree_single_B']) {
+      const parts = instancedParts(name);
+      if (parts) variants.push({ parts, scale: 1.35, tint: false });
+    }
+    if (!variants.length) {
+      const { trunk, conifer, leafy } = treeGeometries();
+      variants.push({ parts: [{ geometry: trunk, material: mat(0x6b4626) }, { geometry: conifer, material: mat(0xffffff) }], scale: 1, tint: true, greens: [0x2f6b3a, 0x3a7a42, 0x2c6235] });
+      variants.push({ parts: [{ geometry: trunk, material: mat(0x6b4626) }, { geometry: leafy, material: mat(0xffffff) }], scale: 1, tint: true, greens: [0x5c9440, 0x4f8a3c, 0x6aa14a] });
+    }
+    const pick = (t) => {
       const hsh = (t.id * 2654435761) >>> 0;
-      const s = 0.8 + (hsh % 50) / 100;
+      const high = this.terrain.heightAt(t.x + 0.5, t.y + 0.5) > 4;
+      return high ? 0 : hsh % variants.length;
+    };
+    const counts = variants.map(() => 0);
+    for (const t of trees) counts[pick(t)]++;
+    variants.forEach((v, k) => {
+      v.meshes = v.parts.map((p) => {
+        const m = new THREE.InstancedMesh(p.geometry, p.material, Math.max(1, counts[k]));
+        m.count = counts[k];
+        m.castShadow = true; m.receiveShadow = true;
+        this.scene.add(m);
+        return m;
+      });
+      v.next = 0;
+    });
+    /** @type {Map<number, {v:number, i:number}>} */
+    this.treeIndex = new Map();
+    this.treeVariants = variants;
+    const c = new THREE.Color();
+    const up = new THREE.Vector3(0, 1, 0);
+    for (const t of trees) {
+      const k = pick(t), v = variants[k], i = v.next++;
+      const hsh = (t.id * 2654435761) >>> 0;
+      const s = (0.8 + (hsh % 50) / 100) * v.scale;
       const x = t.x + 0.5 + ((hsh >> 8) % 30 - 15) / 100, z = t.y + 0.5 + ((hsh >> 16) % 30 - 15) / 100;
       tmpP.set(x, this.terrain.heightAt(x, z), z);
-      tmpQ.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (hsh % 628) / 100);
+      tmpQ.setFromAxisAngle(up, (hsh % 628) / 100);
       tmpS.set(s, s, s);
       tmpM.compose(tmpP, tmpQ, tmpS);
-      this.trunks.setMatrixAt(i, tmpM);
-      const conif = tmpP.y > 4 || hsh % 3 !== 0;
-      const zero = new THREE.Matrix4().makeScale(0, 0, 0);
-      this.conifers.setMatrixAt(i, conif ? tmpM : zero);
-      this.leafies.setMatrixAt(i, conif ? zero : tmpM);
-      c.setHex(greens[(conif ? 0 : 3) + (hsh % 3)]);
-      this.conifers.setColorAt(i, c);
-      this.leafies.setColorAt(i, c);
-      this.treeIndex.set(t.id, { i, kind: conif ? 'conifer' : 'leafy' });
-    });
-    for (const m of [this.trunks, this.conifers, this.leafies]) {
-      m.castShadow = true; m.receiveShadow = true;
-      this.scene.add(m);
+      for (const m of v.meshes) m.setMatrixAt(i, tmpM);
+      if (v.tint) { c.setHex(v.greens[hsh % 3]); v.meshes[1].setColorAt(i, c); }
+      this.treeIndex.set(t.id, { v: k, i });
     }
   }
 
@@ -110,7 +128,7 @@ export class Renderer {
     const t = this.treeIndex.get(id);
     if (!t) return;
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);
-    for (const m of [this.trunks, this.conifers, this.leafies]) {
+    for (const m of this.treeVariants[t.v].meshes) {
       m.setMatrixAt(t.i, zero);
       m.instanceMatrix.needsUpdate = true;
     }
@@ -165,6 +183,7 @@ export class Renderer {
    */
   frame(alpha, dt, prev, view) {
     const sim = this.sim;
+    this.frameDt = dt;
     this.time = (this.time ?? 0) + dt;
     const seen = new Set();
 
@@ -272,7 +291,15 @@ export class Renderer {
   syncFighter(e, alpha, prev) {
     let g = this.units.get(e.id);
     if (!g) {
-      if (e.kind === 'hero') g = heroModel(e.hero, e.owner);
+      const ha = e.kind === 'hero' ? heroAsset(e.hero) : null;
+      if (ha) {
+        g = new THREE.Group();
+        ha.obj.scale.setScalar(0.5);
+        g.add(ha.obj);
+        g.userData = { anim: ha, current: null };
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.34, 20).rotateX(-Math.PI / 2), mat(PLAYER_COLORS_HEX(e.owner), { flatShading: false }));
+        ring.position.y = 0.03; g.add(ring);
+      } else if (e.kind === 'hero') g = heroModel(e.hero, e.owner);
       else if (e.kind === 'leader' || e.kind === 'soldier') g = unitModel(UNITS[e.def].line, e.owner, e.kind === 'leader');
       else g = gadgetModel(e.kind, e.owner);
       g.userData.def = e.def;
@@ -294,6 +321,7 @@ export class Renderer {
       }
     }
     g.position.set(x, this.terrain.heightAt(x, z), z);
+    if (g.userData.anim) { this.animateHero(g, e, moving); }
     const { body, legs, arm, horse } = g.userData;
     const ph = this.time * 9 + e.id;
     if (legs) {
@@ -320,6 +348,22 @@ export class Renderer {
       fg.scale.x = Math.max(0.001, frac); fg.position.x = -0.3 * (1 - frac);
       fg.material.color.setHex(frac > 0.5 ? 0x6fcf7a : frac > 0.25 ? 0xe0a93b : 0xef6b6b);
     }
+  }
+
+  /** Choose and play the hero figure animations. */
+  animateHero(g, e, moving) {
+    const { anim } = g.userData;
+    const hit = this.hitAt?.get(e.id);
+    const attacking = hit !== undefined && this.time - hit < 0.6;
+    const want = e.down ? 'Death_A_Pose' : attacking ? '1H_Melee_Attack_Chop' : moving ? 'Walking_A' : 'Idle';
+    if (g.userData.current !== want && anim.clips[want]) {
+      const next = anim.mixer.clipAction(anim.clips[want]);
+      next.reset().fadeIn(0.2).play();
+      if (g.userData.action) g.userData.action.fadeOut(0.2);
+      g.userData.action = next;
+      g.userData.current = want;
+    }
+    anim.mixer.update(this.frameDt ?? 0.016);
   }
 
   addProjectile(ev) {

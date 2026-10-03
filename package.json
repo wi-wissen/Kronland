@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "assets": "echo Aufruf: scripts/build-assets.sh <KayKit-Medieval-Hexagon-Pack-1.0> <KayKit-Character-Pack-Adventures-1.0> \\&\\& node scripts/trim-animations.mjs public/models/characters/*.glb"
   },
   "author": "Julian Dorn",
   "license": "UNLICENSED",
@@ -17,9 +18,11 @@
     "vue": "^3.5.43"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.5.1",
     "@playwright/test": "^1.63.0",
     "@vitejs/plugin-vue": "^6.0.9",
     "vite": "^8.3.2",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^5.0.3"
   },
   "private": true,

@@ -88,3 +88,22 @@ test('Recruit squads in the barracks', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => [...window.__kronland.sim.entities.values()].filter((e) => e.kind === 'soldier' && e.owner === 0).length)).toBe(4);
   await expect(page.getByTestId('res-gold')).toHaveText(String(500 - 100 - 4 * 30));
 });
+
+test('Start menu: start a new game, save and load again', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  await page.getByTestId('diff-easy').click();
+  await page.getByTestId('start').click();
+  await page.waitForFunction(() => !!window.__kronland);
+  await expect(page.getByTestId('res-gold')).toHaveText('500');
+  await page.evaluate(() => { window.__kronland.sim.players[0].stock.gold = 777; window.__kronland.emitUi(); });
+  await page.getByTestId('menu').click();
+  await page.getByTestId('save').click();
+  await page.evaluate(() => { window.__kronland.sim.players[0].stock.gold = 1; });
+  await page.getByTestId('menu').click();
+  await page.getByRole('button', { name: 'Gespeichertes Spiel laden' }).click();
+  await page.waitForFunction(() => window.__kronland?.sim.players[0].stock.gold === 777);
+  await expect(page.getByTestId('res-gold')).toHaveText('777');
+  expect(errors).toEqual([]);
+});

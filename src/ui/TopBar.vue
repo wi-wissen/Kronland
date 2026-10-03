@@ -16,6 +16,7 @@
       <span class="speed">
         <button :class="{ active: ui.paused }" title="Pause (Leertaste)" @click="$emit('pause')">❚❚</button>
         <button v-for="s in [1, 2, 4]" :key="s" :class="{ active: !ui.paused && ui.speed === s }" @click="$emit('speed', s)">{{ s }}×</button>
+        <button title="Menü" data-testid="menu" @click="$emit('menu')">Menü</button>
       </span>
     </div>
   </header>
@@ -28,7 +29,7 @@ import { RESOURCE_NAMES, RESOURCES } from '../sim/data/resources.js';
 export default {
   name: 'TopBar',
   props: { ui: { type: Object, required: true } },
-  emits: ['speed', 'pause'],
+  emits: ['speed', 'pause', 'menu'],
   computed: {
     resources() {
       return RESOURCES.map((id) => ({ id, name: RESOURCE_NAMES[id], color: '#' + RES_COLORS[id].toString(16).padStart(6, '0') }));

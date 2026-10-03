@@ -52,6 +52,19 @@ export class AiPlayer {
 
   get me() { return this.sim.players[this.player]; }
 
+  /** State for save games. */
+  getState() {
+    return { player: this.player, difficulty: this.difficulty, rng: this.rng.getState(), armyState: this.armyState, attackStrength: this.attackStrength };
+  }
+
+  static fromState(sim, st) {
+    const ai = new AiPlayer(sim, st.player, st.difficulty);
+    ai.rng.setState(st.rng);
+    ai.armyState = st.armyState;
+    ai.attackStrength = st.attackStrength;
+    return ai;
+  }
+
   /** Call once per tick; issues commands directly to the simulation. */
   update() {
     const sim = this.sim;

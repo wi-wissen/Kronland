@@ -12,6 +12,7 @@ import { UNITS, LINES, HEROES, unitOf, fullCost, LINE_UPGRADE_COST } from '../si
 import { targetable } from '../sim/systems/military.js';
 import { WEATHER_NAMES } from '../sim/data/weather.js';
 import { AiPlayer } from '../ai/AiPlayer.js';
+import { saveGame, loadGame } from '../sim/serialize.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
 import { Input } from './Input.js';
@@ -37,10 +38,15 @@ export class Engine {
     const players = opts.players ?? 2;
     const heroes = ['bertram', 'hedda', 'gerold', 'bertram'];
     if (opts.hero) { const i = heroes.indexOf(opts.hero); if (i > 0) [heroes[0], heroes[i]] = [heroes[i], heroes[0]]; }
-    this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes });
-    /** AI opponents for all other players */
-    this.ais = [];
-    for (let p = 1; p < players; p++) this.ais.push(new AiPlayer(this.sim, p, opts.difficulty ?? 'normal'));
+    if (opts.load) {
+      this.sim = loadGame(opts.load);
+      this.ais = (opts.load.extra?.ais ?? []).map((st) => AiPlayer.fromState(this.sim, st));
+    } else {
+      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes });
+      /** AI opponents for all other players */
+      this.ais = [];
+      for (let p = 1; p < players; p++) this.ais.push(new AiPlayer(this.sim, p, opts.difficulty ?? 'normal'));
+    }
     this.renderer = new Renderer(canvas, this.sim);
     this.onUi = opts.onUi ?? (() => {});
     /** @type {Set<number>} */
@@ -62,6 +68,10 @@ export class Engine {
     this.ro.observe(canvas);
     this.resize();
     this.lastUi = 0;
+    const cam = opts.load?.extra?.camera;
+    if (cam) { this.renderer.rig.lookAt(cam.x, cam.z); this.renderer.rig.yaw = cam.yaw; this.renderer.rig.dist = cam.dist; }
+    // make weather visible after loading
+    if (this.sim.weather.state !== 'summer') this.renderer.applyWeather(this.sim.weather.state);
   }
 
   start() {
@@ -318,6 +328,11 @@ export class Engine {
   }
 
   setSpeed(s) { this.speed = s; this.paused = false; this.emitUi(); }
+
+  /** Save game as a JSON-capable object. */
+  save() {
+    return saveGame(this.sim, { ais: this.ais.map((a) => a.getState()), camera: { ...this.renderer.rig.target, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist } });
+  }
   togglePause() { this.paused = !this.paused; this.emitUi(); }
 
   // ---------- Building ----------
