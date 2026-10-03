@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+*.log
+.DS_Store
+
+# Rohdateien der Asset-Pipeline: nur lokal beim Maintainer, nicht in Git
+assets-src/
