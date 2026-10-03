@@ -1,20 +1,15 @@
 // Serfs: walk, build, fell wood, mine resource piles, look for follow-up work.
 
-import { findPath } from '../pathfinding.js';
+import { moveAlong, pathTo, isAdjacent } from './movement.js';
 import { BALANCE } from '../data/balance.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { idiv, isqrt, tileCenter, toTile } from '../fixed.js';
+import { toTile } from '../fixed.js';
 
 const S = BALANCE.serf;
 
 /** Area of a target (building or 1×1 node). */
 function rectOf(t) {
   return t.kind === 'building' ? { x: t.x, y: t.y, w: t.w, h: t.h } : { x: t.x, y: t.y, w: 1, h: 1 };
-}
-
-function isAdjacent(u, r) {
-  const tx = toTile(u.px), ty = toTile(u.py);
-  return tx >= r.x - 1 && tx <= r.x + r.w && ty >= r.y - 1 && ty <= r.y + r.h;
 }
 
 /** Is the target still valid work for this serf? */
@@ -73,28 +68,7 @@ function findNextJob(sim, u, prev) {
   return false;
 }
 
-/** One step along the path. */
-function moveAlong(sim, u) {
-  const m = sim.map;
-  let step = S.speed;
-  while (step > 0 && u.path.length) {
-    const next = u.path[0];
-    const nx = next % m.width, ny = (next / m.width) | 0;
-    if (!m.walkable(nx, ny)) { u.path = []; return; }
-    const tx = tileCenter(nx), ty = tileCenter(ny);
-    const dx = tx - u.px, dy = ty - u.py;
-    const d = isqrt(dx * dx + dy * dy);
-    if (d <= step) {
-      u.px = tx; u.py = ty; step -= d; u.path.shift();
-    } else {
-      u.px += idiv(dx * step, d); u.py += idiv(dy * step, d); step = 0;
-    }
-  }
-}
-
-function pathTo(sim, u, goals) {
-  return findPath(sim.map, toTile(u.px), toTile(u.py), goals);
-}
+const moveSerf = (sim, u) => moveAlong(sim, u, S.speed);
 
 function doWork(sim, u, t) {
   if (u.job.kind === 'build') {
@@ -107,7 +81,7 @@ function doWork(sim, u, t) {
       t.hp = maxHp;
       const builders = t.builders.map((id) => sim.entities.get(id)).filter(Boolean);
       t.builders = [];
-      sim.events.push({ type: 'buildingDone', player: t.owner, building: t.id, buildingType: t.type });
+      sim.onBuildingDone(t);
       for (const b of builders) findNextJob(sim, b, { kind: 'build' });
     }
     return;
@@ -137,7 +111,7 @@ export function updateSerf(sim, u) {
         if (!p || !p.length) { u.goal = undefined; return; }
         u.path = p;
       }
-      moveAlong(sim, u);
+      moveSerf(sim, u);
       if (!u.path.length) u.goal = undefined;
     }
     return;
@@ -155,5 +129,5 @@ export function updateSerf(sim, u) {
     if (!p.length) { doWork(sim, u, t); return; }
     u.path = p;
   }
-  moveAlong(sim, u);
+  moveSerf(sim, u);
 }

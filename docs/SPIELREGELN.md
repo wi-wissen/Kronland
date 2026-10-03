@@ -47,6 +47,14 @@ und stehen gebündelt in `src/sim/data/`.
 - Zyklus: arbeiten → Ausdauer sinkt → essen (Bauernhof) → schlafen (Wohnhaus) → weiter.
   Ohne Platz: Lagerfeuer, deutlich langsamer. Haus + Hof machen ca. 5× schneller.
 - Wohnhaus 6/9/12 Betten, Bauernhof 8/10/12 Essplätze (Stufe 1/2/3).
+- Umsetzung (Werte in `src/sim/data/professions.js`): Ausdauer max. 600, ein Arbeitsgang kostet 100.
+  Essen +200, Schlafen +400, Lagerfeuer +40 – jeweils × Motivation. Ergebnis im Test:
+  Steinmetz mit Haus und Hof ca. 20 Stein/min (Original gemessen: 21), am Lagerfeuer ca. 4.
+- Veredler holen 5 Rohware pro Gang; je Arbeitsgang wird 1 Rohware zu 2 veredelter Ware **(A)**.
+- Überstunden: 1,5× schneller, −1 % Motivation je Arbeitsgang **(A)**.
+- Segnung: 1000 Glaube, +25 % Motivation für die Berufsgruppe **(A)**.
+- Maximale Motivation: 150 % + Ziergebäude (Uhr, Windrad je +4 %), höchstens 300 % **(A)**.
+- Abriss erstattet die Hälfte der Baukosten **(A)**; die Arbeiter verlassen die Siedlung.
 - Motivation: Start 100 %, Maximum 300 %.
   - < 70 %: Warnung. Durchschnitt < 30 %: keine neuen Siedler. Einzelner < 25 %: wandert ab.
   - Sinkt durch hohe Steuern, Überstunden. Steigt durch niedrige Steuern, Segnungen, Ziergebäude.

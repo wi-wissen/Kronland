@@ -5,6 +5,9 @@ import { Sim } from '../sim/sim.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { BALANCE } from '../sim/data/balance.js';
 import { RESOURCES } from '../sim/data/resources.js';
+import { TECHS, researchPoints } from '../sim/data/technologies.js';
+import { BLESSINGS, PROFESSIONS, WORKER } from '../sim/data/professions.js';
+import { averageMotivation, workerSlots, maxMotivation } from '../sim/systems/workers.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
 import { Input } from './Input.js';
@@ -16,7 +19,7 @@ export const BUILD_MENU = [
   'residence', 'farm', 'university', 'villageCenter',
   'clayMine', 'stoneMine', 'ironMine', 'sulfurMine',
   'brickworks', 'sawmill', 'stonemason', 'smithy', 'alchemist', 'bank',
-  'chapel', 'storehouse',
+  'chapel', 'storehouse', 'clock', 'windwheel',
 ];
 
 export class Engine {
@@ -87,14 +90,16 @@ export class Engine {
 
   stepOnce() {
     this.prev = new Map();
-    for (const e of this.sim.entities.values()) if (e.kind === 'unit') this.prev.set(e.id, { px: e.px, py: e.py });
+    for (const e of this.sim.entities.values()) if (e.kind === 'unit' || e.kind === 'worker') this.prev.set(e.id, { px: e.px, py: e.py });
     const events = this.sim.step(this.queue);
     this.queue = [];
     this.renderer.onEvents(events);
     for (const ev of events) {
       if (ev.player !== this.player) continue;
       if (ev.type === 'rejected') this.toast(ev.reason);
-      if (ev.type === 'buildingDone') this.toast(`${BUILDINGS[ev.buildingType].levels[0].name} fertig`);
+      if (ev.type === 'buildingDone') this.toast(`${BUILDINGS[ev.buildingType].levels[ev.level ?? 0].name} fertig`);
+      if (ev.type === 'researchDone') this.toast(`„${ev.name}“ erforscht`);
+      if (ev.type === 'workerLeft' && ev.reason === 'motivation') this.toast('Ein Arbeiter hat die Siedlung verlassen');
     }
     for (const id of this.selected) if (!this.sim.entities.has(id)) this.selected.delete(id);
   }
@@ -226,6 +231,23 @@ export class Engine {
   }
 
   buySerf(count = 1) { this.issue({ type: 'buySerf', count }); }
+  upgrade(id) { this.issue({ type: 'upgradeBuilding', building: id, units: this.idleSerfsNear(id) }); }
+  demolish(id) { this.issue({ type: 'demolish', building: id }); this.selected.delete(id); }
+  research(id, tech) { this.issue({ type: 'research', building: id, tech }); }
+  setOvertime(id, on) { this.issue({ type: 'setOvertime', building: id, on }); }
+  bless(id, blessing) { this.issue({ type: 'bless', building: id, blessing }); }
+  setTax(level) { this.issue({ type: 'setTax', level }); }
+
+  /** Up to 4 idle serfs near a building (for extensions). */
+  idleSerfsNear(id) {
+    const b = this.sim.entities.get(id);
+    if (!b) return [];
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    return [...this.sim.entities.values()]
+      .filter((e) => e.kind === 'unit' && e.owner === this.player && !e.job && e.goal === undefined)
+      .sort((a, c) => Math.hypot(a.px / UNIT - cx, a.py / UNIT - cy) - Math.hypot(c.px / UNIT - cx, c.py / UNIT - cy))
+      .slice(0, 4).map((e) => e.id);
+  }
 
   setSpeed(s) { this.speed = s; this.paused = false; this.emitUi(); }
   togglePause() { this.paused = !this.paused; this.emitUi(); }
@@ -284,11 +306,31 @@ export class Engine {
       const e = sim.entities.get([...this.selected][0]);
       if (e?.kind === 'building') {
         const lvl = BUILDINGS[e.type].levels[e.level];
+        const def = BUILDINGS[e.type];
+        const own = e.owner === this.player;
+        const next = def.levels[e.level + 1];
         selection = {
           kind: 'building', id: e.id, type: e.type, name: lvl.name, level: e.level + 1, done: e.done,
           progress: e.work ? Math.floor((e.progress / e.work) * 100) : 100, hp: e.hp, maxHp: lvl.hp,
-          own: e.owner === this.player, builders: e.builders.length,
-          beds: lvl.beds, seats: lvl.seats, population: lvl.population,
+          own, builders: e.builders.length,
+          beds: lvl.beds ? [e.residents.length, lvl.beds] : null,
+          seats: lvl.seats ? [e.eaters.length, lvl.seats] : null,
+          population: lvl.population,
+          workers: workerSlots(e) ? [e.workers.length, workerSlots(e)] : null,
+          overtime: e.overtime,
+          upgrade: own && next ? { name: next.name, cost: Object.entries(next.cost), reason: sim.checkUpgrade(this.player, e) } : null,
+          canDemolish: own && e.type !== 'headquarters',
+          research: own && e.type === 'university' && e.done ? Object.values(TECHS).map((t) => ({
+            id: t.id, name: t.name, line: t.line, tier: t.tier, cost: Object.entries(t.cost),
+            done: pl.techs.has(t.id),
+            running: e.research?.tech === t.id ? Math.floor((e.research.progress / researchPoints(t.id)) * 100) : null,
+            reason: pl.techs.has(t.id) ? null : sim.checkResearch(this.player, e, t.id),
+          })) : null,
+          blessings: own && e.type === 'chapel' && e.done ? Object.entries(BLESSINGS).map(([id, b]) => ({
+            id, name: b.name, who: b.professions ? b.professions.map((p) => PROFESSIONS[p].name).join(', ') : 'alle Arbeiter',
+            reason: b.minLevel && e.level < b.minLevel ? 'Nur in der Kathedrale' : pl.faith < WORKER.blessingFaith ? 'Nicht genug Glaube' : null,
+          })) : null,
+          tax: own && e.type === 'headquarters' ? { level: pl.taxLevel, allowed: pl.techs.has('education') } : null,
         };
       } else if (e?.kind === 'unit') {
         selection = { kind: 'enemy', owner: e.owner };
@@ -307,6 +349,10 @@ export class Engine {
       tick: sim.tick,
       res,
       pop: [sim.popUsed(this.player), sim.popLimit(this.player)],
+      motivation: averageMotivation(sim, this.player),
+      maxMotivation: maxMotivation(sim, this.player),
+      faith: pl.faith,
+      blessingCost: WORKER.blessingFaith,
       paydayIn: Math.ceil(ticksToPay / 10),
       speed: this.speed,
       paused: this.paused,

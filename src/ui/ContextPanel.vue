@@ -43,20 +43,87 @@
     <!-- Buildings -->
     <template v-else-if="ui.selection?.kind === 'building'">
       <div class="head">
-        <strong>{{ ui.selection.name }}</strong>
-        <span class="hint">Stufe {{ ui.selection.level }}</span>
+        <strong>{{ sel.name }}</strong>
+        <span class="hint">Stufe {{ sel.level }}</span>
         <button class="close" title="Auswahl aufheben" @click="$emit('deselect')">×</button>
       </div>
       <div class="stats">
-        <span v-if="!ui.selection.done">Bau {{ ui.selection.progress }} % · {{ ui.selection.builders }} Leibeigene</span>
-        <span>LP <b class="num">{{ ui.selection.hp }}/{{ ui.selection.maxHp }}</b></span>
-        <span v-if="ui.selection.beds">Betten <b>{{ ui.selection.beds }}</b></span>
-        <span v-if="ui.selection.seats">Essplätze <b>{{ ui.selection.seats }}</b></span>
-        <span v-if="ui.selection.population">Bevölkerung <b>+{{ ui.selection.population }}</b></span>
+        <span v-if="!sel.done">{{ sel.level > 1 ? 'Ausbau' : 'Bau' }} {{ sel.progress }} % · {{ sel.builders }} Leibeigene</span>
+        <span>LP <b class="num">{{ sel.hp }}/{{ sel.maxHp }}</b></span>
+        <span v-if="sel.workers">Arbeiter <b class="num">{{ sel.workers[0] }}/{{ sel.workers[1] }}</b></span>
+        <span v-if="sel.beds">Betten <b class="num">{{ sel.beds[0] }}/{{ sel.beds[1] }}</b></span>
+        <span v-if="sel.seats">Essplätze <b class="num">{{ sel.seats[0] }}/{{ sel.seats[1] }}</b></span>
+        <span v-if="sel.population">Bevölkerung <b>+{{ sel.population }}</b></span>
       </div>
-      <div v-if="ui.selection.own && ui.selection.done && ui.selection.type === 'headquarters'" class="row">
-        <button class="primary" data-testid="buy-serf" @click="$emit('buy-serf', 1)">Leibeigenen kaufen ({{ ui.serfCost }} Taler)</button>
-        <button @click="$emit('buy-serf', 5)">5 kaufen</button>
+
+      <div class="scroll">
+        <div v-if="sel.own && sel.done && sel.type === 'headquarters'" class="row">
+          <button class="primary" data-testid="buy-serf" @click="$emit('buy-serf', 1)">Leibeigenen kaufen ({{ ui.serfCost }} Taler)</button>
+          <button @click="$emit('buy-serf', 5)">5 kaufen</button>
+        </div>
+
+        <div v-if="sel.tax" class="block">
+          <span class="label">Steuern</span>
+          <div class="row">
+            <button
+              v-for="(name, i) in taxNames"
+              :key="i"
+              :class="{ active: sel.tax.level === i }"
+              :disabled="!sel.tax.allowed"
+              :title="sel.tax.allowed ? '' : 'Erst „Bildung“ erforschen'"
+              @click="$emit('action', { kind: 'tax', level: i })"
+            >{{ name }}</button>
+          </div>
+        </div>
+
+        <div v-if="sel.research" class="block">
+          <span class="label">Forschung</span>
+          <div class="techs">
+            <button
+              v-for="t in sel.research"
+              :key="t.id"
+              :class="{ done: t.done, running: t.running !== null }"
+              :disabled="t.done || t.running !== null || !!t.reason"
+              :title="t.reason || ''"
+              :data-testid="'tech-' + t.id"
+              @click="$emit('action', { kind: 'research', id: sel.id, tech: t.id })"
+            >
+              <span class="bname">{{ t.name }}</span>
+              <span class="bcost num">
+                <template v-if="t.done">erforscht</template>
+                <template v-else-if="t.running !== null">läuft · {{ t.running }} %</template>
+                <template v-else>{{ costText(t.cost) }}</template>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="sel.blessings" class="block">
+          <span class="label">Segnungen · {{ ui.faith }}/{{ ui.blessingCost }} Glaube</span>
+          <div class="techs">
+            <button v-for="b in sel.blessings" :key="b.id" :disabled="!!b.reason" :title="b.reason || ''" @click="$emit('action', { kind: 'bless', id: sel.id, blessing: b.id })">
+              <span class="bname">{{ b.name }}</span>
+              <span class="bcost">{{ b.who }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="sel.own" class="row">
+          <button
+            v-if="sel.upgrade"
+            :disabled="!!sel.upgrade.reason"
+            :title="sel.upgrade.reason || ''"
+            data-testid="upgrade"
+            @click="$emit('action', { kind: 'upgrade', id: sel.id })"
+          >Ausbauen zu {{ sel.upgrade.name }} · <span class="num">{{ costText(sel.upgrade.cost) }}</span></button>
+          <button v-if="sel.workers && sel.done" :class="{ active: sel.overtime }" @click="$emit('action', { kind: 'overtime', id: sel.id, on: !sel.overtime })">
+            Überstunden {{ sel.overtime ? 'an' : 'aus' }}
+          </button>
+          <button v-if="sel.canDemolish" :class="{ danger: confirmDemolish }" @click="demolish">
+            {{ confirmDemolish ? 'Wirklich abreißen?' : 'Abreißen' }}
+          </button>
+        </div>
+        <p v-if="sel.upgrade?.reason" class="hint">{{ sel.upgrade.reason }}</p>
       </div>
     </template>
 
@@ -78,11 +145,22 @@ import { RESOURCE_NAMES } from '../sim/data/resources.js';
 export default {
   name: 'ContextPanel',
   props: { ui: { type: Object, required: true } },
-  emits: ['build', 'buy-serf', 'confirm', 'cancel', 'deselect'],
+  emits: ['build', 'buy-serf', 'confirm', 'cancel', 'deselect', 'action'],
   data() {
-    return { buildOpen: false };
+    return { buildOpen: false, confirmDemolish: false, taxNames: ['Keine', 'Niedrig', 'Normal', 'Hoch', 'Sehr hoch'] };
+  },
+  computed: {
+    sel() { return this.ui.selection; },
+  },
+  watch: {
+    'ui.selection.id'() { this.confirmDemolish = false; },
   },
   methods: {
+    demolish() {
+      if (!this.confirmDemolish) { this.confirmDemolish = true; return; }
+      this.confirmDemolish = false;
+      this.$emit('action', { kind: 'demolish', id: this.sel.id });
+    },
     costText(cost) {
       return cost.map(([r, n]) => `${n} ${RESOURCE_NAMES[r]}`).join(' · ');
     },
@@ -123,9 +201,19 @@ export default {
 .context .build button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; padding: 6px 9px; }
 .context .bname { font-weight: 700; }
 .context .toggle { align-self: flex-start; }
+.context .scroll { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.context .block { display: flex; flex-direction: column; gap: 5px; }
+.context .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; }
+.context .techs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.context .techs button { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 5px 8px; }
+.context .techs button.done { border-color: rgba(111, 207, 122, 0.5); opacity: 0.8; }
+.context .techs button.running { border-color: var(--accent); opacity: 1; }
+.context button.danger { border-color: var(--bad); color: var(--bad); }
+.context p.hint { margin: 0; }
 .context .bcost { font-size: 12px; color: var(--muted); }
 @media (max-width: 640px) {
   .context { width: calc(100% - 12px); bottom: calc(6px + env(safe-area-inset-bottom, 0px)); padding: 8px; }
   .context .build { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .context .techs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

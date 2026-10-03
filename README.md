@@ -20,7 +20,7 @@ npm run build   # Produktionsbuild nach dist/
 |---|---|---|
 | 1 | Simulationskern: Karte, Leibeigene, Bauen, Abbau, Zahltag, Determinismus | fertig |
 | 2 | 3D-Darstellung und Steuerung (Desktop + Touch) | fertig |
-| 3 | Arbeiter, Veredelung, Motivation, Steuern, Forschung | offen |
+| 3 | Arbeiter, Veredelung, Motivation, Steuern, Forschung | fertig |
 | 4 | Militär, Kampf, Türme, Helden, Wetter, Siegbedingung | offen |
 | 5 | Computergegner | offen |
 | 6 | Assets, Speichern, PWA, Feinschliff | offen |

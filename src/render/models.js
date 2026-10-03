@@ -89,6 +89,19 @@ const BUILDERS = {
     g.add(box(0.8, 1.1, 0.06, DARK, 0, 0, k / 2 + 0.01));
     flag(g, pc, 0, top, 0);
   },
+  clock(g) {
+    g.add(box(0.6, 0.3, 0.6, STONE));
+    g.add(box(0.36, 1.5, 0.36, 0xd9cfb8, 0, 0.3, 0));
+    const face = mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 12), 0xf4efe2);
+    face.rotation.x = Math.PI / 2; face.position.set(0, 1.55, 0.2); g.add(face);
+    g.add(cone(0.28, 0.4, 0x5a6670, 0, 1.8, 0, 4));
+  },
+  windwheel(g) {
+    g.add(cyl(0.06, 0.1, 1.8, BEAM));
+    const hub = new THREE.Group(); hub.position.set(0, 1.8, 0.1); hub.name = 'rotor';
+    for (let i = 0; i < 6; i++) { const b = box(0.08, 0.6, 0.02, 0xf3ecdc, 0, 0, 0); b.position.set(Math.sin(i * 1.047) * 0.3, Math.cos(i * 1.047) * 0.3, 0); b.rotation.z = -i * 1.047; hub.add(b); }
+    g.add(hub);
+  },
   villageCenter(g, w, d, level, pc) {
     house(g, { w: w - 1.2, d: d - 1.4, h: 1.4 + level * 0.3, roof: THATCH, z: -0.3 });
     g.add(box(0.7, 2.6 + level * 0.4, 0.7, STONE, w / 2 - 0.7, 0, -d / 2 + 0.7));
@@ -209,7 +222,7 @@ export function scaffold(w, d) {
 }
 
 /** Serf: figure with legs for animating. */
-export function serfModel(owner) {
+export function serfModel(owner, tunic = 0xc39a5e) {
   const g = new THREE.Group();
   const b = new THREE.Group(); g.add(b);
   const legs = [];
@@ -217,7 +230,7 @@ export function serfModel(owner) {
     const hip = new THREE.Group(); hip.position.set(s * 0.05, 0.25, 0);
     const leg = box(0.07, 0.25, 0.07, 0x4a3a2a, 0, -0.25, 0); hip.add(leg); b.add(hip); legs.push(hip);
   }
-  b.add(cyl(0.1, 0.15, 0.32, 0xc39a5e, 0, 0.24, 0));
+  b.add(cyl(0.1, 0.15, 0.32, tunic, 0, 0.24, 0));
   const head = mesh(new THREE.SphereGeometry(0.09, 8, 6), 0xe6c2a0); head.position.y = 0.64; b.add(head);
   b.add(cyl(0.06, 0.11, 0.08, PLAYER_COLORS[owner % 4], 0, 0.7, 0));
   const tool = box(0.04, 0.3, 0.04, BEAM, 0.12, 0.3, 0.05); b.add(tool);
@@ -264,5 +277,27 @@ export function spotModel() {
     g.add(box(0.14, 0.5, 0.14, 0xc8b89a, x, 0, z));
   }
   flag(g, 0xf0e6c8, 0, 0, 0);
+  return g;
+}
+
+/** Smock colour per profession. */
+export const PROF_COLORS = {
+  farmer: 0xb8862d, scholar: 0x4a5a8a, miner: 0x5a5048, brickmaker: 0xa0583a, sawyer: 0x6b7a3a,
+  mason: 0x8a8a92, smith: 0x4a4a52, alchemist: 0x7a4a8a, treasurer: 0x9a7a2a, priest: 0xe6e0d0, trader: 0x3a7a7a,
+};
+
+/** Campfire at the village centre. */
+export function campfireModel() {
+  const g = new THREE.Group();
+  for (let i = 0; i < 5; i++) {
+    const s = mesh(new THREE.DodecahedronGeometry(0.1, 0), 0x6d6a64);
+    s.position.set(Math.cos(i * 1.256) * 0.28, 0.06, Math.sin(i * 1.256) * 0.28); g.add(s);
+  }
+  for (let i = 0; i < 3; i++) {
+    const l = cyl(0.04, 0.04, 0.45, 0x6b4626, 0, 0.05, 0, 5);
+    l.rotation.set(Math.PI / 2.6, i * 2.1, 0); g.add(l);
+  }
+  const f = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.32, 6), new THREE.MeshBasicMaterial({ color: 0xffa632 }));
+  f.position.y = 0.2; f.name = 'flame'; g.add(f);
   return g;
 }

@@ -37,3 +37,22 @@ export function placeNearHq(sim, type, owner = 0, units = []) {
   if (!ev) throw new Error('Bau abgelehnt: ' + JSON.stringify(events));
   return ev.building;
 }
+
+/** Place a building finished immediately (without cost, for tests). */
+export function quickBuild(sim, type, owner = 0, near = null) {
+  const hq = hqOf(sim, owner);
+  const c = near ?? { x: hq.x + 2, y: hq.y + 2 };
+  const pos = sim.findPlacement(owner, type, c.x, c.y, 30) ?? (() => {
+    // bypass technology lock for tests
+    const had = sim.players[owner].techs;
+    sim.players[owner].techs = new Set([...had, 'education', 'construction', 'gears', 'alchemy', 'printing']);
+    const p = sim.findPlacement(owner, type, c.x, c.y, 30);
+    sim.players[owner].techs = had;
+    return p;
+  })();
+  if (!pos) throw new Error('No spot for ' + type);
+  return sim.createBuilding(owner, type, pos.x, pos.y, true);
+}
+
+export const workersOfPlayer = (sim, owner = 0) =>
+  [...sim.entities.values()].filter((e) => e.kind === 'worker' && e.owner === owner);

@@ -58,3 +58,17 @@ test('Place a house via the build menu', async ({ page }, info) => {
   const sites = await page.evaluate(() => [...window.__kronland.sim.entities.values()].filter((e) => e.type === 'residence').length);
   expect(sites).toBe(1);
 });
+
+test('Start research in the university', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const e = window.__kronland, s = e.sim;
+    const hq = s.findBuilding(0, 'headquarters');
+    const p = s.findPlacement(0, 'university', hq.x + 3, hq.y + 8, 30);
+    const u = s.createBuilding(0, 'university', p.x, p.y, true);
+    e.selected.clear(); e.selected.add(u.id); e.emitUi();
+  });
+  await page.getByTestId('tech-education').click();
+  await expect(page.getByTestId('tech-education')).toContainText('läuft');
+  await expect(page.getByTestId('res-gold')).toHaveText('450');
+});

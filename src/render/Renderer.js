@@ -6,7 +6,7 @@ import { CameraRig } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT } from '../sim/fixed.js';
 import {
-  buildingModel, scaffold, serfModel, treeGeometries, pileModel, shaftModel, spotModel, mat,
+  buildingModel, scaffold, serfModel, treeGeometries, pileModel, shaftModel, spotModel, mat, PROF_COLORS, campfireModel,
 } from './models.js';
 
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
@@ -163,7 +163,7 @@ export class Renderer {
 
     for (const e of sim.entities.values()) {
       if (e.kind === 'building') { seen.add(e.id); this.syncBuilding(e); }
-      else if (e.kind === 'unit') { seen.add(e.id); this.syncUnit(e, alpha, prev.get(e.id), dt); }
+      else if (e.kind === 'unit' || e.kind === 'worker') { seen.add(e.id); this.syncUnit(e, alpha, prev.get(e.id), dt); }
       else if (e.kind === 'pile') {
         const g = this.piles.get(e.id);
         if (g) g.scale.setScalar(0.55 + 0.45 * Math.min(1, e.amount / 400));
@@ -199,10 +199,17 @@ export class Renderer {
         const sc = scaffold(e.w, e.h); sc.name = 'scaffold'; g.add(sc);
       }
       g.position.set(e.x + e.w / 2, this.terrain.rectHeight(e.x, e.y, e.w, e.h), e.y + e.h / 2);
+      if (e.type === 'villageCenter' || e.type === 'headquarters') {
+        const fire = campfireModel(); fire.position.set(-e.w / 2 - 0.2, 0, e.h / 2 + 0.6); g.add(fire);
+      }
       g.traverse((m) => { m.userData.entity = e.id; });
       this.scene.add(g);
       this.buildings.set(e.id, g);
     }
+    const rotor = g.getObjectByName('rotor');
+    if (rotor) rotor.rotation.z = this.time * 1.5;
+    const flame = g.getObjectByName('flame');
+    if (flame) flame.scale.y = 0.8 + Math.sin(this.time * 12 + e.id) * 0.2;
     if (!e.done) {
       const body = g.getObjectByName('body');
       const p = e.work ? e.progress / e.work : 1;
@@ -213,7 +220,8 @@ export class Renderer {
   syncUnit(e, alpha, prev, dt) {
     let g = this.units.get(e.id);
     if (!g) {
-      g = serfModel(e.owner);
+      g = e.kind === 'worker' ? serfModel(e.owner, PROF_COLORS[e.prof]) : serfModel(e.owner);
+      if (e.kind === 'worker') g.userData.tool.visible = false;
       g.traverse((m) => { m.userData.entity = e.id; });
       this.scene.add(g);
       this.units.set(e.id, g);
@@ -229,6 +237,12 @@ export class Renderer {
     legs[0].rotation.x = moving ? Math.sin(ph) * 0.6 : 0;
     legs[1].rotation.x = moving ? -Math.sin(ph) * 0.6 : 0;
     body.position.y = moving ? Math.abs(Math.sin(ph)) * 0.03 : 0;
+    if (e.kind === 'worker') {
+      g.visible = !e.inside;
+      if (e.state === 'camping') { body.rotation.x = 0.35; }
+      else body.rotation.x = 0;
+      return;
+    }
     const working = !moving && e.job && e.path.length === 0;
     tool.rotation.x = working ? -Math.max(0, Math.sin(this.time * 6 + e.id)) * 1.6 : 0;
     body.rotation.x = working ? Math.max(0, Math.sin(this.time * 6 + e.id)) * 0.2 : 0;

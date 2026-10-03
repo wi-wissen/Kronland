@@ -1,7 +1,7 @@
 // Payday every 120 s: workers' taxes, squad leaders' pay.
-// Workers and captains come in later phases; the calculation is already in place.
 
 import { BALANCE } from '../data/balance.js';
+import { paydayMotivation } from './workers.js';
 
 export function countWorkers(sim, owner) {
   let n = 0;
@@ -29,5 +29,7 @@ export function updatePayday(sim) {
     const wages = countLeaders(sim, p.id) * BALANCE.wagePerLeader;
     p.stock.gold = Math.max(0, p.stock.gold + income - wages);
     sim.events.push({ type: 'payday', player: p.id, income, wages });
+    const delta = BALANCE.tax.motivation[p.taxLevel];
+    if (delta) paydayMotivation(sim, p.id, delta);
   }
 }

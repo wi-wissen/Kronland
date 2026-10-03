@@ -114,3 +114,34 @@ function refiner(id, n1, n2, cost, requires, workers) {
     ],
   };
 }
+
+// Ornamental buildings: raise the maximum motivation permanently and the current one once (source: dedk.de).
+BUILDINGS.clock = {
+  id: 'clock', w: 2, h: 2, placement: 'free', requires: 'construction', motivationEffect: 4,
+  levels: [{ name: 'Uhr', cost: { gold: 300, wood: 100 }, buildTime: 20, hp: 400 }],
+};
+BUILDINGS.windwheel = {
+  id: 'windwheel', w: 2, h: 2, placement: 'free', requires: 'alchemy', motivationEffect: 4,
+  levels: [{ name: 'Windrad', cost: { gold: 200, iron: 100 }, buildTime: 20, hp: 400 }],
+};
+
+/** Technology that an upgrade to level i (1-based from level 2) requires. null = none. */
+export const UPGRADE_REQUIRES = {
+  headquarters: [null, null, 'printing'],          // citadel (A)
+  villageCenter: [null, 'education', 'trade'],
+  residence: [null, 'construction', 'architecture'],
+  farm: [null, 'gears', 'architecture'],
+  university: [null, 'university4'],                // 4 techs researched (special rule)
+  clayMine: [null, 'gears', 'chemistry'],
+  stoneMine: [null, 'gears', 'chemistry'],
+  ironMine: [null, 'gears', 'chemistry'],
+  sulfurMine: [null, 'gears', 'chemistry'],
+  brickworks: [null, 'alloys'],
+  sawmill: [null, 'pulley'],
+  stonemason: [null, 'pulley'],
+  smithy: [null, 'alloys'],
+  alchemist: [null, 'metallurgy'],
+  bank: [null, 'libraries'],
+  chapel: [null, 'printing', 'libraries'],
+  storehouse: [null, 'trade'],
+};

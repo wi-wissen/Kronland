@@ -18,6 +18,7 @@
       @confirm="engine.confirmPlacement()"
       @cancel="engine.cancelPlacement()"
       @deselect="engine.clearSelection()"
+      @action="onAction"
     />
 
     <div class="toasts" aria-live="polite">
@@ -51,6 +52,17 @@ export default {
     this.engine.start();
     // For E2E tests and debugging
     window.__kronland = this.engine;
+  },
+  methods: {
+    onAction(a) {
+      const e = this.engine;
+      if (a.kind === 'tax') e.setTax(a.level);
+      else if (a.kind === 'research') e.research(a.id, a.tech);
+      else if (a.kind === 'bless') e.bless(a.id, a.blessing);
+      else if (a.kind === 'upgrade') e.upgrade(a.id);
+      else if (a.kind === 'overtime') e.setOvertime(a.id, a.on);
+      else if (a.kind === 'demolish') e.demolish(a.id);
+    },
   },
   beforeUnmount() {
     this.engine?.stop();

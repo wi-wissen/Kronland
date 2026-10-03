@@ -9,6 +9,8 @@
     </div>
     <div class="meta">
       <span class="item" title="Bevölkerung / Limit"><span class="label">Volk</span> <b class="num">{{ ui.pop[0] }}/{{ ui.pop[1] }}</b></span>
+      <span class="item" title="Durchschnittliche Motivation / Maximum"><span class="label">Motivation</span> <b class="num" :class="{ warn: ui.motivation < 70 }">{{ ui.motivation }}%</b></span>
+      <span v-if="ui.faith" class="item" title="Glaube für Segnungen"><span class="label">Glaube</span> <b class="num">{{ ui.faith }}</b></span>
       <span class="item" title="Sekunden bis zum Zahltag"><span class="label">Zahltag</span> <b class="num">{{ ui.paydayIn }}s</b></span>
       <span class="speed">
         <button :class="{ active: ui.paused }" title="Pause (Leertaste)" @click="$emit('pause')">❚❚</button>
@@ -53,6 +55,7 @@ export default {
 .topbar i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .topbar .label { color: var(--muted); font-size: 13px; }
 .topbar b { font-weight: 700; min-width: 3ch; }
+.topbar b.warn { color: var(--bad); }
 .topbar .speed { display: inline-flex; gap: 4px; }
 .topbar .speed button { min-height: 30px; padding: 3px 8px; font-size: 13px; }
 @media (max-width: 640px) {

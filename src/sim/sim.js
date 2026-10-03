@@ -3,13 +3,16 @@
 import { Rng } from './rng.js';
 import { generateMap } from './mapgen.js';
 import { OCCUPIED, RESERVED, WATER } from './map.js';
-import { BUILDINGS } from './data/buildings.js';
+import { BUILDINGS, UPGRADE_REQUIRES } from './data/buildings.js';
+import { TECHS } from './data/technologies.js';
+import { BLESSINGS, WORKER } from './data/professions.js';
 import { BALANCE } from './data/balance.js';
 import { RESOURCES, START_RESOURCES, emptyStock } from './data/resources.js';
 import { UNIT, tileCenter, toTile, secondsToTicks } from './fixed.js';
 import { Hasher } from './hash.js';
 import { updateSerf, clearJob, assignJob } from './systems/serfs.js';
 import { updatePayday } from './systems/payday.js';
+import { updateSpawning, updateWorker, removeWorker, workersOf, maxMotivation } from './systems/workers.js';
 
 /** @typedef {import('./data/resources.js').ResourceId} ResourceId */
 
@@ -21,6 +24,7 @@ import { updatePayday } from './systems/payday.js';
  * @property {number} taxLevel 0 … 4
  * @property {Set<string>} techs
  * @property {boolean} defeated
+ * @property {number} faith faith for blessings
  */
 
 /**
@@ -36,6 +40,11 @@ import { updatePayday } from './systems/payday.js';
  * @property {number} work required construction work
  * @property {number} hp
  * @property {number[]} builders
+ * @property {number[]} workers
+ * @property {number[]} residents
+ * @property {number[]} eaters
+ * @property {boolean} overtime
+ * @property {null|{tech:string, progress:number}} research
  */
 
 /**
@@ -97,7 +106,7 @@ export class Sim {
     for (let p = 0; p < gen.starts.length; p++) {
       const stock = emptyStock();
       for (const r of RESOURCES) stock[r] = START_RESOURCES[r];
-      this.players.push({ id: p, stock, raw: emptyStock(), taxLevel: BALANCE.tax.defaultLevel, techs: new Set(), defeated: false });
+      this.players.push({ id: p, stock, raw: emptyStock(), taxLevel: BALANCE.tax.defaultLevel, techs: new Set(), defeated: false, faith: 0 });
       const hq = gen.hqs[p];
       this.createBuilding(p, 'headquarters', hq.x, hq.y, true);
       const spot = this.spots.find((s) => this.isOwnStartSpot(s, gen.starts[p]));
@@ -130,6 +139,7 @@ export class Sim {
       id: this.nextId++, kind: 'building', type, owner, x, y, w: def.w, h: def.h,
       level: 0, done, progress: 0, work: secondsToTicks(lvl.buildTime) * BALANCE.serf.maxBuildersPerSite,
       hp: done ? lvl.hp : Math.max(1, Math.trunc(lvl.hp / 10)), builders: [],
+      workers: [], residents: [], eaters: [], overtime: false, research: null,
     };
     this.entities.set(b.id, b);
     this.map.occupy(x, y, def.w, def.h, b.id);
@@ -155,8 +165,25 @@ export class Sim {
 
   removeEntity(e) {
     if (e.kind === 'tree' || e.kind === 'pile') this.map.release(e.x, e.y, 1, 1);
-    if (e.kind === 'building') this.map.release(e.x, e.y, e.w, e.h);
+    if (e.kind === 'building') {
+      this.map.release(e.x, e.y, e.w, e.h);
+      for (const id of e.workers) { const w = this.entities.get(id); if (w) removeWorker(this, w, 'noWorkplace'); }
+      for (const id of [...e.residents, ...e.eaters]) {
+        const w = this.entities.get(id);
+        if (w?.kind === 'worker') { if (w.home === e.id) w.home = 0; if (w.farm === e.id) w.farm = 0; }
+      }
+    }
     this.entities.delete(e.id);
+  }
+
+  /** Called when a build or upgrade is finished. */
+  onBuildingDone(b) {
+    this.events.push({ type: 'buildingDone', player: b.owner, building: b.id, buildingType: b.type, level: b.level });
+    const effect = BUILDINGS[b.type].motivationEffect;
+    if (effect) {
+      const max = maxMotivation(this, b.owner);
+      for (const w of workersOf(this, b.owner)) w.motivation = Math.min(max, w.motivation + effect);
+    }
   }
 
   spawnSerf(owner) {
@@ -189,7 +216,11 @@ export class Sim {
 
   // ---------- Players ----------
 
-  popUsed(owner) { return this.countUnits(owner); }
+  popUsed(owner) {
+    let n = 0;
+    for (const e of this.entities.values()) if ((e.kind === 'unit' || e.kind === 'worker') && e.owner === owner) n++;
+    return n;
+  }
 
   popLimit(owner) {
     let n = 0;
@@ -239,6 +270,11 @@ export class Sim {
       case 'assignWork': return this.cmdAssignWork(cmd);
       case 'move': return this.cmdMove(cmd);
       case 'setTax': return this.cmdSetTax(cmd);
+      case 'upgradeBuilding': return this.cmdUpgrade(cmd);
+      case 'demolish': return this.cmdDemolish(cmd);
+      case 'research': return this.cmdResearch(cmd);
+      case 'setOvertime': return this.cmdOvertime(cmd);
+      case 'bless': return this.cmdBless(cmd);
       default: return this.reject(cmd, 'Unbekannter Befehl');
     }
   }
@@ -355,6 +391,110 @@ export class Sim {
     return true;
   }
 
+  /** Own, finished building from a command. */
+  ownBuilding(cmd, type) {
+    const b = this.entities.get(cmd.building);
+    if (!b || b.kind !== 'building' || b.owner !== cmd.player) return null;
+    if (type && b.type !== type) return null;
+    return b;
+  }
+
+  /** Reason why an upgrade is not possible, or null. */
+  checkUpgrade(owner, b) {
+    const def = BUILDINGS[b.type];
+    if (!b.done) return 'Gebäude wird noch gebaut';
+    const next = def.levels[b.level + 1];
+    if (!next) return 'Höchste Stufe erreicht';
+    const req = UPGRADE_REQUIRES[b.type]?.[b.level + 1];
+    const techs = this.players[owner].techs;
+    if (req === 'university4') { if (techs.size < 4) return 'Erst 4 Technologien erforschen'; }
+    else if (req && !techs.has(req)) return `Erst „${TECHS[req].name}“ erforschen`;
+    if (b.research) return 'Forschung läuft';
+    if (!this.canPay(owner, next.cost)) return 'Nicht genug Rohstoffe';
+    return null;
+  }
+
+  cmdUpgrade(cmd) {
+    const b = this.ownBuilding(cmd);
+    if (!b) return this.reject(cmd, 'Kein eigenes Gebäude');
+    const err = this.checkUpgrade(cmd.player, b);
+    if (err) return this.reject(cmd, err);
+    const next = BUILDINGS[b.type].levels[b.level + 1];
+    this.pay(cmd.player, next.cost);
+    b.level++;
+    b.done = false;
+    b.progress = 0;
+    b.work = secondsToTicks(next.buildTime) * BALANCE.serf.maxBuildersPerSite;
+    this.events.push({ type: 'upgradeStarted', player: cmd.player, building: b.id, level: b.level });
+    if (cmd.units?.length) this.cmdAssignWork({ player: cmd.player, units: cmd.units, target: b.id });
+    return true;
+  }
+
+  cmdDemolish(cmd) {
+    const b = this.ownBuilding(cmd);
+    if (!b) return this.reject(cmd, 'Kein eigenes Gebäude');
+    if (b.type === 'headquarters') return this.reject(cmd, 'Die Burg kann nicht abgerissen werden');
+    const cost = BUILDINGS[b.type].levels[0].cost;
+    const p = this.players[cmd.player];
+    for (const r of Object.keys(cost)) p.stock[r] += Math.trunc(cost[r] / 2); // half back (A)
+    for (const id of b.builders) { const u = this.entities.get(id); if (u) { u.job = null; u.path = []; } }
+    this.removeEntity(b);
+    this.events.push({ type: 'demolished', player: cmd.player, building: b.id });
+    return true;
+  }
+
+  /** Reason why a research is not possible, or null. */
+  checkResearch(owner, b, techId) {
+    const t = TECHS[techId];
+    if (!t) return 'Unbekannte Technologie';
+    const p = this.players[owner];
+    if (!b || b.type !== 'university' || !b.done) return 'Hochschule nötig';
+    if (b.research) return 'Hier wird schon geforscht';
+    if (p.techs.has(techId)) return 'Schon erforscht';
+    for (const e of this.entities.values()) {
+      if (e.kind === 'building' && e.owner === owner && e.research?.tech === techId) return 'Wird schon erforscht';
+    }
+    if (t.prev && !p.techs.has(t.prev)) return `Erst „${TECHS[t.prev].name}“ erforschen`;
+    if (t.tier >= 2 && (this.findBuilding(owner, 'headquarters')?.level ?? 0) < 1) return 'Erst die Burg zur Festung ausbauen';
+    if (t.tier >= 3 && b.level < 1) return 'Erst die Hochschule zur Universität ausbauen';
+    if (!this.canPay(owner, t.cost)) return 'Nicht genug Rohstoffe';
+    return null;
+  }
+
+  cmdResearch(cmd) {
+    const b = this.ownBuilding(cmd);
+    const err = this.checkResearch(cmd.player, b, cmd.tech);
+    if (err) return this.reject(cmd, err);
+    this.pay(cmd.player, TECHS[cmd.tech].cost);
+    b.research = { tech: cmd.tech, progress: 0 };
+    this.events.push({ type: 'researchStarted', player: cmd.player, tech: cmd.tech });
+    return true;
+  }
+
+  cmdOvertime(cmd) {
+    const b = this.ownBuilding(cmd);
+    if (!b || !b.workers) return this.reject(cmd, 'Kein eigenes Gebäude');
+    b.overtime = !!cmd.on;
+    return true;
+  }
+
+  cmdBless(cmd) {
+    const b = this.ownBuilding(cmd, 'chapel');
+    if (!b?.done) return this.reject(cmd, 'Kapelle nötig');
+    const bl = BLESSINGS[cmd.blessing];
+    if (!bl) return this.reject(cmd, 'Unbekannte Segnung');
+    if (bl.minLevel && b.level < bl.minLevel) return this.reject(cmd, 'Nur in der Kathedrale');
+    const p = this.players[cmd.player];
+    if (p.faith < WORKER.blessingFaith) return this.reject(cmd, 'Nicht genug Glaube');
+    p.faith -= WORKER.blessingFaith;
+    const max = maxMotivation(this, cmd.player);
+    for (const w of workersOf(this, cmd.player)) {
+      if (!bl.professions || bl.professions.includes(w.prof)) w.motivation = Math.min(max, w.motivation + WORKER.blessingMotivation);
+    }
+    this.events.push({ type: 'blessed', player: cmd.player, blessing: cmd.blessing });
+    return true;
+  }
+
   // ---------- Tick ----------
 
   /** Compute one tick (100 ms). @param {any[]} [commands] additional commands for this tick */
@@ -364,8 +504,11 @@ export class Sim {
     this.pending = [];
     for (const c of cmds) this.applyCommand(c);
 
+    updateSpawning(this);
     for (const e of [...this.entities.values()]) {
-      if (e.kind === 'unit' && this.entities.has(e.id)) updateSerf(this, e);
+      if (!this.entities.has(e.id)) continue;
+      if (e.kind === 'unit') updateSerf(this, e);
+      else if (e.kind === 'worker') updateWorker(this, e);
     }
     updatePayday(this);
     this.tick++;
@@ -386,11 +529,12 @@ export class Sim {
     for (const v of this.rng.getState()) h.int(v);
     for (const p of this.players) {
       for (const r of RESOURCES) h.int(p.stock[r]).int(p.raw[r]);
-      h.int(p.taxLevel);
+      h.int(p.taxLevel).int(p.faith).int(p.techs.size);
     }
     for (const e of this.entities.values()) {
       h.int(e.id).str(e.kind);
       if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length);
+      else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state);
       else if (e.kind === 'building') h.str(e.type).int(e.x).int(e.y).int(e.progress).int(e.done ? 1 : 0).int(e.level).int(e.hp);
       else h.int(e.x).int(e.y).int(e.amount);
     }
@@ -406,6 +550,7 @@ export class Sim {
         popUsed: this.popUsed(p.id), popLimit: this.popLimit(p.id),
       })),
       entities: [...this.entities.values()].map((e) => {
+        if (e.kind === 'worker') return { id: e.id, kind: e.kind, prof: e.prof, owner: e.owner, x: e.px / UNIT, y: e.py / UNIT, state: e.state, inside: e.inside, motivation: e.motivation };
         if (e.kind === 'unit') return { id: e.id, kind: e.kind, type: e.type, owner: e.owner, x: e.px / UNIT, y: e.py / UNIT, job: e.job?.kind ?? null, working: e.path.length === 0 && !!e.job };
         if (e.kind === 'building') return { id: e.id, kind: e.kind, type: e.type, owner: e.owner, x: e.x, y: e.y, w: e.w, h: e.h, level: e.level, done: e.done, progress: e.work ? e.progress / e.work : 1 };
         return { id: e.id, kind: e.kind, x: e.x, y: e.y, res: e.res, amount: e.amount };
