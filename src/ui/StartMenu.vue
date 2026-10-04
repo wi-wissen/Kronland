@@ -114,6 +114,7 @@ import SettingsPanel from './SettingsPanel.vue';
 import SaveBrowser from './saves/SaveBrowser.vue';
 import { set } from './settings.js';
 import { getStore, SaveError } from '../save/index.js';
+import { HERO_IDS } from '../sim/data/units.js';
 import { siteRoot } from '../paths.js';
 
 export default {
@@ -126,7 +127,7 @@ export default {
   emits: ['start', 'load', 'tutorial', 'campaign', 'saves-changed', 'adventures'],
   data() {
     return {
-      opponents: 1, difficulty: 'normal', hero: 'bertram', heroes: ['bertram', 'hedda', 'gerold', 'falk', 'morla'],
+      opponents: 1, difficulty: 'normal', hero: 'nelia', heroes: HERO_IDS,
       seed: Math.floor(Math.random() * 99999) + 1, settingsOpen: false, savesOpen: false, fog: true,
       busy: false, error: '', touch: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
       // Website: home page, manual, compendium (relative to the root, see src/paths.js)

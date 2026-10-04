@@ -29,7 +29,7 @@ const BASICS = [
   { name: 'py.def', sig: 'def name(a, b):', example: 'def turn_around():\n    hero.turn_left()\n    hero.turn_left()' },
   { name: 'py.list', sig: '[1, 2, 3], xs.append(4), len(xs)', example: 'trees = trees_near(hero)\nprint(len(trees))' },
   { name: 'py.dict', sig: '{"wood": 5}, d["wood"]', example: 'found = {}' },
-  { name: 'py.fstring', sig: 'f"x = {x}"', example: 'print(f"Bertram steht bei {hero.x}, {hero.y}")' },
+  { name: 'py.fstring', sig: 'f"x = {x}"', example: 'print(f"Nelia steht bei {hero.x}, {hero.y}")' },
 ];
 
 const EXAMPLES = {
@@ -39,8 +39,8 @@ const EXAMPLES = {
   'hero.is_at': 'print(hero.is_at(place("goal")))', 'hero.take': 'hero.take()', 'hero.chop': 'hero.chop()', 'hero.say': 'hero.say("Hallo!")',
   place: 'goal = place("goal")', tile: 'print(tile(5, 5))', trees_near: 'print(len(trees_near(hero)))', stock: 'print(stock("wood"))',
   serfs: 'for s in serfs(idle=True):\n    print(s)', build: 'spot = find_spot("residence", hq())\nsite = build("residence", spot[0], spot[1])',
-  say: 'say("bertram", "Hallo!")', 'camera.fly_to': 'camera.fly_to(hero, seconds=2)', objective: 'objective("goal", "Erreiche das Ziel", lambda: hero.is_at(place("goal")))',
-  on_start: '@on_start\ndef intro():\n    say("bertram", "Los geht\'s!")', every: '@every(10)\ndef tick():\n    print(time())',
+  say: 'say("nelia", "Hallo!")', 'camera.fly_to': 'camera.fly_to(hero, seconds=2)', objective: 'objective("goal", "Erreiche das Ziel", lambda: hero.is_at(place("goal")))',
+  on_start: '@on_start\ndef intro():\n    say("nelia", "Los geht\'s!")', every: '@every(10)\ndef tick():\n    print(time())',
   spawn: 'spawn(BANDITS, "sword1", place("gate"), count=2)', plant_trees: 'plant_trees((10, 10), 12)', make_place: 'make_place("goal", 10, 10, 1)',
 };
 

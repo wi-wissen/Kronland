@@ -19,7 +19,7 @@ function scenario(sections, extra = {}) {
   return {
     format: 'kronland-scenario', version: 1, id: 'test', kind: 'adventure',
     world: { base: 'flat', width: 24, height: 16, fog: false, starts: [{ x: 4, y: 8 }], places: { goal: { x: 10, y: 8, r: 0 } } },
-    players: [{ kind: 'human', hero: 'bertram', hq: false }],
+    players: [{ kind: 'human', hero: 'nelia', hq: false }],
     texts: { hi: { de: 'Hallo!', en: 'Hello!' } },
     sections,
     ...extra,
@@ -37,7 +37,7 @@ describe('Scenarios', () => {
     expect(validateScenario({ format: 'x' }).length).toBeGreaterThan(0);
   });
 
-  it('learning adventure 1: a loop brings Bertram to the treasure, two steps are not enough', () => {
+  it('learning adventure 1: a loop brings Nelia to the treasure, two steps are not enough', () => {
     const sim = createMissionSim('adv1');
     expect(sim.mission.script.state.errors).toEqual([]);
     expect(heroOf(sim)).toBeTruthy();
@@ -49,7 +49,7 @@ describe('Scenarios', () => {
     runCode(sim, 'for i in range(8):\n    hero.step()\n');
     run(sim, 400);
     expect(sim.mission.state.result).toMatchObject({ won: true, reason: 'script' });
-    expect(sim.mission.state.messages.map((m) => m.speaker)).toEqual(['bertram', 'bertram']);
+    expect(sim.mission.state.messages.map((m) => m.speaker)).toEqual(['nelia', 'nelia']);
   });
 
   it('player programs do not know the mission API', () => {
@@ -98,6 +98,16 @@ describe('Scenarios', () => {
     expect(tileOf(heroOf(sim))).toEqual([4, 6]);
   });
 
+  it('hero without a castle looks east and keeps the facing direction when stepping', () => {
+    const sim = createScenarioSim(scenario([playerSection('hero.turn_right()\nhero.step()\nhero.step()\n')]));
+    const h = heroOf(sim);
+    expect(h.face).toBe(1);
+    runCode(sim, 'hero.turn_right()\nhero.step()\nhero.step()\n');
+    run(sim, 120);
+    expect(h.face).toBe(2);
+    expect(tileOf(h)).toEqual([4, 10]);
+  });
+
   it('walking into a tree is an error with a reason', () => {
     const sim = createScenarioSim(scenario([{ id: 'w', level: 'mission', code: 'add_tree(6, 8)\n' }, playerSection()]));
     runCode(sim, 'hero.step()\nhero.step()\n');
@@ -117,7 +127,7 @@ describe('Mission scripts', () => {
         '@on_start',
         'def start():',
         '    objective("walk", "Geh zum Ziel", lambda: hero.is_at(place("goal")))',
-        '    say("bertram", "hi")',
+        '    say("nelia", "hi")',
         '    log.append(("said", int(time())))',
         '    ok = wait_until(lambda: hero.is_at(place("goal")), timeout=60)',
         '    log.append(("reached", ok))',
@@ -131,7 +141,7 @@ describe('Mission scripts', () => {
     }, playerSection()]));
     run(sim, 2);
     const m = sim.mission.state;
-    expect(m.messages[0]).toMatchObject({ speaker: 'bertram', text: { de: 'Hallo!', en: 'Hello!' } });
+    expect(m.messages[0]).toMatchObject({ speaker: 'nelia', text: { de: 'Hallo!', en: 'Hello!' } });
     expect(m.objectives).toEqual([expect.objectContaining({ id: 'walk', status: 'active' })]);
     runCode(sim, 'hero.move_to(place("goal"))');
     run(sim, 300);
@@ -143,7 +153,7 @@ describe('Mission scripts', () => {
   });
 
   it('skipping dialogue ends the wait immediately', () => {
-    const sim = createScenarioSim(scenario([{ id: 'm', level: 'mission', code: 'say("bertram", "x" * 200)\nprint("weiter", int(time()))\n' }, playerSection()]));
+    const sim = createScenarioSim(scenario([{ id: 'm', level: 'mission', code: 'say("nelia", "x" * 200)\nprint("weiter", int(time()))\n' }, playerSection()]));
     run(sim, 5);
     expect(consoleText(sim)).toBe('');
     sim.command({ type: 'script', player: 0, action: 'skipDialog' });
@@ -240,7 +250,7 @@ describe('Debugger via commands', () => {
 
 describe('Saving and determinism', () => {
   const code = 'import random\nfor i in range(6):\n    hero.step()\n    print(i, random.randint(1, 9))\n';
-  const mission = 'n = 0\n@every(1)\ndef count():\n    global n\n    n += 1\n@on_start\ndef s():\n    say("bertram", "hi")\n';
+  const mission = 'n = 0\n@every(1)\ndef count():\n    global n\n    n += 1\n@on_start\ndef s():\n    say("nelia", "hi")\n';
 
   it('same commands, same hash', () => {
     const a = createScenarioSim(scenario([{ id: 'm', level: 'mission', code: mission }, playerSection()]));
@@ -327,7 +337,7 @@ describe('Learning adventures are solvable with a model solution', () => {
     expect([...sim.entities.values()].some((e) => e.type === 'banditCamp')).toBe(true);
     run(sim, 1600);
     const speakers = sim.mission.state.messages.map((m) => m.speaker);
-    expect(speakers.slice(0, 3)).toEqual(['kunz', 'bertram', 'kunz']);
+    expect(speakers.slice(0, 3)).toEqual(['kunz', 'nelia', 'kunz']);
     expect(sim.mission.state.objectives.map((o) => o.id)).toEqual(['barracks', 'army', 'camp']);
   });
 
@@ -347,5 +357,36 @@ describe('Learning adventures are solvable with a model solution', () => {
     m1.events.push({ type: 'buildingDestroyed', buildingType: 'headquarters', owner: 0 });
     run(m1, 5);
     expect(m1.mission.state.result).toMatchObject({ won: false, reason: 'hq' });
+  });
+});
+
+describe('Several heroes and diplomacy in the script', () => {
+  it('every hero has a variable with their name; hero is the first, hero_of(p, name) searches specifically', () => {
+    const sc = scenario([
+      { id: 'm', level: 'mission', code: '@on_start\ndef s():\n    print(hero.name, nelia.name, orrin.name, taran)\n    print(hero_of(HUMAN, "orrin").name)\n    orrin.teleport((6, 8))\n' },
+      playerSection(),
+    ]);
+    sc.players = [{ kind: 'human', heroes: ['nelia', 'orrin'], hq: false }];
+    const sim = createScenarioSim(sc);
+    run(sim, 5);
+    expect(sim.mission.script.state.errors).toEqual([]);
+    expect(consoleText(sim)).toContain('nelia nelia orrin None');
+    expect(consoleText(sim)).toContain('orrin');
+    const o = [...sim.entities.values()].find((e) => e.kind === 'hero' && e.hero === 'orrin');
+    expect(tileOf(o)).toEqual([6, 8]);
+  });
+
+  it('set_diplomacy and diplomacy', () => {
+    const sc = scenario([
+      { id: 'm', level: 'mission', code: '@on_start\ndef s():\n    print(diplomacy(0, 1))\n    set_diplomacy(0, 1, "neutral")\n    print(diplomacy(0, 1))\n' },
+      playerSection(),
+    ]);
+    sc.players = [{ kind: 'human', hero: 'nelia', hq: false }, { kind: 'ai', hero: 'malvor', hq: false }];
+    sc.world.starts.push({ x: 18, y: 8 });
+    const sim = createScenarioSim(sc);
+    run(sim, 5);
+    expect(sim.mission.script.state.errors).toEqual([]);
+    expect(consoleText(sim)).toContain('hostile\nneutral');
+    expect(sim.relation(0, 1)).toBe('neutral');
   });
 });

@@ -1446,9 +1446,8 @@ export function PROCEDURAL_DEFAULT(roleKey) {
   const [a, b] = roleKey.split('.');
   if (a === 'serf') return 'serf';
   if (a === 'worker') return 'worker';
-  if (a === 'hero') return 'hero:' + (b ?? 'bertram');
+  if (a === 'hero') return 'hero:' + (b ?? 'nelia');
   if (a === 'soldier' || a === 'bandit') return b ?? 'sword';
   if (a === 'cannonCrew') return 'serf';
-  if (a === 'specialist') return b ?? 'serf';
   return 'serf';
 }

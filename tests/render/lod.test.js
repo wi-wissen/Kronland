@@ -79,11 +79,13 @@ describe('lodSettings / LodState', () => {
     expect(s.pixels).toBe(true);
     expect(s.thresholds).toEqual(LOD_PROFILES.character.pixels.map(pixelMetric));
     expect(s.h).toBe(LOD_TIERS.low.hysteresis);
-    expect(lodSettings('tree', 'high').thresholds).toEqual(LOD_PROFILES.tree.thresholds);
+    expect(lodSettings('building', 'high').thresholds).toEqual(LOD_PROFILES.building.thresholds);
+    expect(lodSettings('tree', 'high').thresholds).toEqual(LOD_PROFILES.tree.pixels.map(pixelMetric));
     expect(lodSettings('scatterSmall', 'high').cull).toBe(LOD_PROFILES.scatterSmall.cull);
-    // figures: lower bound of the factor so that they do not coarsen too early on "low"
+    // figures and trees: lower bound of the factor so that they do not coarsen too early on "low"
     expect(lodSettings('character', 'low').bias).toBe(LOD_PROFILES.character.minBias);
-    expect(lodSettings('tree', 'low').bias).toBe(LOD_TIERS.low.bias);
+    expect(lodSettings('tree', 'low').bias).toBe(LOD_PROFILES.tree.minBias);
+    expect(lodSettings('building', 'low').bias).toBe(LOD_TIERS.low.bias);
   });
 
   it('remembers level and visibility', () => {
@@ -145,6 +147,44 @@ describe('ChunkedInstances', () => {
     expect(counter.groups.tree[0] + counter.groups.tree[1]).toBe(drawn);
   });
 
+  /** Instances on a line along z (one per chunk), camera at z = 0 looking towards +z. */
+  const line = (levels, kind = 'tree') => {
+    const ci = new ChunkedInstances({ name: 'l', chunkSize: 4, kind, levels: levels.map(() => ({ geometry: box, material: mat })) });
+    const m = new THREE.Matrix4();
+    for (let z = 2; z < 120; z += 4) ci.add(0.5, z, m.makeTranslation(0.5, 0, z));
+    ci.finalize(new THREE.Scene());
+    const cam = camera(0.5, 1, 0, 0.5, 60);
+    return { ci, cam, f: cameraFrustum(cam) };
+  };
+
+  it('when geometries are missing, the finest levels drop out (far form only from the last boundary)', () => {
+    const s = { thresholds: [20, 40], cull: Infinity, h: 0 };
+    const { ci, cam, f } = line([0, 1]); // e.g. [simple, far] on graphics level "low"
+    ci.update(f, cam.position, (d) => d, s);
+    const z = (k) => [...ci.meshes[k].instanceMatrix.array.slice(0, ci.meshes[k].count * 16)].filter((_, i) => i % 16 === 14);
+    expect(Math.min(...z(1))).toBeGreaterThan(40);  // far form only beyond the second boundary
+    expect(Math.max(...z(0))).toBeLessThan(42);     // before that the simple level, also between 20 and 40
+    expect(Math.max(...z(0))).toBeGreaterThan(30);
+    // only one geometry: always level 0
+    const one = line([0]);
+    one.ci.update(one.f, one.cam.position, (d) => d, s);
+    expect(one.ci.meshes[0].count).toBe(one.ci.count);
+  });
+
+  it('culls chunks that lie entirely behind maxDist (decoration already shrunk to zero)', () => {
+    const s = { thresholds: [], cull: 1000, h: 0.1 };
+    const { ci, cam, f } = line([0], 'scatterSmall');
+    const max = 49.5; // instances are at z = 2, 6, …, 50, 54, …
+    ci.update(f, cam.position, (d) => d, s, undefined, max);
+    const zs = [...ci.meshes[0].instanceMatrix.array.slice(0, ci.meshes[0].count * 16)].filter((_, i) => i % 16 === 14);
+    // everything before stays, as does the chunk that extends over the boundary (z = 50); nothing lies entirely behind
+    expect(Math.max(...zs)).toBe(50);
+    expect(zs.filter((z) => z < max).length).toBe(ci.chunks.filter((c) => c.sphere.center.z < max).length);
+    // without maxDist the cull limit from the settings applies
+    ci.update(f, cam.position, (d) => d, s);
+    expect(ci.meshes[0].count).toBe(ci.count);
+  });
+
   it('hides single instances via their handle', () => {
     const { ci, handles } = make();
     ci.hide(handles[0]);
@@ -195,6 +235,27 @@ describe('Figures by screen height', () => {
     expect(st.update(pixelMetric(85), s)).toBe(1); // back only clearly above 80
     expect(st.update(pixelMetric(95), s)).toBe(0);
     expect(st.update(pixelMetric(2), s)).toBe(-1);  // too small: do not draw
+  });
+});
+
+describe('Trees by screen height', () => {
+  const stage = (px, tier) => {
+    const s = lodSettings('tree', tier);
+    return selectLod(pixelMetric(px * s.bias), -1, s.thresholds);
+  };
+  it('desktop "high": a tree 2 tiles tall switches as before at ~30/62 tiles', () => {
+    expect(stage(screenHeightPx(2, 28, 40, 900), 'high')).toBe(0);
+    expect(stage(screenHeightPx(2, 34, 40, 900), 'high')).toBe(1);
+    expect(stage(screenHeightPx(2, 58, 40, 900), 'high')).toBe(1);
+    expect(stage(screenHeightPx(2, 66, 40, 900), 'high')).toBe(2);
+  });
+  it('phone upright "low": trees at normal game height are no longer the far form', () => {
+    // Pixel 7: 915 CSS pixels tall, field of view 55°; default zoom sees the ground at ~25–45 tiles distance.
+    // "low" has only [simple, far]: level 0 and 1 → simple, level 2 → far form
+    for (const d of [25, 30, 35]) expect(stage(screenHeightPx(2, d, 55, 915), 'low')).toBeLessThan(2);
+    expect(stage(screenHeightPx(2, 60, 55, 915), 'low')).toBe(2);
+    // earlier (effective distance with factor 0.55 and wide field of view) this was already the far form from ~12 tiles
+    expect(effectiveDistance(25, 55, LOD_TIERS.low.bias)).toBeGreaterThan(62);
   });
 });
 

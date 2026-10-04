@@ -457,6 +457,8 @@ const DEPOSIT = {
   clay: { base: 0x8a5a3a, chunks: [0xb5653a, 0xc4774a, 0x9c5232], accent: 0xd89a6a },
   stone: { base: 0x7f7b74, chunks: [0xb2aea4, 0x9a968e, 0xc4c0b6], accent: 0xdcd8ce },
   iron: { base: 0x4c4d52, chunks: [0x5e6068, 0x6d717c, 0x8a4a2e], accent: 0xb5562c },
+  // gold only from scripts (treasure in the learning adventure): shiny nuggets
+  gold: { base: 0x7a5a24, chunks: [0xf3c85e, 0xe1a83a, 0xffe08a], accent: 0xfff1c4 },
   sulfur: { base: 0x77705a, chunks: [0xe8cf3a, 0xd8c33a, 0xf2e266], accent: 0xfff27a },
 };
 

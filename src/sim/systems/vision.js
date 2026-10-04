@@ -12,8 +12,6 @@ import { VISION, buildingSight } from '../data/vision.js';
 import { UNITS } from '../data/units.js';
 import { COMBAT } from '../data/combat.js';
 import { combatStats } from './military.js';
-import { SPECIALISTS } from '../data/addon.js';
-import { hiddenFrom } from './hidden.js';
 import { isqrt, toTile } from '../fixed.js';
 
 /** Row widths (half width per row dy = −r … r) per radius. */
@@ -111,10 +109,7 @@ export function sightOf(sim, e) {
     case 'hero': return { x: toTile(e.px), y: toTile(e.py), r: VISION.units.hero };
     case 'unit': return { x: toTile(e.px), y: toTile(e.py), r: e.militia ? VISION.units.militia : VISION.units.serf };
     case 'worker': return e.inside ? null : { x: toTile(e.px), y: toTile(e.py), r: VISION.units.worker };
-    case 'turret': case 'trap': case 'bomb': case 'charge': case 'cloud': return { x: toTile(e.px), y: toTile(e.py), r: VISION.units[e.kind] };
-    // Erweiterung: Dieb/Kundschafter, Fackel des Kundschafters
-    case 'specialist': return { x: toTile(e.px), y: toTile(e.py), r: SPECIALISTS[e.spec]?.sight ?? VISION.units.serf };
-    case 'torch': return { x: toTile(e.px), y: toTile(e.py), r: e.r };
+    case 'turret': case 'trap': return { x: toTile(e.px), y: toTile(e.py), r: VISION.units[e.kind] };
     default: return null;
   }
 }
@@ -230,8 +225,6 @@ export function isExplored(sim, player, x, y) {
 export function canSee(sim, player, e) {
   if (!e) return false;
   if (e.owner !== undefined && e.owner >= 0 && sim.players[e.owner] && sim.allied(player, e.owner)) return true;
-  // The enemy never sees invisible units (thief, mist veil) – not even on visible tiles and without fog
-  if (sim.players[player] && hiddenFrom(sim, player, e)) return false;
   const t = visionOf(sim, player);
   if (!t) return true;
   if (e.kind === 'building' || e.kind === 'ruin') return rectVisible(sim.vision, t.visible, e.x, e.y, e.w ?? 3, e.h ?? 3);

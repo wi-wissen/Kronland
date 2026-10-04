@@ -121,7 +121,7 @@ export function detectVersion(doc) {
     return v;
   }
   // Old save without envelope
-  if (doc.format === undefined && doc.version === 1 && doc.map && Array.isArray(doc.entities)) return 0;
+  if (doc.format === undefined && isInt(doc.version) && doc.version >= 1 && doc.map && Array.isArray(doc.entities)) return 0;
   throw new SaveError('saves.err.wrongFormat');
 }
 
@@ -155,6 +155,8 @@ export function validateDoc(doc) {
   if (!doc.meta || typeof doc.meta !== 'object') fail('meta');
   const s = doc.state;
   if (!s || typeof s !== 'object') fail('state');
+  // Saves from an older game version (e.g. with the earlier heroes) can no longer be continued
+  if (isInt(s.version) && s.version < SAVE_VERSION) throw new SaveError('saves.err.outdated');
   if (s.version !== SAVE_VERSION) fail('state.version');
   if (!isInt(s.tick) || s.tick < 0) fail('state.tick');
   if (!isInt(s.seed)) fail('state.seed');

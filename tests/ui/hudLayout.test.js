@@ -46,9 +46,8 @@ describe('Build menu', () => {
 describe('Selection', () => {
   it('picks icon and portrait matching the selection', () => {
     expect(selectionIcon({ kind: 'building', type: 'farm' })).toBe('b-farm');
-    expect(selectionIcon({ kind: 'army', heroes: [{ hero: 'hedda' }], groups: [] })).toBe('hero-hedda');
+    expect(selectionIcon({ kind: 'army', heroes: [{ hero: 'orrin' }], groups: [] })).toBe('hero-orrin');
     expect(selectionIcon({ kind: 'foreign', entity: 'leader', unit: 'sword2' })).toBe('u-sword');
-    expect(selectionIcon({ kind: 'specialists', units: [{ spec: 'thief' }] })).toBe('sp-thief');
     expect(selectionPortrait({ kind: 'serfs' }, './')).toBe('./portraits/serf.webp');
     expect(selectionPortrait({ kind: 'building', type: 'farm' })).toBeNull();
   });

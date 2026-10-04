@@ -21,6 +21,21 @@ oder einen anderen Stil.
 - **Neue Symbole:** Ein neues Symbol in `index.js` erscheint sofort als SVG. Es kommt in den Atlas, sobald
   der Bogen neu erzeugt ist (Ablauf unten).
 
+## Favicon und App-Icons
+
+Die Krone aus dem Bogen ist auch das Favicon. `python3 scripts/icons/favicon.py [--preview datei.png]` schneidet
+sie aus `assets-src/icons/sheet.webp` aus (dort ~208 px, größer als im Atlas), stellt sie frei und schreibt nach
+`public/`:
+
+| Datei | Größe | Grund |
+|---|---|---|
+| `favicon.ico` | 16, 32, 48 px | durchsichtig (Browser-Tab) |
+| `apple-touch-icon.png` | 180 px | dunkel `#1a221e` (iOS füllt Transparenz schwarz) |
+| `icon-192.png` | 192 px | dunkel (Manifest, Android) |
+| `icon-512.png` | 512 px | dunkel, Krone im sicheren Bereich für `maskable` |
+
+Nach einem neuen Bogen das Skript erneut laufen lassen. `tests/ui/icons.test.js` prüft Größen und Verweise.
+
 ## Vorgehen
 
 1. **Vorlage zeichnen.** `node scripts/icons/template.mjs`

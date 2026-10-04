@@ -85,12 +85,12 @@ test('Payday shows seconds only shortly before, without constant pulsing; speed 
 });
 
 test('Hero portrait selects the hero and brings it into view', async ({ page }) => {
-  const errors = await boot(page, '/?seed=42&no-models&hero=hedda');
+  const errors = await boot(page, '/?seed=42&no-models&hero=orrin');
   await page.evaluate(() => window.__kronland.renderer.rig.lookAt(5, 5));
-  const portrait = page.getByTestId('quick-hero-hedda');
+  const portrait = page.getByTestId('quick-hero-orrin');
   await expect(portrait).toBeVisible();
   await portrait.click();
-  await expect(page.getByTestId('context-panel')).toContainText('Hedda');
+  await expect(page.getByTestId('context-panel')).toContainText('Orrin');
   const d = await page.evaluate(() => {
     const e = window.__kronland;
     const h = [...e.sim.entities.values()].find((x) => x.kind === 'hero' && x.owner === 0);
@@ -101,13 +101,13 @@ test('Hero portrait selects the hero and brings it into view', async ({ page }) 
   // "Truppen" selects all own squads including the hero
   await page.evaluate(() => window.__kronland.clearSelection());
   await page.getByTestId('quick-army').click();
-  await expect(page.getByTestId('context-panel')).toContainText('Hedda');
+  await expect(page.getByTestId('context-panel')).toContainText('Orrin');
   expect(errors).toEqual([]);
 });
 
 test('Commands are labelled and grouped', async ({ page }) => {
-  const errors = await boot(page, '/?seed=42&no-models&hero=hedda');
-  await page.getByTestId('quick-hero-hedda').click();
+  const errors = await boot(page, '/?seed=42&no-models&hero=orrin');
+  await page.getByTestId('quick-hero-orrin').click();
   await expect(page.getByTestId('order-hold')).toContainText('Halten');
   await expect(page.getByTestId('order-attack')).toContainText('Angreifen');
   await expect(page.getByTestId('context-panel')).toContainText('Haltung');
@@ -138,11 +138,11 @@ test('Mobile: build menu right after the selection, tapping starts the build', a
 test('Nothing overlaps: top bar and bottom row at different window widths', async ({ page, isMobile }) => {
   test.skip(isMobile, 'Desktop widths');
   test.setTimeout(120_000);
-  const errors = await boot(page, '/?seed=42&no-models&hero=hedda');
+  const errors = await boot(page, '/?seed=42&no-models&hero=orrin');
   for (const sel of ['all', 'hq', 'hero']) {
     if (sel === 'all') await page.getByTestId('quick-all').click();
     else if (sel === 'hq') await page.getByTestId('quick-hq').click();
-    else await page.getByTestId('quick-hero-hedda').click();
+    else await page.getByTestId('quick-hero-orrin').click();
     for (const width of [1920, 1600, 1440, 1280, 1100, 960, 800]) {
       await page.setViewportSize({ width, height: 900 });
       await page.waitForTimeout(150);
@@ -154,7 +154,7 @@ test('Nothing overlaps: top bar and bottom row at different window widths', asyn
 });
 
 test('Control groups: save, recall via the shield and the number key', async ({ page, isMobile }) => {
-  const errors = await boot(page, '/?seed=42&no-models&hero=hedda');
+  const errors = await boot(page, '/?seed=42&no-models&hero=orrin');
   // Put two archer squads next to the castle and select them
   await page.evaluate(() => {
     const e = window.__kronland, s = e.sim, hq = s.findBuilding(0, 'headquarters');

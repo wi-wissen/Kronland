@@ -44,7 +44,7 @@ describe('resolveRole', () => {
 
 describe('Manifest', () => {
   it('every role the game uses is resolvable', () => {
-    const roles = ['serf', 'worker', 'hero.bertram', 'hero.hedda', 'hero.gerold', 'bandit', 'bandit.bow', 'mount.horse', 'crew'];
+    const roles = ['serf', 'worker', 'hero.nelia', 'hero.orrin', 'hero.taran', 'hero.malvor', 'bandit', 'bandit.bow', 'mount.horse', 'crew'];
     for (const line of ['sword', 'spear', 'bow', 'lightCav', 'heavyCav', 'cannon']) roles.push(`soldier.${line}`, `soldier.${line}.leader`);
     for (const k of roles) {
       const r = resolveRole(manifest, k, (m) => !!manifest.models[m]);
@@ -116,7 +116,7 @@ describe('uvInMask / animStep / procedural', () => {
   });
   it('derives procedural kinds from roles', () => {
     expect(PROCEDURAL_DEFAULT('soldier.bow.leader')).toBe('bow');
-    expect(PROCEDURAL_DEFAULT('hero.hedda')).toBe('hero:hedda');
+    expect(PROCEDURAL_DEFAULT('hero.orrin')).toBe('hero:orrin');
     expect(PROCEDURAL_DEFAULT('serf')).toBe('serf');
   });
 });

@@ -49,7 +49,7 @@ test('Home page loads with title image, features, gallery and footer', async ({ 
   await expect.poll(() => devImg.evaluate((el) => el.complete && el.naturalWidth > 0)).toBe(true);
   // What makes the game, from the player's point of view; icons from the game's atlas
   await expect(page.locator('.features')).toContainText('Leibeigene packen an');
-  await expect(page.locator('.features')).toContainText('Diebe und Kundschafter');
+  await expect(page.locator('.features')).toContainText('Kaufen oder kämpfen');
   await expect(page.locator('.features .ico.atlas').first()).toBeVisible();
   // Gallery: hovering brightens but moves nothing
   const shot = gallery.locator('img').first();
@@ -88,10 +88,11 @@ test('Manual: table of contents, anchors, search', async ({ page }) => {
   await expect(manual.locator('h2#developer-mode')).toHaveText('Entwicklermodus');
   await expect(manual.locator('#sec-developer-mode')).toContainText('A*-Suche');
   await expect(manual.locator('#sec-saving')).toContainText('Autosave');
-  // coding adventure and tavern (expansion content is a fixed part of the game)
+  // Coding adventure, bridges and ornaments
   await expect(manual.locator('h2#coding')).toHaveText('Programmier-Abenteuer');
   await expect(manual.locator('#sec-coding pre')).toContainText('hero.step()');
-  await expect(manual.locator('h2#spezialisten')).toHaveText('Wirtshaus, Dieb und Kundschafter');
+  await expect(manual.locator('h2#bridges')).toHaveText('Brücken und Zierden');
+  await expect(manual.locator('#sec-bridges')).toContainText('Prozentpunkte');
   await page.getByTestId('manual-search').fill('Winter');
   await expect(manual.locator('h2#weather')).toBeVisible();
   await expect(manual.locator('h2#saving')).toHaveCount(0);
@@ -167,4 +168,12 @@ test('Without a saved choice the browser language applies', async ({ browser }) 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.getByTestId('home-play')).toHaveText(/Play now/);
   await ctx.close();
+});
+
+test('Compendium: deep link with anchor', async ({ page }) => {
+  await page.goto('/compendium/#b-farm');
+  await expect(page.locator('#b-farm h3')).toBeInViewport();
+  await expect(page.getByTestId('nav-compendium')).toHaveText('Kompendium');
+  // Compendium shows the icons from the game's atlas
+  await expect(page.getByTestId('compendium').locator('.ico.atlas').first()).toBeVisible();
 });

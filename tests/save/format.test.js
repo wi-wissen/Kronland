@@ -44,6 +44,8 @@ describe('Save format', () => {
     expect(codeOf(docText((d) => { d.state.entities = {}; return d; }))).toBe('saves.err.broken');
     expect(codeOf(docText((d) => { d.state.players = []; return d; }))).toBe('saves.err.broken');
     expect(codeOf(docText((d) => { d.state.mission = { id: 'doesnotexist' }; return d; }))).toBe('saves.err.unknownMission');
+    // save game from the time before "Krone aus Eis" (game state version 1): outdated, not damaged
+    expect(codeOf(docText((d) => { d.state.version = 1; return d; }))).toBe('saves.err.outdated');
     // truncated file
     const text = docText();
     expect(codeOf(text.slice(0, text.length / 2))).toBe('saves.err.notJson');
@@ -56,7 +58,7 @@ describe('Save format', () => {
   });
 
   it('error messages exist in both languages and fill placeholders', () => {
-    for (const code of ['notJson', 'wrongFormat', 'newer', 'broken', 'unknownMission', 'tooLarge', 'quota', 'storage', 'missing', 'read']) {
+    for (const code of ['notJson', 'wrongFormat', 'newer', 'outdated', 'broken', 'unknownMission', 'tooLarge', 'quota', 'storage', 'missing', 'read']) {
       expect(de['saves.err.' + code]).toBeTruthy();
       expect(en['saves.err.' + code]).toBeTruthy();
     }

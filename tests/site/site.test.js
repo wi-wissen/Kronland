@@ -56,7 +56,7 @@ describe('Manual', () => {
   it('both languages have the same chapters (same anchors)', () => {
     expect(de.length).toBeGreaterThanOrEqual(15);
     expect(en.map((s) => s.id)).toEqual(de.map((s) => s.id));
-    for (const id of ['getting-started', 'controls', 'interface', 'spezialisten', 'slope', 'saving', 'coding', 'developer-mode', 'faq', 'licenses']) expect(de.map((s) => s.id)).toContain(id);
+    for (const id of ['getting-started', 'controls', 'interface', 'bridges', 'slope', 'saving', 'coding', 'developer-mode', 'faq', 'licenses']) expect(de.map((s) => s.id)).toContain(id);
   });
 
   it('all placeholders filled, acknowledgements included', () => {
@@ -69,7 +69,7 @@ describe('Manual', () => {
     const v = manualVars('de');
     expect(v.paydaySec).toBe(120);
     expect(v.taxTable.split('\n').length).toBe(2 + 5);
-    expect(v.campaignList.split('\n').length).toBe(5);
+    expect(v.campaignList.split('\n').length).toBe(6);
   });
 
   it('used images are in public/site', () => {

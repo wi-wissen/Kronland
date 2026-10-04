@@ -4,6 +4,7 @@
   <div class="mhud" data-testid="mission-hud">
     <TutorialCoach v-if="mission.tutorial" :step="mission.tutorial" :touch="touch" :lang="lang" @next="$emit('next')" @skip="$emit('skip')" />
     <ObjectivePanel v-if="mission.objectives.length" :objectives="mission.objectives" :lang="lang" />
+    <TributePanel v-if="mission.tributes?.length" :tributes="mission.tributes" :lang="lang" @pay="$emit('tribute', $event)" />
     <DialogBox :messages="mission.messages" :lang="lang" :speed="speed" :scripted="!!mission.script" @skip="$emit('skipDialog')" />
   </div>
 </template>
@@ -12,17 +13,18 @@
 import TutorialCoach from './TutorialCoach.vue';
 import ObjectivePanel from './ObjectivePanel.vue';
 import DialogBox from './DialogBox.vue';
+import TributePanel from './TributePanel.vue';
 
 export default {
   name: 'MissionHud',
-  components: { TutorialCoach, ObjectivePanel, DialogBox },
+  components: { TutorialCoach, ObjectivePanel, DialogBox, TributePanel },
   props: {
     mission: { type: Object, required: true },
     touch: Boolean,
     lang: { type: String, default: 'de' },
     speed: { type: Number, default: 1 },
   },
-  emits: ['next', 'skip', 'skipDialog'],
+  emits: ['next', 'skip', 'skipDialog', 'tribute'],
 };
 </script>
 

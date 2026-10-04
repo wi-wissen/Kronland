@@ -2,18 +2,19 @@
 // Scenarios (coding adventures, script missions) are in scenarios/index.js.
 
 import tutorial from './tutorial.js';
-import c1 from './campaign/c1-new-start.js';
-import c2 from './campaign/c2-fire.js';
-import c3 from './campaign/c3-ford.js';
-import c4 from './campaign/c4-ice.js';
-import c5 from './campaign/c5-crown.js';
+import c1 from './campaign/c1-lindgrund.js';
+import c2 from './campaign/c2-beaucroix.js';
+import c3 from './campaign/c3-hagenfurt.js';
+import c4 from './campaign/c4-eisenhain.js';
+import c5 from './campaign/c5-morvale.js';
+import c6 from './campaign/c6-thronsee.js';
 import { SCENARIOS, ADVENTURES as ADVENTURE_JSON, SCRIPT_MISSIONS as SCRIPT_JSON } from './scenarios/index.js';
 import { scenarioToDef } from '../scripting/scenario.js';
 
 export const TUTORIAL_ID = tutorial.id;
 
 /** Campaign in playing order. */
-export const CAMPAIGN = [c1, c2, c3, c4, c5];
+export const CAMPAIGN = [c1, c2, c3, c4, c5, c6];
 
 /** Coding adventures (mission definitions from scenario JSON), chained: after the victory the next one follows. */
 export const ADVENTURES = ADVENTURE_JSON.map((s, i) => ({ ...scenarioToDef(s), next: s.next ?? ADVENTURE_JSON[i + 1]?.id ?? null }));

@@ -61,7 +61,14 @@ export class EditorView {
     else this.renderer.rig.lookAt(this.sim.map.width / 2, this.sim.map.height / 2);
     this.brush = this.makeBrush();
     this.renderer.scene.add(this.brush);
+    if (this.gridOn) this.renderer.setGrid(true);
     this.resize?.();
+  }
+
+  /** Tile grid on/off (kept when the world is rebuilt). */
+  setGrid(on) {
+    this.gridOn = !!on;
+    this.renderer?.setGrid(this.gridOn);
   }
 
   disposeRenderer() {
@@ -108,7 +115,7 @@ export class EditorView {
     return baked;
   }
 
-  // ---------- Tools ----------
+  // ---------- Werkzeuge ----------
 
   setTool(patch) { Object.assign(this.tool, patch); this.updateBrush(); this.emit(); }
 

@@ -245,7 +245,7 @@ function unitsSection(lang, names, f) {
     cols: [{ label: f.L('col.attacker') }, ...defenders.map((d) => ({ label: `${f.L('col.vs')} ${names.line(d.line)}`, num: true })),
       { label: f.L('vs.building', { n: bArmor }), num: true }, { label: f.L('vs.hero'), num: true }],
     rows: Object.values(UNITS).map((u) => {
-      // Units without an attack (e.g. scout) deal no damage
+      // Units without an attack deal no damage
       const hit = (armorType, armor) => (u.attack && u.attackType ? computeDamage(u.attack, u.attackType, armorType, armor ?? 0) : null);
       const vals = [...defenders.map((d) => hit(d.armorType, d.armor)), hit('fortified', bArmor), hit('hero', heroArmor)];
       return { cells: [link(names.unit(u.id), anchor.unit(u.id)), ...vals.map((v) => (v === null ? NONE : { t: String(v), cls: v >= u.attack ? 'good' : v * 2 <= u.attack ? 'bad' : '' }))] };
@@ -298,7 +298,7 @@ function heroesSection(lang, names, f) {
     return { id: anchor.hero(id), title: `${names.hero(id)}`, icon: `hero-${id}`, sub: names.heroTitle(id), blocks: [{ type: 'facts', items: facts }, abil] };
   });
   const hp = Object.values(HEROES)[0]?.hp ?? 0;
-  return { id: 'heroes', icon: 'hero-bertram', blocks: [], entries,
+  return { id: 'heroes', icon: 'hero-nelia', blocks: [], entries,
     vars: { heroHp: hp, reviveS: COMBAT.heroReviveTicks / 10, reviveR: COMBAT.heroReviveRadius } };
 }
 

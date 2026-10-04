@@ -8,6 +8,8 @@
 //       female variant from the male sheet (same clothing, same style)
 //   node scripts/asset-gen/concept.mjs far <id> --from <id of the detail sheet>
 //       simplified far concept for the game model (hair as a block, large colour areas, simple face)
+//   --guide  appends the detailed style reference (assets-src/characters/style-reference-prompt.md) to the prompt
+//            (heroes: `new nelia --ref serf,serf_f --guide --model openai/gpt-5.4-image-2 "…"`)
 //
 // Prompts and model end up in assets-src/characters/<id>/concept.json (traceable, repeatable).
 // Style rules and templates: docs/STIL.md.
@@ -59,6 +61,9 @@ const opt = (n) => { const i = args.indexOf(n); if (i < 0) return undefined; con
 const model = opt('--model') ?? DEFAULT_MODEL;
 const from = opt('--from');
 const ref = opt('--ref');
+const guideAt = args.indexOf('--guide');
+if (guideAt >= 0) args.splice(guideAt, 1);
+const GUIDE = guideAt >= 0 ? '\n\n' + fs.readFileSync(path.join(SRC_DIR, 'style-reference-prompt.md'), 'utf8') : '';
 const [cmd, id, text] = args;
 
 try {
@@ -84,7 +89,7 @@ try {
     console.log(out, cost ? `(${cost.toFixed(3)} $)` : '');
   } else if (cmd === 'new') {
     const refs = (ref ?? '').split(',').filter(Boolean).map(sheetOf).filter(Boolean);
-    const prompt = `Use the attached character sheets only as STYLE reference (rendering, proportions, palette, marker color usage). Create a NEW character: ${text}\n${STYLE}`;
+    const prompt = `Use the attached character sheets only as STYLE reference (rendering, proportions, palette, marker color usage). Create a NEW character: ${text}\n${STYLE}${GUIDE}`;
     const { buf, cost } = await generate(model, prompt, refs);
     const out = store(id, buf);
     log(id, { kind: 'new', model, prompt, refs: ref, cost });

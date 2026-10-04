@@ -5,8 +5,8 @@ neue Techniken und verteidigst deine Burg gegen Computergegner. Das Spiel läuft
 Rechner mit Maus und Tastatur, auf Tablet und Handy mit Touch.
 
 1. Öffne [Spielen](play/). Beim ersten Start lädt das Spiel die 3D-Modelle; das dauert je nach Verbindung ein paar Sekunden.
-2. Wähle im **Startmenü** das **Tutorial**, wenn du neu bist. Ottilie führt dich Schritt für Schritt durch die Grundlagen.
-3. Danach wartet die **Kampagne** „Die Rückkehr der Krone“ oder ein **Freies Spiel** gegen Computergegner auf einer zufälligen Karte.
+2. Wähle im **Startmenü** das **Tutorial**, wenn du neu bist. Der Händler Orrin führt dich Schritt für Schritt durch die Grundlagen.
+3. Danach wartet die **Kampagne** „Krone aus Eis“ oder ein **Freies Spiel** gegen Computergegner auf einer zufälligen Karte.
 
 Zu Beginn hast du eine **Burg**, {{startSerfs}} **Leibeigene**, einen Helden und einen kleinen Vorrat:
 
@@ -257,34 +257,19 @@ Fähigkeiten löst du über die Knöpfe im Panel oder mit [[1]] / [[2]] aus; dan
 
 ![Hauptleute mit ihren Truppen und der Held im Gefecht](site/combat.webp)
 
-## Wirtshaus, Dieb und Kundschafter {#spezialisten}
-
-Nicht jede Schlacht wird mit Schwertern geschlagen. Ab **Bildung** baust du ein **Wirtshaus** und wirbst dort zwei
-besondere Figuren an – je höchstens {{specialistMax}} und jede braucht einen Bevölkerungsplatz.
-
-| Figur | Kosten | Stärken |
-|---|---|---|
-| **Dieb** | {{thiefCost}} | für Gegner **unsichtbar**, schnell, kämpft nicht |
-| **Kundschafter** | {{scoutCost}} | sieht sehr weit, entdeckt feindliche Diebe in der Nähe |
-
-Wähle sie wie Truppen aus; ihre Fähigkeiten liegen im Panel unten (Tasten [[1]] und [[2]]).
-
-- **Stehlen:** Schick den Dieb an Burg, Lager oder Dorfzentrum eines Gegners. Nach kurzer Zeit trägt er Taler und
-  Rohstoffe zu deiner Burg – stirbt er unterwegs, ist die Beute verloren. Danach braucht er {{stealSec}} s Pause.
-- **Sprengladung:** Der Dieb legt eine Ladung an ein feindliches Gebäude, die kurz darauf explodiert. Brücken
-  stürzen davon besonders leicht ein.
-- **Fackel:** Der Kundschafter erhellt für eine Weile einen Kreis im Nebel des Krieges.
-- **Rohstoffe suchen:** Auf jeder Karte liegen **verborgene Lagerstätten** (Eisen, Schwefel, Stein, Lehm). Erst ein
-  Kundschafter legt sie frei – danach sind sie ganz normale Rohstoffhaufen.
-
-> **Schutz vor Dieben:** Ein Dieb wird sichtbar, wenn er einem deiner **Türme** näher als {{detectTower}} Kacheln
-> oder einem deiner **Kundschafter** näher als {{detectScout}} Kacheln kommt. Dann können ihn deine Truppen angreifen.
+## Brücken und Zierden {#bridges}
 
 ### Brücken
 
 Flüsse trennen die Karte – an manchen Stellen lässt sich eine **Brücke** schlagen. Die Technologie **Mathematik**
 (Steinmetzhütte) schaltet sie frei; im Baumenü erscheinen dann die möglichen Brückenstellen. Fertige Brücken
 benutzen alle, auch der Feind. Wird eine Brücke zerstört, ertrinkt, wer gerade darauf steht.
+
+### Brunnen und Denkmal
+
+Zwei Ziergebäude heben die **höchste Motivation** deiner Arbeiter: der **Brunnen** (ab {{fountainTech}}) um
+{{fountainMot}} Prozentpunkte, das **Denkmal** (ab {{statueTech}}) um {{statueMot}} Prozentpunkte. Mehrere Zierden zählen
+zusammen, bis zur Obergrenze von {{hardMaxMotivation}} %.
 
 ## Wetter {#weather}
 
@@ -343,13 +328,18 @@ dauerhaft, auch wenn das Gebäude später abgerissen wird. Klippen und Gipfel si
 Das **Tutorial** erklärt in kleinen Schritten Leibeigene, Bauen, Arbeiter, Forschung und Kampf. Es
 wartet jeweils, bis du den Schritt ausgeführt hast; „Weiter“ und „Überspringen“ helfen, wenn du es schon kennst.
 
-Die **Kampagne** „Die Rückkehr der Krone“ erzählt in {{campaignCount}} Kapiteln:
+Die **Kampagne** „Krone aus Eis“ erzählt in {{campaignCount}} Kapiteln:
 
 {{campaignList}}
 
 Jedes Kapitel beginnt mit einem **Briefing** und hat **Hauptziele** (müssen erfüllt werden) und
 **Nebenziele** (Belohnung, Ehre). Ziele siehst du jederzeit oben links. Gewonnene Kapitel schalten das nächste frei;
 Fortschritt und Bestzeiten merkt sich der Browser.
+
+In vielen Kapiteln führst du **mehrere Helden** (Nelia, Orrin, später Taran). Figuren mit einem **Ausrufezeichen**
+wollen reden – schick den richtigen Helden hin. Unter **Angebote** stehen Tribute: Wer bezahlt, kauft zum Beispiel
+eine Zacke frei oder heuert Söldner an. Zwei Angebote derselben Sache sind eine Wahl – nach dem Bezahlen
+verschwindet das andere. **Dörfer** können verbündet, neutral oder feindlich sein; Lieferungen gewinnen sie zurück.
 
 ## Freies Spiel und Einstellungen {#free-play}
 
@@ -368,7 +358,7 @@ Unter **Einstellungen** (Startmenü und Spielmenü) findest du Sprache (Deutsch/
 und Hilfetexte.
 
 > **Für Fortgeschrittene:** Das Spiel lässt sich über die Adresse direkt starten, z. B.
-> `play/?seed=42&ai=hard&players=3&hero=hedda`, `&fog=off` ohne Nebel, `?mission=c1` für ein Kampagnenkapitel
+> `play/?seed=42&ai=hard&players=3&hero=orrin`, `&fog=off` ohne Nebel, `?mission=c1` für ein Kampagnenkapitel
 > oder `?quality=low` für schwache Geräte.
 
 ### Auf dem Handy installieren

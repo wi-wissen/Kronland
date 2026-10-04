@@ -1,14 +1,12 @@
-// AI vs AI without graphics: `node scripts/ai-match.js [seed] [minutes] [difficulty0] [difficulty1] [--addon]`
-// --addon: with expansion content (inn, thief, scout, bridges, riflemen, heroes Falk/Morla)
+// AI vs AI without graphics: `node scripts/ai-match.js [seed] [minutes] [difficulty0] [difficulty1]`
 import { Sim } from '../src/sim/sim.js';
 import { AiPlayer } from '../src/ai/AiPlayer.js';
 
 const argv = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-const addon = process.argv.includes('--addon');
 const seed = Number(argv[0] ?? 1);
 const minutes = Number(argv[1] ?? 40);
 const diffs = [argv[2] ?? 'normal', argv[3] ?? 'normal'];
-const sim = new Sim({ seed, addon, heroes: addon ? ['falk', 'morla'] : undefined });
+const sim = new Sim({ seed });
 const events = {};
 const ais = diffs.map((d, i) => new AiPlayer(sim, i, d));
 const t0 = Date.now();
@@ -18,9 +16,9 @@ for (let t = 0; t < minutes * 600; t++) {
   const ev = sim.step();
   for (const e of ev) {
     if (e.type === 'rejected') rejects[e.reason] = (rejects[e.reason] ?? 0) + 1;
-    // Expansion: count events (theft, demolition, bridge, torch, finds, recruitment)
-    if (['stolen', 'chargePlaced', 'bridgeBuilt', 'bridgeCollapsed', 'torch', 'resourcesFound', 'specialistRecruited', 'ability'].includes(e.type)) {
-      const k = e.type === 'ability' ? `ability:${e.ability}` : e.type === 'specialistRecruited' ? `recruited:${e.spec}` : e.type;
+    // count bridges and hero abilities
+    if (['bridgeBuilt', 'bridgeCollapsed', 'ability'].includes(e.type)) {
+      const k = e.type === 'ability' ? `ability:${e.ability}` : e.type;
       events[k] = (events[k] ?? 0) + 1;
     }
   }
@@ -32,13 +30,12 @@ for (let t = 0; t < minutes * 600; t++) {
         if (e.owner !== p.id) continue;
         if (e.kind === 'building') c.b++; else if (e.kind === 'worker') c.w++; else if (e.kind === 'unit') c.s++;
         else if (e.kind === 'leader') c.L++; else if (e.kind === 'soldier') c.sol++;
-        else if (e.kind === 'specialist') c.spec = (c.spec ?? 0) + 1;
       }
       const r = (k) => p.stock[k] + p.raw[k];
-      return `P${p.id}: Geb ${c.b} Arb ${c.w} Leib ${c.s} Hpt ${c.L}/${c.sol}${c.spec ? ` Spez ${c.spec}` : ''} T${p.techs.size} | ${r('gold')}T ${r('clay')}L ${r('wood')}H ${r('stone')}S ${r('iron')}E ${r('sulfur')}Sw ${ais[p.id].armyState}`;
+      return `P${p.id}: Bld ${c.b} Wrk ${c.w} Ser ${c.s} Cpt ${c.L}/${c.sol} T${p.techs.size} | ${r('gold')}G ${r('clay')}C ${r('wood')}W ${r('stone')}S ${r('iron')}I ${r('sulfur')}Su ${ais[p.id].armyState}`;
     }).join('  ||  ');
     console.log(`${(t / 600).toFixed(0).padStart(3)} min  ${line}`);
   }
 }
 console.log('Runtime', ((Date.now() - t0) / 1000).toFixed(1), 's', 'Rejections', rejects);
-if (addon) console.log('Erweiterung', events);
+console.log('Events', events);

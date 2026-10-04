@@ -400,20 +400,32 @@ describe('CameraRig close zoom (issue #6)', () => {
     expect(cam.near).toBeGreaterThan(0.05);
   });
 
-  it('close up, LOD0 applies to trees and buildings on every graphics level and in portrait', () => {
+  it('up close LOD0 applies to buildings on every graphics level and in portrait mode', () => {
     for (const tier of ['low', 'medium', 'high']) {
       for (const fov of [40, 55]) {
-        for (const kind of ['tree', 'building']) {
-          const s = lodSettings(kind, tier);
-          for (let d = 0; d < NEAR_FULL_DETAIL; d += 0.5) {
-            expect(selectLod(effectiveDistance(d, fov, s.bias), -1, s.thresholds, s.h)).toBe(0);
-            expect(selectLod(effectiveDistance(d, fov, s.bias), 2, s.thresholds, s.h)).toBe(0);
-          }
+        const s = lodSettings('building', tier);
+        for (let d = 0; d < NEAR_FULL_DETAIL; d += 0.5) {
+          expect(selectLod(effectiveDistance(d, fov, s.bias), -1, s.thresholds, s.h)).toBe(0);
+          expect(selectLod(effectiveDistance(d, fov, s.bias), 2, s.thresholds, s.h)).toBe(0);
         }
       }
     }
     // the camera is far inside this range at the smallest distance
     expect(MIN_DIST * 2).toBeLessThan(NEAR_FULL_DETAIL);
+  });
+
+  it('very close trees show the full level (by screen height), desktop, phone upright and landscape', () => {
+    // smallest tree (birch, ~1.6 tiles) up to twice the smallest camera distance
+    for (const tier of ['low', 'medium', 'high']) {
+      const s = lodSettings('tree', tier);
+      for (const [h, fov] of [[900, 40], [844, 55], [390, 40]]) {
+        for (let d = 0.5; d <= MIN_DIST * 2; d += 0.5) {
+          const px = screenHeightPx(1.6, d, fov, h) * s.bias;
+          expect(selectLod(pixelMetric(px), -1, s.thresholds, s.h)).toBe(0);
+          expect(selectLod(pixelMetric(px), 2, s.thresholds, s.h)).toBe(0);
+        }
+      }
+    }
   });
 
   it('very close figures show the near model (by screen height), desktop and phone upright', () => {

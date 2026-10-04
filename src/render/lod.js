@@ -20,13 +20,19 @@ import * as THREE from 'three';
  */
 export const LOD_PROFILES = {
   building: { thresholds: [38, 72], cull: Infinity },
-  tree: { thresholds: [30, 62], cull: Infinity },
+  // Trees by screen height like figures: detailed from 80 px, simple from 40 px, below that far model. A 2-tile
+  // tall tree switches on desktop at ~30/62 tiles; on the phone in portrait the same screen size applies
+  // (earlier the wide field of view there made almost every tree a far model)
+  tree: { pixels: [80, 40], minBias: 0.8 },
   // Figures by screen height (CSS pixels), see screenHeightPx: near model from 80 px (even the phone on
   // "low" shows it when zoomed "close"), below that the game model; below 28 px animation throttled, below
   // 12 px rigid, below 3 px not drawn at all
   character: { pixels: [80, 28, 12], cullPixels: 3, minBias: 0.8 },
+  // Small decoration: base value of the fade-out; the renderer converts it into real distance (shrinking in the
+  // shader) and only culls chunks once they lie entirely beyond it
   scatterSmall: { thresholds: [], cull: 66 },
-  scatterLarge: { thresholds: [], cull: Infinity },
+  // Rocks and bushes: from 62 tiles (effective distance) without shadow casting (same geometry)
+  scatterLarge: { thresholds: [62], cull: Infinity, minBias: 0.8 },
   effect: { thresholds: [], cull: 120 },
 };
 
@@ -172,12 +178,14 @@ export class ChunkedInstances {
    *   levels: { geometry: THREE.BufferGeometry, material: THREE.Material|THREE.Material[], castShadow?: boolean, receiveShadow?: boolean }[],
    *   colors?: boolean,
    *   kind?: keyof typeof LOD_PROFILES,
-   * }} opts
+   *   height?: number,
+   * }} opts `height`: height of a typical instance (world units) for pixel profiles
    */
   constructor(opts) {
     this.name = opts.name;
     this.size = opts.chunkSize ?? 8;
     this.kind = opts.kind ?? 'tree';
+    this.height = opts.height ?? 1;
     this.useColors = !!opts.colors;
     /** @type {Map<number, {x:number, z:number, m:number[], c:number[]}>} */
     this.staging = new Map();
@@ -276,23 +284,32 @@ export class ChunkedInstances {
 
   /**
    * Collect visible chunks.
+   * If there are fewer geometries than levels, the finest drop out: [simple, far] counts as level 1 and 2
+   * (the far model only from the last threshold, not already from the first).
    * @param {THREE.Frustum} frustum
    * @param {THREE.Vector3} camPos
-   * @param {(d:number) => number} eff Abstand → effektiver Abstand
+   * @param {(d:number) => number} eff distance → effective distance (or pixelMetric for pixel profiles)
    * @param {{thresholds:number[], cull:number, h:number}} s
    * @param {LodCounter} [counter]
+   * @param {number} [maxDist] real distance from which nothing is visible any more (decoration that shrinks into the
+   *   ground in the shader): chunks that lie entirely beyond it drop out; replaces the cull threshold from `s`
    */
-  update(frustum, camPos, eff, s, counter) {
+  update(frustum, camPos, eff, s, counter, maxDist = Infinity) {
     const nLevels = this.meshes.length;
+    const offset = Math.max(0, s.thresholds.length + 1 - nLevels);
+    const sl = Number.isFinite(maxDist) && Number.isFinite(s.cull) ? { ...s, cull: Infinity } : s;
     const counts = new Array(nLevels).fill(0);
     const mats = this.meshes.map((m) => m.instanceMatrix.array);
     const cols = this.useColors ? this.meshes.map((m) => m.instanceColor.array) : null;
     for (const c of this.chunks) {
       if (!frustum.intersectsSphere(c.sphere)) continue;
-      const d = Math.max(0, c.sphere.center.distanceTo(camPos) - c.sphere.radius * 0.5);
-      let lvl = c.lod.update(eff(d), s);
+      const dc = c.sphere.center.distanceTo(camPos);
+      // there everything has already shrunk to zero: dropping out does not pop
+      if (dc - c.sphere.radius > maxDist) { c.lod.level = -1; continue; }
+      const d = Math.max(0, dc - c.sphere.radius * 0.5);
+      let lvl = c.lod.update(eff(d), sl);
       if (lvl < 0) continue;
-      lvl = Math.min(lvl, nLevels - 1);
+      lvl = Math.min(Math.max(0, lvl - offset), nLevels - 1);
       mats[lvl].set(c.matrices, counts[lvl] * 16);
       if (cols) cols[lvl].set(c.colors, counts[lvl] * 3);
       counts[lvl] += c.n;

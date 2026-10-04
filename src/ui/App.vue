@@ -60,7 +60,7 @@
         </div>
       </div>
 
-      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog()" />
+      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog()" @tribute="engine.payTribute($event)" />
       <MissionResult
         v-if="ui.mission?.result"
         :result="ui.mission.result"
@@ -236,7 +236,7 @@ export default {
         seed: Number(q.get('seed')) || 1,
         difficulty: { easy: 'easy', normal: 'normal', hard: 'hard' }[q.get('ai')] ?? 'normal',
         players: Math.min(4, Math.max(2, Number(q.get('players')) || 2)),
-        hero: q.get('hero') ?? 'bertram',
+        hero: q.get('hero') ?? 'nelia',
         // Fog of war: ?fog=off turns it off
         fog: !['off', '0'].includes(q.get('fog') ?? ''),
         noAssets: q.has('no-models'),

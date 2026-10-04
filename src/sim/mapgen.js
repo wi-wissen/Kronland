@@ -6,7 +6,7 @@ import { Rng } from './rng.js';
 import { TileMap, WATER, CLIFF, RESERVED } from './map.js';
 import { BALANCE } from './data/balance.js';
 import { isqrt } from './fixed.js';
-import { ADDON } from './data/addon.js';
+import { BRIDGE_SITES } from './data/bridges.js';
 
 function hash32(x, y, s) {
   let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 1442695041)) | 0;
@@ -685,8 +685,8 @@ export function generateMap(seed, opts = {}) {
   };
   const finalFeatures = features.filter((f) => f.kind !== 'tree' || (!removed.has(f.y * S + f.x) && reachableTree(f.x, f.y)));
 
-  // Bridge sites (add-on): pure extra data, do not change the map
-  const bridges = findBridgeSites(map, riverTiles, fordCount, ADDON.bridge);
+  // Bridge sites: pure additional data, do not change the map
+  const bridges = findBridgeSites(map, riverTiles, fordCount, BRIDGE_SITES);
   return { map, features: finalFeatures, starts, hqs, waterLevel, massifs, mineHills, river: riverTiles, bridges };
 }
 

@@ -5,10 +5,10 @@
 // This way missions survive changes to the map generator (relief, cliffs, other water layouts).
 
 import { BUILDING_TECHS } from '../data/buildingTechs.js';
-import { OCCUPIED, RESERVED, WATER } from '../map.js';
+import { OCCUPIED, RESERVED, WATER, CLIFF } from '../map.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { BALANCE } from '../data/balance.js';
-import { UNITS } from '../data/units.js';
+import { UNITS, HEROES } from '../data/units.js';
 import { findPath } from '../pathfinding.js';
 import { tileCenter, toTile, isqrt } from '../fixed.js';
 import { TECHS } from '../data/technologies.js';
@@ -216,10 +216,11 @@ export function giveTechs(sim, owner, techs) {
 /**
  * Island: lifts an area out by laying a water ring around it (moat/lake).
  * Walkable only in winter (frozen). Finds a suitable spot between `from` and `to` itself.
+ * `o.keep`: points that must stay reachable from `from` in summer (the water ring must not cut off paths).
  * @returns {{x:number,y:number,r:number}|null} centre and inner radius
  */
 export function makeIsland(sim, from, to, o = {}) {
-  const { inner = 5, width = 2, minDist = 26 } = o;
+  const { inner = 5, width = 2, minDist = 26, keep = [] } = o;
   const m = sim.map;
   const outer = inner + width;
   const tryAt = (c) => {
@@ -251,7 +252,7 @@ export function makeIsland(sim, from, to, o = {}) {
           if (e && (e.kind === 'tree' || e.kind === 'pile')) sim.removeEntity(e);
           changed.push([k, m.heights[k], m.flags[k]]);
           m.flags[k] |= WATER;
-          m.heights[k] = Math.min(m.heights[k], sim.waterLevel - 60);
+          m.heights[k] = Math.min(m.heights[k], sim.waterLevel - 200);
         } else if (d < inner && (m.flags[k] & WATER)) {
           changed.push([k, m.heights[k], m.flags[k]]);
           m.flags[k] &= ~WATER;
@@ -259,12 +260,216 @@ export function makeIsland(sim, from, to, o = {}) {
         }
       }
       m.version++; // recompute the region numbers of the pathfinding
-      // Counter-check: cut off in summer, reachable in winter
-      const ok = !reachable(sim, from, c, false) && reachable(sim, from, c, true);
+      // Counter-check: cut off in summer, reachable in winter; `keep` stays reachable in summer
+      const ok = !reachable(sim, from, c, false) && reachable(sim, from, c, true) && keep.every((k) => reachable(sim, from, k, false));
       if (ok) return { x: c.x, y: c.y, r: inner - 1 };
       for (const [k, h, f] of changed.reverse()) { m.heights[k] = h; m.flags[k] = f; }
       m.version++;
     }
+  }
+  return null;
+}
+
+/**
+ * Moat (lake) around a fixed centre, e.g. a castle: ring from `inner` to `inner + width`
+ * tiles becomes water, buildings in the ring are not allowed (then null). In summer the centre is
+ * unreachable from `from`, in winter reachable over the ice. Trees and piles in the ring disappear.
+ * @returns {{x:number,y:number,r:number}|null}
+ */
+export function moat(sim, c, from, o = {}) {
+  const { inner = 12, width = 4 } = o;
+  const m = sim.map, outer = inner + width;
+  const ring = [];
+  for (let y = c.y - outer; y <= c.y + outer; y++) for (let x = c.x - outer; x <= c.x + outer; x++) {
+    if (!m.inBounds(x, y)) continue;
+    const d = isqrt((x - c.x) ** 2 + (y - c.y) ** 2);
+    if (d < inner || d > outer) continue;
+    const k = m.idx(x, y);
+    const e = sim.entities.get(m.owner[k]);
+    if ((m.flags[k] & OCCUPIED) && e?.kind === 'building') return null;
+    ring.push(k);
+  }
+  const changed = [];
+  for (const k of ring) {
+    const e = sim.entities.get(m.owner[k]);
+    if (e && (e.kind === 'tree' || e.kind === 'pile')) sim.removeEntity(e);
+    changed.push([k, m.heights[k], m.flags[k]]);
+    m.flags[k] |= WATER;
+    m.heights[k] = Math.min(m.heights[k], sim.waterLevel - 200);
+  }
+  m.version++;
+  if (!reachable(sim, from, c, false) && reachable(sim, from, c, true)) return { x: c.x, y: c.y, r: inner - 1 };
+  for (const [k, h, f] of changed.reverse()) { m.heights[k] = h; m.flags[k] = f; }
+  m.version++;
+  return null;
+}
+
+// ---------- Shaping terrain: mountain ridge, gaps, river courses, lake with island ----------
+// For missions with fixed landscape (e.g. a valley behind a mountain ridge). All integer and without randomness;
+// there are no buildings yet at the time of the call (shape first, then build and place troops).
+
+/** Triangle wave with period `period` and amplitude ±amp (natural-looking, integer edges). */
+const tri = (v, period, amp) => { const k = ((v % period) + period) % period; return Math.trunc(((Math.abs(k * 4 - period * 2) - period) * amp) / period); };
+
+/** Remove a tree or pile on a tile. */
+function clearTile(sim, k) {
+  const e = sim.entities.get(sim.map.owner[k]);
+  if (e && (e.kind === 'tree' || e.kind === 'pile')) sim.removeEntity(e);
+}
+
+/**
+ * Axis from `from` to `to`: p = distance along the axis, q = lateral offset (tiles, integer);
+ * at(p, q) returns the tile for it.
+ */
+export function axis(from, to) {
+  const dx = to.x - from.x, dy = to.y - from.y, len = isqrt(dx * dx + dy * dy) || 1;
+  return {
+    from, len,
+    p: (x, y) => Math.trunc(((x - from.x) * dx + (y - from.y) * dy) / len),
+    q: (x, y) => Math.trunc(((y - from.y) * dx - (x - from.x) * dy) / len),
+    at: (p, q) => ({ x: from.x + Math.trunc((p * dx - q * dy) / len), y: from.y + Math.trunc((p * dy + q * dx) / len) }),
+  };
+}
+
+/**
+ * Smooth relief: compress heights towards the water level (factor 1/`divide`), remove steep slopes and waters of the
+ * map generator. With `sites` settlement spots, shafts and bridge sites also disappear
+ * (missions without building).
+ */
+export function soften(sim, o = {}) {
+  const { divide = 3, floor = 150, sites = false } = o;
+  const m = sim.map, wl = sim.waterLevel;
+  for (let k = 0; k < m.flags.length; k++) {
+    m.flags[k] &= ~(CLIFF | WATER);
+    m.heights[k] = wl + floor + Math.trunc(Math.max(0, m.heights[k] - wl - floor) / divide);
+  }
+  if (sites) {
+    for (let k = 0; k < m.flags.length; k++) m.flags[k] &= ~RESERVED;
+    sim.spots.length = 0; sim.shafts.length = 0; sim.bridgeSites = [];
+  }
+  m.version++; m.heightVersion++;
+}
+
+/** Edges of the ridge at lateral position q: [lo, hi) along the axis. */
+function ridgeSpan(r, q) {
+  const lo = r.at + (r.wobble ? tri(q + r.at, 23, r.wobble) + tri(q * 3 + 7, 31, 1) : 0);
+  return { lo, hi: lo + r.width };
+}
+
+/**
+ * Mountain ridge across the whole map, perpendicular to the axis: starts `at` tiles from the axis source and is
+ * `width` tiles thick (edges wavy). The ridge is a steep slope (CLIFF): impassable, also over the ice.
+ * In front of and behind it a walkable foothill rises. Gaps are cut by ridgeGap().
+ * @param {ReturnType<typeof axis>} ax
+ * @returns {{ ax: ReturnType<typeof axis>, at: number, width: number, wobble: number, foot: number }}
+ */
+export function ridge(sim, ax, at, width, o = {}) {
+  const { wobble = 2, rise = 520, peak = 2700, foot = 3 } = o;
+  const m = sim.map, wl = sim.waterLevel;
+  const r = { ax, at, width, wobble, foot };
+  for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) {
+    const { lo, hi } = ridgeSpan(r, ax.q(x, y));
+    const p = ax.p(x, y), k = m.idx(x, y);
+    if (p < lo - foot || p >= hi + foot) continue;
+    if (p >= lo && p < hi) {
+      const edge = Math.min(p - lo, hi - 1 - p);
+      clearTile(sim, k);
+      m.flags[k] = (m.flags[k] | CLIFF) & ~(WATER | RESERVED);
+      m.heights[k] = Math.max(m.heights[k], Math.min(wl + peak, wl + 900 + edge * rise));
+    } else {
+      const d = p < lo ? lo - p : p - hi + 1;
+      m.heights[k] = Math.max(m.heights[k], wl + 900 - d * 180);
+    }
+  }
+  m.version++; m.heightVersion++;
+  return r;
+}
+
+/**
+ * Gap through a ridge at lateral position q (`width` tiles wide): a pass (land) or with
+ * `water` a gorge through which a river runs (walkable only in winter). Returns the centre and the
+ * tiles in front of (`near`) and behind (`far`) the ridge.
+ */
+export function ridgeGap(sim, r, q, o = {}) {
+  const { width = 3, water = false, floor = 350 } = o;
+  const m = sim.map, wl = sim.waterLevel, ax = r.ax, half = width >> 1;
+  let lo = Infinity, hi = -Infinity;
+  for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) {
+    const tq = ax.q(x, y), dq = Math.abs(tq - q);
+    if (dq > half + 2) continue;
+    const span = ridgeSpan(r, tq), p = ax.p(x, y);
+    if (p < span.lo - r.foot || p >= span.hi + r.foot) continue;
+    if (dq <= half) { lo = Math.min(lo, span.lo); hi = Math.max(hi, span.hi); }
+    const k = m.idx(x, y);
+    if (dq <= half) {
+      clearTile(sim, k);
+      m.flags[k] &= ~CLIFF;
+      if (water) { m.flags[k] |= WATER; m.heights[k] = wl - 160; } else { m.flags[k] &= ~WATER; m.heights[k] = wl + floor; }
+    } else if (p < span.lo || p >= span.hi) {
+      // Let the foothill next to the gap slope gently down to the floor
+      m.heights[k] = Math.min(m.heights[k], wl + floor + (dq - half) * 260);
+    }
+  }
+  m.version++; m.heightVersion++;
+  const mid = (lo + hi) >> 1;
+  return { q, center: ax.at(mid, q), near: ax.at(lo - r.foot - 1, q), far: ax.at(hi + r.foot, q) };
+}
+
+/** River course (water, `width` tiles wide) from a to b; tiles outside the map are skipped. */
+export function channel(sim, a, b, o = {}) {
+  const { width = 3 } = o;
+  const m = sim.map, wl = sim.waterLevel, half = width >> 1;
+  const n = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y), 1);
+  for (let i = 0; i <= n; i++) {
+    const cx = a.x + Math.trunc(((b.x - a.x) * i) / n), cy = a.y + Math.trunc(((b.y - a.y) * i) / n);
+    for (let y = cy - half; y <= cy + half; y++) for (let x = cx - half; x <= cx + half; x++) {
+      if (!m.inBounds(x, y)) continue;
+      const k = m.idx(x, y);
+      clearTile(sim, k);
+      m.flags[k] = (m.flags[k] | WATER) & ~(CLIFF | RESERVED);
+      m.heights[k] = Math.min(m.heights[k], wl - 160);
+    }
+  }
+  m.version++; m.heightVersion++;
+}
+
+/**
+ * Lake with island around c: island up to `inner` (flat, walkable), water ring up to `inner + width`, behind it a
+ * flat shore (`shore` tiles). In summer the island is cut off, in winter the ice carries.
+ * @returns {{x:number,y:number,r:number}} centre and inner radius
+ */
+export function lakeIsland(sim, c, o = {}) {
+  const { inner = 6, width = 4, shore = 3 } = o;
+  const m = sim.map, wl = sim.waterLevel, outer = inner + width;
+  for (let y = c.y - outer - shore; y <= c.y + outer + shore; y++) for (let x = c.x - outer - shore; x <= c.x + outer + shore; x++) {
+    if (!m.inBounds(x, y)) continue;
+    const d = isqrt((x - c.x) ** 2 + (y - c.y) ** 2), k = m.idx(x, y);
+    if (d > outer + shore) continue;
+    if (d >= inner && d <= outer) {
+      clearTile(sim, k);
+      m.flags[k] = (m.flags[k] | WATER) & ~(CLIFF | RESERVED);
+      m.heights[k] = wl - 220;
+    } else {
+      m.flags[k] &= ~(CLIFF | WATER);
+      m.heights[k] = Math.max(wl + 150, Math.min(m.heights[k], wl + (d < inner ? 300 : 450)));
+    }
+  }
+  m.version++; m.heightVersion++;
+  return { x: c.x, y: c.y, r: inner - 1 };
+}
+
+/**
+ * Permanent ruin of a building type near `near` (backdrop, blocks the area, never decays).
+ * @returns {any|null} the ruin
+ */
+export function addRuin(sim, type, near, o = {}) {
+  const def = BUILDINGS[type], { level = 0, radius = 8 } = o;
+  for (const p of rings(near.x - (def.w >> 1), near.y - (def.h >> 1), 0, radius)) {
+    if (!sim.map.rectFree(p.x - 1, p.y - 1, def.w + 2, def.h + 2)) continue;
+    const r = { id: sim.nextId++, kind: 'ruin', type, level, owner: -1, formerOwner: -1, x: p.x, y: p.y, w: def.w, h: def.h, until: 0x7fffffff };
+    sim.entities.set(r.id, r);
+    sim.map.occupy(r.x, r.y, r.w, r.h, r.id);
+    return r;
   }
   return null;
 }
@@ -278,7 +483,8 @@ export function unitsInArea(sim, owner, area, who = 'any') {
     const ok = who === 'any' ? (e.kind === 'leader' || e.kind === 'hero' || e.kind === 'unit')
       : who === 'hero' ? e.kind === 'hero' && !e.down
         : who === 'army' ? (e.kind === 'leader' || (e.kind === 'hero' && !e.down))
-          : who === 'serf' ? e.kind === 'unit' : e.kind === who;
+          : who === 'serf' ? e.kind === 'unit'
+            : HEROES[who] ? e.kind === 'hero' && e.hero === who && !e.down : e.kind === who;
     if (!ok) continue;
     const dx = e.px - tileCenter(area.x), dy = e.py - tileCenter(area.y);
     if (dx * dx + dy * dy <= r2 * 1000000) out.push(e);

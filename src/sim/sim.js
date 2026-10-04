@@ -15,7 +15,7 @@ import { unstickAll, nearestWalkable, formationTiles } from './systems/movement.
 import { updatePayday } from './systems/payday.js';
 import { updateSpawning, updateWorker, removeWorker, workersOf, maxMotivation } from './systems/workers.js';
 import { updateMilitary, setMilitia, useAbility, slotOffset } from './systems/military.js';
-import { UNITS, LINES, unitOf, fullCost, LINE_UPGRADE_COST, HEROES } from './data/units.js';
+import { UNITS, LINES, unitOf, fullCost, LINE_UPGRADE_COST, HEROES, HERO_IDS } from './data/units.js';
 import { WEATHER_CYCLE, WEATHER_EFFECTS } from './data/weather.js';
 import { BUILDING_TECHS } from './data/buildingTechs.js';
 import { REASONS } from './reasons.js';
@@ -24,8 +24,7 @@ import { createMarket, checkTrade, startTrade, updateMarket } from './systems/ma
 import { updateDamage, createRuin, isDamaged } from './systems/damage.js';
 import { checkWeatherChange, changeWeather } from './systems/weather.js';
 import { createVision, updateVision, revealStart, hashVision } from './systems/vision.js';
-import { SPECIALISTS } from './data/addon.js';
-import { setupAddon, updateAddon, hashAddon, checkBridgeSite, bridgeSiteAt, bridgeDone, bridgeGone, cmdRecruitSpecial, cmdSpecial } from './systems/addon.js';
+import { setupBridges, hashBridges, checkBridgeSite, bridgeSiteAt, bridgeDone, bridgeGone } from './systems/bridges.js';
 import { levelSite } from './systems/terrain.js';
 
 /** Own key of a data table? Protects against commands like { building: 'constructor' }. */
@@ -96,10 +95,8 @@ export const hasKey = (table, key) => typeof key === 'string' && Object.hasOwn(t
 
 export class Sim {
   /**
-   * @param {{ seed?: number, players?: number, size?: number, mission?: any, fog?: boolean, startReveal?: number, addon?: boolean, world?: any, playerSetup?: any[] }} [opts]
+   * @param {{ seed?: number, players?: number, size?: number, mission?: any, fog?: boolean, startReveal?: number, world?: any, playerSetup?: any[] }} [opts]
    *   fog: fog of war (default on); startReveal: explored radius around each castle at the start
-   *   addon: extension content (tavern, thief, scout, bridges, rifle soldiers, heroes Falk/Morla …;
-   *   off by default, the start menu enables it by default in free play; missions: entry `addon`)
    *   world: world instead of random map (src/sim/world.js: flat base map or saved editor map)
    *   playerSetup: per player { hq: false } = without castle, village centre and serfs (coding adventure)
    *   mission: optional mission script (src/sim/missions/runtime.js). It gets exactly three
@@ -110,8 +107,6 @@ export class Sim {
     this.seed = opts.seed ?? 1;
     /** Mission script or null (free play) */
     this.mission = opts.mission ?? null;
-    /** Erweiterungsinhalte (src/sim/systems/addon.js) */
-    this.addon = !!(opts.addon ?? opts.mission?.def?.addon ?? false);
     this.tick = 0;
     this.rng = new Rng(this.seed);
     const gen = buildWorld(opts.world ?? { size: opts.size ?? 96 }, opts.players ?? 2, this.seed);
@@ -127,6 +122,8 @@ export class Sim {
     this.nextId = 1;
     /** @type {Player[]} */
     this.players = [];
+    /** Diplomacy that deviates from the teams: 'a:b' (a < b) → 'allied' | 'neutral' | 'hostile' (missions) */
+    this.diplomacy = {};
     /** @type {any[]} */
     this.events = [];
     /** @type {any[]} */
@@ -147,7 +144,7 @@ export class Sim {
       this.players.push({
         id: p, stock, raw: emptyStock(), taxLevel: BALANCE.tax.defaultLevel, techs: new Set(), defeated: false, faith: 0,
         weatherEnergy: 0, weatherReadyAt: 0,
-        unitTier: { sword: 1, spear: 1, bow: 1, lightCav: 1, heavyCav: 1, cannon: 1, rifle: 1 }, team: opts.teams?.[p] ?? p,
+        unitTier: { sword: 1, spear: 1, bow: 1, lightCav: 1, heavyCav: 1, cannon: 1 }, team: opts.teams?.[p] ?? p,
       });
       const setup = opts.playerSetup?.[p] ?? {};
       if (setup.hq !== false) {
@@ -157,11 +154,12 @@ export class Sim {
         if (spot) this.createBuilding(p, 'villageCenter', spot.x, spot.y, true);
         for (let i = 0; i < BALANCE.startSerfs; i++) this.spawnSerf(p);
       }
-      const hero = opts.heroes?.[p] ?? ['bertram', 'hedda', 'gerold'][p % 3];
-      if (hero) this.spawnHero(p, hero);
+      // Heroes: one (name), several (list, first = main hero) or none (null)
+      const hero = opts.heroes?.[p] !== undefined ? opts.heroes[p] : HERO_IDS[p % HERO_IDS.length];
+      for (const id of [].concat(hero ?? [])) this.spawnHero(p, id);
     }
-    // Extension: bridge sites, hidden deposits
-    setupAddon(this, gen.bridges);
+    // Bridge sites (keep bridgeheads free)
+    setupBridges(this, gen.bridges);
     /** Weather: state and tick of the next change */
     this.weatherCycle = opts.weatherCycle ?? WEATHER_CYCLE;
     this.weather = { state: this.weatherCycle[0][0], index: 0, until: this.weatherCycle[0][1] };
@@ -177,14 +175,41 @@ export class Sim {
     updateVision(this, true);
   }
 
-  allied(a, b) { return this.players[a]?.team === this.players[b]?.team; }
+  /**
+   * Diplomacy between two players: 'allied', 'neutral' or 'hostile'. Default from the teams
+   * (same team = allied, otherwise hostile); missions set deviations (setDiplomacy).
+   * Neutrals do not attack each other, but share neither vision nor victory.
+   */
+  relation(a, b) {
+    if (a === b) return 'allied';
+    const d = this.diplomacy?.[a < b ? `${a}:${b}` : `${b}:${a}`];
+    if (d) return d;
+    return this.players[a]?.team === this.players[b]?.team ? 'allied' : 'hostile';
+  }
+
+  allied(a, b) { return this.relation(a, b) === 'allied'; }
+
+  hostile(a, b) { return this.relation(a, b) === 'hostile'; }
+
+  /** Set diplomacy ('allied' | 'neutral' | 'hostile'); reports the change as an event. */
+  setDiplomacy(a, b, state) {
+    if (a === b || !this.players[a] || !this.players[b] || !['allied', 'neutral', 'hostile'].includes(state)) return false;
+    const k = a < b ? `${a}:${b}` : `${b}:${a}`;
+    if (this.relation(a, b) === state) return true;
+    this.diplomacy[k] = state;
+    this.events.push({ type: 'diplomacy', a, b, state });
+    return true;
+  }
 
   spawnHero(owner, hero) {
     const hq = this.findBuilding(owner, 'headquarters');
     let t;
+    // further heroes of the same player stand two tiles further on
+    let n = 0;
+    for (const e of this.entities.values()) if (e.kind === 'hero' && e.owner === owner) n++;
     if (hq) {
       const ring = this.map.ring(hq.x, hq.y, hq.w, hq.h);
-      t = ring[(ring.length >> 1) % ring.length];
+      t = ring[((ring.length >> 1) + 2 * n) % ring.length];
     } else {
       // Without castle (coding adventure): on the start spot or the nearest walkable tile
       const s = this.starts[owner] ?? { x: 1, y: 1 };
@@ -195,6 +220,8 @@ export class Sim {
       id: this.nextId++, kind: 'hero', hero, owner, px: tileCenter(t % this.map.width), py: tileCenter((t / this.map.width) | 0),
       path: [], hp: HEROES[hero].hp, down: false, downTimer: 0, ready: {}, order: { type: 'idle' }, targetId: 0, cooldown: 0,
     };
+    // Without castle (coding adventure): face east, so that hero.step() goes where the hero visibly looks
+    if (!hq) h.face = 1;
     this.entities.set(h.id, h);
     return h;
   }
@@ -244,7 +271,7 @@ export class Sim {
     if (!ring.length) return;
     let k = 0;
     for (const e of this.entities.values()) {
-      if (e.px === undefined || !(e.kind === 'unit' || e.kind === 'worker' || e.kind === 'leader' || e.kind === 'soldier' || e.kind === 'hero' || e.kind === 'specialist')) continue;
+      if (e.px === undefined || !(e.kind === 'unit' || e.kind === 'worker' || e.kind === 'leader' || e.kind === 'soldier' || e.kind === 'hero')) continue;
       const tx = toTile(e.px), ty = toTile(e.py);
       if (tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h) {
         const t = ring[k++ % ring.length];
@@ -329,7 +356,6 @@ export class Sim {
       if (e.owner !== owner) continue;
       if (e.kind === 'unit' || e.kind === 'worker') n++;
       else if (e.kind === 'leader' || e.kind === 'soldier') n += UNITS[e.def].pop;
-      else if (e.kind === 'specialist') n += SPECIALISTS[e.spec]?.pop ?? 1;
     }
     return n;
   }
@@ -395,9 +421,6 @@ export class Sim {
       case 'militia': setMilitia(this, cmd.player, !!cmd.on); return true;
       case 'trade': return this.cmdTrade(cmd);
       case 'changeWeather': return this.cmdChangeWeather(cmd);
-      // Extension: recruit and command thief/scout (src/sim/systems/addon.js)
-      case 'recruitSpecial': return cmdRecruitSpecial(this, cmd);
-      case 'special': return cmdSpecial(this, cmd);
       // Mission: e.g. confirm or skip a tutorial step (hook 2 of 3)
       case 'mission': return this.mission ? this.mission.command(this, cmd) : this.reject(cmd, 'err.noMission');
       // Python scripts of the scenario: start/stop the player program, debugger, skip dialogue
@@ -439,7 +462,6 @@ export class Sim {
     if (!hasKey(BUILDINGS, type)) return 'err.notBuildable';
     const def = BUILDINGS[type];
     if (def.buildable === false) return 'err.notBuildable';
-    if (def.addon && !this.addon) return 'err.addonOff';
     if (!Number.isInteger(x) || !Number.isInteger(y)) return 'err.notFree';
     if (def.requires && !this.players[owner].techs.has(def.requires)) return { code: 'err.techMissing', params: { tech: def.requires } };
     const m = this.map;
@@ -539,7 +561,7 @@ export class Sim {
 
   cmdSetTax(cmd) {
     if (!this.players[cmd.player].techs.has('education')) return this.reject(cmd, 'err.techFirst', { tech: 'education' });
-    if (!(cmd.level >= 0 && cmd.level <= 4)) return this.reject(cmd, 'err.invalidTax');
+    if (!Number.isInteger(cmd.level) || cmd.level < 0 || cmd.level > 4) return this.reject(cmd, 'err.invalidTax');
     this.players[cmd.player].taxLevel = cmd.level;
     return true;
   }
@@ -693,10 +715,9 @@ export class Sim {
   cmdRecruit(cmd) {
     const b = this.ownBuilding(cmd);
     const L = hasKey(LINES, cmd.line) ? LINES[cmd.line] : null;
-    if (L?.addon && !this.addon) return this.reject(cmd, 'err.addonOff');
     if (!b || !L || b.type !== L.building || !b.done) return this.reject(cmd, 'err.militaryBuildingNeeded');
     const p = this.players[cmd.player];
-    const def = unitOf(cmd.line, p.unitTier[cmd.line] ?? 1); // older saves/missions without line 'rifle'
+    const def = unitOf(cmd.line, p.unitTier[cmd.line] ?? 1);
     const soldiers = cmd.full ? def.soldiers : 0;
     const cost = cmd.full ? fullCost(def) : def.leaderCost;
     if (this.popUsed(cmd.player) + def.pop * (1 + soldiers) > this.popLimit(cmd.player)) return this.reject(cmd, 'err.popLimit');
@@ -876,8 +897,6 @@ export class Sim {
     // Whoever stands on a blocked tile (ruin, mission setup) goes to the nearest free one
     unstickAll(this);
     updateSpawning(this);
-    // Erweiterung: Spezialisten, Sprengladungen, Fackeln, Giftnebel, Unsichtbarkeit
-    if (this.addon) updateAddon(this);
     for (const e of [...this.entities.values()]) {
       if (!this.entities.has(e.id)) continue;
       if (e.kind === 'unit' && !e.militia) updateSerf(this, e);
@@ -914,6 +933,7 @@ export class Sim {
       h.int(p.taxLevel).int(p.faith).int(p.techs.size).int(p.weatherEnergy ?? 0).int(p.weatherReadyAt ?? 0);
     }
     for (const r of RESOURCES) h.int(this.market.prices[r]);
+    for (const k of Object.keys(this.diplomacy ?? {}).sort()) h.str(k).str(this.diplomacy[k]);
     // Weather (influenced by weather plant), elimination and troop tiers
     h.str(this.weather.state).int(this.weather.until).int(this.weather.index).int(this.map.frozen ? 1 : 0);
     for (const p of this.players) {
@@ -921,11 +941,12 @@ export class Sim {
       for (const l of Object.keys(p.unitTier ?? {})) h.int(p.unitTier[l]);
     }
     for (const e of this.entities.values()) {
-      h.int(e.id).str(e.kind);
+      h.int(e.id).str(e.kind).int(e.owner ?? -1);
+      if (e.fearUntil !== undefined) h.int(e.fearUntil);
       if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp);
       else if (e.kind === 'leader') h.int(e.px).int(e.py).int(e.hp).int(e.targetId).int(e.cooldown).int(e.xp ?? 0);
       else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state);
-      else if (e.px !== undefined) h.int(e.px).int(e.py).int(e.hp ?? 0).int(e.targetId ?? 0).int(e.cooldown ?? 0);
+      else if (e.px !== undefined) h.int(e.px).int(e.py).int(e.hp ?? 0).int(e.targetId ?? 0).int(e.cooldown ?? 0).int(e.face ?? -1);
       else if (e.kind === 'building') {
         h.str(e.type).int(e.x).int(e.y).int(e.progress).int(e.done ? 1 : 0).int(e.level).int(e.hp).int(e.burning ? 1 : 0);
         h.int(e.research ? e.research.progress : -1).int(e.trade ? e.trade.progress : -1);
@@ -935,7 +956,7 @@ export class Sim {
     // Terrain heights (change through levelling when building)
     for (const v of this.map.heights) h.int(v);
     hashVision(this, h);
-    hashAddon(this, h);
+    hashBridges(this, h);
     this.mission?.hash(h);
     return h.value;
   }

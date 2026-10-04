@@ -239,11 +239,23 @@ sind kumulativ (Stufentexte aus dem Handbuch, Zahlen **(A)**):
   Bogen schlägt schwere Reiter auf Abstand, schwere Reiter schlagen Schwerter; Kanonen verlieren gegen
   Truppen im Nahkampf.
 - Türme: Wachturm → Ballistaturm → Kanonenturm.
-- Helden: 600 LP, werden bewusstlos statt zu sterben, stehen nach 10 s ohne Feinde
-  mit halben LP wieder auf. Eigene Heldenfiguren mit Fähigkeiten nach Vorbild des Originals:
-  - **Bertram**, Ritter: Wirbelschlag (80 Flächenschaden), Aura der Stärke (Angriff ×2, 60 s)
-  - **Hedda**, Kräuterkundige: Heilen (170 LP im Umkreis), Falle (36 Schaden)
-  - **Gerold**, Sprengmeister: Bombe (50 Schaden nach 2 s), Selbstschuss-Kanone (4 Schuss)
+- Helden: 550–700 LP, werden bewusstlos statt zu sterben, stehen nach 10 s ohne Feinde
+  mit halben LP wieder auf. Eigene Figuren der Kampagne „Krone aus Eis“, Fähigkeiten nach dem Vorbild der
+  Helden des Originals (Werte in `src/sim/data/units.js`, Abklingzeit in Klammern):
+  - **Nelia**, Leibeigenentochter: *Weitblick* (deckt 30 s einen Kreis mit Radius 18 um sie auf und erkundet ihn
+    dauerhaft, 90 s), *Mut machen* (Angriff eigener Hauptleute und Helden im Umkreis 6 ×2 für 60 s, 120 s)
+  - **Orrin**, Händler: *Bestechen* (die nächste feindliche Truppe im Umkreis 5 wechselt die Seite, kostet
+    200 Taler + 50 je Soldat; ohne Ziel oder Taler keine Abklingzeit, 180 s) **(A)**, *Wundsalbe* (170 LP für
+    eigene Einheiten im Umkreis 6, 120 s)
+  - **Taran**, Hauptmann: *Schildstoß* (80 Schaden an allen Feinden im Umkreis 3, 120 s), *Einschüchtern*
+    (feindliche Hauptleute und Miliz im Umkreis 5 fliehen 8 Kacheln weit und greifen 15 s nicht an; ihre Soldaten
+    folgen, Helden bleiben unbeeindruckt, 150 s) **(A)**
+  - **Malvor**, Statthalter (Gegenspieler, im freien Spiel wählbar): *Feldgeschütz* (Geschütz mit 4 Schuss,
+    Reichweite 6, 180 s), *Fußangeln* (Falle, 36 Schaden im Umkreis 2,5, 180 s)
+  - Ein Spieler kann mehrere Helden haben (Missionen: `heroes: ['nelia', 'orrin']`).
+- Diplomatie (Missionen): zwischen zwei Spielern *feindlich*, *neutral* oder *verbündet*. Standard aus den Teams;
+  Neutrale greifen einander nicht an, teilen aber keine Sicht. Dörfer sind Spielerplätze ohne Burg und anfangs
+  neutral (wie im Vorbild).
 - Rekrutieren: volle Einheit oder nur Hauptmann; Soldaten nachkaufen am Militärgebäude.
 - Aufwerten einer Truppengattung (Stufe 2: passender Veredler, Stufe 3: ausgebautes
   Militärgebäude, Stufe 4: zusätzlich Festung) wertet auch bestehende Truppen auf.
@@ -254,6 +266,9 @@ sind kumulativ (Stufentexte aus dem Handbuch, Zahlen **(A)**):
     Miliz, Selbstschuss-Kanone) in Sichtweite (9 Kacheln), greifen Hauptmann und Soldaten zuerst sie an
     und kehren danach zum Gebäude zurück. Leibeigene und Arbeiter lenken nicht ab **(A)**.
   - Halten: nur Feinde in eigener Reichweite, keine Verfolgung.
+  - Unerreichbares Ziel (z. B. auf einer Insel): Fernkämpfer (Reichweite ab 3 Kacheln) laufen zu einer
+    erreichbaren Kachel, von der aus das Ziel in Reichweite liegt, und schießen vom Ufer aus; Nahkämpfer
+    geben das Ziel auf.
   - Ziel auf einem Gebäude oder im Wasser: die Truppe läuft zur nächsten begehbaren Kachel.
 - Bewegung: Figuren betreten nie Wasser (außer Eis im Winter), Felsen oder Gebäude und schneiden
   keine Ecken (diagonal nur, wenn beide Nachbarkacheln frei sind). Wer auf einer gesperrten Kachel
@@ -285,8 +300,9 @@ schlechter. Winter: Wasser friert und wird begehbar, Einheiten langsamer, Sicht 
 
 ## 9b. Nicht umgesetzt (bewusst)
 
-- Dieb, Kundschafter und alle weiteren Addon-Inhalte.
-- Tribute und Bündniswechsel: Teams (`players[].team`) bestehen, Diplomatie im Spiel nicht.
+- Wirtshaus, Dieb, Kundschafter, verborgene Lagerstätten, Büchsenschützen (Erweiterung; wieder entfernt, siehe
+  [ADDON.md](ADDON.md)).
+- Diplomatie und Tribute gibt es nur in Missionen (Skript-Aktionen `diplomacy`, `tribute`), nicht im freien Spiel.
 
 ## 10. Sieg
 
@@ -369,36 +385,16 @@ Wie im Original kennt jede Kachel drei Zustände (je Team; Verbündete teilen Si
 - Berechnung: alle 5 Takte (0,5 s), ganzzahlig und deterministisch; Spielstände enthalten Erkundung,
   Sicht (Bitfelder) und die zuletzt gesehenen Gebäude.
 
-## 13. Erweiterungsinhalte
+## 13. Brücken und Zierden
 
-Nach Vorbild der Erweiterungen des Originals (Recherche und Auswahl: [ADDON.md](ADDON.md)). Im freien Spiel
-fest dabei (der frühere Schalter im Startmenü und `?addon=off` sind entfallen); Kampagne, Tutorial und
-Programmier-Abenteuer sind eigens gestaltete Szenarien ohne sie (Missionen schalten sie mit `addon: true` ein). Ohne Erweiterung lehnt die Simulation alle Erweiterungsbefehle
-ab (`err.addonOff`). Werte: `src/sim/data/addon.js`, `buildings.js`, `units.js`, `buildingTechs.js` (alle (A)).
+Aus den Erweiterungen des Originals übernommen (Recherche und Auswahl: [ADDON.md](ADDON.md)); fest im Spiel, auch in
+Kampagne und Skript-Missionen. Werte: `src/sim/data/bridges.js`, `buildings.js`, `buildingTechs.js` (alle (A)).
 
 | Inhalt | Voraussetzung | Kosten | Wirkung |
 |---|---|---|---|
-| **Wirtshaus** (→ Gasthof) | Bildung | 150 Holz, 250 Lehm | wirbt Dieb und Kundschafter an (je höchstens 3, 1 Bevölkerungsplatz) |
-| **Dieb** | Wirtshaus | 300 Taler, 50 Eisen | 160 LP, schnell, kämpft nicht. **Unsichtbar** für Gegner (weder sichtbar noch angreifbar), außer bis 9 Kacheln an einem feindlichen Turm oder 6 an einem feindlichen Kundschafter – dann sieht und bekämpft ihn nur das entdeckende Team. Gilt auch ohne Nebel |
-| ↳ Stehlen | Burg, Lager oder Dorfzentrum eines Gegners | Abklingzeit 90 s | 4 s am Gebäude: 15 % der Taler (höchstens 250) und bis 120 vom reichlichsten Rohstoff; Beute wird zur eigenen Burg getragen (stirbt der Dieb, ist sie weg); mit Beute kein neuer Diebstahl |
-| ↳ Sprengladung | beliebiges feindliches Gebäude | Abklingzeit 120 s | zündet nach 10 s: 500 Schaden am Gebäude (Brücken ×3), 40 an Feinden im Umkreis 1,5 |
-| **Kundschafter** | Wirtshaus | 200 Taler, 50 Holz | 220 LP, Sicht 18, entdeckt Diebe im Umkreis 6 |
-| ↳ Fackel | Ort bis 8 Kacheln | Abklingzeit 60 s | erhellt 60 s einen Kreis mit Radius 11 |
-| ↳ Rohstoffe suchen | – | Abklingzeit 90 s | legt verborgene Lagerstätten im Umkreis 26 frei (werden zu Rohstoffhaufen mit 700) |
-| **Verborgene Lagerstätten** | – | – | je Spieler 3 im Abstand 18–42 zur Burg, 2 in der Kartenmitte (Eisen, Schwefel, Stein, Lehm); unsichtbar und nicht abbaubar, bis ein Kundschafter sie findet |
 | **Brücke** | Mathematik (Steinmetzhütte) | 300 Holz, 250 Stein | nur an Brückenstellen (Kartengenerator, je Flussabschnitt zwischen Furten die kürzeste 2 Kacheln breite Querung, 2–9 lang). Brücken werden nicht eingeebnet; Brückenköpfe (Ufer an beiden Enden) und Landkacheln der Stelle sind von Anfang an frei und reserviert (dort baut niemand, die Einebnung lässt sie unverändert). Fertig: begehbar für alle; zerstört/abgerissen: wieder Wasser, wer darauf steht, ertrinkt (Helden zurück zur Burg), keine Ruine. Niemand greift Brücken von selbst an |
-| **Büchsenmacherei** | Legierungen | 250 Holz, 300 Stein, 100 Schwefel | bildet **Büchsenschützen** aus: Hakenbüchse (Angriff 18, Reichweite 7) → Muskete (24, 7,5; Büchsenmanufaktur), Angriffstyp Schuss (×1,8 gegen gepolstert), im Regen −30 %. Technik „Gezogene Läufe“ +2 Angriff |
 | **Brunnen** / **Denkmal** | Konstruktion / Buchdruck | 150 T + 150 S / 400 T + 300 S | Zierde: max. Motivation +3 / +6 (und einmalig die aktuelle) |
-| **Falk**, Meisterschütze | Held | – | Fernkampf (6,5). *Gezielter Schuss*: 160 Schaden am nächsten Feind bis 9 Kacheln (60 s). *Adlerauge*: eigene Schützen im Umkreis 6 Reichweite +1,5, Angriff ×1,25 für 60 s (120 s) |
-| **Morla**, Nebelhexe | Held | – | *Giftnebel*: Wolke (Radius 3,5, 12 s) – alle 1 s 14 Schaden, Feinde darin 60 % langsamer (120 s). *Nebelschleier*: eigene Truppen und Held im Umkreis 6 sind 30 s unsichtbar, bis sie selbst angreifen (180 s) |
 
-- **Steuerung**: Dieb/Kundschafter wählen wie Truppen; Rechtsklick auf den Boden = laufen, Dieb auf feindliche
-  Burg/Lager = stehlen. Fähigkeiten im Spezialistenpanel (Tasten 1/2); *Stehlen*, *Sprengladung* und *Fackel*
-  schalten einen Zielmodus, der nächste Klick wählt das Ziel. Eigene unsichtbare Diebe tragen einen hellen Schleierring.
-- **Meldungen**: Diebstahl (beide Seiten), abgelieferte Beute, gelegte Ladung, entdeckter feindlicher Dieb,
-  Ladung am eigenen Gebäude (nur wenn sichtbar), Brücke fertig/eingestürzt, gefundene Lagerstätten.
-- **Computergegner**: baut Wirtshaus, Brücke Richtung Gegner, Büchsenmacherei und Zierden; Kundschafter erkunden
-  Wegpunkte und suchen Lagerstätten, werfen beim Angriff Fackeln; Diebe (Normal/Schwer) bestehlen die zuletzt
-  gesehene feindliche Burg bzw. das Lager, Schwer sprengt beim Angriff einen bekannten Turm. Bestohlen baut die KI
-  einen Wachturm an der Burg und stellt einen Kundschafter als Wache ab; sichtbare feindliche Spezialisten nahe der
-  Burg greift ihr Heer an. Unsichtbares sieht auch die schwere KI nicht.
+- **Meldungen**: Brücke fertig, Brücke eingestürzt.
+- **Computergegner**: baut nach Kaserne und drei Hauptleuten eine Brücke Richtung Gegner (falls es eine Brückenstelle
+  gibt) sowie Brunnen und Denkmal, sobald er sie sich leisten kann.

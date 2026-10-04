@@ -22,7 +22,6 @@
         <span><Icon name="soldiers" />{{ $t('army.soldiers', { n: sel.soldiers }) }}</span>
         <span v-if="sel.heroes.length"><Icon name="crown" />{{ $t('card.heroes', { n: sel.heroes.length }) }}</span>
       </div>
-      <p v-else-if="sel.kind === 'specialists'" class="sc-hint">{{ $t('addon.specDesc.' + sel.units[0].spec) }}</p>
       <p v-else class="sc-hint">{{ relation }}</p>
     </div>
     <div class="sc-portrait" :style="ownerStyle">
@@ -69,8 +68,6 @@ export default {
       if (s.kind === 'building') return this.$name.building(s.type, s.levelIndex);
       if (s.kind === 'serfs') return s.count === 1 ? this.$t('serfs.one') : this.$t('serfs.count', { n: s.count });
       if (s.kind === 'army') return s.heroes.length === 1 && !s.groups.length ? this.$name.hero(s.heroes[0].hero) : this.$t('army.title');
-      if (s.kind === 'specialists') return s.units.length === 1 ? this.$t('addon.spec.' + s.units[0].spec) : this.$t('addon.title');
-      if (s.kind === 'foreign' && s.spec) return this.$t('addon.spec.' + s.spec);
       if (s.kind === 'foreign') return s.entity === 'ruin' ? this.$t('sys.ruin') + (s.type ? ' · ' + this.$name.building(s.type, s.level ?? 0) : '') : s.hero ? this.$name.hero(s.hero) : s.unit ? this.$name.unit(s.unit) : this.$t('foreign.' + (s.entity === 'unit' ? 'serf' : s.entity in { worker: 1, hero: 1, soldier: 1 } ? s.entity : 'unit'));
       return '';
     },
@@ -79,7 +76,6 @@ export default {
       if (s.kind === 'building') return this.$t('common.levelOf', { n: s.level, max: s.maxLevel }) + (s.profession ? ' · ' + this.$name.prof(s.profession) : '');
       if (s.kind === 'serfs') return this.$t('serfs.idle', { n: s.idle });
       if (s.kind === 'army') return s.heroes.length === 1 && !s.groups.length ? this.$name.heroTitle(s.heroes[0].hero) : this.$t('army.soldiers', { n: s.soldiers });
-      if (s.kind === 'specialists') return s.units.length === 1 ? this.$t('addon.order.' + s.units[0].order) : String(s.units.length);
       if (s.kind === 'foreign') return this.relation;
       return '';
     },

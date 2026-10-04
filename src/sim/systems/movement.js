@@ -9,7 +9,7 @@ import { findPath } from '../pathfinding.js';
 import { idiv, isqrt, tileCenter, toTile } from '../fixed.js';
 
 /** Figures that walk (and can thus get stuck). */
-const MOBILE = new Set(['unit', 'worker', 'leader', 'soldier', 'hero', 'specialist']);
+const MOBILE = new Set(['unit', 'worker', 'leader', 'soldier', 'hero']);
 
 /**
  * May a figure go from (ax,ay) to (bx,by) (milli-tiles, sub-step at most one tile)?

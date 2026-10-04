@@ -71,7 +71,7 @@ export function scenarioToDef(s) {
 }
 
 /** Game settings for the simulation: castle yes/no per player. */
-export const playerSetupOf = (def) => def.players.filter((p) => p.kind !== 'bandits').map((p) => ({ hq: p.hq !== false }));
+export const playerSetupOf = (def) => def.players.filter((p) => p.kind !== 'bandits' && p.kind !== 'village').map((p) => ({ hq: p.hq !== false }));
 
 /**
  * Empty scenario for the editor.
@@ -86,11 +86,11 @@ export function emptyScenario(o = {}) {
     title: { de: 'Eigene Welt', en: 'My world' },
     summary: { de: '', en: '' },
     world: { base: 'flat', size: o.size ?? 32, fog: false, places: {} },
-    players: [{ kind: 'human', hero: 'bertram', hq: false }],
+    players: [{ kind: 'human', hero: 'nelia', hq: false }],
     texts: {},
     sections: [
       { id: 'world', title: { de: 'Welt aufbauen', en: 'Build the world' }, level: 'mission', visibility: 'collapsed', editable: false, code: '# Weltaufbau: plant_trees(…), add_pile(…), make_place(…)\n' },
-      { id: 'mission', title: { de: 'Mission', en: 'Mission' }, level: 'mission', visibility: 'hidden', editable: false, code: '@on_start\ndef intro():\n    say("bertram", "Los geht\'s!")\n' },
+      { id: 'mission', title: { de: 'Mission', en: 'Mission' }, level: 'mission', visibility: 'hidden', editable: false, code: '@on_start\ndef intro():\n    say("nelia", "Los geht\'s!")\n' },
       { id: 'player', title: { de: 'Dein Programm', en: 'Your program' }, level: 'player', visibility: 'open', editable: true, code: 'hero.step()\n' },
     ],
   };

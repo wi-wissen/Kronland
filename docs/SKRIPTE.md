@@ -2,7 +2,7 @@
 
 Kronland lässt sich in **Python** programmieren – mit einer eigenen, kleinen Python-Teilmenge, die im
 Spiel läuft. Damit entstehen Missionen im Stil der Original-Trigger (Ereignis → Kamerafahrt, Dialog,
-Angriffswelle), Lernabenteuer, in denen man Bertram mit Code steuert, und eigene Welten im Welteneditor.
+Angriffswelle), Lernabenteuer, in denen man Nelia mit Code steuert, und eigene Welten im Welteneditor.
 Bezeichner sind englisch, Oberfläche, Erklärungen und Fehlermeldungen deutsch bzw. englisch.
 
 ## Überblick
@@ -85,13 +85,16 @@ hero.can_step()  hero.move_to(ziel)  hero.is_at(ziel)  hero.take()  hero.chop() 
 place("goal")  tile(x, y)  trees_near(ziel)  stock("wood")  count("farm")  serfs(idle=True)
 hq()  find_spot("residence", hq())  build("residence", x, y)  serf.work_on(baustelle)
 wait(sekunden)  wait_until(lambda: …, timeout=None)  time()  print(…)
+nelia  orrin  taran  malvor        # jeder Held unter seinem Namen (eigener zuerst, sonst None); hero = Haupt-Held
+diplomacy(HUMAN, ENEMY)            # "allied", "neutral" oder "hostile"
 
 # Mission (zusätzlich)
-say("bertram", "intro")            # Text oder Schlüssel aus der Texttabelle; wartet, bis der Dialog vorbei ist
+say("nelia", "intro")              # Text oder Schlüssel aus der Texttabelle; wartet, bis der Dialog vorbei ist
 camera.fly_to(place("camp"), seconds=3)   camera.jump_to(hero)   reveal(ort)   message(text)
 objective("id", "text", lambda: count("barracks") >= 1)   complete(id)  fail(id)  show_objective(id)
 victory()  defeat()
 spawn(BANDITS, "sword1", place("gate"), count=3)   attack(truppen, hq())   give(HUMAN, wood=200)
+hero_of(HUMAN, "orrin")   set_diplomacy(HUMAN, ENEMY, "neutral")   orrin.teleport((6, 8))   orrin.kill()
 place_building(BANDITS, "banditCamp", ort)   make_place("name", x, y, r)   find_open(nahe)   toward(a, b, d)
 plant_trees(ziel, anzahl)  add_tree(x, y)  add_pile("stone", x, y)  clear_area(ziel, r)
 world.width  world.height_at(x, y)  world.set_height(x, y, h)  world.set_water(x, y)  world.noise(x, y, 16)
@@ -124,7 +127,7 @@ Code lesbar bleibt; Inhalt ist reines JSON).
   "summary": { "de": "…", "en": "…" }, "briefing": { "de": "…", "en": "…" },
   "world": { "base": "flat", "width": 24, "height": 13, "fog": false, "starts": [{ "x": 4, "y": 6 }],
              "places": { "treasure": { "x": 14, "y": 6, "r": 0 } } },
-  "players": [{ "kind": "human", "hero": "bertram", "hq": false }],
+  "players": [{ "kind": "human", "hero": "nelia", "hq": false }],
   "texts": { "intro": { "de": "Da hinten glänzt etwas!", "en": "Something is glittering!" } },
   "voice": { "intro": "audio/voice/intro.mp3" }, "voiceLength": { "intro": 3.5 },
   "sections": [
@@ -184,14 +187,20 @@ dabei als Befehl `{ type: 'script', action: 'run', sections }` in die Simulation
 | # | ID | Titel | Lernziel |
 |---|---|---|---|
 | 1 | `adv1` | Der Weg zum Schatz | Anweisungen, `for`, `range()` |
-| 2 | `adv2` | Immer an der Wand lang | `while`, `if/else`, Bedingungen |
+| 2 | `adv2` | Der Weg zur Ruine | `while`, `if/else`, Bedingungen |
 | 3 | `adv3` | Holz für den Winter | `while` mit Bedingung, Rückgabewerte, Zähler (Reihe zufällig lang) |
 | 4 | `adv4` | Steine am Wegesrand | eigene Funktionen, Funktionen als Argument (Steine zufällig verteilt) |
 | 5 | `adv5` | Ein Dorf per Programm | Listen, Objekte und Methoden, Befehle wie in der Oberfläche |
 
 Jedes Abenteuer hat eine Musterlösung im Test (`tests/sim/scripting.test.js`). Der Code der Spieler wird pro
-Abenteuer im Browser gemerkt (`kronland-code-<id>`). Die Kamera zeigt Norden oben und folgt dem Helden,
-solange sein Programm läuft.
+Abenteuer im Browser gemerkt (`kronland-code-<id>`).
+
+Die Abenteuer spielen auf offenen Wiesen; Hindernisse sind Landschaft mit Sinn (Fluss, See, Wäldchen,
+Mauerreste), keine Baumgänge. Die Kamera zeigt ruhig die ganze Karte (Norden oben, am Desktop links vom
+Code-Panel) und läuft dem Helden nicht hinterher. Das **Raster** (Knopf „# Raster“ im Panel, Vorliebe bleibt im
+Browser; auch im Welteneditor) zeigt die Kacheln, jede fünfte Linie kräftiger – so lassen sich Schritte
+abzählen. Der Held startet mit Blick nach Osten; `hero.step()` geht immer in Blickrichtung und dreht die Figur
+dabei nicht zur Laufrichtung.
 
 ## Code-Panel und Debugger
 
@@ -211,7 +220,7 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
 
 - **Werkzeuge:** Kamera, Heben, Senken, Ebnen, Glätten (gedrückt halten wirkt weiter), Wasser und Land (Wasser
   und Felsen folgen aus der Höhe wie im Kartengenerator), Wald, Radierer, Rohstoffhaufen, Schacht,
-  Siedlungsplatz, Startplatz, Ort. Pinselgröße und Stärke. Rückgängig/Wiederholen (Strg+Z/Strg+Y).
+  Siedlungsplatz, Startplatz, Ort. Pinselgröße und Stärke. Rückgängig/Wiederholen (Strg+Z/Strg+Y), Raster (`#`).
 - **Panel:** Szenario (Titel, Art, Auftrag zweisprachig, Spieler mit/ohne Burg, Nebel), Orte,
   Code (Abschnitte mit Stufe, Sichtbarkeit, bearbeitbar; Befehlsreferenz), Texte, Beispiele (mitgelieferte
   Szenarien als Vorlage).

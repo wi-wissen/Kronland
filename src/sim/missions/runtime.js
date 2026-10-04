@@ -25,6 +25,7 @@ import { WEATHER_EFFECTS } from '../data/weather.js';
 const T = TICKS_PER_SECOND;
 const MAX_MESSAGES = 30;
 const BANDIT_TEAM = 99;
+const VILLAGE_TEAM = 100;
 
 /** Kinds of goals that "hold" instead of "reach": they are fulfilled as long as they do not fail. */
 const HOLD_TYPES = new Set(['protect']);
@@ -54,6 +55,12 @@ export class MissionRuntime {
       warnings: [],
       /** Goals that a script creates at runtime: ID → { id, type: 'script', text, primary } */
       extraObjectives: {},
+      /** Villages (neutral player slots without a castle): name → player */
+      villages: {},
+      /** Tributes: ID → 'open' | 'paid' | 'closed' (order = order of offering) */
+      tributes: {},
+      /** Talk figures: ID → { entity, state: 'open' | 'talked', hint } */
+      npcs: {},
       /** Own scenario (editor, file): is part of the save game because it is in no directory */
       scenario: def.custom ? def.scenario : null,
     };
@@ -96,7 +103,7 @@ export class MissionRuntime {
     const def = this.def, st = this.state;
     // Player data: resources, techs, serfs, teams
     def.players.forEach((p, i) => {
-      if (p.kind === 'bandits') return;
+      if (p.kind === 'bandits' || p.kind === 'village') return;
       const pl = sim.players[i];
       if (!pl) return;
       if (p.stock) { pl.stock = { ...emptyStock(), ...p.stock }; }
@@ -118,16 +125,33 @@ export class MissionRuntime {
       sim.players.push({
         id, stock: emptyStock(), raw: emptyStock(), taxLevel: 0, techs: new Set(), defeated: false, faith: 0, weatherEnergy: 0, weatherReadyAt: 0,
         unitTier: { sword: 1, spear: 1, bow: 1, lightCav: 1, heavyCav: 1, cannon: 1 }, team: BANDIT_TEAM, neutral: true,
+        // look: 'soldiers' – troops of an opponent without own castle (e.g. outposts), look like soldiers
+        ...(def.players.find((q) => q.kind === 'bandits').look === 'soldiers' ? { soldierLook: true } : {}),
       });
       st.bandits = id;
+    }
+    // Villages: own player slots without a castle and without AI, neutral to everyone by default (as in the model)
+    for (const p of def.players.filter((q) => q.kind === 'village')) {
+      const id = sim.players.length;
+      sim.players.push({
+        id, stock: emptyStock(), raw: emptyStock(), taxLevel: 0, techs: new Set(), defeated: false, faith: 0, weatherEnergy: 0, weatherReadyAt: 0,
+        unitTier: { sword: 1, spear: 1, bow: 1, lightCav: 1, heavyCav: 1, cannon: 1 }, team: VILLAGE_TEAM + id, neutral: true, village: p.name,
+      });
+      st.villages[p.name] = id;
+      for (const q of sim.players) if (q.id !== id) sim.setDiplomacy(id, q.id, 'neutral');
+      for (const [other, state] of Object.entries(p.diplomacy ?? {})) sim.setDiplomacy(id, this.playerOf(other), state);
     }
     if (def.weatherCycle) {
       sim.weatherCycle = def.weatherCycle;
       sim.weather = { state: def.weatherCycle[0][0], index: 0, until: def.weatherCycle[0][1] };
       sim.map.frozen = !!WEATHER_EFFECTS[sim.weather.state]?.freezesWater;
     }
-    const hero = [...sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === st.human);
-    if (hero) st.refs.hero = hero.id;
+    // References of the heroes: 'hero' = main hero of the human, plus every hero under their name ('nelia', 'taran' …;
+    // own heroes take precedence over same-named ones of other players)
+    const heroes = [...sim.entities.values()].filter((e) => e.kind === 'hero');
+    const mine = heroes.filter((e) => e.owner === st.human);
+    if (mine.length) st.refs.hero = mine[0].id;
+    for (const e of [...heroes.filter((e) => e.owner !== st.human), ...mine]) st.refs[e.hero] = e.id;
     const hq = sim.findBuilding(st.human, 'headquarters');
     if (hq) st.refs.hq = hq.id;
 
@@ -160,17 +184,23 @@ export class MissionRuntime {
     };
   }
 
-  /** Create a bandit camp: clearing, camp buildings, guard squads. */
+  /**
+   * Create a bandit camp: clearing, camp buildings, guard squads. With `o.anchor` (building ID) the squads guard
+   * an existing building of the bandits instead of a new camp hut.
+   */
   addCamp(sim, name, near, units, o = {}) {
     const st = this.state;
     if (st.bandits < 0) { st.warnings.push('No bandits in this mission'); return null; }
-    const from = o.from ?? null;
-    const p = api.findOpen(sim, near.x, near.y, { maxR: o.maxR ?? 14, clear: 3, from, avoid: o.avoid ?? [] })
-      ?? api.findOpen(sim, near.x, near.y, { maxR: (o.maxR ?? 14) + 10, clear: 2 });
-    if (!p) { st.warnings.push(`No space for camp ${name}`); return null; }
-    api.clearNodes(sim, p.x, p.y, 3);
-    const b = api.placeBuilding(sim, st.bandits, 'banditCamp', p, { radius: 6, margin: 0 });
-    if (!b) { st.warnings.push(`Camp ${name} cannot be placed`); return null; }
+    let b = o.anchor !== undefined ? sim.entities.get(o.anchor) : null;
+    if (!b) {
+      const from = o.from ?? null;
+      const p = api.findOpen(sim, near.x, near.y, { maxR: o.maxR ?? 14, clear: 3, from, avoid: o.avoid ?? [] })
+        ?? api.findOpen(sim, near.x, near.y, { maxR: (o.maxR ?? 14) + 10, clear: 2 });
+      if (!p) { st.warnings.push(`No space for camp ${name}`); return null; }
+      api.clearNodes(sim, p.x, p.y, 3);
+      b = api.placeBuilding(sim, st.bandits, 'banditCamp', p, { radius: 6, margin: 0 });
+      if (!b) { st.warnings.push(`Camp ${name} cannot be placed`); return null; }
+    }
     const c = api.centerOf(b);
     const guards = [];
     for (const u of units) {
@@ -210,6 +240,7 @@ export class MissionRuntime {
         if (!tut || typeof cmd.check !== 'string') return sim.reject(cmd, 'err.noTutorial');
         tut.ui[cmd.check] = sim.tick;
         return true;
+      case 'tribute': return this.payTribute(sim, cmd);
       default:
         return sim.reject(cmd, 'err.unknownMissionAction');
     }
@@ -223,6 +254,7 @@ export class MissionRuntime {
     if (st.result) return;
     this.census = null;
     this.updateCamps(sim);
+    this.updateNpcs(sim);
     this.updateTutorial(sim);
     this.updateObjectives(sim);
     this.updateEvents(sim);
@@ -272,6 +304,7 @@ export class MissionRuntime {
     if (p === undefined || p === 'human') return this.state.human;
     if (p === 'bandits') return this.state.bandits;
     if (p === 'enemy') return this.def.players.findIndex((q) => q.kind === 'ai');
+    if (typeof p === 'string' && this.state.villages?.[p] !== undefined) return this.state.villages[p];
     return p;
   }
 
@@ -357,7 +390,10 @@ export class MissionRuntime {
       case 'ui': return st.tutorial?.ui[c.check] !== undefined && st.tutorial.ui[c.check] >= st.tutorial.since;
       case 'weather': return sim.weather.state === c.state;
       case 'flag': return !!st.flags[c.name];
-      case 'heroDown': return this.allGone(sim, 'hero');
+      case 'heroDown': return this.allGone(sim, c.hero ?? 'hero');
+      case 'tribute': return st.tributes?.[c.id] === 'paid';
+      case 'talked': return st.npcs?.[c.id]?.state === 'talked';
+      case 'diplomacy': return sim.relation(this.playerOf(c.a ?? 'human'), this.playerOf(c.b)) === c.state;
       case 'defeated': return sim.players[pl]?.defeated ?? false;
       case 'all': return c.of.every((x) => this.check(sim, x));
       case 'any': return c.of.some((x) => this.check(sim, x));
@@ -391,8 +427,9 @@ export class MissionRuntime {
       case 'recruit': return { cur: o.count, target: def.count };
       case 'motivation': return { cur: averageMotivation(sim, pl), target: def.value };
       case 'destroy': {
+        // also done: troops that switched (bribed) to the player's side
         const ids = this.idsOf(def.ref);
-        const gone = ids.filter((id) => !sim.entities.has(id)).length;
+        const gone = ids.filter((id) => { const e = sim.entities.get(id); return !e || (e.kind === 'leader' && sim.allied(e.owner, pl)); }).length;
         return { cur: gone, target: ids.length || 1 };
       }
       case 'destroyHq': {
@@ -401,7 +438,7 @@ export class MissionRuntime {
         return { cur: alive ? 0 : 1, target: 1 };
       }
       case 'defeatAll': {
-        const foes = sim.players.filter((p) => !p.neutral && p.id !== pl && !sim.allied(p.id, pl));
+        const foes = sim.players.filter((p) => !p.neutral && p.id !== pl && sim.hostile(p.id, pl));
         const cur = foes.filter((p) => p.defeated || !sim.findBuilding(p.id, 'headquarters')).length;
         let camps = 0, campsLeft = 0;
         if (def.bandits) for (const k of this.state.camps) { camps++; if (sim.entities.has(k.id)) campsLeft++; }
@@ -536,6 +573,41 @@ export class MissionRuntime {
         break;
       }
       case 'flag': st.flags[a.name] = a.value ?? true; break;
+      // Diplomacy: { type: 'diplomacy', a?: 'human', b: 'moorhof' | 'enemy' | number, state: 'allied' | 'neutral' | 'hostile' }
+      case 'diplomacy': {
+        const pa = this.playerOf(a.a ?? 'human'), pb = this.playerOf(a.b);
+        if (!sim.setDiplomacy(pa, pb, a.state)) st.warnings.push(`Diplomacy ${a.a ?? 'human'}/${a.b} unknown`);
+        break;
+      }
+      // Offer / withdraw tribute (definition in def.tributes)
+      case 'tribute': {
+        if (!this.def.tributes?.[a.id]) { st.warnings.push(`Tribute ${a.id} missing`); break; }
+        if (!st.tributes[a.id]) st.tributes[a.id] = 'open';
+        break;
+      }
+      case 'closeTribute': for (const id of [].concat(a.id)) if (st.tributes[id] === 'open') st.tributes[id] = 'closed'; break;
+      // Set up talk figure (definition in def.npcs)
+      case 'npc': this.placeNpc(sim, a.id); break;
+      // Bring a hero in mid-mission: { type: 'hero', hero, player?, at }
+      case 'hero': {
+        const p = this.playerOf(a.player ?? 'human');
+        const h = sim.spawnHero(p, a.hero);
+        const at = a.at !== undefined ? this.pointOf(sim, a.at) : null;
+        const q = at && api.findOpen(sim, at.x, at.y, { maxR: 8 });
+        if (q) { h.px = tileCenter(q.x); h.py = tileCenter(q.y); h.anchor = { x: h.px, y: h.py }; }
+        st.refs[a.ref ?? a.hero] = h.id;
+        break;
+      }
+      // Remove figures or buildings from the game (without combat, e.g. for cutscenes)
+      case 'remove': {
+        for (const id of this.idsOf(a.ref)) {
+          const e = sim.entities.get(id);
+          if (!e) continue;
+          if (e.kind === 'leader') for (const sid of e.soldiers) sim.entities.delete(sid);
+          if (e.kind === 'building') sim.destroyBuilding(e, null); else sim.entities.delete(id);
+        }
+        break;
+      }
       case 'victory': this.finish(sim, true, a.reason ?? 'script'); break;
       case 'defeat': this.finish(sim, false, a.reason ?? 'script'); break;
       default: st.warnings.push(`Unknown action ${a.type}`);
@@ -589,6 +661,75 @@ export class MissionRuntime {
     sim.events.push({ type: 'wave', owner, count: ids.length, player: st.human });
   }
 
+  // ---------- Tributes ----------
+
+  /**
+   * Pay tribute (command { type: 'mission', action: 'tribute', id }): deduct cost, close offer,
+   * withdraw offers of the same group (choice between two ways), execute `onPaid`.
+   */
+  payTribute(sim, cmd) {
+    const st = this.state;
+    const d = typeof cmd.id === 'string' && Object.hasOwn(this.def.tributes ?? {}, cmd.id) ? this.def.tributes[cmd.id] : null;
+    if (!d || st.tributes[cmd.id] !== 'open') return sim.reject(cmd, 'err.noTribute');
+    if (!sim.pay(st.human, d.cost)) return sim.reject(cmd, 'err.notEnoughResources');
+    st.tributes[cmd.id] = 'paid';
+    if (d.group) {
+      for (const [id, t] of Object.entries(this.def.tributes)) if (id !== cmd.id && t.group === d.group && st.tributes[id] === 'open') st.tributes[id] = 'closed';
+    }
+    sim.events.push({ type: 'tributePaid', id: cmd.id, player: st.human });
+    if (d.onPaid) this.runActions(sim, d.onPaid);
+    return true;
+  }
+
+  // ---------- Talk figures ----------
+
+  /** Set up a talk figure from def.npcs: figure with exclamation mark, a (specific) hero talks to it. */
+  placeNpc(sim, id) {
+    const st = this.state, d = this.def.npcs?.[id];
+    if (!d) { st.warnings.push(`Dialogue figure ${id} missing`); return; }
+    if (st.npcs[id]) return;
+    const at = this.pointOf(sim, d.at);
+    const q = at && (api.findOpen(sim, at.x, at.y, { maxR: d.maxR ?? 6 }) ?? at);
+    if (!q) { st.warnings.push(`No space for dialogue figure ${id}`); return; }
+    const owner = d.owner !== undefined ? this.playerOf(d.owner) : -1;
+    const e = {
+      id: sim.nextId++, kind: 'npc', npc: id, look: d.look ?? 'serf', owner, px: tileCenter(q.x), py: tileCenter(q.y),
+      path: [], talk: true, hp: 1,
+    };
+    sim.entities.set(e.id, e);
+    st.npcs[id] = { entity: e.id, state: 'open', hint: -1000 };
+    st.refs[id] = e.id;
+  }
+
+  /** Does a hero talk to a talk figure? (every 5 ticks) */
+  updateNpcs(sim) {
+    const st = this.state;
+    if (!st.npcs || (sim.tick + 1) % 5 !== 0) return;
+    for (const [id, n] of Object.entries(st.npcs)) {
+      if (n.state !== 'open') continue;
+      const e = sim.entities.get(n.entity);
+      if (!e) { n.state = 'gone'; continue; }
+      const d = this.def.npcs[id];
+      const R = (d.radius ?? 2) * UNIT + 500;
+      let right = null, wrong = null;
+      for (const h of sim.entities.values()) {
+        if (h.kind !== 'hero' || h.owner !== st.human || h.down) continue;
+        if (Math.abs(h.px - e.px) > R || Math.abs(h.py - e.py) > R) continue;
+        if (!d.hero || [].concat(d.hero).includes(h.hero)) { right = h; break; }
+        wrong = h;
+      }
+      if (right) {
+        n.state = 'talked'; e.talk = false;
+        sim.events.push({ type: 'npcTalked', id, hero: right.hero, player: st.human });
+        if (d.onTalk) this.runActions(sim, d.onTalk);
+        if (st.result) return;
+      } else if (wrong && d.wrongHero && sim.tick - n.hint > 200) {
+        n.hint = sim.tick;
+        this.say(sim, d.speaker ?? null, d.wrongHero);
+      }
+    }
+  }
+
   // ---------- Bandits ----------
 
   /** Guards defend their camp: if an enemy comes too close, all guards attack. */
@@ -596,7 +737,8 @@ export class MissionRuntime {
     const st = this.state;
     if (st.bandits < 0 || (sim.tick + 3) % 10 !== 0) return;
     for (const camp of st.camps) {
-      camp.guards = camp.guards.filter((id) => sim.entities.has(id));
+      // fallen and bribed guards no longer belong to the camp
+      camp.guards = camp.guards.filter((id) => sim.entities.get(id)?.owner === st.bandits);
       if (!camp.guards.length) continue;
       let foe = null, bd = Infinity;
       const R = (camp.r + 3) * UNIT, cx = tileCenter(camp.x), cy = tileCenter(camp.y);
@@ -609,7 +751,9 @@ export class MissionRuntime {
       }
       if (foe) {
         camp.alarm = sim.tick;
-        sim.applyCommand({ type: 'order', player: st.bandits, units: camp.guards, order: 'attackMove', x: Math.trunc(foe.px / UNIT), y: Math.trunc(foe.py / UNIT) });
+        // Only send guards without an enemy in sight off again – a new command would abort running fights
+        const free = camp.guards.filter((id) => { const L = sim.entities.get(id); return !(L.order?.type === 'attackMove' && L.targetId); });
+        if (free.length) sim.applyCommand({ type: 'order', player: st.bandits, units: free, order: 'attackMove', x: Math.trunc(foe.px / UNIT), y: Math.trunc(foe.py / UNIT) });
       } else if (camp.alarm && sim.tick - camp.alarm > 150) {
         // Calm: back to the campfire
         camp.alarm = 0;
@@ -701,6 +845,8 @@ export class MissionRuntime {
     for (const o of st.objectives) h.str(o.status).int(o.count);
     for (const k of Object.keys(st.fireCount)) h.str(k).int(st.fireCount[k]);
     if (st.tutorial) h.int(st.tutorial.index);
+    for (const k of Object.keys(st.tributes ?? {})) h.str(k).str(st.tributes[k]);
+    for (const k of Object.keys(st.npcs ?? {})) h.str(k).str(st.npcs[k].state);
     this.script?.hash(h);
   }
 
@@ -729,6 +875,10 @@ export class MissionRuntime {
     return {
       id: st.id, title: def.title, objectives, tutorial, kind: def.kind ?? 'mission',
       messages: st.messages.slice(-8),
+      tributes: Object.entries(st.tributes ?? {}).filter(([, v]) => v === 'open').map(([id]) => {
+        const d = this.def.tributes[id];
+        return { id, text: d.text, cost: d.cost, affordable: sim.canPay(st.human, d.cost) };
+      }),
       dialogSkip: st.dialogSkip ?? 0,
       camera: st.camera,
       script: this.script ? this.script.uiState() : null,
@@ -787,15 +937,16 @@ export function createScenarioSim(scenario, opts = {}) {
 
 function simForDef(def, opts) {
   const runtime = new MissionRuntime(def);
-  const real = def.players.filter((p) => p.kind !== 'bandits');
+  const real = def.players.filter((p) => p.kind !== 'bandits' && p.kind !== 'village');
   return new Sim({
     seed: opts.seed ?? def.seed ?? 1,
     size: def.size ?? 96,
     players: real.length,
-    heroes: real.map((p) => p.hero ?? null),
+    heroes: real.map((p) => p.heroes ?? p.hero ?? null),
     teams: real.map((p, i) => p.team ?? i),
     mission: runtime,
     world: def.world ? { ...def.world, size: def.world.size ?? def.size, seed: opts.seed ?? def.world.seed ?? def.seed } : undefined,
-    playerSetup: def.scenario ? playerSetupOf(def) : undefined,
+    // Without castle (hq: false): coding adventures and command missions
+    playerSetup: def.scenario ? playerSetupOf(def) : real.map((p) => ({ hq: p.hq !== false })),
   });
 }

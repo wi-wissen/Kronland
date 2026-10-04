@@ -18,7 +18,7 @@ wird beim Laden über die ID aus `registry.js` geholt.
 
 ## Neue Mission
 
-1. Datei in `src/sim/missions/campaign/` anlegen (Vorlage: `c1-new-start.js`).
+1. Datei in `src/sim/missions/campaign/` anlegen (Vorlage: `c1-lindgrund.js`).
 2. In `src/sim/missions/registry.js` importieren und in `CAMPAIGN` einreihen.
 3. `next` der vorigen Mission auf die neue ID setzen.
 4. `npx vitest run tests/sim/missions.test.js` – der Test richtet jede Kampagnenmission auf
@@ -45,10 +45,13 @@ export default {
   fog: true,              // Nebel des Krieges (Standard an)
   vision: { startReveal: 20 }, // erkundeter Umkreis um jede Burg zu Beginn (Tutorial: 34)
   players: [
-    { kind: 'human', hero: 'bertram', serfs: 8, techs: ['conscription'], stock: { gold: 1000 } },
-    { kind: 'ai', hero: 'gerold', difficulty: 'hard', aggression: 'normal', startDelay: 60, forbid: ['foundry'] },
-    { kind: 'bandits' },  // neutraler Spielerplatz ohne Burg
+    { kind: 'human', heroes: ['nelia', 'orrin'], serfs: 8, techs: ['conscription'], stock: { gold: 1000 } },
+    { kind: 'ai', hero: 'malvor', difficulty: 'hard', aggression: 'normal', startDelay: 60, forbid: ['foundry'] },
+    { kind: 'bandits', look: 'soldiers' },  // Spielerplatz ohne Burg (Räuber, Wachposten)
+    { kind: 'village', name: 'moor', diplomacy: { human: 'allied' } }, // Dorf: ohne Burg, sonst neutral
   ],
+  tributes: { … },        // Angebote, die der Spieler bezahlen kann (siehe unten)
+  npcs: { … },            // Gesprächsfiguren (siehe unten)
   setup(ctx) { … },       // Karte nachbearbeiten (siehe unten)
   start: [ …Aktionen ],   // direkt nach dem Aufbau
   objectives: [ … ],
@@ -66,7 +69,8 @@ Ein Test prüft, dass jede Missionsdatei beide Sprachen enthält.
 | Feld | Bedeutung |
 |---|---|
 | `kind` | `human` (immer Spieler 0), `ai`, `bandits` |
-| `hero` | `bertram`, `hedda`, `gerold` oder `null` |
+| `hero` / `heroes` | ein Held (`nelia`, `orrin`, `taran`, `malvor`), mehrere als Liste (erster = Haupt-Held) oder `null` |
+| `hq` | `false`: ohne Burg, Dorfzentrum und Leibeigene (Kommandomission) |
 | `stock` | Startrohstoffe (veredelt); fehlende bleiben beim Standard |
 | `serfs`, `techs`, `team` | Leibeigene, Technologien, Team |
 | `difficulty` | KI: `easy`, `normal`, `hard` |
@@ -78,7 +82,17 @@ Ein Test prüft, dass jede Missionsdatei beide Sprachen enthält.
 
 Räuber (`bandits`) bauen nie. Ihre Lager werden mit `ctx.camp(…)` angelegt; die Wachen bleiben
 stehen und greifen an, sobald Feinde ins Lager kommen. Danach kehren sie zurück. Angriffe
-kommen nur über die Aktion `spawn`. Räuber zählen nicht als Gegner für den Sieg.
+kommen nur über die Aktion `spawn`. Räuber zählen nicht als Gegner für den Sieg. Mit `look: 'soldiers'`
+sehen sie wie Soldaten aus (Wachposten, Belagerer eines Gegners ohne Burg).
+
+**Dörfer** (`kind: 'village'`, mit `name`) sind eigene Spielerplätze ohne Burg und ohne KI, hinter den
+übrigen Spielern. Zu Beginn sind sie zu allen neutral (wie im Vorbild); `diplomacy: { human: 'allied' }`
+setzt Abweichungen. Gebäude bekommen sie in `setup` über `api.placeBuilding(sim, m.playerOf('moor'), …)`.
+Überall, wo ein Spieler gemeint ist, darf der Dorfname stehen.
+
+**Helden als Bezüge:** `hero` ist der Haupt-Held des Menschen, dazu steht jeder Held unter seinem Namen
+(`nelia`, `taran` …, eigene vor fremden). Ziele/Auslöser mit `who` akzeptieren einen Heldennamen
+(`{ type: 'reach', area: 'root', who: 'nelia' }`), `heroDown` ein `hero`.
 
 ## Karte nachbearbeiten: `setup(ctx)`
 
@@ -89,7 +103,7 @@ werden ausgehend von Burgen, Kartenmitte oder anderen gefundenen Punkten gesucht
 |---|---|
 | `ctx.hqCenter(p)`, `ctx.mapCenter()` | Bezugspunkte |
 | `ctx.ref(name, wert)` | Bezug merken: Entity-ID, ID-Liste oder Kreis `{x, y, r}` |
-| `ctx.camp(name, nahe, truppen, { from, avoid, maxR, r })` | Räuberlager mit Wachen; legt `name`, `nameGuards`, `nameArea` an |
+| `ctx.camp(name, nahe, truppen, { from, avoid, maxR, r, anchor })` | Räuberlager mit Wachen; legt `name`, `nameGuards`, `nameArea` an. `anchor`: ID eines vorhandenen Räubergebäudes, das die Wachen statt einer Lagerhütte bewachen. Bestochene Wachen gehören nicht mehr zum Lager |
 | `ctx.warn(text)` | Warnung (Tests schlagen dann fehl) |
 | `api.toward(a, b, d)`, `api.dist(a, b)` | Punkt auf der Linie a→b, Abstand |
 | `api.findOpen(sim, x, y, { minR, maxR, clear, from, avoid })` | freie begehbare Stelle, optional erreichbar von `from` |
@@ -97,8 +111,19 @@ werden ausgehend von Burgen, Kartenmitte oder anderen gefundenen Punkten gesucht
 | `api.spawnTroop(sim, p, def, nahe, soldaten)` | Hauptmann mit Soldaten |
 | `api.addSpot`, `api.addShaft`, `api.ensureShaft` | Siedlungsplatz / Schacht anlegen bzw. sicherstellen |
 | `api.addPile`, `api.plantTrees`, `api.clearNodes` | Haufen, Bäume, Lichtung |
-| `api.makeIsland(sim, von, nach, { inner, width })` | Insel mit Wasserring, nur im Winter erreichbar |
+| `api.makeIsland(sim, von, nach, { inner, width, minDist, keep })` | Insel mit Wasserring, nur im Winter erreichbar; `keep`: Punkte, die im Sommer erreichbar bleiben müssen |
+| `api.moat(sim, mitte, von, { inner, width })` | Wassergraben um einen festen Punkt (z. B. eine Burg) |
+| `api.axis(von, nach)` | Achse: `p(x, y)` entlang, `q(x, y)` seitlich, `at(p, q)` → Kachel |
+| `api.soften(sim, { divide, sites })` | Relief stauchen, Steilhänge und Gewässer entfernen; `sites`: auch Plätze, Schächte, Brückenstellen |
+| `api.ridge(sim, achse, at, breite, { wobble })` | Bergkamm quer über die Karte (Steilhang, unpassierbar, auch über Eis) |
+| `api.ridgeGap(sim, kamm, q, { width, water })` | Durchlass im Kamm: Pass oder (mit `water`) Schlucht mit Fluss; liefert `center`, `near`, `far` |
+| `api.channel(sim, a, b, { width })` | Flusslauf von a nach b |
+| `api.lakeIsland(sim, mitte, { inner, width, shore })` | See mit flacher Insel und Ufer an fester Stelle |
+| `api.addRuin(sim, typ, nahe)` | dauerhafte Ruine (Kulisse) |
 | `api.reachable(sim, a, b, gefroren)` | Gegenprobe Wegsuche |
+
+Gebäude, die eine Mission für einen Computergegner hinstellt und die er nicht abreißen soll (etwa auf einer
+Insel, die seine Leibeigenen nicht erreichen), bekommen `fixed = true`.
 
 ## Ziele
 
@@ -113,15 +138,15 @@ sichtbar), `player` (Standard: Mensch), `onDone` / `onFail` (Aktionen), `showPro
 | `stock` | `res`, `amount` | Rohstoff vorhanden (roh + veredelt) |
 | `research` | `tech` oder `techs[]` | alles erforscht |
 | `recruit` | `count`, `line` | so viele Einheiten ausgehoben, seit das Ziel aktiv ist |
-| `destroy` | `ref` | alle Entities des Bezugs zerstört |
+| `destroy` | `ref` | alle Entities des Bezugs zerstört (bestochene Truppen zählen als erledigt) |
 | `destroyHq` | `target` (`'enemy'` oder Spieler) | Burg dieses Spielers zerstört |
 | `defeatAll` | `bandits` (auch Lager) | alle Gegner besiegt |
 | `survive` | `seconds` (ab Aktivierung) oder `until` (Spielzeit) | Zeit überstanden |
-| `reach` | `area`, `who` (`any`, `hero`, `army`, `serf`, `leader`), `count` | genug Einheiten im Gebiet |
+| `reach` | `area`, `who` (`any`, `hero`, Heldenname, `army`, `serf`, `leader`), `count` | genug Einheiten im Gebiet |
 | `protect` | `ref`, `heroDownFails` | „halten“: scheitert, wenn alles verloren ist (Held bewusstlos zählt standardmäßig) |
 | `motivation` | `value` | Durchschnittsmotivation |
 | `flag` | `flag` | Missionsmerker gesetzt |
-| `custom` | `progress(sim, m) → { cur, target, failed? }` | eigene Regel |
+| `custom` | `progress(sim, m) → { cur, target, done?, failed? }` | eigene Regel (`done: false` hält das Ziel offen, auch wenn `cur` = `target`, z. B. für einen Ladebalken) |
 
 Sieg: alle Hauptziele erfüllt (`protect`-Ziele dürfen dabei noch aktiv sein).
 Niederlage: eigene Burg fällt oder ein Hauptziel scheitert (außer `noDefeat`).
@@ -150,7 +175,11 @@ Wiederholungen. `when` kann auch eine Funktion `(sim, m) => boolean` sein.
 | `job` | `res` (Leibeigene bauen das gerade ab) |
 | `event` | `event` (Ereignistyp der Simulation dieses Takts), `match` |
 | `weather` | `state` |
-| `flag`, `heroDown`, `defeated` | … |
+| `flag`, `defeated` | … |
+| `heroDown` | `hero` (Name, Standard: Haupt-Held) – bewusstlos oder weg |
+| `tribute` | `id` – Tribut bezahlt |
+| `talked` | `id` – Gesprächsfigur angesprochen |
+| `diplomacy` | `a` (Standard Mensch), `b`, `state` |
 | `all`, `any`, `not` | `of: [ … ]` bzw. `cond` |
 | `ui` | `check` – nur Tutorial, meldet die Oberfläche per Befehl |
 
@@ -167,11 +196,48 @@ Wiederholungen. `when` kann auch eine Funktion `(sim, m) => boolean` sein.
 | `ai` | `player`, `difficulty`, `aggression`, `startIn`, `forbid`, `attackNow` |
 | `weather` | `state`, `seconds` |
 | `camera` | `at` – die Oberfläche springt dorthin (liegt das Ziel im Nebel, vorher `reveal` mit `area`) |
-| `flag` | `name`, `value` |
+| `flag` | `name`, `value` (Questgegenstände wie die Kronenzacken sind einfach Merker) |
+| `diplomacy` | `a` (Standard Mensch), `b`, `state` (`allied`, `neutral`, `hostile`) |
+| `tribute` / `closeTribute` | `id` – Angebot aus `tributes` öffnen bzw. zurückziehen |
+| `npc` | `id` – Gesprächsfigur aus `npcs` aufstellen |
+| `hero` | `hero`, `player`, `at`, `ref` – Held mitten in der Mission dazuholen (z. B. Überläufer) |
+| `remove` | `ref` – Figuren oder Gebäude ohne Kampf aus dem Spiel nehmen (Zwischenszene) |
 | `victory` / `defeat` | `reason` (wählt `defeatTexts[reason]`) |
 
 Statt eines Objekts darf jede Aktion auch eine Funktion `(sim, m) => {}` sein.
 Orte (`at`, `area`, `near`, `target`) sind Bezugsnamen, Kreise `{x, y, r}`, `'humanHq'` oder `'enemyHq'`.
+
+## Tribute (Kaufen oder Kämpfen)
+
+Wie im Vorbild: Ein Tribut ist ein Angebot im Missionsfeld („Angebote“). Bezahlen zieht die Kosten ab und
+führt `onPaid` aus. Angebote derselben `group` schließen einander aus – so entsteht eine Wahl, etwa Söldner
+gegen geflohene Leibeigene oder Freikauf gegen Sturm aufs Lager.
+
+```js
+tributes: {
+  buyShard: { group: 'shard', cost: { gold: 1500, wood: 500 }, text: t('Zacke freikaufen', '…'),
+              onPaid: [{ type: 'flag', name: 'shard2' }] },
+},
+start: [{ type: 'tribute', id: 'buyShard' }],
+```
+
+Befehl der Oberfläche: `{ type: 'mission', action: 'tribute', id }` (Ablehnung `err.noTribute` bzw.
+`err.notEnoughResources`). Lieferquests sind ebenfalls Tribute (Mission 5).
+
+## Gesprächsfiguren
+
+Figur mit Ausrufezeichen; geht der genannte Held (`hero`, auch Liste; ohne = jeder Held) bis auf `radius`
+(Standard 2) Kacheln heran, läuft `onTalk`. Ein anderer Held bekommt höchstens den Hinweis `wrongHero`.
+
+```js
+npcs: {
+  elder: { at: 'villageArea', owner: 'neighbors', look: 'serf', hero: 'orrin', speaker: 'elder',
+           wrongHero: t('Schick mir den Händler.', '…'), onTalk: [ …Aktionen ] },
+},
+```
+
+Aufstellen mit `{ type: 'npc', id }`; Bezug und Zustand unter `refs[id]` bzw. `state.npcs[id]`. Die Figur
+ist ein eigenes Entity (`kind: 'npc'`), kämpft nicht und kann nicht angegriffen werden.
 
 ## Tutorial-Schritte
 
@@ -194,11 +260,11 @@ Orte (`at`, `area`, `near`, `target`) sind Bezugsnamen, Kreise `{x, y, r}`, `'hu
 
 ## Oberfläche
 
-`Engine.uiState().mission` liefert `{ objectives, tutorial, messages, camera, result }`.
-Komponenten in `src/ui/mission/`: `CampaignMenu`, `MissionHud` (Coach, Ziele, Dialog),
+`Engine.uiState().mission` liefert `{ objectives, tutorial, messages, tributes, camera, result }`.
+Komponenten in `src/ui/mission/`: `CampaignMenu`, `MissionHud` (Coach, Ziele, Angebote, Dialog),
 `MissionResult`. Feste Oberflächentexte stehen unter `mission.*` in `src/i18n/de.js`/`en.js`.
 Tutorial-Hinweise (`hint.ui`) zeigen auf `data-testid`s, z. B. `quick-all`, `build-residence`,
-`build-toggle`, `buy-serf`, `tech-education`, `payday`, `upgrade`, `recruit-full-sword`, `ability-whirl`;
+`build-toggle`, `buy-serf`, `tech-education`, `payday`, `upgrade`, `recruit-full-sword`, `ability-courage`;
 zeigt ein Hinweis auf ein Gebäude, wechselt das Baumenü in dessen Kategorie. Kampagnenfortschritt (freigeschaltet, Bestzeit) liegt in
 `localStorage['kronland-campaign-1']`.
 
@@ -207,11 +273,14 @@ zeigt ein Hinweis auf ein Gebäude, wechselt das Baumenü in dessen Kategorie. K
 | # | ID | Titel | Neues |
 |---|---|---|---|
 | 0 | `tutorial` | Erste Schritte | alle Grundlagen geführt |
-| 1 | `c1` | Neubeginn im Erlengrund | Wohnen, Essen, Grube, Arbeiter; Räuberposten optional |
-| 2 | `c2` | Feuer im Wald | Kaserne, drei Räuberwellen, Dorfzentrum schützen, Gegenangriff |
-| 3 | `c3` | Die Furt am Grauen Bach | zweite Siedlung, 40 Arbeiter, Forschung; ruhende KI erwacht und greift die neue Siedlung an |
-| 4 | `c4` | Eis über dem Spiegelsee | Wetter: Insel nur im Winter erreichbar, Befreiung, Rückweg vor dem Tauwetter |
-| 5 | `c5` | Die Krone von Kronland | schwere KI mit Burg, Türmen und Kanonen; Angriffswellen, Wutangriffe ab Minute 25 |
+| 1 | `c1` | Lindgrund | Winter; Nelia und Orrin, erste Zacke (Merker), Wohnen/Essen/Arbeiter, Eintreiber vertreiben; Nachbardorf über Orrins Gespräch verbündet (optional) |
+| 2 | `c2` | Beaucroix | Winter; Marktplatz und Handel, Zacke freikaufen (Tribut) oder Räuberlager stürmen, Lehmschuld als Nebenquest |
+| 3 | `c3` | Das Wetterwerk | Kommandomission ohne Burg in einem fest geformten Tal: Tor oder zugefrorener Fluss (Posten bestechen), Wetterwerk auf der Insel, Flucht vor dem Tauwetter (60 s), Baupläne sichern |
+| 4 | `c4` | Eisenhain | Belagerung brechen, Taran als feindlicher Held, Söldner oder Leibeigene (Tribute), Bergmeister übergibt die Zacke |
+| 5 | `c5` | Morvale | Herold macht die Dörfer neutral, Taran läuft über und wird spielbar, Höfe schützen, Dörfer per Lieferung zurückgewinnen |
+| 6 | `c6` | Der Thronsee | Inselschloss im See, Wetterkraftwerk erforschen oder Wissen kaufen, Winter auslösen, Sturm übers Eis; Malvors eigenes Kraftwerk (gleiche Regeln) taut den See, Orrin wird verwundet |
+
+Story, Figuren und die Zuordnung zu den Siedler-5-Mechaniken: [Kampagne](KAMPAGNE.md).
 
 ## Balancing und Test-Bot
 
@@ -229,107 +298,97 @@ Allgemein kann er:
   (Miliz, wenn es eng wird), Ziele angreifen (Sammelpunkt vor dem Ziel außer Reichweite der Türme,
   dann gezielter Sturm, Rückzug bei hohen Verlusten, Nachschub wartet), Kleinsteuerung (wer ein
   Gebäude schlägt, während Feinde danebenstehen, wird umgelenkt), Heldenfähigkeiten
-  (Aura der Stärke vor dem Sturm, Wirbelschlag, Heilen, Fallen);
-- Mission 4: Stoßtrupp mit Bertram ans Ufer, bei Frost übers Eis, Wachen schlagen, Hedda heimbringen,
-  eine Truppe bleibt für den Winterüberfall zu Hause. Das Wetterkraftwerk braucht in Mission 4
-  Alchimie → Alchimistenhütte → Wettervorhersage → Meteorologie und lädt danach Minuten – der
-  natürliche Winter kommt nach 3 Minuten, darum nutzt der Bot es nicht (`MissionBot.weather()` gibt es trotzdem).
+  (Mut machen vor dem Sturm, Schildstoß, Einschüchtern, Wundsalbe, Bestechen mit Rücklage);
+- Missionsbausteine wie ein Mensch bedienen: Tribute bezahlen (`payTribute`), Helden einzeln zu
+  Gesprächsfiguren schicken (`heroNamed`, `npcAt`), Kommandomission ohne Burg (nur Skript und Fähigkeiten).
+- Je Mission ein kleines Skript: Mission 1 Nelia zur Wurzel und beide Helden gegen die Eintreiber, Mission 2
+  Lehmschuld, Markt, Lehm/Stein gegen Taler, dann Freikauf, Mission 3 Trupp zur Insel (Helden dahinter),
+  Mission 4 Söldner, dann Belagerer angreifen, Mission 5 Lieferungen zuerst, Mission 6 Wissen kaufen,
+  Wetterkraftwerk vor dem Heer, Winter erst mit 9 Truppen und voller Energie, dann Sturm aufs Schloss.
 
 `playMission(id, seed, { passive })` spielt eine Mission headless und liefert einen Bericht
 (Sieg/Niederlage, Dauer, Minute jedes Ziels, Rohstoffkurven je Minute, Heeresgröße, Verluste).
-`passive: true` baut nur Wirtschaft (Gegenprobe: Mission 2 und 5 müssen dann verloren gehen).
+`passive: true` baut nur Wirtschaft (Gegenprobe: Mission 5 gewinnt er nie, Mission 6 verliert er).
 
 ```bash
-node scripts/campaign-matrix.js            # 5 Missionen × 4 Karten + Gegenproben, Tabelle
-node scripts/campaign-matrix.js c5 --json  # Rohdaten einer Mission
+node scripts/campaign-matrix.js            # 6 Missionen × 4 Karten + Gegenproben, Tabelle
+node scripts/campaign-matrix.js c6 --json  # Rohdaten einer Mission
 npx vitest run tests/sim/campaign.test.js  # Regression: 2 Karten je Mission + Gegenproben
 ```
 
 ### Vorgaben und Ergebnisse
 
 Zeitlimit = spätester akzeptierter Sieg des Bots (Spielminuten). Ergebnisse auf den Karten
-Missionsseed, 7, 99, 31337 (Stand nach der zweiten QA-Runde, `node scripts/campaign-matrix.js`):
+Missionsseed, 7, 99, 31337 (`node scripts/campaign-matrix.js`, Kampagne „Krone aus Eis“):
 
-| Mission | Limit | Vorher (alte Missionen, Bot) | Jetzt: Siege | Dauer (min) | Verluste Bot (Hauptleute/Soldaten) | Passiver Bot |
+| Mission | Limit | Siege | Dauer (min) | Verluste Bot (Hauptleute/Soldaten) | Weg des Bots | Passiver Bot |
 |---|---|---|---|---|---|---|
-| c1 | 20 | 4/4, 3,5–3,9 min; Nebenziel nie | 4/4 | 3,2–4,0 | 0/0 | – |
-| c2 | 30 | 4/4, 9,6 min, praktisch verlustfrei | 4/4 | 9,6–9,8 | 0 / 6–15 | verliert (Min. 6–8) |
-| c3 | 40 | 2/4 (Siedlung blockiert, Gisbert griff nie an) | 4/4 | 16,3–19,7 | 0–2 / 0–14 | verliert bzw. kommt nicht weiter |
-| c4 | 40 | 2/4 (Hedda im Kerker eingeschlossen) | 4/4 | 3,4–3,9 | 0 / 2–4 | verliert beim Tauwetter |
-| c5 | 60 | 1–2/4 (Miliz-Abwehr, Zeitüberschreitung) | 4/4 | 16,5–23,1 | 0–1 / 0–17 | verliert (Min. 19–20) |
+| c1 Lindgrund | 20 | 4/4 | 3,3–5,3 | 0/0 | Helden gegen Eintreiber, Nachbardorf meist mit | – |
+| c2 Beaucroix | 30 | 4/4 | 4,4–11,9 | 0–1 / 0–16 | Freikauf (Lehmrabatt) | – |
+| c3 Wetterwerk | 20 | 4/4 | 2,1–8,3 | 0–3 / 0–11 | mitten durch | – |
+| c4 Eisenhain | 40 | 4/4 | 9,3–21,1 | 0–1 / 0–7 | Söldner | – |
+| c5 Morvale | 40 | 4/4 | 8,4–11,4 | 0 / 1–6 | Lieferungen | gewinnt nie (ohne Lieferungen kehren die Dörfer nicht zurück); Taran und seine Überläufer halten die Höfe meist allein |
+| c6 Thronsee | 60 | 4/4 | 14,6–17,0 | 0 / 0–6 | Wissen gekauft | verliert (Min. 20–21) |
 
 Rohausgabe:
 
 ```
 Mission Seed   Bot     Ergebnis                   Zeit    Limit  Heer  Verluste (H/S/L/Gb)  Ziele (Minute)
-c1      1101   aktiv   Sieg                       3.2m    20m    0     0/0/0/0              homes:1.5 lookout:2.3 pit:3 farms:3.1 workers:3.2
-c1      7      aktiv   Sieg                       4m      20m    0     0/0/0/0              homes:1.4 lookout:1.9 pit:2.7 workers:3 farms:4
-c1      99     aktiv   Sieg                       3.5m    20m    0     0/0/0/0              homes:1.4 lookout:2 farms:2.8 pit:3.3 workers:3.5
-c1      31337  aktiv   Sieg                       3.5m    20m    0     0/0/0/0              homes:1.4 lookout:2 farms:2.7 pit:3.4 workers:3.5
-c2      2202   aktiv   Sieg                       9.8m    30m    7     0/10/6/0             barracks:1.5 army:1.6 militia:5.1 survive:9 camp:9.8 protectVc:null bigArmy:–
-c2      7      aktiv   Sieg                       9.7m    30m    8     0/6/4/0              barracks:1.7 army:1.7 survive:9 bigArmy:9 camp:9.7 protectVc:null militia:–
-c2      99     aktiv   Sieg                       9.7m    30m    8     0/11/48/0            barracks:1.5 army:1.6 survive:9 bigArmy:9 camp:9.7 protectVc:null militia:–
-c2      31337  aktiv   Sieg                       9.6m    30m    7     0/15/2/0             barracks:1.6 army:1.6 survive:9 camp:9.6 protectVc:null bigArmy:– militia:–
-c3      3303   aktiv   Sieg                       17.9m   40m    6     0/2/2/0              science:6.3 mood:10 ford:10.5 settle:14.8 people:17.9
-c3      7      aktiv   Sieg                       16.3m   40m    6     2/14/0/0             science:4.5 mood:10 ford:10.6 settle:13.6 people:16.3
-c3      99     aktiv   Sieg                       19.7m   40m    7     0/0/0/0              science:4.8 mood:10 ford:10.5 settle:12.9 people:19.7
-c3      31337  aktiv   Sieg                       17.3m   40m    5     0/6/6/0              science:4.9 mood:10 ford:10.8 settle:14.7 people:17.3
-c4      4404   aktiv   Sieg                       3.9m    40m    5     0/4/0/0              prepare:0.1 firewood:3.2 cross:3.6 guards:3.6 home:3.9 bertram:null
-c4      7      aktiv   Sieg                       3.5m    40m    5     0/3/0/0              prepare:0.1 cross:3.1 firewood:3.1 guards:3.3 home:3.5 bertram:null
-c4      99     aktiv   Sieg                       3.5m    40m    5     0/2/0/0              prepare:0.1 firewood:3.1 cross:3.1 guards:3.3 home:3.5 bertram:null
-c4      31337  aktiv   Sieg                       3.4m    40m    5     0/4/0/0              prepare:0.1 cross:3.2 firewood:3.2 guards:3.2 home:3.4 bertram:null
-c5      5505   aktiv   Sieg                       19m     60m    12    0/0/0/0              army:1.2 castle:19 towers:– cannons:–
-c5      7      aktiv   Sieg                       23.1m   60m    11    0/10/17/0            army:1.2 castle:23.1 towers:– cannons:–
-c5      99     aktiv   Sieg                       16.5m   60m    12    0/17/0/0             army:1.2 castle:16.5 towers:– cannons:–
-c5      31337  aktiv   Sieg                       17.2m   60m    12    1/12/3/0             army:1.2 castle:17.2 towers:– cannons:–
-c2      2202   passiv  Niederlage (protectVc)     5.8m           0     0/0/46/5             barracks:1.5 protectVc:✗5.8 army:– survive:– camp:– bigArmy:– militia:–
-c2      7      passiv  Niederlage (protectVc)     7.8m           0     0/0/57/7             barracks:1.7 protectVc:✗7.8 army:– survive:– camp:– bigArmy:– militia:–
-c5      5505   passiv  Niederlage (hq)            18.6m          0     0/0/95/27            castle:– army:– towers:– cannons:–
-c5      7      passiv  Niederlage (hq)            19.8m          0     0/0/105/28           castle:– army:– towers:– cannons:–
+c1      1101   aktiv   Sieg                       4.7m    20m    0     0/0/1/0              homes:1.5 workers:3.2 farms:4.2 collectors:4.6 root:4.7 neighbors:–
+c1      7      aktiv   Sieg                       3.3m    20m    0     0/0/0/0              root:0.2 neighbors:0.4 homes:1.4 workers:3 collectors:3 farms:3.3
+c1      99     aktiv   Sieg                       5.3m    20m    0     0/0/0/0              homes:1.4 farms:2.8 collectors:4.6 root:4.9 neighbors:5.1 workers:5.3
+c1      31337  aktiv   Sieg                       4.3m    20m    0     0/0/0/0              root:0.1 neighbors:0.2 homes:1.4 farms:2.8 collectors:3 workers:4.3
+c2      2202   aktiv   Sieg                       5.7m    30m    1     1/3/0/0              clay:1 farms:2.8 market:5.3 trade:5.7 shard:5.7
+c2      7      aktiv   Sieg                       11.9m   30m    2     1/16/6/0             clay:0.7 farms:4.3 market:8.3 trade:8.7 shard:11.9
+c2      99     aktiv   Sieg                       4.4m    30m    0     0/0/0/0              clay:0.8 farms:3.9 market:4 shard:4 trade:4.4
+c2      31337  aktiv   Sieg                       5.7m    30m    1     0/0/0/0              clay:0.7 farms:2.9 market:5.3 shard:5.3 trade:5.7
+c3      3303   aktiv   Sieg                       8.3m    20m    5     0/2/0/0              pass:1.2 plans:4.6 works:8.3 heroes:null
+c3      7      aktiv   Sieg                       2.1m    20m    5     0/0/0/0              pass:0.3 plans:1 works:2.1 heroes:null
+c3      99     aktiv   Sieg                       4.8m    20m    5     3/11/0/0             pass:0.9 works:4.8 plans:4.8 heroes:null
+c3      31337  aktiv   Sieg                       3.1m    20m    5     0/5/0/0              pass:0.2 works:3 plans:3.1 heroes:null
+c4      4404   aktiv   Sieg                       9.3m    40m    6     0/0/0/0              iron:1.3 sulfur:2.5 siege:9.1 shard:9.3 army:–
+c4      7      aktiv   Sieg                       21.1m   40m    6     0/4/14/0             sulfur:1.4 iron:10.8 siege:20.9 shard:21.1 army:–
+c4      99     aktiv   Sieg                       21.1m   40m    5     1/4/16/0             iron:10.2 sulfur:11.4 siege:21 shard:21.1 army:–
+c4      31337  aktiv   Sieg                       16.9m   40m    6     0/7/10/0             iron:1.3 sulfur:6.2 siege:16.8 shard:16.9 army:–
+c5      5505   aktiv   Sieg                       11.4m   40m    7     0/6/0/0              farms:7.1 regain:7.1 drive:11.2 shard:11.4 granaries:null
+c5      7      aktiv   Sieg                       9m      40m    7     0/1/0/0              drive:5.8 farms:8.8 regain:8.8 shard:9 granaries:null
+c5      99     aktiv   Sieg                       9.8m    40m    7     0/2/0/0              drive:5.8 farms:5.9 regain:9.4 shard:9.8 granaries:null
+c5      31337  aktiv   Sieg                       8.4m    40m    7     0/2/0/0              drive:5.8 farms:8.2 regain:8.2 shard:8.4 granaries:null
+c6      6606   aktiv   Sieg                       17m     60m    11    0/6/1/0              plant:7.1 army:14 freeze:14 castle:17 tower:–
+c6      7      aktiv   Sieg                       16.4m   60m    10    0/2/4/0              plant:4.7 army:14 freeze:14 castle:16.4 tower:–
+c6      99     aktiv   Sieg                       16.4m   60m    10    0/5/0/0              plant:3.8 army:14 freeze:14 castle:16.4 tower:–
+c6      31337  aktiv   Sieg                       14.6m   60m    9     0/0/9/0              plant:3.1 army:12 freeze:12 castle:14.6 tower:–
+c5      5505   passiv  Niederlage (hq)            34.9m          2     2/8/15/8             drive:5.8 farms:7.1 granaries:– regain:– shard:–
+c5      7      passiv  Niederlage (timeout)       60m            2     1/6/0/0              drive:5.8 farms:8.8 granaries:– regain:– shard:–
+c6      6606   passiv  Niederlage (hq)            20m            0     0/0/111/21           plant:– freeze:– castle:– tower:– army:–
+c6      7      passiv  Niederlage (hq)            21.1m          0     0/0/107/16           plant:– freeze:– castle:– tower:– army:–
 ```
 
-Nebenziele: c1 Posten, c2 6 Einheiten, c3 Furt und Motivation, c4 Brennholz (jetzt 2500 statt 3000, vorher in der kurzen Mission kaum möglich) erreicht der Bot regelmäßig;
-c2 „Miliz“ nur, wenn es eng wird; c5 „Türme“ schafft er, wenn er sie zuerst angreift
-(`attack(['towers', 'castle'], …)`, getestet auf 3 von 4 Karten), „Kanonen“ liegt hinter Metallurgie.
+Der andere Weg der Kauf-oder-Kampf-Entscheidungen (Lager stürmen, Leibeigene aufnehmen) ist durch Tests in
+`tests/sim/missions.test.js` abgedeckt, aber nicht mit dem Bot durchgespielt.
 
 ### Designnotizen
 
-- **c1 Neubeginn** (Einstieg, 3,5–4 min): reiner Aufbau. Das Nebenziel ist jetzt „Räuber vom Posten
-  vertreiben“ (Wachen besiegen); danach brennt der Posten von selbst ab. Vorher musste Bertram allein
-  ein Lager mit 1200 LP einreißen (über 4 Minuten). Mit Aura der Stärke schafft er die drei
-  Speerträger in gut einer Minute.
-- **c2 Feuer im Wald** (≈ 10 min, Zeit fest durch drei Wellen bis Minute 9): Wellen deutlich stärker
-  (3 → 7 → 8 Truppen), das Lager hat jetzt 5 Wachtrupps. Mit 6–8 Einheiten und Bertram hält man stand
-  und verliert ein paar Soldaten; ohne Truppen fällt das Dorfzentrum zwischen Minute 7 und 10.
-  Nebenziel „6 Einheiten“ ist mit den Startrohstoffen plus Eisengrube erreichbar.
-- Dauer und Schwierigkeit steigen nicht im Gleichschritt: c4 ist bewusst kurz (Wetterfenster), aber
-  durch Zeitdruck und Eiskampf fordernder als c3; c5 ist die längste und verlustreichste Mission.
-- **c3 Die Furt** (15–25 min): 40 statt 25 Arbeiter – die Bevölkerung reicht nur mit dem zweiten
-  Dorfzentrum (75 Plätze für Leibeigene, Arbeiter und Soldaten). Gisbert erwachte zwar beim
-  Siedeln, hatte aber meist kein Heer und griff nie an; jetzt zieht 4 Minuten nach der Baustelle
-  sicher seine Hauswache (8 Trupps) gegen die neue Siedlung, dazu sein eigenes Heer. Ohne Truppen
-  fällt danach die Burg.
-- **c4 Spiegelsee** (≈ 4–5 min, durch das Wetter begrenzt): kurze Kommandomission, schwer durch
-  Zeitdruck und Kampf auf dem Eis. Fehler mit dem neuen Gelände: Liegt das Kerkerlager in der
-  Inselmitte, erschien Hedda im Lager eingeschlossen und kam nie heim (Karten 99, 7). Sie erscheint
-  jetzt auf festem, freiem Inselboden neben dem Kerker. Tauwetter beendet die Mission auch, wenn
-  Hedda frei, aber noch nicht daheim ist (vorher saß sie sonst bis zum nächsten Winter fest).
-  Herbst/Winter stehen als `AUTUMN`/`WINTER` in der Datei, Warnung und Niederlage richten sich danach.
-  Stärkere Kerkerwachen (5 Trupps) und Überfall (4 Trupps, 40 s nach dem Frost); vorzubereiten sind
-  4 statt 2 Einheiten. Tests prüfen auf vier Karten: Insel, Kerker und Wachen nur über das Eis
-  erreichbar, Überfallweg erreichbar, Frost nach 3 und Tauwetter nach 8 Minuten.
-- **c5 Krone** (≈ 16–23 min): Morwald startet mit der Burg (nicht Festung; er baut selbst aus, die Wache rückt bei halber Burg-LP aus),
-  höchstens 20 Leibeigenen und **ohne Miliz** („seine Knechte greifen für ihn nicht zu den Waffen“,
-  steht im Briefing). Mit Miliz (28 Leibeigene mit Angriff 10, 200 LP) war jeder Sturm auf die Burg
-  aussichtslos – der Bot gewann je nach Karte nach 15 Minuten oder gar nicht. Startgold 3000 statt
-  2500. Ohne Heer fällt die eigene
-  Burg spätestens bei den Wutangriffen ab Minute 25.
-- Neue Missionsfelder für Computergegner: `aiSerfs` und `militia` (siehe Tabelle „Spieler“).
+- **Gold ist der Engpass.** In Mission 2 bringt erst der Marktplatz (Lehm und Stein gegen Taler) das Geld für den
+  Freikauf – ohne Markt kam der Bot auf Karte 7 nie auf 1000 Taler. Deshalb startet die Mission mit Handelswesen
+  (die Forschung bräuchte sonst eine Festung) und 1500 Talern. Freikauf in Holz statt Eisen: Eisen gibt es in
+  Beaucroix nicht.
+- **Mission 4:** 2000 Taler zu Beginn, damit die Wahl (Söldner 1400 / Leibeigene 400) sofort möglich ist.
+- **Mission 5:** Erlenhof verlangte zuerst 600 Taler – der Bot brauchte dann 30–50 Minuten. Jetzt 300 Taler und
+  500 Lehm, jede Lieferung fordert andere Rohstoffe.
+- **Mission 6:** 3500 Taler: das Wissen der Gelehrten (2200 + 500 Schwefel) ist sofort bezahlbar, danach reicht
+  es für das Wetterkraftwerk. Wer erst Truppen kauft, hat kein Geld für das Kraftwerk (der Bot baute es sonst erst
+  nach 70 Minuten). Der See (Breite 4) liegt so nah wie möglich um die Burg (Ring 11–18 Kacheln, ohne Gebäude zu
+  fluten). Wer nach dem Tauwetter auf der Insel steht, kämpft weiter – nur auf dem Eis ertrinkt man.
+- **Mission 3:** Die Wachen am Werk (2 Schwert-, 1 Bogentrupp) und der Alarm (2 Schwerttrupps) schaffen drei
+  Trupps nur mit beiden Helden; stärkere Wachen ließen den Bot ohne Helden scheitern und mit Helden sterben.
+- **Lagerwachen** bekamen jede Sekunde einen neuen Angriffsbefehl (der Ziel und Weg zurücksetzt); jetzt nur noch
+  Wachen, die gerade keinen Gegner im Visier haben.
 
 ### Bekannte Grenzen
 
 - Gebäude haben hohe Rüstung; Nahkämpfer machen fast nur Mindestschaden. Burgen fallen nur mit
-  vielen Truppen und Aura der Stärke; Kanonen ab Metallurgie sind der eigentliche Belagerungsweg
+  vielen Truppen und „Mut machen“; Kanonen ab Metallurgie sind der eigentliche Belagerungsweg
   (Spielregel, kein Fehler).
 
 Behoben (zweite QA-Runde, siehe `QA-BERICHT.md` Befunde 19–22):

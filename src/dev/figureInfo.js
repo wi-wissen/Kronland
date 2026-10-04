@@ -6,7 +6,7 @@ import { UNIT } from '../sim/fixed.js';
 import { maxHp } from '../sim/systems/military.js';
 
 /** Figure kinds with a position. */
-export const FIGURE_KINDS = new Set(['unit', 'worker', 'leader', 'soldier', 'hero', 'specialist']);
+export const FIGURE_KINDS = new Set(['unit', 'worker', 'leader', 'soldier', 'hero']);
 
 /** Map the state of a worker (workers.js) to the shared names. */
 const WORKER_STATE = { walk: 'walk', working: 'work', eating: 'eat', sleeping: 'sleep', camping: 'rest', waiting: 'wait', idle: 'idle' };
@@ -38,14 +38,6 @@ export function figureInfo(sim, e) {
     raw ||= e.job ? (path.length ? 'toJob' : 'atJob') : e.goal !== undefined ? 'move' : 'idle';
     state = e.targetId ? 'fight' : path.length ? (e.carry ? 'carry' : 'walk') : e.job ? 'work' : 'idle';
     if (!goal && e.goal !== undefined) goal = { x: e.goal % W, y: (e.goal / W) | 0 };
-  } else if (e.kind === 'specialist') {
-    // Erweiterung: Dieb/Kundschafter (Auftrag in order: move, steal, sabotage, deliver, idle)
-    raw = e.spec + ':' + (e.order?.type ?? 'idle');
-    job = e.carry ? 'loot' : null;
-    target = e.order?.target ?? 0;
-    const o = e.order?.type ?? 'idle';
-    state = path.length ? (e.carry ? 'carry' : 'walk') : o === 'steal' && e.timer > 0 ? 'work' : 'idle';
-    if (!goal && o === 'move' && e.order.goal !== undefined) goal = { x: e.order.goal % W, y: (e.order.goal / W) | 0 };
   } else {
     // captains, soldiers, heroes
     raw = e.kind === 'soldier' ? (e.targetId ? 'attack' : 'follow') : e.order?.type ?? 'idle';

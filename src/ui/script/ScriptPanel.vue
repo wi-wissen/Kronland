@@ -1,9 +1,10 @@
 <template>
   <!-- Code panel in the game (coding adventures, test play from the world editor):
        sections (collapsible, locked or editable), run/debugger, console, variables, help. -->
-  <aside v-show="!compact || open" class="script-panel frame" :class="{ compact, full }" data-testid="script-panel" :aria-label="$t('script.panel')">
+  <aside v-show="!compact || open" ref="panel" class="script-panel frame" :class="{ compact, full }" data-testid="script-panel" :aria-label="$t('script.panel')">
     <header class="sp-head">
       <strong class="sp-title">{{ $tr(scenario.title) }}</strong>
+      <button v-tip="$t('script.gridTip')" class="ghost sp-grid" :aria-pressed="grid" :class="{ on: grid }" data-testid="script-grid" @click="toggleGrid"><span class="sp-glyph" aria-hidden="true">#</span>{{ $t('script.grid') }}</button>
       <span class="sp-status" :class="status" data-testid="script-status">{{ $t('script.status.' + status) }}</span>
       <button v-if="compact" class="icon-btn ghost" :aria-label="$t(full ? 'script.shrink' : 'script.grow')" @click="full = !full"><Icon :name="full ? 'chevronDown' : 'chevronUp'" /></button>
       <button v-if="compact" class="icon-btn ghost" :aria-label="$t('common.close')" data-testid="script-close" @click="$emit('update:open', false)"><Icon name="close" /></button>
@@ -116,7 +117,7 @@ export default {
     const codes = {};
     for (const s of this.scenario.sections ?? []) codes[s.id] = s.editable && typeof saved[s.id] === 'string' ? saved[s.id] : s.code;
     return {
-      codes, bps: {}, unfolded: {}, tab: 'code', full: false, focused: null,
+      codes, bps: {}, unfolded: {}, tab: 'code', full: false, grid: store.get('kronland-grid') ?? true, focused: null,
       showBriefing: true, dirty: {}, editors: {},
     };
   },
@@ -146,7 +147,19 @@ export default {
     'player.line'(l) { if (l && this.compact && this.status !== 'idle' && !this.open) this.$emit('update:open', true); },
     consoleLines() { this.$nextTick(() => { const b = this.$refs.body; if (b && this.tab === 'code' && this.busy) b.scrollTop = b.scrollHeight; }); },
   },
+  mounted() {
+    this.engine?.setGrid?.(this.grid);
+    // Whole map into view, on desktop to the left of the panel (not behind it)
+    this.$nextTick(() => { const w = this.compact ? 0 : this.$refs.panel?.getBoundingClientRect().width ?? 0; this.engine?.frameOverview?.(w ? w + 16 : 0); });
+  },
+  beforeUnmount() { this.engine?.setGrid?.(false); },
   methods: {
+    /** Tile grid on/off (for counting steps); preference stays in the browser. */
+    toggleGrid() {
+      this.grid = !this.grid;
+      store.set('kronland-grid', this.grid);
+      this.engine?.setGrid?.(this.grid);
+    },
     storeKey() { return `kronland-code-${this.scenario.id}`; },
     foldable(s) { return (s.visibility ?? 'open') === 'collapsed' || ((s.visibility ?? 'open') === 'hidden' && this.mode === 'editor'); },
     lineCount(s) { return (this.codes[s.id] ?? '').replace(/\n+$/, '').split('\n').length; },
@@ -244,6 +257,9 @@ export default {
 .script-panel.compact.full { height: calc(100dvh - var(--safe-t)); }
 .sp-head { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; }
 .sp-title { flex: 1; min-width: 0; font-family: var(--display); color: var(--gold-200); font-size: var(--fs-lg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-grid { display: inline-flex; align-items: center; gap: 0.25rem; min-height: 1.875rem; padding: 0 0.5rem; font-size: var(--fs-sm); color: var(--ink-muted); }
+.sp-grid.on { color: var(--gold-200); background: rgba(243, 200, 94, 0.14); box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.45); }
+.sp-grid .sp-glyph { font-family: ui-monospace, Menlo, monospace; font-weight: 800; }
 .sp-status { font-size: var(--fs-xs); padding: 0.125rem 0.5rem; border-radius: 999px; background: var(--inset-bg); color: var(--ink-muted); }
 .sp-status.running { color: var(--good); }
 .sp-status.paused { color: var(--warn); }

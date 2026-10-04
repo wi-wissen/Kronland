@@ -76,7 +76,7 @@ export function playTutorial(seed) {
   attackMove(sim, army, tileOf(target));
   waitStep('fight', 2500);
   expectStep('ability');
-  act(sim, { type: 'ability', hero: hero(sim).id, ability: 'whirl' });
+  act(sim, { type: 'ability', hero: hero(sim).id, ability: 'courage' });
   sim.step();
   expectStep('end');
   act(sim, { type: 'mission', action: 'next' });
@@ -84,12 +84,17 @@ export function playTutorial(seed) {
   return { sim, log };
 }
 
-/** Win mission 1 with a simple build-up strategy. */
+/** Win mission 1 with a simple build-up strategy: Nelia to the root, both heroes against the collectors. */
 export function playMission1(seed) {
   const sim = createMissionSim('c1', seed ? { seed } : {});
   const m = sim.mission;
   const hq = sim.findBuilding(P, 'headquarters');
+  const heroIds = () => [m.state.refs.nelia, m.state.refs.orrin];
+  let phase = '';
   const keepBusy = () => {
+    const col = m.idsOf('collectors').map((id) => sim.entities.get(id)).find(Boolean);
+    if (col && phase !== 'fight') { phase = 'fight'; attackMove(sim, heroIds(), tileOf(col)); }
+    else if (!col && phase === '') { phase = 'root'; const r = m.state.refs.oldRoot; act(sim, { type: 'order', units: [m.state.refs.nelia], order: 'move', x: r.x, y: r.y }); }
     // construction sites first, then wood
     const sites = [...sim.entities.values()].filter((e) => e.kind === 'building' && e.owner === P && !e.done && e.builders.length < 4);
     for (const s of sites) {

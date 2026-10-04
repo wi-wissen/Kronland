@@ -107,115 +107,193 @@ const tile = (e) => (e.kind === 'building' ? api.centerOf(e) : e.px !== undefine
  */
 export const STRATEGIES = {
   c1: {
-    serfs: 12,
+    serfs: 10,
     build: [['residence', 2], ['farm', 2], ['clayMine', 1], ['residence', 3], ['farm', 3]],
     research: [],
     army: [],
+    militia: true,
     script(bot) {
-      // Side goal: smoke out the bandit post with the hero as soon as the economy runs
-      const lookout = bot.objective('lookout');
-      if (lookout?.status === 'active') bot.attack('lookoutGuards', { heroOnly: true, minStrength: 0 });
+      // the script leads the heroes: root, collectors, village elder
+      bot.useHero = false;
+      const nelia = bot.heroNamed('nelia'), orrin = bot.heroNamed('orrin');
+      const st = bot.m.state;
+      if (bot.objective('root')?.status === 'active' && nelia) bot.moveUnits([nelia.id], st.refs.oldRoot, 'move', 'root');
+      const col = bot.m.idsOf('collectors').map((id) => bot.sim.entities.get(id)).find(Boolean);
+      if (col) bot.moveUnits([nelia, orrin].filter(Boolean).map((h) => h.id), tile(col), 'attackMove', 'collectors');
+      else if (bot.objective('neighbors')?.status === 'active' && orrin && bot.npcAt('elder')) bot.moveUnits([orrin.id], bot.npcAt('elder'), 'move', 'elder');
+      bot.heroMicro = !!col;
     },
   },
   c2: {
     serfs: 14,
-    build: [['barracks', 1, { toward: 'banditGate', d: 8 }], ['residence', 2], ['farm', 2], ['clayMine', 1], ['stoneMine', 1], ['ironMine', 1]],
-    research: ['education'],
-    army: [['sword', 4], ['spear', 2], ['sword', 5], ['spear', 3]],
-    reserve: 900,
-    defend: ['village'],
-    rally: { toward: 'banditGate', from: 'village', d: 5 },
+    build: [['farm', 3], ['storehouse', 1], ['clayMine', 1], ['stoneMine', 1], ['barracks', 1]],
+    research: [],
+    upgrades: [['storehouse', 1]],
+    army: [['sword', 2]],
+    reserve: 300,
+    goldWant: 1800,
+    tax: 'gold',
     militia: true,
     script(bot) {
-      if (bot.objective('camp')?.status === 'active') bot.attack('camp', { minStrength: 300 });
+      bot.useHero = false;
+      const orrin = bot.heroNamed('orrin');
+      // first Orrin's clay debt at the merchant, then buy Zacke free (the way without combat)
+      if (orrin && bot.npcAt('merchant') && bot.m.state.npcs.merchant?.state === 'open') bot.moveUnits([orrin.id], bot.npcAt('merchant'), 'move', 'merchant');
+      bot.payTribute('clay', 0);
+      // first the market (needs thalers), then buy Zacke free
+      if (bot.objective('market')?.status === 'done' && !bot.payTribute('buyShardCheap')) bot.payTribute('buyShard');
+      // market: trade at least once
+      const market = bot.buildings.find((b) => b.type === 'storehouse' && b.level >= 1 && b.done && !b.trade && b.workers.length);
+      if (market && bot.objective('trade')?.status === 'active' && !checkTrade(bot.sim, P, market, 'wood', 'gold', 100)) bot.cmd({ type: 'trade', building: market.id, give: 'wood', take: 'gold', amount: 100 });
+      // clay and stone for thalers for the buyout
+      else if (market && bot.avail('gold') < 1500) {
+        for (const give of ['clay', 'stone']) {
+          if (bot.avail(give) >= 900 && !checkTrade(bot.sim, P, market, give, 'gold', 300)) { bot.cmd({ type: 'trade', building: market.id, give, take: 'gold', amount: 300 }); break; }
+        }
+      }
     },
   },
   c3: {
-    serfs: 18,
-    workers: 42,
-    build: [
-      ['residence', 2], ['farm', 2], ['university', 1], ['clayMine', 1], ['stoneMine', 1], ['barracks', 1, { toward: 'spot', d: 10 }],
-      ['ironMine', 1], ['villageCenter', 2, { at: 'spot', after: 'ford' }], ['residence', 4], ['farm', 4], ['sawmill', 1], ['brickworks', 1],
-      ['stoneMine', 2], ['residence', 5], ['farm', 5], ['sulfurMine', 1], ['residence', 6], ['farm', 6],
-    ],
-    research: ['education', 'construction', 'alchemy'],
-    army: [['sword', 3], ['spear', 2], ['sword', 5]],
-    reserve: 400,
-    tax: 'mood',
-    defend: ['spot'],
-    script(bot) {
-      // Clear the ford before settling (side goal, makes the way safe)
-      if (bot.objective('ford')?.status === 'active') bot.attack('ford', { minStrength: 250 });
-    },
+    script(bot) { scriptWeatherworks(bot); },
   },
   c4: {
-    serfs: 14,
-    // Build little, chop a lot of wood (side goal firewood), iron for swordsmen
-    build: [['ironMine', 1]],
-    research: [],
-    army: [['sword', 5]],
-    reserve: 300,
+    serfs: 16,
+    build: [['ironMine', 1], ['sulfurMine', 1], ['clayMine', 1], ['stoneMine', 1], ['residence', 3], ['farm', 3]],
+    research: ['standingArmy'],
+    army: [],
+    armyLater: [['sword', 4], ['bow', 3], ['sword', 6], ['spear', 2]],
+    reserve: 400,
     militia: true,
-    script(bot) { scriptIce(bot); },
+    script(bot) {
+      // mercenaries first (ready for combat immediately), then own troops
+      if (bot.m.state.tributes.mercs === 'open') { bot.payTribute('mercs'); bot.s.army = []; } else bot.s.army = STRATEGIES.c4.armyLater;
+      if (bot.objective('siege')?.status === 'active') bot.attack(['siegeAGuards', 'siegeBGuards'], { minStrength: 350 });
+      const nelia = bot.heroNamed('nelia');
+      if (nelia && bot.npcAt('miner') && bot.m.state.npcs.miner?.state === 'open') { bot.useHero = false; bot.moveUnits([nelia.id], bot.npcAt('miner'), 'move', 'miner'); }
+    },
   },
   c5: {
+    serfs: 16,
+    build: [['farm', 4], ['clayMine', 1], ['stoneMine', 1], ['ironMine', 1], ['residence', 3]],
+    research: ['standingArmy'],
+    army: [['sword', 4], ['bow', 2], ['sword', 6]],
+    reserve: 300,
+    defend: ['moorbrookArea'],
+    militia: true,
+    script(bot) {
+      for (const id of ['supplyAlderfarm', 'supplyMoorbrook', 'supplyReedham']) bot.payTribute(id, 0);
+      // thalers first for the deliveries, then for the army
+      bot.s.reserve = Object.values(bot.m.state.tributes).includes('open') ? 600 : 300;
+      if (bot.objective('drive')?.status === 'active') bot.attack('loyalists', { minStrength: 250 });
+      const nelia = bot.heroNamed('nelia');
+      if (nelia && bot.npcAt('elder') && bot.m.state.npcs.elder?.state === 'open') { bot.useHero = false; bot.moveUnits([nelia.id], bot.npcAt('elder'), 'move', 'elder'); }
+    },
+  },
+  c6: {
     serfs: 22,
     build: [
-      ['clayMine', 1], ['stoneMine', 1], ['ironMine', 1], ['farm', 2], ['residence', 3], ['sulfurMine', 1],
-      ['smithy', 1], ['sawmill', 1], ['storehouse', 1], ['brickworks', 1], ['stoneMine', 2], ['ironMine', 2],
-      ['archery', 1, { toward: 'enemyHq', d: 10 }], ['alchemist', 1], ['stonemason', 1],
+      ['weatherPlant', 1], ['archery', 1], ['clayMine', 1], ['stoneMine', 1], ['ironMine', 1], ['farm', 2], ['residence', 3], ['sulfurMine', 1],
+      ['smithy', 1], ['storehouse', 1], ['stoneMine', 2], ['ironMine', 2],
     ],
-    research: ['standingArmy', 'gears', 'trade', 'alloys'],
-    upgrades: [['headquarters', 1], ['storehouse', 1], ['villageCenter', 1]],
-    techs: ['leatherMail', 'softLeather', 'masonry', 'chainMail', 'paddedLeather', 'fletching'],
+    research: ['standingArmy', 'gears', 'alloys'],
+    techs: ['leatherMail', 'softLeather', 'masonry', 'chainMail'],
     techGold: 900,
-    army: [['sword', 4], ['bow', 2], ['sword', 6], ['spear', 2], ['sword', 8], ['bow', 3], ['sword', 10], ['spear', 3], ['sword', 12]],
+    army: [['sword', 2], ['bow', 4], ['sword', 6], ['spear', 2], ['sword', 9], ['bow', 5], ['sword', 12]],
     lineUps: ['sword'],
-    lineUpReserve: 0,
     reserve: 300,
     goldWant: 1200,
     tax: 'gold',
-    rally: { toward: 'enemyHq', from: 'humanHq', d: 9 },
-    defend: [],
+    rally: { toward: 'shore', from: 'humanHq', d: 12 },
     militia: true,
-    script(bot) {
-      // Towers first, then the castle; attack once a proper army stands, regroup after a setback
-      const castle = bot.sim.mission.state.refs.castle;
-      if (bot.sim.entities.has(castle)) bot.attack(['castle'], { minStrength: 600, minLeaders: 9, retreat: 30, stage: 17, edge: 1.4, microR: 3, notBefore: 14, needHero: 'bertram' });
-    },
+    script(bot) { scriptThroneLake(bot); },
   },
 };
 
-/** Mission 4: raise troops, cross the ice in winter, beat the guards, bring Hedda home. */
-function scriptIce(bot) {
+/**
+ * Mission 3: through the gorge instead of the gate – post at the gorge (Orrin bribes a squad), over the
+ * ice to the island, guards and weather works, before the thaw to the solid shore, then a hero into the ruins.
+ */
+function scriptWeatherworks(bot) {
   const { sim, m } = bot;
-  const st = m.state;
-  const isle = st.refs.isle;
-  const hedda = st.refs.hedda ? sim.entities.get(st.refs.hedda) : null;
-  bot.useHero = false; // Bertram (and later Hedda) runs the script
-  const bert = bot.heroEntity();
-  if (!bert) return;
-  // Strike force: all troops except one guard for the castle (winter raid)
-  const leaders = bot.leaders.slice().sort((a, b) => a.id - b.id);
-  const strike = leaders.length >= 3 ? leaders.slice(0, -1) : leaders;
-  bot.scriptUnits = new Set(strike.map((L) => L.id));
-  const ids = strike.map((L) => L.id);
-  if (!hedda) {
-    if (!sim.map.frozen) {
-      // Before winter: wait on the shore (dry spot towards the island)
-      bot.shore ??= api.findOpen(sim, ...Object.values(api.toward(bot.home, isle, Math.max(6, api.dist(bot.home, isle) - 12))), { maxR: 6, from: bot.home, frozen: false }) ?? bot.home;
-      if (sim.weather.until - sim.tick < 300 || bot.objective('prepare')?.status === 'done') bot.moveUnits([bert.id, ...ids], bot.shore, 'move', 'shore');
-      return;
+  const st = m.state, refs = st.refs;
+  bot.useHero = false;
+  bot.heroMicro = true;
+  const heroes = bot.heroes.filter((h) => !h.down);
+  const troops = bot.leaders.map((L) => L.id);
+  const all = [...troops, ...heroes.map((h) => h.id)];
+  const ww = sim.entities.get(refs.weatherworks);
+  const isle = refs.isle;
+  const orrin = bot.heroNamed('orrin'), nelia = bot.heroNamed('nelia');
+  const near = (e, p, r) => d2(tile(e), p) < r * r;
+  bot.c3 ??= 'gorge';
+  if (bot.c3 === 'gorge') {
+    // gather in front of the gorge (not past the gate)
+    bot.moveUnits(all, refs.gorgeNear, 'move', 'gorgeNear');
+    const there = all.filter((id) => near(sim.entities.get(id), refs.gorgeNear, 6)).length;
+    if (there * 4 >= all.length * 3) bot.c3 = 'ford';
+  } else if (bot.c3 === 'ford') {
+    // post: Orrin bribes the nearest squad, the others clear the rest
+    const guards = m.idsOf('fordGuards').map((id) => sim.entities.get(id)).filter((e) => e && e.owner === st.bandits);
+    if (orrin && !orrin.down && guards.some((g) => near(g, tile(orrin), 4.5)) && (orrin.ready.bribe ?? 0) <= sim.tick && bot.avail('gold') >= 350) {
+      bot.cmd({ type: 'ability', hero: orrin.id, ability: 'bribe' });
     }
-    // Winter: to the island (attack move), defeat the guards
-    bot.moveUnits([bert.id, ...ids], isle, 'attackMove', 'isle');
-    bot.heroMicro = true;
-    return;
+    if (guards.length) bot.moveUnits(all, refs.gorgeFar, 'attackMove', 'gorgeFar');
+    else bot.c3 = 'isle';
+  } else if (bot.c3 === 'isle') {
+    if (!ww) { bot.c3 = 'escape'; return; }
+    const foesAtIsle = bot.enemies.some((e) => d2(tile(e), isle) < 14 * 14);
+    const close = bot.leaders.some((L) => near(L, isle, 10));
+    if (!close || foesAtIsle) bot.moveUnits(troops, isle, 'attackMove', 'isle');
+    else bot.attackBuilding(troops, ww);
+    // heroes follow the squad a bit behind; encourage on enemy contact
+    const lead = bot.leaders.slice().sort((a, b) => d2(tile(a), isle) - d2(tile(b), isle))[0];
+    const behind = lead ? api.toward(tile(lead), refs.gorgeFar, 3) : refs.gorgeFar;
+    bot.moveUnits(heroes.map((h) => h.id), behind, 'attackMove', `behind${behind.x},${behind.y}`);
+    if (nelia && !nelia.down && (nelia.ready.courage ?? 0) <= sim.tick && bot.leaders.some((L) => near(L, tile(nelia), 6)) && foesAtIsle) {
+      bot.cmd({ type: 'ability', hero: nelia.id, ability: 'courage' });
+    }
+  } else if (bot.c3 === 'escape') {
+    // off the ice: the heroes to the solid shore towards the ruins, the troops right behind
+    bot.moveUnits(heroes.map((h) => h.id), refs.landing, 'move', 'landing');
+    bot.moveUnits(troops, api.toward(refs.landing, isle, -4), 'move', 'landing');
+    if (bot.objective('escape')?.status === 'done') bot.c3 = 'plans';
+  } else if (bot.objective('plans')?.status === 'active') {
+    const h = heroes[0];
+    if (h) bot.moveUnits([h.id], refs.ruinsArea, 'move', 'ruins');
   }
-  // Hedda free: everyone back to the castle
-  bot.heroMicro = false;
-  const home = { x: bot.home.x, y: bot.home.y + 4 };
-  bot.moveUnits([bert.id, hedda.id, ...ids], home, 'move', 'home');
+}
+
+/**
+ * Mission 6: buy weather knowledge, weather power plant, gather army; archers shoot Malvor's power plant from the
+ * shore together, then in winter over the ice to the castle.
+ */
+function scriptThroneLake(bot) {
+  const { sim, m } = bot;
+  bot.payTribute('scholars', 0);
+  // first the weather power plant, then the army (otherwise the troops eat all thalers)
+  bot.armyPlan ??= bot.s.army;
+  bot.s.army = bot.placed.weatherPlant ? bot.armyPlan : [];
+  const castle = m.state.refs.castle;
+  const ready = bot.leaders.length >= 9;
+  const p = sim.players[P];
+  // Malvor's power plant first: as long as it stands, he thaws the lake as soon as we go onto the ice
+  const malvorPlant = sim.entities.get(m.state.refs.malvorPlant);
+  const archers = bot.leaders.filter((L) => UNITS[L.def].line === 'bow').map((L) => L.id);
+  const go = malvorPlant && archers.length >= 4 && bot.leaders.length >= 8;
+  bot.scriptUnits = new Set(go ? archers : []);
+  if (go) {
+    bot.attackBuilding(archers, malvorPlant);
+    // the rest of the army covers the archers at the shore
+    const works = m.state.refs.worksIsle;
+    const cover = api.findOpen(sim, ...Object.values(api.toward(works, bot.home, works.r + 7)), { maxR: 5, from: bot.home }) ?? bot.home;
+    bot.rallyAt = cover;
+  } else bot.rallyAt = null;
+  if (malvorPlant) return;
+  // winter only when the army is ready and energy is there
+  if (ready && sim.weather.state !== 'winter' && (p.weatherEnergy ?? 0) >= 1000) bot.weather('winter');
+  if (sim.weather.state === 'winter' || bot.attacking) {
+    if (sim.entities.has(castle)) bot.attack(['castle'], { minStrength: 0, minLeaders: 6, retreat: 15, needHero: 'nelia' });
+  }
 }
 
 export class MissionBot {
@@ -242,12 +320,23 @@ export class MissionBot {
 
   objective(id) { return this.m.state.objectives.find((o) => o.id === id); }
   heroEntity() { return this.sim.entities.get(this.m.state.refs.hero) ?? null; }
+  /** Own hero with this name (or null). */
+  heroNamed(id) { return [...this.sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === P && e.hero === id) ?? null; }
+  /** Pay the mission tribute if it is open and affordable (like the button in the UI). */
+  payTribute(id, reserve = 0) {
+    const d = this.m.def.tributes?.[id];
+    if (!d || this.m.state.tributes[id] !== 'open' || !this.canAfford(d.cost, reserve)) return false;
+    this.cmd({ type: 'mission', action: 'tribute', id });
+    return true;
+  }
+  /** Position of a conversation figure (or null). */
+  npcAt(id) { const n = this.m.state.npcs[id]; const e = n && this.sim.entities.get(n.entity); return e ? tile(e) : null; }
 
   scan() {
     const sim = this.sim;
     const hq = sim.findBuilding(P, 'headquarters');
     this.hq = hq;
-    this.home = hq ? api.centerOf(hq) : this.home;
+    this.home = hq ? api.centerOf(hq) : this.home ?? sim.starts[P];
     this.buildings = []; this.serfList = []; this.leaders = []; this.heroes = []; this.workers = 0;
     this.enemies = []; this.count = {}; this.placed = {}; this.sites = [];
     for (const e of sim.entities.values()) {
@@ -261,7 +350,7 @@ export class MissionBot {
         else if (e.kind === 'leader') this.leaders.push(e);
         else if (e.kind === 'hero') this.heroes.push(e);
         else if (e.kind === 'worker') this.workers++;
-      } else if (e.owner !== undefined && e.owner >= 0 && e.owner !== P && !sim.allied(P, e.owner) && !sim.players[e.owner]?.defeated) {
+      } else if (e.owner !== undefined && e.owner >= 0 && e.owner !== P && sim.hostile(P, e.owner) && !sim.players[e.owner]?.defeated) {
         if ((FIGHTER.has(e.kind) && !(e.kind === 'hero' && e.down)) || (e.kind === 'unit' && e.militia)) this.enemies.push(e);
       }
     }
@@ -269,7 +358,7 @@ export class MissionBot {
     this.danger = [];
     for (const c of this.m.state.camps) if (c.guards.some((id) => sim.entities.has(id))) this.danger.push({ x: c.x, y: c.y, r: c.r + 6 });
     for (const p of sim.players) {
-      if (p.id === P || p.neutral || p.defeated || sim.allied(P, p.id)) continue;
+      if (p.id === P || p.neutral || p.defeated || !sim.hostile(P, p.id)) continue;
       const ehq = sim.findBuilding(p.id, 'headquarters');
       if (ehq) this.danger.push({ ...api.centerOf(ehq), r: 26 });
     }
@@ -309,7 +398,8 @@ export class MissionBot {
   update() {
     if (this.sim.tick % this.think !== 0 || this.m.state.result) return;
     this.scan();
-    if (!this.hq) return;
+    // without a castle (command mission): only the mission script and the hero abilities
+    if (!this.hq) { if (!this.passive) { this.s.script?.(this); this.micro(); this.abilities(); } return; }
     this.reserved = new Set();
     this.economy();
     if (!this.passive) {
@@ -658,6 +748,7 @@ export class MissionBot {
   }
 
   rallyPoint() {
+    if (this.rallyAt) return this.rallyAt; // set by the mission script
     const r = this.s.rally;
     if (r) {
       const from = this.m.pointOf(this.sim, r.from) ?? this.home;
@@ -743,8 +834,8 @@ export class MissionBot {
             if (there >= units.length * 0.7 || sim.tick - this.attacking.since > 90 * T) {
               this.attacking.phase = 'strike';
               this.attacking.stagePt = stage;
-              // Aura of strength at the rally point: lasts 60 s, enough for the assault
-              for (const h of hero) if (h.hero === 'bertram' && (h.ready.might ?? 0) <= sim.tick) this.cmd({ type: 'ability', hero: h.id, ability: 'might' });
+              // encourage at the rally point: lasts 60 s, enough for the assault
+              for (const h of hero) if (h.hero === 'nelia' && (h.ready.courage ?? 0) <= sim.tick) this.cmd({ type: 'ability', hero: h.id, ability: 'courage' });
             }
           } else if (ent?.kind === 'building') {
               // attack the building specifically; enemies nearby are handled by micro()
@@ -823,18 +914,20 @@ export class MissionBot {
     const p = tile(h);
     const near = (r) => this.enemies.filter((e) => e.kind !== 'hero' && d2(tile(e), p) <= r * r).length;
     const ready = (ab) => (h.ready[ab] ?? 0) <= sim.tick;
-    if (h.hero === 'bertram') {
-      // Aura of strength also when storming a building (double attack for all troops nearby)
+    const hurt = () => [...this.leaders, ...this.heroes].filter((e) => d2(tile(e), p) < 36 && e.hp < (e.kind === 'hero' ? HEROES[e.hero].hp : UNITS[e.def].hp) * 0.6).length;
+    if (h.hero === 'nelia') {
+      // encourage also when storming a building (double attack for all troops nearby)
       const siege = this.attacking?.phase === 'strike' && this.attacking.target && d2(this.attacking.target, p) < 10 * 10
         && this.leaders.filter((L) => d2(tile(L), p) < 36).length >= 4;
-      if (ready('might') && (near(3) >= 2 || siege)) this.cmd({ type: 'ability', hero: h.id, ability: 'might' });
-      else if (ready('whirl') && near(2.5) >= 2) this.cmd({ type: 'ability', hero: h.id, ability: 'whirl' });
-    } else if (h.hero === 'hedda') {
-      const hurt = [...this.leaders, ...this.heroes].filter((e) => d2(tile(e), p) < 36 && e.hp < (e.kind === 'hero' ? HEROES[e.hero].hp : UNITS[e.def].hp) * 0.6).length;
-      // Also for a single wounded hero (otherwise Bertram never heals and the assault waits for him)
+      if (ready('courage') && (near(3) >= 2 || siege)) this.cmd({ type: 'ability', hero: h.id, ability: 'courage' });
+    } else if (h.hero === 'taran') {
+      if (ready('shieldBash') && near(2.5) >= 2) this.cmd({ type: 'ability', hero: h.id, ability: 'shieldBash' });
+      else if (ready('intimidate') && near(4) >= 4) this.cmd({ type: 'ability', hero: h.id, ability: 'intimidate' });
+    } else if (h.hero === 'orrin') {
+      // also for a single battered hero (otherwise Nelia never heals and the assault waits for her)
       const heroLow = this.heroes.some((e) => !e.down && d2(tile(e), p) < 36 && e.hp * 2 < HEROES[e.hero].hp);
-      if (ready('heal') && (hurt >= 2 || heroLow)) this.cmd({ type: 'ability', hero: h.id, ability: 'heal' });
-      else if (ready('trap') && near(4) >= 2) this.cmd({ type: 'ability', hero: h.id, ability: 'trap' });
+      if (ready('salve') && (hurt() >= 2 || heroLow)) this.cmd({ type: 'ability', hero: h.id, ability: 'salve' });
+      else if (ready('bribe') && near(4) >= 1 && this.avail('gold') >= 900) this.cmd({ type: 'ability', hero: h.id, ability: 'bribe' });
     }
   }
 
@@ -851,7 +944,7 @@ export class MissionBot {
 // ---------------------------------------------------------------------------------------------
 
 /** Time limits per mission (game minutes) – guideline for balancing. */
-export const TIME_LIMITS = { c1: 20, c2: 30, c3: 40, c4: 40, c5: 60 };
+export const TIME_LIMITS = { c1: 20, c2: 30, c3: 20, c4: 40, c5: 40, c6: 60 };
 
 /**
  * Play a mission headless.

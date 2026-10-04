@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Campaign matrix: plays every mission with the test bot (tests/sim/missionBot.js) on several
 // maps headless and prints a table (victory, duration, objective times, army, losses).
-// Plus control runs with a passive bot (economy only) that must lose missions 2 and 5.
+// Also control runs with a passive bot (economy only) that must lose missions 5 and 6.
 //
 //   node scripts/campaign-matrix.js                 # all missions, 4 maps, plus control runs
 //   node scripts/campaign-matrix.js c3 c4           # only these missions
@@ -14,8 +14,8 @@
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import os from 'node:os';
 
-const MISSIONS = ['c1', 'c2', 'c3', 'c4', 'c5'];
-const PASSIVE_MUST_LOSE = ['c2', 'c5'];
+const MISSIONS = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
+const PASSIVE_MUST_LOSE = ['c5', 'c6']; // c5: does not win (timeout counts), c6: castle falls
 
 if (!isMainThread) {
   const { playMission } = await import('../tests/sim/missionBot.js');
@@ -70,7 +70,7 @@ if (!isMainThread) {
         + pad(r.maxArmy, 6) + pad(`${l.leaders}/${l.soldiers}/${l.serfs + l.workers}/${l.buildings}`, 21) + objs + (r.warnings.length ? `  WARN ${r.warnings.join('; ')}` : ''));
     }
     console.log(`\n${results.length} runs in ${((Date.now() - t0) / 1000).toFixed(0)} s, ${bad ? `${bad} outside the targets` : 'all within the targets'}.`);
-    console.log('Losses: C = captains, S = soldiers, W = serfs + workers, B = buildings. The active bot must win within the time limit, the passive bot must lose c2/c5.');
+    console.log('Losses: C = captains, S = soldiers, W = serfs + workers, B = buildings. The active bot must win within the time limit, the passive bot must lose c5/c6.');
     process.exitCode = bad ? 1 : 0;
   }
 }

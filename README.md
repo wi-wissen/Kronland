@@ -35,38 +35,42 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
 | 4 | Militär, Kampf, Türme, Helden, Wetter, Siegbedingung | fertig |
 | 5 | Computergegner (Leicht, Normal, Schwer) | fertig |
 | 6 | CC0-Modelle (KayKit), Startmenü, Speichern/Laden, PWA, CI | fertig |
-| 7 | Missionssystem, Tutorial, Kampagne mit 5 Missionen | fertig |
+| 7 | Missionssystem, Tutorial, Kampagne mit 6 Missionen | fertig |
 | 8 | Gebäude-Technologien, Marktplatz, Wetterturm/-kraftwerk, Erfahrung, Brand/Reparatur/Ruinen | fertig |
 | 9 | Nebel des Krieges (unerkundet/erkundet/sichtbar, zuletzt gesehene Gebäude, faire KI) | fertig |
-| 10 | Erweiterungsinhalte: Wirtshaus, Dieb, Kundschafter, verborgene Lagerstätten, Brücken, Büchsenschützen, Helden Falk/Morla, Brunnen/Denkmal | fertig |
+| 10 | Erweiterungsinhalte: Brücken, Brunnen, Denkmal (Wirtshaus, Dieb, Kundschafter, Büchsenschützen wieder entfernt) | fertig |
 | 11 | Website: Startseite, Spiel unter `play/`, Handbuch, Kompendium aus den Spieldaten | fertig |
 | 12 | Python-Skripte (eigene VM), Lernabenteuer mit Debugger, Skript-Missionen, Welteneditor | fertig |
+| 13 | Kampagne „Krone aus Eis“: Helden Nelia, Orrin, Taran, Malvor, mehrere Helden je Spieler, Diplomatie, Dörfer, Gesprächsfiguren, Tribute | fertig |
 
 ## Spielen
 
-- **Tutorial**: Ottilie führt in 18 Schritten durch Leibeigene, Bauen, Arbeiter, Forschung und Kampf.
-- **Kampagne** „Die Rückkehr der Krone“: fünf Kapitel mit Briefing, Haupt- und Nebenzielen,
-  Räubern, Wetter und einem Endkampf gegen Fürst Morwald. Fortschritt und Bestzeiten speichert der Browser.
-  Direktstart: `play/?mission=c1` … `play/?mission=c5`, `play/?mission=tutorial`.
-- **Programmier-Abenteuer**: Bertram mit Python steuern – fünf Lernabenteuer (Schleifen, Bedingungen, Funktionen,
+- **Tutorial**: Der Händler Orrin führt Nelia in 18 Schritten durch Leibeigene, Bauen, Arbeiter, Forschung und Kampf.
+- **Kampagne** „Krone aus Eis“: sechs Karten in drei Akten (Winter, Krieg, Wissen). Die Leibeigenentochter Nelia
+  sammelt mit dem Händler Orrin die fünf Zacken der zerbrochenen Krone, zerstört Malvors Wetterwerk, gewinnt
+  Hauptmann Taran und stürmt das Inselschloss über den gefrorenen See. Kaufen oder Kämpfen (Tribute), Dörfer
+  (Diplomatie), Gesprächsfiguren. Story und Mechanik: [Kampagne](docs/KAMPAGNE.md). Fortschritt und Bestzeiten
+  speichert der Browser. Direktstart: `play/?mission=c1` … `play/?mission=c6`, `play/?mission=tutorial`.
+- **Programmier-Abenteuer**: Nelia mit Python steuern – fünf Lernabenteuer (Schleifen, Bedingungen, Funktionen,
   Listen), Code-Panel mit Einzelschritt, Haltepunkten und Variablenansicht, Fehlermeldungen mit Vorschlag.
   Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Orte, Missionen programmieren,
   Welt aus Code erzeugen, als JSON speichern, testspielen) und eigene Szenario-Dateien.
   Direktstart: `play/?mission=adv1` … `adv5`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
-- **Freies Spiel**: Im Startmenü Gegnerzahl (1–3), Stärke, Helden, Nebel des Krieges an/aus und Karte wählen.
-- Direktstart per Adresse: `play/?seed=42&ai=hard&players=3&hero=hedda` (ohne Nebel: `&fog=off`)
-- **Erweiterungsinhalte** nach Vorbild der Siedler-5-Erweiterungen, im freien Spiel fest dabei (kein Schalter): Wirtshaus mit Dieb (unsichtbar,
-  stiehlt, Sprengladungen) und Kundschafter (Fackel, Rohstoffsuche), verborgene Lagerstätten, Brücken an
-  Brückenstellen, Büchsenschützen, Helden Falk und Morla, Brunnen und Denkmal. Die KI nutzt sie und wehrt Diebe mit
-  Türmen ab. Details: [Erweiterung](docs/ADDON.md), [Spielregeln §13](docs/SPIELREGELN.md#13-erweiterungsinhalte).
+- **Freies Spiel**: Im Startmenü Gegnerzahl (1–3), Stärke, Held (Nelia, Orrin, Taran oder Malvor), Nebel des Krieges an/aus und Karte wählen.
+- Direktstart per Adresse: `play/?seed=42&ai=hard&players=3&hero=orrin` (ohne Nebel: `&fog=off`)
+- **Brücken und Zierden** nach Vorbild der Siedler-5-Erweiterungen, fest im Spiel: Brücken an Brückenstellen über
+  Flüsse (Mathematik), Brunnen und Denkmal für mehr Motivation. Die KI baut sie auch. Details:
+  [Erweiterung](docs/ADDON.md), [Spielregeln §13](docs/SPIELREGELN.md#13-brücken-und-zierden).
 - **Nebel des Krieges** wie im Original: Unerkundetes ist schwarz, Erkundetes abgedunkelt mit dem zuletzt
   gesehenen Stand feindlicher Gebäude, Feinde sieht man nur in Sichtweite. Die KI schummelt nicht.
   Sichtweiten und Regeln: [Spielregeln §12](docs/SPIELREGELN.md#12-sicht-und-nebel-des-krieges).
 - Grafikstufe: automatisch (Handy/ohne Grafikkarte niedrig, Desktop hoch), erzwingbar per `?quality=low|medium|high`
   (wird gemerkt; im Code: `setQuality()` aus `src/render/quality.js`). Objekte werden je nach Abstand/Zoom
-  vereinfacht (Detailstufen), Figuren sind instanziert und GPU-animiert. Figuren haben zwei Darstellungen:
+  vereinfacht (Detailstufen; Figuren und Bäume nach ihrer Größe auf dem Bildschirm, kleine Deko schrumpft in der
+  Ferne in den Boden und wird dann gar nicht mehr gezeichnet), Figuren sind instanziert und GPU-animiert. Figuren haben zwei Darstellungen:
   ein detailliertes Nahmodell beim Heranzoomen und ein flach gefärbtes, gut lesbares Spielmodell, umgeschaltet
-  nach ihrer Bildschirmhöhe mit kurzer Überblendung – Details in [Modelle](docs/MODELLE.md).
+  nach ihrer Bildschirmhöhe mit kurzer Überblendung – Details in [Modelle](docs/MODELLE.md). Der Boden ist gemalt
+  (sechs nahtlose Texturen aus der Bild-KI, [Bodentexturen](docs/BODEN.md)), mit Rückfall auf im Code gemalte Texturen.
 - Kamera wie ein Kartenprogramm: Ziehen (mittlere Maustaste, ein Finger) greift den Boden, Mausrad und
   Zwei-Finger-Zoom zoomen zum Zeiger bzw. zur Fingermitte, nichts gleitet oder wippt nach.
 - Nahzoom bis dicht an Figuren und Gebäude; ganz nah wird der Blick flacher, Figuren und Gebäude bleiben in
@@ -107,7 +111,6 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
 
 ```bash
 node scripts/ai-match.js 1 60 hard easy   # Seed, Minuten, Stärke Spieler 1 und 2
-node scripts/ai-match.js 1 60 hard easy --addon   # mit Erweiterungsinhalten
 ```
 
 Veredler-Leistung je Motivation und Haus/Hof nachmessen (Abgleich mit dem Vorbild, siehe [Spielregeln §4](docs/SPIELREGELN.md#4-arbeiter-motivation-steuern)):
@@ -154,6 +157,7 @@ Die bunten Symbole (Rohstoffe, Gebäude, Einheiten …) stammen aus einem Sprite
 - [Modelle, Figuren, Detailstufen](docs/MODELLE.md)
 - [Figurenstil und Prompts (Pipeline)](docs/STIL.md)
 - [Symbole aus dem Bildmodell (Atlas, Prompts, Neuerzeugung)](docs/SYMBOLE.md)
+- [Bodentexturen aus der Bild-KI (Erzeugen, Nahtlos, Farbabgleich)](docs/BODEN.md)
 - [Stilreferenz für Figuren und Symbole](docs/STILREFERENZ.md)
 - [Ton: Effekte, Musik, eigene Audiodateien](docs/AUDIO.md)
 - [Entwicklermodus: was man zeigen kann, Unterrichtsideen](docs/ENTWICKLERMODUS.md)

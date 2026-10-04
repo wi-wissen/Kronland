@@ -15,6 +15,7 @@
       <div class="ed-actions">
         <button v-tip="$t('editor.undo')" class="icon-btn" :disabled="!ui?.canUndo" data-testid="editor-undo" @click="view.undo()">↶</button>
         <button v-tip="$t('editor.redo')" class="icon-btn" :disabled="!ui?.canRedo" data-testid="editor-redo" @click="view.redo()">↷</button>
+        <button v-tip="$t('script.gridTip')" class="icon-btn ed-grid" :class="{ on: grid }" :aria-pressed="grid" :aria-label="$t('script.grid')" data-testid="editor-grid" @click="toggleGrid">#</button>
         <button data-testid="editor-new" @click="newOpen = true"><Icon name="plus" /><span class="ed-lbl">{{ $t('editor.new') }}</span></button>
         <label class="ed-file-btn" data-testid="editor-open"><Icon name="load" /><span class="ed-lbl">{{ $t('editor.open') }}</span><input type="file" accept=".json,application/json" @change="openFile"></label>
         <button data-testid="editor-save" @click="save"><Icon name="save" /><span class="ed-lbl">{{ $t('editor.save') }}</span></button>
@@ -182,6 +183,7 @@ import { EditorView } from '../../game/EditorView.js';
 import { emptyScenario, validateScenario } from '../../sim/scripting/scenario.js';
 import { SCENARIOS } from '../../sim/missions/scenarios/index.js';
 import { RESOURCES } from '../../sim/data/resources.js';
+import { HERO_IDS } from '../../sim/data/units.js';
 import { loadAssets } from '../../render/assets.js';
 import { scriptErrorText } from '../../i18n/index.js';
 
@@ -221,10 +223,10 @@ export default {
   data() {
     return {
       scenario: normalize(this.initial ?? loadDraft() ?? emptyScenario({ size: 32 })),
-      ui: null, view: null, loading: true, tab: 'scenario', sideOpen: false,
+      ui: null, view: null, loading: true, tab: 'scenario', sideOpen: false, grid: false,
       newOpen: false, newBase: 'flat', newSize: 32, newSeed: 42,
       placeDraft: null, newTextKey: '', message: '',
-      compact: false, tools: TOOLS, resources: RESOURCES, heroes: ['bertram', 'hedda', 'gerold'], examples: SCENARIOS,
+      compact: false, tools: TOOLS, resources: RESOURCES, heroes: HERO_IDS, examples: SCENARIOS,
     };
   },
   computed: {
@@ -263,6 +265,7 @@ export default {
     if (window.__kronlandEditor === this.view) window.__kronlandEditor = null;
   },
   methods: {
+    toggleGrid() { this.grid = !this.grid; this.view?.setGrid(this.grid); },
     /** Scenario as a plain object (without Vue proxies). */
     plainScenario() { return JSON.parse(JSON.stringify(this.scenario)); },
     /** Complete scenario with map. */
@@ -324,7 +327,7 @@ export default {
       if (s) s.code = s.code.replace(/\n*$/, '\n') + text + '\n';
     },
     addPlayer(kind) {
-      this.scenario.players.push(kind === 'bandits' ? { kind: 'bandits' } : { kind: 'ai', hero: 'gerold', hq: true, difficulty: 'normal' });
+      this.scenario.players.push(kind === 'bandits' ? { kind: 'bandits' } : { kind: 'ai', hero: 'malvor', hq: true, difficulty: 'normal' });
       this.rebuild();
     },
     removePlayer(i) { this.scenario.players.splice(i, 1); this.rebuild(); },
@@ -340,7 +343,7 @@ export default {
       if (this.newBase === 'generate') {
         s.world = { base: 'generate', seed: this.newSeed || 1, size: this.newSize, fog: true, places: {} };
         s.kind = 'mission';
-        s.players = [{ kind: 'human', hero: 'bertram', hq: true }];
+        s.players = [{ kind: 'human', hero: 'nelia', hq: true }];
         s.sections = s.sections.filter((x) => x.level === 'mission');
       }
       this.scenario = s;
@@ -414,6 +417,8 @@ export default {
 .ed-loading { display: grid; place-items: center; z-index: 50; }
 .ed-loading-card { padding: 1rem 1.5rem; }
 .ed-top { position: absolute; z-index: 5; top: calc(0.5rem + var(--safe-t)); left: calc(0.5rem + var(--safe-l)); right: calc(0.5rem + var(--safe-r)); display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.5rem; }
+.ed-grid { font: 800 1rem/1 ui-monospace, Menlo, monospace; }
+.ed-grid.on { color: var(--gold-100); box-shadow: inset 0 0 0 2px var(--gold-300); }
 .ed-title { flex: 1; min-width: 6rem; font-family: var(--display); font-size: var(--fs-lg); background: transparent; border-color: transparent; color: var(--gold-200); box-shadow: none; }
 .ed-title:hover, .ed-title:focus-visible { background: var(--inset-bg); border-color: var(--wood-950); }
 .ed-actions { display: flex; gap: 0.375rem; align-items: center; }

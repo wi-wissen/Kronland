@@ -5,8 +5,8 @@ techniques and defend your castle against computer opponents. It runs in the bro
 mouse and keyboard, on tablets and phones with touch.
 
 1. Open [Play](play/). On first start the game loads its 3D models; depending on your connection this takes a few seconds.
-2. If you are new, choose the **Tutorial** in the **main menu**. Ottilie walks you through the basics step by step.
-3. After that, try the **campaign** “The Return of the Crown” or a **free game** against computer opponents on a random map.
+2. If you are new, choose the **Tutorial** in the **main menu**. The merchant Orrin walks you through the basics step by step.
+3. After that, try the **campaign** “Crown of Ice” or a **free game** against computer opponents on a random map.
 
 You begin with a **castle**, {{startSerfs}} **serfs**, a hero and a small stock:
 
@@ -255,35 +255,19 @@ Trigger abilities with the buttons in the panel or [[1]] / [[2]]; afterwards the
 
 ![Captains with their troops and the hero in battle](site/combat.webp)
 
-## Tavern, thief and scout {#spezialisten}
-
-Not every battle is fought with swords. Once you have researched **Education** you can build a **tavern** and hire
-two special figures there – at most {{specialistMax}} of each, and each needs one population slot.
-
-| Figure | Cost | Strengths |
-|---|---|---|
-| **Thief** | {{thiefCost}} | **invisible** to enemies, fast, does not fight |
-| **Scout** | {{scoutCost}} | sees very far, spots enemy thieves nearby |
-
-Select them like troops; their abilities are in the panel at the bottom (keys [[1]] and [[2]]).
-
-- **Steal:** Send the thief to an enemy's castle, storehouse or village centre. After a short while he carries
-  thalers and resources back to your castle – if he dies on the way, the loot is lost. Then he needs a
-  {{stealSec}} s break.
-- **Explosive charge:** The thief plants a charge on an enemy building that goes off shortly after. Bridges
-  collapse especially easily.
-- **Torch:** The scout lights up a circle in the fog of war for a while.
-- **Find resources:** Every map hides **hidden deposits** (iron, sulfur, stone, clay). Only a scout uncovers them –
-  afterwards they are normal resource piles.
-
-> **Protection from thieves:** A thief becomes visible when he comes closer than {{detectTower}} tiles to one of
-> your **towers** or {{detectScout}} tiles to one of your **scouts**. Then your troops can attack him.
+## Bridges and ornaments {#bridges}
 
 ### Bridges
 
 Rivers divide the map – at some places you can build a **bridge**. The **Mathematics** technology (stonemason's
 hut) unlocks it; the build menu then shows the possible bridge sites. Finished bridges are used by everyone,
-including the enemy. If a bridge is destroyed, whoever stands on it drowns.
+including the enemy. If a bridge is destroyed, whoever is standing on it drowns.
+
+### Fountain and monument
+
+Two ornamental buildings raise your workers' **maximum motivation**: the **fountain** (from {{fountainTech}}) by
+{{fountainMot}} percentage points, the **monument** (from {{statueTech}}) by {{statueMot}} percentage points. Several ornaments add up,
+to the limit of {{hardMaxMotivation}} %.
 
 ## Weather {#weather}
 
@@ -342,13 +326,17 @@ demolished later. Cliffs and peaks can never be built on.
 The **tutorial** explains serfs, building, workers, research and combat in small steps. It waits until you
 have done each step; “Next” and “Skip” help if you already know it.
 
-The **campaign** “The Return of the Crown” tells its story in {{campaignCount}} chapters:
+The **campaign** “Crown of Ice” tells its story in {{campaignCount}} chapters:
 
 {{campaignList}}
 
 Every chapter begins with a **briefing** and has **main objectives** (must be met) and **side objectives**
 (reward, glory). Objectives are always shown at the top left. Winning a chapter unlocks the next; progress and
 best times are stored by your browser.
+In many chapters you lead **several heroes** (Nelia, Orrin, later Taran). Figures with an **exclamation mark**
+want to talk – send the right hero over. **Offers** lists tributes: paying buys a shard free or hires mercenaries,
+for example. Two offers for the same thing are a choice – once you pay, the other one disappears. **Villages** can
+be allied, neutral or hostile; deliveries win them back.
 
 ## Free game and settings {#free-play}
 
@@ -366,7 +354,7 @@ Whoever destroys all enemy castles wins.
 Medium, High), volumes for music and effects, interface size, edge scrolling and help texts.
 
 > **For advanced players:** the game can be started directly via its address, e.g.
-> `play/?seed=42&ai=hard&players=3&hero=hedda`, `&fog=off` without fog, `?mission=c1` for a campaign chapter
+> `play/?seed=42&ai=hard&players=3&hero=orrin`, `&fog=off` without fog, `?mission=c1` for a campaign chapter
 > or `?quality=low` for weak devices.
 
 ### Installing on your phone

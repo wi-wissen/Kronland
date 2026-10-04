@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { newSim, quickBuild, hqOf, runUntil, serfsOf } from './helpers.js';
+import { Sim } from '../../src/sim/sim.js';
 import { UNITS, fullCost } from '../../src/sim/data/units.js';
 import { WATER } from '../../src/sim/map.js';
 import { BALANCE } from '../../src/sim/data/balance.js';
+import * as api from '../../src/sim/missions/setupApi.js';
 
 /** Free tile near the map centre with room to the right. */
 function openField(sim) {
@@ -123,6 +125,25 @@ describe('Combat', () => {
     expect(alive(sim, L)).toBe(false);
   });
 
+  it('ranged units shoot a building across the water from the shore, melee units cannot get there', () => {
+    const sim = newSim(4);
+    const f = openField(sim);
+    const t = sim.createBuilding(1, 'residence', f.x + 12, f.y - 1, true);
+    const c = api.centerOf(t);
+    expect(api.moat(sim, c, f, { inner: 3, width: 2 })).not.toBeNull();
+    const hp0 = t.hp;
+    const bows = sim.spawnLeader(0, 'bow1', f.x, f.y);
+    const swords = sim.spawnLeader(0, 'sword1', f.x, f.y + 2);
+    sim.step([{ type: 'order', player: 0, units: [bows.id, swords.id], order: 'attack', target: t.id }]);
+    sim.run(900);
+    expect(t.hp).toBeLessThan(hp0);
+    // the shooters stand at the shore, nobody in the water
+    for (const id of [bows.id, ...bows.soldiers]) {
+      const e = sim.entities.get(id);
+      if (e) expect(sim.map.flags[sim.map.idx(Math.floor(e.px / 1000), Math.floor(e.py / 1000))] & WATER).toBe(0);
+    }
+  });
+
   it('castle destroyed: player is eliminated, the other wins', () => {
     const sim = newSim();
     const hq1 = hqOf(sim, 1);
@@ -153,8 +174,8 @@ describe('Heroes', () => {
 
   it('every player starts with a hero', () => {
     const sim = newSim();
-    expect(heroOf(sim, 0)?.hero).toBe('bertram');
-    expect(heroOf(sim, 1)?.hero).toBe('hedda');
+    expect(heroOf(sim, 0)?.hero).toBe('nelia');
+    expect(heroOf(sim, 1)?.hero).toBe('orrin');
   });
 
   it('defeated heroes fall unconscious and get up again after 10 s', () => {
@@ -175,25 +196,25 @@ describe('Heroes', () => {
   });
 
   it('shield bash hits enemies in the vicinity, then cooldown', () => {
-    const sim = newSim();
+    const sim = new Sim({ seed: 42, heroes: ['taran', 'orrin'] });
     const h = heroOf(sim, 0);
     const f = openField(sim);
     h.px = f.x * 1000 + 500; h.py = f.y * 1000 + 500;
     const L = sim.spawnLeader(1, 'sword1', f.x + 1, f.y, 4);
     const hp0 = L.soldiers.map((id) => sim.entities.get(id).hp);
-    sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'whirl' }]);
+    sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'shieldBash' }]);
     const hits = L.soldiers.filter((id, i) => sim.entities.get(id).hp < hp0[i]).length;
     expect(hits).toBeGreaterThan(0);
-    const ev = sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'whirl' }]);
+    const ev = sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'shieldBash' }]);
     expect(ev.find((e) => e.type === 'rejected')?.reason).toBe('err.notReady');
   });
 
-  it('Heilen stellt Lebenspunkte eigener Truppen her', () => {
+  it('healing salve restores hit points of own troops', () => {
     const sim = newSim();
     const h = heroOf(sim, 1);
     const L = sim.spawnLeader(1, 'sword1', Math.floor(h.px / 1000) + 1, Math.floor(h.py / 1000), 0);
     L.hp = 50;
-    sim.step([{ type: 'ability', player: 1, hero: h.id, ability: 'heal' }]);
+    sim.step([{ type: 'ability', player: 1, hero: h.id, ability: 'salve' }]);
     expect(L.hp).toBe(UNITS.sword1.hp);
   });
 });

@@ -11,7 +11,6 @@ import { MARKET } from '../../sim/data/market.js';
 import { DAMAGE } from '../../sim/systems/damage.js';
 import { CAMPAIGN } from '../../sim/missions/registry.js';
 import { ADVENTURES, SCRIPT_MISSIONS } from '../../sim/missions/scenarios/index.js';
-import { SPECIALISTS, ADDON } from '../../sim/data/addon.js';
 import { t, tr, heroName, has } from '../../i18n/index.js';
 
 const named = (key, fallback, lang) => (has(key) ? t(key, null, lang) : (fallback ?? key));
@@ -83,14 +82,12 @@ export function manualVars(lang, credits = '') {
       const u = Object.values(UNITS).filter((x) => x.line === ln).sort((a, b) => (a.tier ?? 0) - (b.tier ?? 0))[0];
       return `${named(`line.${ln}`, LINES[ln]?.name ?? ln, lang)} ${u.pop ?? 1}`;
     }).join(', '),
+    // Fountain and monument (src/sim/data/buildings.js)
+    fountainMot: BUILDINGS.fountain.motivationEffect,
+    statueMot: BUILDINGS.statue.motivationEffect,
+    fountainTech: named(`tech.${BUILDINGS.fountain.requires}`, BUILDINGS.fountain.requires, lang),
+    statueTech: named(`tech.${BUILDINGS.statue.requires}`, BUILDINGS.statue.requires, lang),
     campaignList: CAMPAIGN.map((m, i) => `${i + 1}. **${tr(m.title, lang)}**`).join('\n'),
-    // Tavern: thief and scout (src/sim/data/addon.js)
-    thiefCost: costText(SPECIALISTS.thief.cost, lang),
-    scoutCost: costText(SPECIALISTS.scout.cost, lang),
-    specialistMax: SPECIALISTS.thief.max,
-    stealSec: SPECIALISTS.thief.abilities.steal.cooldown / 10,
-    detectTower: ADDON.detect.buildings.tower,
-    detectScout: ADDON.detect.scout,
     // Coding adventures (src/sim/missions/scenarios)
     adventureList: ADVENTURES.map((a, i) => `${i + 1}. **${tr(a.title, lang)}** – ${tr(a.summary, lang)}${a.learn ? ` *(${tr(a.learn, lang).join(', ')})*` : ''}`).join('\n'),
     scriptMissions: SCRIPT_MISSIONS.map((m) => `„${tr(m.title, lang)}“`).join(', '),

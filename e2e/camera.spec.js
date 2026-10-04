@@ -218,3 +218,29 @@ test('Very close to the castle: camera stays outside, from every direction', asy
   await page.screenshot({ path: `test-results/castle-near-${info.project.name}.png` });
   expect(errors).toEqual([]);
 });
+
+test('Nature LOD levels: trees at game height not only far form, far away no invisible decoration', async ({ page }, info) => {
+  const errors = await boot(page);
+  await page.waitForFunction(() => !!window.__kronland.renderer.treeGroups);
+  const at = async (d) => {
+    await page.evaluate((d) => { window.__kronland.renderer.rig.dist = d; }, d);
+    await page.waitForTimeout(600);
+    return page.evaluate(() => new Promise((res) => requestAnimationFrame(() => {
+      const r = window.__kronland.renderer, cam = r.camera, fade = r.natureUniforms.uFade.value.y;
+      // small decoration in chunks that lie entirely beyond the end of shrinking (invisible there)
+      let hidden = 0;
+      for (const ci of r.chunked) if (ci.kind === 'scatterSmall') for (const c of ci.chunks) {
+        if (c.lod.level >= 0 && r.frustum.intersectsSphere(c.sphere) && c.sphere.center.distanceTo(cam.position) - c.sphere.radius > fade) hidden += c.n;
+      }
+      res({ tree: r.lodStats().lod.tree ?? [], hidden });
+    })));
+  };
+  // E2E runs on "low" (software WebGL): trees there have [simple, far]. At game height the near
+  // trees are simple instead of all far form (formerly on mobile in portrait almost always far form)
+  const play = await at(28);
+  expect(play.tree[0] ?? 0).toBeGreaterThan(0);
+  await page.screenshot({ path: `test-results/nature-gameheight-${info.project.name}.png` });
+  // at every zoom level: no decoration chunks that lie entirely beyond the end of shrinking
+  for (const d of [22, 40, 55, 75]) expect((await at(d)).hidden, `Zoom ${d}`).toBe(0);
+  expect(errors).toEqual([]);
+});

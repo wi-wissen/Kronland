@@ -69,12 +69,11 @@ docs/         Spielregeln und Architektur
 8. **Bewegung** (`sim/systems/movement.js`): Jeder Teilschritt geht höchstens in eine Nachbarkachel, diagonal
    nur ohne Eckenschneiden (`canStep`, gleiche Regel wie A*); `moveAlong` verwirft unzulässige Pfade.
    `unstickAll()` setzt zu Beginn jedes Takts Figuren auf gesperrten Kacheln auf die nächste freie Kachel.
-9. **Erweiterungsinhalte** (`sim/systems/addon.js`, Daten `sim/data/addon.js`, Übersicht [ADDON.md](ADDON.md)):
-   nur mit `sim.addon`. Neue Entities `specialist`, `charge`, `torch`, `cloud`, `deposit`; Unsichtbarkeit über das
-   Feld `hidden` (in `canSee` und `targetable` ausgewertet) und `seenBy` (Teams, die entdecken; `systems/hidden.js`,
-   auch in `nearestEnemy`); Brücken setzen das Kartenbit `BRIDGE` (begehbar trotz Wasser, Gebiete und Wegsuche
-   übernehmen das automatisch), werden nicht eingeebnet, ihre Brückenköpfe sind `RESERVED`.
-   Oberfläche: `game/addonUi.js`, KI: `ai/addonAi.js`.
+9. **Brücken** (`sim/systems/bridges.js`, Daten `sim/data/bridges.js`, Übersicht [ADDON.md](ADDON.md)): Die
+   Kartenerzeugung legt Brückenstellen über Flüsse (`sim.bridgeSites`), ihre Brückenköpfe sind `RESERVED`. Eine
+   fertige Brücke setzt das Kartenbit `BRIDGE` (begehbar trotz Wasser, Gebiete und Wegsuche übernehmen das
+   automatisch) und wird nicht eingeebnet; stürzt sie ein, ertrinkt, wer darauf steht. Brunnen und Denkmal sind
+   gewöhnliche Ziergebäude (`motivationEffect`).
 10. **Gelände** (`sim/systems/terrain.js`): `createBuilding` ebnet die Grundfläche in `map.heights` ein
    (`levelSite`, gerundeter Mittelwert, 1 Kachel Übergangsrand, Flags bleiben), zählt `map.heightVersion` hoch und
    meldet `terrainChanged` (Rechteck). `padPreview()` liefert der Bauvorschau Zielhöhe und Abweichung, ohne etwas
@@ -85,10 +84,12 @@ docs/         Spielregeln und Architektur
 | Datei | Aufgabe |
 |---|---|
 | `Renderer.js` | liest den Zustand, ordnet Entities Darstellungen zu, Ereignisse (Schüsse, Zerstörung, Bau fertig) |
-| `lod.js` | Detailstufen nach Abstand/Sichtfeld mit Hysterese, Chunk-Raster mit Sichtprüfung für Instanzen |
+| `grid.js` | Kachelraster (`Renderer.setGrid`): Linien folgen dem Boden, jede fünfte kräftig; `overviewDist` für die Übersicht kleiner Karten |
+| `lod.js` | Detailstufen nach Abstand/Sichtfeld bzw. Bildschirmhöhe mit Hysterese, Chunk-Raster mit Sichtprüfung für Instanzen |
 | `characters.js` | Figuren aus `manifest.json`, gebackene Animationen, GPU-Skinning, instanziert |
 | `effects.js` | Partikel (Staub, Rauch, Feuer, Spuren), Lebensbalken und Auswahlmarkierungen |
 | `terrain.js`, `water.js`, `environment.js`, `nature.js` | Gelände, Wasser, Himmel/Licht, Bäume und Deko |
+| `textures.js` | Bodentexturen: gemalte Bilddateien (vor dem Start geladen, [BODEN.md](BODEN.md)), sonst im Code gemalt |
 | `terrain.js` `updateArea()` | übernimmt geänderte Sim-Höhen: Ecken, Catmull-Rom-Raster, Normalen, Texturgewichte im Bereich; `setPad/clearPad` legen die Rand-Ecken lebender Gebäude exakt auf ihre Ebene. `Renderer.reshapeGround()` setzt Bäume, Deko, Stümpfe, Haufen und Markierungen nach; `terrainChanged` im Nebel wird erst bei Sicht übernommen |
 | `fog.js` | Nebel des Krieges: Datentextur (1 Texel je Kachel, R sichtbar, G erkundet, weichgezeichnet und überblendet), Shader-Zusatz `patchFog()` für alle Weltmaterialien |
 | `models.js`, `assets.js` | prozedurale Modelle und das Laden der GLB-Modelle |
@@ -122,7 +123,8 @@ Kamera und Ziel heben sie an.
 Weil die Kamera der Geländehöhe folgt, gleicht `holdUnder()` beim Ziehen und Drehen den Rest begrenzt aus
 (nur solange er kleiner wird, nie weiter als der Schritt selbst). Strahlen nahe am Horizont sind auf eine
 Reichweite begrenzt (`rayPlane`), nichts schießt ins Unendliche. Detailstufen: bis `NEAR_FULL_DETAIL` (14 Kacheln echter
-Abstand, `lod.js`) gilt auf jeder Grafikstufe Stufe 0, dahinter stetiger Übergang. Der Schattenausschnitt wird
+Abstand, `lod.js`) gilt für Gebäude auf jeder Grafikstufe Stufe 0, dahinter stetiger Übergang; Figuren und Bäume
+wählen nach ihrer Bildschirmhöhe und sind ganz nah ohnehin groß genug für Stufe 0. Der Schattenausschnitt wird
 nah dran kleiner und nach vorn verschoben (`Environment.follow`), damit Schatten scharf bleiben.
 
 Spielende/neues Spiel/Laden: `Engine.stop()` ruft `Renderer.dispose()`. Jedes Spiel bekommt einen neuen

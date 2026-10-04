@@ -14,7 +14,7 @@ import {
   iterItems, isNum, num, typeName, truthy, suggest,
 } from '../../script/index.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { UNITS } from '../data/units.js';
+import { UNITS, HERO_IDS } from '../data/units.js';
 import { RESOURCES } from '../data/resources.js';
 import { TECHS } from '../data/technologies.js';
 import { BUILDING_TECHS } from '../data/buildingTechs.js';
@@ -114,6 +114,8 @@ export const API_DOC = [
   { name: 'spawn', sig: 'spawn(owner, kind, at, count=1, soldiers=None)', level: 'mission', group: 'power' },
   { name: 'spawn_serfs', sig: 'spawn_serfs(player, count)', level: 'mission', group: 'power' },
   { name: 'give', sig: 'give(player, wood=0, gold=0, …)', level: 'mission', group: 'power' },
+  { name: 'set_diplomacy', sig: 'set_diplomacy(a, b, "allied"|"neutral"|"hostile")', level: 'mission', group: 'power' },
+  { name: 'diplomacy', sig: 'diplomacy(a, b)', level: 'player', group: 'power' },
   { name: 'give_tech', sig: 'give_tech(player, *techs)', level: 'mission', group: 'power' },
   { name: 'place_building', sig: 'place_building(player, kind, near, done=True)', level: 'mission', group: 'power' },
   { name: 'remove', sig: 'remove(thing)', level: 'mission', group: 'power' },
@@ -121,7 +123,7 @@ export const API_DOC = [
   { name: 'move', sig: 'move(units, target)', level: 'mission', group: 'power' },
   { name: 'units_in', sig: 'units_in(target, player=HUMAN, who="any")', level: 'mission', group: 'power' },
   { name: 'alive', sig: 'alive(units)', level: 'mission', group: 'power' },
-  { name: 'hero_of', sig: 'hero_of(player)', level: 'mission', group: 'power' },
+  { name: 'hero_of', sig: 'hero_of(player, name=None)', level: 'mission', group: 'power' },
   { name: 'set_weather', sig: 'set_weather(state, seconds=120)', level: 'mission', group: 'power' },
   { name: 'ai', sig: 'ai(player, difficulty=None, aggression=None, start_in=None, attack_now=False)', level: 'mission', group: 'power' },
   // Shape terrain
@@ -564,6 +566,17 @@ export function makeApi(host, level) {
     }
     return null;
   }, true);
+  def('set_diplomacy', (ctx, a, kw) => {
+    const [pa, pb, st] = args('set_diplomacy', a, kw, ['a', 'b', 'state']);
+    const state = strArg(st, 'state');
+    if (!['allied', 'neutral', 'hostile'].includes(state)) throw gameErr('diplomacyUnknown', { name: state });
+    sim().setDiplomacy(playerOf(pa), playerOf(pb), state);
+    return null;
+  }, true);
+  def('diplomacy', (ctx, a, kw) => {
+    const [pa, pb] = args('diplomacy', a, kw, ['a', 'b']);
+    return sim().relation(playerOf(pa), playerOf(pb));
+  });
   def('give_tech', (ctx, a, kw) => {
     if (!a.length) throw new ScriptError('argMissing', { name: 'give_tech', arg: 'player' });
     const pl = playerOf(a[0]);
@@ -612,9 +625,10 @@ export function makeApi(host, level) {
     return listOfHandles(u).filter((x) => alive(entityOf(x, false))).length;
   }, true);
   def('hero_of', (ctx, a, kw) => {
-    const [p] = args('hero_of', a, kw, ['player']);
+    const [p, n = null] = args('hero_of', a, kw, ['player', '?name']);
     const pl = playerOf(p);
-    const h = [...sim().entities.values()].find((e) => e.kind === 'hero' && e.owner === pl);
+    const name = n === null ? null : strArg(n, 'name');
+    const h = [...sim().entities.values()].find((e) => e.kind === 'hero' && e.owner === pl && (name === null || e.hero === name));
     return h ? handle(h) : null;
   }, true);
   def('set_weather', (ctx, a, kw) => {
@@ -750,11 +764,22 @@ export function makeApi(host, level) {
     return { HUMAN: human(), ENEMY: ai, BANDITS: host.runtime.state.bandits };
   };
   const heroEntity = () => [...sim().entities.values()].find((e) => e.kind === 'hero' && e.owner === human());
+  // Every hero also under their name (nelia, orrin …): own first, otherwise that of another player
+  const heroNamed = (id) => {
+    let other = null;
+    for (const e of sim().entities.values()) {
+      if (e.kind !== 'hero' || e.hero !== id) continue;
+      if (e.owner === human()) return e;
+      other ??= e;
+    }
+    return other;
+  };
   const dynamicGlobals = () => {
     const c = consts();
     const out = { ...c };
     const h = heroEntity();
     out.hero = h ? handle(h) : null;
+    for (const id of HERO_IDS) { const e = heroNamed(id); out[id] = e ? handle(e) : null; }
     return out;
   };
 
@@ -989,6 +1014,6 @@ export function makeApi(host, level) {
     }
   }
 
-  const known = [...Object.keys(globals), 'HUMAN', 'ENEMY', 'BANDITS', 'hero'];
+  const known = [...Object.keys(globals), 'HUMAN', 'ENEMY', 'BANDITS', 'hero', ...HERO_IDS];
   return { natives, globals, dynamicGlobals, hostHooks, known, modules };
 }

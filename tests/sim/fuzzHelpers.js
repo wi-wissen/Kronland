@@ -59,7 +59,7 @@ export function randomCommand(sim, r, player) {
       { type: 'trade', player: p, building: b()?.id, give: g(), take: 'wood', amount: 50 },
       { type: 'changeWeather', player: p, building: b()?.id, state: g() },
       { type: 'ability', player: p, hero: troops.find((t) => t.kind === 'hero')?.id, ability: g() },
-      { type: 'ability', player: p, hero: troops.find((t) => t.kind === 'hero')?.id, ability: r.pick(['bomb', 'turret', 'trap']), x: r.int(W * 3) - W, y: -5 },
+      { type: 'ability', player: p, hero: troops.find((t) => t.kind === 'hero')?.id, ability: r.pick(['caltrops', 'fieldGun', 'courage', 'shieldBash', 'intimidate', 'salve', 'bribe', 'farsight']), x: r.int(W * 3) - W, y: -5 },
       { type: 'move', player: p, units: someSerfs(), x: -3, y: H + 7 },
       { type: 'order', player: p, units: troops.map((t) => t.id), order: 'move', x: W + 20, y: -20 },
       { type: 'order', player: p, units: troops.map((t) => t.id), order: 'attackMove', x: -1, y: -1 },
@@ -133,7 +133,7 @@ export function randomCommand(sim, r, player) {
   }
 }
 
-const UNIT_KINDS = new Set(['unit', 'worker', 'leader', 'soldier', 'hero', 'turret', 'trap', 'bomb']);
+const UNIT_KINDS = new Set(['unit', 'worker', 'leader', 'soldier', 'hero', 'turret', 'trap', 'npc']);
 
 /** Invariants of the state. Returns a list of violations (empty = all good). */
 export function checkInvariants(sim) {

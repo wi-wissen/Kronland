@@ -108,7 +108,6 @@
         </template>
 
         <ArmyPanel v-else-if="sel?.kind === 'army'" :sel="sel" :touch="ui.touch" :hints="hints" :group="ui.group" @action="$emit('action', $event)" />
-        <SpecialistPanel v-else-if="sel?.kind === 'specialists'" :sel="sel" :touch="ui.touch" :hints="hints" @action="$emit('action', $event)" />
 
         <BuildMenu
           v-else-if="sel?.kind === 'serfs'"
@@ -150,13 +149,12 @@ import BuildMenu from './BuildMenu.vue';
 import BuildingPanel from './BuildingPanel.vue';
 import ArmyPanel from './ArmyPanel.vue';
 import SelectionCard from './SelectionCard.vue';
-import SpecialistPanel from './SpecialistPanel.vue';
 import { selectionIcon, selectionPortrait } from './hudLayout.js';
 import { siteRoot } from '../../paths.js';
 
 export default {
   name: 'CommandBar',
-  components: { Minimap, BuildMenu, BuildingPanel, ArmyPanel, SelectionCard, SpecialistPanel },
+  components: { Minimap, BuildMenu, BuildingPanel, ArmyPanel, SelectionCard },
   props: {
     ui: { type: Object, required: true },
     engine: { type: Object, required: true },
@@ -184,7 +182,6 @@ export default {
       if (s.kind === 'serfs') return this.compact ? (s.count === 1 ? this.$t('serfs.one') : this.$t('serfs.count', { n: s.count })) : this.$t('build.title');
       if (s.kind === 'army') return s.heroes.length === 1 && !s.groups.length ? this.$name.hero(s.heroes[0].hero) : this.$t('army.title');
       if (s.kind === 'building') return this.$name.building(s.type, s.levelIndex);
-      if (s.kind === 'specialists') return s.units.length === 1 ? this.$t('addon.spec.' + s.units[0].spec) : this.$t('addon.title');
       if (s.kind === 'foreign' && s.entity === 'ruin') return this.$t('sys.ruin');
       return this.$t('foreign.enemy');
     },
@@ -194,7 +191,6 @@ export default {
       if (s.kind === 'building') return this.$t('common.levelOf', { n: s.level, max: s.maxLevel });
       if (s.kind === 'serfs') return this.compact ? this.$t('serfs.idle', { n: s.idle }) : this.$t('serfs.count', { n: s.count }) + ' · ' + this.$t('serfs.idle', { n: s.idle });
       if (s.kind === 'army') return s.soldiers ? this.$t('army.soldiers', { n: s.soldiers }) : '';
-      if (s.kind === 'specialists') return s.units.length === 1 ? this.$t('addon.order.' + s.units[0].order) : String(s.units.length);
       return '';
     },
     headIcon() { return this.ui.placing ? 'b-' + this.ui.placing.type : selectionIcon(this.sel); },

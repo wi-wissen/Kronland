@@ -31,22 +31,22 @@ describe('QA: commands with prototype keys', () => {
 });
 
 describe('QA: hero ability with target point', () => {
-  it('bomb outside the map or far away is rejected, allowed near the hero', () => {
-    const sim = new Sim({ seed: 3, heroes: ['gerold', 'bertram'] });
+  it('foot traps outside the map or far away are rejected, close to the hero allowed', () => {
+    const sim = new Sim({ seed: 3, heroes: ['malvor', 'nelia'] });
     const h = heroOf(sim);
     const tx = (h.px / 1000) | 0, ty = (h.py / 1000) | 0;
-    let ev = sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'bomb', x: -40, y: ty }]);
+    let ev = sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'caltrops', x: -40, y: ty }]);
     expect(ev.some((e) => e.type === 'rejected' && e.reason === 'err.notWalkable')).toBe(true);
-    ev = sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'bomb', x: tx + 40, y: ty }]);
+    ev = sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'caltrops', x: tx + 40, y: ty }]);
     expect(ev.some((e) => e.type === 'rejected')).toBe(true);
-    ev = sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'bomb', x: tx + 2, y: ty }]);
+    ev = sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'caltrops', x: tx + 2, y: ty }]);
     expect(ev.some((e) => e.type === 'ability')).toBe(true);
     // without a target point (as the UI sends it): at the hero position
-    const sim2 = new Sim({ seed: 3, heroes: ['gerold', 'bertram'] });
+    const sim2 = new Sim({ seed: 3, heroes: ['malvor', 'nelia'] });
     const h2 = heroOf(sim2);
-    sim2.step([{ type: 'ability', player: 0, hero: h2.id, ability: 'bomb' }]);
-    const bomb = [...sim2.entities.values()].find((e) => e.kind === 'bomb');
-    expect(bomb.px).toBe(h2.px);
+    sim2.step([{ type: 'ability', player: 0, hero: h2.id, ability: 'caltrops' }]);
+    const trap = [...sim2.entities.values()].find((e) => e.kind === 'trap');
+    expect(trap.px).toBe(h2.px);
   });
 });
 

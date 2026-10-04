@@ -49,3 +49,41 @@ export class HintMarker {
     this.arrow.rotation.y = this.t * 1.5;
   }
 }
+
+/**
+ * Exclamation mark above conversation figures of the mission (as in the original): a hero who walks up speaks to them.
+ * Only reads the figures that the renderer frame currently shows.
+ */
+export class NpcMarks {
+  /** @param {THREE.Scene} scene @param {{ heightAt: (x:number, z:number) => number }} terrain */
+  constructor(scene, terrain) {
+    this.scene = scene;
+    this.terrain = terrain;
+    this.mat = new THREE.MeshBasicMaterial({ color: GOLD, depthTest: false, transparent: true, opacity: 0.95 });
+    this.bar = new THREE.CylinderGeometry(0.09, 0.05, 0.5, 6);
+    this.dot = new THREE.SphereGeometry(0.09, 8, 6);
+    this.marks = [];
+    this.t = 0;
+  }
+
+  /** @param {{px:number, py:number}[]} npcs positions in milli-tiles @param {number} dt */
+  update(npcs, dt) {
+    this.t += dt;
+    while (this.marks.length < npcs.length) {
+      const g = new THREE.Group();
+      const bar = new THREE.Mesh(this.bar, this.mat); bar.position.y = 0.4;
+      const dot = new THREE.Mesh(this.dot, this.mat);
+      bar.renderOrder = dot.renderOrder = 21;
+      g.add(bar, dot);
+      this.scene.add(g);
+      this.marks.push(g);
+    }
+    this.marks.forEach((g, i) => {
+      const e = npcs[i];
+      g.visible = !!e;
+      if (!e) return;
+      const x = e.px / 1000, z = e.py / 1000;
+      g.position.set(x, this.terrain.heightAt(x, z) + 1.9 + Math.sin(this.t * 3 + i) * 0.12, z);
+    });
+  }
+}

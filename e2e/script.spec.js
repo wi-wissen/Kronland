@@ -54,6 +54,13 @@ test('Error message with line and suggestion, single step with variables', async
   await page.goto(playUrl('?mission=adv1&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
+  // Grid is on in the adventure and can be switched off; the hero looks east (view = step direction)
+  await expect(page.getByTestId('script-grid')).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => !!window.__kronland.renderer.grid)).toBe(true);
+  await page.getByTestId('script-grid').click();
+  expect(await page.evaluate(() => !!window.__kronland.renderer.grid)).toBe(false);
+  await page.getByTestId('script-grid').click();
+  expect(await page.evaluate(() => [...window.__kronland.sim.entities.values()].find((e) => e.kind === 'hero').face)).toBe(1);
   const ta = page.getByTestId('section-player').getByTestId('code-input');
   await ta.fill('wood = 3\nprint(wod)\n');
   await page.getByTestId('script-run').click();
@@ -80,6 +87,9 @@ test('World editor: paint forest, place a spot, test play and back', async ({ pa
   await page.getByTestId('open-editor').click();
   await expect(page.getByTestId('world-editor')).toBeVisible();
   await page.waitForFunction(() => !!window.__kronlandEditor, null, SLOW);
+  // Grid in the editor too
+  await page.getByTestId('editor-grid').click();
+  expect(await page.evaluate(() => !!window.__kronlandEditor.renderer.grid)).toBe(true);
   const trees = () => page.evaluate(() => [...window.__kronlandEditor.sim.entities.values()].filter((e) => e.kind === 'tree').length);
   expect(await trees()).toBe(0);
   await page.getByTestId('tool-forest').click();

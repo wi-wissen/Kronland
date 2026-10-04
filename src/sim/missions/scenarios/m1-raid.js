@@ -17,7 +17,7 @@ export default {
   defeatText: { de: 'Der Hof ist verloren.', en: 'The farm is lost.' },
   world: { base: 'generate', seed: 2202, size: 96, fog: true },
   players: [
-    { kind: 'human', hero: 'bertram', serfs: 8, techs: ['conscription', 'construction'], stock: { gold: 1300, clay: 1800, wood: 2200, stone: 1200, iron: 600, sulfur: 0 } },
+    { kind: 'human', hero: 'nelia', serfs: 8, techs: ['conscription', 'construction'], stock: { gold: 1300, clay: 1800, wood: 2200, stone: 1200, iron: 600, sulfur: 0 } },
     { kind: 'bandits' },
   ],
   texts: {
@@ -51,7 +51,7 @@ def intro():
     reveal(place("camp"), seconds=20)
     say("kunz", "threat")
     camera.fly_to(hq(), seconds=2)
-    say("bertram", "plan")
+    say("nelia", "plan")
     objective("barracks", "goal_barracks", lambda: count("barracks") >= 1)
     objective("army", "goal_army", lambda: count("troop") >= 3)
     objective("camp", "goal_camp", lambda: len(buildings("banditCamp", BANDITS)) == 0, hidden=True)
@@ -72,11 +72,11 @@ def raid():
 def ready(id, status):
     show_objective("camp")
     camera.fly_to(place("camp"), seconds=2)
-    say("bertram", "attack")
+    say("nelia", "attack")
 
 @on_objective("camp")
 def won(id, status):
-    say("bertram", "win")
+    say("nelia", "win")
     victory()
 
 @on_destroyed("headquarters", HUMAN)

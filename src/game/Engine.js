@@ -8,7 +8,7 @@ import { RESOURCES } from '../sim/data/resources.js';
 import { TECHS, researchPoints } from '../sim/data/technologies.js';
 import { BLESSINGS, WORKER, professionFor } from '../sim/data/professions.js';
 import { averageMotivation, workerSlots, maxMotivation } from '../sim/systems/workers.js';
-import { UNITS, LINES, HEROES, unitOf, fullCost, LINE_UPGRADE_COST } from '../sim/data/units.js';
+import { UNITS, LINES, HEROES, HERO_IDS, unitOf, fullCost, LINE_UPGRADE_COST } from '../sim/data/units.js';
 import { targetable } from '../sim/systems/military.js';
 import { countWorkers, countLeaders, taxIncome } from '../sim/systems/payday.js';
 import { AiPlayer } from '../ai/AiPlayer.js';
@@ -27,9 +27,6 @@ import { starsOf, EXPERIENCE } from '../sim/data/experience.js';
 import { GameAudio } from '../audio/GameAudio.js';
 import { canSee, isExplored, isVisible, knownBuildings, fogEnabled } from '../sim/systems/vision.js';
 import { Vector3 } from 'three';
-import {
-  ADDON_BUILD_MENU, ADDON_BUILD_CATEGORY, tavernSection, ownSpecialistIds, specialistSelection, specialAction, specialCommandAt, addonToasts, watchThieves,
-} from './addonUi.js';
 import { padPreview } from '../sim/systems/terrain.js';
 
 /** Build preview yellow ("will be levelled") if a tile deviates from the plane by more than this many cm. */
@@ -43,7 +40,7 @@ export const BUILD_MENU = [
   'clayMine', 'stoneMine', 'ironMine', 'sulfurMine',
   'brickworks', 'sawmill', 'stonemason', 'smithy', 'alchemist', 'bank',
   'tower', 'barracks', 'archery', 'stable', 'foundry',
-  'university', 'chapel', 'weatherTower', 'weatherPlant', 'clock', 'windwheel',
+  'university', 'chapel', 'weatherTower', 'weatherPlant', 'clock', 'windwheel', 'fountain', 'statue', 'bridge',
 ];
 
 /** Categories of the build menu (tabs). Unknown types land under 'admin'. */
@@ -53,7 +50,7 @@ export const BUILD_CATEGORY = {
   clayMine: 'raw', stoneMine: 'raw', ironMine: 'raw', sulfurMine: 'raw',
   brickworks: 'refine', sawmill: 'refine', stonemason: 'refine', smithy: 'refine', alchemist: 'refine', bank: 'refine',
   tower: 'military', barracks: 'military', archery: 'military', stable: 'military', foundry: 'military',
-  university: 'admin', chapel: 'admin', clock: 'admin', windwheel: 'admin',
+  university: 'admin', chapel: 'admin', clock: 'admin', windwheel: 'admin', fountain: 'admin', statue: 'admin', bridge: 'admin',
   weatherTower: 'admin', weatherPlant: 'admin',
 };
 
@@ -70,26 +67,19 @@ export const BUILDING_SECTIONS = [];
 /** @param {(engine: Engine, building: any) => any} fn */
 export const registerBuildingSection = (fn) => { BUILDING_SECTIONS.push(fn); };
 
-// Expansion content (src/game/addonUi.js): build menu and inn
-BUILD_MENU.push(...ADDON_BUILD_MENU);
-Object.assign(BUILD_CATEGORY, ADDON_BUILD_CATEGORY);
-registerBuildingSection(tavernSection);
-
 /** Mindestabstand (ms) zwischen zwei Angriffsmeldungen in derselben Gegend */
 const ATTACK_TOAST_MS = 15000;
 
 export class Engine {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ seed?: number, onUi?: (state: any) => void, difficulty?: string, players?: number, hero?: string, fog?: boolean, addon?: boolean }} opts
+   * @param {{ seed?: number, onUi?: (state: any) => void, difficulty?: string, players?: number, hero?: string, fog?: boolean }} opts
    */
   constructor(canvas, opts = {}) {
     this.player = 0;
     const players = opts.players ?? 2;
-    // Expansion content on by default in free play; opponents then also get the new heroes
-    const addon = opts.addon ?? true;
-    const heroes = addon ? ['bertram', 'morla', 'falk', 'hedda', 'gerold'] : ['bertram', 'hedda', 'gerold', 'bertram'];
-    if (opts.hero && (addon || !HEROES[opts.hero]?.addon)) { const i = heroes.indexOf(opts.hero); if (i > 0) [heroes[0], heroes[i]] = [heroes[i], heroes[0]]; }
+    const heroes = [...HERO_IDS, ...HERO_IDS];
+    if (opts.hero && HEROES[opts.hero]) { const i = heroes.indexOf(opts.hero); if (i > 0) [heroes[0], heroes[i]] = [heroes[i], heroes[0]]; }
     if (opts.load) {
       this.sim = loadGame(opts.load);
       this.ais = (opts.load.extra?.ais ?? []).map((st) => AiPlayer.fromState(this.sim, st));
@@ -99,7 +89,7 @@ export class Engine {
       this.ais = this.sim.mission.def.players
         .map((p, i) => (p.kind === 'ai' ? new AiPlayer(this.sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
     } else {
-      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes, fog: opts.fog ?? true, addon });
+      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes, fog: opts.fog ?? true });
       /** AI opponents for all other players */
       this.ais = [];
       for (let p = 1; p < players; p++) this.ais.push(new AiPlayer(this.sim, p, opts.difficulty ?? 'normal'));
@@ -200,7 +190,6 @@ export class Engine {
     this.input.edgeScroll(dt);
     this.followFocus(now);
     this.flyCamera(now);
-    this.followUnit(dt);
     this.renderer.frame(this.paused ? 1 : this.acc / TICK_MS, dt, this.prev, {
       selected: this.selected,
       ghost: this.placing?.hasPos ? this.placing : null,
@@ -225,7 +214,6 @@ export class Engine {
     this.renderer.onEvents(events);
     if (this.audio) { this.audio.onEvents(events, this.prev); this.audio.onTick(); }
     this.eventToasts(events);
-    watchThieves(this);
     // Selection: deselect what has vanished and foreign things that vanish into the fog
     for (const id of this.selected) if (!this.canSee(this.sim.entities.get(id))) this.selected.delete(id);
   }
@@ -290,10 +278,11 @@ export class Engine {
       if (ev.type === 'hit') this.attackToast(ev);
       if (ev.type === 'weatherChanged' && ev.player !== me) this.toast('toast.weatherChangedEnemy', { weather: ev.state }, { icon: `weather-${ev.state}`, tone: 'warn' });
       if (ev.type === 'payday' && ev.player === me) this.lastPayday = { income: ev.income, wages: ev.wages, tick: sim.tick };
-      addonToasts(this, ev);
+      if (ev.type === 'bridgeBuilt' && ev.player === me) this.toast('toast.bridgeBuilt', null, { icon: 'b-bridge', tone: 'good', pos: { x: ev.x + ev.w / 2, y: ev.y + ev.h / 2 } });
+      if (ev.type === 'bridgeCollapsed' && this.tileVisible(ev.x + ev.w / 2, ev.y + ev.h / 2)) this.toast('toast.bridgeCollapsed', null, { icon: 'b-bridge', tone: 'warn', pos: { x: ev.x + ev.w / 2, y: ev.y + ev.h / 2 } });
       if (ev.player !== me) continue;
       if (ev.type === 'rejected') this.toast(ev.reason, ev.params ?? null, { icon: 'warning', tone: 'warn', ttl: 3500 });
-      if (ev.type === 'buildingDone' && ev.buildingType !== 'bridge') { // bridge: own notice (addonUi)
+      if (ev.type === 'buildingDone' && ev.buildingType !== 'bridge') { // bridge: own notice (bridgeBuilt)
         const b = sim.entities.get(ev.building);
         this.toast(ev.level ? 'toast.upgradeDone' : 'toast.buildingDone', { building: ev.buildingType, level: ev.level ?? 0 }, { icon: `b-${ev.buildingType}`, tone: 'good', pos: this.entityPos(b) });
       }
@@ -420,14 +409,14 @@ export class Engine {
     return e && this.canSee(e) ? e : null;
   }
 
-  clearSelection() { this.selected.clear(); this.attackMode = false; this.specialMode = null; this.emitUi(); }
+  clearSelection() { this.selected.clear(); this.attackMode = false; this.emitUi(); }
 
   selectAt(cx, cy, additive = false) {
     const e = this.selectable(this.renderer.pickEntity(cx, cy));
     const id = e?.id;
     if (!additive) this.selected.clear();
     if (e) {
-      if ((e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero' || e.kind === 'specialist') && e.owner === this.player) {
+      if ((e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero') && e.owner === this.player) {
         if (additive && this.selected.has(id)) this.selected.delete(id); else this.selected.add(id);
       } else {
         this.selected.clear();
@@ -441,7 +430,7 @@ export class Engine {
     if (!additive) this.selected.clear();
     const [l, r] = [Math.min(x1, x2), Math.max(x1, x2)], [t, b] = [Math.min(y1, y2), Math.max(y1, y2)];
     for (const e of this.sim.entities.values()) {
-      if (!(e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero' || e.kind === 'specialist') || e.owner !== this.player) continue;
+      if (!(e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero') || e.owner !== this.player) continue;
       const x = e.px / UNIT, z = e.py / UNIT;
       const s = this.renderer.project(x, this.renderer.terrain.heightAt(x, z) + 0.3, z);
       if (!s.behind && s.x >= l && s.x <= r && s.y >= t && s.y <= b) this.selected.add(e.id);
@@ -577,11 +566,8 @@ export class Engine {
 
   /** Context command for the selected serfs at a screen position. */
   commandAt(cx, cy, attackMove = false) {
-    // Expansion: thief/scout (target mode consumes the click)
-    const sp = specialCommandAt(this, cx, cy);
-    if (sp === 'mode') return true;
     const army = this.ownArmyIds();
-    let done = !!sp;
+    let done = false;
     if (army.length) done = this.armyCommandAt(army, cx, cy, attackMove || this.attackMode) || done;
     this.attackMode = false;
     const units = this.ownSerfIds();
@@ -646,8 +632,6 @@ export class Engine {
     }
   }
   ability(hero, ability) { this.issue({ type: 'ability', hero, ability }); }
-  /** Expansion: action of the selected specialists (target actions switch on target mode). */
-  special(action) { specialAction(this, action); }
   recruit(building, line, full) { this.issue({ type: 'recruit', building, line, full }); }
   upgradeLine(line) { this.issue({ type: 'upgradeLine', line }); }
   militia(on) { this.issue({ type: 'militia', on }); }
@@ -657,10 +641,8 @@ export class Engine {
     if (this.placing) { this.hover(cx, cy); this.emitUi(); return; }
     const e = this.selectable(this.renderer.pickEntity(cx, cy));
     const id = e?.id;
-    const haveSerfs = this.ownSerfIds().length > 0 || this.ownArmyIds().length > 0 || ownSpecialistIds(this).length > 0;
-    // Specialist target mode: the tap is meant for the target
-    if (this.specialMode && ownSpecialistIds(this).length) { this.commandAt(cx, cy); return; }
-    if ((e?.kind === 'unit' || e?.kind === 'leader' || e?.kind === 'hero' || e?.kind === 'specialist') && e.owner === this.player) {
+    const haveSerfs = this.ownSerfIds().length > 0 || this.ownArmyIds().length > 0;
+    if ((e?.kind === 'unit' || e?.kind === 'leader' || e?.kind === 'hero') && e.owner === this.player) {
       if (haveSerfs && this.multi) this.selected.has(id) ? this.selected.delete(id) : this.selected.add(id);
       else { this.selected.clear(); this.selected.add(id); }
       this.emitUi();
@@ -856,8 +838,8 @@ export class Engine {
       if (e.kind === 'building') {
         // enemy buildings: visible ones current, otherwise as last seen state (below)
         if (seeAll || this.canSee(e)) buildings.push({ x: e.x, y: e.y, w: e.w, h: e.h, owner: e.owner });
-      } else if (e.kind === 'leader' || e.kind === 'hero' || e.kind === 'specialist') {
-        if (seeAll || this.canSee(e)) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: e.kind !== 'specialist' });
+      } else if (e.kind === 'leader' || e.kind === 'hero') {
+        if (seeAll || this.canSee(e)) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: true });
       } else if (e.kind === 'unit' || e.kind === 'worker' && !e.inside) {
         if (seeAll || this.canSee(e)) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: false });
       }
@@ -925,6 +907,8 @@ export class Engine {
   /** Tutorial: "Weiter", skip step. */
   missionNext() { this.issue({ type: 'mission', action: 'next' }); }
   missionSkip() { this.issue({ type: 'mission', action: 'skip' }); }
+  /** Pay the tribute of the mission (offer in the mission field). */
+  payTribute(id) { this.issue({ type: 'mission', action: 'tribute', id }); }
 
   // ---------- Python scripts (scenarios, coding adventure) ----------
 
@@ -935,9 +919,6 @@ export class Engine {
    */
   scriptRun(sections, debug = null) {
     this.issue({ type: 'script', action: 'run', sections, ...(debug ? { debug } : {}) });
-    // Camera follows the hero until the player moves it
-    const hero = [...this.sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === this.player);
-    this.follow = hero ? { id: hero.id, last: null } : null;
     if (this.debugHalt) { this.paused = false; this.debugHalt = false; }
     this.emitUi();
   }
@@ -960,21 +941,36 @@ export class Engine {
   /** Change breakpoints without influencing the run. */
   scriptBreakpoints(target, bps) { this.issue({ type: 'script', action: 'debug', target, bps }); }
 
-  skipDialog() {
-    if (this.sim.mission?.script) this.issue({ type: 'script', action: 'skipDialog' });
+  /**
+   * Coding adventure (without castle): choose distance and centre so that the whole small map fits into the free
+   * area left of the code panel. insetRight: width covered by the panel on the right (pixels).
+   */
+  frameOverview(insetRight = 0) {
+    const r = this.renderer, rig = r?.rig;
+    if (!rig || this.sim.findBuilding(this.player, 'headquarters')) return;
+    const W = r.renderer.domElement.clientWidth;
+    if (!W) return;
+    const right = 1 - (2 * Math.min(insetRight, W * 0.6)) / W; // right edge of the free area (NDC)
+    const mid = (right - 1) / 2;
+    const { width: mw, height: mh } = this.sim.map;
+    for (let i = 0; i < 5; i++) {
+      rig.pose();
+      r.camera.updateMatrixWorld();
+      const L = rig.pick(-0.94, -0.3), R = rig.pick(right - 0.04, -0.3), T = rig.pick(mid, 0.72), B = rig.pick(mid, -0.75), C = rig.pick(mid, 0);
+      if (!L || !R || !T || !B || !C) break;
+      const k = Math.max((mw + 2) / Math.max(1, R.x - L.x), (mh + 2) / Math.max(1, B.z - T.z));
+      if (k > 1.02) rig.dist = Math.min(rig.dist * k, 80);
+      rig.target.x += mw / 2 - C.x;
+      rig.target.z += mh / 2 - C.z;
+    }
+    rig.clamp();
   }
 
-  /** Move the camera smoothly behind a figure (hero in the coding adventure while his program runs). */
-  followUnit(dt) {
-    const f = this.follow;
-    if (!f || this.camFly) return;
-    const e = this.sim.entities.get(f.id);
-    const rig = this.renderer.rig;
-    if (!e || (f.last && (Math.abs(rig.target.x - f.last.x) > 0.05 || Math.abs(rig.target.z - f.last.z) > 0.05))) { this.follow = null; return; }
-    const k = 1 - Math.exp(-dt * 2.5);
-    const x = e.px / 1000, z = e.py / 1000;
-    rig.lookAt(rig.target.x + (x - rig.target.x) * k, rig.target.z + (z - rig.target.z) * k);
-    f.last = { x: rig.target.x, z: rig.target.z };
+  /** Show tile grid (coding adventure: count steps). Pure rendering. */
+  setGrid(on) { this.renderer?.setGrid(!!on); }
+
+  skipDialog() {
+    if (this.sim.mission?.script) this.issue({ type: 'script', action: 'skipDialog' });
   }
 
   /** Weiche Kamerafahrt (Skript: camera.fly_to). */
@@ -1093,9 +1089,6 @@ export class Engine {
         else mining++;
       }
       selection = { kind: 'serfs', count: serfs.length, idle, jobs: { wood, mining, building } };
-    } else if (ownSpecialistIds(this).length) {
-      // Erweiterung: Dieb/Kundschafter
-      selection = specialistSelection(this);
     } else if (this.selected.size === 1) {
       const e = sim.entities.get([...this.selected][0]);
       if (e?.kind === 'building') {
@@ -1141,10 +1134,10 @@ export class Engine {
         };
       } else if (e) {
         const kind = e.kind === 'leader' ? 'leader' : e.kind;
-        selection = { kind: 'foreign', entity: kind, owner: e.owner ?? -1, unit: e.def ?? null, hero: e.hero ?? null, spec: e.spec ?? null, prof: e.prof ?? null, type: e.kind === 'ruin' ? e.type : null, level: e.kind === 'ruin' ? e.level : null };
+        selection = { kind: 'foreign', entity: kind, owner: e.owner ?? -1, unit: e.def ?? null, hero: e.hero ?? null, prof: e.prof ?? null, type: e.kind === 'ruin' ? e.type : null, level: e.kind === 'ruin' ? e.level : null };
       }
     }
-    const buildOptions = serfs.length ? BUILD_MENU.filter((type) => BUILDINGS[type] && (!BUILDINGS[type].addon || sim.addon)).map((type) => {
+    const buildOptions = serfs.length ? BUILD_MENU.filter((type) => BUILDINGS[type]).map((type) => {
       const def = BUILDINGS[type];
       const cost = def.levels[0].cost;
       let reason = null;

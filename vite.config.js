@@ -41,7 +41,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       // Registration itself (src/main.js, with path to the root): the plugin script would sit relative to the page
       injectRegister: null,
-      includeAssets: ['icon-192.png', 'icon-512.png'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Kronland',
         short_name: 'Kronland',
@@ -62,7 +62,7 @@ export default defineConfig({
       workbox: {
         // Precache game code, models on first load (they are large)
         globPatterns: ['**/*.{js,css,html,png,webp}'], // webp: Symbol-Atlas icons/symbols.webp, portraits portraits/*.webp
-        globIgnores: ['models/**', 'site/**'],
+        globIgnores: ['models/**', 'site/**', 'textures/**'],
         // Multiple pages: no fallback page for navigations (otherwise /play/ would get the home page)
         navigateFallback: null,
         // Serve play/?seed=42&dev=1 etc. offline from the precached page (the game reads the parameters itself)
@@ -74,6 +74,8 @@ export default defineConfig({
           { urlPattern: /\/models\/.*\.glb$/, handler: 'CacheFirst', options: { cacheName: 'models', expiration: { maxEntries: 400 } } }, // 4 players load ~205 files (incl. LOD levels), there are ~260 in total
           // Figure manifest: without it the game shows only placeholder figures next to real buildings offline
           { urlPattern: /\/models\/.*\.json$/, handler: 'NetworkFirst', options: { cacheName: 'models-manifest' } },
+          // painted ground textures: only one size per graphics level, therefore not upfront but on first load
+          { urlPattern: /\/textures\/.*\.webp$/, handler: 'CacheFirst', options: { cacheName: 'textures', expiration: { maxEntries: 30 } } },
           // Sound: manifest always fresh, audio files from the cache after the first load (see docs/AUDIO.md)
           { urlPattern: /\/audio\/manifest\.json$/, handler: 'NetworkFirst', options: { cacheName: 'sound-manifest' } },
           { urlPattern: /\/audio\/.*\.(ogg|mp3|m4a|wav|webm|opus)$/, handler: 'CacheFirst', options: { cacheName: 'audio', expiration: { maxEntries: 300 } } },

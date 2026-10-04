@@ -62,7 +62,7 @@ describe('Save game round trip', () => {
   });
 
   it('mission with fog and ongoing market trade', async () => {
-    const sim = createMissionSim('c3');
+    const sim = createMissionSim('c2');
     const ais = sim.mission.def.players.map((p, i) => (p.kind === 'ai' ? new AiPlayer(sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
     expect(sim.vision.enabled).toBe(true);
     for (let i = 0; i < 1500; i++) tick(sim, ais);
@@ -78,13 +78,13 @@ describe('Save game round trip', () => {
 
     const { sim2, ais2, entry } = await viaStore(sim, ais);
     expect(entry.mode).toBe('mission');
-    expect(entry.mission).toBe('c3');
-    expect(sim2.mission.def.id).toBe('c3');
+    expect(entry.mission).toBe('c2');
+    expect(sim2.mission.def.id).toBe('c2');
     expect(sim2.hash()).toBe(sim.hash());
     for (let i = 0; i < 2000; i++) { tick(sim, ais); tick(sim2, ais2); }
     expect(sim2.hash()).toBe(sim.hash());
     expect(sim2.market.prices).toEqual(sim.market.prices);
-    expect(sim2.market.prices.wood).not.toBe(createMissionSim('c3').market.prices.wood);
+    expect(sim2.market.prices.wood).not.toBe(createMissionSim('c2').market.prices.wood);
     expect(sim2.mission.getState()).toEqual(sim.mission.getState());
     expect(visionOf(sim2)).toBe(visionOf(sim));
   });

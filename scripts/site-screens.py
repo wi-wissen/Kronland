@@ -281,7 +281,7 @@ def run(pw):
     if want('combat') or want('hud-army'):
         ctx = b.new_context(**DESK, locale='de-DE')
         ctx.add_init_script(init % 'de')
-        page = boot(ctx, '?seed=11&fog=off&quality=high&players=2&hero=bertram')
+        page = boot(ctx, '?seed=11&fog=off&quality=high&players=2&hero=nelia')
         settle(page, ticks=0, wait=500, list=['residence', 'farm', 'barracks', 'archery', 'tower'], levels=False)
         print('Fallen enemies:', page.evaluate(BATTLE, {'dist': 18, 'pitch': 0.8}), flush=True)
         # camera on the middle of the skirmish, above the command bar

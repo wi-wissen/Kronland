@@ -6,7 +6,7 @@ import { get } from '../ui/settings.js';
 import { tr } from '../i18n/index.js';
 
 /** Female speakers get a slightly higher voice if the browser has only one voice. */
-const HIGH = new Set(['hedda', 'ottilie', 'scout']);
+const HIGH = new Set(['nelia', 'elder', 'villager', 'scholar']);
 
 let audio = null;
 let lastSeq = 0;

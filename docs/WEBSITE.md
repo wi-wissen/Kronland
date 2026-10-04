@@ -60,7 +60,7 @@ Suche entstehen aus den Überschriften (`##`, `###`).
 - Große Bildschirmfotos mit kleiner Fassung (`SMALL_SHOTS` in `content.js`) bekommen automatisch `srcset` (720/1440 px).
 - Sonderzeichen wörtlich: `\*` (z. B. `A\*-Suche`), `\_`, `\[`.
 - Kapitel (gleiche IDs DE/EN): erste-schritte, bedienung, oberflaeche, siedlung, wirtschaft, arbeiter, forschung,
-  militaer, spezialisten (Wirtshaus, Dieb, Kundschafter, Brücken), wetter, nebel, hang, kampagne, freies-spiel,
+  militaer, bruecken (Brücken, Brunnen, Denkmal), wetter, nebel, hang, kampagne, freies-spiel,
   speichern, programmieren (Programmier-Abenteuer, Code-Panel, Welteneditor), entwicklermodus, tipps, faq, lizenzen.
 - Verweise ins Kompendium: `[Text](compendium/#b-farm)`, auf Kapitel: `[Text](#economy)`.
 - Die Danksagung kommt aus `CREDITS.md` (Platzhalter `{{credits}}`).

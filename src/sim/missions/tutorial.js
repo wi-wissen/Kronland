@@ -2,7 +2,7 @@
 // Each step: text (desktop / touch), hint (UI element, entity or region),
 // `done` = condition for automatic advancing; without `done` there is "Next".
 
-const say = (text) => ({ type: 'dialog', speaker: 'ottilie', text });
+const say = (text) => ({ type: 'dialog', speaker: 'orrin', text });
 
 /** Remember an own building of a type as a reference (for hints). */
 const refOwn = (type, name) => (sim, m) => {
@@ -18,12 +18,12 @@ export default {
   size: 96,
   title: { de: 'Erste Schritte', en: 'First Steps' },
   summary: {
-    de: 'Ottilie zeigt dir, wie ein Dorf wächst: Leibeigene, Bauen, Arbeiter, Forschung und ein erstes Gefecht.',
-    en: 'Ottilie shows you how a village grows: serfs, building, workers, research and a first skirmish.',
+    de: 'Der Händler Orrin zeigt Nelia, wie ein Dorf wächst: Leibeigene, Bauen, Arbeiter, Forschung und ein erstes Gefecht.',
+    en: 'The merchant Orrin shows Nelia how a village grows: serfs, building, workers, research and a first skirmish.',
   },
   briefing: {
-    de: 'Willkommen in Kronland! Dieses Tal gehört jetzt dir. Ottilie, deine Verwalterin, führt dich Schritt für Schritt. Du kannst nichts falsch machen.',
-    en: 'Welcome to Kronland! This valley is yours now. Ottilie, your steward, guides you step by step. You cannot fail here.',
+    de: 'Willkommen in Kronland! Dieses Tal gehört jetzt dir und Nelia. Orrin, ein wandernder Händler, führt dich Schritt für Schritt. Du kannst nichts falsch machen.',
+    en: 'Welcome to Kronland! This valley now belongs to you and Nelia. Orrin, a travelling merchant, guides you step by step. You cannot fail here.',
   },
   victoryText: {
     de: 'Das Dorf steht, die Räuber sind vertrieben. Du bist bereit für die Kampagne.',
@@ -35,7 +35,7 @@ export default {
   // Fog of war on, but generous: the whole valley around the castle is explored from the start
   vision: { startReveal: 34 },
   players: [
-    { kind: 'human', hero: 'bertram', stock: { gold: 1200, clay: 2400, wood: 2400, stone: 1200, iron: 200, sulfur: 100 } },
+    { kind: 'human', hero: 'nelia', stock: { gold: 1200, clay: 2400, wood: 2400, stone: 1200, iron: 200, sulfur: 100 } },
     { kind: 'bandits' },
   ],
 
@@ -67,8 +67,8 @@ export default {
       id: 'welcome',
       title: { de: 'Willkommen', en: 'Welcome' },
       text: {
-        de: 'Ich bin Ottilie und verwalte dein Land. Oben siehst du deine Rohstoffe. Lass uns ein Dorf gründen!',
-        en: 'I am Ottilie, steward of your land. Your resources are shown at the top. Let us found a village!',
+        de: 'Orrin mein Name, Händler und Kenner aller Preise. Oben siehst du deine Rohstoffe. Lass uns ein Dorf gründen!',
+        en: 'Orrin is the name, merchant and connoisseur of every price. Your resources are shown at the top. Let us found a village!',
       },
       hint: { ui: 'topbar' },
     },
@@ -236,14 +236,14 @@ export default {
       id: 'fight',
       title: { de: 'Erstes Gefecht', en: 'First skirmish' },
       text: {
-        de: 'Da sind sie! Wähle deine Truppe und deinen Ritter Bertram und rechtsklicke auf die Räuber.',
-        en: 'There they are! Select your troop and your knight Bertram, then right-click the bandits.',
+        de: 'Da sind sie! Wähle deine Truppe und Nelia und rechtsklicke auf die Räuber.',
+        en: 'There they are! Select your troop and Nelia, then right-click the bandits.',
       },
-      touch: { de: 'Da sind sie! Wähle deine Truppe und Bertram und tippe auf die Räuber.', en: 'There they are! Select your troop and Bertram, then tap the bandits.' },
+      touch: { de: 'Da sind sie! Wähle deine Truppe und Nelia und tippe auf die Räuber.', en: 'There they are! Select your troop and Nelia, then tap the bandits.' },
       hint: { entity: 'tutBandits' },
       onEnter: [
         { type: 'spawn', owner: 'bandits', ref: 'tutBandits', at: 'tutBanditSpot', units: [{ def: 'sword1', count: 1, soldiers: 2 }] },
-        { type: 'dialog', speaker: 'kunz', text: { de: 'He, Bauer! Dein Holz gehört jetzt uns!', en: 'Hey, farmer! Your timber belongs to us now!' } },
+        { type: 'dialog', speaker: 'bandit', text: { de: 'He, Bauer! Dein Holz gehört jetzt uns!', en: 'Hey, farmer! Your timber belongs to us now!' } },
         { type: 'reveal', area: 'tutBandits' },
         { type: 'camera', at: 'tutBandits' },
       ],
@@ -253,20 +253,20 @@ export default {
       id: 'ability',
       title: { de: 'Heldenkraft', en: 'Hero power' },
       text: {
-        de: 'Helden haben besondere Fähigkeiten. Wähle Bertram und nutze den „Wirbelschlag“.',
-        en: 'Heroes have special abilities. Select Bertram and use “Whirlwind”.',
+        de: 'Helden haben besondere Fähigkeiten. Wähle Nelia und nutze „Mut machen“: Truppen in ihrer Nähe kämpfen eine Weile doppelt so stark.',
+        en: 'Heroes have special abilities. Select Nelia and use “Rally”: troops near her fight twice as hard for a while.',
       },
-      hint: { ui: 'ability-whirl', entity: 'hero' },
+      hint: { ui: 'ability-courage', entity: 'hero' },
       done: { type: 'event', event: 'ability' },
     },
     {
       id: 'end',
       title: { de: 'Geschafft', en: 'Well done' },
       text: {
-        de: 'Hervorragend! Du kennst jetzt die Grundlagen. Die Kampagne wartet – und mit ihr Fürst Morwald.',
-        en: 'Excellent! You know the basics now. The campaign awaits – and with it Prince Morwald.',
+        de: 'Hervorragend! Du kennst jetzt die Grundlagen. Die Kampagne wartet – und mit ihr ein langer Winter.',
+        en: 'Excellent! You know the basics now. The campaign awaits – and with it a long winter.',
       },
-      onEnter: [say({ de: 'Ich bin stolz auf dich. Kronland braucht jemanden wie dich.', en: 'I am proud of you. Kronland needs someone like you.' })],
+      onEnter: [say({ de: 'Na bitte! Ich sage es ja immer: Mit dem richtigen Lehrer wird aus jedem Holzklotz ein Fürst.', en: 'There you go! I always say: with the right teacher, every blockhead becomes a lord.' })],
     },
   ],
 };

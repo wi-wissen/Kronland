@@ -37,7 +37,8 @@ export const QUALITY_LABELS = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }
 export const QUALITY_PRESETS = {
   low: {
     tier: 'low', maxPixelRatio: 1.25, antialias: false, shadowMapSize: 1024, shadowRadius: 1,
-    textureSize: 256, terrainDetail: 1, scatter: 0.25, treeDetail: false, waterDetail: false, terrainBump: false, anisotropy: 2, margin: 12, characterModels: 'models', characterTexture: 1024,
+    // ground textures 512: the painted image files would have hardly any texture in 256 up close (≈ 8 MB graphics memory)
+    textureSize: 512, terrainDetail: 1, scatter: 0.25, treeDetail: false, waterDetail: false, terrainBump: false, anisotropy: 2, margin: 12, characterModels: 'models', characterTexture: 1024,
   },
   medium: {
     tier: 'medium', maxPixelRatio: 1.5, antialias: true, shadowMapSize: 2048, shadowRadius: 2,

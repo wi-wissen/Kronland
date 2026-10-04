@@ -95,9 +95,10 @@ foam = uDetail > 0.5 ? foam * (0.6 + 0.4 * wNoise(vWPos.xz * 3.0 + uTime * 0.3))
 col = mix(col, uFoam, clamp(foam, 0.0, 1.0) * (1.0 - uIce));
 // Eis im Winter
 if (uIce > 0.5) {
-  vec3 ice = mix(vec3(0.82, 0.9, 0.95), vec3(0.62, 0.78, 0.9), smoothstep(0.2, 2.5, depth));
+  // clearly bluer than snow: you must be able to see where the ice ends (a thaw drowns whoever stands on it)
+  vec3 ice = mix(vec3(0.72, 0.85, 0.94), vec3(0.5, 0.69, 0.87), smoothstep(0.1, 1.8, depth));
   float crack = smoothstep(0.03, 0.0, abs(wNoise(vWPos.xz * 0.7) - 0.5)) * 0.25;
-  ice = mix(ice, vec3(0.97, 0.99, 1.0), wNoise(vWPos.xz * 0.25) * 0.4) - crack;
+  ice = mix(ice, vec3(0.9, 0.96, 1.0), wNoise(vWPos.xz * 0.25) * 0.3) - crack;
   col = ice;
 }
 diffuseColor.rgb = col;

@@ -6,7 +6,7 @@
  * @typedef {Object} UnitDef
  * @property {string} id
  * @property {string} name
- * @property {string} line  sword | spear | bow | lightCav | heavyCav | cannon | rifle (Erweiterung)
+ * @property {string} line  sword | spear | bow | lightCav | heavyCav | cannon
  * @property {number} tier 1…4
  * @property {number} attack @property {number} armor @property {number} hp @property {number} soldierHp
  * @property {number} soldiers maximum soldiers
@@ -44,9 +44,6 @@ export const UNITS = {
   cannon1: u({ id: 'cannon1', name: 'Bombarde', line: 'cannon', tier: 1, attack: 32, armor: 2, hp: 180, soldierHp: 0, soldiers: 0, attackType: 'slash', armorType: 'none', range: 7000, cooldown: 50, speed: 120, pop: 5, leaderCost: { gold: 140, iron: 60, sulfur: 90 }, soldierCost: {}, building: 'foundry' }),
   cannon2: u({ id: 'cannon2', name: 'Bronzekanone', line: 'cannon', tier: 2, attack: 42, armor: 2, hp: 200, soldierHp: 0, soldiers: 0, attackType: 'slash', armorType: 'none', range: 7500, cooldown: 50, speed: 120, pop: 5, leaderCost: { gold: 190, iron: 60, sulfur: 110 }, soldierCost: {}, building: 'foundry' }),
   cannon3: u({ id: 'cannon3', name: 'Eisenkanone', line: 'cannon', tier: 3, attack: 60, armor: 2, hp: 240, soldierHp: 0, soldiers: 0, attackType: 'siege', armorType: 'none', range: 8000, cooldown: 60, speed: 110, pop: 5, leaderCost: { gold: 280, iron: 110, sulfur: 140 }, soldierCost: {}, building: 'foundry' }),
-  // Add-on: riflemen (firearms, attack type 'shot'; values (A))
-  rifle1: u({ id: 'rifle1', name: 'Hakenbüchse', line: 'rifle', tier: 1, attack: 18, armor: 1, hp: 160, soldierHp: 110, soldiers: 4, attackType: 'shot', armorType: 'leather', range: 7000, cooldown: 30, speed: 175, pop: 1, leaderCost: { gold: 200, sulfur: 80 }, soldierCost: { gold: 50, sulfur: 30 }, building: 'gunsmith', addon: true }),
-  rifle2: u({ id: 'rifle2', name: 'Muskete', line: 'rifle', tier: 2, attack: 24, armor: 2, hp: 160, soldierHp: 110, soldiers: 6, attackType: 'shot', armorType: 'leather', range: 7500, cooldown: 30, speed: 175, pop: 1, leaderCost: { gold: 260, sulfur: 100 }, soldierCost: { gold: 60, sulfur: 40 }, building: 'gunsmith', addon: true }),
   cannon4: u({ id: 'cannon4', name: 'Belagerungskanone', line: 'cannon', tier: 4, attack: 80, armor: 2, hp: 260, soldierHp: 0, soldiers: 0, attackType: 'siege', armorType: 'none', range: 8500, cooldown: 60, speed: 100, pop: 5, leaderCost: { gold: 320, iron: 180, sulfur: 180 }, soldierCost: {}, building: 'foundry' }),
 };
 
@@ -57,7 +54,6 @@ export const LINES = {
   lightCav: { name: 'Leichte Reiterei', building: 'stable', refiner: null },
   heavyCav: { name: 'Schwere Reiterei', building: 'stable', refiner: null },
   cannon: { name: 'Kanonen', building: 'foundry', refiner: null },
-  rifle: { name: 'Büchsenschützen', building: 'gunsmith', refiner: null, addon: true },
 };
 
 /** Unit of a line at a tier. */
@@ -82,46 +78,49 @@ export const TOWER = [
   { attack: 44, range: 8000, cooldown: 40, attackType: 'chaos' },
 ];
 
-/** Heroes: own figures modelled on the original (values taken from there). */
+/**
+ * Heroes of the campaign "Krone aus Eis" (own figures). Abilities modelled on the heroes of
+ * Settlers 5, names own (see docs/SPIELREGELN.md). Values taken from the model, otherwise (A).
+ * Times in ticks (10 = 1 s), distances in milli-tiles, `reveal` in tiles.
+ */
 export const HEROES = {
-  bertram: {
-    name: 'Bertram', title: 'Ritter', attack: 16, armor: 4, hp: 600, range: 1300, cooldown: 14, speed: 220,
+  // Serf's daughter from Lindgrund. Model: scout hero's falcon, knight's aura.
+  nelia: {
+    name: 'Nelia', title: 'Leibeigenentochter', attack: 16, armor: 4, hp: 600, range: 1300, cooldown: 14, speed: 220,
     abilities: {
-      whirl: { name: 'Wirbelschlag', cooldown: 1200, radius: 3000, damage: 80 },
-      might: { name: 'Aura der Stärke', cooldown: 1200, radius: 6000, duration: 600, attackPercent: 200 },
+      farsight: { name: 'Weitblick', cooldown: 900, reveal: 18, duration: 300 },
+      courage: { name: 'Mut machen', cooldown: 1200, radius: 6000, duration: 600, attackPercent: 200 },
     },
   },
-  hedda: {
-    name: 'Hedda', title: 'Kräuterkundige', attack: 16, armor: 3, hp: 600, range: 1300, cooldown: 14, speed: 220,
+  // Wandering trader. Model: priest hero's conversion, healer hero's healing.
+  orrin: {
+    name: 'Orrin', title: 'Händler', attack: 12, armor: 3, hp: 550, range: 1300, cooldown: 14, speed: 220,
     abilities: {
-      heal: { name: 'Heilen', cooldown: 1200, radius: 6000, amount: 170 },
-      trap: { name: 'Falle', cooldown: 1800, damage: 36, radius: 2500, hp: 500 },
+      // nearest enemy squad in range switches sides for taler (base price + per soldier) (A)
+      bribe: { name: 'Bestechen', cooldown: 1800, radius: 5000, gold: 200, goldPerSoldier: 50 },
+      salve: { name: 'Wundsalbe', cooldown: 1200, radius: 6000, amount: 170 },
     },
   },
-  gerold: {
-    name: 'Gerold', title: 'Sprengmeister', attack: 22, armor: 4, hp: 600, range: 1300, cooldown: 14, speed: 220,
+  // Captain. Model: knight's whirlwind, scout hero's intimidation.
+  taran: {
+    name: 'Taran', title: 'Hauptmann', attack: 20, armor: 5, hp: 650, range: 1300, cooldown: 14, speed: 220,
     abilities: {
-      bomb: { name: 'Bombe legen', cooldown: 600, damage: 50, radius: 3000, fuse: 20 },
-      turret: { name: 'Selbstschuss-Kanone', cooldown: 1800, attack: 14, range: 6000, shots: 4 },
+      shieldBash: { name: 'Schildstoß', cooldown: 1200, radius: 3000, damage: 80 },
+      // enemy squads in range flee for a while (heroes do not) (A)
+      intimidate: { name: 'Einschüchtern', cooldown: 1500, radius: 5000, duration: 150, flee: 8000 },
+    },
+  },
+  // Governor of Hagenfurt (opponent). Model: sapper hero's cannon, healer hero's trap.
+  malvor: {
+    name: 'Malvor', title: 'Statthalter', attack: 20, armor: 5, hp: 700, range: 1300, cooldown: 14, speed: 210,
+    abilities: {
+      fieldGun: { name: 'Feldgeschütz', cooldown: 1800, attack: 14, range: 6000, shots: 4 },
+      caltrops: { name: 'Fußangeln', cooldown: 1800, damage: 36, radius: 2500, hp: 500 },
     },
   },
 };
-// Add-on: two more heroes (own figures, abilities modelled on the master marksman and
-// the mist witch from "Nebelreich"; values (A)). Abilities see src/sim/systems/addon.js.
-HEROES.falk = {
-  name: 'Falk', title: 'Meisterschütze', attack: 20, armor: 3, hp: 550, range: 6500, cooldown: 18, speed: 230, addon: true, ranged: true,
-  abilities: {
-    aimedShot: { name: 'Gezielter Schuss', cooldown: 600, range: 9000, damage: 160 },
-    eagleEye: { name: 'Adlerauge', cooldown: 1200, radius: 6000, duration: 600, rangeBonus: 1500, attackPercent: 125 },
-  },
-};
-HEROES.morla = {
-  name: 'Morla', title: 'Nebelhexe', attack: 14, armor: 3, hp: 600, range: 1300, cooldown: 14, speed: 220, addon: true,
-  abilities: {
-    poisonFog: { name: 'Giftnebel', cooldown: 1200, radius: 3500, duration: 120, interval: 10, damage: 14, slowPercent: 60 },
-    mistVeil: { name: 'Nebelschleier', cooldown: 1800, radius: 6000, duration: 300 },
-  },
-};
+/** Order of heroes in free play (player 0 chooses, opponents get the rest). */
+export const HERO_IDS = ['nelia', 'orrin', 'taran', 'malvor'];
 export const HERO_COMMON = { attackType: 'hero', armorType: 'hero' };
 
 /** Cost to raise a line from tier n to n+1 (tiering per the model, numbers own (A)). */
@@ -131,5 +130,4 @@ export const LINE_UPGRADE_COST = {
   bow1: { gold: 380, wood: 220 }, bow2: { gold: 560, iron: 380 }, bow3: { gold: 640, iron: 420 },
   lightCav1: { gold: 480, wood: 380 }, heavyCav1: { gold: 520, iron: 420 },
   cannon1: { gold: 320, iron: 180 }, cannon2: { gold: 420, iron: 280 }, cannon3: { gold: 520, iron: 380 },
-  rifle1: { gold: 500, sulfur: 400 }, // (A)
 };

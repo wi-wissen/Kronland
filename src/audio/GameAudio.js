@@ -18,7 +18,7 @@ export const WORKSHOP_SOUND = {
 };
 
 /** Hero ability → sound. */
-export const ABILITY_SOUND = { whirl: 'whirl', might: 'might', heal: 'heal', trap: 'trap', bomb: 'fuse', turret: 'turret' };
+export const ABILITY_SOUND = { shieldBash: 'whirl', courage: 'might', salve: 'heal', caltrops: 'trap', fieldGun: 'turret', intimidate: 'might', bribe: 'heal', farsight: 'might' };
 
 /** Unit kinds that make a sound when they fall. */
 const MORTAL = new Set(['soldier', 'leader', 'unit', 'worker', 'hero']);

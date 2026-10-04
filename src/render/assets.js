@@ -7,6 +7,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { loadCharacterManifest, loadCharacterModels, characterFileCount } from './characters.js';
+import { loadGroundImages, GROUND_IMAGE_KINDS } from './textures.js';
+import { getQuality } from './quality.js';
 import { siteUrl } from '../paths.js';
 
 /** Player colours in player order. */
@@ -26,14 +28,11 @@ export const BUILDING_ASSETS = {
   chapel: ['church'],
   storehouse: ['market'],
   tower: ['tower_A', 'tower_catapult'],
-  // Erweiterung
-  tavern: ['tavern'],
-  gunsmith: ['blacksmith'],
   fountain: ['well'],
 };
 
 /** Heroes → figure. */
-export const HERO_ASSETS = { bertram: 'Knight', hedda: 'Mage', gerold: 'Barbarian', falk: 'Rogue', morla: 'Mage' };
+export const HERO_ASSETS = { nelia: 'Rogue', orrin: 'Rogue_Hooded', taran: 'Knight', malvor: 'Mage' };
 
 /** Number of simplified LOD levels per building model (<name>.lod1.glb …, see scripts/build-lods.mjs). */
 export const BUILDING_LODS = 2;
@@ -75,10 +74,13 @@ export async function loadAssets(players, onProgress = () => {}, baseUrl = siteU
   loader.setMeshoptDecoder(MeshoptDecoder);
   // figure manifest first (small), so the total for the progress is known
   const manifest = opts.characters === false ? null : await loadCharacterManifest(base);
-  const total = names.length + (manifest ? characterFileCount() : 0);
+  const ground = opts.ground === false ? 0 : GROUND_IMAGE_KINDS.length;
+  const total = names.length + (manifest ? characterFileCount() : 0) + ground;
   let done = 0;
   const tick = () => onProgress(++done, total);
   await Promise.all([
+    // painted ground textures at the size of the graphics level (phone: small version)
+    ground ? loadGroundImages(siteUrl('textures/ground/'), getQuality().textureSize, tick) : null,
     ...names.map((n) => loader.loadAsync(`${base}${n}${ext}`)
       .then((g) => {
         g.scene.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });

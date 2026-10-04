@@ -4,14 +4,12 @@ import { UNITS, MILITIA, SERF_COMBAT, TOWER, HEROES, HERO_COMMON, WORKER_COMBAT 
 import { COMBAT, computeDamage } from '../data/combat.js';
 import { buildingArmor } from '../data/buildings.js';
 import { moveAlong, pathTo, canStep, goalsAt, nearestWalkable } from './movement.js';
-import { idiv, isqrt, toTile, UNIT } from '../fixed.js';
+import { idiv, isqrt, toTile, tileCenter, UNIT } from '../fixed.js';
 import { removeWorker } from './workers.js';
 import { techBonus, boosted, buildingMaxHp } from './techs.js';
 import { EXPERIENCE as XP, starsOf } from '../data/experience.js';
 import { BALANCE } from '../data/balance.js';
-import { SPECIALISTS } from '../data/addon.js';
-import { ADDON_ABILITIES, heroAbility, slowed } from './addon.js';
-import { hiddenFrom } from './hidden.js';
+import { revealArea } from './vision.js';
 import { WEATHER_EFFECTS } from '../data/weather.js';
 
 const FIGHTERS = new Set(['leader', 'soldier', 'hero']);
@@ -43,14 +41,14 @@ export function combatStats(sim, e) {
       if (ranged && rangedPct !== 100) attack = idiv(attack * rangedPct, 100);
       return {
         attack, armor, attackType: d.attackType, armorType: d.armorType, range, cooldown: d.cooldown,
-        speed: slowed(sim, e, boosted(d.speed, tb.speed)), sight, crit: stars >= 1 ? XP.critPercent : 0,
+        speed: boosted(d.speed, tb.speed), sight, crit: stars >= 1 ? XP.critPercent : 0,
       };
     }
     case 'hero': {
       const h = HEROES[e.hero];
       const attack = e.buff && sim.tick < e.buff.until ? idiv(h.attack * e.buff.attackPercent, 100) : h.attack;
       const range = h.range + (e.buff && sim.tick < e.buff.until ? e.buff.range ?? 0 : 0);
-      return { attack, armor: h.armor, ...HERO_COMMON, range, cooldown: h.cooldown, speed: slowed(sim, e, h.speed) };
+      return { attack, armor: h.armor, ...HERO_COMMON, range, cooldown: h.cooldown, speed: h.speed };
     }
     case 'unit': {
       const c = e.militia ? MILITIA : SERF_COMBAT;
@@ -70,8 +68,6 @@ export function combatStats(sim, e) {
     }
     case 'turret': return { attack: e.attack, armor: 5, attackType: 'shot', armorType: 'fortified', range: e.range, cooldown: 20, speed: 0 };
     case 'trap': return { attack: 0, armor: 5, attackType: 'chaos', armorType: 'fortified', range: 0, cooldown: 0, speed: 0 };
-    // Expansion: thief and scout do not fight
-    case 'specialist': { const d = SPECIALISTS[e.spec]; return { attack: 0, armor: d.armor, attackType: 'slash', armorType: 'none', range: 0, cooldown: 0, speed: d.speed }; }
     default: return null;
   }
 }
@@ -84,7 +80,6 @@ export function maxHp(sim, e) {
     case 'unit': return 200;
     case 'worker': return WORKER_COMBAT.hp;
     case 'building': return buildingMaxHp(sim, e);
-    case 'specialist': return SPECIALISTS[e.spec].hp;
     default: return e.maxHp ?? 1;
   }
 }
@@ -109,14 +104,12 @@ export function distTo(e, t) {
   return isqrt((q.x - p.x) ** 2 + (q.y - p.y) ** 2);
 }
 
-/** Enemies: different teams, both still in the game (eliminated players no longer attack either). */
-export const isEnemy = (sim, a, b) => a !== b && a >= 0 && b >= 0 && !sim.players[b]?.defeated && !sim.players[a]?.defeated && !sim.allied(a, b);
+/** Enemies: hostile diplomacy (default: different teams), both still in the game (eliminated ones no longer attack). */
+export const isEnemy = (sim, a, b) => a !== b && a >= 0 && b >= 0 && !sim.players[b]?.defeated && !sim.players[a]?.defeated && sim.hostile(a, b);
 
 /** May this target be attacked? */
 export function targetable(sim, t) {
   if (!t || !sim.entities.has(t.id)) return false;
-  // Invisible (thief, fog veil): cannot be attacked by enemies
-  if (t.hidden) return false;
   switch (t.kind) {
     // Squad leader only once all soldiers have fallen – or none is left with him (soldiers
     // cut off: far away or on the other side of a river); otherwise he would be permanently invulnerable
@@ -131,7 +124,7 @@ export function targetable(sim, t) {
     }
     case 'hero': return !t.down;
     case 'worker': return !t.inside;
-    case 'soldier': case 'unit': case 'building': case 'turret': case 'trap': case 'specialist': return true;
+    case 'soldier': case 'unit': case 'building': case 'turret': case 'trap': return true;
     default: return false;
   }
 }
@@ -151,7 +144,7 @@ export function buildGrid(sim) {
     if (e.kind === 'building') {
       for (let cy = Math.floor(e.y / C); cy <= Math.floor((e.y + e.h - 1) / C); cy++)
         for (let cx = Math.floor(e.x / C); cx <= Math.floor((e.x + e.w - 1) / C); cx++) add(cx, cy, e);
-    } else if (FIGHTERS.has(e.kind) || e.kind === 'unit' || e.kind === 'worker' || e.kind === 'turret' || e.kind === 'trap' || e.kind === 'specialist') {
+    } else if (FIGHTERS.has(e.kind) || e.kind === 'unit' || e.kind === 'worker' || e.kind === 'turret' || e.kind === 'trap') {
       const p = posOf(e);
       add(Math.floor(p.x / UNIT / C), Math.floor(p.y / UNIT / C), e);
     }
@@ -180,8 +173,6 @@ export function nearestEnemy(sim, e, radius, opts = { units: true, buildings: fa
         if (seen.has(t.id)) continue;
         seen.add(t.id);
         if (!isEnemy(sim, owner, t.owner) || !targetable(sim, t)) continue;
-        // Expansion: discovered thieves/veiled squads only for the teams that discover them
-        if (t.seenBy !== undefined && hiddenFrom(sim, owner, t)) continue;
         const isB = t.kind === 'building' || t.kind === 'trap';
         if (isB && !opts.buildings) continue;
         // Nobody attacks bridges on their own (only on command or by explosive charge)
@@ -243,12 +234,10 @@ function attack(sim, e, st, t) {
   // Experience: hits count for the squad leader; from 1 star critical hits
   if (st.crit && sim.rng.int(100) < st.crit) dmg *= 2;
   if (e.kind === 'leader' || e.kind === 'soldier') gainXp(sim, e.kind === 'leader' ? e : sim.entities.get(e.leader));
-  // Fog veil ends with the unit's own attack
-  if (e.veilUntil) e.veilUntil = 0;
   if (st.range > 2000) {
     const a = posOf(e), b = posOf(t);
     const line = UNITS[e.def]?.line;
-    const kind = e.kind === 'building' || e.kind === 'turret' ? 'bolt' : line === 'cannon' ? 'ball' : line === 'rifle' || (e.kind === 'hero' && HEROES[e.hero]?.ranged) ? 'bullet' : 'arrow';
+    const kind = e.kind === 'building' || e.kind === 'turret' ? 'bolt' : line === 'cannon' ? 'ball' : 'arrow';
     sim.events.push({ type: 'shot', from: a, to: b, owner: e.owner, kind });
   } else {
     sim.events.push({ type: 'hit', by: e.id, target: t.id });
@@ -347,22 +336,48 @@ function engage(sim, e, st, t) {
     stepToward(sim, e, q.x, q.y, speedOf(sim, st.speed));
     return;
   }
-  if (!e.path.length || (sim.tick + e.id) % 15 === 0) e.path = pathTo(sim, e, goalTiles(sim, t)) ?? [];
+  if (!e.path.length || (sim.tick + e.id) % 15 === 0) e.path = pathTo(sim, e, goalTiles(sim, t)) ?? rangePath(sim, e, t, st.range) ?? [];
   if (!e.path.length) { e.targetId = 0; return; }
   moveAlong(sim, e, speedOf(sim, st.speed));
+}
+
+/**
+ * Ranged fighter and unreachable target (e.g. across the water): path to a tile in the own region
+ * from which the target is in range – archers and cannons then fire at it from the bank.
+ */
+function rangePath(sim, e, t, range) {
+  if (range < 3 * UNIT) return null;
+  const m = sim.map, ex = toTile(e.px), ey = toTile(e.py);
+  if (!m.walkable(ex, ey)) return null;
+  const region = m.regionAt(m.idx(ex, ey)), r = toTile(range);
+  const x0 = t.kind === 'building' ? t.x : toTile(t.px), y0 = t.kind === 'building' ? t.y : toTile(t.py);
+  const x1 = t.kind === 'building' ? t.x + t.w - 1 : x0, y1 = t.kind === 'building' ? t.y + t.h - 1 : y0;
+  const goals = [];
+  for (let y = y0 - r; y <= y1 + r; y++) for (let x = x0 - r; x <= x1 + r; x++) {
+    if (!m.inBounds(x, y) || !m.walkable(x, y) || m.regionAt(m.idx(x, y)) !== region) continue;
+    if (distTo({ px: tileCenter(x), py: tileCenter(y) }, t) <= range - 300) goals.push(m.idx(x, y));
+  }
+  return goals.length ? pathTo(sim, e, goals) : null;
 }
 
 /** Distance between two points; accepts entities (px/py) and points (x/y). */
 const distPt = (a, b) => isqrt(((a.px ?? a.x) - (b.px ?? b.x)) ** 2 + ((a.py ?? a.y) - (b.py ?? b.y)) ** 2);
 
-/** Enemy, attackable and (expansion) not hidden from e's team. */
-const canHit = (sim, e, t) => targetable(sim, t) && isEnemy(sim, e.owner, t.owner) && !(t.seenBy !== undefined && hiddenFrom(sim, e.owner, t));
+/** Enemy and attackable. */
+const canHit = (sim, e, t) => targetable(sim, t) && isEnemy(sim, e.owner, t.owner);
 
 // ---------- Commanders (squad leader, hero, militia) ----------
 
 function updateCommander(sim, e) {
   const st = combatStats(sim, e);
   if (e.cooldown > 0) e.cooldown--;
+  // Intimidated (ability "Einschüchtern"): flees to the flee point, orders wait
+  if (e.fearUntil !== undefined) {
+    if (sim.tick < e.fearUntil) {
+      if (e.order?.type !== 'move' || e.order.x !== e.fleeTo.x || e.order.y !== e.fleeTo.y) { e.order = { type: 'move', ...e.fleeTo }; e.path = []; }
+      if (distPt(e, e.fleeTo) < 400) { e.path = []; return; }
+    } else { delete e.fearUntil; delete e.fleeTo; e.order = { type: 'idle' }; e.anchor = { x: e.px, y: e.py }; }
+  }
   const o = e.order ?? { type: 'idle' };
   let t = e.targetId ? sim.entities.get(e.targetId) : null;
   if (t && !canHit(sim, e, t)) { t = null; e.targetId = 0; }
@@ -516,16 +531,6 @@ export function useAbility(sim, h, ability, x, y) {
     if (!ok) return 'err.notWalkable';
   }
   if ((h.ready[ability] ?? 0) > sim.tick) return 'err.notReady';
-  // Expansion (Falk, Morla): own implementation; cooldown only on success
-  if (ADDON_ABILITIES.has(ability)) {
-    if (!sim.addon) return 'err.addonOff';
-    const err = heroAbility(sim, h, ability, def, x, y);
-    if (err) return err;
-    h.ready[ability] = sim.tick + def.cooldown;
-    sim.events.push({ type: 'ability', hero: h.id, ability, owner: h.owner, x: x ?? h.px, y: y ?? h.py });
-    return null;
-  }
-  h.ready[ability] = sim.tick + def.cooldown;
   const around = (radius, pred) => {
     const out = [];
     for (const e of sim.entities.values()) {
@@ -535,21 +540,60 @@ export function useAbility(sim, h, ability, x, y) {
     return out;
   };
   switch (ability) {
-    case 'whirl':
-      for (const e of around(def.radius, (e) => (FIGHTERS.has(e.kind) || e.kind === 'unit') && isEnemy(sim, h.owner, e.owner) && targetable(sim, e))) applyDamage(sim, e, def.damage, h);
+    case 'farsight':
+      // Far sight: a large area around the heroine visible for a while (and permanently explored)
+      revealArea(sim, h.owner, toTile(x ?? h.px), toTile(y ?? h.py), def.reveal, def.duration);
       break;
-    case 'might':
+    case 'courage':
       for (const e of around(def.radius, (e) => (e.kind === 'leader' || e.kind === 'hero') && e.owner === h.owner)) e.buff = { attackPercent: def.attackPercent, until: sim.tick + def.duration };
       break;
-    case 'heal':
+    case 'bribe': {
+      // nearest enemy squad (squad leader with soldiers) in range switches sides for taler
+      let best = null, bd = def.radius + 1;
+      for (const e of sim.entities.values()) {
+        if (e.kind !== 'leader' || !isEnemy(sim, h.owner, e.owner)) continue;
+        const d = distTo(h, e);
+        if (d < bd) { bd = d; best = e; }
+      }
+      if (!best) return 'err.noTarget';
+      if (!sim.pay(h.owner, { gold: def.gold + def.goldPerSoldier * best.soldiers.length })) return 'err.notEnoughGold';
+      const from = best.owner;
+      for (const id of [best.id, ...best.soldiers]) {
+        const e = sim.entities.get(id);
+        if (!e) continue;
+        e.owner = h.owner; e.targetId = 0; e.path = []; e.buff = null;
+        delete e.fearUntil; delete e.fleeTo;
+      }
+      best.order = { type: 'idle' }; best.anchor = { x: best.px, y: best.py };
+      sim.events.push({ type: 'bribed', leader: best.id, from, to: h.owner });
+      break;
+    }
+    case 'salve':
       for (const e of around(def.radius, (e) => (FIGHTERS.has(e.kind) || e.kind === 'unit') && e.owner === h.owner && !e.down)) e.hp = Math.min(maxHp(sim, e), e.hp + def.amount);
       break;
-    case 'trap': case 'bomb': case 'turret': {
-      const kind = ability === 'turret' ? 'turret' : ability === 'bomb' ? 'bomb' : 'trap';
+    case 'shieldBash':
+      for (const e of around(def.radius, (e) => (FIGHTERS.has(e.kind) || e.kind === 'unit') && isEnemy(sim, h.owner, e.owner) && targetable(sim, e))) applyDamage(sim, e, def.damage, h);
+      break;
+    case 'intimidate': {
+      // enemy squad leaders and militia flee from the hero; soldiers follow their squad leader
+      const n = around(def.radius, (e) => (e.kind === 'leader' || (e.kind === 'unit' && e.militia)) && isEnemy(sim, h.owner, e.owner));
+      for (const e of n) {
+        const dx = e.px - h.px, dy = e.py - h.py, d = Math.max(1, isqrt(dx * dx + dy * dy));
+        let fx = e.px + idiv(dx * def.flee, d), fy = e.py + idiv(dy * def.flee, d);
+        fx = Math.max(500, Math.min(sim.map.width * UNIT - 500, fx)); fy = Math.max(500, Math.min(sim.map.height * UNIT - 500, fy));
+        const k = nearestWalkable(sim.map, toTile(fx), toTile(fy), fx, fy, 6);
+        if (k >= 0) { fx = (k % sim.map.width) * UNIT + 500; fy = ((k / sim.map.width) | 0) * UNIT + 500; }
+        e.fearUntil = sim.tick + def.duration; e.fleeTo = { x: fx, y: fy };
+        e.order = { type: 'move', x: fx, y: fy }; e.path = []; e.targetId = 0;
+      }
+      break;
+    }
+    case 'caltrops': case 'fieldGun': {
+      const kind = ability === 'fieldGun' ? 'turret' : 'trap';
       const obj = {
         id: sim.nextId++, kind, owner: h.owner, px: x ?? h.px, py: y ?? h.py,
-        hp: ability === 'turret' ? 500 : ability === 'trap' ? def.hp : 1, maxHp: 500,
-        damage: def.damage ?? 0, radius: def.radius ?? 0, fuse: def.fuse ?? 0,
+        hp: kind === 'turret' ? 500 : def.hp, maxHp: 500,
+        damage: def.damage ?? 0, radius: def.radius ?? 0, fuse: 0,
         attack: def.attack ?? 0, range: def.range ?? 0, shots: def.shots ?? 0, cooldown: 0, path: [],
       };
       sim.entities.set(obj.id, obj);
@@ -557,6 +601,7 @@ export function useAbility(sim, h, ability, x, y) {
     }
     default: return 'err.unknownAbility';
   }
+  h.ready[ability] = sim.tick + def.cooldown;
   sim.events.push({ type: 'ability', hero: h.id, ability, owner: h.owner, x: x ?? h.px, y: y ?? h.py });
   return null;
 }
@@ -598,9 +643,6 @@ export function updateMilitary(sim) {
       }
       case 'trap':
         if (nearestEnemy(sim, e, 1500, { units: true, buildings: false })) explode(sim, e);
-        break;
-      case 'bomb':
-        if (--e.fuse <= 0) explode(sim, e);
         break;
       default: break;
     }

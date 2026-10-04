@@ -48,8 +48,6 @@ export function selectionIcon(s) {
   if (s.kind === 'building') return 'b-' + s.type;
   if (s.kind === 'serfs') return 'serf';
   if (s.kind === 'army') return s.heroes.length && !s.groups.length ? 'hero-' + s.heroes[0].hero : s.groups.length ? 'u-' + s.groups[0].line : 'militia';
-  if (s.kind === 'specialists') return 'sp-' + s.units[0].spec;
-  if (s.kind === 'foreign' && s.spec) return 'sp-' + s.spec;
   if (s.kind === 'foreign') {
     if (s.entity === 'ruin') return 'fire';
     if (s.hero) return 'hero-' + s.hero;

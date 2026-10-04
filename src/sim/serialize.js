@@ -21,7 +21,8 @@ const fromB64 = (b64, Type) => {
   return new Type(bytes.buffer);
 };
 
-export const SAVE_VERSION = 1;
+/** 2: campaign "Krone aus Eis" (new heroes), expansion without inn/specialists/rifleman */
+export const SAVE_VERSION = 2;
 
 /** @param {Sim} sim @param {any} [extra] e.g. state of the AI opponents */
 export function saveGame(sim, extra = {}) {
@@ -36,8 +37,7 @@ export function saveGame(sim, extra = {}) {
     starts: sim.starts,
     spots: sim.spots,
     shafts: sim.shafts,
-    // Expansion: on/off and bridge sites
-    addon: !!sim.addon,
+    // Bridge sites
     bridgeSites: sim.bridgeSites ?? [],
     weather: sim.weather,
     weatherCycle: sim.weatherCycle,
@@ -49,6 +49,7 @@ export function saveGame(sim, extra = {}) {
       heights: toB64(sim.map.heights), flags: toB64(sim.map.flags), owner: toB64(sim.map.owner),
     },
     players: sim.players.map((p) => ({ ...p, techs: [...p.techs] })),
+    diplomacy: sim.diplomacy ?? {},
     entities: [...sim.entities.values()],
     // Mission state (pure JSON); the definition is found by ID when loading
     mission: sim.mission ? sim.mission.getState() : null,
@@ -74,11 +75,12 @@ export function loadGame(data) {
     starts: data.starts, spots: data.spots, shafts: data.shafts, weather: data.weather,
     weatherCycle: data.weatherCycle, winner: data.winner, pending: data.pending ?? [], events: [],
     market: data.market ?? createMarket(),
-    addon: !!data.addon, bridgeSites: data.bridgeSites ?? [],
+    bridgeSites: data.bridgeSites ?? [],
   });
   sim.rng = new Rng(0);
   sim.rng.setState(data.rng);
   sim.players = data.players.map((p) => ({ ...p, techs: new Set(p.techs) }));
+  sim.diplomacy = data.diplomacy ?? {};
   sim.entities = new Map(data.entities.map((e) => [e.id, e]));
   sim.mission = data.mission ? MissionRuntime.fromState(data.mission) : null;
   loadVision(sim, data.vision, fromB64);

@@ -16,9 +16,9 @@ export const VISION = {
   /** Weather: penalty in tiles (A). Rain: less vision, winter: snowfall */
   weather: { summer: 0, rain: 2, winter: 1 },
   /** Figures without combat vision */
-  units: { serf: 7, worker: 5, militia: 11, hero: 13, turret: 9, trap: 2, bomb: 2, charge: 2, cloud: 3 },
+  units: { serf: 7, worker: 5, militia: 11, hero: 13, turret: 9, trap: 2 },
   /** Bonus on combat vision (COMBAT.sight = 9, tracking +2, Feldwebel +2) per troop line */
-  fighterExtra: { sword: 2, spear: 2, bow: 3, lightCav: 4, heavyCav: 3, cannon: 2, rifle: 3 },
+  fighterExtra: { sword: 2, spear: 2, bow: 3, lightCav: 4, heavyCav: 3, cannon: 2 },
   /** Buildings: number or list per upgrade level; if a type is missing, `building` applies */
   building: 6,
   /** Construction sites see little */
@@ -30,7 +30,7 @@ export const VISION = {
     weatherTower: 22,
     barracks: 8, archery: 8, stable: 8, foundry: 8,
     banditCamp: 9,
-    tavern: 8, gunsmith: 8, bridge: 3,
+    bridge: 3,
   },
 };
 

@@ -10,6 +10,7 @@ import {
 } from './nature.js';
 import {
   ChunkedInstances, LodCounter, LodState, ViewTracker, cameraFrustum, effectiveDistance, lodSettings, LOD_TIERS, sphereVisible, splitGridMesh,
+  screenHeightPx, pixelMetric,
 } from './lod.js';
 import { CharacterSystem, sharedCharacterRoots } from './characters.js';
 import { Effects, HealthBars, GroundMarks, sharedPuffTexture } from './effects.js';
@@ -17,24 +18,24 @@ import { CameraRig, nearFactor } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT } from '../sim/fixed.js';
 import { WATER, CLIFF, OCCUPIED, RESERVED, BRIDGE } from '../sim/map.js';
-import { SPECIALISTS } from '../sim/data/addon.js';
-import { hiddenFrom } from '../sim/systems/hidden.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import {
   buildingModel, scaffold, serfModel, mat, PROF_COLORS, campfireModel,
   unitModel, heroModel, gadgetModel, horseModel, constructionStage, ruinModel, hasConstructionStages, bridgeModel,
 } from './models.js';
-import { UNITS, HEROES } from '../sim/data/units.js';
+import { UNITS, HEROES, HERO_IDS } from '../sim/data/units.js';
 import { PLAYER_COLORS, sharedModelMaterials } from './models.js';
 import { sharedAssetRoots } from './assets.js';
 import { sharedMarkerMaterials } from './nature.js';
 import { sharedTerrainTextures } from './textures.js';
-import { HintMarker } from './hints.js';
+import { HintMarker, NpcMarks } from './hints.js';
 import { FogOfWar, patchFog, patchFogTree } from './fog.js';
+import { TileGrid, overviewDist } from './grid.js';
 import { knownBuildings } from '../sim/systems/vision.js';
 
-const PLAYER_COLORS_HEX = (owner) => PLAYER_COLORS[owner % 4];
+/** Player colour; figures without owner (conversation figures) in neutral brown. */
+const PLAYER_COLORS_HEX = (owner) => (owner >= 0 ? PLAYER_COLORS[owner % 4] : 0x8a6a4a);
 /** Rotation per viewing direction from scripts (0 = north/−z, 1 = east/+x, 2 = south/+z, 3 = west). */
 const FACE_YAW = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 
@@ -116,10 +117,13 @@ export class Renderer {
     const hq = sim.findBuilding(0, 'headquarters');
     if (hq) this.rig.lookAt(hq.x + hq.w / 2, hq.y + hq.h / 2 + 3);
     else {
-      // without castle (learning adventure): look at the hero
-      const hero = [...sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === 0);
-      // north up, east right – like on a worksheet (hero.turn_left() stays intuitive)
-      if (hero) { this.rig.dist = 18; this.rig.yaw = 0; this.rig.lookAt(hero.px / 1000 + 3, hero.py / 1000 + 1); }
+      // Without castle (learning adventure): calm overview of the whole small map instead of following the
+      // hero. North up, east right – like on a worksheet (hero.turn_left() stays intuitive)
+      const { width: w, height: h } = sim.map;
+      this.rig.yaw = 0;
+      this.rig.dist = overviewDist(w, h);
+      this.rig.lookAt(w / 2, h / 2 + 1);
+      this.rig.clamp?.();
     }
   }
 
@@ -155,6 +159,7 @@ export class Renderer {
     for (const x of [...sharedTerrainTextures(), sharedPuffTexture(), this.ballGeo, this.arrowGeo, this.boomGeo]) free(x);
     this.env?.dispose?.();
     this.fog?.dispose();
+    this.grid?.dispose();
     this.terrain?.dispose?.();
     this.water?.dispose?.();
     this.scene.environment = null;
@@ -293,6 +298,8 @@ export class Renderer {
     // per variant a chunk grid with LOD levels (near: full geometry, far: few faces)
     const groups = variants.map((v, k) => new ChunkedInstances({
       name: `trees-${k}`, chunkSize: 8, colors: true, kind: 'tree',
+      // LOD level by screen height: height of the variant at medium instance size
+      height: (v.geometry.boundingBox ?? (v.geometry.computeBoundingBox(), v.geometry.boundingBox)).max.y * v.scale,
       // farthest level without shadow casting: saves the expensive shadow pass for the horizon
       levels: v.levels.map((g, i) => ({ geometry: g, material: v.material, castShadow: i < v.levels.length - 1 || v.levels.length === 1, receiveShadow: i === 0 })),
     }));
@@ -487,9 +494,11 @@ export class Renderer {
       const kind = kinds[name];
       const big = name.startsWith('kk') || name.startsWith('mt') || name.startsWith('rock') || name.startsWith('bush');
       // small decoration (grass, flowers, pebbles) in tight chunks that drop out entirely in the distance
+      const level = { geometry: kind.geometry, material: kind.material, castShadow: big, receiveShadow: true };
       const ci = new ChunkedInstances({
         name: 'scatter-' + name, chunkSize: kind.small ? 6 : 12, kind: kind.small ? 'scatterSmall' : 'scatterLarge',
-        levels: [{ geometry: kind.geometry, material: kind.material, castShadow: big, receiveShadow: true }],
+        // distant rocks and bushes without shadow casting (second level, same geometry)
+        levels: big ? [level, { ...level, castShadow: false }] : [level],
       });
       for (const it of list) {
         // let rocks sink in a little; water lilies float on the water
@@ -523,7 +532,7 @@ export class Renderer {
     this.view.pos.set(Infinity, 0, 0);
   }
 
-  /** Create resource piles (also later: deposits uncovered by the scout). */
+  /** Create resource piles. */
   addPileMarker(e) {
     const g = new THREE.Group();
     const d = depositModel(e.res, e.id);
@@ -538,8 +547,8 @@ export class Renderer {
 
   buildMarkers() {
     for (const e of this.sim.entities.values()) if (e.kind === 'pile') this.addPileMarker(e);
-    // add-on: bridge sites (posts at both banks, weak board over the water)
-    if (this.sim.addon) for (const s of this.sim.bridgeSites ?? []) {
+    // bridge sites (posts at both banks, weak board over the water)
+    for (const s of this.sim.bridgeSites ?? []) {
       const g = bridgeSiteMarker(s, this.bridgeDeckY(s));
       patchFogTree(g);
       this.scene.add(g);
@@ -637,6 +646,15 @@ export class Renderer {
       this.reshapeGround(r, () => this.terrain.updateArea(r.x, r.y, r.w, r.h));
       return false;
     });
+    this.grid?.rebuild();
+  }
+
+  /** Show or hide the tile grid (learning adventure, world editor). Rendering only. */
+  setGrid(on) {
+    if (!on) { this.grid?.dispose(); this.grid = null; return; }
+    if (this.grid) return;
+    this.grid = new TileGrid(this.terrain, this.sim.map.width, this.sim.map.height);
+    this.scene.add(this.grid.group);
   }
 
   // ---------- Events ----------
@@ -748,6 +766,7 @@ export class Renderer {
     fog.update(dt);
     const fogOn = fog.active, me = this.viewer;
     const mine = (o) => o !== undefined && o >= 0 && !!sim.players[o] && sim.allied(o, me);
+    const talkers = [];
 
     for (const e of sim.entities.values()) {
       if (e.kind === 'building') {
@@ -755,11 +774,11 @@ export class Renderer {
         if (fogOn && !mine(e.owner) && !fog.rectVisible(e.x, e.y, e.w, e.h)) continue;
         seen.add(e.id); this.syncBuilding(e);
       } else if (e.px !== undefined) {
-        // enemy figures, traps and projectiles only in visible tiles; invisible ones (thief, fog veil) never
+        // enemy figures, traps and projectiles only in visible tiles
         if (fogOn && !mine(e.owner) && !fog.visibleAt(e.px / UNIT, e.py / UNIT)) continue;
-        if (!mine(e.owner) && !view.revealAll && (e.hidden || (e.seenBy !== undefined && hiddenFrom(sim, me, e)))) continue;
         seen.add(e.id);
-        if (e.kind === 'unit' || e.kind === 'worker') this.syncUnit(e, alpha, prev.get(e.id), dt);
+        if (e.kind === 'unit' || e.kind === 'worker' || e.kind === 'npc') this.syncUnit(e, alpha, prev.get(e.id), dt);
+        if (e.kind === 'npc' && e.talk) talkers.push(e);
         else this.syncFighter(e, alpha, prev.get(e.id));
       } else if (e.kind === 'ruin') {
         if (fogOn && !fog.rectVisible(e.x, e.y, e.w ?? 3, e.h ?? 3)) continue;
@@ -804,6 +823,7 @@ export class Renderer {
     this.syncSelection(view.selected);
     this.syncGhost(view.ghost);
     (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, dt);
+    (this.npcMarks ??= new NpcMarks(this.scene, this.terrain)).update(talkers, dt);
 
     this.syncTerrain();
     this.syncGround();
@@ -849,17 +869,23 @@ export class Renderer {
   /** Choose LOD levels of trees, decoration and buildings by camera. */
   updateLod() {
     const cam = this.camera;
-    const bias = this.lodTier.bias;
+    const bias = this.lodTier.bias, tier = this.quality.tier;
     const eff = (d) => effectiveDistance(d, cam.fov, bias);
-    // small decoration: fade out with distance in the shader (matching the chunk cut-off limit)
+    // small decoration: shrinks into the ground in the shader with distance; chunks drop out as soon as they lie entirely behind
+    // the end of the shrinking (before, they were still drawn there invisibly)
     const fade = this.natureUniforms.uFade;
     if (fade) {
-      const cut = lodSettings('scatterSmall', this.quality.tier).cull * bias / (Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) / Math.tan(THREE.MathUtils.degToRad(20)));
+      const cut = lodSettings('scatterSmall', tier).cull * bias / (Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) / Math.tan(THREE.MathUtils.degToRad(20)));
       fade.value.set(cut * 0.72, cut * 0.97);
     }
     if (this.view.changed(cam)) {
+      const viewH = this.viewport?.h ?? 800;
       for (const c of this.chunked) {
-        c.update(this.frustum, cam.position, eff, lodSettings(c.kind, this.quality.tier), this.lodCounter);
+        const s = lodSettings(c.kind, tier);
+        const e = s.pixels
+          ? (d) => pixelMetric(screenHeightPx(c.height, d, cam.fov, viewH) * s.bias)
+          : (d) => effectiveDistance(d, cam.fov, s.bias);
+        c.update(this.frustum, cam.position, e, s, this.lodCounter, c.kind === 'scatterSmall' && fade ? fade.value.y : Infinity);
       }
       this.lastChunkCounts = structuredClone(this.lodCounter.groups);
     } else if (this.lastChunkCounts) {
@@ -896,7 +922,7 @@ export class Renderer {
 
   /** Pre-bake frequent figures (avoids hitches at first appearance). */
   prepareFigures() {
-    for (const k of ['serf', 'worker', 'soldier.sword', 'soldier.sword.leader', 'soldier.bow', 'soldier.spear', `hero.${[...this.sim.entities.values()].find((e) => e.kind === 'hero')?.hero ?? 'bertram'}`]) this.chars.variantFor(k);
+    for (const k of ['serf', 'worker', 'soldier.sword', 'soldier.sword.leader', 'soldier.bow', 'soldier.spear', `hero.${[...this.sim.entities.values()].find((e) => e.kind === 'hero')?.hero ?? 'nelia'}`]) this.chars.variantFor(k);
   }
 
   /**
@@ -1032,11 +1058,11 @@ export class Renderer {
   /** Role of a serf/worker/fighter for the figure manifest. */
   roleOf(e) {
     if (e.kind === 'unit') return e.militia ? 'soldier.spear' : 'serf';
+    if (e.kind === 'npc') return e.look ?? 'serf';
     if (e.kind === 'worker') return 'worker';
     if (e.kind === 'hero') return `hero.${e.hero}`;
-    if (e.kind === 'specialist') return `specialist.${e.spec}`;
     const line = UNITS[e.def]?.line ?? 'sword';
-    if (this.sim.players[e.owner]?.neutral) return line === 'bow' ? 'bandit.bow' : 'bandit';
+    if (this.sim.players[e.owner]?.neutral && !this.sim.players[e.owner].soldierLook) return line === 'bow' ? 'bandit.bow' : 'bandit';
     return `soldier.${line}${e.kind === 'leader' ? '.leader' : ''}`;
   }
 
@@ -1078,7 +1104,9 @@ export class Renderer {
     const moving = prev && (prev.px !== e.px || prev.py !== e.py);
     const st = (this.unitYaw ??= new Map());
     let yaw = st.get(e.id) ?? 0;
-    if (moving) yaw = Math.atan2(e.px - prev.px, e.py - prev.py);
+    // script step (hero.step()): keep the facing direction instead of turning to the walking direction
+    if (moving && e.face === undefined) yaw = Math.atan2(e.px - prev.px, e.py - prev.py);
+    else if (moving && e.face !== undefined) yaw = FACE_YAW[e.face] ?? yaw;
     else if (e.face !== undefined && !e.targetId) {
       // facing direction from a script (hero.turn_left() …): turn there smoothly
       const want = FACE_YAW[e.face] ?? yaw;
@@ -1095,7 +1123,7 @@ export class Renderer {
     }
     st.set(e.id, yaw);
     // traps, bombs, self-firing: small static objects (few)
-    if (e.kind !== 'hero' && e.kind !== 'leader' && e.kind !== 'soldier' && e.kind !== 'specialist') {
+    if (e.kind !== 'hero' && e.kind !== 'leader' && e.kind !== 'soldier') {
       let g = this.units.get(e.id);
       if (!g) {
         g = gadgetModel(e.kind, e.owner);
@@ -1113,7 +1141,7 @@ export class Renderer {
     const shotAt = this.shotAt?.get(e.id);
     const attacking = (hit !== undefined && this.time - hit < 0.7) || (shotAt !== undefined && this.time - shotAt < 0.7);
     const line = e.kind === 'hero' ? null : UNITS[e.def]?.line;
-    const ranged = line === 'bow' || line === 'lightCav' || line === 'rifle' || (e.kind === 'hero' && !!HEROES[e.hero]?.ranged);
+    const ranged = line === 'bow' || line === 'lightCav';
     const clip = e.down ? 'die' : attacking ? (ranged ? 'shoot' : 'attack') : moving ? (line === 'lightCav' || line === 'heavyCav' ? 'run' : 'walk') : 'idle';
     const role = this.roleOf(e);
     const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: PLAYER_COLORS_HEX(e.owner), speed: line === 'cannon' ? 0.6 : 1 });
@@ -1128,10 +1156,6 @@ export class Renderer {
       let cur = e.hp;
       for (const id of e.soldiers) cur += this.sim.entities.get(id)?.hp ?? 0;
       frac = Math.max(0, cur / total);
-    } else if (e.kind === 'specialist') {
-      frac = Math.max(0, e.hp / (SPECIALISTS[e.spec]?.hp ?? 1));
-      // eigener unsichtbarer Dieb: schwacher Schleier-Ring
-      if (e.hidden && rec.lod.level <= 1) this.marks.ring(x, y + 0.04, z, 0.34, 0xb0a4d0, 0.55, 0.04, 0.15);
     } else frac = Math.max(0, e.hp / HEROES[e.hero].hp);
     const sel = this.selectedIds?.has(e.id);
     if (frac < 0.999 || sel || e.kind === 'hero') this.bars.add(x, y + (e.kind === 'hero' ? 1.55 : 1.3) + (rec.variant?.seat ?? 0), z, frac, e.kind === 'hero' ? 40 : 32, 6);
@@ -1257,7 +1281,7 @@ export class Renderer {
     }
   }
 
-  // ---------- Add-on: bridges ----------
+  // ---------- Bridges ----------
 
   /** Deck height of a bridge (rectangle in tiles): shore height at both ends. */
   bridgeDeckY(r) {
@@ -1271,7 +1295,7 @@ export class Renderer {
   groundY(x, z) {
     const h = this.terrain.heightAt(x, z);
     const m = this.sim.map, tx = Math.floor(x), tz = Math.floor(z);
-    if (!this.sim.addon || !m.inBounds(tx, tz) || !(m.flags[m.idx(tx, tz)] & BRIDGE)) return h;
+    if (!m.inBounds(tx, tz) || !(m.flags[m.idx(tx, tz)] & BRIDGE)) return h;
     const b = this.sim.entities.get(m.owner[m.idx(tx, tz)]) ?? (this.sim.bridgeSites ?? []).find((s) => tx >= s.x && tz >= s.y && tx < s.x + s.w && tz < s.y + s.h);
     return Math.max(h, b ? this.bridgeDeckY(b) : this.terrain.waterLevelY + 0.25);
   }
@@ -1462,7 +1486,7 @@ function arrowGeometry() {
 
 /**
  * Procedural figures (fallback without models) for the figure system.
- * Keys as in the manifest: 'serf', 'worker', 'sword', 'sword:leader', 'heavyCav', 'cannon', 'hero:bertram', 'horse' …
+ * Keys as in the manifest: 'serf', 'worker', 'sword', 'sword:leader', 'heavyCav', 'cannon', 'hero:nelia', 'horse' …
  */
 function proceduralFigures() {
   const TEAM = 0xff00ff, TINT = 0x00ffff; // detection colours for the masks
@@ -1479,16 +1503,13 @@ function proceduralFigures() {
     worker: fig(() => { const g = serfModel(0, TINT); g.userData.tool.visible = false; return g; }, { tint: true, tintDefault: 0xc39a5e }),
     horse: fig(() => { const h = horseModel(0x8a6a4a, 0, 1); const g = new THREE.Group(); g.add(h); g.userData = { horse: h, horseLegs: h.userData.legs }; return g; }, { saddle: 0.62, radius: 0.5 }),
   };
-  for (const line of ['sword', 'spear', 'bow', 'lightCav', 'heavyCav', 'cannon', 'rifle']) out[line] = unit(line);
-  for (const hero of ['bertram', 'hedda', 'gerold', 'falk', 'morla']) out['hero:' + hero] = fig(() => heroModel(hero, 0), {});
-  // add-on: thief (dark), scout (green)
-  out.thief = fig(() => serfModel(0, 0x34373d), {});
-  out.scout = fig(() => serfModel(0, 0x6f7f4a), {});
-  out.hero = out['hero:bertram'];
+  for (const line of ['sword', 'spear', 'bow', 'lightCav', 'heavyCav', 'cannon']) out[line] = unit(line);
+  for (const hero of HERO_IDS) out['hero:' + hero] = fig(() => heroModel(hero, 0), {});
+  out.hero = out['hero:nelia'];
   return out;
 }
 
-/** Marker of a free bridge site: posts at both banks, weak board above (add-on). */
+/** Marker of a free bridge site: posts at both banks, weak board above. */
 function bridgeSiteMarker(s, deckY) {
   const g = new THREE.Group();
   const horiz = s.w >= s.h, len = Math.max(s.w, s.h), wid = Math.min(s.w, s.h);

@@ -38,7 +38,7 @@ export default {
       if (p.unit) p.unit = this.$name.unit(p.unit);
       if (p.res) p.res = this.$name.res(p.res);
       if (p.weather) p.weather = this.$name.weather(p.weather);
-      // name as i18n key (e.g. 'addon.spec.thief')
+      // name as i18n key (e.g. 'building.farm.0')
       if (typeof p.name === 'string' && has(p.name)) p.name = this.$t(p.name);
       if (p.rank !== undefined && p.rank !== null) p.rank = rankName(p.rank);
       return this.$t(t.key, p);

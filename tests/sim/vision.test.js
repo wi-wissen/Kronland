@@ -124,10 +124,10 @@ describe('Exploration', () => {
 
   it('mission: action reveal uncovers a region (explored, visible for a limited time)', () => {
     const def = {
-      id: 'test', title: { de: 'T', en: 'T' }, players: [{ kind: 'human', hero: 'bertram' }, { kind: 'ai' }], objectives: [], events: [],
+      id: 'test', title: { de: 'T', en: 'T' }, players: [{ kind: 'human', hero: 'nelia' }, { kind: 'ai' }], objectives: [], events: [],
       start: [{ type: 'reveal', area: 'enemyHq', r: 5, seconds: 3 }],
     };
-    const sim = new Sim({ seed: 4, players: 2, heroes: ['bertram', null], mission: new MissionRuntime(def) });
+    const sim = new Sim({ seed: 4, players: 2, heroes: ['nelia', null], mission: new MissionRuntime(def) });
     const c = center(hqOf(sim, 1));
     expect(isExplored(sim, 0, c.x, c.y)).toBe(true);
     expect(isVisible(sim, 0, c.x, c.y)).toBe(true);

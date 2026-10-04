@@ -14,21 +14,23 @@ Detailstufen (LOD) funktionieren.
 
 ## Detailstufen (LOD)
 
-Code: `src/render/lod.js`. Gebäude, Bäume und Deko bekommen einen *effektiven Abstand*: echter Abstand zur
+Code: `src/render/lod.js`. Gebäude und Deko bekommen einen *effektiven Abstand*: echter Abstand zur
 Kamera, korrigiert um das Sichtfeld (Handy hochkant = weiteres Sichtfeld = Objekte kleiner) und die Grafikstufe
-(`niedrig` vereinfacht früher). **Figuren** richten sich nach ihrer **Bildschirmhöhe** in CSS-Pixeln
+(`niedrig` vereinfacht früher). **Figuren und Bäume** richten sich nach ihrer **Bildschirmhöhe** in CSS-Pixeln
 (`screenHeightPx`, wie Unitys „Screen Relative Transition Height“): Gleich groß auf dem Bildschirm heißt gleiche
 Stufe, auf Handy wie Desktop. Eine Hysterese von ±10–12 % verhindert Flackern an den Grenzen.
 
 | Gruppe | Grenzen (Kacheln, Stufe „hoch“) | Stufen |
 |---|---|---|
 | Gebäude | 38 / 72 | Original → lod1 (~50–70 %) → lod2 (~25–35 %) |
-| Bäume | 30 / 62 | detailliert → einfach → Fernform (≈20–30 Dreiecke, ohne Schattenwurf) |
+| Bäume | Bildschirmhöhe 80 / 40 px (2 Kacheln hoher Baum am Desktop: ~30 / 62) | detailliert → einfach → Fernform (≈20–40 Dreiecke, ohne Schattenwurf). Auf „niedrig“ fehlt die detaillierte Stufe: einfach bis 40 px, dann Fernform |
 | Figuren | Bildschirmhöhe 80 / 28 / 12 px (unter 3 px weg) | **Nahmodell**, flüssig → **Spielmodell** (lod1), 24 Bilder/s ohne Mischung → Spielmodell, 8 Bilder/s → starr. Wechsel Nah ↔ Spiel mit 0,35 s Dither-Überblendung |
-| Kleine Deko (Gras, Blumen, Kiesel) | ab 66 weg | schrumpft vorher im Shader in den Boden (kein Aufploppen) |
+| Felsen, Büsche | 62 | mit Schatten → ohne Schattenwurf (gleiche Geometrie) |
+| Kleine Deko (Gras, Blumen, Kiesel) | ab 66 weg | schrumpft vorher im Shader in den Boden (kein Aufploppen); ein Chunk fällt weg, sobald er ganz hinter dem Ende des Schrumpfens liegt |
 
-Faktor je Grafikstufe: hoch 1, mittel 0,8, niedrig 0,55 (Figuren mindestens 0,8). Werte stehen in
-`LOD_PROFILES` und `LOD_TIERS`.
+Faktor je Grafikstufe: hoch 1, mittel 0,8, niedrig 0,55 (Figuren, Bäume, Felsen und Büsche mindestens 0,8).
+Werte stehen in `LOD_PROFILES` und `LOD_TIERS`. Hat eine Gruppe weniger Geometrien als Stufen, fallen die
+feinsten weg (`[einfach, fern]` = Stufe 1 und 2).
 
 Gelände und Wasser sind in Kacheln geteilt (`splitGridMesh`), damit die Sichtprüfung ganze Bereiche verwirft.
 Bäume und Deko liegen je Chunk zusammen; sichtbare Chunks werden nur bei Kamerabewegung neu eingesammelt
@@ -93,7 +95,8 @@ nicht geladen werden, nimmt das Spiel die prozedurale Figur (`procedural`), eben
 der Einheiten-ID. Das wirkt zufällig, bleibt aber über Laden und Wiederholung gleich. Es betrifft nur die
 Darstellung, die Simulation kennt keine Varianten. Jeder Eintrag darf Rollenfelder überschreiben (`include`,
 `tint`, `clips` …). Fehlt das Modell einer Variante, wird die nächste verfügbare genommen. Helden sind
-feste Rollen (`hero.hedda` → weibliches Modell).
+feste Rollen (`hero.nelia` …); bis die eigenen Heldenfiguren fertig sind, stehen dort Platzhalter aus dem
+KayKit-Paket (Konzeptbögen in `assets-src/characters/<hero>/`, siehe [STIL.md](STIL.md)).
 
 **Masken-Textur:** Statt Zellen oder Rechtecken kann eine Bilddatei die Spielerfarbe (Rotkanal) und die
 Tönung (Grünkanal) festlegen. Der Shader liest sie je Bildpunkt (`uMaskMap`). Die Pipeline erzeugt sie aus
@@ -116,7 +119,8 @@ einen Punkt zusammengezogen. Kein Shader-Zweig, keine zusätzlichen Zeichenaufru
 | `serf` | Leibeigener |
 | `worker` | Arbeiter (Kittelfarbe je Beruf über `tint`) |
 | `soldier.<line>` / `soldier.<line>.leader` | `sword`, `spear`, `bow`, `lightCav`, `heavyCav`, `cannon` |
-| `hero.<id>` | `bertram`, `hedda`, `gerold` |
+| `hero.<id>` | `nelia`, `orrin`, `taran`, `malvor` (Platzhalter) |
+| Gesprächsfigur | Rolle aus `look` der Mission (`serf`, `worker` …) |
 | `bandit`, `bandit.bow` | Räuber (neutraler Missionsspieler) |
 | `mount.horse`, `crew` | Reittier, Kanonenmannschaft (über `attach`) |
 

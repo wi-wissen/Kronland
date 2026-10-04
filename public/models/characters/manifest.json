@@ -505,159 +505,58 @@
       },
       "procedural": "bow"
     },
-    "hero.bertram": {
+    "hero.nelia": {
+      "model": "Rogue",
+      "include": [
+        "Barbarian:1H_Axe",
+        "Rogue_Cape"
+      ],
+      "tint": {
+        "uvCells": [
+          [
+            0,
+            1
+          ]
+        ],
+        "color": "#b08452"
+      },
+      "scale": 1.15,
+      "procedural": "hero:nelia"
+    },
+    "hero.orrin": {
+      "model": "Rogue_Hooded",
+      "include": [],
+      "tint": {
+        "uvCells": [
+          [
+            0,
+            1
+          ]
+        ],
+        "color": "#c26a3a"
+      },
+      "scale": 1.18,
+      "procedural": "hero:orrin"
+    },
+    "hero.taran": {
       "model": "Knight",
       "include": [
         "1H_Sword",
-        "Badge_Shield",
+        "Round_Shield",
         "Knight_Helmet",
         "Knight_Cape"
       ],
       "scale": 1.18,
-      "procedural": "hero:bertram"
+      "procedural": "hero:taran"
     },
-    "hero.hedda": {
-      "model": "Mage",
-      "scale": 1.18,
-      "procedural": "hero:hedda"
-    },
-    "hero.gerold": {
-      "model": "Barbarian",
-      "scale": 1.18,
-      "procedural": "hero:gerold"
-    },
-    "soldier.rifle": {
-      "model": "Rogue",
-      "include": [
-        "2H_Crossbow"
-      ],
-      "team": {
-        "uvCells": [
-          [
-            1,
-            1
-          ],
-          [
-            1,
-            2
-          ]
-        ]
-      },
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ]
-        ],
-        "color": "#3b3f46"
-      },
-      "procedural": "rifle"
-    },
-    "soldier.rifle.leader": {
-      "model": "Rogue",
-      "include": [
-        "2H_Crossbow",
-        "Rogue_Cape"
-      ],
-      "team": {
-        "uvCells": [
-          [
-            1,
-            1
-          ],
-          [
-            1,
-            2
-          ]
-        ]
-      },
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ]
-        ],
-        "color": "#3b3f46"
-      },
-      "scale": 1.08,
-      "procedural": "rifle:leader"
-    },
-    "hero.falk": {
-      "model": "Rogue",
-      "include": [
-        "2H_Crossbow",
-        "Rogue_Cape"
-      ],
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ]
-        ],
-        "color": "#4f6a3a"
-      },
-      "scale": 1.18,
-      "procedural": "hero:falk"
-    },
-    "hero.morla": {
+    "hero.malvor": {
       "model": "Mage",
       "include": [
         "1H_Wand",
-        "Spellbook",
-        "Mage_Hat",
         "Mage_Cape"
       ],
       "scale": 1.18,
-      "procedural": "hero:morla"
-    },
-    "specialist.thief": {
-      "model": "Rogue_Hooded",
-      "include": [
-        "Knife",
-        "Knife_Offhand"
-      ],
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ]
-        ],
-        "color": "#34373d"
-      },
-      "procedural": "thief"
-    },
-    "specialist.scout": {
-      "model": "Rogue",
-      "include": [
-        "1H_Crossbow",
-        "Rogue_Cape"
-      ],
-      "team": {
-        "uvCells": [
-          [
-            1,
-            1
-          ],
-          [
-            1,
-            2
-          ]
-        ]
-      },
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ]
-        ],
-        "color": "#6f7f4a"
-      },
-      "procedural": "scout"
+      "procedural": "hero:malvor"
     }
   }
 }
