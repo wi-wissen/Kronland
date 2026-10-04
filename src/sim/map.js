@@ -16,6 +16,66 @@ export class TileMap {
     this.owner = new Int32Array(width * height);
     /** Winter: water is frozen and walkable */
     this.frozen = false;
+    /** Counter for changes of the occupation (invalidates the region numbers) */
+    this.version = 0;
+    /** @type {Int32Array|null} connected walkable regions (0 = not walkable), lazy */
+    this.regions = null;
+    this.regionKey = '';
+    /** @type {Int32Array|null} regions without ice (stored separately only in winter) */
+    this.landRegions = null;
+    this.landKey = '';
+  }
+
+  /**
+   * Number of the connected walkable region of a tile (0 = not walkable).
+   * Diagonal steps are only allowed if both neighbours are free (as in pathfinding),
+   * so 4-neighbourhood is enough. Recomputed on demand when occupancy or frost changes.
+   */
+  regionAt(k) {
+    const key = this.version + (this.frozen ? 'f' : '');
+    if (this.regionKey !== key || !this.regions) {
+      this.regions = this.computeRegions(this.frozen, this.regions);
+      this.regionKey = key;
+    }
+    return this.regions[k];
+  }
+
+  /**
+   * Region of a tile without ice (frozen water does not count as a way). For plans that should
+   * survive the winter (AI: building spots, resources, attack targets).
+   */
+  landRegionAt(k) {
+    if (!this.frozen) return this.regionAt(k);
+    const key = String(this.version);
+    if (this.landKey !== key || !this.landRegions) {
+      this.landRegions = this.computeRegions(false, this.landRegions);
+      this.landKey = key;
+    }
+    return this.landRegions[k];
+  }
+
+  /** @param {boolean} frozen @param {Int32Array|null} [reuse] @returns {Int32Array} */
+  computeRegions(frozen, reuse = null) {
+    const W = this.width, H = this.height, n = W * H;
+    const reg = reuse && reuse.length === n ? reuse.fill(0) : new Int32Array(n);
+    const queue = new Int32Array(n);
+    const flags = this.flags;
+    const ok = (k) => { const f = flags[k]; return !(f & (OCCUPIED | CLIFF)) && (!(f & WATER) || frozen); };
+    let id = 0;
+    for (let s = 0; s < n; s++) {
+      if (reg[s] || !ok(s)) continue;
+      id++;
+      let head = 0, tail = 0;
+      queue[tail++] = s; reg[s] = id;
+      while (head < tail) {
+        const k = queue[head++], x = k % W, y = (k / W) | 0;
+        if (x > 0 && !reg[k - 1] && ok(k - 1)) { reg[k - 1] = id; queue[tail++] = k - 1; }
+        if (x < W - 1 && !reg[k + 1] && ok(k + 1)) { reg[k + 1] = id; queue[tail++] = k + 1; }
+        if (y > 0 && !reg[k - W] && ok(k - W)) { reg[k - W] = id; queue[tail++] = k - W; }
+        if (y < H - 1 && !reg[k + W] && ok(k + W)) { reg[k + W] = id; queue[tail++] = k + W; }
+      }
+    }
+    return reg;
   }
 
   idx(x, y) { return y * this.width + x; }
@@ -35,6 +95,7 @@ export class TileMap {
       this.flags[k] |= OCCUPIED;
       this.owner[k] = entityId;
     }
+    this.version++;
   }
 
   release(x, y, w, h) {
@@ -43,6 +104,7 @@ export class TileMap {
       this.flags[k] &= ~OCCUPIED;
       this.owner[k] = 0;
     }
+    this.version++;
   }
 
   reserve(x, y, w, h) {

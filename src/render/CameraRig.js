@@ -19,6 +19,25 @@ export class CameraRig {
 
   lookAt(x, z) { this.target.set(x, 0, z); this.clamp(); }
 
+  /**
+   * Choose the look-at point so that the ground point (x,z) appears at screen height `screenY` (pixels from the top)
+   * instead of in the screen centre – e.g. above a panel at the bottom edge. Measures the position via
+   * projection and corrects (a few steps suffice, also at the map edge without an infinite loop).
+   * @param {number} x @param {number} z @param {number} screenY @param {number} viewportH
+   */
+  lookAtScreen(x, z, screenY, viewportH) {
+    this.lookAt(x, z);
+    const p = new THREE.Vector3();
+    for (let i = 0; i < 5; i++) {
+      this.update(0);
+      this.camera.updateMatrixWorld();
+      p.set(x, this.groundAt(x, z), z).project(this.camera);
+      const dy = screenY - ((1 - p.y) / 2) * viewportH;
+      if (Math.abs(dy) < 2) break;
+      this.pan(0, dy, viewportH);
+    }
+  }
+
   clamp() {
     this.target.x = Math.max(0, Math.min(this.bounds.w, this.target.x));
     this.target.z = Math.max(0, Math.min(this.bounds.h, this.target.z));
@@ -68,9 +87,17 @@ export class CameraRig {
       this.target.y + Math.sin(this.pitch) * this.dist,
       this.target.z + Math.cos(this.yaw) * cp * this.dist,
     );
-    // Never below the terrain (high mountains between camera and target)
-    const under = this.groundAt(this.camera.position.x, this.camera.position.z) + 1.5;
-    if (this.camera.position.y < under) this.camera.position.y = under;
+    // Never below the terrain, and a clear view of the target: if a mountain lies between camera and target
+    // (flat view, zoomed far out), the camera is raised until the line of sight is clear
+    const c = this.camera.position, t = this.target;
+    let minY = this.groundAt(c.x, c.z) + 1.5;
+    for (let k = 1; k < 32; k++) {
+      const f = k / 32;
+      const h = this.groundAt(c.x + (t.x - c.x) * f, c.z + (t.z - c.z) * f) + 0.5;
+      // Line of sight at f: c.y + (t.y − c.y)·f ≥ h  ⇔  c.y ≥ (h − t.y·f) / (1 − f)
+      minY = Math.max(minY, (h - t.y * f) / (1 - f));
+    }
+    if (c.y < minY) c.y = minY;
     this.camera.lookAt(this.target);
   }
 }

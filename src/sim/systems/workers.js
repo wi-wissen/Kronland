@@ -110,6 +110,7 @@ export function updateSpawning(sim) {
     if (vc.kind !== 'building' || vc.type !== 'villageCenter' || !vc.done) continue;
     if ((sim.tick + vc.id) % W.spawnTicks !== 0) continue;
     const owner = vc.owner;
+    if (sim.players[owner]?.defeated) continue;
     if (sim.popUsed(owner) >= sim.popLimit(owner)) continue;
     if (averageMotivation(sim, owner) < W.noNewSettlersBelow) continue;
     const wp = nearestDone(sim, owner, Object.keys(BUILDINGS), center(vc), (b) => !!professionFor(b.type) && b.workers.length < workerSlots(b));

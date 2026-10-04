@@ -115,8 +115,9 @@ export function getQuality() {
 }
 
 /**
- * Choose and remember the level. Takes full effect at the next game start; a running renderer
- * can pick up parts immediately via the 'kronland-quality' event.
+ * Choose and remember the level. A running game picks up pixel density, shadows, decoration density and
+ * LOD levels at once via the event 'kronland-quality' (Renderer.applyQuality); anti-aliasing,
+ * textures, terrain/water/tree detail and figure models take effect from the next game start.
  * @param {QualityTier|'auto'} tier
  */
 export function setQuality(tier) {

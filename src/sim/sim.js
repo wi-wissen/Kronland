@@ -11,6 +11,7 @@ import { RESOURCES, START_RESOURCES, emptyStock } from './data/resources.js';
 import { UNIT, tileCenter, toTile, secondsToTicks } from './fixed.js';
 import { Hasher } from './hash.js';
 import { updateSerf, clearJob, assignJob } from './systems/serfs.js';
+import { unstickAll, nearestWalkable } from './systems/movement.js';
 import { updatePayday } from './systems/payday.js';
 import { updateSpawning, updateWorker, removeWorker, workersOf, maxMotivation } from './systems/workers.js';
 import { updateMilitary, setMilitia, useAbility, slotOffset } from './systems/military.js';
@@ -22,6 +23,10 @@ import { checkBuildingResearch, startBuildingResearch, updateBuildingResearch, b
 import { createMarket, checkTrade, startTrade, updateMarket } from './systems/market.js';
 import { updateDamage, createRuin, isDamaged } from './systems/damage.js';
 import { checkWeatherChange, changeWeather } from './systems/weather.js';
+import { createVision, updateVision, revealStart, hashVision } from './systems/vision.js';
+
+/** Own key of a data table? Protects against commands like { building: 'constructor' }. */
+export const hasKey = (table, key) => typeof key === 'string' && Object.hasOwn(table, key);
 
 /** @typedef {import('./data/resources.js').ResourceId} ResourceId */
 /**
@@ -88,7 +93,8 @@ import { checkWeatherChange, changeWeather } from './systems/weather.js';
 
 export class Sim {
   /**
-   * @param {{ seed?: number, players?: number, size?: number, mission?: any }} [opts]
+   * @param {{ seed?: number, players?: number, size?: number, mission?: any, fog?: boolean, startReveal?: number }} [opts]
+   *   fog: fog of war (default on); startReveal: explored radius around each castle at the start
    *   mission: optional mission script (src/sim/missions/runtime.js). It gets exactly three
    *   entry points: setup(sim) at the end of the constructor, update(sim) at the end of every tick and
    *   command(sim, cmd) for commands of type 'mission'. Without a mission nothing changes.
@@ -147,8 +153,14 @@ export class Sim {
     this.weather = { state: this.weatherCycle[0][0], index: 0, until: this.weatherCycle[0][1] };
     /** @type {number|null} winner team */
     this.winner = null;
+    // Fog of war (missions: entry `fog`/`vision` of the mission file, free play: opts.fog)
+    const mdef = this.mission?.def;
+    createVision(this, { enabled: opts.fog ?? mdef?.fog ?? true, startReveal: opts.startReveal ?? mdef?.vision?.startReveal });
     // Mission: post-process the map, start layout, goals (hook 1 of 3)
     this.mission?.setup(this);
+    // Explore the start area around the castles, first vision
+    revealStart(this);
+    updateVision(this, true);
   }
 
   allied(a, b) { return this.players[a]?.team === this.players[b]?.team; }
@@ -198,13 +210,13 @@ export class Sim {
     return b;
   }
 
-  /** Push units standing on a new building footprint to the edge. */
+  /** Push figures (serfs, workers, squads, heroes) standing on a new building area to the edge. */
   ejectUnits(b) {
     const ring = this.map.ring(b.x, b.y, b.w, b.h);
     if (!ring.length) return;
     let k = 0;
     for (const e of this.entities.values()) {
-      if (e.kind !== 'unit') continue;
+      if (e.px === undefined || !(e.kind === 'unit' || e.kind === 'worker' || e.kind === 'leader' || e.kind === 'soldier' || e.kind === 'hero')) continue;
       const tx = toTile(e.px), ty = toTile(e.py);
       if (tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h) {
         const t = ring[k++ % ring.length];
@@ -384,8 +396,10 @@ export class Sim {
 
   /** Check whether a building may be built at (x,y). @returns {Reason|null} error code or null */
   checkPlacement(owner, type, x, y) {
+    if (!hasKey(BUILDINGS, type)) return 'err.notBuildable';
     const def = BUILDINGS[type];
-    if (!def || def.buildable === false) return 'err.notBuildable';
+    if (def.buildable === false) return 'err.notBuildable';
+    if (!Number.isInteger(x) || !Number.isInteger(y)) return 'err.notFree';
     if (def.requires && !this.players[owner].techs.has(def.requires)) return { code: 'err.techMissing', params: { tech: def.requires } };
     const m = this.map;
     if (def.placement === 'settlement') {
@@ -404,16 +418,17 @@ export class Sim {
 
   /**
    * Searches in a spiral around (cx,cy) for the nearest valid building spot. For AI, tests and build preview.
+   * @param {((x:number, y:number) => boolean)|null} [accept] additional condition (AI: reachable)
    * @returns {{x:number,y:number}|null}
    */
-  findPlacement(owner, type, cx, cy, radius = 20) {
+  findPlacement(owner, type, cx, cy, radius = 20, accept = null) {
     const def = BUILDINGS[type];
     if (def.placement !== 'free') {
       const list = def.placement === 'settlement' ? this.spots : this.shafts.filter((s) => s.res === def.shaftResource);
       let best = null, bestD = Infinity;
       for (const s of list) {
         const d = (s.x - cx) ** 2 + (s.y - cy) ** 2;
-        if (d < bestD && !this.checkPlacement(owner, type, s.x, s.y)) { best = s; bestD = d; }
+        if (d < bestD && !this.checkPlacement(owner, type, s.x, s.y) && (!accept || accept(s.x, s.y))) { best = s; bestD = d; }
       }
       return best ? { x: best.x, y: best.y } : null;
     }
@@ -423,7 +438,7 @@ export class Sim {
         const x = cx + dx, y = cy + dy;
         // Leave a one-tile border free so that paths do not become overgrown.
         if (!this.map.rectFree(x - 1, y - 1, def.w + 2, def.h + 2, WATER | OCCUPIED | CLIFF)) continue;
-        if (!this.checkPlacement(owner, type, x, y)) return { x, y };
+        if (!this.checkPlacement(owner, type, x, y) && (!accept || accept(x, y))) return { x, y };
       }
     }
     return null;
@@ -443,7 +458,7 @@ export class Sim {
     const out = [];
     for (const id of cmd.units ?? []) {
       const u = this.entities.get(id);
-      if (u && u.kind === 'unit' && u.owner === cmd.player && u.type === 'serf') out.push(u);
+      if (u && u.kind === 'unit' && u.owner === cmd.player && u.type === 'serf' && !u.militia) out.push(u); // militia fights, does not work
     }
     return out;
   }
@@ -466,7 +481,7 @@ export class Sim {
   cmdMove(cmd) {
     const serfs = this.ownSerfs(cmd);
     if (!serfs.length) return this.reject(cmd, 'err.noUnits');
-    if (!this.map.walkable(cmd.x, cmd.y)) return this.reject(cmd, 'err.notWalkable');
+    if (!Number.isInteger(cmd.x) || !Number.isInteger(cmd.y) || !this.map.walkable(cmd.x, cmd.y)) return this.reject(cmd, 'err.notWalkable');
     for (const u of serfs) {
       clearJob(this, u);
       u.goal = this.map.idx(cmd.x, cmd.y);
@@ -536,8 +551,8 @@ export class Sim {
 
   /** Reason why a research is not possible, or null. @returns {Reason|null} */
   checkResearch(owner, b, techId) {
+    if (!hasKey(TECHS, techId)) return 'err.unknownTech';
     const t = TECHS[techId];
-    if (!t) return 'err.unknownTech';
     const p = this.players[owner];
     if (!b || b.type !== 'university' || !b.done) return 'err.universityNeeded';
     if (b.research) return 'err.busyResearching';
@@ -554,7 +569,7 @@ export class Sim {
 
   cmdResearch(cmd) {
     const b = this.ownBuilding(cmd);
-    if (BUILDING_TECHS[cmd.tech]) {
+    if (hasKey(BUILDING_TECHS, cmd.tech)) {
       const e = checkBuildingResearch(this, cmd.player, b, cmd.tech);
       if (e) return this.reject(cmd, e);
       startBuildingResearch(this, cmd.player, b, cmd.tech);
@@ -594,7 +609,7 @@ export class Sim {
   cmdBless(cmd) {
     const b = this.ownBuilding(cmd, 'chapel');
     if (!b?.done) return this.reject(cmd, 'err.chapelNeeded');
-    const bl = BLESSINGS[cmd.blessing];
+    const bl = hasKey(BLESSINGS, cmd.blessing) ? BLESSINGS[cmd.blessing] : null;
     if (!bl) return this.reject(cmd, 'err.unknownBlessing');
     if (bl.minLevel && b.level < bl.minLevel) return this.reject(cmd, 'err.cathedralOnly');
     const p = this.players[cmd.player];
@@ -630,7 +645,7 @@ export class Sim {
 
   cmdRecruit(cmd) {
     const b = this.ownBuilding(cmd);
-    const L = LINES[cmd.line];
+    const L = hasKey(LINES, cmd.line) ? LINES[cmd.line] : null;
     if (!b || !L || b.type !== L.building || !b.done) return this.reject(cmd, 'err.militaryBuildingNeeded');
     const p = this.players[cmd.player];
     const def = unitOf(cmd.line, p.unitTier[cmd.line]);
@@ -689,7 +704,7 @@ export class Sim {
 
   cmdUpgradeLine(cmd) {
     const p = this.players[cmd.player];
-    const tier = p.unitTier[cmd.line];
+    const tier = hasKey(LINES, cmd.line) ? p.unitTier[cmd.line] : 0;
     if (!tier) return this.reject(cmd, 'err.unknownLine');
     const cost = LINE_UPGRADE_COST[`${cmd.line}${tier}`];
     if (!cost) return this.reject(cmd, 'err.maxLevel');
@@ -709,6 +724,8 @@ export class Sim {
     const units = (cmd.units ?? []).map((id) => this.entities.get(id))
       .filter((e) => e && e.owner === cmd.player && (e.kind === 'leader' || e.kind === 'hero' || (e.kind === 'unit' && e.militia)));
     if (!units.length) return this.reject(cmd, 'err.noTroops');
+    if ((cmd.order === 'move' || cmd.order === 'attackMove')
+      && !(Number.isInteger(cmd.x) && Number.isInteger(cmd.y) && this.map.inBounds(cmd.x, cmd.y))) return this.reject(cmd, 'err.notWalkable');
     units.forEach((e, i) => {
       if (e.kind === 'hero' && e.down) return;
       e.path = []; e.targetId = 0;
@@ -717,6 +734,11 @@ export class Sim {
         const ox = ((i % 4) * 2 - 3) * 1000, oy = Math.floor(i / 4) * 2000;
         let x = cmd.x * UNIT + 500 + ox, y = cmd.y * UNIT + 500 + oy;
         if (!this.map.walkable(toTile(x), toTile(y))) { x = cmd.x * UNIT + 500; y = cmd.y * UNIT + 500; }
+        if (!this.map.walkable(cmd.x, cmd.y)) {
+          // Target on a building/water: nearest walkable tile (otherwise the squad would just stay put)
+          const k = nearestWalkable(this.map, toTile(x), toTile(y), x, y, 8);
+          if (k >= 0) { x = tileCenter(k % this.map.width); y = tileCenter((k / this.map.width) | 0); }
+        }
         e.order = { type: cmd.order, x, y };
       } else if (cmd.order === 'attack') e.order = { type: 'attack', target: cmd.target };
       else if (cmd.order === 'hold') e.order = { type: 'hold' };
@@ -765,7 +787,11 @@ export class Sim {
           const L = this.entities.get(e.leader);
           if (L) L.soldiers = L.soldiers.filter((x) => x !== e.id);
           this.entities.delete(e.id);
-        } else this.entities.delete(e.id);
+        } else {
+          // Release serfs from their construction site, otherwise dead IDs block the building spots
+          if (e.kind === 'unit') clearJob(this, e);
+          this.entities.delete(e.id);
+        }
       }
     }
   }
@@ -776,7 +802,11 @@ export class Sim {
     if (p.defeated || this.findBuilding(owner, 'headquarters')) return;
     p.defeated = true;
     for (const e of [...this.entities.values()]) {
-      if (e.owner === owner && e.kind !== 'building') this.entities.delete(e.id);
+      if (e.owner !== owner) continue;
+      if (e.kind !== 'building') { this.entities.delete(e.id); continue; }
+      // Release references to the just removed units; the buildings decay (updateDamage) into ruins
+      e.workers = []; e.residents = []; e.eaters = []; e.builders = [];
+      e.research = null; e.trade = null;
     }
     this.events.push({ type: 'defeated', player: owner });
     // Neutrals (bandits) do not count for victory
@@ -796,6 +826,8 @@ export class Sim {
     this.pending = [];
     for (const c of cmds) this.applyCommand(c);
 
+    // Whoever stands on a blocked tile (ruin, mission setup) goes to the nearest free one
+    unstickAll(this);
     updateSpawning(this);
     for (const e of [...this.entities.values()]) {
       if (!this.entities.has(e.id)) continue;
@@ -808,6 +840,8 @@ export class Sim {
     updateDamage(this);
     updatePayday(this);
     this.updateWeather();
+    // Vision and fog of war (every VISION.updateTicks ticks)
+    updateVision(this);
     // Mission: goals, triggers, bandits (hook 3 of 3)
     this.mission?.update(this);
     this.tick++;
@@ -831,6 +865,12 @@ export class Sim {
       h.int(p.taxLevel).int(p.faith).int(p.techs.size).int(p.weatherEnergy ?? 0).int(p.weatherReadyAt ?? 0);
     }
     for (const r of RESOURCES) h.int(this.market.prices[r]);
+    // Weather (influenced by weather plant), elimination and troop tiers
+    h.str(this.weather.state).int(this.weather.until).int(this.weather.index).int(this.map.frozen ? 1 : 0);
+    for (const p of this.players) {
+      h.int(p.defeated ? 1 : 0);
+      for (const l of Object.keys(p.unitTier ?? {})) h.int(p.unitTier[l]);
+    }
     for (const e of this.entities.values()) {
       h.int(e.id).str(e.kind);
       if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp);
@@ -843,6 +883,7 @@ export class Sim {
       } else if (e.kind === 'ruin') h.int(e.x).int(e.y).int(e.until);
       else h.int(e.x).int(e.y).int(e.amount);
     }
+    hashVision(this, h);
     this.mission?.hash(h);
     return h.value;
   }

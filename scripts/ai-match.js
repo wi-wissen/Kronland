@@ -10,7 +10,7 @@ const ais = diffs.map((d, i) => new AiPlayer(sim, i, d));
 const t0 = Date.now();
 const rejects = {};
 for (let t = 0; t < minutes * 600; t++) {
-  for (const ai of ais) ai.update();
+  for (const ai of ais) if (!sim.players[ai.player].defeated) ai.update();
   const ev = sim.step();
   for (const e of ev) if (e.type === 'rejected') rejects[e.reason] = (rejects[e.reason] ?? 0) + 1;
   if (ev.some((e) => e.type === 'victory')) { console.log(`Victory team ${sim.winner} after ${(sim.tick / 600).toFixed(1)} min`); break; }

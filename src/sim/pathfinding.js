@@ -40,6 +40,33 @@ class Heap {
   }
 }
 
+/**
+ * Can (sx,sy) reach any of the goal tiles at all? Compares the region numbers; for
+ * unreachable goals (island, other river bank) this saves the full A* search over the whole map.
+ * The result is identical to the search itself (determinism): A* only enters walkable tiles.
+ */
+function reachable(map, sx, sy, goals) {
+  if (!map.regionAt) return true;
+  const W = map.width;
+  const from = new Set();
+  if (map.walkable(sx, sy)) from.add(map.regionAt(sy * W + sx));
+  else {
+    // Start on an occupied tile: exit via the free neighbours (diagonals only via these)
+    if (map.walkable(sx - 1, sy)) from.add(map.regionAt(sy * W + sx - 1));
+    if (map.walkable(sx + 1, sy)) from.add(map.regionAt(sy * W + sx + 1));
+    if (map.walkable(sx, sy - 1)) from.add(map.regionAt((sy - 1) * W + sx));
+    if (map.walkable(sx, sy + 1)) from.add(map.regionAt((sy + 1) * W + sx));
+  }
+  if (!from.size) return false;
+  for (const g of goals) {
+    if (map.walkable(g % W, (g / W) | 0) && from.has(map.regionAt(g))) return true;
+  }
+  return false;
+}
+
+/** Counters for measurements and tests (no effect on the simulation). */
+export const pathStats = { searches: 0, unreachable: 0, exhausted: 0, onFail: null };
+
 function octile(ax, ay, bx, by) {
   const dx = Math.abs(ax - bx), dy = Math.abs(ay - by);
   return STRAIGHT * (dx + dy) + (DIAG - 2 * STRAIGHT) * Math.min(dx, dy);
@@ -59,6 +86,8 @@ export function findPath(map, sx, sy, goals, maxNodes = 20000) {
   const start = sy * W + sx;
   const goalSet = new Set(goals);
   if (goalSet.has(start)) return [];
+  pathStats.searches++;
+  if (!reachable(map, sx, sy, goals)) { pathStats.unreachable++; pathStats.onFail?.(sx, sy, goals); return null; }
   const gx = goals.map((g) => g % W), gy = goals.map((g) => (g / W) | 0);
   const h = (x, y) => {
     let best = Infinity;
@@ -83,7 +112,7 @@ export function findPath(map, sx, sy, goals, maxNodes = 20000) {
       return path.reverse();
     }
     closed.add(cur.i);
-    if (++expanded > maxNodes) return null;
+    if (++expanded > maxNodes) { pathStats.exhausted++; return null; }
     const cx = cur.i % W, cy = (cur.i / W) | 0;
     const cg = g.get(cur.i);
     for (let d = 0; d < 8; d++) {
@@ -102,5 +131,6 @@ export function findPath(map, sx, sy, goals, maxNodes = 20000) {
       open.push({ i: ni, f: ng + nh, h: nh });
     }
   }
+  pathStats.exhausted++;
   return null;
 }

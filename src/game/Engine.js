@@ -16,12 +16,14 @@ import { saveGame, loadGame } from '../sim/serialize.js';
 import { createMissionSim } from '../sim/missions/runtime.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
+import { getQuality } from '../render/quality.js';
 import { Input } from './Input.js';
 import { buildingSystemsUi } from './buildingUi.js';
 import { isDamaged } from '../sim/systems/damage.js';
 import { hasForecast, forecast } from '../sim/systems/weather.js';
 import { starsOf, EXPERIENCE } from '../sim/data/experience.js';
 import { GameAudio } from '../audio/GameAudio.js';
+import { canSee, isExplored, isVisible, knownBuildings, fogEnabled } from '../sim/systems/vision.js';
 import { Vector3 } from 'three';
 
 const TICK_MS = 100;
@@ -65,7 +67,7 @@ const ATTACK_TOAST_MS = 15000;
 export class Engine {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ seed?: number, onUi?: (state: any) => void, difficulty?: string, players?: number, hero?: string }} opts
+   * @param {{ seed?: number, onUi?: (state: any) => void, difficulty?: string, players?: number, hero?: string, fog?: boolean }} opts
    */
   constructor(canvas, opts = {}) {
     this.player = 0;
@@ -81,12 +83,12 @@ export class Engine {
       this.ais = this.sim.mission.def.players
         .map((p, i) => (p.kind === 'ai' ? new AiPlayer(this.sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
     } else {
-      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes });
+      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes, fog: opts.fog ?? true });
       /** AI opponents for all other players */
       this.ais = [];
       for (let p = 1; p < players; p++) this.ais.push(new AiPlayer(this.sim, p, opts.difficulty ?? 'normal'));
     }
-    this.renderer = new Renderer(canvas, this.sim);
+    this.renderer = new Renderer(canvas, this.sim, { player: this.player });
     this.onUi = opts.onUi ?? (() => {});
     /** @type {Set<number>} */
     this.selected = new Set();
@@ -113,6 +115,9 @@ export class Engine {
     if (this.sim.weather.state !== 'summer') this.renderer.applyWeather(this.sim.weather.state);
     /** Mission-related UI state (camera jumps, tutorial checks) */
     this.missionView = { cameraSeq: this.sim.mission?.state.camera?.seq ?? 0, hint: null, checks: {} };
+    // adopt the graphics level in the running game (setQuality() reports 'kronland-quality')
+    this.onQuality = () => { try { this.renderer.applyQuality(getQuality()); this.emitUi(); } catch { /* rendering must never stop the game */ } };
+    window.addEventListener('kronland-quality', this.onQuality);
     // audio (a silent no-op without Web Audio; errors in the audio system must never disturb the game)
     try { this.audio = new GameAudio(this); } catch { this.audio = null; }
   }
@@ -132,8 +137,11 @@ export class Engine {
     this.running = false;
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
+    window.removeEventListener('kronland-quality', this.onQuality);
     this.input.dispose();
     this.audio?.dispose();
+    // release WebGL resources: the canvas is reused for the next game
+    try { this.renderer.dispose(); } catch { /* disposal must never prevent ending */ }
   }
 
   frame(now) {
@@ -147,10 +155,12 @@ export class Engine {
     }
     if (steps === 8) this.acc = 0;
     this.input.edgeScroll(dt);
+    this.followFocus(now);
     this.renderer.frame(this.paused ? 1 : this.acc / TICK_MS, dt, this.prev, {
       selected: this.selected,
       ghost: this.placing?.hasPos ? this.placing : null,
       hint: this.missionView.hint,
+      revealAll: this.fogLifted(),
     });
     this.audio?.frame(dt);
     if (now - this.lastUi > 200) { this.lastUi = now; this.emitUi(); }
@@ -159,14 +169,31 @@ export class Engine {
   stepOnce() {
     this.prev = new Map();
     for (const e of this.sim.entities.values()) if (e.px !== undefined) this.prev.set(e.id, { px: e.px, py: e.py });
-    for (const ai of this.ais) ai.update();
+    // Eliminated AI opponents stop thinking
+    for (const ai of this.ais) if (!this.sim.players[ai.player]?.defeated) ai.update();
     const events = this.sim.step(this.queue);
     this.queue = [];
     this.renderer.onEvents(events);
     if (this.audio) { this.audio.onEvents(events, this.prev); this.audio.onTick(); }
     this.eventToasts(events);
-    for (const id of this.selected) if (!this.sim.entities.has(id)) this.selected.delete(id);
+    // Selection: deselect what has vanished and foreign things that vanish into the fog
+    for (const id of this.selected) if (!this.canSee(this.sim.entities.get(id))) this.selected.delete(id);
   }
+
+  // ---------- Fog of war ----------
+
+  /** Is the fog lifted for display (fog off, game over, own player eliminated)? */
+  fogLifted() {
+    const sim = this.sim;
+    return !fogEnabled(sim) || sim.players[this.player]?.defeated || sim.winner !== null || !!sim.mission?.state?.result;
+  }
+
+  /** Does the human player see this entity (own/allied always)? */
+  canSee(e) { return !!e && (this.fogLifted() || canSee(this.sim, this.player, e)); }
+
+  /** Tile visible or explored (tile coordinates)? */
+  tileVisible(x, y) { return this.fogLifted() || isVisible(this.sim, this.player, Math.floor(x), Math.floor(y)); }
+  tileExplored(x, y) { return this.fogLifted() || isExplored(this.sim, this.player, Math.floor(x), Math.floor(y)); }
 
   /** Queue a command of the human player. */
   issue(cmd) { this.queue.push({ ...cmd, player: this.player }); }
@@ -269,8 +296,48 @@ export class Engine {
     this.toast(what.key, what.params, { icon: 'attack', tone: 'bad', pos, ttl: 7000 });
   }
 
-  /** Point the camera at a tile position (notices, minimap). */
-  jumpTo(x, y) { this.renderer.rig.lookAt(x, y); this.emitUi(); }
+  /**
+   * Point the camera at a tile position (notices, minimap). `visible`: on phones/portrait place it in the free area above the
+   * context panel instead of the screen centre (notices, mission jumps).
+   */
+  jumpTo(x, y, visible = false) { if (visible) this.focusPoint(x, y); else this.renderer.rig.lookAt(x, y); this.emitUi(); }
+
+  /**
+   * Camera jump that keeps the target visible: on small or tall screens the
+   * context panel (height from the CSS variable --bottom-h) covers the lower third of the picture; the target is then placed
+   * in the middle of the free area between header bar (--top-total) and panel.
+   */
+  focusPoint(x, z) {
+    const rig = this.renderer.rig, vp = this.renderer.viewport;
+    const { top, bottom } = this.hudInsets();
+    const small = vp && (vp.h > vp.w || vp.w < 900);
+    if (small && bottom > vp.h * 0.15) {
+      const y = (Math.min(top, vp.h * 0.3) + vp.h - bottom) / 2;
+      rig.lookAtScreen(x, z, Math.max(vp.h * 0.15, y), vp.h);
+    } else rig.lookAt(x, z);
+    // The panel often changes its height right afterwards (selection opens it): follow up briefly
+    this.pendingFocus = small ? { x, z, bottom, until: performance.now() + 1500, tx: rig.target.x, tz: rig.target.z } : null;
+  }
+
+  /** After a camera jump: if the panel height changes, place the target in the free area again. */
+  followFocus(now) {
+    const f = this.pendingFocus, rig = this.renderer.rig;
+    if (!f) return;
+    // expired or moved on by the player
+    if (now > f.until || Math.abs(rig.target.x - f.tx) > 0.01 || Math.abs(rig.target.z - f.tz) > 0.01) { this.pendingFocus = null; return; }
+    if (this.hudInsets().bottom === f.bottom) return;
+    const until = f.until;
+    this.focusPoint(f.x, f.z);
+    if (this.pendingFocus) this.pendingFocus.until = until;
+  }
+
+  /** Edges covered by the UI at top/bottom in CSS pixels. */
+  hudInsets() {
+    try {
+      const cs = getComputedStyle(this.canvas);
+      return { top: parseFloat(cs.getPropertyValue('--top-total')) || 0, bottom: parseFloat(cs.getPropertyValue('--bottom-h')) || 0 };
+    } catch { return { top: 0, bottom: 0 }; }
+  }
 
   // ---------- Selection ----------
 
@@ -293,7 +360,8 @@ export class Engine {
   selectable(id) {
     let e = id ? this.sim.entities.get(id) : null;
     if (e?.kind === 'soldier') e = this.sim.entities.get(e.leader);
-    return e;
+    // Fog: foreign things outside vision are neither selectable nor attackable
+    return e && this.canSee(e) ? e : null;
   }
 
   clearSelection() { this.selected.clear(); this.attackMode = false; this.emitUi(); }
@@ -328,7 +396,7 @@ export class Engine {
   selectIdleSerfs() {
     this.selected.clear();
     for (const e of this.sim.entities.values()) {
-      if (e.kind === 'unit' && e.owner === this.player && !e.job && e.goal === undefined) this.selected.add(e.id);
+      if (e.kind === 'unit' && e.owner === this.player && !e.militia && !e.job && e.goal === undefined) this.selected.add(e.id);
     }
     if (!this.selected.size) this.toast('toast.noIdleSerfs', null, { icon: 'idle', ttl: 2500 });
     else this.focusSelection();
@@ -347,12 +415,12 @@ export class Engine {
       const e = this.sim.entities.get(id);
       if (e?.kind === 'unit') { sx += e.px / UNIT; sz += e.py / UNIT; n++; }
     }
-    if (n) this.renderer.rig.lookAt(sx / n, sz / n);
+    if (n) this.focusPoint(sx / n, sz / n);
   }
 
   focusHeadquarters() {
     const hq = this.sim.findBuilding(this.player, 'headquarters');
-    if (hq) { this.renderer.rig.lookAt(hq.x + hq.w / 2, hq.y + hq.h / 2); this.selected.clear(); this.selected.add(hq.id); this.emitUi(); }
+    if (hq) { this.focusPoint(hq.x + hq.w / 2, hq.y + hq.h / 2); this.selected.clear(); this.selected.add(hq.id); this.emitUi(); }
   }
 
   // ---------- Commands ----------
@@ -397,6 +465,12 @@ export class Engine {
     if (hit && hit.owner !== this.player && hit.owner !== undefined && targetable(this.sim, hit.kind === 'leader' && hit.soldiers.length ? this.sim.entities.get(hit.soldiers[0]) : hit)) {
       const target = hit.kind === 'leader' && hit.soldiers.length ? hit.soldiers[0] : hit.id;
       this.issue({ type: 'order', units, order: 'attack', target });
+      return true;
+    }
+    // Last seen building in the fog: attack-move there (the target itself is unknown)
+    const ghost = !hit && !this.fogLifted() ? this.renderer.pickGhost(cx, cy) : null;
+    if (ghost) {
+      this.issue({ type: 'order', units, order: 'attackMove', x: Math.floor(ghost.x), y: Math.floor(ghost.y) });
       return true;
     }
     const g = this.renderer.pickGround(cx, cy);
@@ -465,7 +539,7 @@ export class Engine {
     if (!b) return [];
     const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
     return [...this.sim.entities.values()]
-      .filter((e) => e.kind === 'unit' && e.owner === this.player && !e.job && e.goal === undefined)
+      .filter((e) => e.kind === 'unit' && e.owner === this.player && !e.militia && !e.job && e.goal === undefined)
       .sort((a, c) => Math.hypot(a.px / UNIT - cx, a.py / UNIT - cy) - Math.hypot(c.px / UNIT - cx, c.py / UNIT - cy))
       .slice(0, 4).map((e) => e.id);
   }
@@ -500,7 +574,9 @@ export class Engine {
       for (const s of list) { const d = Math.hypot(s.x - x, s.y - y); if (d < bd) { bd = d; best = s; } }
       if (best) { x = best.x; y = best.y; }
     }
-    const reason = this.sim.checkPlacement(this.player, this.placing.type, x, y);
+    let reason = this.sim.checkPlacement(this.player, this.placing.type, x, y);
+    // Fog: do not build into the unexplored (centre of the area counts)
+    if (!reason && !this.tileExplored(x + (def.w >> 1), y + (def.h >> 1))) reason = 'err.unexplored';
     Object.assign(this.placing, { x, y, valid: !reason, reason, hasPos: true });
   }
 
@@ -592,17 +668,58 @@ export class Engine {
    */
   minimapDynamic() {
     const sim = this.sim, buildings = [], units = [];
+    const fog = !this.fogLifted();
+    const seeAll = !fog;
     for (const e of sim.entities.values()) {
-      if (e.kind === 'building') buildings.push({ x: e.x, y: e.y, w: e.w, h: e.h, owner: e.owner });
-      else if (e.kind === 'leader' || e.kind === 'hero') units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: true });
-      else if (e.kind === 'unit' || e.kind === 'worker' && !e.inside) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: false });
+      if (e.kind === 'building') {
+        // enemy buildings: visible ones current, otherwise as last seen state (below)
+        if (seeAll || this.canSee(e)) buildings.push({ x: e.x, y: e.y, w: e.w, h: e.h, owner: e.owner });
+      } else if (e.kind === 'leader' || e.kind === 'hero') {
+        if (seeAll || this.canSee(e)) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: true });
+      } else if (e.kind === 'unit' || e.kind === 'worker' && !e.inside) {
+        if (seeAll || this.canSee(e)) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: false });
+      }
+    }
+    if (fog) {
+      for (const g of knownBuildings(sim, this.player)?.values() ?? []) {
+        if (g.kind !== 'building') continue;
+        const live = sim.entities.get(g.id);
+        // visible: already entered current above or just destroyed
+        if (canSee(sim, this.player, live ?? g)) continue;
+        buildings.push({ x: g.x, y: g.y, w: g.w, h: g.h, owner: g.owner, ghost: true });
+      }
     }
     const h = this.missionView.hint;
     const hint = h?.entity ? { x: h.entity.x, y: h.entity.y } : h?.area ? { x: h.area.x, y: h.area.y } : null;
     return {
       w: sim.map.width, h: sim.map.height, me: this.player, buildings, units,
-      shafts: sim.shafts.map((s) => ({ x: s.x + 1.5, y: s.y + 1.5, res: s.res })), view: this.cameraFootprint(), hint,
+      shafts: sim.shafts.filter((s) => this.tileExplored(s.x + 1, s.y + 1)).map((s) => ({ x: s.x + 1.5, y: s.y + 1.5, res: s.res })),
+      view: this.cameraFootprint(), hint,
     };
+  }
+
+  /**
+   * Fog layer of the minimap as RGBA (1 pixel per tile): unexplored black, explored darkened,
+   * visible transparent. null without fog. Cached per recomputation of the vision.
+   * @returns {{ w: number, h: number, data: Uint8ClampedArray, key: string }|null}
+   */
+  minimapFog() {
+    if (this.fogLifted()) return null;
+    const sim = this.sim, v = sim.vision;
+    const key = `${v.version}`;
+    if (this.mmFog?.key === key) return this.mmFog;
+    const t = v.teams.get(sim.players[this.player].team);
+    const n = v.W * v.H;
+    const data = this.mmFog?.data?.length === n * 4 ? this.mmFog.data : new Uint8ClampedArray(n * 4);
+    for (let k = 0; k < n; k++) {
+      const exp = t?.explored[k], vis = t?.visible[k];
+      const o = k * 4;
+      if (vis) { data[o + 3] = 0; continue; }
+      data[o] = 10; data[o + 1] = 11; data[o + 2] = 16;
+      data[o + 3] = exp ? 135 : 255;
+    }
+    this.mmFog = { w: v.W, h: v.H, data, key };
+    return this.mmFog;
   }
 
   /** Ground quadrilateral the camera sees (tile coordinates), for the field of view on the minimap. */
@@ -638,7 +755,8 @@ export class Engine {
     const mv = this.missionView;
     if (ui.camera && ui.camera.seq !== mv.cameraSeq) {
       mv.cameraSeq = ui.camera.seq;
-      this.renderer.rig.lookAt(ui.camera.x + 0.5, ui.camera.y + 0.5);
+      // do not hide the target under the (possibly still open) panel of the previous step
+      this.focusPoint(ui.camera.x + 0.5, ui.camera.y + 0.5);
     }
     const step = m.currentStep();
     const check = step?.done?.type === 'ui' ? step.done.check : null;

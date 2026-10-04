@@ -52,8 +52,21 @@ export class GameAudio {
     return p ? { x: p.px / UNIT, z: p.py / UNIT } : null;
   }
 
-  /** Play spatially; important own events outside hearing range quietly global. */
+  /**
+   * Is the position in the fog of war (not visible to the player)? Own things are always visible,
+   * so the tile suffices. Never without fog.
+   */
+  hidden(pos) {
+    const e = this.engine;
+    return !!pos && typeof e.tileVisible === 'function' && !e.tileVisible(pos.x, pos.z);
+  }
+
+  /** Combat activity for music and battle noise (only what the player can see). */
+  heat(pos, w) { if (pos && !this.hidden(pos)) this.battle.add(pos, w); }
+
+  /** Play spatially; important own events outside hearing range quietly global. Silent in fog. */
   at(name, pos, o = {}) {
+    if (this.hidden(pos)) return false;
     if (!pos) return o.important ? this.audio.play(name, { gain: 0.35 * (o.gain ?? 1) }) : false;
     const ok = this.audio.play(name, { x: pos.x, z: pos.z, gain: o.gain, delay: o.delay });
     if (!ok && o.important && !this.inRange(pos)) return this.audio.play(name, { gain: 0.35 * (o.gain ?? 1), delay: o.delay });
@@ -87,7 +100,7 @@ export class GameAudio {
         case 'dialog': a.play('open'); break;
         case 'shot': {
           const from = { x: ev.from.x / UNIT, z: ev.from.y / UNIT }, to = { x: ev.to.x / UNIT, z: ev.to.y / UNIT };
-          this.battle.add(from, 1);
+          this.heat(from, 1);
           const flight = Math.max(0.15, Math.hypot(to.x - from.x, to.z - from.z) / 22);
           if (ev.kind === 'ball') { this.at('cannon', from); this.at('arrowHit', to, { delay: flight, gain: 1.2 }); }
           else if (ev.kind === 'bolt') { this.at('ballista', from); this.at('arrowHit', to, { delay: flight }); }
@@ -96,12 +109,12 @@ export class GameAudio {
         }
         case 'hit': {
           const p = this.posOf(ev.by, prev);
-          if (p) { this.battle.add(p, 1); this.at('clash', p, { gain: 0.75 }); }
+          if (p) { this.heat(p, 1); this.at('clash', p, { gain: 0.75 }); }
           break;
         }
         case 'killed': {
           const p = this.posOf(ev.id, prev);
-          if (p) this.battle.add(p, 2);
+          this.heat(p, 2);
           if (ev.kind === 'hero' && ev.owner === me) a.play('heroDown');
           else if (MORTAL.has(ev.kind)) this.at('death', p);
           break;
@@ -113,7 +126,7 @@ export class GameAudio {
         }
         case 'explosion': {
           const p = { x: ev.x / UNIT, z: ev.y / UNIT };
-          this.battle.add(p, 3);
+          this.heat(p, 3);
           this.at('explosion', p, { important: true });
           break;
         }
@@ -165,7 +178,7 @@ export class GameAudio {
         if (!job || e.path?.length) continue;
         const x = e.px / UNIT, z = e.py / UNIT;
         const dx = x - l.x, dz = z - l.z;
-        if (dx * dx + dz * dz > R2) continue;
+        if (dx * dx + dz * dz > R2 || this.hidden({ x, z })) continue;
         if (job.kind === 'gather') {
           // one strike every 10 ticks (1 s), offset per serf
           if (e.timer > 0 && (e.timer + e.id) % 10 === 0) a.play(job.res === 'wood' ? 'chop' : 'pickaxe', { x, z, gain: 0.7 });
@@ -179,7 +192,7 @@ export class GameAudio {
         if (!snd) continue;
         const x = wp.x + wp.w / 2, z = wp.y + wp.h / 2;
         const dx = x - l.x, dz = z - l.z;
-        if (dx * dx + dz * dz <= R2) a.play(snd, { x, z, gain: 0.5 });
+        if (dx * dx + dz * dz <= R2 && !this.hidden({ x, z })) a.play(snd, { x, z, gain: 0.5 });
       }
     }
   }

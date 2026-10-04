@@ -1,6 +1,7 @@
 // Campaign 5: The Crown of Kronland – final battle against Prince Morwald (hard AI with cannons).
 
 import { t, say } from './common.js';
+import { BUILDINGS } from '../../data/buildings.js';
 
 export default {
   id: 'c5',
@@ -10,8 +11,8 @@ export default {
   title: t('Die Krone von Kronland', 'The Crown of Kronland'),
   summary: t('Stelle ein Heer auf und schleife Schwarzenfels, die Festung Fürst Morwalds.', 'Raise an army and raze Blackcrag, the fortress of Prince Morwald.'),
   briefing: t(
-    'Schwarzenfels. Hinter diesen Mauern sitzt Fürst Morwald auf dem gestohlenen Thron. Er hat Kanonen gießen lassen und wirbt Söldner aus allen Ecken des Reichs. Du hast Bertram, Hedda und ein Volk, das an dich glaubt. Baue deine Wirtschaft aus, erforsche bessere Waffen und zerstöre seine Burg. Doch gib acht: Morwald wartet nicht lange.',
-    'Blackcrag. Behind these walls Prince Morwald sits on the stolen throne. He has had cannons cast and hires mercenaries from every corner of the realm. You have Bertram, Hedda and a people that believes in you. Expand your economy, research better weapons and destroy his castle. But beware: Morwald will not wait long.',
+    'Schwarzenfels. Hinter diesen Mauern sitzt Fürst Morwald auf dem gestohlenen Thron. Er hat Kanonen gießen lassen und wirbt Söldner aus allen Ecken des Reichs – seine Knechte aber dienen ihm nur aus Angst und greifen für ihn nicht zu den Waffen. Du hast Bertram, Hedda und ein Volk, das an dich glaubt. Baue deine Wirtschaft aus, erforsche bessere Waffen und zerstöre seine Burg. Doch gib acht: Morwald wartet nicht lange.',
+    'Blackcrag. Behind these walls Prince Morwald sits on the stolen throne. He has had cannons cast and hires mercenaries from every corner of the realm – but his serfs serve him only out of fear and will not take up arms for him. You have Bertram, Hedda and a people that believes in you. Expand your economy, research better weapons and destroy his castle. But beware: Morwald will not wait long.',
   ),
   victoryText: t('Schwarzenfels ist gefallen. Die Krone kehrt nach Kronland zurück.', 'Blackcrag has fallen. The crown returns to Kronland.'),
   debrief: t(
@@ -26,10 +27,10 @@ export default {
   players: [
     {
       kind: 'human', hero: 'bertram', serfs: 14, techs: ['conscription', 'construction', 'education', 'alchemy'],
-      stock: { gold: 2500, clay: 2500, wood: 3000, stone: 2500, iron: 1500, sulfur: 800 },
+      stock: { gold: 3000, clay: 2500, wood: 3000, stone: 2500, iron: 1500, sulfur: 800 },
     },
     {
-      kind: 'ai', hero: 'gerold', difficulty: 'hard', aggression: 'normal', startDelay: 0,
+      kind: 'ai', hero: 'gerold', difficulty: 'hard', aggression: 'normal', startDelay: 0, aiSerfs: 20, militia: false,
       techs: ['conscription', 'construction', 'education', 'alchemy', 'standingArmy', 'gears', 'alloys', 'metallurgy'],
       stock: { gold: 2500, clay: 2500, wood: 3000, stone: 2500, iron: 2000, sulfur: 1500 },
     },
@@ -42,9 +43,9 @@ export default {
     for (const [type, dx, dy] of [['residence', 0, 8], ['residence', -6, 6], ['farm', 6, 7], ['university', 8, 0], ['barracks', 3, 12]]) {
       api.placeBuilding(sim, 0, type, { x: me.x + dx, y: me.y + dy }, { minR: 2 });
     }
-    // Morwald's fortress: expanded castle, towers, foundry, first cannons
+    // Morwald's seat: castle, towers, foundry, first cannons
     const hq = sim.findBuilding(1, 'headquarters');
-    hq.level = 1; hq.hp = 3200;
+    // castle (not fortress): Morwald expands on his own if given time
     ctx.ref('castle', hq.id);
     const dir = (d) => api.toward(foe, me, d);
     const t1 = api.placeBuilding(sim, 1, 'tower', dir(7), { minR: 1, level: 1 });
@@ -66,6 +67,7 @@ export default {
   start: [
     say('morwald', 'Ein Bauernkönig mit einem Kräuterweib und einem alten Ritter? Kommt nur. Meine Kanonen sind hungrig.',
       'A peasant king with a herb-woman and an old knight? Come then. My cannons are hungry.'),
+    { type: 'reveal', area: 'gate' },
     { type: 'camera', at: 'gate' },
   ],
 
@@ -90,7 +92,7 @@ export default {
       say('gerold', 'Metallurgie! Gebt mir eine Gießerei, und ich gieße euch Kanonen, die Morwalds Mauern zum Wackeln bringen.', 'Metallurgy! Give me a foundry and I will cast cannons that shake Morwald\'s walls.'),
       { type: 'reveal', id: 'cannons' },
     ] },
-    { id: 'castleHurt', when: (sim, m) => { const c = sim.entities.get(m.state.refs.castle); return !!c && c.hp < 1600; }, do: [
+    { id: 'castleHurt', when: (sim, m) => { const c = sim.entities.get(m.state.refs.castle); return !!c && c.hp * 2 < BUILDINGS.headquarters.levels[c.level].hp; }, do: [
       say('morwald', 'Haltet die Mauern! Jeder Mann auf die Zinnen!', 'Hold the walls! Every man to the battlements!'),
       { type: 'spawn', owner: 1, at: 'castle', units: [{ def: 'spear2', count: 2, soldiers: 4 }], order: 'attackMove', target: 'castle' },
     ] },

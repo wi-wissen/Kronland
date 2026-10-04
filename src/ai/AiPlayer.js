@@ -2,6 +2,11 @@
 // just like a human player. Deterministic (own randomness, fixed order),
 // so that it will later decide identically on all machines in lockstep multiplayer.
 //
+// Fog of war: the AI does not cheat. It knows enemy troops only if its team sees them,
+// enemy buildings only as the last seen state (src/sim/systems/vision.js). As in the skirmish
+// of the original, only the start positions are known; its army marches there and attacks whatever it
+// sees there. Only advantage: 'hard' learns of enemies near its own castle even in the fog (DIFFICULTY.intel).
+//
 // Structure:
 //   Economy:  buy and distribute serfs, build plan with priorities, research, taxes.
 //   Military: raise troops, gather the army, attack, withdraw, defend home.
@@ -17,12 +22,15 @@ import { checkBuildingResearch } from '../sim/systems/techs.js';
 import { checkTrade, tradeCost } from '../sim/systems/market.js';
 import { isDamaged } from '../sim/systems/damage.js';
 import { MARKET } from '../sim/data/market.js';
+import { WATER, OCCUPIED, CLIFF } from '../sim/map.js';
+import { canSee, knownBuildings } from '../sim/systems/vision.js';
 
 export const DIFFICULTY = {
   easy:   { name: 'Leicht', think: 50, serfs: 14, attackSize: 3, firstAttack: 21000, maxSites: 2, bonusGold: 0, reserve: 200, militaryShare: 30 },
   normal: { name: 'Normal', think: 25, serfs: 22, attackSize: 5, firstAttack: 14400, maxSites: 3, bonusGold: 0, reserve: 120, militaryShare: 50 },
-  hard:   { name: 'Schwer', think: 12, serfs: 28, attackSize: 6, firstAttack: 9000, maxSites: 4, bonusGold: 250, reserve: 80, militaryShare: 65 },
+  hard:   { name: 'Schwer', think: 12, serfs: 28, attackSize: 6, firstAttack: 9000, maxSites: 4, bonusGold: 250, reserve: 80, militaryShare: 65, intel: true },
 };
+// intel: guards report enemies within 22 tiles around the castle even in the fog (small knowledge advantage)
 
 /** Research order. */
 const RESEARCH = ['construction', 'education', 'conscription', 'alchemy', 'standingArmy', 'trade', 'gears', 'alloys', 'metallurgy', 'pulley', 'printing', 'tactics', 'chemistry', 'architecture', 'libraries', 'horseBreeding'];
@@ -95,7 +103,7 @@ export class AiPlayer {
     const mc = this.sim.mission?.state?.ai?.[this.player];
     if (!mc) return true;
     if (this.sim.tick < mc.startTick) return false;
-    const key = `${mc.difficulty}|${mc.aggression}`;
+    const key = `${mc.difficulty}|${mc.aggression}|${mc.serfs ?? ''}`;
     if (key !== this.missionKey) {
       this.missionKey = key;
       this.difficulty = mc.difficulty;
@@ -106,9 +114,12 @@ export class AiPlayer {
         // passive: never attacks on its own; aggressive: earlier and with smaller armies
         firstAttack: agg === 'passive' ? Infinity : agg === 'aggressive' ? Math.trunc(base.firstAttack / 3) : base.firstAttack,
         attackSize: agg === 'aggressive' ? Math.max(2, base.attackSize - 2) : base.attackSize,
+        // mission can limit the number of serfs (less economy and militia)
+        serfs: mc.serfs ?? base.serfs,
       };
     }
     this.forbid = mc.forbid ?? [];
+    this.noMilitia = mc.militia === false;
     if (mc.attackNow && mc.attackNow !== this.attackNowSeen) {
       this.attackNowSeen = mc.attackNow;
       this.forceAttack = true;
@@ -142,6 +153,10 @@ export class AiPlayer {
     const hq = sim.findBuilding(me, 'headquarters');
     this.hq = hq;
     this.home = hq ? { x: hq.x + 2, y: hq.y + 2 } : { x: 0, y: 0 };
+    // Reachability: regions (without ice) that can be reached on foot from the castle
+    const map = sim.map;
+    this.regions = new Set();
+    if (hq) for (const k of map.ring(hq.x, hq.y, hq.w, hq.h)) { const r = map.landRegionAt(k); if (r) this.regions.add(r); }
     for (const e of sim.entities.values()) {
       if (e.owner === me) {
         if (e.kind === 'building') this.buildings.push(e);
@@ -151,8 +166,11 @@ export class AiPlayer {
         else if (e.kind === 'worker') this.workers++;
       } else if (e.owner !== undefined && e.owner >= 0 && !sim.allied(me, e.owner) && (e.kind === 'leader' || e.kind === 'soldier' || e.kind === 'hero')) {
         if (e.kind === 'hero' && e.down) continue;
+        // Fog: only seen enemies (Hard: guards also report enemies in the fog near the castle)
+        if (!this.cfg.intel && !canSee(sim, me, e)) continue;
         const d = Math.hypot(e.px / UNIT - this.home.x, e.py / UNIT - this.home.y);
-        if (d < 22) this.enemyNearHome.push(e);
+        // Only enemies the troops can get to (not on the other shore)
+        if (d < 22 && this.reachableAt(e.px / UNIT, e.py / UNIT)) this.enemyNearHome.push(e);
       }
     }
     // Bottleneck: one resource is missing while another piles up → the market pays off
@@ -169,9 +187,81 @@ export class AiPlayer {
 
   has(type, n = 1) { return (this.count[type] ?? 0) >= n; }
 
+  // ---------- Reachability ----------
+
+  /** Is the tile (or a free neighbouring tile) reachable on foot from the castle? */
+  reachableAt(x, y) {
+    if (!this.hq) return true; // without a castle (mission setup) no check
+    const map = this.sim.map, tx = Math.floor(x), ty = Math.floor(y);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!map.inBounds(tx + dx, ty + dy)) continue;
+      if (this.regions.has(map.landRegionAt(map.idx(tx + dx, ty + dy)))) return true;
+    }
+    return false;
+  }
+
+  /** Can one step up to a rectangle (building, construction site, tree)? */
+  reachableRect(x, y, w, h) {
+    if (!this.hq) return true;
+    const map = this.sim.map;
+    for (let j = y - 1; j <= y + h; j++) for (let i = x - 1; i <= x + w; i++) {
+      if ((i >= x && i < x + w && j >= y && j < y + h) || !map.inBounds(i, j)) continue;
+      if (this.regions.has(map.landRegionAt(map.idx(i, j)))) return true;
+    }
+    return false;
+  }
+
+  /** Is the figure in the castle region (otherwise it is cut off and gets no jobs)? */
+  atHome(u) {
+    if (!this.hq) return true;
+    const map = this.sim.map;
+    return this.regions.has(map.landRegionAt(map.idx(Math.floor(u.px / UNIT), Math.floor(u.py / UNIT))));
+  }
+
+  /**
+   * Does a building site stay reachable from the castle after construction? The building itself blocks its area –
+   * a shaft in a rock niche could otherwise wall up its only access (serfs and workers
+   * would be stuck behind it). Flood fill from the castle (without ice) with the area blocked, aborting at the target.
+   */
+  reachableAfterBuild(x, y, w, h) {
+    if (!this.hq) return true;
+    if (!this.reachableRect(x, y, w, h)) return false;
+    const map = this.sim.map, W = map.width, H = map.height, n = W * H, flags = map.flags;
+    if (this.seenBuf?.length !== n) { this.seenBuf = new Uint8Array(n); this.queueBuf = new Int32Array(n); }
+    const seen = this.seenBuf.fill(0), queue = this.queueBuf;
+    const inRect = (i, j) => i >= x && i < x + w && j >= y && j < y + h;
+    const free = (i, j) => i >= 0 && j >= 0 && i < W && j < H && !(flags[j * W + i] & (WATER | OCCUPIED | CLIFF)) && !inRect(i, j);
+    let head = 0, tail = 0;
+    const hq = this.hq;
+    for (const k of map.ring(hq.x, hq.y, hq.w, hq.h)) if (free(k % W, (k / W) | 0) && !seen[k]) { seen[k] = 1; queue[tail++] = k; }
+    while (head < tail) {
+      const k = queue[head++], i = k % W, j = (k / W) | 0;
+      if (i >= x - 1 && i <= x + w && j >= y - 1 && j <= y + h) return true; // am Bauplatz angekommen
+      if (free(i - 1, j) && !seen[k - 1]) { seen[k - 1] = 1; queue[tail++] = k - 1; }
+      if (free(i + 1, j) && !seen[k + 1]) { seen[k + 1] = 1; queue[tail++] = k + 1; }
+      if (free(i, j - 1) && !seen[k - W]) { seen[k - W] = 1; queue[tail++] = k - W; }
+      if (free(i, j + 1) && !seen[k + W]) { seen[k + W] = 1; queue[tail++] = k + W; }
+    }
+    return false;
+  }
+
+  /** Nearest reachable tile around (x,y) (for rally and attack points), or null. */
+  reachPoint(x, y, maxR = 10) {
+    const map = this.sim.map, cx = Math.round(x), cy = Math.round(y);
+    for (let r = 0; r <= maxR; r++) {
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const px = cx + dx, py = cy + dy;
+        if (map.inBounds(px, py) && map.walkable(px, py) && (!this.hq || this.regions.has(map.landRegionAt(map.idx(px, py))))) return { x: px, y: py };
+      }
+    }
+    return null;
+  }
+
   // ---------- Economy ----------
 
   economy() {
+    this.replan();
     this.buySerfs();
     this.research();
     this.researchBuildings();
@@ -231,7 +321,7 @@ export class AiPlayer {
   repairBuildings() {
     const sim = this.sim;
     if (this.enemyNearHome?.length > 2) return; // do not run into the fight
-    const damaged = this.buildings.filter((b) => isDamaged(sim, b) && b.builders.length < 2)
+    const damaged = this.buildings.filter((b) => isDamaged(sim, b) && b.builders.length < 2 && this.reachableRect(b.x, b.y, b.w, b.h))
       .sort((a, b) => (b.burning ? 1 : 0) - (a.burning ? 1 : 0) || a.id - b.id);
     for (const b of damaged.slice(0, 2)) {
       const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
@@ -307,7 +397,8 @@ export class AiPlayer {
     if (def.requires && !this.me.techs.has(def.requires)) return false;
     if (!this.affordable(def.levels[0].cost)) return false;
     const near = type.endsWith('Mine') || type === 'villageCenter' ? this.home : this.spotNear(type);
-    const pos = sim.findPlacement(this.player, type, near.x, near.y, 26);
+    // Only building sites the serfs can reach from the castle
+    const pos = sim.findPlacement(this.player, type, near.x, near.y, 26, (x, y) => this.reachableAfterBuild(x, y, def.w, def.h));
     if (!pos) return false;
     // Shafts and settlement spots: only within sensible proximity
     if (Math.hypot(pos.x - this.home.x, pos.y - this.home.y) > 38) return false;
@@ -322,7 +413,7 @@ export class AiPlayer {
   /** Building site centre: housing and eating near the workshops, military towards the opponent. */
   spotNear(type) {
     const h = this.home;
-    const enemy = this.enemyHome();
+    const enemy = this.enemyHome(true);
     if (['barracks', 'archery', 'stable', 'foundry', 'tower'].includes(type) && enemy) {
       const dx = enemy.x - h.x, dy = enemy.y - h.y, d = Math.hypot(dx, dy) || 1;
       return { x: Math.round(h.x + (dx / d) * 9), y: Math.round(h.y + (dy / d) * 9) };
@@ -362,15 +453,31 @@ export class AiPlayer {
   }
 
   idleSerfs() {
-    return this.serfs.filter((u) => !u.job && u.goal === undefined && !u.militia && !this.reserved?.has(u.id));
+    return this.serfs.filter((u) => !u.job && u.goal === undefined && !u.militia && !this.reserved?.has(u.id) && this.atHome(u));
+  }
+
+  /**
+   * Re-plan when targets have become unreachable: finished buildings that nobody can reach
+   * from the castle any more are demolished (their workers cannot reach them; the build plan rebuilds them elsewhere).
+   */
+  replan() {
+    for (const b of this.buildings) {
+      if (!b.done || b.type === 'headquarters' || b.builders.length) continue;
+      if (!this.reachableRect(b.x, b.y, b.w, b.h)) { this.issue({ type: 'demolish', building: b.id }); return; }
+    }
   }
 
   assignSerfs() {
     const sim = this.sim;
     this.reserved = this.reserved ?? new Set();
-    // Fill construction sites with serfs first
+    // Fill construction sites with serfs first. Demolish new construction sites that have become unreachable (walled in,
+    // cut off) – the build plan then looks for a new spot.
     for (const b of this.buildings) {
       if (b.done || b.builders.length >= 4) continue;
+      if (!this.reachableRect(b.x, b.y, b.w, b.h)) {
+        if (b.level === 0 && b.type !== 'headquarters') this.issue({ type: 'demolish', building: b.id });
+        continue;
+      }
       const idle = this.idleSerfs().slice(0, 4 - b.builders.length);
       if (idle.length) {
         this.issue({ type: 'assignWork', units: idle.map((u) => u.id), target: b.id });
@@ -398,21 +505,51 @@ export class AiPlayer {
       if ((e.kind !== 'tree' && e.kind !== 'pile') || e.res !== res || e.amount <= 0) continue;
       const d = (e.x - fx) ** 2 + (e.y - fy) ** 2;
       const home = (e.x - this.home.x) ** 2 + (e.y - this.home.y) ** 2;
-      if (home <= 45 * 45) { if (d < bd) { bd = d; best = e; } } else if (home <= 70 * 70 && home < fd) { fd = home; far = e; }
+      // check reachability only if the node would otherwise be chosen (saves queries)
+      if (home <= 45 * 45) { if (d < bd && this.reachableRect(e.x, e.y, 1, 1)) { bd = d; best = e; } } else if (home <= 70 * 70 && home < fd && this.reachableRect(e.x, e.y, 1, 1)) { fd = home; far = e; }
     }
     return best ?? far;
   }
 
   // ---------- Military ----------
 
-  enemyHome() {
+  /**
+   * Castle of an opponent, as far as known: with fog only seen ones (last seen state), otherwise the
+   * start position as map knowledge (as in the skirmish of the original). id only if the castle is known.
+   * @returns {{x:number, y:number, w:number, h:number, id:number|null}|null}
+   */
+  knownHq(p) {
+    const sim = this.sim;
+    const known = knownBuildings(sim, this.player);
+    if (!known) {
+      const hq = sim.findBuilding(p, 'headquarters');
+      return hq ? { x: hq.x, y: hq.y, w: hq.w, h: hq.h, id: hq.id } : null;
+    }
+    for (const g of known.values()) {
+      if (g.kind === 'building' && g.type === 'headquarters' && g.owner === p) return { x: g.x, y: g.y, w: g.w, h: g.h, id: g.id };
+    }
+    const s = sim.starts[p];
+    return s ? { x: s.x - 2, y: s.y - 2, w: 5, h: 5, id: null } : null;
+  }
+
+  /**
+   * Nearest enemy castle. Attack targets only if the troops can reach them on foot (point x/y lies
+   * then on a reachable tile at the castle); `anyDirection` also returns unreachable castles
+   * (only as a direction for barracks and rally point). With fog: see knownHq.
+   */
+  enemyHome(anyDirection = false) {
     let best = null, bd = Infinity;
     for (const p of this.sim.players) {
       if (p.id === this.player || p.defeated || this.sim.allied(this.player, p.id)) continue;
-      const hq = this.sim.findBuilding(p.id, 'headquarters');
+      const hq = this.knownHq(p.id);
       if (!hq) continue;
       const d = Math.hypot(hq.x - this.home.x, hq.y - this.home.y);
-      if (d < bd) { bd = d; best = { x: hq.x + 2, y: hq.y + 2, id: hq.id, owner: p.id }; }
+      if (d >= bd) continue;
+      if (anyDirection) { bd = d; best = { x: hq.x + 2, y: hq.y + 2, id: hq.id, owner: p.id }; continue; }
+      if (!this.reachableRect(hq.x, hq.y, hq.w, hq.h)) continue;
+      const at = this.reachPoint(hq.x + (hq.w >> 1), hq.y + hq.h, 6);
+      if (!at) continue;
+      bd = d; best = { x: at.x, y: at.y, id: hq.id, owner: p.id };
     }
     return best;
   }
@@ -476,12 +613,16 @@ export class AiPlayer {
     }
   }
 
+  /** Rally point in front of the castle towards the opponent – always a reachable tile. */
   rallyPoint() {
-    const enemy = this.enemyHome();
+    const enemy = this.enemyHome(true);
     const h = this.home;
-    if (!enemy) return h;
-    const dx = enemy.x - h.x, dy = enemy.y - h.y, d = Math.hypot(dx, dy) || 1;
-    return { x: Math.round(h.x + (dx / d) * 8), y: Math.round(h.y + (dy / d) * 8) };
+    let p = { x: h.x, y: h.y + 4 };
+    if (enemy) {
+      const dx = enemy.x - h.x, dy = enemy.y - h.y, d = Math.hypot(dx, dy) || 1;
+      p = { x: Math.round(h.x + (dx / d) * 8), y: Math.round(h.y + (dy / d) * 8) };
+    }
+    return this.reachPoint(p.x, p.y) ?? this.reachPoint(h.x, h.y + 4) ?? h;
   }
 
   commandArmy() {
@@ -496,7 +637,7 @@ export class AiPlayer {
       if (ids.length + heroes.length) this.issue({ type: 'order', units: [...ids, ...heroes], order: 'attackMove', x: Math.floor(t.px / UNIT), y: Math.floor(t.py / UNIT) });
       const enemyStrength = this.enemyNearHome.reduce((s, e) => s + (e.kind === 'soldier' ? 10 : 15), 0);
       const militia = this.serfs.some((u) => u.militia);
-      if (!militia && enemyStrength > this.strength(army) + 40) this.issue({ type: 'militia', on: true });
+      if (!militia && !this.noMilitia && enemyStrength > this.strength(army) + 40) this.issue({ type: 'militia', on: true });
       this.armyState = 'defend';
       return;
     }
@@ -514,7 +655,8 @@ export class AiPlayer {
           const d = UNITS[L.def];
           if (L.soldiers.length < d.soldiers) {
             const b = this.buildings.find((x) => x.type === d.building && x.done);
-            if (b && this.affordable(d.soldierCost, 3)) { this.issue({ type: 'order', units: [L.id], order: 'move', x: b.x + b.w + 1, y: b.y + 1 }); continue; }
+            const at = b && this.reachPoint(b.x + b.w, b.y + 1, 4);
+            if (at && this.affordable(d.soldierCost, 3)) { this.issue({ type: 'order', units: [L.id], order: 'move', x: at.x, y: at.y }); continue; }
           }
           this.issue({ type: 'order', units: [L.id], order: 'move', x: rally.x, y: rally.y });
         }
@@ -542,7 +684,9 @@ export class AiPlayer {
       const idle = army.filter((L) => L.order?.type === 'idle' && !L.targetId).map((L) => L.id);
       if (idle.length) {
         const near = army.some((L) => Math.hypot(L.px / UNIT - enemy.x, L.py / UNIT - enemy.y) < 10);
-        this.issue(near ? { type: 'order', units: idle, order: 'attack', target: enemy.id } : { type: 'order', units: idle, order: 'attackMove', x: enemy.x, y: enemy.y });
+        // Attack in a targeted way only what is currently visible; otherwise keep scouting by attack-move
+        const target = near && enemy.id ? sim.entities.get(enemy.id) : null;
+        this.issue(target && canSee(sim, this.player, target) ? { type: 'order', units: idle, order: 'attack', target: enemy.id } : { type: 'order', units: idle, order: 'attackMove', x: enemy.x, y: enemy.y });
       }
     }
   }

@@ -7,6 +7,8 @@ import * as THREE from 'three';
 
 /** Soft cloud texture (several Gaussian blobs), created once. */
 let puffTex = null;
+/** Shared smoke texture (for Renderer.dispose). */
+export const sharedPuffTexture = () => puffTex;
 function puffTexture() {
   if (puffTex) return puffTex;
   const S = 64, data = new Uint8Array(S * S * 4);

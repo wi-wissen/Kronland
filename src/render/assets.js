@@ -46,6 +46,8 @@ const cache = new Map();
 let base = './models/';
 
 export const hasAsset = (name) => cache.has(name);
+/** Cached models (for Renderer.dispose: free GPU data, models stay loaded). */
+export const sharedAssetRoots = () => [...cache.values()].map((a) => a.scene);
 
 /**
  * Loads all models for the given number of players. Errors are not fatal (placeholders remain).

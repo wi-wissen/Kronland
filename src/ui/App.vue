@@ -163,6 +163,8 @@ export default {
         difficulty: { easy: 'easy', normal: 'normal', hard: 'hard' }[q.get('ai')] ?? 'normal',
         players: Math.min(4, Math.max(2, Number(q.get('players')) || 2)),
         hero: q.get('hero') ?? 'bertram',
+        // Fog of war: ?fog=off turns it off
+        fog: !['off', '0'].includes(q.get('fog') ?? ''),
         noAssets: q.has('no-models'),
       });
     }
@@ -228,7 +230,7 @@ export default {
       this.screen = 'menu';
       if (location.search) history.replaceState(null, '', location.pathname);
     },
-    jump(t) { this.engine?.jumpTo(t.pos.x, t.pos.y); this.engine?.dismissToast(t.id); },
+    jump(t) { this.engine?.jumpTo(t.pos.x, t.pos.y, true); this.engine?.dismissToast(t.id); },
     onQuick(k) {
       const e = this.engine;
       if (k === 'hq') e.focusHeadquarters();

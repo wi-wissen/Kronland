@@ -119,6 +119,8 @@ export function animStep(level) {
 const store = { manifest: null, models: new Map() };
 
 export const characterManifest = () => store.manifest;
+/** Loaded figure models (for Renderer.dispose). */
+export const sharedCharacterRoots = () => [...store.models.values()].flatMap((m) => [m.gltf?.scene, ...m.lods.map((l) => l?.scene)]).filter(Boolean);
 export const characterModelLoaded = (name) => store.models.has(name);
 /** Loaded figure model (for tools and debugging). */
 export const characterModel = (name) => store.models.get(name) ?? null;
@@ -720,6 +722,24 @@ export class CharacterSystem {
     if (this.blob) this.initBlobs();
   }
 
+  /**
+   * Switch graphics level in the running game: LOD thresholds and shadow type (shadow casting of the
+   * near figures or blob shadows on the ground). Figure models themselves stay until the next start.
+   * @param {import('./quality.js').QualitySettings} quality
+   */
+  setQuality(quality) {
+    this.quality = quality;
+    this.lodSettings = lodSettings('character', quality.tier);
+    const blob = quality.tier === 'low' || quality.shadows === false;
+    if (blob === this.blob) return;
+    this.blob = blob;
+    if (blob && !this.blobs) this.initBlobs();
+    if (!blob && this.blobs) { this.blobs.count = 0; this.blobs.visible = false; }
+    for (const v of this.variants.values()) {
+      (v?.meshes ?? []).forEach((m, level) => { if (m) m.castShadow = !blob && level === 0; });
+    }
+  }
+
   /** What is the variant key for a role? Loads/bakes on demand. @returns {Variant|null} */
   variantFor(roleKey) {
     if (this.variants.has(roleKey)) return this.variants.get(roleKey);
@@ -818,7 +838,7 @@ export class CharacterSystem {
     let m = v.meshes[level];
     if (m && m.instanceMatrix.count >= need) return m;
     const cap = Math.max(16, need * 2, m ? m.instanceMatrix.count * 2 : 0);
-    if (m) { this.group.remove(m); m.geometry.dispose(); }
+    if (m) { this.group.remove(m); m.geometry.dispose(); m.dispose(); } // also free the instanceMatrix buffer
     const geo = new THREE.InstancedBufferGeometry();
     const src = v.levels[level];
     for (const [k, a] of Object.entries(src.attributes)) geo.setAttribute(k, a);

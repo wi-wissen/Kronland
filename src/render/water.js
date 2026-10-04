@@ -121,6 +121,9 @@ vec3 V = normalize(cameraPosition - vWPos);
 vec3 Hh = normalize(normalize(uSunDir) + V);
 vec3 Nw = normalize((vec4(normal, 0.0) * viewMatrix).xyz); // transposed = inverse (rotation)
 float glint = uDetail > 0.5 ? pow(max(dot(Nw, Hh), 0.0), 220.0) * (1.0 - uIce) : 0.0;
+#ifdef KFOW
+glint *= kFowShade; // no glitter in the fog of war
+#endif
 gl_FragColor.rgb += uSunColor * glint * 1.6;
 gl_FragColor.a = max(gl_FragColor.a, glint);`);
     };

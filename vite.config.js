@@ -29,7 +29,9 @@ export default defineConfig({
         globIgnores: ['models/**'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         runtimeCaching: [
-          { urlPattern: /\/models\/.*\.glb$/, handler: 'CacheFirst', options: { cacheName: 'models', expiration: { maxEntries: 200 } } },
+          { urlPattern: /\/models\/.*\.glb$/, handler: 'CacheFirst', options: { cacheName: 'models', expiration: { maxEntries: 400 } } }, // 4 players load ~205 files (incl. LOD levels), there are ~260 in total
+          // Figure manifest: without it the game shows only placeholder figures next to real buildings offline
+          { urlPattern: /\/models\/.*\.json$/, handler: 'NetworkFirst', options: { cacheName: 'models-manifest' } },
           // Sound: manifest always fresh, audio files from the cache after the first load (see docs/AUDIO.md)
           { urlPattern: /\/audio\/manifest\.json$/, handler: 'NetworkFirst', options: { cacheName: 'sound-manifest' } },
           { urlPattern: /\/audio\/.*\.(ogg|mp3|m4a|wav|webm|opus)$/, handler: 'CacheFirst', options: { cacheName: 'audio', expiration: { maxEntries: 300 } } },

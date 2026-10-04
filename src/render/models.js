@@ -13,6 +13,8 @@ export const RES_COLORS = {
 const BEAM = 0x5a3b22, DARK = 0x3a2a1c, STONE = 0x9b968c, PLASTER = 0xe3d6b8, THATCH = 0x9a7b45, ROOF = 0xa8503a;
 
 const cache = new Map();
+/** Shared materials (for Renderer.dispose). */
+export const sharedModelMaterials = () => [...cache.values()];
 /** Shared material per colour. */
 export function mat(color, opts = {}) {
   const key = color + JSON.stringify(opts);

@@ -1,6 +1,7 @@
 // Building damage: below 50 % HP a finished building burns and slowly loses further HP
 // until serfs repair it. Destroyed buildings leave a ruin that disappears after a
-// while and blocks the spot until then.
+// while and blocks the spot until then. Buildings of eliminated players decay
+// into ruins within 60 s.
 
 import { buildingMaxHp } from './techs.js';
 
@@ -10,6 +11,7 @@ export const DAMAGE = {
   burnHp: 1,              // … 1 HP loss → 2 HP/s (A)
   repairHpPerTick: 1,     // per serf and tick (A); repair costs no resources (A)
   ruinTicks: 600,         // ruin stays for 60 s (A)
+  decayTicks: 600,        // buildings of eliminated players decay into ruins in 60 s (source: original)
 };
 
 /** Is the building damaged (finished and below full HP)? */
@@ -29,6 +31,11 @@ export function updateDamage(sim) {
       continue;
     }
     if (e.kind !== 'building') continue;
+    // Eliminated owner: buildings decay (full HP in decayTicks), then ruin
+    if (sim.players[e.owner]?.defeated) {
+      e.hp -= Math.max(1, Math.ceil(buildingMaxHp(sim, e) / DAMAGE.decayTicks));
+      if (e.hp <= 0) { sim.destroyBuilding(e, null); continue; }
+    }
     const burning = isBurning(sim, e);
     if (burning !== !!e.burning) {
       e.burning = burning;

@@ -32,6 +32,8 @@ export default {
   defeatText: { de: 'Das Tutorial wurde beendet.', en: 'The tutorial has ended.' },
   noDefeat: true,
   next: 'c1',
+  // Fog of war on, but generous: the whole valley around the castle is explored from the start
+  vision: { startReveal: 34 },
   players: [
     { kind: 'human', hero: 'bertram', stock: { gold: 1200, clay: 2400, wood: 2400, stone: 1200, iron: 200, sulfur: 100 } },
     { kind: 'bandits' },
@@ -242,6 +244,7 @@ export default {
       onEnter: [
         { type: 'spawn', owner: 'bandits', ref: 'tutBandits', at: 'tutBanditSpot', units: [{ def: 'sword1', count: 1, soldiers: 2 }] },
         { type: 'dialog', speaker: 'kunz', text: { de: 'He, Bauer! Dein Holz gehört jetzt uns!', en: 'Hey, farmer! Your timber belongs to us now!' } },
+        { type: 'reveal', area: 'tutBandits' },
         { type: 'camera', at: 'tutBandits' },
       ],
       done: { type: 'dead', ref: 'tutBandits' },

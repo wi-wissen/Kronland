@@ -52,6 +52,13 @@
             <span class="sm-hint">{{ $t('menu.hero.' + hero) }}</span>
           </div>
           <div class="sm-field">
+            <span class="h-label">{{ $t('menu.fog') }}</span>
+            <div class="seg" role="radiogroup" :aria-label="$t('menu.fog')">
+              <button v-for="f in [true, false]" :key="String(f)" role="radio" :aria-checked="fog === f" :class="{ active: fog === f }" :data-testid="'fog-' + (f ? 'on' : 'off')" @click="fog = f">{{ $t(f ? 'menu.fog.on' : 'menu.fog.off') }}</button>
+            </div>
+            <span class="sm-hint">{{ $t(fog ? 'menu.fog.hint.on' : 'menu.fog.hint.off') }}</span>
+          </div>
+          <div class="sm-field">
             <span class="h-label">{{ $t('menu.map') }}</span>
             <div class="sm-seed">
               <input id="seed" v-model.number="seed" type="number" min="1" max="999999" :aria-label="$t('menu.mapNumber')">
@@ -88,13 +95,13 @@ export default {
   data() {
     return {
       opponents: 1, difficulty: 'normal', hero: 'bertram', heroes: ['bertram', 'hedda', 'gerold'],
-      seed: Math.floor(Math.random() * 99999) + 1, settingsOpen: false,
+      seed: Math.floor(Math.random() * 99999) + 1, settingsOpen: false, fog: true,
     };
   },
   methods: {
     setLang(l) { set('lang', l); },
     start() {
-      this.$emit('start', { players: this.opponents + 1, difficulty: this.difficulty, hero: this.hero, seed: this.seed || 1 });
+      this.$emit('start', { players: this.opponents + 1, difficulty: this.difficulty, hero: this.hero, seed: this.seed || 1, fog: this.fog });
     },
   },
 };

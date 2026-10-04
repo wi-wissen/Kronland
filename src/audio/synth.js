@@ -158,7 +158,10 @@ export function noise(ctx, out, t, o) {
  * @param {number[][]} partials [frequency factor, level, decay factor]
  */
 export function bell(ctx, out, t, freq, dur, gain, partials) {
+  const nyquist = (ctx.sampleRate ?? 44100) / 2;
   for (const [ratio, lvl, dk] of partials) {
+    // Overtones above the Nyquist frequency are inaudible and produce console warnings
+    if (freq * ratio >= nyquist * 0.95) continue;
     tone(ctx, out, t, { freq: freq * ratio, dur: dur * (dk ?? 1), gain: gain * lvl, attack: 0.002 });
   }
   return t + dur;

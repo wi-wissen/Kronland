@@ -2,6 +2,12 @@
 
 import { t, say } from './common.js';
 
+/** Without guards the bandits abandon the lookout and set fire to it themselves. */
+function burnLookout(sim, m) {
+  const camp = sim.entities.get(m.state.refs.lookout);
+  if (camp) sim.destroyBuilding(camp, null);
+}
+
 export default {
   id: 'c1',
   order: 1,
@@ -46,8 +52,8 @@ export default {
     { id: 'farms', type: 'build', building: 'farm', count: 2, primary: true, text: t('Baue 2 Bauernhöfe', 'Build 2 farms') },
     { id: 'pit', type: 'build', building: 'clayMine', primary: true, text: t('Baue eine Lehmgrube am Schacht', 'Build a clay pit on the shaft') },
     { id: 'workers', type: 'workers', count: 6, primary: true, text: t('Gewinne 6 Arbeiter', 'Attract 6 workers') },
-    { id: 'lookout', type: 'destroy', ref: 'lookout', hidden: true, text: t('Optional: Zerstöre den Räuberposten', 'Optional: Destroy the bandit lookout'),
-      onDone: [{ type: 'give', res: { gold: 300 } }, say('bertram', 'Der Posten brennt. 300 Taler lagen in der Truhe – Raubgut, jetzt unser.', 'The lookout burns. 300 thalers were in the chest – stolen goods, ours now.')] },
+    { id: 'lookout', type: 'destroy', ref: 'lookoutGuards', hidden: true, text: t('Optional: Vertreibe die Räuber vom Posten', 'Optional: Drive the bandits from the lookout'),
+      onDone: [burnLookout, { type: 'give', res: { gold: 300 } }, say('bertram', 'Der Posten brennt. 300 Taler lagen in der Truhe – Raubgut, jetzt unser.', 'The lookout burns. 300 thalers were in the chest – stolen goods, ours now.')] },
   ],
 
   events: [
@@ -55,6 +61,7 @@ export default {
     { id: 'scout', when: { type: 'time', at: 90 }, do: [
       say('scout', 'Herrin, Herr – östlich im Wald steht ein Räuberposten. Nur ein paar Speerträger, aber sie beobachten uns.', 'My liege – there is a bandit lookout in the eastern woods. Only a few spearmen, but they are watching us.'),
       { type: 'reveal', id: 'lookout' },
+      { type: 'reveal', area: 'lookoutArea' },
       { type: 'camera', at: 'lookoutArea' },
     ] },
     { id: 'firstWorker', when: { type: 'workers', count: 1 }, do: [say('ottilie', 'Der erste Arbeiter ist da! Wo er gut schläft und isst, folgen andere.', 'Our first worker has arrived! Where he sleeps and eats well, others will follow.')] },

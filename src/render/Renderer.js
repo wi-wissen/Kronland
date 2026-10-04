@@ -11,8 +11,8 @@ import {
 import {
   ChunkedInstances, LodCounter, LodState, ViewTracker, cameraFrustum, effectiveDistance, lodSettings, LOD_TIERS, sphereVisible, splitGridMesh,
 } from './lod.js';
-import { CharacterSystem } from './characters.js';
-import { Effects, HealthBars, GroundMarks } from './effects.js';
+import { CharacterSystem, sharedCharacterRoots } from './characters.js';
+import { Effects, HealthBars, GroundMarks, sharedPuffTexture } from './effects.js';
 import { DebugOverlay, debugEnabled } from './debug.js';
 import { CameraRig } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
@@ -25,17 +25,27 @@ import {
   unitModel, heroModel, gadgetModel, horseModel, constructionStage, ruinModel, hasConstructionStages,
 } from './models.js';
 import { UNITS, HEROES } from '../sim/data/units.js';
-import { PLAYER_COLORS } from './models.js';
+import { PLAYER_COLORS, sharedModelMaterials } from './models.js';
+import { sharedAssetRoots } from './assets.js';
+import { sharedMarkerMaterials } from './nature.js';
+import { sharedTerrainTextures } from './textures.js';
 import { HintMarker } from './hints.js';
+import { FogOfWar, patchFog, patchFogTree } from './fog.js';
+import { knownBuildings } from '../sim/systems/vision.js';
 
 const PLAYER_COLORS_HEX = (owner) => PLAYER_COLORS[owner % 4];
 
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
 
 export class Renderer {
-  /** @param {HTMLCanvasElement} canvas @param {import('../sim/sim.js').Sim} sim */
-  constructor(canvas, sim) {
+  /**
+   * @param {HTMLCanvasElement} canvas @param {import('../sim/sim.js').Sim} sim
+   * @param {{ player?: number }} [opts] player: from whose point of view it is drawn (fog of war)
+   */
+  constructor(canvas, sim, opts = {}) {
     this.sim = sim;
+    /** Point of view for the fog of war */
+    this.viewer = opts.player ?? 0;
     /** Graphics level (pixel density, shadows, textures, decoration density, water) */
     const q = this.quality = getQuality();
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: 'high-performance' });
@@ -51,6 +61,10 @@ export class Renderer {
     this.terrain = new Terrain(sim.map, sim.waterLevel, q);
     this.water = new Water(this.terrain, q);
     this.terrain.water = this.water.mesh; // compatibility for older accesses
+    // Fog of war: data texture and shader addition for all world materials
+    this.fog = new FogOfWar(sim, this.viewer);
+    patchFog(this.terrain.mesh.material);
+    patchFog(this.water.material);
     // Draw terrain and water in tiles: areas outside the screen drop out
     this.terrainChunks = splitGridMesh(this.terrain.mesh, 24);
     this.waterChunks = splitGridMesh(this.water.mesh, 32);
@@ -99,6 +113,48 @@ export class Renderer {
   }
 
   /**
+   * Free GPU resources (game end, new game, loading). The canvas and with it the WebGL context
+   * are reused for the next game; without disposal buffers, textures and programs of
+   * every game would stay in the context. Jointly cached models are re-uploaded by three.js on demand.
+   */
+  dispose() {
+    this.debug?.dispose();
+    this.debug = null;
+    const seen = new Set();
+    const free = (x) => { if (x && !seen.has(x)) { seen.add(x); x.dispose?.(); } };
+    const props = this.renderer.properties;
+    const freeMaterial = (m) => {
+      // three.js r186 attaches a listener per renderer to its global DFG table (PBR materials)
+      const lut = props.get(m)?.uniforms?.dfgLUT?.value;
+      if (lut?.isTexture) free(lut);
+      for (const v of Object.values(m)) if (v?.isTexture) free(v);
+      if (m.uniforms) for (const u of Object.values(m.uniforms)) if (u?.value?.isTexture) free(u.value);
+      free(m);
+    };
+    const freeTree = (root) => root?.traverse?.((o) => {
+      free(o.geometry);
+      for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) freeMaterial(m);
+      if (o.isInstancedMesh) free(o);
+    });
+    freeTree(this.scene);
+    // Also module-wide cached resources: three.js attaches a 'dispose' listener of this renderer to every used geometry,
+    // material and texture. If they stay, the
+    // cache holds on to the old renderer including context, canvas, UI and simulation.
+    for (const root of [...sharedAssetRoots(), ...sharedCharacterRoots(), this.ghost]) freeTree(root);
+    for (const m of [...sharedModelMaterials(), ...sharedMarkerMaterials(), this.arrowMat].filter(Boolean)) freeMaterial(m);
+    for (const x of [...sharedTerrainTextures(), sharedPuffTexture(), this.ballGeo, this.arrowGeo, this.boomGeo]) free(x);
+    this.env?.dispose?.();
+    this.fog?.dispose();
+    this.terrain?.dispose?.();
+    this.water?.dispose?.();
+    this.scene.environment = null;
+    this.renderer.renderLists.dispose();
+    this.renderer.dispose();
+    // No forceContextLoss(): when loading from within the game the same canvas (and with it the same
+    // context) stays in use for the next renderer. Without references the browser collects old contexts.
+  }
+
+  /**
    * Compile and bind all shader programs (incl. shadow pass) at the first frame, with all
    * objects visible. Deliberately not in the constructor so that the game start is not blocked.
    */
@@ -121,6 +177,52 @@ export class Renderer {
       this.chars.prewarm(false);
       r.setSize(Math.max(1, size.x), Math.max(1, size.y), false);
     } catch { /* without GL context */ }
+  }
+
+  /**
+   * Take over the graphics level in the running game: pixel density, shadows (on/off, map size), decoration density,
+   * LOD thresholds (trees, decoration, buildings, figures). Anti-aliasing (WebGL context), texture size,
+   * terrain/water/tree detail and figure models need a restart.
+   * @param {import('./quality.js').QualitySettings} [q]
+   * @returns {string[]} parts that only take effect at the next game start
+   */
+  applyQuality(q = getQuality()) {
+    const old = this.quality;
+    this.quality = q;
+    this.lodTier = LOD_TIERS[q.tier] ?? LOD_TIERS.high;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, q.maxPixelRatio));
+    if (this.viewport) this.renderer.setSize(this.viewport.w, this.viewport.h, false);
+    if (this.env.setQuality(q)) {
+      // shadows on/off: recompile the shaders of all materials
+      this.scene.traverse((o) => {
+        for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) m.needsUpdate = true;
+      });
+    }
+    this.chars.setQuality(q);
+    if (old.scatter !== q.scatter && this.scatter.length) this.rebuildScatter();
+    // choose LOD levels and chunks anew at the next frame
+    this.view.pos.set(Infinity, 0, 0);
+    const later = [];
+    for (const k of ['antialias', 'textureSize', 'terrainDetail', 'margin', 'treeDetail', 'waterDetail', 'terrainBump', 'anisotropy', 'characterModels']) {
+      if (old[k] !== q[k]) later.push(k);
+    }
+    this.pendingQuality = later.length ? later : null;
+    return later;
+  }
+
+  /** Build decoration with new density (same arrangement, fade-outs under buildings stay). */
+  rebuildScatter() {
+    const old = new Set(this.scatter);
+    // Decoration geometries and materials are created anew per build (scatterKinds) and are disposed with it
+    for (const ci of this.scatter) for (const m of ci.meshes) { m.parent?.remove(m); m.geometry.dispose(); m.material.dispose(); m.dispose(); }
+    this.chunked = this.chunked.filter((c) => !old.has(c));
+    this.buildScatter();
+    for (const id of this.padIds) {
+      const e = this.sim.entities.get(id);
+      if (e) this.hideScatter(e.x, e.y, e.w, e.h);
+    }
+    const snow = this.weather === 'winter';
+    for (const m of this.scatter) m.visible = snow ? m.userData.winter : true;
   }
 
   setSize(w, h) {
@@ -202,7 +304,7 @@ export class Renderer {
       const handle = groups[it.v].add(it.x, it.z, tmpM, c);
       if (it.id) this.treeIndex.set(it.id, { v: it.v, h: handle, x: it.x, z: it.z, s });
     }
-    for (const g of groups) { g.finalize(this.scene); this.chunked.push(g); }
+    for (const g of groups) { g.finalize(this.scene); this.chunked.push(g); for (const m of g.meshes) patchFog(m.material); }
     this.treeGroups = groups;
     // tree stumps (felled trees)
     const st = stumpVariant(this.natureUniforms);
@@ -210,6 +312,7 @@ export class Renderer {
     this.stumps.count = 0;
     this.stumps.castShadow = true; this.stumps.receiveShadow = true;
     this.stumps.frustumCulled = false;
+    patchFog(st.material);
     this.scene.add(this.stumps);
   }
 
@@ -368,6 +471,7 @@ export class Renderer {
         this.scatterByTile.get(it.tile).push([ci, h]);
       }
       ci.finalize(this.scene);
+      for (const m of ci.meshes) patchFog(m.material);
       ci.userData.winter = kind.winter;
       this.chunked.push(ci);
       this.scatter.push(ci);
@@ -395,6 +499,7 @@ export class Renderer {
       d.rotation.y = (e.id * 1.7) % 6.28;
       g.add(d);
       g.position.set(e.x + 0.5, this.terrain.heightAt(e.x + 0.5, e.y + 0.5) - 0.03, e.y + 0.5);
+      patchFogTree(g);
       this.scene.add(g);
       this.piles.set(e.id, g);
     }
@@ -402,14 +507,16 @@ export class Renderer {
       const g = shaftMarker(s.res);
       g.position.set(s.x + 1.5, this.terrain.rectHeight(s.x, s.y, 3, 3) - 0.1, s.y + 1.5);
       g.rotation.y = ((s.x * 7 + s.y * 3) % 4) * (Math.PI / 2);
+      patchFogTree(g);
       this.scene.add(g);
-      this.markers.push({ g, x: s.x, y: s.y });
+      this.markers.push({ g, x: s.x, y: s.y, cx: s.x + 1.5, cz: s.y + 1.5, free: true });
     }
     for (const s of this.sim.spots) {
       const g = spotMarker();
       g.position.set(s.x + 2, this.terrain.rectHeight(s.x, s.y, 4, 4) - 0.1, s.y + 2);
+      patchFogTree(g);
       this.scene.add(g);
-      this.markers.push({ g, x: s.x, y: s.y });
+      this.markers.push({ g, x: s.x, y: s.y, cx: s.x + 2, cz: s.y + 2, free: true });
     }
   }
 
@@ -421,8 +528,9 @@ export class Renderer {
     if (!changed) return;
     const rects = [];
     for (const id of this.padIds) if (!ids.has(id)) this.terrain.restorePad(id);
-    for (const id of ids.keys()) {
-      const e = this.sim.entities.get(id);
+    for (const [id, g] of ids) {
+      // rectangle from the rendering (also last seen buildings in the fog that no longer exist)
+      const e = g.userData.rect;
       if (!e) continue;
       rects.push(e);
       if (!this.padIds.has(id)) { this.terrain.flattenPad(id, e.x, e.y, e.w, e.h); this.hideScatter(e.x, e.y, e.w, e.h); }
@@ -434,17 +542,19 @@ export class Renderer {
   // ---------- Events ----------
 
   onEvents(events) {
+    const fog = this.fog;
     for (const ev of events) {
-      if (ev.type === 'shot') this.addProjectile(ev);
+      // fog: show shots, hits and explosions only where the player is looking
+      if (ev.type === 'shot') { if (fog.visibleAt(ev.from.x / UNIT, ev.from.y / UNIT) || fog.visibleAt(ev.to.x / UNIT, ev.to.y / UNIT)) this.addProjectile(ev); }
       else if (ev.type === 'hit') {
         (this.hitAt ??= new Map()).set(ev.by, this.time ?? 0);
         const t = this.sim.entities.get(ev.target);
-        if (t?.px !== undefined && this.fx.chance(0.5)) {
+        if (t?.px !== undefined && fog.visibleAt(t.px / UNIT, t.py / UNIT) && this.fx.chance(0.5)) {
           const x = t.px / UNIT, z = t.py / UNIT;
           this.fx.sparks(x, this.terrain.heightAt(x, z) + 0.55, z);
         }
       }
-      else if (ev.type === 'explosion') this.addExplosion(ev.x / UNIT, ev.y / UNIT);
+      else if (ev.type === 'explosion') { if (fog.visibleAt(ev.x / UNIT, ev.y / UNIT)) this.addExplosion(ev.x / UNIT, ev.y / UNIT); }
       else if (ev.type === 'weather') this.applyWeather(ev.state);
       else if (ev.type === 'killed') this.onKilled(ev);
       else if (ev.type === 'buildingDestroyed' || ev.type === 'demolished') this.onBuildingGone(ev);
@@ -468,6 +578,8 @@ export class Renderer {
     const g = this.buildings.get(ev.building);
     const e = g?.userData.rect;
     if (!e) return;
+    // in fog: show nothing, the building stays as the last seen state
+    if (!this.fog.rectVisible(e.x, e.y, e.w, e.h)) return;
     const cx = e.x + e.w / 2, cz = e.y + e.h / 2, y = g.position.y;
     this.fx.poof(cx, y, cz, Math.max(e.w, e.h) * 0.6, 0xb8ab94, 30);
     if (ev.type === 'buildingDestroyed') {
@@ -479,6 +591,7 @@ export class Renderer {
         r.position.set(cx, y, cz);
         r.rotation.y = (ev.building % 4) * (Math.PI / 2);
         r.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; } });
+        patchFogTree(r);
         this.scene.add(r);
         this.ruins.push({ g: r, t: 0, x: cx, y, z: cz, w: e.w });
       }
@@ -490,6 +603,7 @@ export class Renderer {
     const e = this.sim.entities.get(ev.building);
     if (!e) return;
     const g = this.buildings.get(e.id);
+    if (!g || !this.fog.rectVisible(e.x, e.y, e.w, e.h)) return;
     this.fx.poof(e.x + e.w / 2, g?.position.y ?? this.terrain.heightAt(e.x, e.y), e.y + e.h / 2, Math.max(e.w, e.h) * 0.55);
   }
 
@@ -525,15 +639,45 @@ export class Renderer {
     this.marks.begin();
     this.selectedIds = view.selected;
     const seen = new Set();
+    // fog of war: game end or eliminated player sees everything
+    const fog = this.fog;
+    if (view.revealAll) fog.revealAll();
+    fog.update(dt);
+    const fogOn = fog.active, me = this.viewer;
+    const mine = (o) => o !== undefined && o >= 0 && !!sim.players[o] && sim.allied(o, me);
 
     for (const e of sim.entities.values()) {
-      if (e.kind === 'building') { seen.add(e.id); this.syncBuilding(e); }
-      else if (e.kind === 'unit' || e.kind === 'worker') { seen.add(e.id); this.syncUnit(e, alpha, prev.get(e.id), dt); }
-      else if (e.px !== undefined) { seen.add(e.id); this.syncFighter(e, alpha, prev.get(e.id)); }
-      else if (e.kind === 'ruin') { seen.add(e.id); this.syncRuin(e); }
-      else if (e.kind === 'pile') {
+      if (e.kind === 'building') {
+        // enemy buildings only if visible; otherwise as last seen state (below)
+        if (fogOn && !mine(e.owner) && !fog.rectVisible(e.x, e.y, e.w, e.h)) continue;
+        seen.add(e.id); this.syncBuilding(e);
+      } else if (e.px !== undefined) {
+        // enemy figures, traps and projectiles only in visible tiles
+        if (fogOn && !mine(e.owner) && !fog.visibleAt(e.px / UNIT, e.py / UNIT)) continue;
+        seen.add(e.id);
+        if (e.kind === 'unit' || e.kind === 'worker') this.syncUnit(e, alpha, prev.get(e.id), dt);
+        else this.syncFighter(e, alpha, prev.get(e.id));
+      } else if (e.kind === 'ruin') {
+        if (fogOn && !fog.rectVisible(e.x, e.y, e.w ?? 3, e.h ?? 3)) continue;
+        seen.add(e.id); this.syncRuin(e);
+      } else if (e.kind === 'pile') {
         const g = this.piles.get(e.id);
-        if (g) g.scale.setScalar(0.55 + 0.45 * Math.min(1, e.amount / 400));
+        if (g) {
+          g.visible = fog.exploredAt(e.x + 0.5, e.y + 0.5);
+          if (!fogOn || fog.visibleAt(e.x + 0.5, e.y + 0.5)) g.scale.setScalar(0.55 + 0.45 * Math.min(1, e.amount / 400));
+        }
+      }
+    }
+    // last seen enemy buildings and ruins (darkened by the fog, without smoke and fire)
+    const ghosts = fogOn ? knownBuildings(sim, me) : null;
+    if (ghosts) {
+      for (const gh of ghosts.values()) {
+        if (seen.has(gh.id)) continue;
+        // just disappeared from sight (destroyed, demolished): do not keep showing until the next vision computation
+        if (!sim.entities.has(gh.id) && fog.rectVisible(gh.x, gh.y, gh.w, gh.h)) continue;
+        seen.add(gh.id);
+        if (gh.kind === 'ruin') this.syncRuin(gh);
+        else this.syncBuilding(this.ghostEntity(gh), true);
       }
     }
     for (const [id, g] of this.buildings) if (!seen.has(id)) { this.scene.remove(g); this.buildings.delete(id); this.buildProgress.delete(id); }
@@ -545,8 +689,11 @@ export class Renderer {
     }
     this.chars.prune();
 
-    // hide markers as soon as something is built there
-    for (const m of this.markers) m.g.visible = sim.map.owner[sim.map.idx(m.x, m.y)] === 0;
+    // hide markers as soon as something is built there (in fog the last seen state stays)
+    for (const m of this.markers) {
+      if (fog.visibleAt(m.cx, m.cz)) m.free = sim.map.owner[sim.map.idx(m.x, m.y)] === 0;
+      m.g.visible = m.free && fog.exploredAt(m.cx, m.cz);
+    }
 
     this.updateEffects(dt);
     this.syncSelection(view.selected);
@@ -625,7 +772,20 @@ export class Renderer {
     for (const k of ['serf', 'worker', 'soldier.sword', 'soldier.sword.leader', 'soldier.bow', 'soldier.spear', `hero.${[...this.sim.entities.values()].find((e) => e.kind === 'hero')?.hero ?? 'bertram'}`]) this.chars.variantFor(k);
   }
 
-  syncBuilding(e) {
+  /**
+   * Last seen state of an enemy building as an entity-like object for syncBuilding.
+   * @param {any} gh snapshot from src/sim/systems/vision.js
+   */
+  ghostEntity(gh) {
+    const def = BUILDINGS[gh.type];
+    return {
+      id: gh.id, kind: 'building', type: gh.type, owner: gh.owner, x: gh.x, y: gh.y, w: gh.w, h: gh.h, level: gh.level,
+      done: gh.done, progress: gh.progress, work: 1000, hp: def?.levels[gh.level]?.hp ?? 1, burning: false, workers: [],
+    };
+  }
+
+  /** @param {any} e building (or ghostEntity) @param {boolean} [ghost] last seen state: no effects */
+  syncBuilding(e, ghost = false) {
     let g = this.buildings.get(e.id);
     const stages = !e.done && hasConstructionStages();
     const p = e.work ? e.progress / e.work : 1;
@@ -659,12 +819,13 @@ export class Renderer {
       const cp = CHIMNEY[e.type];
       g.userData.chimney = cp ? new THREE.Vector3(cp[0] * e.w / 2, cp[1] * g.userData.height, cp[2] * e.h / 2) : null;
       g.traverse((m) => { m.userData.entity = e.id; });
+      patchFogTree(g);
       this.scene.add(g);
       this.buildings.set(e.id, g);
       if (old) {
         this.scene.remove(old);
         // phase change: dust
-        if (!e.done) this.fx.dust(g.position.x, g.position.y, g.position.z, 10, 0.5);
+        if (!e.done && !ghost) this.fx.dust(g.position.x, g.position.y, g.position.z, 10, 0.5);
       }
     }
     const rotor = g.getObjectByName('rotor');
@@ -673,7 +834,12 @@ export class Renderer {
     if (spin) spin.rotation.y = this.time * 2.2;
     const flame = g.getObjectByName('flame');
     if (flame) flame.scale.y = 0.8 + Math.sin(this.time * 12 + e.id) * 0.2;
+    g.userData.ghost = ghost;
     const near = sphereVisible(this.frustum, g.position.x, g.position.y + 1, g.position.z, Math.max(e.w, e.h));
+    if (ghost) {
+      if (!e.done && (stage === 3 || stage < 0)) g.getObjectByName('body').scale.y = 0.08 + 0.92 * (stage === 3 ? Math.min(1, (p - 0.68) / 0.32 * 0.85 + 0.15) : p);
+      return;
+    }
     if (!e.done) {
       const body = g.getObjectByName('body');
       if (stage === 3 || stage < 0) body.scale.y = 0.08 + 0.92 * (stage === 3 ? Math.min(1, (p - 0.68) / 0.32 * 0.85 + 0.15) : p);
@@ -721,6 +887,7 @@ export class Renderer {
     const w = e.w ?? 3, h = e.h ?? 3;
     const g = ruinModel(w - 0.6, h - 0.6);
     g.position.set(e.x + w / 2, this.terrain.rectHeight(e.x, e.y, w, h), e.y + h / 2);
+    patchFogTree(g);
     this.scene.add(g);
     m.set(e.id, g);
   }
@@ -1021,9 +1188,10 @@ export class Renderer {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
-    const objs = [...this.units.values(), ...this.buildings.values()];
+    // last seen buildings in fog are not selectable (otherwise they would reveal the current state)
+    const objs = [...this.units.values(), ...[...this.buildings.values()].filter((g) => !g.userData.ghost)];
     const hit = this.raycaster.intersectObjects(objs, true)[0];
-    let best = null, bestScore = Infinity;
+    let best = null, bestScore = Infinity, bestDepth = Infinity;
     const a = new THREE.Vector3(), b = new THREE.Vector3();
     const px = clientX - rect.left, py = clientY - rect.top;
     const touch = matchMedia?.('(pointer: coarse)').matches;
@@ -1041,14 +1209,33 @@ export class Renderer {
       const d = Math.hypot(ax + dx * t - px, ay + dy * t - py);
       const radius = Math.max(touch ? 16 : 9, Math.sqrt(L) * 0.32);
       if (d > radius) continue;
-      const score = a.z + d * 1e-5;
-      if (score < bestScore) { bestScore = score; best = r; }
+      // figure closest to the pointer (in groups otherwise always the frontmost, e.g. a soldier in front of
+      // the hero); at equal distance the front one
+      const score = d + a.z * 1e-3;
+      if (score < bestScore) { bestScore = score; bestDepth = a.z; best = r; }
     }
-    if (best && (!hit || bestScore <= new THREE.Vector3().copy(hit.point).project(this.camera).z)) {
+    if (best && (!hit || bestDepth <= new THREE.Vector3().copy(hit.point).project(this.camera).z)) {
       const e = this.sim.entities.get(best.id);
       return e?.kind === 'soldier' ? e.leader : best.id;
     }
     return hit ? hit.object.userData.entity ?? null : null;
+  }
+
+  /**
+   * Last seen enemy building (fog) under a screen position: centre in tiles
+   * for an attack move, or null.
+   */
+  pickGhost(clientX, clientY) {
+    const ghosts = [...this.buildings.values()].filter((g) => g.userData.ghost);
+    if (!ghosts.length) return null;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const hit = this.raycaster.intersectObjects(ghosts, true)[0];
+    let o = hit?.object;
+    while (o && !o.userData.rect) o = o.parent;
+    const r = o?.userData.rect;
+    return r ? { x: r.x + r.w / 2, y: r.y + r.h / 2, id: o.userData.entity ?? null } : null;
   }
 
   /** World point in screen coordinates. */

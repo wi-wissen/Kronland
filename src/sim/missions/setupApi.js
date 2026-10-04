@@ -258,10 +258,12 @@ export function makeIsland(sim, from, to, o = {}) {
           m.heights[k] = Math.max(m.heights[k], sim.waterLevel + 80);
         }
       }
+      m.version++; // recompute the region numbers of the pathfinding
       // Counter-check: cut off in summer, reachable in winter
       const ok = !reachable(sim, from, c, false) && reachable(sim, from, c, true);
       if (ok) return { x: c.x, y: c.y, r: inner - 1 };
       for (const [k, h, f] of changed.reverse()) { m.heights[k] = h; m.flags[k] = f; }
+      m.version++;
     }
   }
   return null;

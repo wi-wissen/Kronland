@@ -8,6 +8,7 @@ const wave = (n, units, de, en) => ({
   do: [
     say('kunz', de, en),
     { type: 'spawn', owner: 'bandits', at: 'banditGate', units, order: 'attackMove', target: 'village', ref: 'raiders', append: true },
+    { type: 'reveal', area: 'banditGate' },
     { type: 'camera', at: 'banditGate' },
   ],
 });
@@ -52,7 +53,7 @@ export default {
     ctx.ref('village', vc?.id);
     // Bandit camp towards the map centre, rally point of the waves in between
     const camp = ctx.camp('camp', api.toward(hq, ctx.mapCenter(), 32), [
-      { def: 'spear1', count: 1, soldiers: 3 }, { def: 'bow1', count: 1, soldiers: 2 },
+      { def: 'spear1', count: 2, soldiers: 4 }, { def: 'bow1', count: 2, soldiers: 3 }, { def: 'sword1', count: 1, soldiers: 4 },
     ], { from: hq, avoid: [{ ...hq, r: 22 }] });
     const gate = camp ? api.toward(camp, hq, 7) : api.toward(hq, ctx.mapCenter(), 22);
     const p = api.findOpen(sim, gate.x, gate.y, { maxR: 8, clear: 2, from: hq }) ?? gate;
@@ -76,11 +77,11 @@ export default {
   ],
 
   events: [
-    wave(1, [{ def: 'sword1', count: 2, soldiers: 2 }],
+    wave(1, [{ def: 'sword1', count: 3, soldiers: 3 }],
       'Holt euch das Dorf, Jungs! Was brennt, kann nicht mehr Morwald trotzen!', 'Take the village, lads! What burns cannot defy Morwald!'),
-    wave(2, [{ def: 'sword1', count: 2, soldiers: 3 }, { def: 'bow1', count: 1, soldiers: 2 }],
+    wave(2, [{ def: 'sword1', count: 3, soldiers: 4 }, { def: 'bow1', count: 2, soldiers: 3 }],
       'Ihr habt Glück gehabt. Jetzt kommen meine Bogenschützen.', 'You got lucky. Now my archers are coming.'),
-    wave(3, [{ def: 'sword1', count: 3, soldiers: 3 }, { def: 'bow1', count: 2, soldiers: 2 }],
+    wave(3, [{ def: 'sword1', count: 4, soldiers: 4 }, { def: 'spear1', count: 2, soldiers: 4 }, { def: 'bow1', count: 2, soldiers: 4 }],
       'Alle Mann! Brennt alles nieder!', 'All hands! Burn it all down!'),
     { id: 'militiaTip', when: { type: 'fired', id: 'wave2' }, do: [
       say('ottilie', 'Wenn es eng wird: In der Burg kannst du die Leibeigenen bewaffnen. Sie kämpfen dann als Miliz.', 'If it gets tight: in the castle you can arm the serfs. They will then fight as militia.'),
@@ -92,6 +93,7 @@ export default {
       { type: 'spawn', owner: 'human', at: 'humanHq', units: [{ def: 'spear1', count: 2, soldiers: 4 }], ref: 'reinforcements' },
       { type: 'give', res: { gold: 400, iron: 200 } },
       { type: 'reveal', id: 'camp' },
+      { type: 'reveal', area: 'campArea' },
       { type: 'camera', at: 'campArea' },
     ] },
   ],

@@ -26,6 +26,7 @@ npm run build   # Produktionsbuild nach dist/
 | 6 | CC0-Modelle (KayKit), Startmenü, Speichern/Laden, PWA, CI | fertig |
 | 7 | Missionssystem, Tutorial, Kampagne mit 5 Missionen | fertig |
 | 8 | Gebäude-Technologien, Marktplatz, Wetterturm/-kraftwerk, Erfahrung, Brand/Reparatur/Ruinen | fertig |
+| 9 | Nebel des Krieges (unerkundet/erkundet/sichtbar, zuletzt gesehene Gebäude, faire KI) | fertig |
 
 ## Spielen
 
@@ -33,8 +34,11 @@ npm run build   # Produktionsbuild nach dist/
 - **Kampagne** „Die Rückkehr der Krone“: fünf Kapitel mit Briefing, Haupt- und Nebenzielen,
   Räubern, Wetter und einem Endkampf gegen Fürst Morwald. Fortschritt und Bestzeiten speichert der Browser.
   Direktstart: `?mission=c1` … `?mission=c5`, `?mission=tutorial`.
-- **Freies Spiel**: Im Startmenü Gegnerzahl (1–3), Stärke, Helden und Karte wählen.
-- Direktstart per Adresse: `?seed=42&ai=hard&players=3&hero=hedda`
+- **Freies Spiel**: Im Startmenü Gegnerzahl (1–3), Stärke, Helden, Nebel des Krieges an/aus und Karte wählen.
+- Direktstart per Adresse: `?seed=42&ai=hard&players=3&hero=hedda` (ohne Nebel: `&fog=off`)
+- **Nebel des Krieges** wie im Original: Unerkundetes ist schwarz, Erkundetes abgedunkelt mit dem zuletzt
+  gesehenen Stand feindlicher Gebäude, Feinde sieht man nur in Sichtweite. Die KI schummelt nicht.
+  Sichtweiten und Regeln: [Spielregeln §12](docs/SPIELREGELN.md#12-sicht-und-nebel-des-krieges).
 - Grafikstufe: automatisch (Handy/ohne Grafikkarte niedrig, Desktop hoch), erzwingbar per `?quality=low|medium|high`
   (wird gemerkt; im Code: `setQuality()` aus `src/render/quality.js`). Objekte werden je nach Abstand/Zoom
   vereinfacht (Detailstufen), Figuren sind instanziert und GPU-animiert – Details in [Modelle](docs/MODELLE.md).
@@ -74,4 +78,5 @@ Ohne Modelle zeigt das Spiel prozedurale Platzhalter.
 - [Missionen schreiben](docs/MISSIONEN.md)
 - [Modelle, Figuren, Detailstufen](docs/MODELLE.md)
 - [Ton: Effekte, Musik, eigene Audiodateien](docs/AUDIO.md)
+- [QA-Bericht: Befunde, Fuzz-/Dauertests, Leistung](docs/QA-BERICHT.md)
 - [Lizenzen und Danksagung](CREDITS.md)

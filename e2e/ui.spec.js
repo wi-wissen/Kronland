@@ -123,7 +123,7 @@ test('Minimap: click moves the camera', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('Notice with location jumps there on click', async ({ page }) => {
+test('Notice with a location jumps there on click', async ({ page, isMobile }) => {
   const errors = await fresh(page);
   await bootGame(page);
   await page.evaluate(() => {
@@ -133,10 +133,71 @@ test('Notice with location jumps there on click', async ({ page }) => {
   const t = page.getByTestId('toast').filter({ hasText: 'Angriff auf Wohnhaus!' });
   await expect(t).toBeVisible(SLOW);
   await t.click();
-  const target = await page.evaluate(() => ({ ...window.__kronland.renderer.rig.target }));
-  expect(Math.round(target.x)).toBe(10);
-  expect(Math.round(target.z)).toBe(12);
   await expect(t).toHaveCount(0);
+  // Location lies visibly in the free picture area (desktop: picture centre; mobile: above the context panel)
+  const v = await visibleSpot(page, 10, 12);
+  expect(v.inside, JSON.stringify(v)).toBe(true);
+  if (!isMobile) { expect(Math.round(v.target.x)).toBe(10); expect(Math.round(v.target.z)).toBe(12); }
+  expect(errors).toEqual([]);
+});
+
+/** Where does the ground point (x,z) appear - in the free area between top bar and command bar? */
+async function visibleSpot(page, x, z) {
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  return page.evaluate(([x, z]) => {
+    const e = window.__kronland, r = e.renderer;
+    r.rig.update(0); r.camera.updateMatrixWorld();
+    const p = r.project(x, r.terrain.heightAt(x, z), z);
+    const rect = e.canvas.getBoundingClientRect();
+    const { top, bottom } = e.hudInsets();
+    const panel = document.querySelector('[data-testid="context-panel"]')?.getBoundingClientRect();
+    const free = Math.min(rect.bottom - bottom, panel ? panel.top : Infinity);
+    return { x: p.x, y: p.y, top, free, target: { ...r.rig.target }, inside: !p.behind && p.x > rect.left && p.x < rect.right && p.y > rect.top && p.y < free };
+  }, [x, z]);
+}
+
+test('Portrait: camera jump to the castle puts it above the open panel', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'mobile portrait only');
+  const errors = await fresh(page);
+  await bootGame(page);
+  // Move the camera away, then "Burg": castle gets selected, its panel opens
+  await page.evaluate(() => window.__kronland.renderer.rig.lookAt(60, 60));
+  await page.getByTestId('quick-hq').click();
+  await expect(page.getByTestId('context-panel')).toBeVisible();
+  const hq = await page.evaluate(() => { const b = window.__kronland.sim.findBuilding(0, 'headquarters'); return { x: b.x + b.w / 2, z: b.y + b.h / 2 }; });
+  await page.waitForTimeout(300);
+  const v = await visibleSpot(page, hq.x, hq.z);
+  expect(v.inside, JSON.stringify(v)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('Graphics level in a running game takes effect at once', async ({ page }) => {
+  const errors = await fresh(page);
+  await bootGame(page);
+  const before = await page.evaluate(() => {
+    const r = window.__kronland.renderer;
+    return { tier: r.quality.tier, ratio: r.renderer.getPixelRatio(), shadows: r.renderer.shadowMap.enabled, scatter: r.scatter.reduce((n, c) => n + c.count, 0) };
+  });
+  await page.getByTestId('menu').click();
+  await page.getByTestId('open-settings').click();
+  const other = before.tier === 'medium' ? 'high' : 'medium';
+  await page.getByTestId('quality-' + other).click();
+  const after = await page.evaluate(() => {
+    const r = window.__kronland.renderer;
+    return { tier: r.quality.tier, ratio: r.renderer.getPixelRatio(), shadows: r.renderer.shadowMap.enabled, scatter: r.scatter.reduce((n, c) => n + c.count, 0), later: r.pendingQuality };
+  });
+  expect(after.tier).toBe(other);
+  expect(after.shadows).toBe(true);
+  expect(after.scatter).toBeGreaterThan(before.scatter);
+  expect(after.later).toEqual(expect.arrayContaining(['textureSize']));
+  // Back to "Niedrig" (software rendering in the test)
+  await page.getByTestId('quality-low').click();
+  const low = await page.evaluate(() => ({ tier: window.__kronland.renderer.quality.tier, scatter: window.__kronland.renderer.scatter.reduce((n, c) => n + c.count, 0) }));
+  expect(low.tier).toBe('low');
+  expect(low.scatter).toBeLessThan(after.scatter);
+  await page.getByTestId('gmenu-back').click();
+  // Game keeps running and draws without errors
+  await page.waitForTimeout(500);
   expect(errors).toEqual([]);
 });
 

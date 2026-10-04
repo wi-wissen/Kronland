@@ -17,6 +17,7 @@ import { TICKS_PER_SECOND, UNIT, tileCenter } from '../fixed.js';
 import { averageMotivation } from '../systems/workers.js';
 import * as api from './setupApi.js';
 import { getMission } from './registry.js';
+import { revealArea } from '../systems/vision.js';
 
 const T = TICKS_PER_SECOND;
 const MAX_MESSAGES = 30;
@@ -80,6 +81,8 @@ export class MissionRuntime {
         st.ai[i] = {
           difficulty: p.difficulty ?? 'normal', aggression: p.aggression ?? 'normal',
           startTick: (p.startDelay ?? 0) * T, forbid: p.forbid ?? [],
+          ...(p.aiSerfs !== undefined ? { serfs: p.aiSerfs } : {}),
+          ...(p.militia === false ? { militia: false } : {}),
         };
       }
     });
@@ -87,7 +90,7 @@ export class MissionRuntime {
     if (def.players.some((p) => p.kind === 'bandits')) {
       const id = sim.players.length;
       sim.players.push({
-        id, stock: emptyStock(), raw: emptyStock(), taxLevel: 0, techs: new Set(), defeated: false, faith: 0,
+        id, stock: emptyStock(), raw: emptyStock(), taxLevel: 0, techs: new Set(), defeated: false, faith: 0, weatherEnergy: 0, weatherReadyAt: 0,
         unitTier: { sword: 1, spear: 1, bow: 1, lightCav: 1, heavyCav: 1, cannon: 1 }, team: BANDIT_TEAM, neutral: true,
       });
       st.bandits = id;
@@ -453,7 +456,10 @@ export class MissionRuntime {
     if (typeof a === 'function') { a(sim, this); return; }
     switch (a.type) {
       case 'dialog': this.say(sim, a.speaker, a.text); break;
-      case 'reveal': case 'complete': case 'fail': {
+      // Reveal area (fog of war): { type: 'reveal', area, r?, seconds?, player? }
+      case 'reveal': if (a.area !== undefined) { this.revealMap(sim, a); break; }
+      // eslint-disable-next-line no-fallthrough
+      case 'complete': case 'fail': {
         const status = { reveal: 'active', complete: 'done', fail: 'failed' }[a.type];
         for (const id of [].concat(a.id)) {
           const o = st.objectives.find((x) => x.id === id);
@@ -502,6 +508,16 @@ export class MissionRuntime {
       case 'defeat': this.finish(sim, false, a.reason ?? 'script'); break;
       default: st.warnings.push(`Unknown action ${a.type}`);
     }
+  }
+
+  /**
+   * Reveal map area: permanently explored, visible for `seconds` seconds (default 30).
+   * Ineffective without fog of war.
+   */
+  revealMap(sim, a) {
+    const p = this.pointOf(sim, a.area);
+    if (!p) { this.state.warnings.push(`Reveal without location ${a.area}`); return; }
+    revealArea(sim, this.playerOf(a.player), p.x, p.y, a.r ?? Math.max(6, (p.r ?? 4) + 4), Math.round((a.seconds ?? 30) * T));
   }
 
   /** Message of a figure (bilingual text). */

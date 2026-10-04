@@ -160,7 +160,10 @@ sind kumulativ (Stufentexte aus dem Handbuch, Zahlen **(A)**):
 | 5 | General | Fernkämpfer: Angriff +2; Nahkämpfer: Rüstung +1 |
 
 - Hauptmann + Soldaten (4 bei Stufe 1–2, 8 bei Stufe 3–4, Kavallerie 3).
-  Hauptmann ist unverwundbar, solange ein Soldat lebt. Nachrekrutieren am Gebäude.
+  Hauptmann ist unverwundbar, solange ein Soldat bei ihm ist (höchstens 12 Kacheln entfernt und
+  auf derselben Seite von Wasser/Felsen); abgeschnittene Soldaten schützen ihn nicht. Nachrekrutieren
+  am Gebäude. Soldaten, die weit von ihrem Hauptmann entfernt sind, laufen zu ihm zurück; ist er
+  unerreichbar, bis zur nächsten erreichbaren Stelle bei ihm.
 - Schaden = Angriff × Faktor(Angriffstyp, Rüstungstyp) − Rüstung (+ kleiner Zufall).
   Tabelle in `src/sim/data/combat.js`.
 - Türme: Wachturm → Ballistaturm → Kanonenturm.
@@ -174,13 +177,22 @@ sind kumulativ (Stufentexte aus dem Handbuch, Zahlen **(A)**):
   Militärgebäude, Stufe 4: zusätzlich Festung) wertet auch bestehende Truppen auf.
 - Befehle: Laufen, Angreifen (Ziel oder Angriffsbewegung), Halten, Verteidigen (Standard:
   Feinde in 9 Kacheln Umkreis angreifen, höchstens 14 Kacheln vom Ankerpunkt weg) **(A)**.
+  - Laufen: ignoriert Feinde.
+  - Angreifen eines Gebäudes (Ziel oder Angriffsbewegung): Kommen kämpfende Feinde (Truppen, Helden,
+    Miliz, Selbstschuss-Kanone) in Sichtweite (9 Kacheln), greifen Hauptmann und Soldaten zuerst sie an
+    und kehren danach zum Gebäude zurück. Leibeigene und Arbeiter lenken nicht ab **(A)**.
+  - Halten: nur Feinde in eigener Reichweite, keine Verfolgung.
+  - Ziel auf einem Gebäude oder im Wasser: die Truppe läuft zur nächsten begehbaren Kachel.
+- Bewegung: Figuren betreten nie Wasser (außer Eis im Winter), Felsen oder Gebäude und schneiden
+  keine Ecken (diagonal nur, wenn beide Nachbarkacheln frei sind). Wer auf einer gesperrten Kachel
+  steht (z. B. unter einem neuen Gebäude), geht sofort zur nächsten freien Kachel.
 - Regen: Fernkampf −30 % **(A)**. Winter: −25 % Tempo **(A)**.
 - Miliz: „Zu den Waffen!“ in der Burg bewaffnet alle Leibeigenen.
 
 ## 9. Wetter
 
-Sommer / Regen / Winter im kartenabhängigen Zyklus. Regen: weniger Sicht, Fernkampf schlechter.
-Winter: Wasser friert und wird begehbar, Einheiten langsamer.
+Sommer / Regen / Winter im kartenabhängigen Zyklus. Regen: weniger Sicht (−2 Kacheln), Fernkampf
+schlechter. Winter: Wasser friert und wird begehbar, Einheiten langsamer, Sicht −1 Kachel (siehe §12).
 
 - **Wetterturm** (Wettervorhersage; 100 T, 100 H, 250 St, 2×2) **(A)**: zeigt die nächsten drei
   Wetterlagen mit Countdown. Auch das Wetterkraftwerk zeigt die Vorhersage.
@@ -208,6 +220,10 @@ Winter: Wasser friert und wird begehbar, Einheiten langsamer.
 
 Standard: alle gegnerischen Burgen zerstören. Optional Waffenstillstand (0/15/30 min).
 
+Wer seine Burg verliert, scheidet aus: Seine Figuren verschwinden, seine übrigen Gebäude kämpfen
+nicht mehr (Türme schweigen), forschen und handeln nicht mehr und zerfallen innerhalb von 60 s zu
+Ruinen (wie im Original). Sein Computergegner gibt keine Befehle mehr.
+
 ## 11. Computergegner
 
 Das Original hatte keine Aufbau-KI. Kronland bekommt eine eigene: Strategie-Ebene
@@ -220,3 +236,63 @@ Kaserne), Reparatur beschädigter Gebäude (brennende zuerst), Marktplatz bei En
 Rohstoff gegen größten Überschuss, nur zu vertretbarem Kurs; bei Engpass werden Handelswesen,
 Lager und Ausbau zum Marktplatz vorgezogen), ein Wetterturm im späten Bauplan. Leibeigene
 weichen auf weiter entfernte Bäume aus, wenn um die Burg nichts mehr wächst.
+
+Erreichbarkeit: Die KI plant nur Ziele, die von ihrer Burg aus zu Fuß erreichbar sind (Gebiete der
+Wegsuche, Eis zählt nicht): Bauplätze (auch nach dem Bau – ein Schacht darf seinen eigenen Zugang
+nicht zubauen), Bäume und Rohstoffhaufen, Reparaturen, Verteidigung nur gegen Feinde diesseits von
+Wasser und Felsen, Sammel- und Angriffspunkte auf begehbaren Kacheln vor der feindlichen Burg.
+Unerreichbar gewordene Baustellen und Gebäude reißt sie ab und baut neu; abgeschnittene
+Leibeigene bekommen keine Aufträge.
+
+Nebel des Krieges: Die KI sieht nur, was ihr Team sieht (§12). Feindliche Truppen nimmt sie nur in
+Sicht wahr, feindliche Gebäude als zuletzt gesehenen Stand. Bekannt sind – wie im Gefecht des
+Originals – die Startpositionen: Dorthin zieht ihr Heer per Angriffsbewegung, erkundet unterwegs und
+greift gezielt nur an, was es gerade sieht. Einziger Vorteil der Stufe **Schwer**: Wachen melden
+feindliche Truppen im Umkreis von 22 Kacheln um die eigene Burg auch im Nebel **(A)**.
+
+## 12. Sicht und Nebel des Krieges
+
+Wie im Original kennt jede Kachel drei Zustände (je Team; Verbündete teilen Sicht und Erkundung):
+
+| Zustand | Darstellung | Inhalt |
+|---|---|---|
+| unerkundet | schwarz, wolkiger Rand | nichts – weder Gelände noch Gebäude |
+| erkundet | abgedunkelt, entsättigt | Landschaft, Bäume, Rohstoffe; feindliche Gebäude als **zuletzt gesehener Stand** (blass, ohne Rauch und Feuer); keine feindlichen Figuren |
+| sichtbar | normal | alles |
+
+- **Sichtquellen**: eigene Leibeigene, Arbeiter (nur draußen), Hauptleute und Soldaten, Helden, Miliz,
+  Selbstschuss-Kanonen, Gebäude (fertig und Baustellen). Erkundet bleibt erkundet.
+- **Sichtweiten** in Kacheln **(A)** (Werte in `src/sim/data/vision.js`; Gebäude: ab der Mitte, plus halbe Kantenlänge):
+
+| Quelle | Sicht |
+|---|---|
+| Leibeigener | 7 |
+| Arbeiter (draußen) | 5 |
+| Miliz | 11 |
+| Held | 13 |
+| Truppen (Hauptmann und Soldaten) | Kampfsicht 9 + Gattung: Schwert/Speer/Kanone +2, Bogen +3, schwere Reiter +3, leichte Reiter +4 |
+| Selbstschuss-Kanone | 9 |
+| Burg / Festung | 16 / 18 (+2 halbe Kante) |
+| Dorfzentrum Stufe 1–3 | 10 / 11 / 12 |
+| Wachturm / Ballistaturm / Kanonenturm | 14 / 16 / 18 |
+| Wetterturm | 22 |
+| Kaserne, Schießplatz, Reiterei, Kanonengießerei | 8 |
+| übrige Gebäude | 6 |
+| Baustelle | 4 |
+
+- **Fährtenlesen** (Burg) +2 und **Feldwebel** (2 Sterne, Fernkämpfer und Reiter) +2 erhöhen die Kampfsicht
+  und damit auch die Sicht der Truppen.
+- **Wetter**: Regen −2, Winter −1 Kachel für alle Quellen (mindestens 3). Truppen sehen auch im Regen noch
+  mindestens so weit, wie sie Feinde selbst angreifen (Zuschlag ≥ Wetterabzug) – keine Truppe greift ins Dunkle.
+- **Start**: Um jede Burg sind 20 Kacheln erkundet (Tutorial: 34). Missionen decken mit der Aktion
+  `reveal` (mit `area`) Gebiete auf: dauerhaft erkundet, 30 s sichtbar.
+- **Spieler**: Feindliche Figuren und Gebäude außerhalb der Sicht sind weder wähl- noch angreifbar;
+  ein Rechtsklick auf ein zuletzt gesehenes Gebäude gibt eine Angriffsbewegung dorthin. Bauen nur auf
+  erkundetem Gebiet. Klänge aus dem Nebel sind stumm (eigene Gebäude und Truppen sind immer sichtbar).
+  Meldungen über eigene Verluste und Angriffe kommen immer.
+- **Minikarte**: unerkundet schwarz, erkundet dunkel, sichtbar hell; feindliche Figuren nur in Sicht,
+  feindliche Gebäude als zuletzt gesehener Stand; Schächte nur auf erkundetem Gebiet.
+- **Abschalten**: freies Spiel „Nebel des Krieges an/aus“ im Startmenü bzw. `?fog=off`. Kampagne:
+  an; Tutorial: an, aber großzügig erkundet. Nach Spielende oder Ausscheiden zeigt die Karte alles.
+- Berechnung: alle 5 Takte (0,5 s), ganzzahlig und deterministisch; Spielstände enthalten Erkundung,
+  Sicht (Bitfelder) und die zuletzt gesehenen Gebäude.

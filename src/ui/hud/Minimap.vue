@@ -34,6 +34,7 @@ export default {
   },
   mounted() {
     this.terrainCanvas = document.createElement('canvas');
+    this.fogCanvas = document.createElement('canvas');
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(this.$refs.cv);
     this.resize();
@@ -64,6 +65,18 @@ export default {
       }
       return t;
     },
+    /** Fog layer (unexplored black, explored darkened) or null. */
+    fog() {
+      const f = this.engine.minimapFog?.();
+      if (!f) return null;
+      if (this.fogKey !== f.key) {
+        const c = this.fogCanvas;
+        if (c.width !== f.w || c.height !== f.h) { c.width = f.w; c.height = f.h; }
+        c.getContext('2d').putImageData(new ImageData(f.data, f.w, f.h), 0, 0);
+        this.fogKey = f.key;
+      }
+      return f;
+    },
     draw() {
       const cv = this.$refs.cv;
       if (!cv || !this.engine?.sim) return;
@@ -77,6 +90,8 @@ export default {
       ctx.imageSmoothingEnabled = true;
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(this.terrainCanvas, ox, oy, d.w * s, d.h * s);
+      // Fog of war: smoothly enlarged (image smoothing) so the edges are not jagged
+      if (this.fog()) ctx.drawImage(this.fogCanvas, ox, oy, d.w * s, d.h * s);
       // Shafts
       for (const sh of d.shafts) {
         ctx.fillStyle = RES_DOT[sh.res] ?? '#fff';
@@ -89,9 +104,12 @@ export default {
       for (const b of d.buildings) {
         ctx.fillStyle = playerColor(b.owner);
         ctx.strokeStyle = 'rgba(20,12,6,.9)';
+        // last seen enemy buildings in the fog: paler
+        ctx.globalAlpha = b.ghost ? 0.55 : 1;
         const x = ox + b.x * s, y = oy + b.y * s, w = Math.max(2.5, b.w * s), h = Math.max(2.5, b.h * s);
         ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
       }
+      ctx.globalAlpha = 1;
       // Units
       for (const u of d.units) {
         ctx.fillStyle = playerColor(u.owner);

@@ -370,6 +370,38 @@ describe('Campaign', () => {
     expect(st.result?.won ?? false).toBe(false);
   });
 
+  it.each([4404, 7, 99, 31337])('Mission 4 on map %i: island, dungeon and guards only reachable over the ice', (seed) => {
+    const sim = createMissionSim('c4', { seed });
+    const st = sim.mission.state;
+    const hq = api.centerOf(sim.findBuilding(0, 'headquarters'));
+    const { isle, prisonArea } = st.refs;
+    expect(api.reachable(sim, hq, isle, false)).toBe(false);
+    expect(api.reachable(sim, hq, isle, true)).toBe(true);
+    // The dungeon is on the island, and so are the guards
+    expect(api.dist(prisonArea, isle)).toBeLessThanOrEqual(isle.r);
+    for (const id of st.refs.prisonGuards) {
+      const g = api.tileOf(sim.entities.get(id));
+      expect(api.reachable(sim, hq, g, false), `Wache ${id}`).toBe(false);
+      expect(api.reachable(sim, hq, g, true), `Wache ${id}`).toBe(true);
+    }
+    // Winter raid starts reachable (over the ice) to the castle
+    expect(api.reachable(sim, st.refs.raidFrom, hq, true)).toBe(true);
+  });
+
+  it('Mission 4: winter after 3 minutes, thaw after 8; whoever does not bring Hedda home loses', () => {
+    const sim = createMissionSim('c4');
+    const st = sim.mission.state;
+    sim.run(1799);
+    expect(sim.weather.state).toBe('summer');
+    sim.run(2);
+    expect(sim.weather.state).toBe('winter');
+    expect(st.fired.freeze).toBeDefined();
+    until(sim, () => st.result, 3200);
+    expect(sim.weather.state).not.toBe('winter');
+    expect(st.result).toMatchObject({ won: false, reason: 'thaw' });
+    expect(Math.round(st.result.tick / 10)).toBe(480);
+  });
+
   it('Mission 4: the lake is only passable in winter', () => {
     const sim = createMissionSim('c4');
     const hq = api.centerOf(sim.findBuilding(0, 'headquarters'));

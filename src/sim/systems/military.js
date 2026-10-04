@@ -3,7 +3,7 @@
 import { UNITS, MILITIA, SERF_COMBAT, TOWER, HEROES, HERO_COMMON, WORKER_COMBAT } from '../data/units.js';
 import { COMBAT, computeDamage } from '../data/combat.js';
 import { buildingArmor } from '../data/buildings.js';
-import { moveAlong, pathTo } from './movement.js';
+import { moveAlong, pathTo, canStep, goalsAt, nearestWalkable } from './movement.js';
 import { idiv, isqrt, toTile, UNIT } from '../fixed.js';
 import { removeWorker } from './workers.js';
 import { techBonus, boosted, buildingMaxHp } from './techs.js';
@@ -11,6 +11,10 @@ import { EXPERIENCE as XP, starsOf } from '../data/experience.js';
 import { BALANCE } from '../data/balance.js';
 
 const FIGHTERS = new Set(['leader', 'soldier', 'hero']);
+/** Largest distance of an ability target point (bomb, trap, cannon) from the hero, milli-tiles (A) */
+export const ABILITY_RANGE = 6000;
+/** From this distance (milli-tiles, Manhattan) to all soldiers a squad leader is defenceless (A) */
+const DETACHED = 12000;
 
 // ---------- Values ----------
 
@@ -96,13 +100,24 @@ export function distTo(e, t) {
   return isqrt((q.x - p.x) ** 2 + (q.y - p.y) ** 2);
 }
 
-export const isEnemy = (sim, a, b) => a !== b && a >= 0 && b >= 0 && !sim.players[b]?.defeated && !sim.allied(a, b);
+/** Enemies: different teams, both still in the game (eliminated players no longer attack either). */
+export const isEnemy = (sim, a, b) => a !== b && a >= 0 && b >= 0 && !sim.players[b]?.defeated && !sim.players[a]?.defeated && !sim.allied(a, b);
 
 /** May this target be attacked? */
 export function targetable(sim, t) {
   if (!t || !sim.entities.has(t.id)) return false;
   switch (t.kind) {
-    case 'leader': return t.soldiers.length === 0; // captain only once all soldiers have fallen
+    // Squad leader only once all soldiers have fallen – or none is left with him (soldiers
+    // cut off: far away or on the other side of a river); otherwise he would be permanently invulnerable
+    case 'leader': {
+      if (t.soldiers.length === 0) return true;
+      const m = sim.map, region = m.regionAt(m.idx(toTile(t.px), toTile(t.py)));
+      return t.soldiers.every((id) => {
+        const s = sim.entities.get(id);
+        return !s || Math.abs(s.px - t.px) + Math.abs(s.py - t.py) > DETACHED
+          || m.regionAt(m.idx(toTile(s.px), toTile(s.py))) !== region;
+      });
+    }
     case 'hero': return !t.down;
     case 'worker': return !t.inside;
     case 'soldier': case 'unit': case 'building': case 'turret': case 'trap': return true;
@@ -133,7 +148,13 @@ export function buildGrid(sim) {
   sim.grid = grid;
 }
 
-/** Nearest enemy in range. opts.buildings: also buildings, opts.units: also units. */
+/** Can attack (squads, heroes, militia, self-firing cannon)? Serfs and workers cannot. */
+const isCombatant = (t) => FIGHTERS.has(t.kind) || t.kind === 'turret' || (t.kind === 'unit' && !!t.militia);
+
+/**
+ * Nearest enemy in range. opts.buildings: also buildings, opts.units: also units,
+ * opts.fighters: only units that fight themselves.
+ */
 export function nearestEnemy(sim, e, radius, opts = { units: true, buildings: false }) {
   const C = COMBAT.gridCell * UNIT;
   const p = posOf(e);
@@ -151,6 +172,7 @@ export function nearestEnemy(sim, e, radius, opts = { units: true, buildings: fa
         const isB = t.kind === 'building' || t.kind === 'trap';
         if (isB && !opts.buildings) continue;
         if (!isB && !opts.units) continue;
+        if (opts.fighters && !isCombatant(t)) continue;
         const d = distTo(e, t);
         if (d > radius) continue;
         if (!isB && d < bdu) { bdu = d; bestUnit = t; }
@@ -251,25 +273,47 @@ function speedOf(sim, base) {
   return sim.weather?.state === 'winter' ? idiv(base * 75, 100) : base;
 }
 
-/** Walk straight to a point if free; otherwise path. */
+/**
+ * Approach a point: straight ahead as long as every sub-step is allowed (no entering blocked
+ * tiles, no corner cutting, see canStep); otherwise detour via pathfinding, which is then followed
+ * to the end (no back and forth between straight line and detour).
+ */
 function stepToward(sim, e, x, y, speed) {
+  if (e.path.length) {
+    // Running detour – only if it still leads to the target (otherwise it stems from an earlier order)
+    const last = e.path[e.path.length - 1], W = sim.map.width;
+    if (Math.abs((last % W) - toTile(x)) <= 2 && Math.abs(((last / W) | 0) - toTile(y)) <= 2) { moveAlong(sim, e, speed); return false; }
+    e.path = [];
+  }
   const dx = x - e.px, dy = y - e.py;
   const d = isqrt(dx * dx + dy * dy);
   if (d === 0) return true;
   const s = Math.min(speed, d);
   const nx = e.px + idiv(dx * s, d), ny = e.py + idiv(dy * s, d);
-  if (sim.map.walkable(toTile(nx), toTile(ny))) { e.px = nx; e.py = ny; return d <= speed; }
-  // Obstacle: path to the target tile
-  if (!e.path.length) {
-    const tx = toTile(x), ty = toTile(y);
-    e.path = (sim.map.walkable(tx, ty) && pathTo(sim, e, [sim.map.idx(tx, ty)])) || [];
-  }
+  if (canStep(sim.map, e.px, e.py, nx, ny)) { e.px = nx; e.py = ny; return d <= speed; }
+  // Obstacle: detour to the target tile (or its free neighbours)
+  e.path = pathTo(sim, e, goalsAt(sim.map, x, y)) ?? [];
   moveAlong(sim, e, speed);
   return false;
 }
 
+/** Structure instead of squad (building, trap)? Such targets make attackers give up for enemy units. */
+const isStructure = (t) => t.kind === 'building' || t.kind === 'trap';
+
+/**
+ * Fighting enemy unit in sight (attackers of a building turn to it; serfs
+ * and workers do not distract).
+ */
+function threat(sim, e, st) {
+  return nearestEnemy(sim, e, (st.sight ?? COMBAT.sight) * UNIT, { units: true, buildings: false, fighters: true });
+}
+
+/** Look for threats every 5 ticks (staggered per figure) – saves searches in the melee. */
+const threatTick = (sim, e) => (sim.tick + e.id) % 5 === 0;
+
 /** Pursue and attack the target. */
 function engage(sim, e, st, t) {
+  if (e.targetId !== t.id) e.path = []; // new target: the old path leads elsewhere
   e.targetId = t.id;
   const d = distTo(e, t);
   if (d <= st.range) {
@@ -279,7 +323,6 @@ function engage(sim, e, st, t) {
   }
   if (st.speed <= 0) { e.targetId = 0; return; }
   if (t.kind !== 'building' && d < 3 * UNIT) {
-    e.path = [];
     const q = posOf(t);
     stepToward(sim, e, q.x, q.y, speedOf(sim, st.speed));
     return;
@@ -316,13 +359,25 @@ function updateCommander(sim, e) {
 
   if (o.type === 'attack') {
     const target = sim.entities.get(o.target);
-    if (target && targetable(sim, target) && isEnemy(sim, e.owner, target.owner)) { engage(sim, e, st, target); return; }
+    if (target && targetable(sim, target) && isEnemy(sim, e.owner, target.owner)) {
+      // Building target: first the enemy squads in sight, then back to the building
+      let tt = target;
+      if (isStructure(target)) {
+        if (t && !isStructure(t) && distTo(e, t) <= (st.sight ?? COMBAT.sight) * UNIT) tt = t;
+        else if (threatTick(sim, e)) tt = threat(sim, e, st) ?? target;
+        else if (t && !isStructure(t)) tt = target;
+        else if (t) tt = t;
+      }
+      engage(sim, e, st, tt); return;
+    }
     e.order = { type: 'idle' }; e.anchor = { x: e.px, y: e.py }; e.targetId = 0;
     return;
   }
 
   if (o.type === 'attackMove') {
     if (!t) t = nearestEnemy(sim, e, (st.sight ?? COMBAT.sight) * UNIT, { units: true, buildings: true });
+    // Give up the building target as soon as enemy squads are in sight (nearestEnemy prefers units)
+    else if (isStructure(t) && threatTick(sim, e)) t = threat(sim, e, st) ?? t;
     if (t) { engage(sim, e, st, t); return; }
     if (!e.path.length) {
       if (distPt(e, o) < 600) { e.order = { type: 'idle' }; e.anchor = { x: e.px, y: e.py }; return; }
@@ -366,10 +421,17 @@ function updateSoldier(sim, s) {
   const moving = L.order?.type === 'move';
   let t = s.targetId ? sim.entities.get(s.targetId) : null;
   if (t && !(targetable(sim, t) && isEnemy(sim, s.owner, t.owner)) || moving) { t = null; s.targetId = 0; }
+  const sightR = (st.sight ?? COMBAT.sight) * UNIT;
+  if (t && isStructure(t)) {
+    // Attack buildings until enemy squads come: then them first (like the squad leader)
+    const lt = L.targetId ? sim.entities.get(L.targetId) : null;
+    if (lt && !isStructure(lt) && targetable(sim, lt) && isEnemy(sim, s.owner, lt.owner)) t = lt;
+    else if (threatTick(sim, s)) t = threat(sim, s, st) ?? t;
+  }
   if (!t && !moving) {
     const lt = L.targetId ? sim.entities.get(L.targetId) : null;
-    if (lt && targetable(sim, lt)) t = lt;
-    else t = nearestEnemy(sim, s, (L.order?.type === 'hold' ? st.range : (st.sight ?? COMBAT.sight) * UNIT), { units: true, buildings: L.order?.type === 'attack' || L.order?.type === 'attackMove' });
+    if (lt && targetable(sim, lt)) t = isStructure(lt) ? threat(sim, s, st) ?? lt : lt;
+    else t = nearestEnemy(sim, s, (L.order?.type === 'hold' ? st.range : sightR), { units: true, buildings: L.order?.type === 'attack' || L.order?.type === 'attackMove' });
     if (t && distTo(L, t) > COMBAT.leash * UNIT) t = null;
   }
   if (t) {
@@ -382,11 +444,23 @@ function updateSoldier(sim, s) {
   if (d < 150) return;
   const spd = speedOf(sim, st.speed + (d > 2000 ? 60 : 0));
   if (d > 5000) {
-    if (!s.path.length || (sim.tick + s.id) % 20 === 0) s.path = pathTo(sim, s, goalTiles(sim, L)) ?? [];
+    // Far from the squad leader: path to him; if he is unreachable (other bank), to the nearest
+    // reachable spot near him. The squad leader then stays attackable (DETACHED in targetable).
+    if (!s.path.length || (sim.tick + s.id) % 20 === 0) s.path = pathTo(sim, s, goalTiles(sim, L)) ?? pathTowardUnreachable(sim, s, L) ?? [];
     moveAlong(sim, s, spd);
   } else {
     stepToward(sim, s, gx, gy, spd);
   }
+}
+
+/** Path to the tile near `t` that `e` can still reach (same region), or null. */
+function pathTowardUnreachable(sim, e, t) {
+  const m = sim.map, tx = toTile(e.px), ty = toTile(e.py);
+  if (!m.walkable(tx, ty)) return null;
+  const p = posOf(t);
+  const k = nearestWalkable(m, toTile(p.x), toTile(p.y), p.x, p.y, 16, m.regionAt(m.idx(tx, ty)));
+  if (k < 0 || k === m.idx(tx, ty)) return null;
+  return pathTo(sim, e, [k]);
 }
 
 // ---------- Heroes ----------
@@ -408,9 +482,16 @@ function updateHero(sim, h) {
 
 /** Trigger ability. @returns {string|null} error code (see src/i18n) */
 export function useAbility(sim, h, ability, x, y) {
-  const def = HEROES[h.hero]?.abilities[ability];
+  const abilities = HEROES[h.hero]?.abilities;
+  const def = abilities && typeof ability === 'string' && Object.hasOwn(abilities, ability) ? abilities[ability] : null;
   if (!def) return 'err.unknownAbility';
   if (h.down) return 'err.heroDown';
+  // Target point (only via commands with x/y): on the map and near the hero, otherwise hero position
+  if (x !== undefined || y !== undefined) {
+    const ok = Number.isInteger(x) && Number.isInteger(y) && sim.map.inBounds(toTile(x), toTile(y))
+      && isqrt((x - h.px) ** 2 + (y - h.py) ** 2) <= ABILITY_RANGE;
+    if (!ok) return 'err.notWalkable';
+  }
   if ((h.ready[ability] ?? 0) > sim.tick) return 'err.notReady';
   h.ready[ability] = sim.tick + def.cooldown;
   const around = (radius, pred) => {

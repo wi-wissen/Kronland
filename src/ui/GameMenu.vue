@@ -7,7 +7,7 @@
         <button class="icon-btn ghost" :aria-label="$t('common.close')" @click="$emit('close')"><Icon name="close" /></button>
       </header>
 
-      <div v-if="view === 'main'" class="dialog-body gm-main">
+      <div v-if="view === 'main'" class="dialog-body scroll-y gm-main">
         <p class="gm-paused"><Icon name="pause" />{{ $t('gmenu.paused') }}</p>
         <button class="primary gm-btn" data-testid="resume" @click="$emit('close')"><Icon name="play" />{{ $t('gmenu.resume') }}</button>
         <button class="gm-btn" data-testid="save" @click="$emit('save')"><Icon name="save" />{{ $t('gmenu.save') }}</button>

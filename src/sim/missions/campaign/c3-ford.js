@@ -48,12 +48,13 @@ export default {
 
   start: [
     say('ottilie', 'Unser Dorfzentrum ist voll. Für mehr Menschen brauchen wir ein zweites – auf dem Platz jenseits der Furt.', 'Our village centre is full. For more people we need a second one – on the site beyond the ford.'),
+    { type: 'reveal', area: 'spot' },
     { type: 'camera', at: 'spot' },
   ],
 
   objectives: [
     { id: 'settle', type: 'build', building: 'villageCenter', count: 2, primary: true, text: t('Baue ein Dorfzentrum auf dem zweiten Siedlungsplatz', 'Build a village centre on the second settlement site') },
-    { id: 'people', type: 'workers', count: 25, primary: true, text: t('Erreiche 25 Arbeiter', 'Reach 25 workers') },
+    { id: 'people', type: 'workers', count: 40, primary: true, text: t('Erreiche 40 Arbeiter', 'Reach 40 workers') },
     { id: 'science', type: 'research', techs: ['education', 'construction', 'alchemy'], primary: true, text: t('Erforsche Bildung, Konstruktion und Alchimie', 'Research Education, Construction and Alchemy') },
     { id: 'ford', type: 'destroy', ref: 'ford', text: t('Optional: Vertreibe die Räuber an der Furt', 'Optional: Drive the bandits from the ford'),
       onDone: [{ type: 'give', res: { stone: 300, iron: 200 } }, say('bertram', 'Die Furt ist frei. In ihrem Lager lagen Stein und Eisen.', 'The ford is clear. Their camp held stone and iron.')] },
@@ -68,7 +69,11 @@ export default {
     ] },
     { id: 'gisbertAttack', when: { type: 'delay', after: 'gisbertWakes', seconds: 240 }, do: [
       say('scout', 'Gisbert greift an! Halte die neue Siedlung.', 'Gisbert attacks! Hold the new settlement.'),
+      // Gisberts Hauswache zieht in jedem Fall los, dazu alles, was seine Kaserne hergibt
+      { type: 'spawn', owner: 'enemy', at: 'enemyHq', units: [{ def: 'sword1', count: 4, soldiers: 4 }, { def: 'spear1', count: 2, soldiers: 4 }, { def: 'bow1', count: 2, soldiers: 4 }], order: 'attackMove', target: 'spot', ref: 'gisbertRaid' },
       { type: 'ai', player: 'enemy', attackNow: true },
+      { type: 'reveal', area: 'spot' },
+      { type: 'camera', at: 'spot' },
     ] },
     { id: 'eduTip', when: { type: 'tech', tech: 'education' }, do: [
       say('ottilie', 'Mit Bildung können wir die Steuern selbst festlegen. Niedrige Steuern machen die Leute froh.', 'With Education we can set taxes ourselves. Low taxes make people happy.'),

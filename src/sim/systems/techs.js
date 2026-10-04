@@ -63,7 +63,7 @@ export function buildingMaxHp(sim, b) {
 
 /** Reason why a building technology cannot be researched, or null. */
 export function checkBuildingResearch(sim, owner, b, techId) {
-  const t = BUILDING_TECHS[techId];
+  const t = typeof techId === 'string' && Object.hasOwn(BUILDING_TECHS, techId) ? BUILDING_TECHS[techId] : null;
   if (!t) return REASONS.unknownTech;
   if (!b || b.kind !== 'building' || b.owner !== owner) return REASONS.notOwnBuilding;
   if (b.type !== t.building) return REASONS.wrongBuilding;

@@ -131,7 +131,10 @@ export default {
 .topbar .frame { display: flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.625rem; min-height: var(--top-h); border-radius: var(--r-lg); }
 .tb-res { flex: 0 1 auto; gap: 0.125rem 0.375rem !important; }
 .tb-meta { flex: 1 1 auto; justify-content: center; gap: 0.25rem 0.75rem !important; }
-.tb-ctl { flex: none; gap: 0.375rem !important; padding-inline: 0.375rem !important; }
+.tb-ctl { flex: none; gap: 0.375rem !important; padding-inline: 0.375rem !important; margin-left: auto; }
+/* Large UI scaling (up to 130 %): better to wrap than to push pause/menu off screen */
+.topbar { flex-wrap: wrap; }
+.tb-res, .tb-meta { flex-wrap: wrap; min-width: 0; }
 .tb-item { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.1875rem 0.3125rem; border-radius: var(--r-sm); white-space: nowrap; cursor: default; outline-offset: 0; }
 .tb-item:hover { background: rgba(255, 225, 170, 0.06); }
 .tb-item > .ico { width: 1.625rem; height: 1.625rem; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45)); }
@@ -202,5 +205,7 @@ export default {
   .tb-ring .ring { width: 1.875rem; height: 1.875rem; }
   .tb-spd { display: none; }
   .tb-menu { min-height: 2.5rem; width: 2.5rem !important; }
+  /* one row: displays may be clipped, pause and menu always stay reachable */
+  .tb-res, .tb-meta { flex-wrap: nowrap; overflow: hidden; }
 }
 </style>

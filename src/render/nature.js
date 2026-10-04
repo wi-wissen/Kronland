@@ -441,6 +441,8 @@ const shared0 = { uTime: { value: 0 }, uSnow: { value: 0 } };
 /** Shared uniforms of the markers (snow). */
 export const markerUniforms = shared0;
 const markerMats = new Map();
+/** Shared materials of the markers (for Renderer.dispose). */
+export const sharedMarkerMaterials = () => [...markerMats.values()];
 function mmat(key, opts) {
   if (!markerMats.has(key)) markerMats.set(key, natureMaterial(shared0, { wind: 0, ...opts }));
   return markerMats.get(key);

@@ -33,6 +33,8 @@ docs/         Spielregeln und Architektur
    - keine `Math.sin/cos/atan2` in der Logik (Lookup-Tabellen in `sim/fixed.js`),
    - feste Iterationsreihenfolge (Entities nach ID).
    - `sim/hash.js` bildet pro Takt einen Zustands-Hash; Golden-Tests sichern das ab.
+   - Befehle können aus dem Netz kommen: IDs aus Datentabellen nur mit `hasKey()` (sim.js) nachschlagen,
+     Koordinaten als Ganzzahlen prüfen. `tests/sim/fuzz.test.js` schickt zufällige und unsinnige Befehle.
 3. **Grafik austauschbar.** Die Simulation kennt nur Typen (`residence`, Stufe 2). Welches Modell
    gezeigt wird, steht in einer Zuordnung im Renderer.
 4. **Simulation getrennt vom Rendering.** Sie läuft mit festem Takt; der Renderer interpoliert
@@ -40,6 +42,22 @@ docs/         Spielregeln und Architektur
    Web Worker ist vorbereitet, weil die Engine nur über Befehle und Lesezugriffe mit ihr spricht.
 5. **Vue fasst keine Three-Objekte an.** Die Engine ist eine eigene Klasse; Vue bekommt nur
    einen kleinen reaktiven Ausschnitt (Rohstoffe, Auswahl), wenige Male pro Sekunde.
+6. **Wegsuche:** `findPath` prüft zuerst über `map.regionAt()` (zusammenhängende begehbare Gebiete), ob ein
+   Ziel überhaupt erreichbar ist. Die Gebiete werden lazy je `map.version` und Frost neu berechnet;
+   `occupy`/`release` erhöhen `map.version`. Wer `map.flags` direkt ändert (Missionsaufbau), muss danach
+   `map.version++` setzen.
+   `map.landRegionAt()` liefert dieselben Gebiete ohne Eis (für Planungen der KI, die den Winter überdauern).
+7. **Sicht** (`sim/systems/vision.js`, Werte `sim/data/vision.js`): je Team `explored`/`visible` (Uint8Array
+   je Kachel) und `ghosts` (zuletzt gesehene feindliche Gebäude/Ruinen). Alle `VISION.updateTicks` Takte wird
+   `visible` aus allen Sichtquellen neu gestempelt (Kreise als zwischengespeicherte Zeilenbreiten, `fill()`).
+   Abfragen: `canSee(sim, spieler, entity)`, `isVisible`, `isExplored`, `knownBuildings`; Missionen:
+   `revealArea`. `sim.vision.version` zählt Neuberechnungen (Darstellung/Minikarte cachen darauf). Nebel aus
+   (`new Sim({ fog: false })`, Mission `fog: false`): alle Abfragen liefern „sichtbar“. Die Simulation selbst
+   (Kampf, Wegsuche) kennt keinen Nebel; Spieler und KI wirken nur über ihre Befehle – die Oberfläche
+   (Engine) und `AiPlayer` filtern, was sie wahrnehmen. Gespeichert werden Bitfelder (Base64) und Momentaufnahmen.
+8. **Bewegung** (`sim/systems/movement.js`): Jeder Teilschritt geht höchstens in eine Nachbarkachel, diagonal
+   nur ohne Eckenschneiden (`canStep`, gleiche Regel wie A*); `moveAlong` verwirft unzulässige Pfade.
+   `unstickAll()` setzt zu Beginn jedes Takts Figuren auf gesperrten Kacheln auf die nächste freie Kachel.
 
 ## Darstellung (src/render)
 
@@ -50,11 +68,31 @@ docs/         Spielregeln und Architektur
 | `characters.js` | Figuren aus `manifest.json`, gebackene Animationen, GPU-Skinning, instanziert |
 | `effects.js` | Partikel (Staub, Rauch, Feuer, Spuren), Lebensbalken und Auswahlmarkierungen |
 | `terrain.js`, `water.js`, `environment.js`, `nature.js` | Gelände, Wasser, Himmel/Licht, Bäume und Deko |
+| `fog.js` | Nebel des Krieges: Datentextur (1 Texel je Kachel, R sichtbar, G erkundet, weichgezeichnet und überblendet), Shader-Zusatz `patchFog()` für alle Weltmaterialien |
 | `models.js`, `assets.js` | prozedurale Modelle und das Laden der GLB-Modelle |
 | `debug.js` | Leistungsanzeige (`?debug=1`) |
 
 Pro Bild: Kamera → Sichtprüfung (Frustum) → Entities abgleichen → Detailstufen wählen → Instanzdaten
 schreiben → zeichnen. Die Simulation bleibt unberührt. Siehe [MODELLE.md](MODELLE.md).
+
+Nebel des Krieges in der Darstellung: Der Renderer zeichnet aus Sicht von `opts.player`. Feindliche Figuren,
+Fallen, Geschosse, Treffer und Explosionen nur in sichtbaren Kacheln; feindliche Gebäude außerhalb der Sicht
+aus der Momentaufnahme (`ghostEntity`, ohne Rauch/Feuer/Staub, nicht wählbar, `pickGhost` für Angriffsbewegungen).
+`patchFog(material)` hängt sich an ein bestehendes `onBeforeCompile` an (Programmschlüssel `…|kfow1`), Instanzen
+im Unerkundeten verwirft der Vertex-Shader. Neue Weltobjekte mit `patchFogTree(obj)` versehen. Die Uniforms
+(`fowUniforms`) sind modulweit, damit gemeinsam zwischengespeicherte Materialien keinen alten Renderer festhalten.
+Kosten: ein Texturzugriff und zwei Rauschwerte je Pixel; die Textur (≤ 160×160) wird nur hochgeladen, solange
+sie überblendet.
+
+Grafikstufe im laufenden Spiel: `setQuality()` meldet `kronland-quality`, die Engine ruft
+`Renderer.applyQuality()` (Pixeldichte, Schatten, Deko-Dichte, Detailstufen sofort; Kantenglättung, Texturen,
+Gelände-/Wasser-/Baumdetail erst beim nächsten Start). Kamerasprünge, bei denen das Ziel sichtbar bleiben soll,
+gehen über `Engine.focusPoint()` (auf Handys über dem Kontextpanel, `CameraRig.lookAtScreen`).
+
+Spielende/neues Spiel/Laden: `Engine.stop()` ruft `Renderer.dispose()`. Jedes Spiel bekommt einen neuen
+Canvas und WebGL-Kontext; `dispose()` gibt Szene, modulweite Zwischenspeicher (Modelle, Materialien,
+Texturen) und den Kontext frei. Neue modulweite three.js-Ressourcen dort mit aufnehmen, sonst hält ihr
+`dispose`-Zuhörer den alten Renderer samt Spielzustand im Speicher (siehe docs/QA-BERICHT.md).
 
 ## Sprache und Oberfläche
 
@@ -69,6 +107,8 @@ schreiben → zeichnen. Die Simulation bleibt unberührt. Siehe [MODELLE.md](MOD
 - Sprache: reaktiv (`i18n.lang`), gespeichert in `localStorage['kronland-lang']`; in Komponenten
   `$t`, `$tr`, `$reason`, `$name.building(…)` (globales Plugin `src/ui/plugin.js`).
 - Meldungen: `engine.toast(key, params, { icon, tone, pos })`; mit `pos` springt ein Klick dorthin.
+- Nebel des Krieges in der Engine: `canSee(e)`, `tileVisible`, `tileExplored`, `fogLifted()` (Nebel aus, Spielende,
+  ausgeschieden); `selectable()` liefert für Unsichtbares `null`; `minimapFog()` liefert die Nebel-Ebene der Minikarte.
 - Einstellungen: `src/ui/settings.js` (`get`, `set`, `onChange`, Fenster-Ereignis `kronland-settings`;
   Lautstärken `master`/`music`/`effects`, `uiScale`, `edgeScroll`, `hints`, Sprache, Grafikstufe).
 - Erweiterungen im Gebäudepanel: `registerBuildingSection((engine, building) => ({ id, title, actions }))`

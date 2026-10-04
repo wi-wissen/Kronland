@@ -6,6 +6,7 @@ import { Rng } from './rng.js';
 import { TileMap } from './map.js';
 import { MissionRuntime } from './missions/runtime.js';
 import { createMarket } from './systems/market.js';
+import { saveVision, loadVision } from './systems/vision.js';
 
 const toB64 = (typed) => {
   const bytes = new Uint8Array(typed.buffer, typed.byteOffset, typed.byteLength);
@@ -24,7 +25,8 @@ export const SAVE_VERSION = 1;
 
 /** @param {Sim} sim @param {any} [extra] e.g. state of the AI opponents */
 export function saveGame(sim, extra = {}) {
-  return {
+  // Deep copy: the save game shares no objects with the running simulation
+  return structuredClone({
     version: SAVE_VERSION,
     seed: sim.seed,
     tick: sim.tick,
@@ -47,13 +49,17 @@ export function saveGame(sim, extra = {}) {
     entities: [...sim.entities.values()],
     // Mission state (pure JSON); the definition is found by ID when loading
     mission: sim.mission ? sim.mission.getState() : null,
+    // Fog of war: explored/visible tiles as bitfields, last seen buildings
+    vision: saveVision(sim, toB64),
     extra,
-  };
+  });
 }
 
 /** @returns {Sim} */
 export function loadGame(data) {
   if (data?.version !== SAVE_VERSION) throw new Error('Save game does not match this version');
+  // Copy, so that the same save game can be loaded several times without the simulations sharing objects
+  data = structuredClone(data);
   const sim = Object.create(Sim.prototype);
   const map = new TileMap(data.map.width, data.map.height);
   map.heights = fromB64(data.map.heights, Int32Array);
@@ -64,12 +70,13 @@ export function loadGame(data) {
     seed: data.seed, tick: data.tick, nextId: data.nextId, map, waterLevel: data.waterLevel,
     starts: data.starts, spots: data.spots, shafts: data.shafts, weather: data.weather,
     weatherCycle: data.weatherCycle, winner: data.winner, pending: data.pending ?? [], events: [],
-    market: structuredClone(data.market ?? createMarket()),
+    market: data.market ?? createMarket(),
   });
   sim.rng = new Rng(0);
   sim.rng.setState(data.rng);
   sim.players = data.players.map((p) => ({ ...p, techs: new Set(p.techs) }));
-  sim.entities = new Map(data.entities.map((e) => [e.id, structuredClone(e)]));
+  sim.entities = new Map(data.entities.map((e) => [e.id, e]));
   sim.mission = data.mission ? MissionRuntime.fromState(data.mission) : null;
+  loadVision(sim, data.vision, fromB64);
   return sim;
 }

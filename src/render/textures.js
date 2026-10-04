@@ -279,6 +279,8 @@ function makeMacro(size) {
 
 /** @type {Map<number, Record<string, THREE.Texture>>} */
 const cache = new Map();
+/** Cached terrain textures (for Renderer.dispose). */
+export const sharedTerrainTextures = () => [...cache.values()].flatMap((set) => Object.values(set));
 
 /**
  * All terrain textures in the desired size (cached).

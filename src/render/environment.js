@@ -133,6 +133,29 @@ void main() {
   }
 
   /**
+   * Graphics level in the running game: shadows on/off, size and softness of the shadow map.
+   * @param {import('./quality.js').QualitySettings} quality
+   * @returns {boolean} true if shadows were switched on or off (recompile materials)
+   */
+  setQuality(quality) {
+    const was = this.renderer.shadowMap.enabled;
+    const on = quality.shadows !== false;
+    this.q = quality;
+    this.renderer.shadowMap.enabled = on;
+    this.sun.castShadow = on;
+    const sm = quality.shadowMapSize, sh = this.sun.shadow;
+    if (sh.mapSize.x !== sm) {
+      sh.mapSize.set(sm, sm);
+      // new shadow map in a suitable size at the next frame
+      sh.map?.dispose();
+      sh.map = null;
+    }
+    sh.radius = quality.shadowRadius;
+    this.renderer.shadowMap.needsUpdate = true;
+    return was !== on;
+  }
+
+  /**
    * Move sun and shadow camera along with the viewpoint.
    * @param {THREE.Vector3} target @param {number} dist camera distance
    */

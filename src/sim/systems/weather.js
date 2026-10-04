@@ -41,7 +41,7 @@ export function checkWeatherChange(sim, owner, b, state) {
   if (!b.done) return REASONS.notReady;
   const p = sim.players[owner];
   if (!p.techs.has('meteorology')) return REASONS.needMeteorology;
-  if (!WEATHER_NAMES[state]) return REASONS.badWeather;
+  if (typeof state !== 'string' || !Object.hasOwn(WEATHER_NAMES, state)) return REASONS.badWeather;
   if (sim.weather.state === state) return REASONS.sameWeather;
   if ((p.weatherReadyAt ?? 0) > sim.tick) return REASONS.weatherCooldown;
   if ((p.weatherEnergy ?? 0) < WC.changeCost) return REASONS.noEnergy;
