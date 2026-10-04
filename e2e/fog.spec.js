@@ -50,7 +50,8 @@ test('Game start: minimap black except the start region, enemy castle invisible'
       const cv = document.querySelector('[data-testid=minimap-canvas]');
       const ctx = cv.getContext('2d');
       const e = window.__kronland, hq = e.sim.findBuilding(0, 'headquarters'), ehq = e.sim.findBuilding(1, 'headquarters');
-      const W = e.sim.map.width, s = Math.min(cv.width, cv.height) / W, ox = (cv.width - W * s) / 2, oy = (cv.height - W * s) / 2;
+      // Round minimap: map fills 86 % of the diameter (MAP_FILL in src/ui/hud/hudLayout.js)
+      const W = e.sim.map.width, s = (Math.min(cv.width, cv.height) * 0.86) / W, ox = (cv.width - W * s) / 2, oy = (cv.height - W * s) / 2;
       const at = (x, y) => [...ctx.getImageData(Math.round(ox + x * s), Math.round(oy + y * s), 1, 1).data];
       return { mine: at(hq.x - 6, hq.y + 2), theirs: at(ehq.x + 2, ehq.y + 9) };
     });
@@ -77,11 +78,11 @@ test('Scout reveals: enemy castle appears, stays in the fog as last seen state',
   });
   // drawn as last seen state, but neither visible nor selectable
   await expect.poll(() => enemyHq(page)).toEqual({ drawn: true, seen: false, selectable: false });
-  const ghost = await page.evaluate(() => {
+  // The renderer sets the marker only in the next frame - wait for it
+  await expect.poll(() => page.evaluate(() => {
     const e = window.__kronland, hq = e.sim.findBuilding(1, 'headquarters');
     return { ghost: !!e.renderer.buildings.get(hq.id)?.userData.ghost, mm: e.minimapDynamic().buildings.some((b) => b.owner === 1 && b.ghost) };
-  });
-  expect(ghost).toEqual({ ghost: true, mm: true });
+  })).toEqual({ ghost: true, mm: true });
   expect(errors).toEqual([]);
 });
 

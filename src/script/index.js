@@ -1,0 +1,53 @@
+// Public interface of the scripting language (Python subset with its own VM).
+// See docs/SKRIPTE.md. No DOM, no dependency on the simulation – runs identically in tests, game and editor.
+
+import { compile as compileRaw, OP, OP_NAMES } from './compiler.js';
+import { VM, Suspend } from './vm.js';
+import { BUILTINS, MODULES } from './builtins.js';
+import { ScriptError, suggest } from './errors.js';
+import { saveVm, loadVm } from './serialize.js';
+
+export { VM, Suspend, ScriptError, suggest, OP, OP_NAMES, saveVm, loadVm, MODULES };
+export * from './values.js';
+export { highlightRanges, tokenize } from './lexer.js';
+
+/** Names that every program knows without an import. */
+export const BUILTIN_NAMES = Object.keys(BUILTINS).filter((n) => !n.includes('.'));
+
+/**
+ * Translate source text. Built-in functions and modules are always known.
+ * @param {string} source
+ * @param {{ known?: Iterable<string>, modules?: Record<string, string[]> }} [opts]
+ */
+export function compile(source, opts = {}) {
+  return compileRaw(source, {
+    known: [...BUILTIN_NAMES, ...(opts.known ?? [])],
+    modules: { ...MODULES, ...(opts.modules ?? {}) },
+  });
+}
+
+/** Short hash of a source text (FNV-1a) – checks on loading whether the saved code still matches. */
+export function sourceHash(src) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < src.length; i++) { h ^= src.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16);
+}
+
+/**
+ * Simply run a program completely (tests, tools): returns output and, if any, the error.
+ * @param {string} source
+ * @param {{ budget?: number, seed?: number }} [opts]
+ * @returns {{ output: string, error: any|null, vm: VM|null }}
+ */
+export function runToEnd(source, opts = {}) {
+  let output = '';
+  let prog;
+  try { prog = compile(source); } catch (e) {
+    if (e instanceof ScriptError) return { output, error: e.toJSON(), vm: null };
+    throw e;
+  }
+  const vm = new VM(prog, { host: { print: (t) => { output += t; } }, seed: opts.seed ?? 1 });
+  const task = vm.start();
+  vm.run(task, opts.budget ?? 50_000_000);
+  return { output, error: task.state === 'error' ? task.error : task.state === 'ready' ? { code: 'err.script.recursion', kind: 'RuntimeError', params: { what: 'tooLong' }, line: vm.lineOf(task) } : null, vm };
+}

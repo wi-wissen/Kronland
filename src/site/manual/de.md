@@ -32,8 +32,9 @@ Zu Beginn hast du eine **Burg**, {{startSerfs}} **Leibeigene**, einen Helden und
 | Kamera drehen | [[Q]] / [[E]], [[Einfg]] / [[Entf]], rechte Maustaste ziehen |
 | Zoomen | Mausrad, [[Bild↑]] / [[Bild↓]] |
 | Bauen | Baumenü, Klick setzt das Gebäude, Rechtsklick bricht ab |
-| Baukategorie wählen | [[1]] … [[5]] |
-| Heldenfähigkeit | [[1]] / [[2]] (Held ausgewählt) |
+| Heldenfähigkeit | [[X]] / [[C]] (Held ausgewählt) |
+| Steuergruppe merken | [[Shift]] + [[1]] … [[9]] |
+| Steuergruppe wählen | [[1]] … [[9]], zweimal: Kamera hin |
 | Untätige Leibeigene | [[.]] |
 | Zur Burg | [[H]] |
 | Pause | [[Leertaste]] |
@@ -63,23 +64,29 @@ Im Spiel zeigt **Menü → Steuerung** dieselbe Übersicht. Die **Größe der Ob
 
 ![Bevölkerung, Motivation, Wetter und Zahltag](site/hud-status.webp)
 
-- **Rohstoffe:** Taler, Lehm, Holz, Stein, Eisen und Schwefel. Die große Zahl ist, was du ausgeben kannst; die
-  kleine darunter ist noch unverarbeitete Rohware (siehe [Wirtschaft](#economy)).
+- **Rohstoffe:** Taler, Lehm, Holz, Stein, Eisen und Schwefel – die Zahl ist, was du ausgeben kannst. Fährst du
+  darüber, siehst du, wie viel davon noch unverarbeitete Rohware ist (siehe [Wirtschaft](#economy)). Fehlt
+  etwas für das Gebäude unter dem Mauszeiger im Baumenü, wird der Rohstoff rot.
 - **Bevölkerung:** belegte und verfügbare Plätze. Mehr Plätze bringen Dorfzentren.
 - **Motivation:** Durchschnitt deiner Arbeiter. Fährst du darüber, zeigt ein Hinweis Höchstwert und Grenzen.
-- **Zahltag:** Countdown bis zur nächsten Steuereinnahme, dazu erwartete Steuern und Sold.
-- **Wetter:** aktuelle Jahreszeit und Zeit bis zum nächsten Wechsel.
-- **Pause und Geschwindigkeit:** 1×, 2× oder 4×; ganz rechts das **Menü**.
+- **Zahltag:** das runde Medaillon in der Mitte füllt sich bis zur nächsten Steuereinnahme. Die Sekunden erscheinen
+  erst kurz vorher; am Zahltag selbst leuchtet es einmal auf. Der Hinweis nennt erwartete Steuern und Sold.
+- **Wetter:** der Ring zeigt, wie viel der Jahreszeit vorbei ist; die genaue Zeit steht im Hinweis.
+- **Pause und Geschwindigkeit:** der Tempo-Knopf klappt die Stufen 1×, 2× und 4× aus; ganz rechts das **Menü**.
 
 ### Befehlsleiste, Minikarte und Kontextpanel
 
 ![Befehlsleiste mit Schnellzugriff, Minikarte und Baumenü](site/hud-commandbar.webp)
 
-- **Schnellzugriff:** *Burg* springt zur Burg, *Untätige* wählt Leibeigene ohne Arbeit, *Alle* wählt alle Leibeigenen.
+- **Schnellzugriff** am Rand der runden Minikarte: *Burg* springt zur Burg, *Untätige* wählt Leibeigene ohne Arbeit
+  (die Zahl daran sagt, wie viele es sind), *Alle* wählt alle Leibeigenen, *Truppen* alle Soldaten und Helden.
+- **Helden und Steuergruppen** über der Karte: Ein Klick auf ein Heldenporträt wählt den Helden und holt ihn ins
+  Bild. Mit Umschalt+1 bis 9 merkst du dir eine Auswahl als Gruppe; die Zahltaste oder das Gruppenschild wählt
+  sie wieder, zweimal kurz hintereinander holt sie ins Bild.
 - **Minikarte:** zeigt Gelände, Gebäude und Truppen. Klicken oder Ziehen bewegt die Kamera.
-- **Kontextpanel:** zeigt, was du ausgewählt hast. Ohne Auswahl erscheint das **Baumenü** mit fünf Reitern:
-  *Wohnen & Versorgung*, *Rohstoffe*, *Veredelung*, *Militär*, *Verwaltung & Zier*. Gesperrte Gebäude nennen,
-  was noch fehlt (meist eine Technologie).
+- **Befehlstafel:** erscheint, sobald du etwas auswählst. Bei Leibeigenen zeigt sie das **Baumenü** mit allen
+  Gruppen auf einen Blick: *Wohnen*, *Rohstoffe*, *Veredelung*, *Militär*, *Verwaltung*. Ein roter Punkt heißt
+  „zu teuer“, ein Schloss „noch nicht erforscht“ – der Hinweis nennt, was fehlt.
 
 ![Minikarte](site/hud-minimap.webp)
 
@@ -128,7 +135,7 @@ Die Kosten werden beim Platzieren abgezogen. Abreißen erstattet die Hälfte.
 
 Fast jedes Gebäude hat mehrere **Ausbaustufen** (Wohnhaus → Mittleres → Großes Wohnhaus). Ausbauen kostet
 Rohstoffe, oft eine Technologie und dauert eine Weile; das Gebäude arbeitet währenddessen weiter. Alle
-Stufen, Kosten und Bedingungen stehen im [Wiki](compendium/#buildings).
+Stufen, Kosten und Bedingungen stehen im [Kompendium](compendium/#buildings).
 
 ### Bevölkerung
 
@@ -199,7 +206,7 @@ und **Militär**, jeweils vier Stufen. Technologien schalten Gebäude, Ausbauten
 
 Dazu kommen **Gebäude-Technologien**: Die Schmiede verbessert Rüstungen und Klingen, die Sägemühle Speere und
 Pfeile, der Alchimist Kanonen und Wettertechnik, Burg und Dorfzentrum Fährtenlesen, Stadtwache, Webrahmen und
-Schuhe. Den ganzen Baum mit Kosten und Wirkung zeigt das [Wiki](compendium/#techs).
+Schuhe. Den ganzen Baum mit Kosten und Wirkung zeigt das [Kompendium](compendium/#techs).
 
 ![Hochschule ausgewählt: Technologien der vier Linien](site/hud-research.webp)
 
@@ -215,7 +222,7 @@ Schwertkämpfer, Speerträger, Bogenschützen, leichte und schwere Reiterei, Kan
 - Fehlende Soldaten kaufst du mit **Auffüllen** nach – dafür muss der Hauptmann am Militärgebäude stehen.
 - **Aufwerten** hebt eine ganze Gattung auf die nächste Stufe, auch bestehende Truppen.
 - Jede Gattung hat Stärken und Schwächen: Speere gegen Reiter, Schwerter gegen Speere, Kanonen gegen Gebäude.
-  Die genaue Schadenstabelle steht im [Wiki](compendium/#units).
+  Die genaue Schadenstabelle steht im [Kompendium](compendium/#units).
 
 ![Truppen ausgewählt: Hauptleute, Held und Befehle](site/hud-army.webp)
 
@@ -249,6 +256,35 @@ Fähigkeiten löst du über die Knöpfe im Panel oder mit [[1]] / [[2]] aus; dan
 **„Zu den Waffen!“** in der Burg alle Leibeigenen als Miliz zusammen.
 
 ![Hauptleute mit ihren Truppen und der Held im Gefecht](site/combat.webp)
+
+## Wirtshaus, Dieb und Kundschafter {#spezialisten}
+
+Nicht jede Schlacht wird mit Schwertern geschlagen. Ab **Bildung** baust du ein **Wirtshaus** und wirbst dort zwei
+besondere Figuren an – je höchstens {{specialistMax}} und jede braucht einen Bevölkerungsplatz.
+
+| Figur | Kosten | Stärken |
+|---|---|---|
+| **Dieb** | {{thiefCost}} | für Gegner **unsichtbar**, schnell, kämpft nicht |
+| **Kundschafter** | {{scoutCost}} | sieht sehr weit, entdeckt feindliche Diebe in der Nähe |
+
+Wähle sie wie Truppen aus; ihre Fähigkeiten liegen im Panel unten (Tasten [[1]] und [[2]]).
+
+- **Stehlen:** Schick den Dieb an Burg, Lager oder Dorfzentrum eines Gegners. Nach kurzer Zeit trägt er Taler und
+  Rohstoffe zu deiner Burg – stirbt er unterwegs, ist die Beute verloren. Danach braucht er {{stealSec}} s Pause.
+- **Sprengladung:** Der Dieb legt eine Ladung an ein feindliches Gebäude, die kurz darauf explodiert. Brücken
+  stürzen davon besonders leicht ein.
+- **Fackel:** Der Kundschafter erhellt für eine Weile einen Kreis im Nebel des Krieges.
+- **Rohstoffe suchen:** Auf jeder Karte liegen **verborgene Lagerstätten** (Eisen, Schwefel, Stein, Lehm). Erst ein
+  Kundschafter legt sie frei – danach sind sie ganz normale Rohstoffhaufen.
+
+> **Schutz vor Dieben:** Ein Dieb wird sichtbar, wenn er einem deiner **Türme** näher als {{detectTower}} Kacheln
+> oder einem deiner **Kundschafter** näher als {{detectScout}} Kacheln kommt. Dann können ihn deine Truppen angreifen.
+
+### Brücken
+
+Flüsse trennen die Karte – an manchen Stellen lässt sich eine **Brücke** schlagen. Die Technologie **Mathematik**
+(Steinmetzhütte) schaltet sie frei; im Baumenü erscheinen dann die möglichen Brückenstellen. Fertige Brücken
+benutzen alle, auch der Feind. Wird eine Brücke zerstört, ertrinkt, wer gerade darauf steht.
 
 ## Wetter {#weather}
 
@@ -298,7 +334,7 @@ Nachbargebäude, Bäume, Wasser, Fels sowie Siedlungsplätze und Schächte bleib
 dauerhaft, auch wenn das Gebäude später abgerissen wird. Klippen und Gipfel sind nie bebaubar.
 
 > **Tipp:** Brauchst du einen Platz an einem steilen Hang, versuch es eine Kachel weiter oben oder unten – oft
-> reicht das für Gelb. Die genaue Formel mit Rechenbeispiel steht im [Wiki](compendium/#slope).
+> reicht das für Gelb. Die genaue Formel mit Rechenbeispiel steht im [Kompendium](compendium/#slope).
 
 ![Bauvorschau am Hang: gelb – das Gelände wird beim Bauen eingeebnet](site/slope.webp)
 
@@ -357,6 +393,59 @@ nimm einen eigenen Platz.
 
 Spielstände liegen im Speicher deines Browsers. Löschst du die Website-Daten oder spielst im privaten Modus,
 sind sie weg – exportiere wichtige Stände.
+
+## Programmier-Abenteuer {#coding}
+
+In den **Programmier-Abenteuern** steuerst du deinen Helden nicht mit der Maus, sondern mit einem Programm in
+**Python**. Gedacht ist das für alle, die programmieren lernen wollen – auch im Unterricht. Vorwissen brauchst du
+keins: Jedes Abenteuer erklärt, was neu ist.
+
+Öffne im Startmenü **Programmier-Abenteuer**. Die Abenteuer bauen aufeinander auf:
+
+{{adventureList}}
+
+Dazu kommt die Skript-Mission {{scriptMissions}}, ein ganz normales Spiel, dessen Ablauf komplett in Python
+geschrieben ist.
+
+### Das Code-Panel
+
+Rechts steht dein Programm – am Handy öffnest du es über die goldene Münze **Code**. Oben im Panel liegen die Knöpfe:
+
+| Knopf | Wirkung |
+|---|---|
+| **Ausführen** | startet das Programm; der Held setzt es sofort in der Welt um |
+| **Stopp** | beendet das Programm |
+| **Schritt** | führt genau eine Anweisung aus, auch in Funktionen hinein |
+| **Über** | nächste Zeile – Funktionsaufrufe laufen am Stück durch |
+| **Heraus** | weiter, bis die aktuelle Funktion fertig ist |
+| **Weiter** / **Anhalten** | läuft bis zum nächsten Haltepunkt bzw. hält an |
+
+Ein Klick auf eine **Zeilennummer** setzt einen **Haltepunkt**. Hält das Programm an, ist die aktuelle Zeile grün
+markiert, und du siehst alle Variablen und den Aufrufstapel. Bei einem Fehler wird die Zeile rot; ein Kasten erklärt,
+was schiefging, und macht oft einen Vorschlag („Meintest du `turn_left`?“).
+
+Unter **Befehle** stehen alle Befehle mit Erklärung und Beispiel, das du mit einem Tipp einfügst. Die wichtigsten:
+`hero.step()`, `hero.turn_left()`, `hero.turn_right()`, `hero.ahead()`, `hero.chop()`, `hero.take()` und `print()`.
+
+```
+for i in range(10):
+    hero.step()
+```
+
+Am Handy hilft eine Tastenleiste mit Einrücken, Doppelpunkt, Klammern und Anführungszeichen. Dein Code wird im
+Browser gemerkt – du kannst jederzeit weitermachen.
+
+![Programmier-Abenteuer: Das Programm hält am Haltepunkt (grüne Zeile), darunter die Variablen](site/programming.webp)
+
+### Welteneditor
+
+Unter **Programmier-Abenteuer → Welteneditor** baust du eigene Karten: Gelände heben und senken, Wasser, Wald,
+Rohstoffe, Startplätze und benannte Orte setzen. Den Ablauf schreibst du ebenfalls in Python – Dialoge,
+Kamerafahrten, Ziele, Angriffswellen. **Testspielen** startet deine Welt sofort; speichern kannst du sie als
+Datei und unter **Szenario-Datei öffnen** wieder spielen oder weitergeben.
+
+> **Für Lehrkräfte:** Welche Teile von Python es gibt und alle Befehle stehen in der
+> [Beschreibung der Skripte](https://github.com/wi-wissen/Kronland/blob/main/docs/SKRIPTE.md).
 
 ## Entwicklermodus {#developer-mode}
 
@@ -418,7 +507,7 @@ Stelle unter Einstellungen eine niedrigere **Grafikstufe** ein oder starte mit `
 Ja, nach dem ersten Laden – besonders, wenn du es als App installiert hast.
 
 **Wo finde ich genaue Zahlen?**
-Im [Wiki](compendium/): alle Gebäude, Einheiten, Technologien und Formeln.
+Im [Kompendium](compendium/): alle Gebäude, Einheiten, Technologien und Formeln.
 
 ## Lizenzen und Danksagung {#licenses}
 

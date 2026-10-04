@@ -1,7 +1,7 @@
 // Small Markdown renderer for manual and compendium texts (own, trusted content).
 // Supports: headings (# … ####, anchor via {#id}), paragraphs, lists (also nested, 2 spaces),
 // tables (|…|), quotes/notes (> …), horizontal rule (---), images (alone on a line → <figure>),
-// **bold**, *italic*, `code`, [link](target), [[key]] → <kbd>, placeholders {{name}} from `vars`, \* escaped.
+// code blocks (```), **bold**, *italic*, `code`, [link](target), [[key]] → <kbd>, placeholders {{name}} from `vars`, \* escaped.
 // Relative image and link targets are resolved against the website root (`base`), anchors (#…) stay.
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
@@ -72,6 +72,15 @@ export function renderMarkdown(src, opt = {}) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) { flush(); continue; }
+
+    // Code block: literal, indentation stays (Python)
+    if (/^\s*```/.test(line)) {
+      flush();
+      const code = [];
+      for (i++; i < lines.length && !/^\s*```/.test(lines[i]); i++) code.push(lines[i]);
+      html.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+      continue;
+    }
 
     const h = /^(#{1,4})\s+(.*?)\s*(?:\{#([\w-]+)\})?\s*$/.exec(line);
     if (h) {

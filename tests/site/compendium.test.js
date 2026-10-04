@@ -1,7 +1,7 @@
 // Compendium: the tables are generated from the game data – every record must get an entry,
 // even when new buildings/units/technologies are added.
 import { describe, it, expect } from 'vitest';
-import { wikiModel, cellText, anchor, slopeExample } from '../../src/site/compendium/generate.js';
+import { compendiumModel, cellText, anchor, slopeExample } from '../../src/site/compendium/generate.js';
 import { BUILDINGS } from '../../src/sim/data/buildings.js';
 import { UNITS, LINES, HEROES } from '../../src/sim/data/units.js';
 import { TECHS } from '../../src/sim/data/technologies.js';
@@ -22,7 +22,7 @@ const entryIds = (m) => new Set(m.sections.flatMap((s) => s.entries.map((e) => e
 const section = (m, id) => m.sections.find((s) => s.id === id);
 
 describe.each(['de', 'en'])('Compendium (%s)', (lang) => {
-  const m = wikiModel(lang);
+  const m = compendiumModel(lang);
   const rows = rowIds(m);
   const entries = entryIds(m);
 
@@ -107,16 +107,16 @@ describe.each(['de', 'en'])('Compendium (%s)', (lang) => {
   });
 });
 
-describe('Wiki-Texte', () => {
+describe('Compendium texts', () => {
   it('DE and EN have the same keys', () => {
     for (const T of [LABELS, KEYS, INTROS]) expect(Object.keys(T.en).sort()).toEqual(Object.keys(T.de).sort());
   });
 });
 
-describe('Compendium als HTML', () => {
+describe('Compendium as HTML', () => {
   it('every table becomes HTML with row anchors, texts escaped', async () => {
     const { tableHtml, cellHtml } = await import('../../src/site/compendium/render.js');
-    const m = wikiModel('de');
+    const m = compendiumModel('de');
     let tables = 0;
     for (const b of blocksOf(m)) {
       if (b.type !== 'table') continue;
@@ -131,7 +131,7 @@ describe('Compendium als HTML', () => {
   });
 });
 
-describe('Compendium: building on slopes and weather from the data', () => {
+describe('Compendium: building on a slope and weather from the data', () => {
   it('worked example uses the levelling of the simulation', () => {
     const ex = slopeExample();
     expect(ex.preview.slope).toBeGreaterThan(0);
@@ -142,14 +142,14 @@ describe('Compendium: building on slopes and weather from the data', () => {
     // edge neighbour half, corner neighbour a quarter towards the target height
     expect(at(ex.after, 0, 1)).toBe(at(ex.before, 0, 1) + Math.trunc((ex.preview.target - at(ex.before, 0, 1)) / 2));
     expect(at(ex.after, 0, 0)).toBe(at(ex.before, 0, 0) + Math.trunc((ex.preview.target - at(ex.before, 0, 0)) / 4));
-    const m = wikiModel('de');
+    const m = compendiumModel('de');
     const sec = m.sections.find((x) => x.id === 'slope');
     expect(sec.intro).toContain(`${BALANCE.maxSlope} cm`);
     expect(sec.blocks.map((b) => b.id)).toEqual(['slope-rules', 'slope-before', 'slope-after']);
   });
 
   it('weather effects come from WEATHER_EFFECTS', () => {
-    const m = wikiModel('de');
+    const m = compendiumModel('de');
     const fx = blocksOf(m).find((b) => b.id === 'weather-effects');
     for (const st of Object.keys(WEATHER_EFFECTS)) expect(fx.rows.some((r) => r.cells[0].icon === `weather-${st}`), st).toBe(true);
     const rain = fx.rows.find((r) => r.cells[0].icon === 'weather-rain');
@@ -178,7 +178,7 @@ describe('Compendium: new content appears without code changes', () => {
   it.each(['de', 'en'])('%s: entries, rows, no broken cells, column count', (lang) => {
     add();
     try {
-      const m = wikiModel(lang);
+      const m = compendiumModel(lang);
       const rows = rowIds(m), entries = entryIds(m);
       expect(entries.has('b-testTavern')).toBe(true);
       expect(entries.has('b-testStatue')).toBe(true);

@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import {
   selectLod, withinCull, effectiveDistance, lodSettings, LodState, LodCounter, LOD_PROFILES, LOD_TIERS,
-  ChunkedInstances, ViewTracker, cameraFrustum, NEAR_FULL_DETAIL,
+  ChunkedInstances, ViewTracker, cameraFrustum, NEAR_FULL_DETAIL, screenHeightPx, pixelMetric,
 } from '../../src/render/lod.js';
 
 const T = [20, 40];
@@ -76,8 +76,10 @@ describe('effectiveDistance', () => {
 describe('lodSettings / LodState', () => {
   it('delivers boundaries per group and hysteresis per level', () => {
     const s = lodSettings('character', 'low');
-    expect(s.thresholds).toEqual(LOD_PROFILES.character.thresholds);
+    expect(s.pixels).toBe(true);
+    expect(s.thresholds).toEqual(LOD_PROFILES.character.pixels.map(pixelMetric));
     expect(s.h).toBe(LOD_TIERS.low.hysteresis);
+    expect(lodSettings('tree', 'high').thresholds).toEqual(LOD_PROFILES.tree.thresholds);
     expect(lodSettings('scatterSmall', 'high').cull).toBe(LOD_PROFILES.scatterSmall.cull);
     // figures: lower bound of the factor so that they do not coarsen too early on "low"
     expect(lodSettings('character', 'low').bias).toBe(LOD_PROFILES.character.minBias);
@@ -159,6 +161,40 @@ describe('ChunkedInstances', () => {
     expect(v.changed(cam)).toBe(false);
     cam.position.x += 1; cam.updateMatrixWorld();
     expect(v.changed(cam)).toBe(true);
+  });
+});
+
+describe('Figures by screen height', () => {
+  it('pixel height: half distance = double height, wider field of view = smaller', () => {
+    const a = screenHeightPx(1, 10, 40, 900), b = screenHeightPx(1, 5, 40, 900);
+    expect(b).toBeCloseTo(2 * a, 5);
+    expect(screenHeightPx(1, 10, 55, 900)).toBeLessThan(a);
+    expect(screenHeightPx(1, 10, 40, 450)).toBeCloseTo(a / 2, 5);
+  });
+  it('levels: near model only large on screen, then game model, throttled, rigid', () => {
+    const s = lodSettings('character', 'high');
+    const lvl = (px) => selectLod(pixelMetric(px), -1, s.thresholds);
+    expect(lvl(300)).toBe(0);
+    expect(lvl(100)).toBe(0);
+    expect(lvl(60)).toBe(1);
+    expect(lvl(20)).toBe(2);
+    expect(lvl(8)).toBe(3);
+    // desktop 900 px, figure 0.95 tiles: near model up to ~14 tiles distance, default zoom (28) game model
+    expect(lvl(screenHeightPx(0.95, 6, 40, 900))).toBe(0);
+    expect(lvl(screenHeightPx(0.95, 28, 40, 900))).toBe(1);
+    // phone on "low" (factor 0.8): figure at zoom "near" ~116 px → near model, also when zooming in
+    const low = lodSettings('character', 'low');
+    expect(selectLod(pixelMetric(116 * low.bias), 1, low.thresholds, low.h)).toBe(0);
+  });
+  it('hysteresis: no flicker exactly at the boundary', () => {
+    const s = lodSettings('character', 'high');
+    const st = new LodState();
+    expect(st.update(pixelMetric(150), s)).toBe(0);
+    expect(st.update(pixelMetric(76), s)).toBe(0); // within the hysteresis
+    expect(st.update(pixelMetric(70), s)).toBe(1);
+    expect(st.update(pixelMetric(85), s)).toBe(1); // back only clearly above 80
+    expect(st.update(pixelMetric(95), s)).toBe(0);
+    expect(st.update(pixelMetric(2), s)).toBe(-1);  // too small: do not draw
   });
 });
 

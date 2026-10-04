@@ -1,4 +1,4 @@
-// Compendium content from the game data. Iterates generically over the data structures (BUILDINGS, UNITS, TECHS, …),
+// Compendium content from the game data. Iterates generically over the data structures (BUILDINGS, UNITS, TECHS, …)
 // so that new buildings, units or technologies appear without changes here. Pure functions without DOM –
 // tested in tests/site/compendium.test.js.
 //
@@ -413,7 +413,8 @@ function economySection(lang, names, f) {
     cols: [{ label: f.L('col.building') }, { label: f.L('col.cost') }, { label: f.L('f.motivationEffect'), num: true }],
     rows: ornaments.map((d) => ({ cells: [link(names.building(d.id), anchor.building(d.id), `b-${d.id}`), costCell(d.levels[0].cost), `+${d.motivationEffect} %`] })) };
   return { id: 'economy', icon: 'payday', blocks: [taxTable, pop, orn, constTable(WORKER, f, 'worker-constants', named('top.workers', 'Arbeiter', lang))], entries: [],
-    vars: { paydayS: BALANCE.paydayTicks / 10, perWorker: tax.perWorker, wage: BALANCE.wagePerLeader, cycleCost: WORKER.cycleCost, maxStamina: WORKER.maxStamina } };
+    vars: { paydayS: BALANCE.paydayTicks / 10, perWorker: tax.perWorker, wage: BALANCE.wagePerLeader, cycleCost: WORKER.cycleCost, maxStamina: WORKER.maxStamina,
+      motCurve: WORKER.motivationCurve.filter(([m]) => m > 0).map(([m, e]) => `${m} % → ${e} %`).join(', ') } };
 }
 
 function weatherSection(lang, names, f) {
@@ -593,7 +594,7 @@ const SECTIONS = [buildingsSection, unitsSection, heroesSection, techsSection, r
  * The whole compendium in one language.
  * @param {'de'|'en'} lang
  */
-export function wikiModel(lang = 'de') {
+export function compendiumModel(lang = 'de') {
   const names = namesFor(lang);
   const f = fmtFor(lang);
   const sections = SECTIONS.map((make) => {

@@ -29,7 +29,7 @@ export function tableHtml(b, names) {
   const rows = b.rows.map((r) => `<tr${r.id ? ` id="${escapeHtml(r.id)}"` : ''}>${r.cells.map((c, k) => (k === 0
     ? `<th scope="row">${cellHtml(c, names)}</th>`
     : `<td${num(k)}>${cellHtml(c, names)}</td>`)).join('')}</tr>`).join('');
-  return `<table${b.id ? ` id="${escapeHtml(b.id)}" data-testid="wiki-table-${escapeHtml(b.id)}"` : ''}>${b.caption ? `<caption>${escapeHtml(b.caption)}</caption>` : ''}<thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table${b.id ? ` id="${escapeHtml(b.id)}" data-testid="compendium-table-${escapeHtml(b.id)}"` : ''}>${b.caption ? `<caption>${escapeHtml(b.caption)}</caption>` : ''}<thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 /** Fact sheet (block of type 'facts') as HTML. */

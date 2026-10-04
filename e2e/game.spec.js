@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
+import { UNITS } from '../src/sim/data/units.js';
 
 /** Load the game and wait for the engine. */
 async function boot(page) {
@@ -44,7 +45,6 @@ test('Buy a serf in the castle', async ({ page }) => {
 test('Place a house via the build menu', async ({ page }, info) => {
   await boot(page);
   await page.getByRole('button', { name: 'Alle' }).click();
-  if (info.project.name === 'mobile') await page.getByTestId('build-toggle').click();
   await page.getByTestId('build-residence').click();
   const pos = await screenPosFor(page, 'residence');
   await page.waitForTimeout(200);
@@ -87,7 +87,7 @@ test('Recruit squads in the barracks', async ({ page }) => {
   });
   await page.getByTestId('recruit-full-sword').click();
   await expect.poll(() => page.evaluate(() => [...window.__kronland.sim.entities.values()].filter((e) => e.kind === 'soldier' && e.owner === 0).length), { timeout: 45_000 }).toBe(4);
-  await expect(page.getByTestId('res-gold')).toHaveText(String(500 - 100 - 4 * 30));
+  await expect(page.getByTestId('res-gold')).toHaveText(String(500 - UNITS.sword1.leaderCost.gold - 4 * UNITS.sword1.soldierCost.gold));
 });
 
 test('Start menu: start a new game, save and load again', async ({ page }) => {

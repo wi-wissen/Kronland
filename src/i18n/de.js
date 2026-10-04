@@ -5,10 +5,13 @@
 import { levels } from './util.js';
 import addon from './addon.de.js';
 import { devDe } from './dev.js';
+import { scriptDe } from './script.js';
 
 export default {
   // Developer mode (own namespace dev.*, src/i18n/dev.js)
   ...devDe,
+  // Script language, code editor, adventures, world editor (src/i18n/script.js)
+  ...scriptDe,
   // ---------- General ----------
   'app.title': 'Kronland',
   'app.tagline': 'Baue dein Dorf, versorge deine Siedler, verteidige deine Burg.',
@@ -27,11 +30,14 @@ export default {
   'common.locked': 'Gesperrt',
   'key.space': 'Leertaste',
   'key.esc': 'Esc',
+  'key.shift': 'Umschalt',
 
   // ---------- Start menu ----------
   'menu.continue': 'Gespeichertes Spiel fortsetzen',
   'menu.tutorial': 'Tutorial',
   'menu.tutorialSub': 'Erste Schritte mit Ottilie',
+  'menu.adventures': 'Programmier-Abenteuer',
+  'menu.adventuresSub': 'Python lernen, Welten bauen',
   'menu.campaign': 'Kampagne',
   'menu.campaignSub': 'Die Rückkehr der Krone',
   'menu.freePlay': 'Freies Spiel',
@@ -62,7 +68,7 @@ export default {
   'site.links': 'Website',
   'site.home': 'Startseite',
   'site.manual': 'Handbuch',
-  'site.wiki': 'Wiki',
+  'site.compendium': 'Kompendium',
 
   // ---------- Loading ----------
   'loading.title': 'Das Land wird bereitet',
@@ -96,6 +102,11 @@ export default {
   'top.pause': 'Pause',
   'top.resume': 'Weiter',
   'top.speed': 'Geschwindigkeit {n}×',
+  'top.speedTip': 'Klick öffnet die Auswahl: normal, doppelt oder vierfach',
+  'top.speedTitle': 'Spielgeschwindigkeit',
+  'top.speedName.1': 'normal',
+  'top.speedName.2': 'schnell',
+  'top.speedName.4': 'sehr schnell',
   'top.menu': 'Menü',
 
   // ---------- Quick access ----------
@@ -105,6 +116,13 @@ export default {
   'quick.idleTip': 'Untätige Leibeigene auswählen',
   'quick.all': 'Alle',
   'quick.allTip': 'Alle Leibeigenen auswählen',
+  'quick.title': 'Schnellzugriff',
+  'quick.heroes': 'Helden',
+  'quick.heroTip': 'Auswählen und hinspringen',
+  'quick.army': 'Truppen',
+  'quick.armyTip': 'Alle Truppen und Helden auswählen',
+  'quick.group': 'Gruppe {n}',
+  'quick.groupTip': 'Klick wählt die Gruppe, zweiter Klick holt sie ins Bild',
   'quick.minimap': 'Karte',
   'quick.minimapTip': 'Minikarte ein- oder ausblenden',
 
@@ -115,12 +133,9 @@ export default {
   'minimap.hint': 'Zeigt die ganze Karte: Gelände, Einheiten, Gebäude und deinen Sichtbereich',
 
   // ---------- Context panel ----------
-  'ctx.nothing': 'Wähle Leibeigene (Rahmen ziehen) oder ein Gebäude.',
-  'ctx.nothingTouch': 'Tippe auf deine Leibeigenen oder die Burg.',
   'ctx.deselect': 'Auswahl aufheben',
   'ctx.collapse': 'Panel einklappen',
   'ctx.expand': 'Panel ausklappen',
-  'ctx.overview': 'Übersicht',
 
   // Serfs
   'serfs.title': 'Leibeigene',
@@ -135,8 +150,6 @@ export default {
 
   // Build menu
   'build.title': 'Bauen',
-  'build.open': 'Bauen …',
-  'build.closeMenu': 'Baumenü schließen',
   'build.cat.home': 'Wohnen & Versorgung',
   'build.cat.raw': 'Rohstoffe',
   'build.cat.refine': 'Veredelung',
@@ -147,11 +160,6 @@ export default {
   'build.cat.refineShort': 'Veredelung',
   'build.cat.militaryShort': 'Militär',
   'build.cat.adminShort': 'Verwaltung',
-  'build.catTip.home': 'Wohnhäuser, Bauernhöfe, Dorfzentrum und Lager: Platz und Versorgung für deine Siedler',
-  'build.catTip.raw': 'Minen für Lehm, Stein, Eisen und Schwefel',
-  'build.catTip.refine': 'Werkstätten veredeln Rohstoffe; die Bank prägt Gold',
-  'build.catTip.military': 'Türme, Kasernen und weitere Gebäude für dein Heer',
-  'build.catTip.admin': 'Hochschule, Kapelle, Wetter und Zierbauten für die Motivation',
   'build.place': '{building} platzieren',
   'build.placeOk': 'Platz passt',
   'build.placeHint': 'Klicke auf die Karte · Shift hält das Werkzeug · Rechtsklick bricht ab',
@@ -174,6 +182,8 @@ export default {
   'bld.profession': 'Beruf: {prof}',
   'bld.upgrade': 'Ausbauen zu {name}',
   'bld.upgradeShort': 'Ausbauen',
+  'bld.upgradeNext': 'Stufe {n}: {name}',
+  'bld.upgradeTip': 'Freie Leibeigene in der Nähe übernehmen den Ausbau.',
   'bld.maxLevel': 'Höchste Stufe',
   'bld.overtime': 'Überstunden',
   'bld.overtimeTip': 'Schneller arbeiten, kostet aber Motivation',
@@ -181,7 +191,8 @@ export default {
   'bld.demolishConfirm': 'Wirklich abreißen?',
   'bld.demolishTip': 'Die Hälfte der Baukosten kommt zurück',
   'bld.buySerf': 'Leibeigenen kaufen',
-  'bld.buySerfs': '5 kaufen',
+  'bld.buySerfs': '5 Leibeigene kaufen',
+  'bld.buySerfsTip': 'Kauft fünf Leibeigene auf einmal. Reichen Taler oder Platz nicht, werden so viele gekauft wie möglich.',
   'bld.serfsTitle': 'Leibeigene',
   'bld.militiaOn': 'Zu den Waffen!',
   'bld.militiaOnTip': 'Leibeigene greifen zu Mistgabeln und kämpfen',
@@ -229,6 +240,13 @@ export default {
 
   // Troops
   'army.title': 'Truppen',
+  'army.stance': 'Haltung',
+  'army.troops': 'Trupps',
+  'army.abilitiesOf': 'Fähigkeiten · {hero}',
+  'army.group': 'Steuergruppe',
+  'army.groupSave': 'Als Gruppe {n} merken',
+  'army.groupIs': 'Gruppe {n}',
+  'army.groupTip': 'Merkt die Auswahl unter einer Nummer. Danach wählt der Knopf über der Karte oder die Zahltaste sie wieder aus.',
   'army.soldiers': '{n} Soldaten',
   'army.groups': 'Einheiten',
   'army.attack': 'Angreifen',
@@ -263,9 +281,8 @@ export default {
   'foreign.pile': 'Rohstoffhaufen',
 
   // Selection card
-  'card.noSelection': 'Keine Auswahl',
-  'card.realm': 'Dein Reich',
-  'card.time': 'Spielzeit {t}',
+  'card.leaders': '{n} Hauptleute',
+  'card.heroes': '{n} Helden',
 
   // ---------- Messages ----------
   'toast.weather': 'Wetter: {weather}',
@@ -284,6 +301,8 @@ export default {
   'toast.attackSettlers': 'Eure Siedler werden angegriffen!',
   'toast.attackTroops': 'Eure Truppen sind im Kampf!',
   'toast.noIdleSerfs': 'Keine untätigen Leibeigenen',
+  'toast.noArmy': 'Du hast keine Truppen',
+  'toast.groupSaved': 'Als Gruppe {n} gemerkt',
   'toast.saved': 'Spiel gespeichert',
   'toast.saveFailed': 'Speichern nicht möglich (Browserspeicher gesperrt oder voll)',
   'toast.loadFailed': 'Spielstand konnte nicht geladen werden',
@@ -311,7 +330,8 @@ export default {
   'help.hq': 'Zur Burg',
   'help.pause': 'Pause',
   'help.menu': 'Menü',
-  'help.categories': 'Baukategorie wählen',
+  'help.abilities': 'Heldenfähigkeit',
+  'help.groups': 'Steuergruppe merken · abrufen',
   'help.info': 'Symbol erklären',
   'help.desk.select': 'Linksklick, Rahmen ziehen, Shift fügt hinzu',
   'help.desk.command': 'Rechtsklick',
@@ -352,7 +372,9 @@ export default {
   'set.edgeScroll': 'Kamera am Bildschirmrand verschieben',
   'set.hints': 'Hilfetexte anzeigen',
   'set.labels': 'Beschriftungen anzeigen',
-  'set.labelsNote': 'Kurze Namen unter den Symbolen. Langes Drücken auf ein Symbol zeigt immer die volle Erklärung.',
+  'set.labelsNote': 'Namen unter den Schnellzugriff-Knöpfen. Baumenü und Befehle sind immer beschriftet; langes Drücken zeigt die volle Erklärung.',
+  'set.speech': 'Dialoge vorlesen',
+  'set.speechNote': 'Missionen und Abenteuer sprechen ihre Dialoge – mit eigener Aufnahme oder der Sprachausgabe des Browsers.',
   'set.reset': 'Standard',
   'set.done': 'Fertig',
 
@@ -401,6 +423,8 @@ export default {
   // ---------- Simulation rejection reasons ----------
   'err.unknownPlayer': 'Unbekannter Spieler',
   'err.noMission': 'Keine Mission aktiv',
+  'err.noScript': 'Dieses Spiel hat keine Skripte',
+  'err.noPlayerScript': 'Dieses Szenario hat kein Spielerprogramm',
   'err.unknownCommand': 'Unbekannter Befehl',
   'err.popLimit': 'Bevölkerungslimit erreicht',
   'err.notEnoughGold': 'Nicht genug Taler',

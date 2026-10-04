@@ -21,7 +21,10 @@ import * as THREE from 'three';
 export const LOD_PROFILES = {
   building: { thresholds: [38, 72], cull: Infinity },
   tree: { thresholds: [30, 62], cull: Infinity },
-  character: { thresholds: [16, 36, 90], cull: 220, minBias: 0.8 },
+  // Figures by screen height (CSS pixels), see screenHeightPx: near model from 80 px (even the phone on
+  // "low" shows it when zoomed "close"), below that the game model; below 28 px animation throttled, below
+  // 12 px rigid, below 3 px not drawn at all
+  character: { pixels: [80, 28, 12], cullPixels: 3, minBias: 0.8 },
   scatterSmall: { thresholds: [], cull: 66 },
   scatterLarge: { thresholds: [], cull: Infinity },
   effect: { thresholds: [], cull: 120 },
@@ -42,6 +45,20 @@ export const LOD_TIERS = {
 export const NEAR_FULL_DETAIL = 14;
 
 const REF_TAN = Math.tan(THREE.MathUtils.degToRad(20)); // 40° field of view = reference
+
+/**
+ * Screen height of an object in pixels (like Unity's "Screen Relative Transition Height"): the same size on
+ * screen yields the same level – on phone and desktop, at every field of view and zoom.
+ * @param {number} worldHeight height in world units @param {number} dist distance to the camera
+ * @param {number} fovDeg vertical field of view @param {number} viewH height of the canvas (CSS pixels)
+ */
+export function screenHeightPx(worldHeight, dist, fovDeg, viewH) {
+  return (worldHeight * viewH) / (2 * Math.max(1e-3, dist) * Math.tan(THREE.MathUtils.degToRad(fovDeg / 2)));
+}
+
+/** Pixel height → measure that grows with size like a distance (for selectLod/LodState). */
+export const PIXEL_REF = 1000;
+export const pixelMetric = (px) => PIXEL_REF / Math.max(1e-3, px);
 
 /**
  * Effective distance: real distance, corrected for the field of view (wider field of view = object smaller
@@ -99,7 +116,11 @@ export function withinCull(dist, wasVisible, cull, h = 0.1) {
  */
 export function lodSettings(kind, tier) {
   const p = LOD_PROFILES[kind], t = LOD_TIERS[tier] ?? LOD_TIERS.high;
-  return { thresholds: p.thresholds, cull: p.cull, h: t.hysteresis, bias: Math.max(t.bias, p.minBias ?? 0) };
+  const bias = Math.max(t.bias, p.minBias ?? 0);
+  // pixel profiles: thresholds as pixelMetric (larger = smaller on screen); the caller passes
+  // pixelMetric(pixel height · bias)
+  if (p.pixels) return { thresholds: p.pixels.map(pixelMetric), cull: pixelMetric(p.cullPixels ?? 1), h: t.hysteresis, bias, pixels: true };
+  return { thresholds: p.thresholds, cull: p.cull, h: t.hysteresis, bias };
 }
 
 /**

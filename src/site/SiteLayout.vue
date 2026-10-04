@@ -1,6 +1,6 @@
 <template>
   <a class="skip" href="#main">{{ $s('nav.skip') }}</a>
-  <header class="site-head" :class="{ overlay }">
+  <header class="site-head" :class="{ overlay: overlay && !scrolled }">
     <div class="sh-inner">
       <a class="sh-brand" :href="$links.home" :aria-current="page === 'home' ? 'page' : null">
         <Icon name="crown" class="sh-crown" />
@@ -57,7 +57,7 @@ export default {
     /** header transparent over the title image (home page) */
     overlay: { type: Boolean, default: false },
   },
-  data() { return { langs: LANGS }; },
+  data() { return { langs: LANGS, scrolled: false }; },
   computed: {
     links() {
       const L = this.$links;
@@ -69,6 +69,14 @@ export default {
       ];
     },
   },
+  mounted() {
+    // Transparent header only over the title image; opaque when scrolling so no text shows through
+    if (!this.overlay) return;
+    this.onScroll = () => { this.scrolled = window.scrollY > 40; };
+    this.onScroll();
+    window.addEventListener('scroll', this.onScroll, { passive: true });
+  },
+  beforeUnmount() { if (this.onScroll) window.removeEventListener('scroll', this.onScroll); },
   methods: { choose(l) { chooseLang(l); } },
 };
 </script>

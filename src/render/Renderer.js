@@ -35,6 +35,8 @@ import { FogOfWar, patchFog, patchFogTree } from './fog.js';
 import { knownBuildings } from '../sim/systems/vision.js';
 
 const PLAYER_COLORS_HEX = (owner) => PLAYER_COLORS[owner % 4];
+/** Rotation per viewing direction from scripts (0 = north/−z, 1 = east/+x, 2 = south/+z, 3 = west). */
+const FACE_YAW = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
 
@@ -113,6 +115,12 @@ export class Renderer {
 
     const hq = sim.findBuilding(0, 'headquarters');
     if (hq) this.rig.lookAt(hq.x + hq.w / 2, hq.y + hq.h / 2 + 3);
+    else {
+      // without castle (learning adventure): look at the hero
+      const hero = [...sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === 0);
+      // north up, east right – like on a worksheet (hero.turn_left() stays intuitive)
+      if (hero) { this.rig.dist = 18; this.rig.yaw = 0; this.rig.lookAt(hero.px / 1000 + 3, hero.py / 1000 + 1); }
+    }
   }
 
   /**
@@ -233,6 +241,7 @@ export class Renderer {
     this.camera.fov = w < h ? 55 : 40;
     this.camera.updateProjectionMatrix();
     this.viewport = { w, h };
+    this.chars.viewH = h; // LOD levels of the figures by screen height (CSS pixels)
   }
 
   // ---------- Static objects ----------
@@ -318,6 +327,26 @@ export class Renderer {
     this.scene.add(this.stumps);
   }
 
+  /**
+   * Rebuild trees, resource piles and markers – when a script or the world editor has
+   * added some (event natureChanged). Removal alone is handled by removeTree/nodeDepleted.
+   */
+  rebuildNature() {
+    if (!this.treeGroups) return; // not built yet: buildWorld fetches everything at the first frame
+    const old = new Set(this.treeGroups);
+    for (const g of this.treeGroups) for (const m of g.meshes) { m.parent?.remove(m); m.dispose?.(); }
+    this.chunked = this.chunked.filter((c) => !old.has(c));
+    if (this.stumps) { this.scene.remove(this.stumps); this.stumps.dispose?.(); }
+    for (const g of this.piles.values()) this.scene.remove(g);
+    this.piles.clear();
+    for (const m of this.markers) this.scene.remove(m.g);
+    this.markers = [];
+    this.buildTrees();
+    this.buildMarkers();
+    if (this.weather === 'winter') this.applyWeather('winter');
+    this.view.pos.set(Infinity, 0, 0);
+  }
+
   /** Spots for ornamental trees outside the map and on forestable cliff ledges. */
   decorTreeSpots() {
     const { map } = this.sim;
@@ -331,7 +360,8 @@ export class Renderer {
       const n = (Math.sin(x * 0.21 + this.sim.seed) + Math.sin(z * 0.17 + x * 0.05) + 2) / 4; // forest patches
       if (!inside) {
         const d = Math.max(-x, -z, x - W + 1, z - H + 1);
-        if (d < 2) continue;
+        // small maps (learning adventure): more spacing so that the map edge and the path stay recognisable
+        if (d < (Math.min(W, H) < 48 ? 7 : 2)) continue;
         if (this.altitude(x + 0.5, z + 0.5) < 0.4) continue;
         if (r() > (n > 0.45 ? 0.55 : 0.12) * dens) continue;
       } else {
@@ -630,6 +660,7 @@ export class Renderer {
       else if (ev.type === 'buildingDestroyed' || ev.type === 'demolished') this.onBuildingGone(ev);
       else if (ev.type === 'buildingDone') this.onBuildingDone(ev);
       else if (ev.type === 'terrainChanged') (this.pendingTerrain ??= []).push({ x: ev.x, y: ev.y, w: ev.w, h: ev.h });
+      else if (ev.type === 'natureChanged') this.natureDirty = true;
       if (ev.type === 'nodeDepleted') {
         this.removeTree(ev.node);
         const p = this.piles.get(ev.node);
@@ -698,6 +729,7 @@ export class Renderer {
       this.startupMs = { world: Math.round(t1 - t0), figures: Math.round(t2 - t1), warmUp: Math.round(performance.now() - t2) };
     }
     const sim = this.sim;
+    if (this.natureDirty) { this.natureDirty = false; this.rebuildNature(); }
     this.frameDt = dt;
     this.time = (this.time ?? 0) + dt;
     // camera first: LOD levels and visibility check refer to the current frame
@@ -1047,7 +1079,14 @@ export class Renderer {
     const st = (this.unitYaw ??= new Map());
     let yaw = st.get(e.id) ?? 0;
     if (moving) yaw = Math.atan2(e.px - prev.px, e.py - prev.py);
-    else if (e.targetId) {
+    else if (e.face !== undefined && !e.targetId) {
+      // facing direction from a script (hero.turn_left() …): turn there smoothly
+      const want = FACE_YAW[e.face] ?? yaw;
+      let d = want - yaw;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      yaw += d * Math.min(1, 0.25);
+    } else if (e.targetId) {
       const t = this.sim.entities.get(e.targetId);
       if (t) {
         const tx = t.kind === 'building' ? t.x + t.w / 2 : (t.px ?? t.x * UNIT) / UNIT, tz = t.kind === 'building' ? t.y + t.h / 2 : (t.py ?? t.y * UNIT) / UNIT;

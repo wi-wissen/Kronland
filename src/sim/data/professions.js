@@ -11,11 +11,21 @@ export const PROFESSIONS = {
   mason:      { name: 'Steinmetz',      building: 'stonemason', kind: 'refine',   cycle: 30, res: 'stone', yield: 2 },
   smith:      { name: 'Schmied',        building: 'smithy',     kind: 'refine',   cycle: 40, res: 'iron', yield: 2 },
   alchemist:  { name: 'Alchimist',      building: 'alchemist',  kind: 'refine',   cycle: 35, res: 'sulfur', yield: 2 },
-  treasurer:  { name: 'Schatzmeister',  building: 'bank',       kind: 'gold',     cycle: 50, yield: 3 },
+  treasurer:  { name: 'Schatzmeister',  building: 'bank',       kind: 'gold',     cycle: 60, yield: 2 },  // just above sawmill worker (refiner analysis) (A)
   priest:     { name: 'Priester',       building: 'chapel',     kind: 'faith',    cycle: 50, yield: 25 },
   trader:     { name: 'Händler',        building: 'storehouse', kind: 'none',     cycle: 60 },
   weatherman: { name: 'Wettertechniker', building: 'weatherPlant', kind: 'energy',  cycle: 50, yield: 10 }, // (A)
 };
+
+/** Effect of motivation on recovery in percent (integer, deterministic). */
+export function motivationEffect(m) {
+  const c = WORKER.motivationCurve;
+  if (m >= c[c.length - 1][0]) return c[c.length - 1][1];
+  let i = 1;
+  while (m > c[i][0]) i++;
+  const [x0, y0] = c[i - 1], [x1, y1] = c[i];
+  return y0 + Math.trunc(((Math.max(0, m) - x0) * (y1 - y0)) / (x1 - x0));
+}
 
 /** Profession for a work building. */
 export function professionFor(buildingType) {
@@ -35,11 +45,15 @@ export const BLESSINGS = {
 
 export const WORKER = {
   speed: 200,             // like serfs (A)
-  maxStamina: 600,
+  startStamina: 600,
+  maxStamina: 2000,       // high enough that high motivation does not fizzle out at the cap (A)
   cycleCost: 100,
   eatGain: 200,           // stamina from farm × motivation effect (A, farm:house 1:4 of the original, softened)
-  sleepGain: 400,         // Ausdauer durch Wohnhaus (A)
-  campGain: 40,           // Lagerfeuer (A)
+  sleepGain: 400,         // stamina from house × motivation effect (A)
+  campGain: 25,           // campfire, fixed – without house and farm even motivation barely helps (A)
+  // Motivation (%) → effect on eating/sleeping (%), linear between the control points. Below 100 the
+  // recovery drops steeply, above it rises evenly (curve per the refiner analysis, values A).
+  motivationCurve: [[0, 0], [25, 10], [50, 45], [100, 100], [300, 300]],
   eatTicks: 20,           // 2 s (original EatWait)
   sleepTicks: 30,         // 3 s (original RestWait)
   campTicks: 150,         // (A)

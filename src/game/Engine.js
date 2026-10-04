@@ -13,11 +13,13 @@ import { targetable } from '../sim/systems/military.js';
 import { countWorkers, countLeaders, taxIncome } from '../sim/systems/payday.js';
 import { AiPlayer } from '../ai/AiPlayer.js';
 import { saveGame, loadGame } from '../sim/serialize.js';
-import { createMissionSim } from '../sim/missions/runtime.js';
+import { createMissionSim, createScenarioSim } from '../sim/missions/runtime.js';
+import { resetSpeech, stopSpeech } from '../audio/speech.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
 import { getQuality } from '../render/quality.js';
 import { Input } from './Input.js';
+import { ControlGroups } from './groups.js';
 import { buildingSystemsUi } from './buildingUi.js';
 import { isDamaged } from '../sim/systems/damage.js';
 import { hasForecast, forecast } from '../sim/systems/weather.js';
@@ -91,9 +93,9 @@ export class Engine {
     if (opts.load) {
       this.sim = loadGame(opts.load);
       this.ais = (opts.load.extra?.ais ?? []).map((st) => AiPlayer.fromState(this.sim, st));
-    } else if (opts.mission) {
-      // Mission: players, opponents and starting setup come from the mission file
-      this.sim = createMissionSim(opts.mission.id, { seed: opts.mission.seed });
+    } else if (opts.mission || opts.scenario) {
+      // Mission or scenario (world editor, file): players, opponents and setup come from the definition
+      this.sim = opts.scenario ? createScenarioSim(opts.scenario, { seed: opts.seed }) : createMissionSim(opts.mission.id, { seed: opts.mission.seed });
       this.ais = this.sim.mission.def.players
         .map((p, i) => (p.kind === 'ai' ? new AiPlayer(this.sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
     } else {
@@ -106,6 +108,8 @@ export class Engine {
     this.onUi = opts.onUi ?? (() => {});
     /** @type {Set<number>} */
     this.selected = new Set();
+    /** Control groups 1–9 (UI only, no sim state) */
+    this.groups = new ControlGroups();
     /** @type {null | {type: string, x: number, y: number, valid: boolean, reason: string|null, hasPos: boolean}} */
     this.placing = null;
     this.queue = [];
@@ -136,6 +140,11 @@ export class Engine {
     try { this.audio = new GameAudio(this); } catch { this.audio = null; }
     /** Developer mode (src/dev/DevTools.js), only loaded when switched on */
     this.dev = null;
+    /** Running camera move of a script: { fx, fz, tx, tz, t0, ms } */
+    this.camFly = null;
+    /** Halt of the mission script in the debugger has paused the game */
+    this.debugHalt = false;
+    resetSpeech();
   }
 
   /**
@@ -172,6 +181,7 @@ export class Engine {
     window.removeEventListener('kronland-quality', this.onQuality);
     this.input.dispose();
     this.audio?.dispose();
+    stopSpeech();
     // release WebGL resources: the canvas is reused for the next game
     try { this.renderer.dispose(); } catch { /* disposal must never prevent ending */ }
   }
@@ -189,6 +199,8 @@ export class Engine {
     if (steps === 8) this.acc = 0;
     this.input.edgeScroll(dt);
     this.followFocus(now);
+    this.flyCamera(now);
+    this.followUnit(dt);
     this.renderer.frame(this.paused ? 1 : this.acc / TICK_MS, dt, this.prev, {
       selected: this.selected,
       ghost: this.placing?.hasPos ? this.placing : null,
@@ -451,6 +463,100 @@ export class Engine {
     this.selected.clear();
     for (const e of this.sim.entities.values()) if (e.kind === 'unit' && e.owner === this.player) this.selected.add(e.id);
     this.emitUi();
+  }
+
+  /** Select all own squads (captains and heroes). */
+  selectAllArmy() {
+    this.selected.clear();
+    for (const e of this.sim.entities.values()) if ((e.kind === 'leader' || e.kind === 'hero') && e.owner === this.player) this.selected.add(e.id);
+    if (!this.selected.size) this.toast('toast.noArmy', null, { icon: 'soldiers', ttl: 2500 });
+    this.emitUi();
+  }
+
+  /** Hero portrait: select the hero and move the camera to him. */
+  selectHero(id) {
+    const e = this.sim.entities.get(id);
+    if (e?.kind !== 'hero' || e.owner !== this.player) return;
+    this.selected.clear();
+    this.selected.add(id);
+    this.focusPoint(e.px / UNIT, e.py / UNIT);
+    this.emitUi();
+  }
+
+  /** Own selectable figures of the current selection (for control groups). */
+  ownUnitIds() {
+    return [...this.selected].filter((id) => {
+      const e = this.sim.entities.get(id);
+      return e && e.owner === this.player && (e.kind === 'leader' || e.kind === 'hero' || e.kind === 'unit');
+    });
+  }
+
+  /** Assign control group n the current own selection (Shift/Ctrl+number, button in the squad panel). */
+  assignGroup(n) {
+    const ids = this.ownUnitIds();
+    if (!ids.length || !n) return;
+    this.groups.assign(n, ids);
+    this.toast('toast.groupSaved', { n }, { icon: 'banner', ttl: 2000 });
+    this.emitUi();
+  }
+
+  /** Select control group n; on a second recall in quick succession the camera jumps there. */
+  selectGroup(n) {
+    const list = this.groups.members(n, (id) => this.sim.entities.get(id)?.owner === this.player);
+    if (!list.length) return false;
+    this.selected.clear();
+    for (const id of list) this.selected.add(id);
+    this.attackMode = false;
+    if (this.groups.recall(n, performance.now())) this.focusIds(list);
+    this.emitUi();
+    return true;
+  }
+
+  /** Place the camera on the centroid of the figures. */
+  focusIds(ids) {
+    let sx = 0, sz = 0, k = 0;
+    for (const id of ids) {
+      const e = this.sim.entities.get(id);
+      if (e?.px !== undefined) { sx += e.px / UNIT; sz += e.py / UNIT; k++; }
+    }
+    if (k) this.focusPoint(sx / k, sz / k);
+  }
+
+  /** Control groups for quick access: number, icon, count, selected. */
+  groupsInfo() {
+    const sim = this.sim, out = [];
+    for (const n of this.groups.numbers()) {
+      const list = this.groups.members(n, (id) => sim.entities.get(id)?.owner === this.player);
+      if (!list.length) continue;
+      const lines = new Map();
+      let heroes = 0, serfs = 0, hero = null;
+      for (const id of list) {
+        const e = sim.entities.get(id);
+        if (e.kind === 'hero') { heroes++; hero = e.hero; } else if (e.kind === 'leader') { const l = UNITS[e.def].line; lines.set(l, (lines.get(l) ?? 0) + 1); } else serfs++;
+      }
+      const top = [...lines.entries()].sort((a, b) => b[1] - a[1])[0];
+      const icon = top ? 'u-' + top[0] : heroes ? 'hero-' + hero : 'serf';
+      const selected = list.length === this.selected.size && list.every((id) => this.selected.has(id));
+      out.push({ n, icon, count: list.length, selected });
+    }
+    return out;
+  }
+
+  /** Own heroes and idle serfs for quick access. */
+  quickInfo() {
+    const sim = this.sim, heroes = [];
+    let idle = 0;
+    for (const e of sim.entities.values()) {
+      if (e.owner !== this.player) continue;
+      if (e.kind === 'unit' && !e.militia && !e.job && e.goal === undefined) idle++;
+      else if (e.kind === 'hero') {
+        const h = HEROES[e.hero];
+        const ready = !e.down && Object.keys(h.abilities).some((a) => (e.ready[a] ?? 0) <= sim.tick);
+        heroes.push({ id: e.id, hero: e.hero, hp: e.hp, maxHp: h.hp, down: !!e.down, ready, selected: this.selected.has(e.id) });
+      }
+    }
+    const sel = this.ownUnitIds();
+    return { idleSerfs: idle, heroes, groups: this.groupsInfo(), group: { current: this.groups.find(sel), next: this.groups.nextFree() } };
   }
 
   focusSelection() {
@@ -717,7 +823,8 @@ export class Engine {
       } else if (f & 8) {
         c = [128, 116, 104];
       } else {
-        const t = Math.max(0, Math.min(1, (h - wl) / Math.max(1, hmax - wl)));
+        // Minimum span: a flat meadow (coding adventure, editor) stays green instead of rock-coloured
+        const t = Math.max(0, Math.min(1, (h - wl) / Math.max(2500, hmax - wl)));
         // meadow → hill → rock; snow-covered in winter
         c = t < 0.55 ? [118 + t * 60, 164 + t * 10, 82 + t * 20] : [150 + (t - 0.55) * 120, 158 - (t - 0.55) * 40, 110 + (t - 0.55) * 60];
         if (m.frozen) c = [c[0] * 0.3 + 160, c[1] * 0.3 + 168, c[2] * 0.3 + 172];
@@ -819,6 +926,71 @@ export class Engine {
   missionNext() { this.issue({ type: 'mission', action: 'next' }); }
   missionSkip() { this.issue({ type: 'mission', action: 'skip' }); }
 
+  // ---------- Python scripts (scenarios, coding adventure) ----------
+
+  /**
+   * Start the player program. The code goes into the simulation as a command (deterministic).
+   * @param {Record<string, string>} sections code of the editable sections
+   * @param {{ mode?: 'run'|'step', bps?: Record<string, number[]> }} [debug]
+   */
+  scriptRun(sections, debug = null) {
+    this.issue({ type: 'script', action: 'run', sections, ...(debug ? { debug } : {}) });
+    // Camera follows the hero until the player moves it
+    const hero = [...this.sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === this.player);
+    this.follow = hero ? { id: hero.id, last: null } : null;
+    if (this.debugHalt) { this.paused = false; this.debugHalt = false; }
+    this.emitUi();
+  }
+
+  scriptStop() { this.issue({ type: 'script', action: 'stop' }); this.emitUi(); }
+
+  /**
+   * Debugger: 'continue' | 'into' | 'over' | 'out' | 'pause'; target 'player' or 'mission'.
+   * If the mission script holds the game, a step immediately computes one tick (otherwise the command would never arrive).
+   */
+  scriptDebug(cmd, target = 'player', bps = null) {
+    this.issue({ type: 'script', action: 'debug', target, cmd, ...(bps ? { bps } : {}) });
+    if (target === 'mission' && this.debugHalt) {
+      this.stepOnce();
+      if (cmd === 'continue') { this.debugHalt = false; this.paused = false; }
+    }
+    this.emitUi();
+  }
+
+  /** Change breakpoints without influencing the run. */
+  scriptBreakpoints(target, bps) { this.issue({ type: 'script', action: 'debug', target, bps }); }
+
+  skipDialog() {
+    if (this.sim.mission?.script) this.issue({ type: 'script', action: 'skipDialog' });
+  }
+
+  /** Move the camera smoothly behind a figure (hero in the coding adventure while his program runs). */
+  followUnit(dt) {
+    const f = this.follow;
+    if (!f || this.camFly) return;
+    const e = this.sim.entities.get(f.id);
+    const rig = this.renderer.rig;
+    if (!e || (f.last && (Math.abs(rig.target.x - f.last.x) > 0.05 || Math.abs(rig.target.z - f.last.z) > 0.05))) { this.follow = null; return; }
+    const k = 1 - Math.exp(-dt * 2.5);
+    const x = e.px / 1000, z = e.py / 1000;
+    rig.lookAt(rig.target.x + (x - rig.target.x) * k, rig.target.z + (z - rig.target.z) * k);
+    f.last = { x: rig.target.x, z: rig.target.z };
+  }
+
+  /** Weiche Kamerafahrt (Skript: camera.fly_to). */
+  flyCamera(now) {
+    const f = this.camFly;
+    if (!f) return;
+    const rig = this.renderer.rig;
+    // Player moved the camera themselves: abort the move
+    if (f.last && (Math.abs(rig.target.x - f.last.x) > 0.05 || Math.abs(rig.target.z - f.last.z) > 0.05)) { this.camFly = null; return; }
+    const t = Math.min(1, (now - f.t0) / f.ms);
+    const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+    rig.lookAt(f.fx + (f.tx - f.fx) * e, f.fz + (f.tz - f.fz) * e);
+    f.last = { x: rig.target.x, z: rig.target.z };
+    if (t >= 1) this.camFly = null;
+  }
+
   /**
    * Mission data for the UI; incidentally checks tutorial steps that only the
    * UI can see (camera moved, serfs selected), and follows camera hints.
@@ -830,9 +1002,19 @@ export class Engine {
     const mv = this.missionView;
     if (ui.camera && ui.camera.seq !== mv.cameraSeq) {
       mv.cameraSeq = ui.camera.seq;
-      // do not hide the target under the (possibly still open) panel of the previous step
-      this.focusPoint(ui.camera.x + 0.5, ui.camera.y + 0.5);
+      if (ui.camera.fly > 0) {
+        // camera move: duration in game time (ticks), shorter accordingly at faster speed
+        const rig = this.renderer.rig;
+        this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: ui.camera.x + 0.5, tz: ui.camera.y + 0.5, t0: performance.now(), ms: (ui.camera.fly * 100) / Math.max(0.25, this.speed) };
+      } else {
+        this.camFly = null;
+        // do not hide the target under the (possibly still open) panel of the previous step
+        this.focusPoint(ui.camera.x + 0.5, ui.camera.y + 0.5);
+      }
     }
+    // Breakpoint in the mission script (world editor, test play): halt the game until the debugger continues
+    if (ui.script?.mission.paused && !this.debugHalt) { this.debugHalt = true; this.paused = true; }
+    else if (!ui.script?.mission.paused && this.debugHalt) { this.debugHalt = false; this.paused = false; }
     const step = m.currentStep();
     const check = step?.done?.type === 'ui' ? step.done.check : null;
     if (check && !mv.checks[`${step.id}`]) {
@@ -991,6 +1173,7 @@ export class Engine {
       speed: this.speed,
       paused: this.paused,
       selection,
+      ...this.quickInfo(),
       buildOptions,
       placing: this.placing ? { type: this.placing.type, valid: this.placing.valid, reason: this.placing.reason, hasPos: this.placing.hasPos, level: this.placing.slope?.state ?? null } : null,
       toasts: this.toasts.map((t) => ({ id: t.id, key: t.key, params: t.params, icon: t.icon, tone: t.tone, pos: t.pos })),

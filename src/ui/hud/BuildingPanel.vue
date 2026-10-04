@@ -1,24 +1,27 @@
 <template>
-  <div class="bpanel">
+  <!-- Desktop (cols): sections in two columns, so the panel becomes wider instead of taller -->
+  <div class="bpanel" :class="{ cols }">
     <!-- Compact key figures only if the selection card on the right is missing (narrow screens) -->
-    <SelectionStats v-if="compact" :sel="sel" class="bp-stats" />
+    <SelectionStats v-if="compact" :sel="sel" class="bp-stats bp-span" />
 
     <!-- Fire / damage: at the very top so it is not overlooked -->
-    <RepairState v-if="sel.repair?.damaged" :repair="sel.repair" :own="sel.own" @repair="act({ kind: 'repair', id: sel.id })" />
+    <RepairState v-if="sel.repair?.damaged" class="bp-span" :repair="sel.repair" :own="sel.own" @repair="act({ kind: 'repair', id: sel.id })" />
 
-    <div v-if="sel.own" class="bp-actions">
+    <!-- Commands of the building: tiles with icon and name -->
+    <div v-if="sel.own && (sel.upgrade || (sel.workers && sel.done) || sel.canDemolish)" class="acts bp-span">
       <button
         v-if="sel.upgrade"
-        v-tip="{ title: $t('bld.upgrade', { name: $name.building(sel.type, sel.upgrade.level) }), cost: sel.upgrade.cost, have, reason: sel.upgrade.reason ? $reason(sel.upgrade.reason) : null }"
-        class="bp-act"
-        :class="{ primary: !sel.upgrade.reason }"
+        v-tip="{ title: $t('bld.upgrade', { name: $name.building(sel.type, sel.upgrade.level) }), text: $t('bld.upgradeTip'), cost: sel.upgrade.cost, have, reason: sel.upgrade.reason ? $reason(sel.upgrade.reason) : null }"
+        class="act act-wide"
+        :class="{ ready: !sel.upgrade.reason }"
         :aria-disabled="!!sel.upgrade.reason"
         data-testid="upgrade"
         @click="!sel.upgrade.reason && act({ kind: 'upgrade', id: sel.id })"
       >
         <Icon name="upgrade" />
-        <span class="bp-acttext">
-          <b>{{ $t('bld.upgrade', { name: $name.building(sel.type, sel.upgrade.level) }) }}</b>
+        <span class="act-text">
+          <b>{{ $t('bld.upgradeShort') }}</b>
+          <small>{{ $t('bld.upgradeNext', { name: $name.building(sel.type, sel.upgrade.level), n: sel.upgrade.level + 1 }) }}</small>
           <span v-if="sel.upgrade.reason && reasonCode(sel.upgrade.reason) !== 'err.notEnoughResources'" class="bp-why">{{ $reason(sel.upgrade.reason) }}</span>
           <CostList v-else :cost="sel.upgrade.cost" :have="have" />
         </span>
@@ -26,21 +29,21 @@
       <button
         v-if="sel.workers && sel.done"
         v-tip="$t('bld.overtimeTip')"
-        class="bp-act small"
+        class="act"
         role="switch"
         :aria-checked="!!sel.overtime"
-        :class="{ active: sel.overtime }"
+        :class="{ on: sel.overtime }"
         data-testid="overtime"
         @click="act({ kind: 'overtime', id: sel.id, on: !sel.overtime })"
-      ><Icon name="overtime" /><span>{{ $t('bld.overtime') }}</span></button>
+      ><Icon name="overtime" /><span class="act-lbl">{{ $t('bld.overtime') }}</span></button>
       <button
         v-if="sel.canDemolish"
         v-tip="$t('bld.demolishTip')"
-        class="bp-act small"
-        :class="{ danger: confirmDemolish }"
+        class="act act-danger"
+        :class="{ on: confirmDemolish }"
         data-testid="demolish"
         @click="demolish"
-      ><Icon name="demolish" /><span>{{ confirmDemolish ? $t('bld.demolishConfirm') : $t('bld.demolish') }}</span></button>
+      ><Icon name="demolish" /><span class="act-lbl">{{ confirmDemolish ? $t('bld.demolishConfirm') : $t('bld.demolish') }}</span></button>
     </div>
 
     <!-- Castle: serfs, militia, taxes -->
@@ -50,7 +53,9 @@
         <button v-tip="{ title: $t('bld.buySerf'), cost: [['gold', serfCost]], have }" class="primary bp-buy" data-testid="buy-serf" @click="$emit('buy-serf', 1)">
           <Icon name="serf" /><span>{{ $t('bld.buySerf') }}</span><CostList :cost="[['gold', serfCost]]" />
         </button>
-        <button v-tip="{ title: $t('bld.buySerfs'), cost: [['gold', serfCost * 5]], have }" data-testid="buy-serf-5" @click="$emit('buy-serf', 5)">{{ $t('bld.buySerfs') }}</button>
+        <button v-tip="{ title: $t('bld.buySerfs'), text: $t('bld.buySerfsTip'), cost: [['gold', serfCost * 5]], have }" class="bp-buy" data-testid="buy-serf-5" @click="$emit('buy-serf', 5)">
+          <Icon name="serf" /><span>{{ $t('bld.buySerfs') }}</span><CostList :cost="[['gold', serfCost * 5]]" :have="have" />
+        </button>
         <button
           v-if="sel.militia !== null && sel.militia !== undefined"
           v-tip="sel.militia ? $t('bld.militiaOffTip') : $t('bld.militiaOnTip')"
@@ -81,7 +86,7 @@
     </section>
 
     <!-- College -->
-    <section v-if="sel.research" class="bp-sec">
+    <section v-if="sel.research" class="bp-sec bp-span">
       <h4 class="h-label">
         <Icon name="research" />{{ $t('bld.research') }}
         <span v-if="sel.researching" class="bp-running num">{{ $t('bld.researching', { tech: $name.tech(sel.researching.tech), p: sel.researching.progress }) }}</span>
@@ -90,7 +95,7 @@
     </section>
 
     <!-- Military buildings -->
-    <section v-if="sel.recruit?.length" class="bp-sec">
+    <section v-if="sel.recruit?.length" class="bp-sec bp-span">
       <h4 class="h-label"><Icon name="banner" />{{ $t('bld.recruit') }}</h4>
       <div class="bp-cards">
         <article v-for="r in sel.recruit" :key="r.line" class="rcard inset">
@@ -216,6 +221,8 @@ export default {
     blessingCost: { type: Number, default: 1000 },
     serfCost: { type: Number, default: 50 },
     compact: Boolean,
+    /** Enough width for two columns (desktop) */
+    cols: Boolean,
     hints: { type: Boolean, default: true },
   },
   emits: ['action', 'buy-serf'],
@@ -245,15 +252,9 @@ export default {
 
 <style>
 .bpanel { display: flex; flex-direction: column; gap: 0.625rem; }
-.bp-actions { display: flex; flex-wrap: wrap; gap: 0.375rem; }
-.bp-act { display: inline-flex; align-items: center; gap: 0.5rem; text-align: left; }
-.bp-act .ico { width: 1.375rem; height: 1.375rem; }
-.bp-act.small { font-size: var(--fs-sm); }
-.bp-acttext { display: flex; flex-direction: column; gap: 0.0625rem; }
-.bp-acttext b { font-weight: 700; }
-.bp-act.primary .costs { color: #3b2406; }
+.bpanel.cols { display: grid; grid-template-columns: repeat(2, minmax(17rem, 1fr)); grid-auto-flow: row dense; gap: 0.75rem 1.25rem; align-items: start; }
+.bpanel.cols > .bp-span, .bpanel.cols > .bp-note { grid-column: 1 / -1; }
 .bp-why { font-size: var(--fs-xs); color: var(--warn); font-weight: 700; }
-.bp-act.primary .bp-why { color: #6b2a06; }
 .bp-sec { display: flex; flex-direction: column; gap: 0.375rem; }
 .bp-sec .h-label .ico { width: 1.125rem; height: 1.125rem; }
 .bp-running { text-transform: none; letter-spacing: 0; color: var(--gold-200); font-weight: 700; margin-left: auto; order: 3; }

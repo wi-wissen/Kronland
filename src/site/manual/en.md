@@ -32,8 +32,9 @@ You begin with a **castle**, {{startSerfs}} **serfs**, a hero and a small stock:
 | Rotate camera | [[Q]] / [[E]], [[Ins]] / [[Del]], drag with right mouse button |
 | Zoom | Mouse wheel, [[PgUp]] / [[PgDn]] |
 | Build | Build menu, click places the building, right-click cancels |
-| Choose build category | [[1]] … [[5]] |
-| Hero ability | [[1]] / [[2]] (hero selected) |
+| Hero ability | [[X]] / [[C]] (hero selected) |
+| Save control group | [[Shift]] + [[1]] … [[9]] |
+| Select control group | [[1]] … [[9]], twice: camera follows |
 | Idle serfs | [[.]] |
 | Go to castle | [[H]] |
 | Pause | [[Space]] |
@@ -63,23 +64,29 @@ under **Settings**.
 
 ![Population, motivation, weather and payday](site/hud-status.webp)
 
-- **Resources:** thalers, clay, wood, stone, iron and sulfur. The large number is what you can spend; the
-  small one below is raw material still waiting to be processed (see [Economy](#economy)).
+- **Resources:** thalers, clay, wood, stone, iron and sulfur – the number is what you can spend. Hover to see how
+  much of it is raw material still waiting to be processed (see [Economy](#economy)). If something is missing
+  for the building under the pointer in the build menu, that resource turns red.
 - **Population:** used and available places. Village centres add more.
 - **Motivation:** your workers’ average. Hover to see the maximum and thresholds.
-- **Payday:** countdown to the next tax income, with expected taxes and wages.
-- **Weather:** current season and time to the next change.
-- **Pause and speed:** 1×, 2× or 4×; the **menu** on the far right.
+- **Payday:** the round medallion in the middle fills up until the next tax income. The seconds only appear
+  shortly before; on payday itself it lights up once. The hint shows expected taxes and wages.
+- **Weather:** the ring shows how much of the season has passed; the exact time is in the hint.
+- **Pause and speed:** the speed button opens the choices 1×, 2× and 4×; the **menu** on the far right.
 
 ### Command bar, minimap and context panel
 
 ![Command bar with quick access, minimap and build menu](site/hud-commandbar.webp)
 
-- **Quick access:** *Castle* jumps to your castle, *Idle* selects serfs without work, *All* selects all serfs.
+- **Quick access** on the rim of the round minimap: *Castle* jumps to your castle, *Idle* selects serfs without work
+  (the number on it says how many), *All* selects all serfs, *Troops* all soldiers and heroes.
+- **Heroes and control groups** above the map: clicking a hero portrait selects the hero and brings them into view.
+  Shift+1 to 9 saves a selection as a group; the number key or the group plate selects it again, twice in a row
+  brings it into view.
 - **Minimap:** shows terrain, buildings and troops. Click or drag to move the camera.
-- **Context panel:** shows what you have selected. With nothing selected you see the **build menu** with five tabs:
-  *Housing & Supply*, *Raw materials*, *Refining*, *Military*, *Administration & Decor*. Locked buildings say
-  what is missing (usually a technology).
+- **Command panel:** appears as soon as you select something. With serfs it shows the **build menu** with all
+  groups at a glance: *Housing*, *Raw materials*, *Refining*, *Military*, *Administration*. A red dot means
+  “too expensive”, a lock “not yet researched” – the hint says what is missing.
 
 ![Minimap](site/hud-minimap.webp)
 
@@ -127,7 +134,7 @@ Costs are deducted when you place the building. Demolishing refunds half.
 
 Almost every building has several **levels** (residence → medium → large residence). Upgrading costs resources, often a
 technology, and takes a while; the building keeps working meanwhile. All levels, costs and requirements are
-listed in the [wiki](compendium/#buildings).
+listed in the [compendium](compendium/#buildings).
 
 ### Population
 
@@ -197,7 +204,7 @@ At the **college** (later **university**), scholars research technologies in fou
 
 There are also **building technologies**: the smithy improves armour and blades, the sawmill spears and arrows,
 the alchemist cannons and weather technology, castle and village centre tracking, city guard, loom and
-shoes. The full tree with costs and effects is in the [wiki](compendium/#techs).
+shoes. The full tree with costs and effects is in the [compendium](compendium/#techs).
 
 ![University selected: technologies of the four lines](site/hud-research.webp)
 
@@ -213,7 +220,7 @@ cavalry, cannons.
 - Use **Refill** to buy missing soldiers – the captain must stand at the military building.
 - **Upgrading** raises an entire troop type to the next level, existing troops included.
 - Each troop type has strengths and weaknesses: spears against cavalry, swords against spears, cannons against buildings.
-  The exact damage table is in the [wiki](compendium/#units).
+  The exact damage table is in the [compendium](compendium/#units).
 
 ![Troops selected: captains, hero and orders](site/hud-army.webp)
 
@@ -247,6 +254,36 @@ Trigger abilities with the buttons in the panel or [[1]] / [[2]]; afterwards the
 **“To arms!”** at the castle calls all serfs to fight as militia.
 
 ![Captains with their troops and the hero in battle](site/combat.webp)
+
+## Tavern, thief and scout {#spezialisten}
+
+Not every battle is fought with swords. Once you have researched **Education** you can build a **tavern** and hire
+two special figures there – at most {{specialistMax}} of each, and each needs one population slot.
+
+| Figure | Cost | Strengths |
+|---|---|---|
+| **Thief** | {{thiefCost}} | **invisible** to enemies, fast, does not fight |
+| **Scout** | {{scoutCost}} | sees very far, spots enemy thieves nearby |
+
+Select them like troops; their abilities are in the panel at the bottom (keys [[1]] and [[2]]).
+
+- **Steal:** Send the thief to an enemy's castle, storehouse or village centre. After a short while he carries
+  thalers and resources back to your castle – if he dies on the way, the loot is lost. Then he needs a
+  {{stealSec}} s break.
+- **Explosive charge:** The thief plants a charge on an enemy building that goes off shortly after. Bridges
+  collapse especially easily.
+- **Torch:** The scout lights up a circle in the fog of war for a while.
+- **Find resources:** Every map hides **hidden deposits** (iron, sulfur, stone, clay). Only a scout uncovers them –
+  afterwards they are normal resource piles.
+
+> **Protection from thieves:** A thief becomes visible when he comes closer than {{detectTower}} tiles to one of
+> your **towers** or {{detectScout}} tiles to one of your **scouts**. Then your troops can attack him.
+
+### Bridges
+
+Rivers divide the map – at some places you can build a **bridge**. The **Mathematics** technology (stonemason's
+hut) unlocks it; the build menu then shows the possible bridge sites. Finished bridges are used by everyone,
+including the enemy. If a bridge is destroyed, whoever stands on it drowns.
 
 ## Weather {#weather}
 
@@ -296,7 +333,7 @@ trees, water, rock as well as settlement spots and shafts stay untouched. The pa
 demolished later. Cliffs and peaks can never be built on.
 
 > **Tip:** Need a spot on a steep hillside? Try one tile further up or down – that is often enough for yellow.
-> The exact formula with a worked example is in the [wiki](compendium/#slope).
+> The exact formula with a worked example is in the [compendium](compendium/#slope).
 
 ![Placement preview on a slope: yellow – the ground will be levelled](site/slope.webp)
 
@@ -352,6 +389,58 @@ list like a normal save and is overwritten every time – use a slot of your own
 
 Saves are kept in your browser’s storage. If you clear site data or play in a private window, they are gone –
 export the ones that matter.
+
+## Coding adventures {#coding}
+
+In the **coding adventures** you don't steer your hero with the mouse but with a program written in **Python**.
+They are meant for anyone who wants to learn programming – in class, too. No prior knowledge needed: every
+adventure explains what is new.
+
+Open **Coding Adventures** in the start menu. The adventures build on each other:
+
+{{adventureList}}
+
+There is also the script mission {{scriptMissions}}, a normal game whose story is written entirely in Python.
+
+### The code panel
+
+Your program is on the right – on a phone you open it with the golden **Code** coin. The buttons are at the top of the panel:
+
+| Button | Effect |
+|---|---|
+| **Run** | starts the program; the hero carries it out in the world right away |
+| **Stop** | ends the program |
+| **Step** | runs exactly one statement, also into functions |
+| **Over** | next line – function calls run through in one go |
+| **Out** | continue until the current function has finished |
+| **Continue** / **Pause** | run to the next breakpoint, or pause |
+
+Clicking a **line number** sets a **breakpoint**. When the program pauses, the current line is highlighted green and
+you see all variables and the call stack. On an error the line turns red; a box explains what went wrong and often
+makes a suggestion (“Did you mean `turn_left`?”).
+
+**Commands** lists every command with an explanation and an example you can insert with one tap. The most important:
+`hero.step()`, `hero.turn_left()`, `hero.turn_right()`, `hero.ahead()`, `hero.chop()`, `hero.take()` and `print()`.
+
+```
+for i in range(10):
+    hero.step()
+```
+
+On a phone a key bar helps with indentation, colon, brackets and quotes. Your code is remembered in the browser –
+you can carry on at any time.
+
+![Coding adventure: the program stops at a breakpoint (green line), the variables below](site/programming.webp)
+
+### World editor
+
+Under **Coding Adventures → World editor** you build your own maps: raise and lower terrain, place water, forest,
+resources, start positions and named places. You write the story in Python as well – dialogues, camera flights,
+objectives, attack waves. **Test play** starts your world right away; you can save it as a file and play or share
+it again via **Open scenario file**.
+
+> **For teachers:** Which parts of Python are available and every command are described in the
+> [scripting documentation](https://github.com/wi-wissen/Kronland/blob/main/docs/SKRIPTE.md).
 
 ## Developer mode {#developer-mode}
 
@@ -412,7 +501,7 @@ Choose a lower **graphics quality** in Settings or start with `?quality=low`.
 Yes, after the first load – especially when installed as an app.
 
 **Where can I find exact numbers?**
-In the [wiki](compendium/): all buildings, units, technologies and formulas.
+In the [compendium](compendium/): all buildings, units, technologies and formulas.
 
 ## Credits and licences {#licenses}
 

@@ -32,9 +32,9 @@ export const BUILDINGS = {
   headquarters: {
     id: 'headquarters', w: 5, h: 5, placement: 'free', buildable: false,
     levels: [
-      { name: 'Burg', cost: {}, buildTime: 0, hp: 2500 },
-      { name: 'Festung', cost: { gold: 450, clay: 250, stone: 300 }, buildTime: 120, hp: 3200 },
-      { name: 'Zitadelle', cost: { gold: 600, clay: 400, stone: 500 }, buildTime: 150, hp: 4100 }, // (A)
+      { name: 'Burg', cost: {}, buildTime: 0, hp: 2600 },
+      { name: 'Festung', cost: { gold: 450, clay: 250, stone: 300 }, buildTime: 120, hp: 3400 },
+      { name: 'Zitadelle', cost: { gold: 600, clay: 400, stone: 500 }, buildTime: 150, hp: 4200 }, // (A)
     ],
   },
   villageCenter: {
@@ -116,40 +116,40 @@ function refiner(id, n1, n2, cost, requires, workers) {
   };
 }
 
-// Military (cost (A), HP/armor from dedk.de)
+// Military (cost and HP (A), armour per dedk.de)
 BUILDINGS.barracks = {
   id: 'barracks', w: 4, h: 4, placement: 'free', requires: 'conscription', armor: 4,
   levels: [
-    { name: 'Kaserne', cost: { wood: 300, stone: 250 }, buildTime: 90, hp: 1500 },
-    { name: 'Garnison', cost: { gold: 200, stone: 400 }, buildTime: 70, hp: 2000 },
+    { name: 'Kaserne', cost: { wood: 300, stone: 250 }, buildTime: 90, hp: 1600 },
+    { name: 'Garnison', cost: { gold: 200, stone: 400 }, buildTime: 70, hp: 2100 },
   ],
 };
 BUILDINGS.archery = {
   id: 'archery', w: 4, h: 3, placement: 'free', requires: 'standingArmy', armor: 4,
   levels: [
-    { name: 'Schießplatz', cost: { wood: 300, stone: 200 }, buildTime: 80, hp: 1500 },
-    { name: 'Schießanlage', cost: { gold: 200, stone: 400 }, buildTime: 70, hp: 2000 },
+    { name: 'Schießplatz', cost: { wood: 300, stone: 200 }, buildTime: 80, hp: 1400 },
+    { name: 'Schießanlage', cost: { gold: 200, stone: 400 }, buildTime: 70, hp: 1900 },
   ],
 };
 BUILDINGS.stable = {
   id: 'stable', w: 4, h: 4, placement: 'free', requires: 'tactics', armor: 4,
   levels: [
-    { name: 'Reiterei', cost: { wood: 400, stone: 300 }, buildTime: 90, hp: 1500 },
-    { name: 'Stall', cost: { gold: 300, stone: 400 }, buildTime: 80, hp: 2000 },
+    { name: 'Reiterei', cost: { wood: 400, stone: 300 }, buildTime: 90, hp: 1600 },
+    { name: 'Stall', cost: { gold: 300, stone: 400 }, buildTime: 80, hp: 2100 },
   ],
 };
 BUILDINGS.foundry = {
   id: 'foundry', w: 4, h: 3, placement: 'free', requires: 'metallurgy', armor: 3,
   levels: [
-    { name: 'Kanonengießerei', cost: { stone: 400, iron: 300 }, buildTime: 90, hp: 1200 },
-    { name: 'Kanonenmanufaktur', cost: { gold: 300, stone: 400, iron: 300 }, buildTime: 80, hp: 2000 },
+    { name: 'Kanonengießerei', cost: { stone: 400, iron: 300 }, buildTime: 90, hp: 1300 },
+    { name: 'Kanonenmanufaktur', cost: { gold: 300, stone: 400, iron: 300 }, buildTime: 80, hp: 1900 },
   ],
 };
 BUILDINGS.tower = {
   id: 'tower', w: 2, h: 2, placement: 'free', requires: 'construction', armor: 6,
   levels: [
-    { name: 'Wachturm', cost: { wood: 200, stone: 300 }, buildTime: 60, hp: 1000 },
-    { name: 'Ballistaturm', cost: { stone: 300, iron: 100 }, buildTime: 50, hp: 1200 },
+    { name: 'Wachturm', cost: { wood: 200, stone: 300 }, buildTime: 60, hp: 900 },
+    { name: 'Ballistaturm', cost: { stone: 300, iron: 100 }, buildTime: 50, hp: 1150 },
     { name: 'Kanonenturm', cost: { stone: 400, iron: 200, sulfur: 100 }, buildTime: 60, hp: 1400 },
   ],
 };

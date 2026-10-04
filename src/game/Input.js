@@ -231,11 +231,19 @@ export class Input {
   }
 
   keydown(e) {
-    if (e.target instanceof HTMLInputElement) return;
+    // Typing in input fields and in the code editor does not steer the camera
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target?.isContentEditable) return;
     const k = e.key.toLowerCase();
     if (k === 'escape') { this.engine.cancelPlacement(); this.engine.clearSelection(); return; }
     if (k === ' ') { e.preventDefault(); this.engine.togglePause(); return; }
     if (k === '.') { this.engine.selectIdleSerfs(); return; }
+    // Control groups: Shift/Ctrl+number remembers the selection, number recalls it (twice: camera there)
+    const digit = /^(Digit|Numpad)([1-9])$/.exec(e.code ?? '');
+    if (digit) {
+      const n = Number(digit[2]);
+      if (e.shiftKey || e.ctrlKey || e.metaKey) { e.preventDefault(); this.engine.assignGroup(n); return; }
+      if (!e.altKey && this.engine.selectGroup(n)) return;
+    }
     this.rig.keys.add(k);
   }
 }

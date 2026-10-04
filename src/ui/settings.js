@@ -21,6 +21,7 @@ const QUALITY_KEY = 'kronland.quality';
  * @property {boolean} edgeScroll move the camera at the screen edge (mouse)
  * @property {boolean} hints show help texts in the panels
  * @property {boolean} labels short labels under the icons (build, command and quick bar)
+ * @property {boolean} speech read dialogues aloud (MP3 of the scenario or the browser's speech synthesis)
  * @property {boolean} autosave save automatically (save slot "Autosave")
  */
 
@@ -28,7 +29,7 @@ const QUALITY_KEY = 'kronland.quality';
 const coarse = () => { try { return globalThis.matchMedia?.('(pointer: coarse)').matches ?? false; } catch { return false; } };
 
 /** @type {Omit<Settings, 'lang'|'quality'>} */
-export const DEFAULTS = { master: 0.8, music: 0.6, effects: 0.8, uiScale: 1, edgeScroll: true, hints: true, labels: coarse(), autosave: true };
+export const DEFAULTS = { master: 0.8, music: 0.6, effects: 0.8, uiScale: 1, edgeScroll: true, hints: true, labels: coarse(), speech: true, autosave: true };
 
 const LIMITS = { master: [0, 1], music: [0, 1], effects: [0, 1], uiScale: [0.9, 1.3] };
 
@@ -54,7 +55,7 @@ function sanitize(key, value) {
     const [lo, hi] = LIMITS[key];
     return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n * 100) / 100)) : DEFAULTS[key];
   }
-  if (key === 'edgeScroll' || key === 'hints' || key === 'labels' || key === 'autosave') return !!value;
+  if (key === 'edgeScroll' || key === 'hints' || key === 'labels' || key === 'speech' || key === 'autosave') return !!value;
   return value;
 }
 

@@ -41,7 +41,7 @@ import SiteLayout from '../SiteLayout.vue';
 import { manualSections } from './content.js';
 
 export default {
-  name: 'HandbuchPage',
+  name: 'ManualPage',
   components: { SiteLayout },
   data() {
     return { query: '', active: '', tocOpen: typeof window === 'undefined' || window.innerWidth > 900 };

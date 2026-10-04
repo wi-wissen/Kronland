@@ -1,6 +1,8 @@
 <template>
-  <StartMenu v-if="screen === 'menu'" :latest="latest" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" />
+  <StartMenu v-if="screen === 'menu'" :latest="latest" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" @adventures="screen = 'adventures'" />
   <CampaignMenu v-else-if="screen === 'campaign'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @tutorial="startMission('tutorial')" />
+  <AdventureMenu v-else-if="screen === 'adventures'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @editor="openEditor()" @open="startScenario($event)" />
+  <WorldEditor v-else-if="screen === 'editor'" :initial="editorScenario" :touch="touchDevice" @back="closeEditor" @play="startScenario($event, 'editor')" @change="editorScenario = $event" />
 
   <div v-else-if="screen === 'loading'" class="loading backdrop" data-testid="loading">
     <div class="ld-card frame">
@@ -13,17 +15,21 @@
     </div>
   </div>
 
-  <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact, 'show-labels': settings.labels }" :style="hudVars">
+  <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact, narrow, mid, 'show-labels': settings.labels }" :style="hudVars">
     <canvas ref="canvas" data-testid="game-canvas"></canvas>
 
     <template v-if="ui && engine">
-      <TopBar ref="top" :ui="ui" @speed="engine.setSpeed($event)" @pause="engine.togglePause()" @menu="openMenu" />
+      <TopBar ref="top" :ui="ui" :need="need" @speed="engine.setSpeed($event)" @pause="engine.togglePause()" @menu="openMenu" />
 
       <CommandBar
         :ui="ui"
         :engine="engine"
         :compact="compact"
+        :narrow="narrow"
+        :mid="mid"
         :hints="settings.hints"
+        :code="showScriptPanel ? { open: scriptOpen, running: ui.mission.script.player?.status === 'running' } : null"
+        @code="scriptOpen = !scriptOpen"
         @build="engine.startPlacement($event)"
         @buy-serf="engine.buySerf($event)"
         @confirm="engine.confirmPlacement()"
@@ -32,6 +38,9 @@
         @action="onAction"
         @quick="onQuick"
         @height="bottomH = $event"
+        @preview="preview = $event"
+        @hero="onHero"
+        @group="engine.selectGroup($event)"
       />
 
       <ToastFeed :toasts="ui.toasts" @jump="jump" />
@@ -51,7 +60,7 @@
         </div>
       </div>
 
-      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" @next="engine.missionNext()" @skip="engine.missionSkip()" />
+      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog()" />
       <MissionResult
         v-if="ui.mission?.result"
         :result="ui.mission.result"
@@ -59,10 +68,23 @@
         :objectives="ui.mission.objectives"
         :record="record"
         :lang="$i18n.lang"
+        :origin="origin ?? 'campaign'"
         @next="startMission"
-        @retry="startMission(ui.mission.id)"
+        @retry="retry"
         @campaign="toCampaign"
         @menu="quit"
+      />
+
+      <ScriptPanel
+        v-if="showScriptPanel"
+        :key="'sp-' + scenarioOf.id"
+        :engine="engine"
+        :scenario="scenarioOf"
+        :script="ui.mission.script"
+        :mode="origin === 'editor' ? 'editor' : 'adventure'"
+        v-model:open="scriptOpen"
+        :compact="compact"
+        :touch="!!ui.touch"
       />
 
       <DevPanel v-if="dev.on" :engine="engine" :touch="!!ui.touch" />
@@ -88,6 +110,7 @@ import Tooltip from './Tooltip.vue';
 import CampaignMenu from './mission/CampaignMenu.vue';
 import MissionHud from './mission/MissionHud.vue';
 import MissionResult from './mission/MissionResult.vue';
+import AdventureMenu from './script/AdventureMenu.vue';
 import { recordWin, loadProgress } from './mission/progress.js';
 import { getMission } from '../sim/missions/registry.js';
 import { setMenuMusic } from '../audio/index.js';
@@ -98,19 +121,29 @@ import { defaultSaveName } from '../save/format.js';
 import { makeThumb } from './saves/thumb.js';
 import { t } from '../i18n/index.js';
 import { devState, setDevMode, isDevHotkey } from '../dev/state.js';
-/** From this width (CSS px) the command bar gets minimap and selection card side by side. */
-const WIDE = 900;
+import { missing } from './hud/hudLayout.js';
+/** Levels by window width (CSS px at UI size 100 %), as classes on .game:
+ *  compact – phone/narrow: panel across the full width, map as a button;
+ *  mid – smaller map and tiles; narrow – portrait without shield, key figures in the panel. */
+const COMPACT = 760;
+const MID = 1100;
+const NARROW = 1500;
 
 export default {
   name: 'App',
   components: {
-    TopBar, CommandBar, ToastFeed, StartMenu, GameMenu, Tooltip, CampaignMenu, MissionHud, MissionResult,
+    TopBar, CommandBar, ToastFeed, StartMenu, GameMenu, Tooltip, CampaignMenu, MissionHud, MissionResult, AdventureMenu,
+    // Code panel and world editor: loaded only on demand
+    ScriptPanel: defineAsyncComponent(() => import('./script/ScriptPanel.vue')),
+    WorldEditor: defineAsyncComponent(() => import('./editor/WorldEditor.vue')),
     // Developer mode: loaded only when switched on
     DevPanel: defineAsyncComponent(() => import('./dev/DevPanel.vue')),
   },
   data() {
     return {
       screen: 'menu',
+      /** Code panel opened on phone */
+      scriptOpen: false,
       /** Engine deliberately lives outside reactivity (markRaw). */
       engine: null,
       ui: null,
@@ -122,20 +155,36 @@ export default {
       record: false,
       settings,
       compact: false,
+      mid: false,
+      narrow: false,
+      /** Cost of the building under the mouse pointer in the build menu (missing resources shown red on top) */
+      preview: null,
       bottomH: 220,
       topH: 64,
       watching: false,
       tipNo: 1,
       dev: devState,
+      /** Where the running game comes from: 'campaign' | 'adventures' | 'editor' | null */
+      origin: null,
+      /** Scenario in the world editor (kept during test play) */
+      editorScenario: null,
+      touchDevice: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
     };
   },
   computed: {
+    need() { return this.preview && this.ui ? missing(this.preview, this.ui.res) : null; },
     hudVars() { return { '--bottom-h': `${this.bottomH}px`, '--top-total': `${this.topH}px` }; },
+    /** Scenario JSON of the running game (coding adventure, script mission, editor) or null */
+    scenarioOf() { return this.ui?.mission?.script ? this.engine?.sim.mission?.def.scenario ?? null : null; },
+    showScriptPanel() {
+      const m = this.ui?.mission;
+      return !!(m?.script && this.scenarioOf && !m.result && (m.kind === 'adventure' || this.origin === 'editor'));
+    },
   },
   watch: {
     'dev.on'(on) { this.engine?.setDevMode(on); },
     // Menu music on start and campaign screens (plays after the first click; in-game GameAudio takes over)
-    screen: { immediate: true, handler(s) { if (s === 'menu' || s === 'campaign') setMenuMusic(true); else if (s === 'loading') setMenuMusic(false); } },
+    screen: { immediate: true, handler(s) { if (s === 'menu' || s === 'campaign' || s === 'adventures' || s === 'editor') setMenuMusic(true); else if (s === 'loading') setMenuMusic(false); } },
     // Autosave every 5 game minutes (setting "Save automatically")
     'ui.tick'(tick) {
       if (tick !== undefined && settings.autosave && autosaveDue(tick, this.lastAutoTick ?? tick)) this.autosave();
@@ -144,7 +193,7 @@ export default {
     'ui.mission.result'(r) {
       if (!r || this.recorded) return;
       this.recorded = true;
-      if (!r.won) return;
+      if (!r.won || this.engine?.sim.mission?.def.custom) return;
       const id = this.ui.mission.id;
       const before = loadProgress().done[id]?.best;
       const optional = this.ui.mission.objectives.filter((o) => !o.primary && o.status === 'done').length;
@@ -154,7 +203,10 @@ export default {
   },
   mounted() {
     this.layout = () => {
-      this.compact = window.innerWidth < WIDE * settings.uiScale || window.innerHeight < 560;
+      const w = window.innerWidth / settings.uiScale;
+      this.compact = w < COMPACT || window.innerHeight < 560;
+      this.mid = w < MID;
+      this.narrow = w < NARROW;
       const tb = document.querySelector('.topbar');
       if (tb) this.topH = Math.round(tb.getBoundingClientRect().bottom);
     };
@@ -163,7 +215,9 @@ export default {
     this.layoutTimer = setInterval(this.layout, 1000);
     this.onKey = (e) => {
       // Developer mode: F3 or Ctrl+Shift+D
-      if (isDevHotkey(e) && !(e.target instanceof HTMLInputElement)) { e.preventDefault(); setDevMode(!devState.on); return; }
+      const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      if (isDevHotkey(e) && !typing) { e.preventDefault(); setDevMode(!devState.on); return; }
+      if (typing && e.key !== 'Escape') return;
       if (e.key !== 'Escape' || this.screen !== 'game' || !this.ui || this.menuOpen) return;
       if (!this.ui.selection && !this.ui.placing && !this.ui.mission?.result) this.openMenu();
     };
@@ -185,8 +239,6 @@ export default {
         hero: q.get('hero') ?? 'bertram',
         // Fog of war: ?fog=off turns it off
         fog: !['off', '0'].includes(q.get('fog') ?? ''),
-        // Expansion content: ?addon=off turns it off
-        addon: !['off', '0'].includes(q.get('addon') ?? ''),
         noAssets: q.has('no-models'),
       });
     }
@@ -207,6 +259,7 @@ export default {
     },
     clock,
     async boot(opts) {
+      this.scriptOpen = false;
       this.engine?.stop();
       this.engine = null;
       this.ui = null;
@@ -228,16 +281,40 @@ export default {
       window.__kronland = this.engine;
     },
     newGame(opts) { this.boot(opts); },
-    /** Start a mission or tutorial. */
+    /** Start a mission, tutorial, coding adventure or script mission. */
     startMission(id, extra = {}) {
       const def = getMission(id);
       if (!def) return;
       this.recorded = false;
       this.record = false;
+      this.origin = def.scenario ? 'adventures' : 'campaign';
       const players = def.players.filter((p) => p.kind !== 'bandits').length + (def.players.some((p) => p.kind === 'bandits') ? 1 : 0);
       this.boot({ mission: { id, seed: extra.seed }, players, noAssets: extra.noAssets });
     },
-    toCampaign() { this.quit(); this.screen = 'campaign'; },
+    /** Play scenario JSON (file or world editor). */
+    startScenario(json, origin = 'adventures') {
+      this.recorded = false;
+      this.record = false;
+      this.origin = origin;
+      const players = json.players.filter((p) => p.kind !== 'bandits').length + (json.players.some((p) => p.kind === 'bandits') ? 1 : 0);
+      this.boot({ scenario: json, players });
+    },
+    /** Again: mission from the directory or the same scenario JSON. */
+    retry() {
+      const def = this.engine?.sim.mission?.def;
+      if (def?.custom) this.startScenario(def.scenario, this.origin ?? 'adventures');
+      else this.startMission(this.ui.mission.id);
+    },
+    openEditor(scenario = null) {
+      if (scenario) this.editorScenario = scenario;
+      this.screen = 'editor';
+    },
+    closeEditor() { this.screen = 'adventures'; },
+    toCampaign() {
+      const back = this.origin === 'editor' ? 'editor' : this.origin === 'adventures' ? 'adventures' : 'campaign';
+      this.quit();
+      this.screen = back;
+    },
     /** Determine the latest save game for "Continue". */
     async refreshLatest() {
       try { this.latest = await (await getStore({ legacyName: t('saves.legacyName') })).latest(); } catch { this.latest = null; }
@@ -296,7 +373,9 @@ export default {
       this.engine?.stop();
       this.engine = null;
       this.ui = null;
-      this.screen = 'menu';
+      // Test play from the world editor: back to the editor
+      this.screen = this.origin === 'editor' ? 'editor' : 'menu';
+      this.origin = null;
       if (location.search) history.replaceState(null, '', location.pathname);
     },
     jump(t) { this.engine?.jumpTo(t.pos.x, t.pos.y, true); this.engine?.dismissToast(t.id); },
@@ -305,7 +384,10 @@ export default {
       if (k === 'hq') e.focusHeadquarters();
       else if (k === 'idle') e.selectIdleSerfs();
       else if (k === 'all') e.selectAllSerfs();
+      else if (k === 'army') e.selectAllArmy();
     },
+    /** Hero portrait: first click selects, click on the already selected hero jumps there. */
+    onHero(id) { this.engine?.selectHero(id); },
     onAction(a) {
       const e = this.engine;
       if (a.kind === 'tax') e.setTax(a.level);
@@ -325,6 +407,7 @@ export default {
       else if (a.kind === 'trade') e.trade(a.id, a.give, a.take, a.amount);
       else if (a.kind === 'changeWeather') e.changeWeather(a.id, a.state);
       else if (a.kind === 'repair') e.repair(a.id);
+      else if (a.kind === 'group') e.assignGroup(a.n);
       // Extensions (BUILDING_SECTIONS): arbitrary command to the simulation
       else if (a.kind === 'command' && a.cmd?.type) e.issue(a.cmd);
     },

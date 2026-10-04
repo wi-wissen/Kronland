@@ -4,7 +4,7 @@
   <div class="mhud" data-testid="mission-hud">
     <TutorialCoach v-if="mission.tutorial" :step="mission.tutorial" :touch="touch" :lang="lang" @next="$emit('next')" @skip="$emit('skip')" />
     <ObjectivePanel v-if="mission.objectives.length" :objectives="mission.objectives" :lang="lang" />
-    <DialogBox :messages="mission.messages" :lang="lang" />
+    <DialogBox :messages="mission.messages" :lang="lang" :speed="speed" :scripted="!!mission.script" @skip="$emit('skipDialog')" />
   </div>
 </template>
 
@@ -20,23 +20,24 @@ export default {
     mission: { type: Object, required: true },
     touch: Boolean,
     lang: { type: String, default: 'de' },
+    speed: { type: Number, default: 1 },
   },
-  emits: ['next', 'skip'],
+  emits: ['next', 'skip', 'skipDialog'],
 };
 </script>
 
 <style>
 .mhud {
   position: fixed; z-index: 5; pointer-events: none;
-  left: calc(var(--hud-gap) + var(--safe-l)); top: calc(var(--top-total, 4rem) + var(--hud-gap));
+  left: calc(var(--hud-gap) * 2 + var(--safe-l)); top: calc(var(--top-total, 4rem) + var(--hud-gap));
   width: min(22rem, calc(100% - 6rem));
   max-height: calc(100dvh - var(--top-total, 4rem) - var(--bottom-h, 14rem) - var(--hud-gap) * 3);
   display: flex; flex-direction: column; gap: 0.5rem;
 }
 .mhud > * { pointer-events: auto; }
 .mhud > .co-ring { pointer-events: none; }
-.compact .mhud { width: calc(100% - 5.25rem - var(--safe-l) - var(--safe-r)); gap: 0.375rem; }
+.compact .mhud { left: calc(var(--hud-gap) + var(--safe-l)); width: calc(100% - 5.25rem - var(--safe-l) - var(--safe-r)); gap: 0.375rem; }
 @media (max-height: 480px) and (orientation: landscape) {
-  .compact .mhud { width: min(20rem, 42vw); }
+  .compact .mhud { left: calc(var(--hud-gap) + var(--safe-l)); width: min(20rem, 42vw); }
 }
 </style>

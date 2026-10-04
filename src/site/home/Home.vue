@@ -67,8 +67,9 @@
         </ul>
         <p class="school-how">{{ $s('home.school.how') }}</p>
         <div class="hero-cta">
-          <a class="btn primary" :href="$links.play + '?dev=1'" data-testid="home-dev-play"><Icon name="play" />{{ $s('home.school.try') }}</a>
-          <a class="btn" :href="$links.manual + '#developer-mode'"><Icon name="scroll" />{{ $s('home.school.more') }}</a>
+          <a class="btn primary" :href="$links.play + '?mission=adv1'" data-testid="home-code-play"><Icon name="play" />{{ $s('home.school.code') }}</a>
+          <a class="btn" :href="$links.play + '?dev=1'" data-testid="home-dev-play"><Icon name="keyboard" />{{ $s('home.school.try') }}</a>
+          <a class="btn" :href="$links.manual + '#coding'"><Icon name="scroll" />{{ $s('home.school.more') }}</a>
         </div>
       </div>
       <button type="button" class="g-btn school-shot" :aria-label="$s('home.gallery.open', { name: $s('home.shot.developer') })" @click="open(shots.indexOf('developer'))">
@@ -85,11 +86,11 @@
           <p>{{ $s('home.learn.manual') }}</p>
           <span class="lc-go">{{ $s('home.learn.toManual') }} →</span>
         </a>
-        <a class="learn-card parchment" :href="$links.compendium" data-testid="home-wiki">
+        <a class="learn-card parchment" :href="$links.compendium" data-testid="home-compendium">
           <Icon name="research" class="lc-ico" />
           <h3>{{ $s('nav.compendium') }}</h3>
           <p>{{ $s('home.learn.compendium') }}</p>
-          <span class="lc-go">{{ $s('home.learn.toWiki') }} →</span>
+          <span class="lc-go">{{ $s('home.learn.toCompendium') }} →</span>
         </a>
       </div>
     </section>
@@ -123,7 +124,7 @@ import { UNITS, HEROES } from '../../sim/data/units.js';
 import { TECHS } from '../../sim/data/technologies.js';
 import { BUILDING_TECHS } from '../../sim/data/buildingTechs.js';
 import { CAMPAIGN } from '../../sim/missions/registry.js';
-import { iconForBuilding, iconForLine, iconForHero, iconForWeather } from '../../ui/icons/index.js';
+import { iconForLine, iconForHero, iconForWeather } from '../../ui/icons/index.js';
 
 export default {
   name: 'HomePage',
@@ -136,19 +137,20 @@ export default {
       rows: [['settlement', 'phone'], ['combat', 'winter'], ['fog', 'slope']],
       ratio: { settlement: 1.6, combat: 1.6, winter: 1.6, fog: 1.6, slope: 1.6, developer: 1.6, phone: 412 / 915 },
       current: null,
+      // What makes the game – from the player's point of view, numbers from the game data
       features: [
-        { id: 'build', icon: iconForBuilding('residence') },
-        { id: 'slope', icon: 'upgrade' },
+        { id: 'serfs', icon: 'serf' },
+        { id: 'workers', icon: 'worker' },
+        { id: 'payday', icon: 'payday' },
         { id: 'economy', icon: 'gold' },
+        { id: 'research', icon: 'research' },
         { id: 'military', icon: iconForLine('sword'), n: new Set(Object.values(UNITS).map((u) => u.line)).size },
         { id: 'heroes', icon: iconForHero('bertram'), n: Object.keys(HEROES).length },
         { id: 'weather', icon: iconForWeather('winter') },
+        { id: 'specialists', icon: 'sp-thief' },
         { id: 'campaign', icon: 'scroll', n: CAMPAIGN.length },
         { id: 'maps', icon: 'dice' },
-        { id: 'fog', icon: 'map' },
-        { id: 'devices', icon: 'display' },
-        { id: 'dev', icon: 'keyboard' },
-        { id: 'free', icon: 'star' },
+        { id: 'everywhere', icon: 'display' },
       ],
       counts: { missions: CAMPAIGN.length },
       // Numbers from the game data – grow with new content
@@ -210,8 +212,12 @@ export default {
 .g-row { list-style: none; margin: 0; padding: 0; display: flex; gap: 1rem; }
 .g-row li { flex: var(--ar) 1 0; min-width: 0; display: flex; flex-direction: column; }
 .g-btn { display: block; padding: 0; border: 0; border-radius: var(--r-lg); overflow: hidden; background: var(--wood-950); box-shadow: var(--panel-edge); cursor: zoom-in; }
-.g-btn img { display: block; width: 100%; height: auto; object-fit: cover; transition: transform 0.25s; }
-.g-btn:hover img { transform: scale(1.03); }
+.g-btn { position: relative; }
+.g-btn img { display: block; width: 100%; height: auto; object-fit: cover; transition: filter 0.2s; }
+/* Hover/focus: only brighten and show a magnifier – nothing moves */
+.g-btn::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 2px transparent; transition: box-shadow 0.2s; pointer-events: none; }
+.g-btn:hover img, .g-btn:focus-visible img { filter: brightness(1.12) saturate(1.05); }
+.g-btn:hover::after, .g-btn:focus-visible::after { box-shadow: inset 0 0 0 2px var(--gold-300); }
 .g-cap { margin: 0.5rem 0 0; color: var(--ink-muted); font-size: 0.9375rem; }
 @media (max-width: 760px) {
   .g-row { flex-wrap: wrap; }
@@ -238,10 +244,10 @@ export default {
 .school-shot img { aspect-ratio: 1.6; }
 @media (max-width: 860px) { .school { grid-template-columns: 1fr; } }
 
-/* ---------- Manual / Compendium ---------- */
+/* ---------- Manual / compendium ---------- */
 .learn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.5rem; }
-.learn-card { display: block; padding: 1.5rem 1.5rem 1.25rem; text-decoration: none; color: var(--parch-ink) !important; transition: transform 0.15s; }
-.learn-card:hover { transform: translateY(-2px); }
+.learn-card { display: block; padding: 1.5rem 1.5rem 1.25rem; text-decoration: none; color: var(--parch-ink) !important; transition: filter 0.15s; }
+.learn-card:hover { filter: brightness(1.05); }
 .learn-card h3 { font-family: var(--display); color: #5a3a12; font-size: 1.75rem; margin: 0.5rem 0 0.25rem; }
 .learn-card p { margin: 0 0 0.75rem; line-height: 1.5; }
 .lc-ico { width: 2.5rem !important; height: 2.5rem !important; }

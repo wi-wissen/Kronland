@@ -1,5 +1,8 @@
 # Missionen schreiben
 
+> Missionen lassen sich auch ganz in **Python** schreiben (Szenario-JSON, Welteneditor) – siehe
+> [Skripte](SKRIPTE.md). Beide Wege nutzen dieselbe Missionslaufzeit.
+
 Missionen, Kampagne und Tutorial laufen über dieselbe Missionslaufzeit
 (`src/sim/missions/runtime.js`). Sie hängt sich über drei kleine Haken in die Simulation:
 

@@ -1,0 +1,117 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Figure preview</title>
+<style>body{margin:0;background:#cfd8c4;font:12px sans-serif}canvas{display:block}#i{position:fixed;left:6px;top:4px}</style></head>
+<body><div id="i"></div><script type="module">
+// Figure from several viewing angles, optionally in an animation frame. For scripts/asset-gen/render.mjs.
+//   ?f=/assets-src/characters/serf/raw.glb[,more]  &clip=<name>  &t=<fraction 0…1>  &views=4
+//   &hide=Hammer,Pickaxe → hide parts
+//   &zoom=head → show only the head (top 30 % of the figure)
+//   &px=40&bgs=6f9a3e,9a7650 → game size: each figure px tall, viewed obliquely from above as in the game, one row per background
+//   &team=2f6fd6 → tint with the player colour via <file>.mask.png (as in the game, on the CPU)
+//   &ts=0,0.25,0.5 → columns = points in time of the clip (view obliquely from the front) instead of view angles
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+const q = new URLSearchParams(location.search);
+const files = (q.get('f') || '').split(',').filter(Boolean);
+const ts = q.get('ts') ? q.get('ts').split(',').map(Number) : null;
+const views = ts ? ts.length : Number(q.get('views') || 4);
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+r.setSize(innerWidth, innerHeight); r.setScissorTest(true); r.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(r.domElement);
+const s = new THREE.Scene(); s.background = new THREE.Color(0xcfd8c4);
+s.add(new THREE.HemisphereLight(0xffffff, 0x777766, 1.6));
+const d = new THREE.DirectionalLight(0xffffff, 1.8); d.position.set(3, 6, 5); s.add(d);
+async function applyTeam(o, maskUrl, team) {
+  // Game model with vertex colours: team area is in the vertex attribute _team
+  o.traverse((m) => {
+    const g = m.geometry, t = g?.attributes?._team, c = g?.attributes?.color;
+    if (!m.isMesh || !t || !c) return;
+    for (let i = 0; i < t.count; i++) if (t.getX(i) > 0.5) c.setXYZ(i, team.r, team.g, team.b);
+    c.needsUpdate = true;
+  });
+  let mat = null; o.traverse((m) => { if (!mat && m.isMesh && m.material.map) mat = m.material; });
+  if (!mat) return;
+  const img = mat.map.image, w = img.width, h = img.height;
+  let mask;
+  try { mask = await new THREE.ImageLoader().loadAsync(maskUrl); } catch { return; } // no mask next to it
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.drawImage(mask, 0, 0, w, h);
+  const md = g.getImageData(0, 0, w, h).data;
+  g.drawImage(img, 0, 0); const id = g.getImageData(0, 0, w, h); const d = id.data;
+  let sum = 0, n = 0;
+  for (let i = 0; i < d.length; i += 4) if (md[i] > 128) { sum += Math.max(d[i], d[i + 1], d[i + 2]); n++; }
+  const ref = n ? sum / n : 128;
+  const t = team.clone().convertLinearToSRGB();
+  for (let i = 0; i < d.length; i += 4) {
+    const k = md[i] / 255; if (!k) continue;
+    const v = Math.min(1.6, Math.max(0.45, Math.max(d[i], d[i + 1], d[i + 2]) / ref));
+    d[i] += (t.r * 255 * v - d[i]) * k; d[i + 1] += (t.g * 255 * v - d[i + 1]) * k; d[i + 2] += (t.b * 255 * v - d[i + 2]) * k;
+  }
+  g.putImageData(id, 0, 0);
+  const tex = new THREE.CanvasTexture(c); tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace;
+  mat.map = tex; mat.needsUpdate = true;
+}
+const L = new GLTFLoader(); L.setMeshoptDecoder(MeshoptDecoder);
+const info = [];
+const objs = [];
+for (const f of files) {
+  try {
+    const g = await L.loadAsync(f);
+    const o = g.scene;
+    const hide = (q.get('hide') || '').split(',');
+    o.traverse((m) => { if (hide.includes(m.name)) m.visible = false; });
+    if (q.get('team')) await applyTeam(o, f.replace(/\.glb$/, '.mask.png'), new THREE.Color('#' + q.get('team')));
+    let tris = 0; o.traverse((m) => { if (m.isMesh) tris += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
+    const clip = q.get('clip') ? g.animations.find((a) => a.name === q.get('clip')) : null;
+    let mx = null;
+    if (clip) { mx = new THREE.AnimationMixer(o); mx.clipAction(clip).play(); mx.setTime(clip.duration * Number(q.get('t') || 0)); }
+    o.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(o); const sz = b.getSize(new THREE.Vector3());
+    info.push(`${f.split('/').slice(-2).join('/')}: ${sz.toArray().map((v) => v.toFixed(2)).join('×')} minY ${b.min.y.toFixed(2)} Δ${tris} clips ${g.animations.map((a) => a.name + ':' + a.duration.toFixed(1)).join(',')}`);
+    objs.push({ o, b, mx, clip });
+    s.add(o);
+  } catch (e) { info.push('FEHLER ' + f + ' ' + e); }
+}
+const px = Number(q.get('px') || 0);
+if (px) {
+  // Game size: rows = backgrounds, columns = figures; camera far enough away that the figure is px tall
+  const bgs = (q.get('bgs') || '6f9a3e,9a7650').split(',');
+  const cw = innerWidth / objs.length, ch = innerHeight / bgs.length;
+  const cam = new THREE.PerspectiveCamera(30, cw / ch, 0.01, 200);
+  bgs.forEach((bg, row) => {
+    objs.forEach(({ o, b }, col) => {
+      for (const x of objs) x.o.visible = x.o === o;
+      const sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+      const d = (sz.y * ch) / (2 * px * Math.tan(THREE.MathUtils.degToRad(15)));
+      const el = 0.75, az = 0.6;
+      cam.position.set(c.x + Math.sin(az) * Math.cos(el) * d, c.y + Math.sin(el) * d, c.z + Math.cos(az) * Math.cos(el) * d);
+      cam.lookAt(c);
+      const y = innerHeight - (row + 1) * ch;
+      r.setViewport(col * cw, y, cw, ch); r.setScissor(col * cw, y, cw, ch);
+      s.background = new THREE.Color('#' + bg);
+      r.render(s, cam);
+    });
+  });
+  document.getElementById('i').textContent = '';
+  window.__info = info; document.title = 'ready';
+  throw new Error('done'); // skip the rest (viewing-angle grid)
+}
+const W = innerWidth / views, H = innerHeight / Math.max(1, objs.length);
+const cam = new THREE.PerspectiveCamera(30, W / H, 0.01, 100);
+objs.forEach(({ o, b, mx, clip }, row) => {
+  for (const x of objs) x.o.visible = x.o === o;
+  let c = b.getCenter(new THREE.Vector3()), h = b.getSize(new THREE.Vector3()).length() * (ts ? 1.25 : 1);
+  if (q.get('zoom') === 'head') { const sz = b.getSize(new THREE.Vector3()); c = new THREE.Vector3(c.x, b.max.y - sz.y * 0.16, c.z); h = sz.y * 0.42; }
+  for (let k = 0; k < views; k++) {
+    const a = ts ? 0.7 : (k / views) * Math.PI * 2;
+    if (ts && mx) { mx.setTime(clip.duration * ts[k]); o.updateMatrixWorld(true); }
+    cam.position.set(c.x + Math.sin(a) * h * 1.9, c.y + h * 0.35, c.z + Math.cos(a) * h * 1.9);
+    cam.lookAt(c);
+    const y = innerHeight - (row + 1) * H;
+    r.setViewport(k * W, y, W, H); r.setScissor(k * W, y, W, H);
+    r.render(s, cam);
+  }
+});
+document.getElementById('i').textContent = info.join(' | ');
+window.__info = info; document.title = 'ready';
+</script></body></html>

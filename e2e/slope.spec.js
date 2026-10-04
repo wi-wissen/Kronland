@@ -43,7 +43,6 @@ async function findSite(page, steep) {
 
 async function openResidence(page, mobile) {
   await page.getByRole('button', { name: 'Alle' }).click();
-  if (mobile) await page.getByTestId('build-toggle').click();
   await page.getByTestId('build-residence').click();
 }
 

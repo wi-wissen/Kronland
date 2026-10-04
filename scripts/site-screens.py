@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Take screenshots for the home page and manual from the running game (not part of the tests).
+"""Take screenshots for the start page and the manual from the running game (not part of the tests).
 
 Usage (preview server must be running, e.g. `npm run build && npx vite preview --port 4301`):
     python3 scripts/site-screens.py [base-url] [filter]
@@ -7,6 +7,7 @@ Output: public/site/<name>.webp (+ <name>-small.webp for the gallery), HUD crops
 Desktop 1440×900 with graphics level high (SwiftShader – slow, several minutes).
 """
 import io
+import os
 import sys
 from pathlib import Path
 from PIL import Image
@@ -223,7 +224,8 @@ def settle(page, **o):
 
 
 def run(pw):
-    b = pw.chromium.launch(args=GL)
+    # Use the preinstalled Chromium: PW_CHROMIUM=/path/to/chrome
+    b = pw.chromium.launch(args=GL, executable_path=os.environ.get('PW_CHROMIUM') or None)
     init = "try { localStorage.setItem('kronland-lang', '%s'); localStorage.setItem('kronland-settings', JSON.stringify({ edgeScroll: false })); } catch (e) {}"
 
     # ---------- Settlement (hero without HUD, gallery with HUD) and HUD crops ----------
@@ -255,7 +257,7 @@ def run(pw):
             if want('hud-resources'):
                 save(shoot(page, page.locator('.tb-res')), 'hud-resources', small=False)
             if want('hud-status'):
-                save(shoot(page, page.locator('.tb-meta')), 'hud-status', small=False)
+                save(shoot(page, page.locator('.tb-crest')), 'hud-status', small=False)
             if want('hud-minimap'):
                 save(shoot(page, page.get_by_test_id('minimap')), 'hud-minimap', small=False)
             # build menu appears as soon as serfs are selected
@@ -347,6 +349,26 @@ def run(pw):
         page.evaluate(DEV_FRAME)
         page.wait_for_timeout(4000)
         save(shoot(page), 'developer')
+        ctx.close()
+
+    # ---------- Coding adventure: code panel in step mode ----------
+    if want('programming'):
+        ctx = b.new_context(**DESK, locale='de-DE')
+        ctx.add_init_script(init % 'de')
+        page = ctx.new_page()
+        page.set_default_timeout(600000)
+        page.goto(f'{BASE}/play/?mission=adv3&quality=high')
+        page.wait_for_function('() => !!window.__kronland', timeout=240000)
+        page.get_by_test_id('script-panel').wait_for()
+        page.wait_for_timeout(3000)
+        code = page.get_by_test_id('section-player').get_by_test_id('code-input')
+        code.fill('wood = 0\nhero.step()\nwhile hero.ahead() == "tree":\n    hero.chop()\n    wood = wood + 1\n    hero.step()\nprint(wood)\n')
+        # breakpoint in the loop, then run until it stops
+        page.get_by_test_id('section-player').get_by_test_id('ce-line-5').click()
+        page.get_by_test_id('script-run').click()
+        page.wait_for_function("() => document.querySelector('[data-testid=script-status]')?.textContent.includes('angehalten')", timeout=240000)
+        page.wait_for_timeout(3000)
+        save(shoot(page), 'programming')
         ctx.close()
 
     # ---------- Phone ----------

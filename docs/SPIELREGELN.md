@@ -3,9 +3,10 @@
 Kronland bildet das Gameplay von *Die Siedler – Das Erbe der Könige* (Grundspiel, ohne Addons) nach.
 Mechanik wird übernommen, Namen von Helden, Texte und Grafiken sind eigene.
 
-Werte stammen aus der Recherche (dedk.de-Wiki, Handbuch, Original-Entity-XMLs). Werte mit
-**(A)** sind eigene Annahmen, weil keine Quelle gefunden wurde; sie sind Balancing-Stellschrauben
-und stehen gebündelt in `src/sim/data/`.
+Mechaniken und Größenordnungen stammen aus der Recherche (dedk.de-Wiki, Handbuch, Original-Entity-XMLs).
+Zahlen werden nicht 1:1 übernommen: Truppen- und Wirtschaftswerte sind eigene, mit Messskripten so abgestimmt,
+dass die Verhältnisse dem Vorbild ähneln (§4 Veredler, §8 Truppen). Werte mit **(A)** sind eigene Annahmen;
+sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
 
 ## 1. Grundprinzip
 
@@ -32,6 +33,9 @@ und stehen gebündelt in `src/sim/data/`.
 - Bergleute arbeiten 4× so schnell wie Leibeigene. Leibeigene hacken Holz etwa doppelt so schnell
   wie andere Rohstoffe.
 - Startrohstoffe (Normal): 500 Taler, 2400 Lehm, 1750 Holz, 700 Stein, 50 Eisen, 50 Schwefel.
+- Bäume wachsen nicht nach. Der Kartengenerator garantiert jedem Start mindestens 70 Bäume im Umkreis
+  von 25 Kacheln und rund 150 im Umkreis von 40 Kacheln **(A)**. Sonst war auf waldarmen Karten das Holz
+  um Minute 20 aufgebraucht, bevor eine Kaserne stand.
 
 ## 3. Leibeigene
 
@@ -47,18 +51,30 @@ und stehen gebündelt in `src/sim/data/`.
 - Laufbefehle fächern auf: Jede Figur bekommt eine eigene Zielkachel um den Klickpunkt (Leibeigene
   1 Kachel Abstand, Truppen und Helden 3 Kacheln, damit die Soldaten dahinter Platz haben).
 - Beim Platzieren eines Gebäudes mit ausgewählten Leibeigenen fangen diese sofort an zu bauen.
-- „Zu den Waffen“: werden zu Miliz (Angriff 10, Rüstung 1), rückverwandelbar.
+- „Zu den Waffen“: werden zu Miliz (Angriff 9, Rüstung 1), rückverwandelbar.
 
 ## 4. Arbeiter, Motivation, Steuern
 
 - Arbeiter erscheinen automatisch am Dorfzentrum, wenn ein Arbeitsplatz frei ist und das
   Bevölkerungslimit es zulässt. Nicht steuerbar.
 - Zyklus: arbeiten → Ausdauer sinkt → essen (Bauernhof) → schlafen (Wohnhaus) → weiter.
-  Ohne Platz: Lagerfeuer, deutlich langsamer. Haus + Hof machen ca. 5× schneller.
+  Ohne Platz: Lagerfeuer, deutlich langsamer. Haus + Hof machen ca. 7× schneller.
 - Wohnhaus 6/9/12 Betten, Bauernhof 8/10/12 Essplätze (Stufe 1/2/3).
-- Umsetzung (Werte in `src/sim/data/professions.js`): Ausdauer max. 600, ein Arbeitsgang kostet 100.
-  Essen +200, Schlafen +400, Lagerfeuer +40 – jeweils × Motivation. Ergebnis im Test:
-  Steinmetz mit Haus und Hof ca. 20 Stein/min (Original gemessen: 21), am Lagerfeuer ca. 4.
+- Umsetzung (Werte in `src/sim/data/professions.js`): Ausdauer max. 2000 (neue Arbeiter 600),
+  ein Arbeitsgang kostet 100. Essen +200, Schlafen +400 – jeweils × Motivationswirkung; Lagerfeuer
+  fest +25. Motivationswirkung (linear dazwischen): 25 % → 10 %, 50 % → 45 %, 100 % → 100 %, 300 % → 300 %.
+- **Abgleich mit der Veredleranalyse des Vorbilds** (dedk.de, Produktion je Veredler und Minute bei
+  Motivation 30…300 % und Haus/Hof/beides/nichts). Nachmessen: `node scripts/refiner-analysis.js`.
+  Gleiche Tendenzen, eigene Zahlen:
+  - Motivation steigert die Leistung auch über 100 % gleichmäßig (Vorbild 300 %: ca. +35 %, hier ca. +30 %);
+    unter 100 % sackt sie stark ab (30 %: Vorbild und hier rund ein Drittel von 100 %).
+  - Haus bringt mehr als Hof: bei 100 % leistet „nur Haus“ ca. 70 %, „nur Hof“ ca. 50 % von Haus + Hof.
+  - Ohne beides sind Veredler fast nur Steuerzahler (ca. 15 % Leistung), egal wie motiviert.
+  - Steinmetze sind am ergiebigsten, Sägewerker am wenigsten; der Schatzmeister liegt knapp darüber
+    (Vorbild: Schatzmeister mit Haus + Hof bringt etwa so viel wie seine Steuern noch einmal).
+  - Lauftempo-Forschung bringt Veredlern wenig, Ausbau ändert die Leistung je Arbeiter nicht (nur mehr Plätze).
+  - Messwerte Steinmetz, Stein/min (Haus + Hof / nur Haus / nur Hof / nichts):
+    300 %: 28 / 23 / 18 / 3 · 100 %: 22 / 15 / 11 / 3 · 30 %: 8 / 6 / 4 / 3.
 - Veredler holen 5 Rohware pro Gang; je Arbeitsgang wird 1 Rohware zu 2 veredelter Ware **(A)**.
 - Überstunden: 1,5× schneller, −1 % Motivation je Arbeitsgang **(A)**.
 - Segnung: 1000 Glaube, +25 % Motivation für die Berufsgruppe **(A)**.
@@ -213,7 +229,15 @@ sind kumulativ (Stufentexte aus dem Handbuch, Zahlen **(A)**):
   am Gebäude. Soldaten, die weit von ihrem Hauptmann entfernt sind, laufen zu ihm zurück; ist er
   unerreichbar, bis zur nächsten erreichbaren Stelle bei ihm.
 - Schaden = Angriff × Faktor(Angriffstyp, Rüstungstyp) − Rüstung (+ kleiner Zufall).
-  Tabelle in `src/sim/data/combat.js`.
+  Tabelle in `src/sim/data/combat.js` (Aufbau wie im Vorbild, Faktoren eigene).
+- **Truppenwerte** (`src/sim/data/units.js`): Rollen, Stufen und Truppenstärken wie im Vorbild, Zahlen
+  eigene (Angriff, Rüstung, LP, Kosten, Aufwertungskosten, Türme, LP der Burg und Militärgebäude).
+  Abgestimmt mit `node scripts/troop-duels.js` (27 Duelle volle Einheit gegen volle Einheit):
+  Mit den Originalwerten und mit unseren gewinnt in jedem Duell dieselbe Seite, die Restkraft des Siegers
+  weicht meist um weniger als 10 Prozentpunkte ab. Eigene Akzente: höhere Stufen haben etwas mehr LP,
+  Stufe 1 ist etwas billiger. Gleiche Rangfolge: Schwert schlägt Speer und Bogen, Speer schlägt Reiter,
+  Bogen schlägt schwere Reiter auf Abstand, schwere Reiter schlagen Schwerter; Kanonen verlieren gegen
+  Truppen im Nahkampf.
 - Türme: Wachturm → Ballistaturm → Kanonenturm.
 - Helden: 600 LP, werden bewusstlos statt zu sterben, stehen nach 10 s ohne Feinde
   mit halben LP wieder auf. Eigene Heldenfiguren mit Fähigkeiten nach Vorbild des Originals:
@@ -347,9 +371,9 @@ Wie im Original kennt jede Kachel drei Zustände (je Team; Verbündete teilen Si
 
 ## 13. Erweiterungsinhalte
 
-Nach Vorbild der Erweiterungen des Originals (Recherche und Auswahl: [ADDON.md](ADDON.md)). Freies Spiel:
-Startmenü „Erweiterungsinhalte an/aus“ (Standard an) bzw. `?addon=off`; Kampagne und Tutorial: aus
-(Missionen schalten sie mit `addon: true` ein). Ohne Erweiterung lehnt die Simulation alle Erweiterungsbefehle
+Nach Vorbild der Erweiterungen des Originals (Recherche und Auswahl: [ADDON.md](ADDON.md)). Im freien Spiel
+fest dabei (der frühere Schalter im Startmenü und `?addon=off` sind entfallen); Kampagne, Tutorial und
+Programmier-Abenteuer sind eigens gestaltete Szenarien ohne sie (Missionen schalten sie mit `addon: true` ein). Ohne Erweiterung lehnt die Simulation alle Erweiterungsbefehle
 ab (`err.addonOff`). Werte: `src/sim/data/addon.js`, `buildings.js`, `units.js`, `buildingTechs.js` (alle (A)).
 
 | Inhalt | Voraussetzung | Kosten | Wirkung |

@@ -136,3 +136,16 @@ describe('Map generator', () => {
     });
   }
 });
+
+describe('Wood supply', () => {
+  it('every start has enough trees in the surroundings even on forest-poor maps', () => {
+    for (const seed of [3, 8, 13, 15, 18]) {
+      const sim = new Sim({ seed });
+      for (const s of sim.starts) {
+        let n = 0;
+        for (const e of sim.entities.values()) if (e.kind === 'tree' && (e.x - s.x) ** 2 + (e.y - s.y) ** 2 <= 40 * 40) n++;
+        expect(n, `Seed ${seed}`).toBeGreaterThanOrEqual(140);
+      }
+    }
+  });
+});

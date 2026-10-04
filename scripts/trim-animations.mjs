@@ -19,7 +19,11 @@ function wanted(model) {
   const def = manifest?.models?.[model];
   if (!def) return null;
   const names = new Set(Object.values(def.clips ?? {}));
-  for (const r of Object.values(manifest.roles ?? {})) if (r.model === model) for (const n of Object.values(r.clips ?? {})) names.add(n);
+  for (const r of Object.values(manifest.roles ?? {})) {
+    for (const v of [r, ...(r.variants ?? [])]) {
+      if ((v.model ?? r.model) === model) for (const n of Object.values({ ...r.clips, ...v.clips })) names.add(n);
+    }
+  }
   return names;
 }
 

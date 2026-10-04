@@ -222,3 +222,15 @@ describe('Militia and weather', () => {
     expect(sim.entities.has(L.id)).toBe(false);
   });
 });
+
+describe('Troop balance (scripts/troop-duels.js)', () => {
+  it('roles as in the model: who wins stays the same with own numbers', async () => {
+    const { duel } = await import('../../scripts/troop-duels.js');
+    const winners = [
+      ['sword1', 'spear1', true], ['sword1', 'bow1', true], ['spear1', 'lightCav1', true],
+      ['spear3', 'heavyCav1', true], ['bow3', 'heavyCav1', true], ['sword4', 'heavyCav2', false],
+      ['sword4', 'sword3', true], ['cannon1', 'sword1', false],
+    ];
+    for (const [a, b, aWins] of winners) expect(duel(a, b, 2).winA, `${a} gegen ${b}`).toBe(aWins ? 100 : 0);
+  }, 60000);
+});

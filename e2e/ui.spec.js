@@ -40,7 +40,6 @@ test('Switch language in the start menu: texts change at once and stay saved', a
   await page.getByTestId('start').click();
   await page.waitForFunction(() => !!window.__kronland);
   await page.getByTestId('quick-all').click();
-  if (await page.getByTestId('build-toggle').isVisible()) await page.getByTestId('build-toggle').click();
   await expect(page.getByTestId('build-residence')).toContainText('Residence');
   await page.evaluate(() => { const e = window.__kronland; e.toast('err.popLimit', null, { ttl: 20000 }); });
   await expect(page.getByTestId('toasts')).toContainText('Population limit reached', SLOW);
@@ -82,26 +81,31 @@ test('Settings are saved and offered in the game', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('Build menu: categories as tabs, locked buildings with reason', async ({ page }) => {
+test('Build menu: all groups without tabs, tiles labelled, locked ones with reason', async ({ page, isMobile }) => {
   const errors = await fresh(page);
   await bootGame(page);
   await page.getByTestId('quick-all').click();
-  if (await page.getByTestId('build-toggle').isVisible()) await page.getByTestId('build-toggle').click();
   await expect(page.getByTestId('build-residence')).toBeVisible();
-  await expect(page.getByTestId('build-clayMine')).toHaveCount(0);
-  await page.getByTestId('build-cat-raw').click();
-  await expect(page.getByTestId('build-cat-raw')).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByTestId('build-clayMine')).toBeVisible();
-  await expect(page.getByTestId('build-residence')).toHaveCount(0);
-  await page.getByTestId('build-cat-military').click();
+  // All groups are present at once, every tile carries its name
+  for (const g of ['home', 'raw', 'refine', 'military', 'admin']) await expect(page.getByTestId('build-group-' + g)).toHaveCount(1);
+  await expect(page.getByTestId('build-residence').locator('.bm-name')).toHaveText('Wohnhaus');
+  await expect(page.getByTestId('build-clayMine')).toHaveCount(1);
+  // Narrow: jump mark brings the group into view
+  if (isMobile) await page.getByTestId('build-cat-military').click();
   const barracks = page.getByTestId('build-barracks');
+  await expect(barracks).toBeInViewport();
   await expect(barracks).toHaveAttribute('aria-disabled', 'true');
-  await expect(barracks).toContainText('Wehrpflicht');
+  await expect(barracks).toHaveAttribute('aria-label', /Wehrpflicht/);
   // Locked: click starts no placement
   await barracks.click({ force: true });
   expect(await page.evaluate(() => window.__kronland.placing)).toBeNull();
-  await page.getByTestId('build-cat-refine').click();
-  await expect(page.getByTestId('build-brickworks')).toBeVisible();
+  // Desktop: detail line shows costs or reason of the hovered building
+  if (!isMobile) {
+    await barracks.hover();
+    await expect(page.getByTestId('build-detail')).toContainText('Wehrpflicht');
+    await page.getByTestId('build-farm').hover();
+    await expect(page.getByTestId('build-detail')).toContainText('Bauernhof');
+  }
   expect(errors).toEqual([]);
 });
 

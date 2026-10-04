@@ -2,7 +2,7 @@
 // have motivation and pay taxes on payday. Not directly controllable.
 
 import { BUILDINGS } from '../data/buildings.js';
-import { PROFESSIONS, WORKER as W, professionFor } from '../data/professions.js';
+import { PROFESSIONS, WORKER as W, professionFor, motivationEffect } from '../data/professions.js';
 import { researchPoints, TECHS } from '../data/technologies.js';
 import { moveAlong, pathTo, isAdjacent } from './movement.js';
 import { tileCenter, toTile } from '../fixed.js';
@@ -123,7 +123,7 @@ export function updateSpawning(sim) {
       id: sim.nextId++, kind: 'worker', prof: professionFor(wp.type), owner,
       px: tileCenter(t % sim.map.width), py: tileCenter((t / sim.map.width) | 0), path: [],
       workplace: wp.id, home: 0, farm: 0, state: 'idle', intent: '', target: 0, timer: 0,
-      stamina: W.maxStamina, motivation: Math.min(W.startMotivation, maxMotivation(sim, owner)),
+      stamina: W.startStamina, motivation: Math.min(W.startMotivation, maxMotivation(sim, owner)),
       carry: 0, resting: false, ate: false, inside: false,
     };
     sim.entities.set(w.id, w);
@@ -152,7 +152,7 @@ function campOf(sim, w) {
   return nearestDone(sim, w.owner, ['villageCenter', 'headquarters'], wp ? center(wp) : { x: toTile(w.px), y: toTile(w.py) });
 }
 
-const motivationFactor = (w) => Math.max(10, w.motivation);
+const motivationFactor = (w) => motivationEffect(w.motivation);
 
 /** Choose the next step. */
 function decide(sim, w) {
@@ -267,7 +267,7 @@ export function updateWorker(sim, w) {
       return;
     case 'camping':
       if (--w.timer > 0) return;
-      w.stamina = Math.min(W.maxStamina, w.stamina + Math.trunc((W.campGain * motivationFactor(w)) / 100));
+      w.stamina = Math.min(W.maxStamina, w.stamina + W.campGain);
       if (w.intent === 'campEat') w.ate = true; else { w.ate = false; w.resting = false; }
       decide(sim, w);
       return;

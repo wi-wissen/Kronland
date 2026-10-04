@@ -4,10 +4,13 @@
 import { levels } from './util.js';
 import addon from './addon.en.js';
 import { devEn } from './dev.js';
+import { scriptEn } from './script.js';
 
 export default {
   // Entwicklermodus (eigener Namensraum dev.*, src/i18n/dev.js)
   ...devEn,
+  // Skriptsprache, Code-Editor, Abenteuer, Welteneditor (src/i18n/script.js)
+  ...scriptEn,
   // ---------- General ----------
   'app.title': 'Kronland',
   'app.tagline': 'Build your village, provide for your settlers, defend your castle.',
@@ -26,11 +29,14 @@ export default {
   'common.locked': 'Locked',
   'key.space': 'Space',
   'key.esc': 'Esc',
+  'key.shift': 'Shift',
 
   // ---------- Start menu ----------
   'menu.continue': 'Continue saved game',
   'menu.tutorial': 'Tutorial',
   'menu.tutorialSub': 'First steps with Ottilie',
+  'menu.adventures': 'Coding Adventures',
+  'menu.adventuresSub': 'Learn Python, build worlds',
   'menu.campaign': 'Campaign',
   'menu.campaignSub': 'The Return of the Crown',
   'menu.freePlay': 'Free play',
@@ -61,7 +67,7 @@ export default {
   'site.links': 'Website',
   'site.home': 'Home page',
   'site.manual': 'Manual',
-  'site.wiki': 'Wiki',
+  'site.compendium': 'Compendium',
 
   // ---------- Loading ----------
   'loading.title': 'Preparing the land',
@@ -95,6 +101,11 @@ export default {
   'top.pause': 'Pause',
   'top.resume': 'Resume',
   'top.speed': 'Speed {n}×',
+  'top.speedTip': 'Click to choose: normal, double or fourfold',
+  'top.speedTitle': 'Game speed',
+  'top.speedName.1': 'normal',
+  'top.speedName.2': 'fast',
+  'top.speedName.4': 'very fast',
   'top.menu': 'Menu',
 
   // ---------- Quick access ----------
@@ -104,6 +115,13 @@ export default {
   'quick.idleTip': 'Select idle serfs',
   'quick.all': 'All',
   'quick.allTip': 'Select all serfs',
+  'quick.title': 'Quick access',
+  'quick.heroes': 'Heroes',
+  'quick.heroTip': 'Select and jump there',
+  'quick.army': 'Troops',
+  'quick.armyTip': 'Select all troops and heroes',
+  'quick.group': 'Group {n}',
+  'quick.groupTip': 'Click selects the group, a second click brings it into view',
   'quick.minimap': 'Map',
   'quick.minimapTip': 'Show or hide the minimap',
 
@@ -114,12 +132,9 @@ export default {
   'minimap.hint': 'Shows the whole map: terrain, units, buildings and what you can see',
 
   // ---------- Context panel ----------
-  'ctx.nothing': 'Select serfs (drag a box) or a building.',
-  'ctx.nothingTouch': 'Tap your serfs or the castle.',
   'ctx.deselect': 'Clear selection',
   'ctx.collapse': 'Collapse panel',
   'ctx.expand': 'Expand panel',
-  'ctx.overview': 'Overview',
 
   // Serfs
   'serfs.title': 'Serfs',
@@ -134,8 +149,6 @@ export default {
 
   // Build menu
   'build.title': 'Build',
-  'build.open': 'Build …',
-  'build.closeMenu': 'Close build menu',
   'build.cat.home': 'Housing & Supply',
   'build.cat.raw': 'Raw materials',
   'build.cat.refine': 'Refining',
@@ -146,11 +159,6 @@ export default {
   'build.cat.refineShort': 'Refining',
   'build.cat.militaryShort': 'Military',
   'build.cat.adminShort': 'Admin',
-  'build.catTip.home': 'Residences, farms, village centre and storehouse: room and supplies for your settlers',
-  'build.catTip.raw': 'Mines for clay, stone, iron and sulfur',
-  'build.catTip.refine': 'Workshops refine raw materials; the bank mints gold',
-  'build.catTip.military': 'Towers, barracks and other buildings for your army',
-  'build.catTip.admin': 'University, chapel, weather and ornaments for motivation',
   'build.place': 'Place {building}',
   'build.placeOk': 'Site is fine',
   'build.placeHint': 'Click the map · Shift keeps the tool · right-click cancels',
@@ -173,6 +181,8 @@ export default {
   'bld.profession': 'Trade: {prof}',
   'bld.upgrade': 'Upgrade to {name}',
   'bld.upgradeShort': 'Upgrade',
+  'bld.upgradeNext': 'Level {n}: {name}',
+  'bld.upgradeTip': 'Idle serfs nearby carry out the upgrade.',
   'bld.maxLevel': 'Highest level',
   'bld.overtime': 'Overtime',
   'bld.overtimeTip': 'Work faster at the cost of motivation',
@@ -180,7 +190,8 @@ export default {
   'bld.demolishConfirm': 'Really demolish?',
   'bld.demolishTip': 'Half of the building cost is refunded',
   'bld.buySerf': 'Buy serf',
-  'bld.buySerfs': 'Buy 5',
+  'bld.buySerfs': 'Buy 5 serfs',
+  'bld.buySerfsTip': 'Buys five serfs at once. If gold or room runs out, as many as possible are bought.',
   'bld.serfsTitle': 'Serfs',
   'bld.militiaOn': 'To arms!',
   'bld.militiaOnTip': 'Serfs take up pitchforks and fight',
@@ -228,6 +239,13 @@ export default {
 
   // Troops
   'army.title': 'Troops',
+  'army.stance': 'Stance',
+  'army.troops': 'Troops',
+  'army.abilitiesOf': 'Abilities · {hero}',
+  'army.group': 'Control group',
+  'army.groupSave': 'Save as group {n}',
+  'army.groupIs': 'Group {n}',
+  'army.groupTip': 'Saves the selection under a number. The button above the map or the number key selects it again.',
   'army.soldiers': '{n} soldiers',
   'army.groups': 'Units',
   'army.attack': 'Attack',
@@ -262,9 +280,8 @@ export default {
   'foreign.pile': 'Resource pile',
 
   // Selection card
-  'card.noSelection': 'Nothing selected',
-  'card.realm': 'Your realm',
-  'card.time': 'Game time {t}',
+  'card.leaders': '{n} captains',
+  'card.heroes': '{n} heroes',
 
   // ---------- Messages ----------
   'toast.weather': 'Weather: {weather}',
@@ -283,6 +300,8 @@ export default {
   'toast.attackSettlers': 'Your settlers are under attack!',
   'toast.attackTroops': 'Your troops are in battle!',
   'toast.noIdleSerfs': 'No idle serfs',
+  'toast.noArmy': 'You have no troops',
+  'toast.groupSaved': 'Saved as group {n}',
   'toast.saved': 'Game saved',
   'toast.saveFailed': 'Saving failed (browser storage blocked or full)',
   'toast.loadFailed': 'The saved game could not be loaded',
@@ -310,7 +329,8 @@ export default {
   'help.hq': 'To the castle',
   'help.pause': 'Pause',
   'help.menu': 'Menu',
-  'help.categories': 'Choose build category',
+  'help.abilities': 'Hero ability',
+  'help.groups': 'Save · recall control group',
   'help.info': 'Explain an icon',
   'help.desk.select': 'Left-click, drag a box, Shift adds',
   'help.desk.command': 'Right-click',
@@ -351,7 +371,9 @@ export default {
   'set.edgeScroll': 'Move camera at screen edge',
   'set.hints': 'Show help texts',
   'set.labels': 'Show labels',
-  'set.labelsNote': 'Short names below the icons. Long-pressing an icon always shows the full explanation.',
+  'set.labelsNote': 'Names below the quick-access buttons. The build menu and commands are always labelled; long-press shows the full explanation.',
+  'set.speech': 'Read dialogues aloud',
+  'set.speechNote': 'Missions and adventures speak their dialogues – with their own recording or the browser’s speech output.',
   'set.reset': 'Defaults',
   'set.done': 'Done',
 
@@ -400,6 +422,8 @@ export default {
   // ---------- Simulation rejection reasons ----------
   'err.unknownPlayer': 'Unknown player',
   'err.noMission': 'No mission active',
+  'err.noScript': 'This game has no scripts',
+  'err.noPlayerScript': 'This scenario has no player program',
   'err.unknownCommand': 'Unknown command',
   'err.popLimit': 'Population limit reached',
   'err.notEnoughGold': 'Not enough thalers',

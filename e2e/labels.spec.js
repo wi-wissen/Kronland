@@ -27,7 +27,6 @@ async function boot(page) {
 
 async function openBuildMenu(page) {
   await page.getByTestId('quick-all').click();
-  if (await page.getByTestId('build-toggle').isVisible()) await page.getByTestId('build-toggle').click();
   await expect(page.getByTestId('build-residence')).toBeVisible(SLOW);
 }
 
@@ -66,10 +65,9 @@ test('Long press on a build menu icon shows name, costs and explanation without 
   await expect(page.getByTestId('place-cancel')).toHaveCount(0);
   expect(await page.evaluate(() => window.__kronland.placing ?? null)).toBeNull();
   // Next tap closes the tooltip
-  await page.getByTestId('build-cat-raw').click();
+  await page.getByTestId('build-group-home').locator('.bm-ghead').click();
   await expect(tip).toHaveCount(0);
   // A short tap still triggers
-  await page.getByTestId('build-cat-home').click();
   await item.click();
   await expect(page.getByTestId('place-cancel')).toBeVisible();
   expect(errors).toEqual([]);
@@ -85,7 +83,7 @@ test('Long press on the command and top bar triggers nothing', async ({ page, is
   await page.mouse.click(5, 300);
   await longPress(page, page.getByTestId('quick-all'), isMobile);
   await expect(page.getByTestId('tooltip')).toContainText('Leibeigenen');
-  await expect(page.getByTestId('build-residence').or(page.getByTestId('build-toggle'))).toHaveCount(0);
+  await expect(page.getByTestId('build-residence')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -105,12 +103,14 @@ test('Labels: on by default on mobile, can be switched off in the settings', asy
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kronland-settings')).labels)).toBe(true);
     return;
   }
-  // Handy: Reiter tragen sichtbare Kurznamen
+  // Mobile: quick access carries visible names; build menu is always labelled
   await page.getByTestId('settings-done').click();
   await page.getByTestId('resume').click();
+  const label = page.getByTestId('quick-all').locator('.cb-qlbl');
+  await expect(label).toBeVisible();
+  await expect(label).toHaveText('Alle');
   await openBuildMenu(page);
-  await expect(page.getByTestId('build-cat-raw').locator('.bm-tablabel')).toBeVisible();
-  await expect(page.getByTestId('build-cat-raw').locator('.bm-tablabel')).toHaveText('Rohstoffe');
+  await expect(page.getByTestId('build-residence').locator('.bm-name')).toBeVisible();
   // Switching off hides them
   await page.getByTestId('menu').click();
   await page.getByTestId('open-settings').click();
@@ -118,6 +118,7 @@ test('Labels: on by default on mobile, can be switched off in the settings', asy
   await expect(sw).toHaveAttribute('aria-checked', 'false');
   await page.getByTestId('settings-done').click();
   await page.getByTestId('resume').click();
-  await expect(page.getByTestId('build-cat-raw').locator('.bm-tablabel')).toBeHidden();
+  await expect(label).toBeHidden();
+  await expect(page.getByTestId('build-residence').locator('.bm-name')).toBeVisible();
   expect(errors).toEqual([]);
 });

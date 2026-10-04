@@ -82,5 +82,7 @@ export function loadGame(data) {
   sim.entities = new Map(data.entities.map((e) => [e.id, e]));
   sim.mission = data.mission ? MissionRuntime.fromState(data.mission) : null;
   loadVision(sim, data.vision, fromB64);
+  // Scripts (VM states) need the finished simulation
+  sim.mission?.afterLoad(sim);
   return sim;
 }

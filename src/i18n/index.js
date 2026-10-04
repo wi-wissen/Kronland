@@ -122,6 +122,33 @@ export function reasonText(reason, params) {
   return has(code) ? t(code, nameParams(p)) : code;
 }
 
+/**
+ * Turn a script-language error into text: "NameError in Zeile 3: Den Namen „wod“ kenne ich nicht. Meintest du „wood“?"
+ * @param {{code: string, kind: string, params?: any, line?: number}} e error as JSON (ScriptError.toJSON)
+ * @param {{ section?: string, line?: number }} [where] section and line in the editor (otherwise e.line)
+ * @returns {{ title: string, text: string }}
+ */
+export function scriptErrorText(e, where = {}) {
+  if (!e) return { title: '', text: '' };
+  const p = e.params ?? {};
+  const variant = p.what ?? p.feature;
+  const key = variant && has(`${e.code}.${variant}`) ? `${e.code}.${variant}` : e.code;
+  let text;
+  let suggestion = p.suggestion;
+  if (e.code === 'err.script.game' && p.reason) {
+    const rp = { ...(p.reasonParams ?? {}) };
+    if (rp.what && has(`script.tile.${rp.what}`)) rp.what = t(`script.tile.${rp.what}`);
+    suggestion = suggestion ?? rp.suggestion;
+    text = reasonText(p.reason, rp);
+  } else text = has(key) ? t(key, nameParams(p)) : e.code;
+  if (suggestion) text += ' ' + t('err.script.suggest', { name: suggestion });
+  const line = where.line ?? e.line;
+  const title = where.section
+    ? t('err.script.whereSection', { kind: e.kind, section: where.section, line })
+    : line ? t('err.script.where', { kind: e.kind, line }) : e.kind;
+  return { title, text: text.trim() };
+}
+
 /** Vue plugin: $t, $tr, $reason and $lang in all components (Options API). */
 export const I18nPlugin = {
   install(app) {

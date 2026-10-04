@@ -135,7 +135,7 @@ export const KEYS = {
   de: {
     // WORKER
     speed: 'Lauftempo (Milli-Kacheln je Takt)', maxStamina: 'Ausdauer maximal', cycleCost: 'Ausdauer je Arbeitsgang',
-    eatGain: 'Ausdauer durch Essen (× Motivation)', sleepGain: 'Ausdauer durch Schlafen (× Motivation)', campGain: 'Ausdauer am Lagerfeuer (× Motivation)',
+    eatGain: 'Ausdauer durch Essen (× Motivationswirkung)', sleepGain: 'Ausdauer durch Schlafen (× Motivationswirkung)', campGain: 'Ausdauer am Lagerfeuer (fest)', startStamina: 'Ausdauer neuer Arbeiter',
     eatTicks: 'Essensdauer (Takte)', sleepTicks: 'Schlafdauer (Takte)', campTicks: 'Rast am Lagerfeuer (Takte)', fetchAmount: 'Rohware je Gang (Veredler)',
     maxDistance: 'größte Entfernung Arbeitsplatz → Haus/Hof (Kacheln)', spawnTicks: 'neuer Arbeiter je Dorfzentrum alle … Takte',
     startMotivation: 'Motivation zu Beginn (%)', baseMaxMotivation: 'Höchstwert ohne Ziergebäude (%)', hardMaxMotivation: 'absoluter Höchstwert (%)',
@@ -169,7 +169,7 @@ export const KEYS = {
   },
   en: {
     speed: 'Walking speed (milli-tiles per tick)', maxStamina: 'Maximum stamina', cycleCost: 'Stamina per work cycle',
-    eatGain: 'Stamina from eating (× motivation)', sleepGain: 'Stamina from sleeping (× motivation)', campGain: 'Stamina at the campfire (× motivation)',
+    eatGain: 'Stamina from eating (× motivation effect)', sleepGain: 'Stamina from sleeping (× motivation effect)', campGain: 'Stamina at the campfire (fixed)', startStamina: 'Stamina of new workers',
     eatTicks: 'Eating time (ticks)', sleepTicks: 'Sleeping time (ticks)', campTicks: 'Rest at the campfire (ticks)', fetchAmount: 'Raw goods per trip (refiners)',
     maxDistance: 'Max. distance workplace → house/farm (tiles)', spawnTicks: 'New worker per village centre every … ticks',
     startMotivation: 'Starting motivation (%)', baseMaxMotivation: 'Maximum without ornaments (%)', hardMaxMotivation: 'Absolute maximum (%)',
@@ -229,8 +229,10 @@ Leibeigene: Holz {{chopYield}} je {{chopS}} s, Haufen {{mineYield}} je {{mineS}}
     economy: `**Zahltag** alle {{paydayS}} s. Einnahmen = ⌊Arbeiter × {{perWorker}} × Faktor / 100⌋, Ausgaben = Hauptleute × {{wage}} Taler Sold.
 Der Steuersatz ist erst nach **Bildung** wählbar.
 
-**Arbeiter:** Ein Arbeitsgang kostet {{cycleCost}} Ausdauer (voll: {{maxStamina}}). Ausdauer kommt durch Essen, Schlafen oder Lagerfeuer zurück –
-jeweils multipliziert mit der Motivation (mindestens 10 %). Ohne Haus und Hof arbeiten Arbeiter daher ein Vielfaches langsamer.
+**Arbeiter:** Ein Arbeitsgang kostet {{cycleCost}} Ausdauer (voll: {{maxStamina}}). Ausdauer kommt durch Essen und Schlafen zurück,
+jeweils multipliziert mit der Motivationswirkung ({{motCurve}}): Unter 100 % sackt die Leistung stark ab, darüber steigt sie gleichmäßig weiter.
+Das Lagerfeuer gibt nur wenig feste Ausdauer – ohne Haus und Hof arbeiten Arbeiter ein Vielfaches langsamer, Motivation hilft dann kaum.
+Das Haus bringt mehr als der Hof.
 Ziergebäude heben den Höchstwert der Motivation um ihren Wert.`,
     weather: `Das Wetter folgt einem festen Zyklus je Karte (Missionen können ihn ändern). **Regen:** Fernkampf {{rainRanged}}, weniger Sicht.
 **Winter:** Wasser friert und wird begehbar, Tempo {{winterSpeed}}, weniger Sicht; bei Tauwetter ertrinkt, wer auf dem Eis steht.
@@ -289,8 +291,10 @@ Serfs: wood {{chopYield}} per {{chopS}} s, piles {{mineYield}} per {{mineS}} s. 
     economy: `**Payday** every {{paydayS}} s. Income = ⌊workers × {{perWorker}} × factor / 100⌋, expenses = captains × {{wage}} thalers in wages.
 The tax rate can only be chosen after **Education**.
 
-**Workers:** a work cycle costs {{cycleCost}} stamina (full: {{maxStamina}}). Stamina returns by eating, sleeping or at the campfire – each
-multiplied by motivation (at least 10 %). Without house and farm, workers are therefore many times slower.
+**Workers:** a work cycle costs {{cycleCost}} stamina (full: {{maxStamina}}). Stamina returns by eating and sleeping, each multiplied by
+the motivation effect ({{motCurve}}): below 100 % output drops sharply, above it keeps rising steadily.
+The campfire only gives a little fixed stamina – without house and farm, workers are many times slower and motivation barely helps.
+The house is worth more than the farm.
 Ornamental buildings raise the motivation maximum by their value.`,
     weather: `The weather follows a fixed cycle per map (missions may change it). **Rain:** ranged {{rainRanged}}, less sight.
 **Winter:** water freezes and can be crossed, speed {{winterSpeed}}, less sight; when it thaws, anyone on the ice drowns.

@@ -5,11 +5,6 @@ import { levels } from './util.js';
 
 export default {
   // Start menu
-  'menu.addon': 'Erweiterungsinhalte',
-  'menu.addon.on': 'An',
-  'menu.addon.off': 'Aus',
-  'menu.addon.hint.on': 'Wirtshaus mit Dieb und Kundschafter, Brücken, Büchsenschützen, zwei Helden und neue Zierden.',
-  'menu.addon.hint.off': 'Nur die Inhalte des Grundspiels.',
   'menu.hero.falk': 'Meisterschütze: gezielter Schuss, Adlerauge für Schützen',
   'menu.hero.morla': 'Nebelhexe: Giftnebel und Nebelschleier (unsichtbar)',
 

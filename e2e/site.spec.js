@@ -14,7 +14,8 @@ function watch(page) {
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.(googleapis|gstatic)/.test(m.text() + (m.location()?.url ?? ''))) problems.push(`console: ${m.text()}`); });
   page.on('response', (r) => { if (r.status() >= 400 && own(r.url())) problems.push(`${r.status()} ${r.url()}`); });
-  page.on('requestfailed', (r) => { if (own(r.url())) problems.push(`failed ${r.url()}`); });
+  // On page change the browser aborts running fetches (ERR_ABORTED) - that is no error of the page
+  page.on('requestfailed', (r) => { if (own(r.url()) && !/ERR_ABORTED/.test(r.failure()?.errorText ?? '')) problems.push(`failed ${r.url()} ${r.failure()?.errorText ?? ''}`); });
   return problems;
 }
 
@@ -43,9 +44,18 @@ test('Home page loads with title image, features, gallery and footer', async ({ 
   await school.scrollIntoViewIfNeeded();
   await expect(school.locator('h2')).toHaveText('Informatik zum Anfassen');
   await expect(page.getByTestId('home-dev-play')).toHaveAttribute('href', /play\/\?dev=1$/);
+  await expect(page.getByTestId('home-code-play')).toHaveAttribute('href', /play\/\?mission=adv1$/);
   const devImg = school.locator('.school-shot img');
   await expect.poll(() => devImg.evaluate((el) => el.complete && el.naturalWidth > 0)).toBe(true);
-  await expect(page.locator('.features')).toContainText('Bauen am Hang');
+  // What makes the game, from the player's point of view; icons from the game's atlas
+  await expect(page.locator('.features')).toContainText('Leibeigene packen an');
+  await expect(page.locator('.features')).toContainText('Diebe und Kundschafter');
+  await expect(page.locator('.features .ico.atlas').first()).toBeVisible();
+  // Gallery: hovering brightens but moves nothing
+  const shot = gallery.locator('img').first();
+  await shot.scrollIntoViewIfNeeded();
+  await shot.hover();
+  expect(await shot.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
   await expect(page.getByTestId('credits')).toContainText('KayKit');
   expect(problems).toEqual([]);
 });
@@ -57,13 +67,13 @@ test('"Jetzt spielen" leads into the game, the start menu links back', async ({ 
   await expect(page).toHaveURL(new RegExp(`${PLAY}$`));
   await expect(page.getByTestId('start-menu')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('menu-link-manual')).toHaveAttribute('href', '../manual/');
-  await page.getByTestId('menu-link-wiki').click();
+  await page.getByTestId('menu-link-compendium').click();
   await expect(page).toHaveURL(/\/compendium\/$/);
   await expect(page.getByTestId('compendium')).toBeVisible();
   expect(problems).toEqual([]);
 });
 
-test('Manual: Inhaltsverzeichnis, Anker, Suche', async ({ page }) => {
+test('Manual: table of contents, anchors, search', async ({ page }) => {
   const problems = watch(page);
   await page.goto('/manual/#saving');
   const manual = page.getByTestId('manual');
@@ -78,6 +88,10 @@ test('Manual: Inhaltsverzeichnis, Anker, Suche', async ({ page }) => {
   await expect(manual.locator('h2#developer-mode')).toHaveText('Entwicklermodus');
   await expect(manual.locator('#sec-developer-mode')).toContainText('A*-Suche');
   await expect(manual.locator('#sec-saving')).toContainText('Autosave');
+  // coding adventure and tavern (expansion content is a fixed part of the game)
+  await expect(manual.locator('h2#coding')).toHaveText('Programmier-Abenteuer');
+  await expect(manual.locator('#sec-coding pre')).toContainText('hero.step()');
+  await expect(manual.locator('h2#spezialisten')).toHaveText('Wirtshaus, Dieb und Kundschafter');
   await page.getByTestId('manual-search').fill('Winter');
   await expect(manual.locator('h2#weather')).toBeVisible();
   await expect(manual.locator('h2#saving')).toHaveCount(0);
@@ -100,7 +114,7 @@ test('Manual: Inhaltsverzeichnis, Anker, Suche', async ({ page }) => {
 test('Compendium: building table from the game data, deep link, search', async ({ page }) => {
   const problems = watch(page);
   await page.goto('/compendium/');
-  const table = page.getByTestId('wiki-table-buildings-table');
+  const table = page.getByTestId('compendium-table-buildings-table');
   await expect(table).toBeVisible();
   // every building type from src/sim/data/buildings.js has a row with its translated name
   const types = Object.keys(BUILDINGS);
@@ -112,14 +126,14 @@ test('Compendium: building table from the game data, deep link, search', async (
   await page.goto('/compendium/#b-farm');
   await expect(page.locator('#b-farm h3')).toBeInViewport();
   // Search finds a technology and jumps there
-  await page.getByTestId('wiki-search').fill(de['tech.education']);
-  const hit = page.getByTestId('wiki-results').getByRole('link', { name: de['tech.education'] }).first();
+  await page.getByTestId('compendium-search').fill(de['tech.education']);
+  const hit = page.getByTestId('compendium-results').getByRole('link', { name: de['tech.education'] }).first();
   await hit.click();
   await expect(page.locator('#t-education')).toBeInViewport();
   // Building on slopes: rules and worked example from the simulation
   await page.goto('/compendium/#slope');
   await expect(page.locator('#slope h2')).toBeInViewport();
-  await expect(page.getByTestId('wiki-table-slope-after')).toBeVisible();
+  await expect(page.getByTestId('compendium-table-slope-after')).toBeVisible();
   // Map generator draws a preview
   await expect(page.getByTestId('map-preview').locator('.mp-stats')).toBeVisible({ timeout: 20_000 });
   expect(problems).toEqual([]);
@@ -128,11 +142,11 @@ test('Compendium: building table from the game data, deep link, search', async (
 test('Language switch applies to all pages and the game', async ({ page }) => {
   const problems = watch(page);
   await page.goto('/compendium/');
-  await expect(page.getByTestId('nav-manual')).toHaveText('Manual');
+  await expect(page.getByTestId('nav-manual')).toHaveText('Handbuch');
   await page.getByTestId('site-lang-en').click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.getByTestId('nav-manual')).toHaveText('Manual');
-  await expect(page.getByTestId('wiki-table-buildings-table').locator('tr#row-residence')).toContainText(en['building.residence.0']);
+  await expect(page.getByTestId('compendium-table-buildings-table').locator('tr#row-residence')).toContainText(en['building.residence.0']);
   await page.getByTestId('nav-manual').click();
   await expect(page.getByTestId('manual').locator('h2#getting-started')).toHaveText('Getting started');
   await page.getByTestId('nav-home').click();

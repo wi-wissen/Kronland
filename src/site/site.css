@@ -1,5 +1,5 @@
 /*
- * Website (home page, Manual, Compendium): builds on the tokens from src/ui/style.css (wood, parchment, brass),
+ * Website (home, manual, compendium): builds on the tokens from src/ui/style.css (wood, parchment, brass),
  * but lifts the game defaults that do not suit a reading page (no scrolling, no text selection).
  * Reading text sits on parchment, frames and navigation on wood – as in the game.
  */
@@ -54,6 +54,7 @@ a.btn .ico { width: 1.25rem; height: 1.25rem; }
   /* no backdrop-filter: expensive when scrolling on weak devices (and software graphics), invisible at 97 % opacity */
   padding-top: var(--safe-t);
 }
+.site-head { transition: background 0.2s; }
 .site-head.overlay { background: linear-gradient(180deg, rgba(23, 15, 9, 0.9), rgba(23, 15, 9, 0.7)); }
 .sh-inner { max-width: 76rem; margin: 0 auto; padding: 0.5rem max(1rem, var(--safe-r)) 0.5rem max(1rem, var(--safe-l)); display: flex; align-items: center; gap: 1rem; min-height: 3.75rem; }
 .sh-brand { display: inline-flex; align-items: center; gap: 0.5rem; font-family: var(--display); font-size: 1.5rem; color: var(--gold-200) !important; text-decoration: none; letter-spacing: 0.04em; text-shadow: 0 2px 0 var(--gold-800); white-space: nowrap; }
@@ -74,7 +75,8 @@ a.btn .ico { width: 1.25rem; height: 1.25rem; }
   .site-head .sh-play { display: none; }
   .sh-nav { order: 3; flex-basis: 100%; overflow-x: auto; scrollbar-width: none; margin: 0 -0.5rem; }
   .sh-nav::-webkit-scrollbar { display: none; }
-  .sh-link { padding-inline: 0.625rem; }
+  /* four pages fit side by side, even with "Compendium" */
+  .sh-link { padding-inline: 0.5rem; font-size: 0.9375rem; }
 }
 
 /* ---------- Footer ---------- */
@@ -95,7 +97,7 @@ a.btn .ico { width: 1.25rem; height: 1.25rem; }
 .page-lead { color: var(--ink-muted); font-size: 1.1875rem; margin: 0.5rem 0 0; max-width: 46rem; }
 .page-head { padding-top: 2.25rem; padding-bottom: 1.5rem; }
 
-/* Reading text on parchment (Manual, Compendium) */
+/* Reading text on parchment (manual, compendium) */
 .prose { color: var(--parch-ink); font-size: 1.0625rem; line-height: 1.6; }
 .prose a { color: #7a4a0c; }
 .prose a:hover { color: #4f2f05; }
@@ -108,6 +110,8 @@ a.btn .ico { width: 1.25rem; height: 1.25rem; }
 .prose ul, .prose ol { padding-left: 1.4rem; }
 .prose li { margin: 0.25rem 0; }
 .prose code { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.875em; background: rgba(90, 60, 20, 0.1); padding: 0.05em 0.3em; border-radius: 0.25rem; }
+.prose pre { margin: 0.875rem 0; padding: 0.75rem 1rem; overflow-x: auto; background: #2b1d12; color: #f3e3c0; border-radius: var(--r-md); line-height: 1.45; }
+.prose pre code { background: none; padding: 0; font-size: 0.875rem; color: inherit; }
 .prose kbd { font-size: 0.8125rem; }
 .prose strong { color: #3b2408; }
 .prose blockquote { margin: 1rem 0; padding: 0.625rem 1rem; border-left: 4px solid var(--gold-500); background: rgba(225, 168, 58, 0.13); border-radius: 0 var(--r-md) var(--r-md) 0; }
@@ -130,7 +134,7 @@ a.btn .ico { width: 1.25rem; height: 1.25rem; }
 .prose tbody tr:target, .prose tbody tr.hl { background: rgba(243, 200, 94, 0.45); }
 .prose td.num, .prose th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* ---------- Dokumentseiten (Manual, Compendium): Seitenleiste + Pergament ---------- */
+/* ---------- Document pages (manual, compendium): sidebar + parchment ---------- */
 .doc-layout { display: grid; grid-template-columns: 17rem minmax(0, 1fr); gap: 1.5rem; align-items: start; }
 .doc-side { position: sticky; top: 4.5rem; max-height: calc(100vh - 5.5rem); }
 .doc-side-inner { padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; max-height: calc(100vh - 5.5rem); overflow-y: auto; scrollbar-width: thin; }
@@ -170,4 +174,5 @@ input[type='search'].doc-search { font: inherit; color: var(--ink); background: 
 
 /* Icons (like ui/icons/Icon.vue, which is not loaded on the website) */
 img.ico { object-fit: contain; -webkit-user-drag: none; }
+.ico.atlas { display: inline-block; background-repeat: no-repeat; }
 .ico.glyph { background-color: currentColor; -webkit-mask: var(--mask) center / contain no-repeat; mask: var(--mask) center / contain no-repeat; }

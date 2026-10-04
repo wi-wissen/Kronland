@@ -1,13 +1,14 @@
-// Schadensmodell (Quelle: dedk.de-Wiki "Schadensmodell").
+// Damage model: structure as in the model (dedk.de wiki "damage model"), factors own (A),
+// strengths and weaknesses the same (pierce vs. cavalry, slash vs. light armour, siege vs. buildings).
 // Damage = attack × factor(attack type, armour type) − target armour + random 0…2
 
 /** Factors in percent. Row = attack type, column = armour type. */
 export const DAMAGE_FACTORS = {
-  pierce: { none: 150, padded: 100, leather: 100, iron: 150, fortified: 30, hero: 90 },   // Stich
-  slash:  { none: 100, padded: 170, leather: 150, iron: 100, fortified: 40, hero: 100 },  // Schlag
+  pierce: { none: 140, padded: 100, leather: 95, iron: 155, fortified: 30, hero: 90 },    // pierce
+  slash:  { none: 100, padded: 160, leather: 140, iron: 95, fortified: 40, hero: 100 },   // slash
   shot:   { none: 100, padded: 180, leather: 100, iron: 100, fortified: 30, hero: 120 },  // shot
-  chaos:  { none: 100, padded: 100, leather: 150, iron: 125, fortified: 75, hero: 100 },
-  siege:  { none: 20, padded: 20, leather: 20, iron: 20, fortified: 170, hero: 20 },      // Belagerung
+  chaos:  { none: 110, padded: 100, leather: 140, iron: 120, fortified: 70, hero: 100 },
+  siege:  { none: 25, padded: 25, leather: 25, iron: 25, fortified: 160, hero: 25 },      // siege
   hero:   { none: 100, padded: 100, leather: 100, iron: 100, fortified: 60, hero: 100 },
 };
 

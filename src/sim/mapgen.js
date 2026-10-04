@@ -602,6 +602,25 @@ export function generateMap(seed, opts = {}) {
       }
     }
   }
+  // Second guarantee for the wider surroundings: trees do not regrow, and maps with little forest ran
+  // out by minute 20 otherwise (barracks no longer buildable). Own randomness, so that maps with enough forest
+  // stay unchanged.
+  const MIN_WOOD_WIDE = 150; // trees within radius 40 around each start
+  const woodRng = new Rng(seed ^ 0x700d);
+  for (const s of starts) {
+    for (let g = 0; g < 14 && treesNear(s, 40) < MIN_WOOD_WIDE; g++) {
+      const [dx, dy] = DIRS16[(g * 7 + woodRng.int(16)) % 16];
+      const dist = 18 + woodRng.int(16);
+      const ox = Math.trunc((dx * dist) / 1000), oy = Math.trunc((dy * dist) / 1000);
+      let placed = 0;
+      for (let tries = 0; tries < 220 && placed < 18; tries++) {
+        const x = s.x + ox + woodRng.range(-4, 4), y = s.y + oy + woodRng.range(-4, 4);
+        if (!map.inBounds(x, y) || !freeForTree(x, y) || !reach[y * S + x] || nearStart(x, y, 144)) continue;
+        if (taken(x, y, 1, 1)) continue;
+        addTree(x, y); placed++;
+      }
+    }
+  }
 
   // ---------- Check with trees and piles: clear overgrown chokepoints again ----------
   const blockedTile = new Uint8Array(N);

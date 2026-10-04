@@ -4,6 +4,7 @@
 //   node scripts/build-lods.mjs                      all buildings and characters under public/models (default levels)
 //   node scripts/build-lods.mjs <file|folder> …      only these
 //   Options: --ratios 0.45,0.2  --errors 0.01,0.04   target fraction of triangles and permitted error per level
+//             --keep-textures   keep the texture in the LOD files   --out path/x.lod{n}.glb   target files
 //
 // Simplification uses meshoptimizer (simplifyWithAttributes, "Permissive": edges at UV seams may
 // move as long as normals and UV hardly deviate – important for the KayKit colour-palette textures).
@@ -28,6 +29,12 @@ const DEFAULTS = {
 const args = process.argv.slice(2);
 const opt = (name) => { const i = args.indexOf(name); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v.split(',').map(Number); };
 const ratios = opt('--ratios'), errors = opt('--errors');
+// --keep-textures: texture stays in the LOD file (own rendering per level, e.g. flat colours)
+const keepTextures = args.includes('--keep-textures') && !!args.splice(args.indexOf('--keep-textures'), 1);
+// --strict-seams: do not move UV seams (own textures per level; otherwise colour streaks across island borders)
+const strictSeams = args.includes('--strict-seams') && !!args.splice(args.indexOf('--strict-seams'), 1);
+// --out <pattern>: target file, {n} = level (default: <name>.lod{n}.glb)
+const outPattern = (() => { const i = args.indexOf('--out'); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v; })();
 
 await Promise.all([MeshoptDecoder.ready, MeshoptEncoder.ready, MeshoptSimplifier.ready]);
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS)
@@ -62,7 +69,7 @@ function simplifyPrimitive(prim, ratio, error) {
     if (uv) { att[i * 5 + 3] = uv[i * 2]; att[i * 5 + 4] = uv[i * 2 + 1]; }
   }
   // weight UV more strongly: palette textures must not slip into a neighbouring cell (different colour)
-  const [out] = MeshoptSimplifier.simplifyWithAttributes(indices, pos, 3, att, 5, [0.4, 0.4, 0.4, 2, 2], null, target, error, ['Permissive']);
+  const [out] = MeshoptSimplifier.simplifyWithAttributes(indices, pos, 3, att, 5, [0.4, 0.4, 0.4, 2, 2], null, target, error, strictSeams ? [] : ['Permissive']);
   if (out.length < 3 || !idxA) return indices.length / 3;
   idxA.setArray(n > 65535 ? out : new Uint16Array(out));
   compactPrimitive(prim); // remove vertices no longer used
@@ -89,10 +96,10 @@ for (const file of inputs) {
       t1 += simplifyPrimitive(prim, ratio, error);
     }
     // drop texture images: the game takes the material of the original
-    for (const t of root.listTextures()) t.dispose();
+    if (!keepTextures) for (const t of root.listTextures()) t.dispose();
     // keepAttributes: UV stay although the file itself no longer has a texture (material comes from the original)
     await doc.transform(dedup(), prune({ keepLeaves: true, keepAttributes: true }), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
-    await io.write(file.replace(/\.glb$/, `.lod${k + 1}.glb`), doc);
+    await io.write(outPattern ? outPattern.replace('{n}', String(k + 1)) : file.replace(/\.glb$/, `.lod${k + 1}.glb`), doc);
     before[0] = Math.round(t0); after.push(Math.round(t1));
   }
   console.log(relative(ROOT, file), before[0], '→', after.join(' → '));

@@ -190,6 +190,7 @@ Bei technischen Referenzbildern werden diese Bereiche in **kräftigem reinem Mag
 Beispielsweise:
 
 - Halstuch
+- Kopfbedeckung aus Stoff (Mütze, Haarband) – aus der steilen Spielkamera am besten sichtbar
 - Stoffbesatz
 - einzelne Stoffeinsätze
 - kleine klar definierte Kleidungsbereiche

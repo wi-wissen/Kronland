@@ -33,7 +33,6 @@ test('Icons come from the atlas', async ({ page }, info) => {
 
   // Build menu: building icons from the atlas
   await page.getByTestId('quick-all').click();
-  if (await page.getByTestId('build-toggle').isVisible()) await page.getByTestId('build-toggle').click();
   await expect(page.getByTestId('build-residence')).toBeVisible(SLOW);
   await expect(page.getByTestId('build-residence').locator('.ico.atlas[data-icon="b-residence"]')).toHaveCount(1);
   await page.waitForTimeout(500);

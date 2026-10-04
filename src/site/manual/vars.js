@@ -10,12 +10,16 @@ import { VISION } from '../../sim/data/vision.js';
 import { MARKET } from '../../sim/data/market.js';
 import { DAMAGE } from '../../sim/systems/damage.js';
 import { CAMPAIGN } from '../../sim/missions/registry.js';
+import { ADVENTURES, SCRIPT_MISSIONS } from '../../sim/missions/scenarios/index.js';
+import { SPECIALISTS, ADDON } from '../../sim/data/addon.js';
 import { t, tr, heroName, has } from '../../i18n/index.js';
 
 const named = (key, fallback, lang) => (has(key) ? t(key, null, lang) : (fallback ?? key));
 
 const levelsOf = (type, key) => BUILDINGS[type]?.levels.map((l) => l[key] ?? 0).join(' / ') ?? '';
 const fmt = (n, lang) => Number(n).toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB');
+/** Costs as text, e.g. "300 Taler, 50 Eisen". */
+const costText = (cost, lang) => Object.entries(cost).map(([r, n]) => `${fmt(n, lang)} ${named(`res.${r}`, r, lang)}`).join(', ');
 
 /** Acknowledgements from CREDITS.md: headings one level deeper, links to repository files as text. */
 export function creditsMarkdown(raw) {
@@ -80,6 +84,16 @@ export function manualVars(lang, credits = '') {
       return `${named(`line.${ln}`, LINES[ln]?.name ?? ln, lang)} ${u.pop ?? 1}`;
     }).join(', '),
     campaignList: CAMPAIGN.map((m, i) => `${i + 1}. **${tr(m.title, lang)}**`).join('\n'),
+    // Tavern: thief and scout (src/sim/data/addon.js)
+    thiefCost: costText(SPECIALISTS.thief.cost, lang),
+    scoutCost: costText(SPECIALISTS.scout.cost, lang),
+    specialistMax: SPECIALISTS.thief.max,
+    stealSec: SPECIALISTS.thief.abilities.steal.cooldown / 10,
+    detectTower: ADDON.detect.buildings.tower,
+    detectScout: ADDON.detect.scout,
+    // Coding adventures (src/sim/missions/scenarios)
+    adventureList: ADVENTURES.map((a, i) => `${i + 1}. **${tr(a.title, lang)}** – ${tr(a.summary, lang)}${a.learn ? ` *(${tr(a.learn, lang).join(', ')})*` : ''}`).join('\n'),
+    scriptMissions: SCRIPT_MISSIONS.map((m) => `„${tr(m.title, lang)}“`).join(', '),
     credits: creditsMarkdown(credits),
   };
 }

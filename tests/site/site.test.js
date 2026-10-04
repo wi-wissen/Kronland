@@ -1,4 +1,4 @@
-// Website: Markdown-Umsetzer, Manual (beide Sprachen gleich gegliedert, Bilder vorhanden), Texte, Pfade.
+// Website: Markdown renderer, manual (both languages structured the same, images present), texts, paths.
 import { describe, it, expect, afterEach } from 'vitest';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -7,6 +7,9 @@ import { manualSections } from '../../src/site/manual/content.js';
 import { manualVars, creditsMarkdown } from '../../src/site/manual/vars.js';
 import STRINGS from '../../src/site/strings.js';
 import { siteRoot, siteUrl } from '../../src/paths.js';
+import { pageLinks } from '../../src/site/site.js';
+import { atlasCss, iconHtml } from '../../src/site/icons.js';
+import { ATLAS_INDEX } from '../../src/ui/icons/atlas.js';
 
 describe('Markdown', () => {
   it('headings with anchor, lists, tables, notes, images, inline', () => {
@@ -36,6 +39,13 @@ describe('Markdown', () => {
     expect(html).toContain('{{missing}}');
   });
 
+  it('code blocks stay verbatim with indentation', () => {
+    const { html, headings } = renderMarkdown('```\nfor i in range(3):\n    # kein Titel\n    hero.step() < 2\n```\nDanach');
+    expect(html).toContain('<pre><code>for i in range(3):\n    # kein Titel\n    hero.step() &lt; 2</code></pre>');
+    expect(headings).toEqual([]);
+    expect(html).toContain('<p>Danach</p>');
+  });
+
   it('anchor from umlauts', () => { expect(slugify('Größe & Übersicht')).toBe('groesse-uebersicht'); });
 });
 
@@ -46,7 +56,7 @@ describe('Manual', () => {
   it('both languages have the same chapters (same anchors)', () => {
     expect(de.length).toBeGreaterThanOrEqual(15);
     expect(en.map((s) => s.id)).toEqual(de.map((s) => s.id));
-    for (const id of ['getting-started', 'controls', 'interface', 'slope', 'saving', 'developer-mode', 'faq', 'licenses']) expect(de.map((s) => s.id)).toContain(id);
+    for (const id of ['getting-started', 'controls', 'interface', 'spezialisten', 'slope', 'saving', 'coding', 'developer-mode', 'faq', 'licenses']) expect(de.map((s) => s.id)).toContain(id);
   });
 
   it('all placeholders filled, acknowledgements included', () => {
@@ -110,5 +120,28 @@ describe('Website texts and paths', () => {
     expect(siteRoot()).toBe('../');
     expect(siteUrl('/audio/manifest.json')).toBe('../audio/manifest.json');
     expect(siteUrl('./sw.js')).toBe('../sw.js');
+  });
+});
+
+describe('Website addresses', () => {
+  it('English paths: manual/ and compendium/', () => {
+    expect(pageLinks('../')).toEqual({ home: '../', play: '../play/', manual: '../manual/', compendium: '../compendium/' });
+    for (const p of ['manual', 'compendium']) expect(existsSync(resolve(p, 'index.html')), p).toBe(true);
+  });
+
+  it('all pages are in the Vite configuration', () => {
+    const cfg = readFileSync(resolve('vite.config.js'), 'utf8');
+    for (const p of ['play', 'manual', 'compendium']) expect(cfg).toContain(`'${p}/index.html'`);
+  });
+});
+
+describe('Website icons', () => {
+  it('coloured icons come from the game atlas, UI icons stay masks', () => {
+    expect(ATLAS_INDEX.gold).toBeDefined();
+    expect(atlasCss('gold', 'icons/symbols.webp')).toMatch(/^background-image:url\(&quot;icons\/symbols\.webp&quot;\);background-size:1200% 800%;background-position:0% 0%$/);
+    expect(iconHtml('gold')).toContain('class="ico atlas"');
+    expect(iconHtml('weather-winter')).toContain('class="ico atlas"');
+    expect(atlasCss('play')).toBeNull();
+    expect(iconHtml('play')).toContain('ico glyph');
   });
 });

@@ -27,8 +27,9 @@ describe('Saving and loading', () => {
     const tick = (s, a) => { for (const ai of a) ai.update(); s.step(); };
     for (let i = 0; i < 15000; i++) tick(sim, ais);
     // enrich state: fire, ruin, experience
-    const b = [...sim.entities.values()].find((e) => e.kind === 'building' && e.owner === 1 && e.type === 'residence');
-    if (b) b.hp = 10;
+    const bs = [...sim.entities.values()].filter((e) => e.kind === 'building' && e.done && e.type !== 'headquarters');
+    const b = bs.find((e) => e.owner === 1 && e.type === 'residence') ?? bs.find((e) => e.owner === 1) ?? bs[0];
+    b.hp = 10;
     const L = [...sim.entities.values()].find((e) => e.kind === 'leader');
     if (L) L.xp = 90;
     sim.players[0].weatherEnergy = 500;

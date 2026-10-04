@@ -59,7 +59,7 @@ export default {
       if (this.touch) return ['select', 'command', 'pan', 'rotate', 'tilt', 'zoom', 'build', 'info'].map((k) => [k, this.$t('help.touch.' + k)]);
       return [
         ...['select', 'command', 'pan', 'rotate', 'tilt', 'zoom', 'build', 'info'].map((k) => [k, this.$t('help.desk.' + k)]),
-        ['categories', '1 – 5'], ['idle', '.'], ['hq', 'H'], ['pause', this.$t('key.space')], ['menu', 'Esc'],
+        ['abilities', 'X · C'], ['groups', this.$t('key.shift') + '+1–9 · 1–9'], ['idle', '.'], ['hq', 'H'], ['pause', this.$t('key.space')], ['menu', 'Esc'],
       ];
     },
   },

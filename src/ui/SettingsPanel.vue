@@ -73,6 +73,10 @@
         <span class="st-sl-label"><Icon name="info" />{{ $t('set.labels') }}</span><span class="track"></span>
       </button>
       <p class="st-note">{{ $t('set.labelsNote') }}</p>
+      <button class="switch" role="switch" :aria-checked="s.speech" data-testid="speech" @click="set('speech', !s.speech)">
+        <span class="st-sl-label"><Icon name="scroll" />{{ $t('set.speech') }}</span><span class="track"></span>
+      </button>
+      <p class="st-note">{{ $t('set.speechNote') }}</p>
       <button class="switch" role="switch" :aria-checked="dev.on" data-testid="dev-mode" @click="toggleDev">
         <span class="st-sl-label"><Icon name="display" />{{ $t('dev.toggle') }}</span><span class="track"></span>
       </button>

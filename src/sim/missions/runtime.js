@@ -18,6 +18,8 @@ import { averageMotivation } from '../systems/workers.js';
 import * as api from './setupApi.js';
 import { getMission } from './registry.js';
 import { revealArea } from '../systems/vision.js';
+import { ScriptHost } from '../scripting/host.js';
+import { scenarioToDef, playerSetupOf } from '../scripting/scenario.js';
 import { WEATHER_EFFECTS } from '../data/weather.js';
 
 const T = TICKS_PER_SECOND;
@@ -50,17 +52,40 @@ export class MissionRuntime {
       camera: null,              // { seq, x, y }
       tutorial: def.tutorial ? { index: -1, ui: {}, since: 0, done: false } : null,
       warnings: [],
+      /** Goals that a script creates at runtime: ID → { id, type: 'script', text, primary } */
+      extraObjectives: {},
+      /** Own scenario (editor, file): is part of the save game because it is in no directory */
+      scenario: def.custom ? def.scenario : null,
     };
     this.census = null;
+    /** Python scripts of the scenario (src/sim/scripting/host.js) or null */
+    this.script = def.scenario ? new ScriptHost(this, def.scenario) : null;
+    /** Saved script state that is applied after loading (afterLoad) */
+    this.pendingScript = null;
   }
 
   static fromState(state) {
-    const def = getMission(state.id);
+    const def = state.scenario ? { ...scenarioToDef(state.scenario), custom: true } : getMission(state.id);
     if (!def) throw new Error(`Unknown mission: ${state.id}`);
-    return new MissionRuntime(def, structuredClone(state));
+    const st = structuredClone(state);
+    const script = st.script ?? null;
+    delete st.script;
+    const rt = new MissionRuntime(def, st);
+    rt.pendingScript = script;
+    return rt;
   }
 
-  getState() { return structuredClone(this.state); }
+  /** After loading a save game (serialize.js): restore scripts. */
+  afterLoad(sim) {
+    if (this.script && this.pendingScript) this.script.load(this.pendingScript, sim);
+    this.pendingScript = null;
+  }
+
+  getState() {
+    const s = structuredClone(this.state);
+    if (this.script) s.script = this.script.save();
+    return s;
+  }
 
   get human() { return this.state.human; }
 
@@ -108,9 +133,13 @@ export class MissionRuntime {
 
     const ctx = this.setupContext(sim);
     def.setup?.(ctx);
+    // Places of the scenario are references as in mission files (for declarative goals and actions)
+    for (const [name, p] of Object.entries(def.scenario?.world?.places ?? {})) st.refs[name] = { x: p.x, y: p.y, r: p.r ?? 2 };
     // Initial actions and first tutorial step
     if (def.start) this.runActions(sim, def.start);
     if (st.tutorial) this.enterStep(sim, 0);
+    // Python mission program: world building, register handlers
+    this.script?.setup(sim);
   }
 
   /** Toolbox for def.setup(ctx). */
@@ -197,6 +226,7 @@ export class MissionRuntime {
     this.updateTutorial(sim);
     this.updateObjectives(sim);
     this.updateEvents(sim);
+    if (!st.result) this.script?.update(sim);
     this.checkEnd(sim);
   }
 
@@ -340,7 +370,7 @@ export class MissionRuntime {
 
   // ---------- Goals ----------
 
-  objectiveDef(id) { return this.def.objectives.find((o) => o.id === id); }
+  objectiveDef(id) { return this.def.objectives.find((o) => o.id === id) ?? this.state.extraObjectives?.[id]; }
 
   /** Progress of a goal: { cur, target, done, failed }. */
   evaluate(sim, def, o) {
@@ -394,6 +424,7 @@ export class MissionRuntime {
       }
       case 'flag': return { cur: this.state.flags[def.flag] ? 1 : 0, target: 1 };
       case 'custom': return def.progress(sim, this);
+      case 'script': return this.script ? this.script.objectiveProgress(def.id) : { cur: 0, target: 1 };
       default:
         return { cur: 0, target: 1 };
     }
@@ -635,6 +666,8 @@ export class MissionRuntime {
   checkEnd(sim) {
     const st = this.state;
     if (st.result) return;
+    // Scenarios with a script determine their end solely via victory() and defeat()
+    if (this.def.scenario) return;
     if (!this.def.noDefeat) {
       if (sim.players[st.human].defeated) { this.finish(sim, false, 'hq'); return; }
       for (const o of st.objectives) {
@@ -668,6 +701,7 @@ export class MissionRuntime {
     for (const o of st.objectives) h.str(o.status).int(o.count);
     for (const k of Object.keys(st.fireCount)) h.str(k).int(st.fireCount[k]);
     if (st.tutorial) h.int(st.tutorial.index);
+    this.script?.hash(h);
   }
 
   /** Data for the UI (texts stay bilingual objects; translation happens in Vue). */
@@ -693,9 +727,11 @@ export class MissionRuntime {
       };
     }
     return {
-      id: st.id, title: def.title, objectives, tutorial,
+      id: st.id, title: def.title, objectives, tutorial, kind: def.kind ?? 'mission',
       messages: st.messages.slice(-8),
+      dialogSkip: st.dialogSkip ?? 0,
       camera: st.camera,
+      script: this.script ? this.script.uiState() : null,
       result: st.result ? {
         ...st.result, title: def.title,
         text: st.result.won ? def.victoryText : (def.defeatTexts?.[st.result.reason] ?? def.defeatText),
@@ -738,15 +774,28 @@ export function missionAiConfig(sim, player) {
 export function createMissionSim(id, opts = {}) {
   const def = getMission(id);
   if (!def) throw new Error(`Unknown mission: ${id}`);
+  return simForDef(def, opts);
+}
+
+/**
+ * Create a simulation for a scenario JSON that is in no directory (world editor, loaded file).
+ * @param {any} scenario @param {{ seed?: number }} [opts]
+ */
+export function createScenarioSim(scenario, opts = {}) {
+  return simForDef({ ...scenarioToDef(scenario), custom: true }, opts);
+}
+
+function simForDef(def, opts) {
   const runtime = new MissionRuntime(def);
   const real = def.players.filter((p) => p.kind !== 'bandits');
-  const sim = new Sim({
+  return new Sim({
     seed: opts.seed ?? def.seed ?? 1,
     size: def.size ?? 96,
     players: real.length,
     heroes: real.map((p) => p.hero ?? null),
     teams: real.map((p, i) => p.team ?? i),
     mission: runtime,
+    world: def.world ? { ...def.world, size: def.world.size ?? def.size, seed: opts.seed ?? def.world.seed ?? def.seed } : undefined,
+    playerSetup: def.scenario ? playerSetupOf(def) : undefined,
   });
-  return sim;
 }

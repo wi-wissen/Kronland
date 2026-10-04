@@ -2,7 +2,8 @@
 
 Vorbild: die Erweiterungen von *Die Siedler – Das Erbe der Könige* („Nebelreich“, März 2005; „Legenden“, September 2005).
 Nachgebaut werden Mechaniken; Namen, Texte, Grafiken und Werte sind eigene. Regeln und Zahlen:
-[Spielregeln §13](SPIELREGELN.md#13-erweiterungsinhalte). Code: `src/sim/systems/addon.js`, Daten
+[Spielregeln §13](SPIELREGELN.md#13-erweiterungsinhalte). Im freien Spiel gehören die Inhalte fest zum Spiel – einen
+Schalter gibt es nicht mehr (die Sim-Option `addon` bleibt für Missionen, Tests und `scripts/ai-match.js`). Code: `src/sim/systems/addon.js`, Daten
 `src/sim/data/addon.js` (+ Einträge mit `addon: true` in `buildings.js`, `units.js`, `buildingTechs.js`),
 KI `src/ai/addonAi.js`, Oberfläche `src/game/addonUi.js`, `src/ui/hud/SpecialistPanel.vue`, Texte `src/i18n/addon.*.js`.
 

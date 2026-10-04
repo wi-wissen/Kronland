@@ -10,7 +10,7 @@ import credits from '../../../CREDITS.md?raw';
 const SOURCES = { de, en };
 
 /** Screenshots that have a small version `<name>-small.webp` (scripts/site-screens.py). */
-export const SMALL_SHOTS = ['settlement', 'combat', 'winter', 'fog', 'phone', 'slope', 'developer'];
+export const SMALL_SHOTS = ['settlement', 'combat', 'winter', 'fog', 'phone', 'slope', 'developer', 'programming'];
 const small = (src) => {
   const m = /^site\/([\w-]+)\.webp$/.exec(src);
   return m && SMALL_SHOTS.includes(m[1]) ? `site/${m[1]}-small.webp` : null;

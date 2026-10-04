@@ -61,7 +61,7 @@ export default defineConfig({
       },
       workbox: {
         // Precache game code, models on first load (they are large)
-        globPatterns: ['**/*.{js,css,html,png,webp}'], // webp: Symbol-Atlas icons/symbols.webp
+        globPatterns: ['**/*.{js,css,html,png,webp}'], // webp: Symbol-Atlas icons/symbols.webp, portraits portraits/*.webp
         globIgnores: ['models/**', 'site/**'],
         // Multiple pages: no fallback page for navigations (otherwise /play/ would get the home page)
         navigateFallback: null,

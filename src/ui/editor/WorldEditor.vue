@@ -1,0 +1,480 @@
+<template>
+  <div class="editor" :class="{ compact }" data-testid="world-editor">
+    <canvas ref="canvas" class="ed-canvas" data-testid="editor-canvas"></canvas>
+    <div v-if="loading" class="ed-loading backdrop"><span class="frame ed-loading-card">{{ $t('editor.loading') }}</span></div>
+
+    <!-- Labels for start spots and places -->
+    <template v-if="ui">
+      <span v-for="s in ui.starts" v-show="s.screen && !s.screen.behind" :key="'s' + s.i" class="ed-label start" :style="labelStyle(s.screen)">{{ $t('editor.startOf', { n: s.i + 1 }) }}</span>
+      <span v-for="p in ui.places" v-show="p.screen && !p.screen.behind" :key="'p' + p.name" class="ed-label place" :style="labelStyle(p.screen)">◎ {{ p.name }}</span>
+    </template>
+
+    <header class="ed-top frame">
+      <button class="icon-btn ghost" :aria-label="$t('common.back')" data-testid="editor-back" @click="$emit('back')"><Icon name="back" /></button>
+      <input v-model="scenario.title.de" class="ed-title" :aria-label="$t('editor.title')" data-testid="editor-title">
+      <div class="ed-actions">
+        <button v-tip="$t('editor.undo')" class="icon-btn" :disabled="!ui?.canUndo" data-testid="editor-undo" @click="view.undo()">↶</button>
+        <button v-tip="$t('editor.redo')" class="icon-btn" :disabled="!ui?.canRedo" data-testid="editor-redo" @click="view.redo()">↷</button>
+        <button data-testid="editor-new" @click="newOpen = true"><Icon name="plus" /><span class="ed-lbl">{{ $t('editor.new') }}</span></button>
+        <label class="ed-file-btn" data-testid="editor-open"><Icon name="load" /><span class="ed-lbl">{{ $t('editor.open') }}</span><input type="file" accept=".json,application/json" @change="openFile"></label>
+        <button data-testid="editor-save" @click="save"><Icon name="save" /><span class="ed-lbl">{{ $t('editor.save') }}</span></button>
+        <button class="primary" data-testid="editor-play" @click="play"><Icon name="play" />{{ $t('editor.play') }}</button>
+      </div>
+    </header>
+
+    <nav class="ed-tools frame" role="toolbar" :aria-label="$t('editor.tools')">
+      <button v-for="t in tools" :key="t.id" v-tip="$t('editor.tool.' + t.id)" class="act ed-tool" :class="{ on: ui?.tool.tool === t.id }" :aria-pressed="ui?.tool.tool === t.id" :data-testid="'tool-' + t.id" :disabled="ui?.preview && t.id !== 'camera'" @click="setTool({ tool: t.id })">
+        <Icon v-if="t.icon" :name="t.icon" /><span v-else class="ed-glyph" aria-hidden="true">{{ t.glyph }}</span><span class="act-lbl">{{ $t('editor.toolShort.' + t.id) }}</span>
+      </button>
+      <div v-if="ui && showBrush" class="ed-brush">
+        <label>{{ $t('editor.size') }} <input type="range" min="0" max="8" :value="ui.tool.r" data-testid="brush-size" @input="setTool({ r: +$event.target.value })"><b class="num">{{ ui.tool.r }}</b></label>
+        <label v-if="['raise', 'lower'].includes(ui.tool.tool)">{{ $t('editor.strength') }} <input type="range" min="10" max="300" step="10" :value="ui.tool.strength" @input="setTool({ strength: +$event.target.value })"></label>
+      </div>
+      <div v-if="ui && ['pile', 'shaft'].includes(ui.tool.tool)" class="ed-brush">
+        <select :value="ui.tool.res" :aria-label="$t('editor.res')" data-testid="tool-res" @change="setTool({ res: $event.target.value })">
+          <option v-for="r in (ui.tool.tool === 'shaft' ? ['stone', 'iron', 'clay', 'sulfur'] : resources)" :key="r" :value="r">{{ $name.res ? $name.res(r) : r }}</option>
+        </select>
+        <label v-if="ui.tool.tool === 'pile'">{{ $t('editor.amount') }} <input type="number" min="1" max="5000" step="50" :value="ui.tool.amount" class="ed-num" @change="setTool({ amount: +$event.target.value })"></label>
+      </div>
+      <div v-if="ui && ui.tool.tool === 'start'" class="ed-brush">
+        <select :value="ui.tool.player" :aria-label="$t('editor.player')" @change="setTool({ player: +$event.target.value })">
+          <option v-for="(p, i) in realPlayers" :key="i" :value="i">{{ $t('editor.startOf', { n: i + 1 }) }}</option>
+        </select>
+      </div>
+    </nav>
+
+    <p v-if="ui" class="ed-status" data-testid="editor-status">
+      <template v-if="ui.hover">x {{ ui.hover.x }} · y {{ ui.hover.y }} · {{ ui.hover.h }} cm · {{ $t('editor.kind.' + ui.hover.kind) }}<template v-if="ui.hover.res"> ({{ ui.hover.res }})</template></template>
+      <template v-else>{{ ui.size.w }} × {{ ui.size.h }}</template>
+      · 🌲 {{ ui.counts.trees }} · ◆ {{ ui.counts.piles }}
+      <b v-if="ui.preview" class="ed-preview-badge">{{ $t('editor.previewOn') }}</b>
+    </p>
+
+    <button v-if="compact && !sideOpen" class="ed-side-fab" data-testid="editor-panel-open" @click="sideOpen = true"><Icon name="menu" />{{ $t('editor.panel') }}</button>
+    <aside v-show="!compact || sideOpen" class="ed-side frame" data-testid="editor-side">
+      <header class="ed-side-head">
+        <nav class="seg ed-tabs" role="tablist">
+          <button v-for="t in tabs" :key="t" role="tab" :aria-selected="tab === t" :class="{ active: tab === t }" :data-testid="'editor-tab-' + t" @click="tab = t">{{ $t('editor.tab.' + t) }}</button>
+        </nav>
+        <button v-if="compact" class="icon-btn ghost" :aria-label="$t('common.close')" @click="sideOpen = false"><Icon name="close" /></button>
+      </header>
+      <div class="ed-side-body scroll-y">
+        <!-- Scenario: title, kind, texts for the menu, players -->
+        <section v-if="tab === 'scenario'" class="ed-form">
+          <label>{{ $t('editor.id') }}<input v-model="scenario.id" pattern="[\w-]+" data-testid="editor-id"></label>
+          <label>{{ $t('editor.kindLabel') }}
+            <select v-model="scenario.kind" data-testid="editor-kind"><option value="adventure">{{ $t('editor.kindAdventure') }}</option><option value="mission">{{ $t('editor.kindMission') }}</option></select>
+          </label>
+          <div class="ed-two"><label>{{ $t('editor.titleDe') }}<input v-model="scenario.title.de"></label><label>{{ $t('editor.titleEn') }}<input v-model="scenario.title.en"></label></div>
+          <div class="ed-two"><label>{{ $t('editor.summaryDe') }}<input v-model="scenario.summary.de"></label><label>{{ $t('editor.summaryEn') }}<input v-model="scenario.summary.en"></label></div>
+          <label>{{ $t('editor.briefingDe') }}<textarea v-model="scenario.briefing.de" rows="3"></textarea></label>
+          <label>{{ $t('editor.briefingEn') }}<textarea v-model="scenario.briefing.en" rows="3"></textarea></label>
+          <label class="ed-check"><input v-model="scenario.world.fog" type="checkbox"> {{ $t('editor.fog') }}</label>
+          <h4>{{ $t('editor.players') }}</h4>
+          <div v-for="(p, i) in scenario.players" :key="i" class="ed-player">
+            <b>{{ i === 0 ? $t('editor.human') : p.kind === 'bandits' ? $t('editor.bandits') : $t('editor.ai') }}</b>
+            <select v-if="p.kind !== 'bandits'" v-model="p.hero" @change="rebuild"><option :value="null">–</option><option v-for="h in heroes" :key="h" :value="h">{{ $name.hero(h) }}</option></select>
+            <label v-if="p.kind !== 'bandits'" class="ed-check"><input v-model="p.hq" type="checkbox" :true-value="true" :false-value="false" @change="rebuild"> {{ $t('editor.hq') }}</label>
+            <button v-if="i > 0" class="icon-btn ghost" :aria-label="$t('editor.remove')" @click="removePlayer(i)"><Icon name="close" /></button>
+          </div>
+          <div class="ed-row">
+            <button @click="addPlayer('ai')"><Icon name="plus" />{{ $t('editor.addAi') }}</button>
+            <button :disabled="scenario.players.some((p) => p.kind === 'bandits')" @click="addPlayer('bandits')"><Icon name="plus" />{{ $t('editor.addBandits') }}</button>
+          </div>
+          <p class="ed-note">{{ $t('editor.scenarioNote') }}</p>
+        </section>
+
+        <!-- Places: named circles, in code via place("name") -->
+        <section v-else-if="tab === 'places'" class="ed-form">
+          <p class="ed-note">{{ $t('editor.placesNote') }}</p>
+          <div v-if="placeDraft" class="ed-place-new">
+            <b>{{ $t('editor.newPlace', { x: placeDraft.x, y: placeDraft.y }) }}</b>
+            <input v-model="placeDraft.name" :placeholder="$t('editor.placeName')" data-testid="place-name" @keydown.enter="addPlace">
+            <button class="primary" :disabled="!/^[\w-]+$/.test(placeDraft.name)" data-testid="place-add" @click="addPlace">{{ $t('editor.add') }}</button>
+          </div>
+          <div v-for="(p, name) in scenario.world.places" :key="name" class="ed-place">
+            <code>{{ name }}</code>
+            <label>x<input v-model.number="p.x" type="number" class="ed-num"></label>
+            <label>y<input v-model.number="p.y" type="number" class="ed-num"></label>
+            <label>r<input v-model.number="p.r" type="number" min="0" max="20" class="ed-num"></label>
+            <button class="icon-btn ghost" :aria-label="$t('editor.remove')" @click="delete scenario.world.places[name]"><Icon name="close" /></button>
+          </div>
+          <p v-if="!Object.keys(scenario.world.places).length" class="sp-none">{{ $t('editor.noPlaces') }}</p>
+        </section>
+
+        <!-- Code: edit sections, world setup as preview -->
+        <section v-else-if="tab === 'code'" class="ed-form">
+          <div class="ed-row">
+            <button v-if="!ui?.preview" data-testid="editor-preview" @click="view.setPreview(true, plainScenario())"><Icon name="play" />{{ $t('editor.preview') }}</button>
+            <template v-else>
+              <button data-testid="editor-preview-off" @click="view.setPreview(false, plainScenario())">{{ $t('editor.previewOff') }}</button>
+              <button v-tip="$t('editor.bakeTip')" data-testid="editor-bake" @click="bake">{{ $t('editor.bake') }}</button>
+            </template>
+          </div>
+          <div v-if="ui?.preview && (ui.errors.length || ui.console.length)" class="sp-console">
+            <div v-for="e in ui.errors" :key="'e' + e.seq" class="sp-out err">{{ errText(e) }}</div>
+            <div v-for="c in ui.console.filter((c) => !c.err)" :key="c.seq" class="sp-out">{{ c.text }}</div>
+          </div>
+          <div v-for="(s, i) in scenario.sections" :key="s.id" class="ed-section" :data-testid="'editor-section-' + s.id">
+            <div class="ed-sec-head">
+              <input v-model="s.title.de" class="ed-sec-title" :aria-label="$t('editor.sectionTitle')">
+              <select v-model="s.level" :aria-label="$t('editor.level')"><option value="mission">{{ $t('editor.levelMission') }}</option><option value="player">{{ $t('editor.levelPlayer') }}</option></select>
+              <select v-model="s.visibility" :aria-label="$t('editor.visibility')"><option v-for="v in ['open', 'collapsed', 'hidden']" :key="v" :value="v">{{ $t('editor.vis.' + v) }}</option></select>
+              <label class="ed-check"><input v-model="s.editable" type="checkbox"> {{ $t('editor.editable') }}</label>
+              <button class="icon-btn ghost" :disabled="i === 0" :aria-label="$t('editor.up')" @click="moveSection(i, -1)"><Icon name="chevronUp" /></button>
+              <button class="icon-btn ghost" :aria-label="$t('editor.remove')" @click="scenario.sections.splice(i, 1)"><Icon name="close" /></button>
+            </div>
+            <CodeEditor v-model="s.code" :label="s.title.de" />
+          </div>
+          <div class="ed-row">
+            <button data-testid="editor-add-section" @click="addSection('mission')"><Icon name="plus" />{{ $t('editor.addMission') }}</button>
+            <button @click="addSection('player')"><Icon name="plus" />{{ $t('editor.addPlayer') }}</button>
+          </div>
+          <details class="ed-help"><summary>{{ $t('editor.commands') }}</summary><ApiHelp level="mission" @insert="insertCode" /></details>
+        </section>
+
+        <!-- Texts: keys for say(), objective() … bilingual -->
+        <section v-else-if="tab === 'texts'" class="ed-form">
+          <p class="ed-note">{{ $t('editor.textsNote') }}</p>
+          <div v-for="(tx, key) in scenario.texts" :key="key" class="ed-text">
+            <code>{{ key }}</code>
+            <textarea v-model="tx.de" rows="2" :aria-label="key + ' de'"></textarea>
+            <textarea v-model="tx.en" rows="2" :aria-label="key + ' en'"></textarea>
+            <button class="icon-btn ghost" :aria-label="$t('editor.remove')" @click="delete scenario.texts[key]"><Icon name="close" /></button>
+          </div>
+          <div class="ed-row">
+            <input v-model="newTextKey" :placeholder="$t('editor.textKey')" @keydown.enter="addText">
+            <button :disabled="!/^[\w-]+$/.test(newTextKey)" @click="addText"><Icon name="plus" />{{ $t('editor.add') }}</button>
+          </div>
+        </section>
+
+        <!-- Examples: open bundled scenarios as a template -->
+        <section v-else-if="tab === 'examples'" class="ed-form">
+          <p class="ed-note">{{ $t('editor.examplesNote') }}</p>
+          <button v-for="ex in examples" :key="ex.id" class="ed-example" :data-testid="'example-' + ex.id" @click="openExample(ex)">
+            <b>{{ $tr(ex.title) }}</b><small>{{ $tr(ex.summary) }}</small>
+          </button>
+        </section>
+        <p v-if="message" class="ed-msg" role="status">{{ message }}</p>
+      </div>
+    </aside>
+
+    <!-- New world -->
+    <div v-if="newOpen" class="scrim" @click.self="newOpen = false">
+      <div class="dialog frame ed-new" role="dialog" aria-modal="true" :aria-label="$t('editor.new')" data-testid="editor-new-dialog">
+        <h2 class="h-title">{{ $t('editor.new') }}</h2>
+        <div class="seg"><button v-for="b in ['flat', 'generate']" :key="b" :class="{ active: newBase === b }" @click="newBase = b">{{ $t('editor.base.' + b) }}</button></div>
+        <label>{{ $t('editor.mapSize') }}
+          <select v-model.number="newSize"><option v-for="n in (newBase === 'flat' ? [24, 32, 48, 64, 96] : [64, 96, 128])" :key="n" :value="n">{{ n }} × {{ n }}</option></select>
+        </label>
+        <label v-if="newBase === 'generate'">{{ $t('menu.mapNumber') }}<input v-model.number="newSeed" type="number" min="1"></label>
+        <div class="ed-row"><button @click="newOpen = false">{{ $t('common.cancel') }}</button><button class="primary" data-testid="editor-new-create" @click="createNew">{{ $t('editor.create') }}</button></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { markRaw } from 'vue';
+import CodeEditor from '../script/CodeEditor.vue';
+import ApiHelp from '../script/ApiHelp.vue';
+import { EditorView } from '../../game/EditorView.js';
+import { emptyScenario, validateScenario } from '../../sim/scripting/scenario.js';
+import { SCENARIOS } from '../../sim/missions/scenarios/index.js';
+import { RESOURCES } from '../../sim/data/resources.js';
+import { loadAssets } from '../../render/assets.js';
+import { scriptErrorText } from '../../i18n/index.js';
+
+const DRAFT = 'kronland-editor-draft';
+const TOOLS = [
+  { id: 'camera', glyph: '✥' }, { id: 'raise', glyph: '▲' }, { id: 'lower', glyph: '▼' }, { id: 'flatten', glyph: '▬' },
+  { id: 'smooth', glyph: '≈' }, { id: 'water', glyph: '≋' }, { id: 'land', glyph: '◭' }, { id: 'forest', icon: 'wood' },
+  { id: 'erase', icon: 'trash' }, { id: 'pile', icon: 'stone' }, { id: 'shaft', icon: 'b-stoneMine' }, { id: 'spot', icon: 'b-villageCenter' },
+  { id: 'start', icon: 'banner' }, { id: 'place', icon: 'target' },
+];
+
+/** Add missing fields so the forms always have something to bind to. */
+function normalize(s) {
+  // JSON copy: s may be a reactive Vue proxy (structuredClone fails on it)
+  const c = JSON.parse(JSON.stringify(s));
+  c.title = { de: '', en: '', ...(c.title ?? {}) };
+  c.summary = { de: '', en: '', ...(c.summary ?? {}) };
+  c.briefing = { de: '', en: '', ...(c.briefing ?? {}) };
+  c.world = { places: {}, ...(c.world ?? {}) };
+  c.world.places ??= {};
+  c.texts ??= {};
+  c.sections = (c.sections ?? []).map((x) => ({ level: 'mission', visibility: 'open', editable: false, ...x, title: typeof x.title === 'string' ? { de: x.title, en: x.title } : { de: x.id, en: x.id, ...(x.title ?? {}) } }));
+  for (const t of Object.values(c.texts)) { t.de ??= ''; t.en ??= ''; }
+  return c;
+}
+
+const loadDraft = () => { try { const d = JSON.parse(localStorage.getItem(DRAFT) ?? 'null'); return d && !validateScenario(d).length ? d : null; } catch { return null; } };
+
+export default {
+  name: 'WorldEditor',
+  components: { CodeEditor, ApiHelp },
+  props: {
+    initial: { type: Object, default: null },
+    touch: Boolean,
+  },
+  emits: ['back', 'play', 'change'],
+  data() {
+    return {
+      scenario: normalize(this.initial ?? loadDraft() ?? emptyScenario({ size: 32 })),
+      ui: null, view: null, loading: true, tab: 'scenario', sideOpen: false,
+      newOpen: false, newBase: 'flat', newSize: 32, newSeed: 42,
+      placeDraft: null, newTextKey: '', message: '',
+      compact: false, tools: TOOLS, resources: RESOURCES, heroes: ['bertram', 'hedda', 'gerold'], examples: SCENARIOS,
+    };
+  },
+  computed: {
+    tabs() { return ['scenario', 'places', 'code', 'texts', 'examples']; },
+    realPlayers() { return this.scenario.players.filter((p) => p.kind !== 'bandits'); },
+    showBrush() { return ['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase'].includes(this.ui?.tool.tool); },
+  },
+  watch: {
+    scenario: {
+      deep: true,
+      handler() {
+        if (this.view) this.view.scenario = this.plainScenario();
+        clearTimeout(this.draftTimer);
+        this.draftTimer = setTimeout(() => this.saveDraft(), 800);
+      },
+    },
+    'ui.canUndo'() { clearTimeout(this.draftTimer); this.draftTimer = setTimeout(() => this.saveDraft(), 800); },
+  },
+  async mounted() {
+    this.layout = () => { this.compact = window.innerWidth < 900 || window.innerHeight < 560; };
+    this.layout();
+    window.addEventListener('resize', this.layout);
+    try { await loadAssets(Math.max(1, this.realPlayers.length), () => {}); } catch { /* placeholder models */ }
+    this.view = markRaw(new EditorView(this.$refs.canvas, this.plainScenario(), {
+      onUi: (ui) => { this.ui = ui; },
+      onPick: (tool, x, y) => this.pick(tool, x, y),
+    }));
+    this.loading = false;
+    window.__kronlandEditor = this.view;
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.layout);
+    clearTimeout(this.draftTimer);
+    this.saveDraft();
+    this.view?.dispose();
+    if (window.__kronlandEditor === this.view) window.__kronlandEditor = null;
+  },
+  methods: {
+    /** Scenario as a plain object (without Vue proxies). */
+    plainScenario() { return JSON.parse(JSON.stringify(this.scenario)); },
+    /** Complete scenario with map. */
+    fullScenario() { return this.view ? this.view.scenarioWithTerrain(this.plainScenario()) : this.plainScenario(); },
+    saveDraft() {
+      if (!this.view || this.view.preview) return;
+      const full = this.fullScenario();
+      this.$emit('change', full);
+      try { localStorage.setItem(DRAFT, JSON.stringify(full)); } catch { /* full or blocked */ }
+    },
+    setTool(patch) { this.view?.setTool(patch); if (patch.tool === 'place') { this.tab = 'places'; if (this.compact) this.sideOpen = false; } },
+    labelStyle(p) { return { left: `${p.x}px`, top: `${p.y}px` }; },
+    errText(e) { const r = scriptErrorText(e, { line: e.sline || e.line }); return `${r.title}: ${r.text}`; },
+    flash(msg) { this.message = msg; clearTimeout(this.msgTimer); this.msgTimer = setTimeout(() => { this.message = ''; }, 4000); },
+
+    /** Click with the "start spot" or "place" tool. */
+    pick(tool, x, y) {
+      if (tool === 'place') {
+        this.placeDraft = { x, y, name: this.placeDraft?.name ?? '' };
+        this.tab = 'places';
+        if (this.compact) this.sideOpen = true;
+        return;
+      }
+      const p = this.ui?.tool.player ?? 0;
+      const full = this.fullScenario();
+      const starts = (full.world.starts ?? full.world.terrain?.starts ?? []).slice();
+      while (starts.length <= p) starts.push({ ...(this.view.sim.starts[starts.length] ?? { x: 8, y: 8 }) });
+      starts[p] = { x, y };
+      this.scenario.world.starts = starts;
+      full.world.starts = starts;
+      if (full.world.terrain) full.world.terrain.starts = starts;
+      this.view.undoStack = [];
+      this.view.load(full, true);
+    },
+    addPlace() {
+      const d = this.placeDraft;
+      if (!d || !/^[\w-]+$/.test(d.name)) return;
+      this.scenario.world.places[d.name] = { x: d.x, y: d.y, r: 2 };
+      this.placeDraft = null;
+    },
+    addText() {
+      const k = this.newTextKey.trim();
+      if (!/^[\w-]+$/.test(k) || this.scenario.texts[k]) return;
+      this.scenario.texts[k] = { de: '', en: '' };
+      this.newTextKey = '';
+    },
+    addSection(level) {
+      let n = 1;
+      while (this.scenario.sections.some((s) => s.id === `${level}${n}`)) n++;
+      this.scenario.sections.push({ id: `${level}${n}`, title: { de: level === 'player' ? 'Dein Programm' : 'Skript', en: level === 'player' ? 'Your program' : 'Script' }, level, visibility: 'open', editable: level === 'player', code: level === 'player' ? 'hero.step()\n' : '# …\n' });
+    },
+    moveSection(i, d) {
+      const s = this.scenario.sections;
+      const [x] = s.splice(i, 1);
+      s.splice(i + d, 0, x);
+    },
+    insertCode(text) {
+      const s = this.scenario.sections.find((x) => x.level === 'mission') ?? this.scenario.sections[0];
+      if (s) s.code = s.code.replace(/\n*$/, '\n') + text + '\n';
+    },
+    addPlayer(kind) {
+      this.scenario.players.push(kind === 'bandits' ? { kind: 'bandits' } : { kind: 'ai', hero: 'gerold', hq: true, difficulty: 'normal' });
+      this.rebuild();
+    },
+    removePlayer(i) { this.scenario.players.splice(i, 1); this.rebuild(); },
+    /** Rebuild the world (players changed): the map is kept. */
+    rebuild() {
+      if (!this.view) return;
+      const full = this.fullScenario();
+      this.view.undoStack = [];
+      this.view.load(full, true);
+    },
+    createNew() {
+      const s = normalize(emptyScenario({ size: this.newSize }));
+      if (this.newBase === 'generate') {
+        s.world = { base: 'generate', seed: this.newSeed || 1, size: this.newSize, fog: true, places: {} };
+        s.kind = 'mission';
+        s.players = [{ kind: 'human', hero: 'bertram', hq: true }];
+        s.sections = s.sections.filter((x) => x.level === 'mission');
+      }
+      this.scenario = s;
+      this.newOpen = false;
+      this.view.undoStack = [];
+      this.view.preview = false;
+      this.view.load(this.plainScenario());
+    },
+    openExample(ex) {
+      this.scenario = normalize(ex);
+      this.scenario.id = `${ex.id}-copy`;
+      this.view.preview = false;
+      this.view.undoStack = [];
+      this.view.load(this.plainScenario());
+      this.flash(this.$t('editor.opened', { name: this.$tr(ex.title) }));
+    },
+    openFile(ev) {
+      const f = ev.target.files?.[0];
+      ev.target.value = '';
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        try {
+          const json = JSON.parse(String(r.result));
+          const problems = validateScenario(json);
+          if (problems.length) { this.flash(this.$t('adv.loadFailed', { why: problems[0] })); return; }
+          this.scenario = normalize(json);
+          this.view.preview = false;
+          this.view.undoStack = [];
+          this.view.load(this.plainScenario());
+          this.flash(this.$t('editor.opened', { name: this.$tr(json.title) || json.id }));
+        } catch (e) { this.flash(this.$t('adv.loadFailed', { why: e.message })); }
+      };
+      r.readAsText(f);
+    },
+    save() {
+      const full = this.fullScenario();
+      const blob = new Blob([JSON.stringify(full, null, 1)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${full.id || 'world'}.kronland.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      this.flash(this.$t('editor.saved'));
+    },
+    bake() {
+      const baked = this.view.bakePreview(this.plainScenario());
+      if (!baked) return;
+      this.scenario = normalize(baked);
+      // World-setup sections have done their job: comment them out so nothing is created twice
+      const world = this.scenario.sections.find((s) => s.id === 'world');
+      if (world) world.code = world.code.split('\n').map((l) => (l.trim() ? '# ' + l : l)).join('\n');
+      this.flash(this.$t('editor.baked'));
+    },
+    play() {
+      const full = this.fullScenario();
+      const problems = validateScenario(full);
+      if (problems.length) { this.flash(problems[0]); return; }
+      this.saveDraft();
+      this.$emit('play', { ...full, debug: true });
+    },
+  },
+};
+</script>
+
+<style>
+.editor { position: fixed; inset: 0; background: #1a221e; overflow: hidden; }
+.ed-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.ed-loading { display: grid; place-items: center; z-index: 50; }
+.ed-loading-card { padding: 1rem 1.5rem; }
+.ed-top { position: absolute; z-index: 5; top: calc(0.5rem + var(--safe-t)); left: calc(0.5rem + var(--safe-l)); right: calc(0.5rem + var(--safe-r)); display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.5rem; }
+.ed-title { flex: 1; min-width: 6rem; font-family: var(--display); font-size: var(--fs-lg); background: transparent; border-color: transparent; color: var(--gold-200); box-shadow: none; }
+.ed-title:hover, .ed-title:focus-visible { background: var(--inset-bg); border-color: var(--wood-950); }
+.ed-actions { display: flex; gap: 0.375rem; align-items: center; }
+.ed-actions > button, .ed-file-btn { display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.5rem; }
+.ed-file-btn { position: relative; padding: 0 0.75rem; border-radius: var(--r-md); cursor: pointer; background: var(--inset-bg); box-shadow: var(--inset-edge); }
+.ed-file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.ed-tools { position: absolute; z-index: 5; left: calc(0.5rem + var(--safe-l)); top: 4.25rem; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.375rem; max-height: calc(100dvh - 6rem); overflow-y: auto; width: 5.25rem; }
+.ed-tools button.act.ed-tool { flex: none; width: 100%; min-height: 3.25rem; padding: 0.375rem 0.25rem 0.3125rem; }
+.ed-tool > .ico { width: 1.5rem; height: 1.5rem; }
+.ed-glyph { position: relative; z-index: 1; height: 1.5rem; display: grid; place-items: center; font-size: 1.25rem; line-height: 1; }
+.ed-brush { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--fs-xs); padding: 0.25rem 0; border-top: 1px solid rgba(225, 168, 58, 0.2); }
+.ed-brush input[type=range] { width: 100%; }
+.ed-num { width: 4.5rem; }
+.ed-status { position: absolute; z-index: 5; left: 6.25rem; bottom: calc(0.5rem + var(--safe-b)); margin: 0; padding: 0.25rem 0.625rem; border-radius: var(--r-md); background: rgba(20, 13, 8, 0.75); color: var(--ink); font-size: var(--fs-sm); }
+.ed-preview-badge { margin-left: 0.5rem; color: var(--warn); }
+.ed-side { position: absolute; z-index: 5; top: 4.25rem; right: calc(0.5rem + var(--safe-r)); bottom: calc(0.5rem + var(--safe-b)); width: min(34rem, 44vw); display: flex; flex-direction: column; padding: 0.5rem; gap: 0.5rem; }
+.ed-side-head { display: flex; align-items: center; gap: 0.5rem; }
+.ed-tabs { flex: 1; overflow-x: auto; }
+.ed-tabs > button { min-height: 2.125rem; padding: 0 0.625rem; white-space: nowrap; }
+.ed-side-body { flex: 1; min-height: 0; }
+.ed-form { display: flex; flex-direction: column; gap: 0.5rem; }
+.ed-form label { display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--fs-sm); color: var(--ink-muted); }
+.ed-form label.ed-check { flex-direction: row; align-items: center; gap: 0.4rem; }
+.ed-form h4 { margin: 0.5rem 0 0; color: var(--gold-300); font-size: var(--fs-sm); }
+.ed-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.ed-row { display: flex; gap: 0.375rem; flex-wrap: wrap; align-items: center; }
+.ed-row button { display: inline-flex; align-items: center; gap: 0.3rem; }
+.ed-note { margin: 0; font-size: var(--fs-sm); color: var(--ink-dim); line-height: 1.4; }
+.ed-player, .ed-place { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.375rem 0.5rem; border-radius: var(--r-md); background: var(--inset-bg); }
+.ed-place label { flex-direction: row; align-items: center; gap: 0.25rem; }
+.ed-place code, .ed-text code { color: var(--gold-100); min-width: 5rem; }
+.ed-place-new { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; padding: 0.5rem; border: 1px dashed var(--gold-500); border-radius: var(--r-md); }
+.ed-section { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.375rem; border-radius: var(--r-md); background: rgba(0, 0, 0, 0.18); }
+.ed-sec-head { display: flex; gap: 0.25rem; flex-wrap: wrap; align-items: center; }
+.ed-sec-head select { min-height: 2rem; padding-top: 0; padding-bottom: 0; }
+.ed-sec-title { flex: 1; min-width: 8rem; }
+.ed-text { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 0.375rem; align-items: start; }
+.ed-example { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 0.125rem; padding: 0.5rem 0.75rem; }
+.ed-example b { color: var(--gold-200); }
+.ed-example small { color: var(--ink-muted); }
+.ed-help summary { cursor: pointer; color: var(--gold-300); }
+.ed-msg { position: sticky; bottom: 0; margin: 0.5rem 0 0; padding: 0.375rem 0.625rem; border-radius: var(--r-md); background: rgba(63, 125, 43, 0.4); font-size: var(--fs-sm); }
+.ed-label { position: absolute; z-index: 4; transform: translate(-50%, -110%); pointer-events: none; padding: 0.125rem 0.4rem; border-radius: var(--r-sm); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+.ed-label.start { background: rgba(77, 123, 192, 0.85); color: #fff; }
+.ed-label.place { background: rgba(196, 141, 42, 0.85); color: #fff8e6; }
+.ed-new { width: min(24rem, 100%); padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.ed-new label { display: flex; flex-direction: column; gap: 0.25rem; }
+.ed-side-fab { position: absolute; z-index: 6; right: calc(0.5rem + var(--safe-r)); bottom: calc(4.5rem + var(--safe-b)); display: inline-flex; gap: 0.375rem; align-items: center; min-height: var(--touch); background: var(--panel-bg); box-shadow: var(--panel-edge); }
+/* Phone and small windows: tools as a bar at the bottom, panel as a sheet */
+.editor.compact .ed-lbl { display: none; }
+.editor.compact .ed-top { gap: 0.25rem; padding: 0.25rem; }
+.editor.compact .ed-title { min-width: 0; width: 0; flex: 1; font-size: var(--fs-md); }
+.editor.compact .ed-actions { gap: 0.2rem; }
+.editor.compact .ed-actions > button, .editor.compact .ed-file-btn { min-height: 2.25rem; padding: 0 0.45rem; }
+.editor.compact .ed-actions .icon-btn { min-width: 2.25rem; }
+.editor.compact .ed-side-fab { bottom: calc(5.75rem + var(--safe-b)); }
+.editor.compact .ed-tools { top: auto; left: var(--safe-l); right: var(--safe-r); bottom: var(--safe-b); width: auto; flex-direction: row; max-height: none; overflow-x: auto; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.editor.compact .ed-tools button.act.ed-tool { width: 3.75rem; }
+.editor.compact .ed-brush { flex-direction: row; align-items: center; border-top: 0; border-left: 1px solid rgba(225, 168, 58, 0.2); padding: 0 0.375rem; min-width: 10rem; }
+.editor.compact .ed-status { left: 0.5rem; bottom: calc(5.75rem + var(--safe-b)); font-size: var(--fs-xs); }
+.editor.compact .ed-side { left: var(--safe-l); right: var(--safe-r); top: auto; bottom: 0; width: auto; height: min(70dvh, 36rem); border-radius: var(--r-lg) var(--r-lg) 0 0; z-index: 8; }
+.editor.compact .ed-two { grid-template-columns: 1fr; }
+.editor.compact .ed-text { grid-template-columns: 1fr; }
+</style>

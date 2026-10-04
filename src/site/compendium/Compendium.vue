@@ -8,11 +8,11 @@
     <div class="wrap doc-layout">
       <aside class="doc-side no-print">
         <div class="doc-side-inner frame">
-          <label class="h-label" for="wiki-search">{{ $s('compendium.search') }}</label>
-          <input id="wiki-search" v-model="query" type="search" class="doc-search" :placeholder="$s('compendium.searchPh')" data-testid="wiki-search" autocomplete="off">
+          <label class="h-label" for="compendium-search">{{ $s('compendium.search') }}</label>
+          <input id="compendium-search" v-model="query" type="search" class="doc-search" :placeholder="$s('compendium.searchPh')" data-testid="compendium-search" autocomplete="off">
           <details class="doc-toc" :open="tocOpen" @toggle="tocOpen = $event.target.open">
             <summary class="h-label">{{ $s('compendium.sections') }}</summary>
-            <nav :aria-label="$s('compendium.sections')" data-testid="wiki-nav">
+            <nav :aria-label="$s('compendium.sections')" data-testid="compendium-nav">
               <ol>
                 <li v-for="s in model.sections" :key="s.id">
                   <a :href="'#' + s.id" :class="{ current: s.id === active }"><Icon :name="s.icon" />{{ s.title }}</a>
@@ -27,7 +27,7 @@
       </aside>
 
       <div class="w-main">
-        <section v-if="query" class="doc parchment prose w-results" aria-live="polite" data-testid="wiki-results">
+        <section v-if="query" class="doc parchment prose w-results" aria-live="polite" data-testid="compendium-results">
           <p v-if="!hits.length">{{ $s('compendium.noHits') }}</p>
           <ul v-else>
             <li v-for="h in hits" :key="h.href + h.label"><a :href="h.href" @click="query = ''">{{ h.label }}</a> <span class="w-ctx">{{ h.context }}</span></li>
@@ -43,16 +43,16 @@
 <script>
 import SiteLayout from '../SiteLayout.vue';
 import CompendiumContent from './CompendiumContent.vue';
-import { wikiModel, cellText } from './generate.js';
+import { compendiumModel, cellText } from './generate.js';
 
 export default {
-  name: 'WikiPage',
+  name: 'CompendiumPage',
   components: { SiteLayout, CompendiumContent },
   data() {
     return { query: '', active: 'buildings', tocOpen: typeof window === 'undefined' || window.innerWidth > 900 };
   },
   computed: {
-    model() { return wikiModel(this.$i18n.lang); },
+    model() { return compendiumModel(this.$i18n.lang); },
     /** Search index: sections, entries and table rows with anchor. */
     index() {
       const out = [];

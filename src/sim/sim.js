@@ -1,7 +1,7 @@
 // Simulation: state, commands, tick. Pure JavaScript, no DOM, deterministic.
 
 import { Rng } from './rng.js';
-import { generateMap } from './mapgen.js';
+import { buildWorld } from './world.js';
 import { OCCUPIED, RESERVED, WATER, CLIFF, BRIDGE } from './map.js';
 import { BUILDINGS, UPGRADE_REQUIRES } from './data/buildings.js';
 import { TECHS } from './data/technologies.js';
@@ -96,10 +96,12 @@ export const hasKey = (table, key) => typeof key === 'string' && Object.hasOwn(t
 
 export class Sim {
   /**
-   * @param {{ seed?: number, players?: number, size?: number, mission?: any, fog?: boolean, startReveal?: number, addon?: boolean }} [opts]
+   * @param {{ seed?: number, players?: number, size?: number, mission?: any, fog?: boolean, startReveal?: number, addon?: boolean, world?: any, playerSetup?: any[] }} [opts]
    *   fog: fog of war (default on); startReveal: explored radius around each castle at the start
    *   addon: extension content (tavern, thief, scout, bridges, rifle soldiers, heroes Falk/Morla …;
    *   off by default, the start menu enables it by default in free play; missions: entry `addon`)
+   *   world: world instead of random map (src/sim/world.js: flat base map or saved editor map)
+   *   playerSetup: per player { hq: false } = without castle, village centre and serfs (coding adventure)
    *   mission: optional mission script (src/sim/missions/runtime.js). It gets exactly three
    *   entry points: setup(sim) at the end of the constructor, update(sim) at the end of every tick and
    *   command(sim, cmd) for commands of type 'mission'. Without a mission nothing changes.
@@ -112,7 +114,7 @@ export class Sim {
     this.addon = !!(opts.addon ?? opts.mission?.def?.addon ?? false);
     this.tick = 0;
     this.rng = new Rng(this.seed);
-    const gen = generateMap(this.seed, { size: opts.size ?? 96, players: opts.players ?? 2 });
+    const gen = buildWorld(opts.world ?? { size: opts.size ?? 96 }, opts.players ?? 2, this.seed);
     this.map = gen.map;
     this.waterLevel = gen.waterLevel;
     this.starts = gen.starts;
@@ -136,7 +138,7 @@ export class Sim {
       if (f.kind === 'spot') this.spots.push({ x: f.x, y: f.y });
       else if (f.kind === 'shaft') this.shafts.push({ x: f.x, y: f.y, res: f.res });
       else if (f.kind === 'tree') this.addNode('tree', f.x, f.y, 'wood', BALANCE.tree.wood);
-      else if (f.kind === 'pile') this.addNode('pile', f.x, f.y, f.res, BALANCE.pile.amount);
+      else if (f.kind === 'pile') this.addNode('pile', f.x, f.y, f.res, f.amount ?? BALANCE.pile.amount);
     }
 
     for (let p = 0; p < gen.starts.length; p++) {
@@ -147,11 +149,14 @@ export class Sim {
         weatherEnergy: 0, weatherReadyAt: 0,
         unitTier: { sword: 1, spear: 1, bow: 1, lightCav: 1, heavyCav: 1, cannon: 1, rifle: 1 }, team: opts.teams?.[p] ?? p,
       });
-      const hq = gen.hqs[p];
-      this.createBuilding(p, 'headquarters', hq.x, hq.y, true);
-      const spot = this.spots.find((s) => this.isOwnStartSpot(s, gen.starts[p]));
-      if (spot) this.createBuilding(p, 'villageCenter', spot.x, spot.y, true);
-      for (let i = 0; i < BALANCE.startSerfs; i++) this.spawnSerf(p);
+      const setup = opts.playerSetup?.[p] ?? {};
+      if (setup.hq !== false) {
+        const hq = gen.hqs[p];
+        this.createBuilding(p, 'headquarters', hq.x, hq.y, true);
+        const spot = this.spots.find((s) => this.isOwnStartSpot(s, gen.starts[p]));
+        if (spot) this.createBuilding(p, 'villageCenter', spot.x, spot.y, true);
+        for (let i = 0; i < BALANCE.startSerfs; i++) this.spawnSerf(p);
+      }
       const hero = opts.heroes?.[p] ?? ['bertram', 'hedda', 'gerold'][p % 3];
       if (hero) this.spawnHero(p, hero);
     }
@@ -176,8 +181,16 @@ export class Sim {
 
   spawnHero(owner, hero) {
     const hq = this.findBuilding(owner, 'headquarters');
-    const ring = this.map.ring(hq.x, hq.y, hq.w, hq.h);
-    const t = ring[(ring.length >> 1) % ring.length];
+    let t;
+    if (hq) {
+      const ring = this.map.ring(hq.x, hq.y, hq.w, hq.h);
+      t = ring[(ring.length >> 1) % ring.length];
+    } else {
+      // Without castle (coding adventure): on the start spot or the nearest walkable tile
+      const s = this.starts[owner] ?? { x: 1, y: 1 };
+      t = nearestWalkable(this.map, s.x, s.y, tileCenter(s.x), tileCenter(s.y), 12);
+      if (t < 0) t = this.map.idx(s.x, s.y);
+    }
     const h = {
       id: this.nextId++, kind: 'hero', hero, owner, px: tileCenter(t % this.map.width), py: tileCenter((t / this.map.width) | 0),
       path: [], hp: HEROES[hero].hp, down: false, downTimer: 0, ready: {}, order: { type: 'idle' }, targetId: 0, cooldown: 0,
@@ -387,6 +400,11 @@ export class Sim {
       case 'special': return cmdSpecial(this, cmd);
       // Mission: e.g. confirm or skip a tutorial step (hook 2 of 3)
       case 'mission': return this.mission ? this.mission.command(this, cmd) : this.reject(cmd, 'err.noMission');
+      // Python scripts of the scenario: start/stop the player program, debugger, skip dialogue
+      case 'script':
+        if (!this.mission?.script) return this.reject(cmd, 'err.noScript');
+        if (cmd.player !== this.mission.state.human) return this.reject(cmd, 'err.missionHumanOnly');
+        return this.mission.script.command(this, cmd);
       default: return this.reject(cmd, 'err.unknownCommand');
     }
   }
@@ -763,6 +781,8 @@ export class Sim {
     const goals = moving ? formationTiles(this.map, cmd.x, cmd.y, active, 3) : [];
     active.forEach((e, i) => {
       e.path = []; e.targetId = 0;
+      // Look direction from a script only applies until the hero is sent elsewhere
+      if (e.face !== undefined) delete e.face;
       if (moving) {
         const k = goals[i] >= 0 ? goals[i] : this.map.idx(cmd.x, cmd.y);
         e.order = { type: cmd.order, x: tileCenter(k % this.map.width), y: tileCenter((k / this.map.width) | 0) };

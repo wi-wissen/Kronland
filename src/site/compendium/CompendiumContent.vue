@@ -1,7 +1,7 @@
 <template>
   <!-- Separate component so that search and sidebar (Compendium.vue) do not redraw the large content -->
   <article class="doc parchment prose compendium" data-testid="compendium" :lang="$i18n.lang">
-    <section v-for="s in model.sections" :id="s.id" :key="s.id" class="w-sec" :data-testid="'wiki-sec-' + s.id">
+    <section v-for="s in model.sections" :id="s.id" :key="s.id" class="w-sec" :data-testid="'compendium-sec-' + s.id">
       <h2><Icon :name="s.icon" class="w-h-ico" />{{ s.title }}</h2>
       <div v-if="s.intro" class="w-intro" v-html="md(s.intro)"></div>
       <CompendiumBlock v-for="(b, i) in s.blocks" :key="i" :block="b" :names="model.names" :context="s.title" />

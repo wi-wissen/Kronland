@@ -48,10 +48,11 @@ export default {
 </script>
 
 <style>
+/* Notices top right under the coin buttons; new ones appended at the bottom, older ones slide away upward */
 .toasts {
   position: fixed; z-index: 6; pointer-events: none;
-  right: calc(var(--hud-gap) + var(--safe-r)); bottom: calc(var(--bottom-h, 14rem) + var(--hud-gap) * 2);
-  width: min(21rem, calc(100vw - 1rem)); display: flex; flex-direction: column-reverse; gap: 0.3125rem; align-items: flex-end;
+  right: calc(var(--hud-gap) * 2 + var(--safe-r)); top: calc(var(--top-total, 4rem) + var(--hud-gap));
+  width: min(19rem, calc(100vw - 1rem)); display: flex; flex-direction: column; gap: 0.3125rem; align-items: flex-end;
 }
 .toast {
   pointer-events: auto; display: flex; align-items: center; gap: 0.5rem; max-width: 100%;
@@ -74,8 +75,8 @@ button.toast:hover { filter: brightness(1.15); }
 .toast-leave-active { transition: opacity 0.3s; }
 .toast-enter-from { opacity: 0; transform: translateX(16px); }
 .toast-leave-to { opacity: 0; }
+.compact .toasts { left: 50%; right: auto; transform: translateX(-50%); align-items: center; width: min(22rem, calc(100vw - 1rem)); }
 @media (max-width: 760px), (max-height: 480px) and (orientation: landscape) {
-  .toasts { left: 50%; right: auto; transform: translateX(-50%); align-items: center; width: min(22rem, calc(100vw - 1rem)); }
   .toast { min-height: var(--touch); }
 }
 </style>

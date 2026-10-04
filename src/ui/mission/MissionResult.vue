@@ -19,11 +19,11 @@
         <span v-if="optional.total"><Icon name="scroll" />{{ $t('mission.optionalDone', { a: optional.done, b: optional.total }) }}</span>
         <span v-if="record" class="mr-record"><Icon name="crown" />{{ $t('mission.newRecord') }}</span>
       </p>
-      <p v-if="result.won && isCampaign && !result.next" class="mr-end">{{ $t('mission.campaignEnd') }}</p>
+      <p v-if="result.won && isCampaign && origin === 'campaign' && !result.next" class="mr-end">{{ $t('mission.campaignEnd') }}</p>
       <div class="mr-actions">
         <button v-if="result.won && result.next" class="mr-primary" data-testid="next-mission" @click="$emit('next', result.next)">{{ $t('mission.nextMission') }}<Icon name="next" /></button>
         <button v-if="!result.won" class="mr-primary" data-testid="retry-mission" @click="$emit('retry')">{{ $t('mission.retry') }}</button>
-        <button v-if="isCampaign || result.won" data-testid="to-campaign" @click="$emit('campaign')">{{ $t('mission.toCampaign') }}</button>
+        <button v-if="isCampaign || result.won" data-testid="to-campaign" @click="$emit('campaign')">{{ $t(backKey) }}</button>
         <button data-testid="to-menu" @click="$emit('menu')">{{ $t('mission.toMenu') }}</button>
       </div>
     </div>
@@ -41,6 +41,8 @@ export default {
     objectives: { type: Array, default: () => [] },
     record: Boolean,
     lang: { type: String, default: 'de' },
+    /** Origin: 'campaign', 'adventures' (coding adventures, script missions), 'editor' (test play) */
+    origin: { type: String, default: 'campaign' },
   },
   emits: ['next', 'retry', 'campaign', 'menu'],
   computed: {
@@ -50,6 +52,7 @@ export default {
       return this.$t(this.result.won ? 'mission.victory' : 'mission.defeat');
     },
     time() { return formatTime(this.result.tick); },
+    backKey() { return this.origin === 'editor' ? 'adv.toEditor' : this.origin === 'adventures' ? 'adv.toAdventures' : 'mission.toCampaign'; },
     optional() {
       const opt = this.objectives.filter((o) => !o.primary);
       return { total: opt.length, done: opt.filter((o) => o.status === 'done').length };

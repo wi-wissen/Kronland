@@ -5,12 +5,16 @@ index.html, play/, manual/, compendium/   Seiten der Website (Vite Multi-Page, s
 src/
   main.js     Einstieg des Spiels (play/index.html); pwa.js registriert den Service-Worker
   paths.js    siteRoot()/siteUrl(): Pfade zur Website-Wurzel (models/, audio/, sw.js) relativ zur Seite
-  site/       Startseite, Handbuch, Wiki (Vue, gemeinsames Layout; Wiki erzeugt aus sim/data)
+  site/       Startseite, Handbuch, Kompendium (Vue, gemeinsames Layout; Kompendium erzeugt aus sim/data)
   sim/        Spiellogik: reines JS, kein DOM, kein Three.js, deterministisch
     data/     Balancing-Werte (Gebäude, Rohstoffe, Einheiten, Techs)
     systems/  Ablauf pro Takt (Bauen, Abbau, Zahltag, Gebäude-Forschung, Markt, Wetter, Brand/Reparatur, …)
     reasons.js Ablehnungsgründe der neuen Systeme in einer Tabelle (für i18n-Umstellung)
-    missions/ Missionslaufzeit, Tutorial, Kampagne (siehe docs/MISSIONEN.md)
+    missions/ Missionslaufzeit, Tutorial, Kampagne (siehe docs/MISSIONEN.md), scenarios/ (Lernabenteuer)
+    scripting/ Python-Skripte in der Simulation: ScriptHost, Spiel-API, Szenario-Format (docs/SKRIPTE.md)
+    editor/   Werkzeuge des Welteneditors auf einer Vorschau-Simulation
+    world.js  Welten: Zufallskarte, flache Grundkarte, gespeicherte Editor-Karte
+  script/     Python-Teilmenge: Lexer, Parser, Compiler, Bytecode-VM (kein DOM, keine Sim)
   i18n/       Wörterbücher de.js/en.js, t(key, params), tr({ de, en }), reaktive Sprache
   ai/         Computergegner – erzeugt nur Befehle
   save/       Spielstände: Speicherformat (Umschlag, Prüfung, Migration), Plätze, Kompression, Import/Export
@@ -22,7 +26,8 @@ src/
   i18n/       Wörterbücher DE/EN, t(), Namen aus Spieldaten, Ablehnungsgründe
   dev/        Entwicklermodus (nur lesen, nachgeladen): Drahtgitter, A*-Aufnahme, Raster-Overlays, Statistik
   ui/         Vue 3 (Options API): Menüs, Leisten, Panels; ui/hud/ Befehlsleiste, ui/icons/ Symbole,
-              ui/mission/ für Kampagne und Tutorial, ui/saves/ Spielstandliste und Bestätigungsdialog
+              ui/mission/ für Kampagne und Tutorial, ui/saves/ Spielstandliste und Bestätigungsdialog,
+              ui/script/ Code-Panel und Debugger, ui/editor/ Welteneditor (mit game/EditorView.js)
 tests/        Vitest (Simulation, KI, Website)
 e2e/          Playwright (Desktop und Handy-Viewport); Adresse des Spiels zentral in e2e/paths.js
 docs/         Spielregeln und Architektur
@@ -144,15 +149,30 @@ Texturen) und den Kontext frei. Neue modulweite three.js-Ressourcen dort mit auf
   Lautstärken `master`/`music`/`effects`, `uiScale`, `edgeScroll`, `hints`, Sprache, Grafikstufe).
 - Erweiterungen im Gebäudepanel: `registerBuildingSection((engine, building) => ({ id, title, actions }))`
   aus `src/game/Engine.js`; Aktionen schicken ihren `cmd` als normalen Befehl. Neue Gebäude im Baumenü:
-  `BUILD_MENU` + `BUILD_CATEGORY` (Reiter `home`, `raw`, `refine`, `military`, `admin`).
+  `BUILD_MENU` + `BUILD_CATEGORY` (Gruppen `home`, `raw`, `refine`, `military`, `admin`, alle gleichzeitig sichtbar).
 - Gestaltung: Tokens in `src/ui/style.css` (Holz, Pergament, Messing/Gold, Abstände in rem, skaliert
   über `--ui-scale`), Symbole in `src/ui/icons/` (`<Icon name="gold" />`; bunte aus dem KI-Atlas
   `public/icons/symbols.webp`, SVG als Rückfall, siehe [SYMBOLE.md](SYMBOLE.md)), Tooltips
   über `v-tip="{ title, text, notes, cost, reason, key }"` (`src/ui/tooltip.js`). Touch: Langdruck
   (`LONG_PRESS_MS`) öffnet den Tooltip und verwirft den folgenden Klick; er bleibt bis zum nächsten Tippen.
   Jedes Bedienelement mit Symbol braucht deshalb einen `v-tip` mit Titel und Erklärung (DE/EN).
-- Beschriftungen: Einstellung `labels` (Standard: an bei `pointer: coarse`) setzt `.show-labels` auf `.game`;
-  Komponenten blenden darüber Kurznamen unter Symbolen ein (nur per CSS).
+- Beschriftungen: Regel „ständig sichtbar = Symbol mit Tooltip, nur bei Auswahl sichtbar = immer beschriftet“
+  (Baumenü-Kacheln, Befehlskacheln `.act` in `style.css`). Die Einstellung `labels` (Standard: an bei
+  `pointer: coarse`) setzt `.show-labels` auf `.game` und blendet zusätzlich Namen unter dem Schnellzugriff ein.
+- Spieloberfläche (HUD): `TopBar.vue` (drei freistehende Schilder mit Abstand zum Rand – nichts dockt am Bildrand an: Rohstoffe, Wappen mit Zahltag-Medaillon,
+  Münzknöpfe; Raster mit gleich breiten Seitenspalten, damit das Wappen genau mittig sitzt – passt das nicht,
+  misst `TopBar.measure()` und setzt `.tight`: das Wappen bekommt eine eigene, mittige zweite Reihe), `hud/CommandBar.vue` als Raster `Karte | Tafel | Porträt` (`minmax(max-content, 1fr) auto
+  minmax(max-content, 1fr)` – die Tafel bekommt den Rest und bricht um, nichts überlappt), `hud/SelectionCard.vue`
+  (Porträt im Messingrahmen, gemalte Porträts unter `public/portraits/`), `hud/BuildMenu.vue` (Gruppen ohne Reiter,
+  schmal als wischbare Reihe mit Sprungmarken). Breitenstufen setzt `App.vue` als Klassen auf `.game`
+  (Breite geteilt durch Oberflächengröße): `narrow` < 1500 px (Porträt ohne Schild, Kennzahlen in der Tafel,
+  drei Kachelreihen), `mid` < 1100 px (kleinere Karte, Baumenü als Reihe), `compact` < 760 px oder Höhe < 560 px
+  (Handy: Tafel als Schublade, Karte als Knopf). Reine Hilfen (Minikarten-Geometrie, Gruppen, Trennstellen)
+  in `hud/hudLayout.js`. Schnellzugriff-Daten aus der Engine: `ui.idleSerfs`, `ui.heroes` (`quickInfo()`),
+  `ui.groups`, `ui.group`, Aktionen `selectHero(id)`, `selectAllArmy()`, `assignGroup(n)`, `selectGroup(n)`.
+- Steuergruppen: `src/game/groups.js` (`ControlGroups`) – reiner Oberflächenzustand des Spielers, kein
+  Sim-Zustand und nicht im State-Hash; die Zahltasten verarbeitet `Input.keydown` über `e.code`
+  (unabhängig vom Tastaturlayout). Strg+Zahl wechselt in Chrome die Tabs, darum merkt Umschalt+Zahl.
 - Bildschirmfotos zur Gestaltungsprüfung: `python3 scripts/ui-screens.py http://localhost:4211`
   (Ergebnis in `review/`, nicht im Repository). Bilder für Startseite/Handbuch: `scripts/site-screens.py`.
 - Dateien aus `public/` (Modelle, Ton) nie mit festen Pfaden laden, sondern über `siteUrl()` aus `src/paths.js` –
@@ -277,9 +297,13 @@ Prüfung im Editor, ohne Build-Schritt.
 | Bauen | Baumenü, Klick setzt, Rechtsklick bricht ab | Baumenü, Tippen, „Hier bauen“ |
 | Untätige Leibeigene | Taste . | Knopf „Untätige“ |
 | Pause | Leertaste | Knopf |
-| Baukategorie | 1–5 | Reiter |
-| Heldenfähigkeit | 1–2 | Knopf |
+| Baumenü-Gruppe | Mausrad (schmales Fenster) | Sprungmarken |
+| Heldenfähigkeit | X, C | Knopf |
+| Steuergruppe merken | Umschalt+1–9 (Strg+1–9, wo der Browser es durchlässt) | Knopf „Als Gruppe merken“ |
+| Steuergruppe abrufen | 1–9, zweimal: Kamera hin | Gruppenschild über der Karte |
 | Zur Burg | H | Knopf „Burg“ |
+| Held finden | Porträt über der Karte | Porträt |
+| Alle Truppen | Knopf „Truppen“ | Knopf „Truppen“ |
 | Minikarte | Klick/Ziehen | Tippen (Knopf „Karte“ blendet ein) |
 | Menü | Esc | Knopf |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |

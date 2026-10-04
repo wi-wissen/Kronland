@@ -3,11 +3,6 @@
 import { levels } from './util.js';
 
 export default {
-  'menu.addon': 'Expansion content',
-  'menu.addon.on': 'On',
-  'menu.addon.off': 'Off',
-  'menu.addon.hint.on': 'Tavern with thief and scout, bridges, riflemen, two heroes and new ornaments.',
-  'menu.addon.hint.off': 'Base game content only.',
   'menu.hero.falk': 'Marksman: aimed shot, eagle eye for shooters',
   'menu.hero.morla': 'Mist witch: poison fog and mist veil (invisible)',
 

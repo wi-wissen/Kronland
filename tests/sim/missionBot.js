@@ -831,7 +831,9 @@ export class MissionBot {
       else if (ready('whirl') && near(2.5) >= 2) this.cmd({ type: 'ability', hero: h.id, ability: 'whirl' });
     } else if (h.hero === 'hedda') {
       const hurt = [...this.leaders, ...this.heroes].filter((e) => d2(tile(e), p) < 36 && e.hp < (e.kind === 'hero' ? HEROES[e.hero].hp : UNITS[e.def].hp) * 0.6).length;
-      if (ready('heal') && (hurt >= 2 || h.hp < HEROES.hedda.hp * 0.5)) this.cmd({ type: 'ability', hero: h.id, ability: 'heal' });
+      // Also for a single wounded hero (otherwise Bertram never heals and the assault waits for him)
+      const heroLow = this.heroes.some((e) => !e.down && d2(tile(e), p) < 36 && e.hp * 2 < HEROES[e.hero].hp);
+      if (ready('heal') && (hurt >= 2 || heroLow)) this.cmd({ type: 'ability', hero: h.id, ability: 'heal' });
       else if (ready('trap') && near(4) >= 2) this.cmd({ type: 'ability', hero: h.id, ability: 'trap' });
     }
   }

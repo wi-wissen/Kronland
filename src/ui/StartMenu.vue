@@ -22,6 +22,10 @@
             <span class="sm-seal"><Icon name="banner" /></span>
             <span><b>{{ $t('menu.campaign') }}</b><small>{{ $t('menu.campaignSub') }}</small></span>
           </button>
+          <button class="sm-mode" data-testid="menu-adventures" @click="$emit('adventures')">
+            <span class="sm-seal sm-code" aria-hidden="true">&lt;/&gt;</span>
+            <span><b>{{ $t('menu.adventures') }}</b><small>{{ $t('menu.adventuresSub') }}</small></span>
+          </button>
           <div class="sm-tools">
             <button class="sm-tool" data-testid="menu-saves" @click="savesOpen = true"><Icon name="load" />{{ $t('menu.saves') }}</button>
             <button class="sm-tool" data-testid="menu-settings" @click="settingsOpen = true"><Icon name="settings" />{{ $t('menu.settings') }}</button>
@@ -49,7 +53,7 @@
           <div class="sm-field">
             <span class="h-label">{{ $t('menu.hero') }}</span>
             <div class="sm-heroes">
-              <button v-for="h in shownHeroes" :key="h" class="sm-hero" :class="{ active: hero === h }" :aria-pressed="hero === h" :data-testid="'hero-pick-' + h" @click="hero = h">
+              <button v-for="h in heroes" :key="h" class="sm-hero" :class="{ active: hero === h }" :aria-pressed="hero === h" :data-testid="'hero-pick-' + h" @click="hero = h">
                 <span class="sm-heroimg"><Icon :name="'hero-' + h" /></span>
                 <b>{{ $name.hero(h) }}</b>
               </button>
@@ -64,13 +68,6 @@
             <span class="sm-hint">{{ $t(fog ? 'menu.fog.hint.on' : 'menu.fog.hint.off') }}</span>
           </div>
           <div class="sm-field">
-            <span class="h-label">{{ $t('menu.addon') }}</span>
-            <div class="seg" role="radiogroup" :aria-label="$t('menu.addon')">
-              <button v-for="f in [true, false]" :key="String(f)" role="radio" :aria-checked="addon === f" :class="{ active: addon === f }" :data-testid="'addon-' + (f ? 'on' : 'off')" @click="setAddon(f)">{{ $t(f ? 'menu.addon.on' : 'menu.addon.off') }}</button>
-            </div>
-            <span class="sm-hint">{{ $t(addon ? 'menu.addon.hint.on' : 'menu.addon.hint.off') }}</span>
-          </div>
-          <div class="sm-field">
             <span class="h-label">{{ $t('menu.map') }}</span>
             <div class="sm-seed">
               <input id="seed" v-model.number="seed" type="number" min="1" max="999999" :aria-label="$t('menu.mapNumber')">
@@ -83,7 +80,7 @@
       <nav class="sm-links" :aria-label="$t('site.links')">
         <a :href="links.home" data-testid="menu-link-home">{{ $t('site.home') }}</a>
         <a :href="links.manual" data-testid="menu-link-manual">{{ $t('site.manual') }}</a>
-        <a :href="links.compendium" data-testid="menu-link-wiki">{{ $t('site.compendium') }}</a>
+        <a :href="links.compendium" data-testid="menu-link-compendium">{{ $t('site.compendium') }}</a>
       </nav>
       <p class="sm-credits">{{ $t('menu.credits') }}</p>
     </div>
@@ -117,7 +114,6 @@ import SettingsPanel from './SettingsPanel.vue';
 import SaveBrowser from './saves/SaveBrowser.vue';
 import { set } from './settings.js';
 import { getStore, SaveError } from '../save/index.js';
-import { HEROES } from '../sim/data/units.js';
 import { siteRoot } from '../paths.js';
 
 export default {
@@ -127,19 +123,15 @@ export default {
     /** Latest save game (entry from src/save/store.js) for "Continue" */
     latest: { type: Object, default: null },
   },
-  emits: ['start', 'load', 'tutorial', 'campaign', 'saves-changed'],
+  emits: ['start', 'load', 'tutorial', 'campaign', 'saves-changed', 'adventures'],
   data() {
     return {
       opponents: 1, difficulty: 'normal', hero: 'bertram', heroes: ['bertram', 'hedda', 'gerold', 'falk', 'morla'],
-      seed: Math.floor(Math.random() * 99999) + 1, settingsOpen: false, savesOpen: false, fog: true, addon: true,
+      seed: Math.floor(Math.random() * 99999) + 1, settingsOpen: false, savesOpen: false, fog: true,
       busy: false, error: '', touch: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
       // Website: home page, manual, compendium (relative to the root, see src/paths.js)
       links: { home: siteRoot(), manual: `${siteRoot()}manual/`, compendium: `${siteRoot()}compendium/` },
     };
-  },
-  computed: {
-    /** Expansion heroes (Falk, Morla) only with expansion content */
-    shownHeroes() { return this.heroes.filter((h) => this.addon || !HEROES[h]?.addon); },
   },
   mounted() {
     this.onKey = (e) => {
@@ -162,9 +154,8 @@ export default {
       } finally { this.busy = false; }
     },
     setLang(l) { set('lang', l); },
-    setAddon(on) { this.addon = on; if (!on && HEROES[this.hero]?.addon) this.hero = 'bertram'; },
     start() {
-      this.$emit('start', { players: this.opponents + 1, difficulty: this.difficulty, hero: this.hero, seed: this.seed || 1, fog: this.fog, addon: this.addon });
+      this.$emit('start', { players: this.opponents + 1, difficulty: this.difficulty, hero: this.hero, seed: this.seed || 1, fog: this.fog });
     },
   },
 };
@@ -209,6 +200,7 @@ export default {
 .sm-mode small { color: var(--ink-muted); font-size: var(--fs-sm); }
 .sm-seal { flex: none; width: 3.25rem; height: 3.25rem; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 30%, #fbf1d6, #c9a66b); box-shadow: inset 0 0 0 2px var(--gold-500), 0 0 0 2px var(--wood-950), 0 3px 6px rgba(0, 0, 0, 0.5); }
 .sm-seal .ico { width: 2.125rem; height: 2.125rem; }
+.sm-code { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 800; font-size: 1.05rem; color: #5e3f0d; }
 .sm-tools { display: flex; gap: 0.5rem; align-items: stretch; flex-wrap: wrap; }
 .sm-tool { flex: 1 1 8rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: var(--touch); }
 .sm-lang { flex: none; width: 7rem; }

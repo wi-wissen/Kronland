@@ -6,7 +6,7 @@ import { CameraRig, MIN_DIST, MAX_DIST, NEAR_PITCH, viewPitch, grabRange } from 
 import { Environment } from '../../src/render/environment.js';
 import { QUALITY_PRESETS } from '../../src/render/quality.js';
 import { CharacterSystem } from '../../src/render/characters.js';
-import { lodSettings, effectiveDistance, selectLod, NEAR_FULL_DETAIL } from '../../src/render/lod.js';
+import { lodSettings, effectiveDistance, selectLod, NEAR_FULL_DETAIL, screenHeightPx, pixelMetric } from '../../src/render/lod.js';
 
 function rigFor(w, h) {
   const cam = new THREE.PerspectiveCamera(w < h ? 55 : 40, w / h, 0.3, 700);
@@ -400,10 +400,10 @@ describe('CameraRig close zoom (issue #6)', () => {
     expect(cam.near).toBeGreaterThan(0.05);
   });
 
-  it('close up, LOD0 applies to figures, trees and buildings on every graphics level and in portrait', () => {
+  it('close up, LOD0 applies to trees and buildings on every graphics level and in portrait', () => {
     for (const tier of ['low', 'medium', 'high']) {
       for (const fov of [40, 55]) {
-        for (const kind of ['character', 'tree', 'building']) {
+        for (const kind of ['tree', 'building']) {
           const s = lodSettings(kind, tier);
           for (let d = 0; d < NEAR_FULL_DETAIL; d += 0.5) {
             expect(selectLod(effectiveDistance(d, fov, s.bias), -1, s.thresholds, s.h)).toBe(0);
@@ -414,5 +414,17 @@ describe('CameraRig close zoom (issue #6)', () => {
     }
     // the camera is far inside this range at the smallest distance
     expect(MIN_DIST * 2).toBeLessThan(NEAR_FULL_DETAIL);
+  });
+
+  it('very close figures show the near model (by screen height), desktop and phone upright', () => {
+    // figure level depends on the screen height: at the smallest distance a figure is large enough
+    for (const tier of ['low', 'medium', 'high']) {
+      const s = lodSettings('character', tier);
+      for (const [h, fov] of [[900, 40], [844, 55]]) {
+        const px = screenHeightPx(0.95, MIN_DIST, fov, h) * s.bias;
+        expect(selectLod(pixelMetric(px), -1, s.thresholds, s.h)).toBe(0);
+        expect(selectLod(pixelMetric(px), 3, s.thresholds, s.h)).toBe(0);
+      }
+    }
   });
 });

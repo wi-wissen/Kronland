@@ -14,6 +14,7 @@
 <script>
 import { tr } from '../../i18n/index.js';
 import { SPEAKERS } from '../../sim/missions/speakers.js';
+import { speak, stopSpeech } from '../../audio/speech.js';
 
 const SHOW_MS = 14000;
 
@@ -22,7 +23,12 @@ export default {
   props: {
     messages: { type: Array, required: true },
     lang: { type: String, default: 'de' },
+    /** Game speed: script dialogues last dur ticks of game time */
+    speed: { type: Number, default: 1 },
+    /** Clicking away also ends the script's waiting (say blocks) */
+    scripted: Boolean,
   },
+  emits: ['skip'],
   data() { return { seen: 0 }; },
   computed: {
     /** Oldest message not yet read (order is preserved). */
@@ -34,7 +40,9 @@ export default {
       return open.find((x) => x.tick >= newest - 100) ?? null;
     },
     speaker() {
-      return SPEAKERS[this.current?.speaker] ?? { name: this.current?.speaker ?? '', color: '#e0a93b', initial: '?' };
+      const id = this.current?.speaker;
+      if (!id) return { name: { de: 'Erzähler', en: 'Narrator' }, color: '#8a7a5c', initial: '❧' };
+      return SPEAKERS[id] ?? { name: id, color: '#e0a93b', initial: id[0]?.toUpperCase() ?? '?' };
     },
   },
   watch: {
@@ -43,15 +51,26 @@ export default {
       handler(seq) {
         clearTimeout(this.timer);
         if (!seq) return;
-        // reading time by text length, at least 6 s
+        // Script dialogues: as long as the simulation waits; otherwise reading time by text length, at least 6 s
         const len = tr(this.current.text, this.lang).length;
-        this.timer = setTimeout(() => this.dismiss(), Math.min(SHOW_MS, 6000 + len * 45));
+        const ms = this.current.dur ? (this.current.dur * 100) / Math.max(0.25, this.speed) + 600 : Math.min(SHOW_MS, 6000 + len * 45);
+        this.timer = setTimeout(() => this.dismiss(true), ms);
+        speak(this.current, this.lang);
       },
     },
   },
-  beforeUnmount() { clearTimeout(this.timer); },
+  beforeUnmount() { clearTimeout(this.timer); stopSpeech(); },
   methods: {
-    dismiss() { if (this.current) this.seen = this.current.seq; },
+    /** @param {boolean} [auto] expired by itself (not clicked away) */
+    dismiss(auto = false) {
+      if (!this.current) return;
+      const cur = this.current;
+      this.seen = cur.seq;
+      if (auto) return;
+      stopSpeech();
+      // If the script is still waiting for this dialog, it continues immediately
+      if (this.scripted && cur.dur) this.$emit('skip', cur.seq);
+    },
   },
 };
 </script>

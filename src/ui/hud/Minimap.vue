@@ -1,5 +1,6 @@
 <template>
-  <div v-tip="{ title: $t('minimap.title'), text: $t('minimap.hint') + ' – ' + (touch ? $t('minimap.tipTouch') : $t('minimap.tip')) }" class="minimap frame" data-testid="minimap">
+  <!-- Round minimap in the brass ring; north up -->
+  <div v-tip="{ title: $t('minimap.title'), text: $t('minimap.hint') + ' – ' + (touch ? $t('minimap.tipTouch') : $t('minimap.tip')) }" class="minimap" data-testid="minimap">
     <div class="mm-frame">
       <canvas
         ref="cv"
@@ -13,12 +14,14 @@
         @pointercancel="up"
         @contextmenu.prevent
       ></canvas>
+      <i class="mm-north" aria-hidden="true">N</i>
     </div>
   </div>
 </template>
 
 <script>
 import { playerColor } from '../plugin.js';
+import { fitRound, toTile } from './hudLayout.js';
 
 /** Draw cadence: terrain rarely (cached in the engine), units and field of view about 4× per second. */
 const DYN_MS = 250;
@@ -83,11 +86,14 @@ export default {
       const t = this.terrain();
       const d = this.engine.minimapDynamic();
       const W = cv.width, H = cv.height;
-      const s = Math.min(W / d.w, H / d.h);
-      const ox = (W - d.w * s) / 2, oy = (H - d.h * s) / 2;
-      this.map = { s, ox, oy, w: d.w, h: d.h };
+      this.map = fitRound(Math.min(W, H), d.w, d.h);
+      const { s, ox, oy } = this.map;
       ctx.imageSmoothingEnabled = true;
       ctx.clearRect(0, 0, W, H);
+      // Clip to a circle; area outside the map in sea colour
+      ctx.save();
+      ctx.beginPath(); ctx.arc(W / 2, H / 2, Math.min(W, H) / 2, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = this.engine.minimapFog?.() ? '#0b0907' : '#1e3a52'; ctx.fillRect(0, 0, W, H);
       ctx.drawImage(this.terrainCanvas, ox, oy, d.w * s, d.h * s);
       // Fog of war: smoothly enlarged (image smoothing) so the edges are not jagged
       if (this.fog()) ctx.drawImage(this.fogCanvas, ox, oy, d.w * s, d.h * s);
@@ -138,14 +144,14 @@ export default {
         ctx.strokeStyle = '#fff4cf'; ctx.lineWidth = Math.max(1.5, s * 0.55); ctx.stroke();
         ctx.restore();
       }
+      ctx.restore();
     },
     toTile(e) {
       const m = this.map;
       if (!m) return null;
       const r = this.$refs.cv.getBoundingClientRect();
       const dpr = this.$refs.cv.width / Math.max(1, r.width);
-      const x = ((e.clientX - r.left) * dpr - m.ox) / m.s, y = ((e.clientY - r.top) * dpr - m.oy) / m.s;
-      return { x: Math.max(0, Math.min(m.w, x)), y: Math.max(0, Math.min(m.h, y)) };
+      return toTile(m, (e.clientX - r.left) * dpr, (e.clientY - r.top) * dpr);
     },
     down(e) {
       if (e.button > 0) return;
@@ -166,7 +172,12 @@ export default {
 </script>
 
 <style>
-.minimap { padding: 0.4375rem; display: flex; }
-.mm-frame { position: relative; flex: 1; border-radius: 0.5rem; overflow: hidden; background: #2b3a2a; box-shadow: inset 0 0 0 2px var(--wood-950), 0 0 0 1px rgba(225, 168, 58, 0.4); aspect-ratio: 1; }
-.mm-canvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+.minimap { position: relative; border-radius: 50%; padding: 0.4375rem; background: var(--brass); box-shadow: 0 0 0 2px var(--wood-950), 0 8px 18px rgba(0, 0, 0, 0.55); }
+.mm-frame { position: relative; width: 100%; height: 100%; border-radius: 50%; background: #0b0907; box-shadow: inset 0 0 0 2px var(--wood-950); }
+.mm-canvas { display: block; width: 100%; height: 100%; border-radius: 50%; cursor: crosshair; touch-action: none; }
+.mm-north {
+  position: absolute; top: -0.875rem; left: 50%; transform: translateX(-50%); width: 1.125rem; height: 1.125rem; border-radius: 50%;
+  display: grid; place-items: center; font: 700 0.6875rem/1 var(--display); font-style: normal; color: var(--wood-950);
+  background: var(--gold-300); box-shadow: 0 0 0 2px var(--wood-950); pointer-events: none;
+}
 </style>

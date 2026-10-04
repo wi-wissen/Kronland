@@ -16,7 +16,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { LodState, effectiveDistance, sphereVisible, lodSettings } from './lod.js';
+import { LodState, sphereVisible, lodSettings, screenHeightPx, pixelMetric } from './lod.js';
 
 // ---------- Pure logic ----------
 
@@ -48,20 +48,22 @@ export function resolveClip(key, has) {
 
 /**
  * Resolve a role key: 'soldier.sword.leader' → 'soldier.sword' → 'soldier'. Roles without an available
- * model fall back to their `fallback` role or the procedural model.
+ * model fall back to their `fallback` role or the procedural model. Roles with `variants`
+ * (e.g. serf male/female) yield the variant `pick` (or the next available) mixed in.
  * @param {{roles: Record<string, any>, models?: Record<string, any>}} manifest
  * @param {string} key
  * @param {(model:string)=>boolean} [available] is the model loaded?
+ * @param {number} [pick] index of the variant (see pickVariant)
  * @returns {{ key: string, role: any, model: string|null, procedural: string|null } | null}
  */
-export function resolveRole(manifest, key, available = () => true) {
+export function resolveRole(manifest, key, available = () => true, pick = 0) {
   const roles = manifest?.roles ?? {};
   const seen = new Set();
   let k = key;
   let procedural = null;
   while (k && !seen.has(k)) {
     seen.add(k);
-    const role = roles[k];
+    const role = roles[k] ? variantRole(roles[k], pick, available) : null;
     if (role) {
       procedural ??= role.procedural ?? null;
       if (role.model && available(role.model)) return { key: k, role, model: role.model, procedural };
@@ -72,6 +74,78 @@ export function resolveRole(manifest, key, available = () => true) {
     k = dot > 0 ? k.slice(0, dot) : null;
   }
   return procedural ? { key, role: roles[key] ?? {}, model: null, procedural } : null;
+}
+
+/**
+ * Role with mixed-in variant. If the model of the desired variant is not available, the
+ * next available one is taken (so the role stays playable even if only one model is loaded).
+ */
+export function variantRole(role, pick, available = () => true) {
+  const list = role.variants;
+  if (!list?.length) return role;
+  const n = list.length;
+  const start = ((pick % n) + n) % n;
+  let v = list[start];
+  for (let i = 0; i < n; i++) {
+    const c = list[(start + i) % n];
+    if (c.model && available(c.model)) { v = c; break; }
+  }
+  return { ...role, ...v, weight: undefined };
+}
+
+/**
+ * Choose a variant for a unit: weighted, stable via the unit ID (looks random, but stays the same
+ * across loading and replays). Rendering only – the simulation knows no variants.
+ * @param {{weight?: number}[]} variants @param {number} id
+ * @returns {number} index
+ */
+export function pickVariant(variants, id) {
+  if (!variants?.length) return 0;
+  let total = 0;
+  for (const v of variants) total += Math.max(0, v.weight ?? 1);
+  if (!(total > 0)) return 0;
+  // Integer hash (murmur3 finalizer), independent of the phase offset of the animations
+  let h = (id | 0) ^ 0x9e3779b9;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  h = (h ^ (h >>> 16)) >>> 0;
+  let x = (h / 4294967296) * total;
+  for (let i = 0; i < variants.length; i++) {
+    x -= Math.max(0, variants[i].weight ?? 1);
+    if (x < 0) return i;
+  }
+  return variants.length - 1;
+}
+
+/** Variants list of the role that a key resolves to (or null). */
+export function roleVariants(manifest, key) {
+  const roles = manifest?.roles ?? {};
+  const seen = new Set();
+  let k = key;
+  while (k && !seen.has(k)) {
+    seen.add(k);
+    const role = roles[k];
+    if (role) {
+      if (role.variants?.length) return role.variants;
+      if (role.model || (role.procedural && !role.fallback)) return null;
+      if (role.fallback) { k = role.fallback; continue; }
+    }
+    const dot = k.lastIndexOf('.');
+    k = dot > 0 ? k.slice(0, dot) : null;
+  }
+  return null;
+}
+
+/**
+ * Tools that are only visible during certain clips (axe when chopping, hammer when building …).
+ * @param {Record<string, string[]>|undefined} props part name → clip keys
+ * @param {Record<string, string>} clips clip key → animation name
+ * @returns {{ part: string, names: Set<string> }[]} part → animation names in which it is visible
+ */
+export function propClipNames(props, clips) {
+  return Object.entries(props ?? {}).map(([part, keys]) => ({
+    part, names: new Set(keys.map((k) => clips?.[k]).filter(Boolean)),
+  }));
 }
 
 /**
@@ -145,8 +219,10 @@ export async function loadCharacterManifest(base) {
 export function usedModels(m) {
   const used = new Set();
   for (const r of Object.values(m.roles ?? {})) {
-    if (r.model) used.add(r.model);
-    for (const inc of r.include ?? []) if (inc.includes(':')) used.add(inc.split(':')[0]);
+    for (const v of [r, ...(r.variants ?? [])]) {
+      if (v.model) used.add(v.model);
+      for (const inc of v.include ?? []) if (inc.includes(':')) used.add(inc.split(':')[0]);
+    }
   }
   return [...used].filter((n) => m.models?.[n]);
 }
@@ -154,7 +230,11 @@ export function usedModels(m) {
 /** All animation names that a model needs according to the manifest (model clips + role overrides). */
 export function clipNamesFor(m, model) {
   const names = new Set(Object.values(m.models?.[model]?.clips ?? {}));
-  for (const r of Object.values(m.roles ?? {})) if (r.model === model) for (const n of Object.values(r.clips ?? {})) names.add(n);
+  for (const r of Object.values(m.roles ?? {})) {
+    for (const v of [r, ...(r.variants ?? [])]) {
+      if ((v.model ?? r.model) === model) for (const n of Object.values({ ...r.clips, ...v.clips })) names.add(n);
+    }
+  }
   return [...names];
 }
 
@@ -179,9 +259,17 @@ export async function loadCharacterModels(load, base, tick = () => {}) {
     const def = m.models?.[name];
     if (!def) return;
     const files = modelFiles(name, def);
-    const res = await Promise.all(files.map((f) => load(`${base}characters/${f}`).catch(() => null).finally(tick)));
+    const mf = maskFiles(def);
+    const [res, maskList] = await Promise.all([
+      Promise.all(files.map((f) => load(`${base}characters/${f}`).catch(() => null).finally(tick))),
+      Promise.all(mf.map((f) => loadMaskTexture(`${base}characters/${f}`).finally(tick))),
+    ]);
     if (!res[0]) return;
-    store.models.set(name, { gltf: res[0], lods: res.slice(1).filter(Boolean) });
+    const masks = new Map(mf.map((f, i) => [f, maskList[i]]));
+    // do not shift LOD levels if a file is missing: gap → previous level
+    const lods = [];
+    for (const g of res.slice(1)) if (g) lods.push(g);
+    store.models.set(name, { gltf: res[0], lods, masks, mask: masks.get(maskFileFor(def, 0)) ?? null });
   }));
 }
 
@@ -191,8 +279,40 @@ export function characterFileCount() {
   if (!m) return 0;
   const used = usedModels(m);
   let n = 0;
-  for (const name of used) if (m.models?.[name]) n += modelFiles(name, m.models[name]).length;
+  for (const name of used) if (m.models?.[name]) n += modelFiles(name, m.models[name]).length + maskFiles(m.models[name]).length;
   return n;
+}
+
+/**
+ * Mask file of a LOD level. `mask` is a file name (all levels) or a list per level;
+ * missing entries take over the previous level (null = no mask).
+ * @param {{ mask?: string|(string|null)[] }} def @param {number} level
+ */
+export function maskFileFor(def, level) {
+  const m = def.mask;
+  if (!Array.isArray(m)) return m ?? null;
+  for (let l = Math.min(level, m.length - 1); l >= 0; l--) if (m[l] !== undefined) return m[l];
+  return null;
+}
+
+/** All mask files of a model (without duplicates). */
+export function maskFiles(def) {
+  const m = def.mask;
+  return [...new Set((Array.isArray(m) ? m : [m]).filter(Boolean))];
+}
+
+/**
+ * Load mask texture (R = player colour, G = tint; same UV as the base colour). Error → null
+ * (then only the masks from the manifest apply).
+ */
+async function loadMaskTexture(url) {
+  try {
+    const tex = await new THREE.TextureLoader().loadAsync(url);
+    tex.flipY = false; // glTF UV
+    tex.colorSpace = THREE.NoColorSpace;
+    tex.needsUpdate = true;
+    return tex;
+  } catch { return null; }
 }
 
 // ---------- Baking ----------
@@ -227,23 +347,48 @@ function boneTexture(rows, boneCount) {
  * Bake the animations of a GLB model.
  * @returns {{ texture: THREE.DataTexture, clips: Record<string,{start:number,frames:number,duration:number}>, bones: THREE.Bone[], boneIndex: Map<string,number>, boneInverses: THREE.Matrix4[], fps: number }}
  */
-function bakeGltfAnimations(gltf, clipNames, fps) {
+function bakeGltfAnimations(gltf, clipNames, fps, props = []) {
   const scene = gltf.scene;
   let skinned = null;
   scene.traverse((o) => { if (!skinned && o.isSkinnedMesh) skinned = o; });
   if (!skinned) return null;
   const sk = skinned.skeleton;
+  const boneIndex = new Map(sk.bones.map((b, i) => [b.name, i]));
+  // Tools with their own visibility: one additional "bone" per tool = the tool node itself
+  // (hangs on the hand, can have its own animation – two-handed tools are aligned per frame).
+  // In clips without the tool it is collapsed to a point (invisible, without shader branch).
+  const boneInverses = [...sk.boneInverses];
+  const virtual = [];
+  scene.updateMatrixWorld(true);
+  for (const pr of props) {
+    let node = null;
+    scene.traverse((o) => { if (!node && o.name === pr.part) node = o; });
+    if (!node) continue;
+    boneIndex.set('@prop:' + pr.part, sk.bones.length + virtual.length);
+    boneInverses.push(node.matrixWorld.clone().invert()); // rest pose (before any animation)
+    virtual.push({ node, inv: boneInverses[boneInverses.length - 1], names: pr.names });
+  }
   const bones = sk.bones;
-  const boneIndex = new Map(bones.map((b, i) => [b.name, i]));
   const mixer = new THREE.AnimationMixer(scene);
   const rows = [];
   const clips = {};
   const tmp = new THREE.Matrix4();
   scene.updateMatrixWorld(true);
   const rootInv = scene.matrixWorld.clone().invert();
+  let current = null; // name of the clip currently being sampled (for tool visibility)
   const sample = () => {
     scene.updateMatrixWorld(true);
-    rows.push(bones.map((b, i) => new THREE.Matrix4().multiplyMatrices(rootInv, tmp.multiplyMatrices(b.matrixWorld, sk.boneInverses[i]))));
+    const row = bones.map((b, i) => new THREE.Matrix4().multiplyMatrices(rootInv, tmp.multiplyMatrices(b.matrixWorld, sk.boneInverses[i])));
+    for (const vb of virtual) {
+      const m = new THREE.Matrix4().multiplyMatrices(rootInv, tmp.multiplyMatrices(vb.node.matrixWorld, vb.inv));
+      if (!vb.names.has(current)) {
+        // linear part 0: all corners collapse onto the grip point (in model coordinates)
+        const at = new THREE.Vector3().setFromMatrixPosition(tmp.multiplyMatrices(rootInv, vb.node.matrixWorld));
+        m.set(0, 0, 0, at.x, 0, 0, 0, at.y, 0, 0, 0, at.z, 0, 0, 0, 1);
+      }
+      row.push(m);
+    }
+    rows.push(row);
   };
   // Frame 0 = rest pose (fallback if no clip matches): first frame of idle, otherwise the node base pose.
   // skeleton.pose() is not suitable here: for quantised models the inverse bind matrices contain the dequantisation.
@@ -259,6 +404,7 @@ function bakeGltfAnimations(gltf, clipNames, fps) {
     const loop = !/death|die|_pose$/i.test(name);
     const frames = Math.max(1, Math.round(clip.duration * fps) + (loop ? 0 : 1));
     const start = rows.length;
+    current = name;
     const action = mixer.clipAction(clip);
     action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
     action.clampWhenFinished = true;
@@ -273,7 +419,8 @@ function bakeGltfAnimations(gltf, clipNames, fps) {
   }
   mixer.stopAllAction();
   scene.updateMatrixWorld(true);
-  return { texture: boneTexture(rows, bones.length), clips, bones, boneIndex, boneInverses: sk.boneInverses, fps, rows: rows.length };
+  const boneCount = bones.length + virtual.length;
+  return { texture: boneTexture(rows, boneCount), clips, bones, boneIndex, boneInverses, fps, rows: rows.length, scene };
 }
 
 /** Mask weight of a part (name/material/UV/texture). */
@@ -312,7 +459,13 @@ function mergeCharacterGeometry(scene, bake, role, grid, maskImgs = {}, donors =
     donor.traverse((o) => { if (o.isMesh && o.name === part) meshes.push([o, donor, part]); });
   }
   for (const [o, owner, donated] of meshes) {
-    const name = o.name;
+    let name = o.name;
+    // Animated nodes with a mesh are loaded by three.js as Object3D "Axe" with child mesh "Axe_1": then the node counts
+    let partNode = o;
+    if (!donated && !o.isSkinnedMesh && !include.includes(name) && o.parent && include.includes(o.parent.name) && name.startsWith(o.parent.name)) {
+      name = o.parent.name;
+      partNode = o.parent;
+    }
     if (exclude.some((p) => name === p)) continue;
     if (!donated && !o.isSkinnedMesh && !include.includes(name)) continue; // rigid parts only on request
     const src = o.geometry;
@@ -323,6 +476,12 @@ function mergeCharacterGeometry(scene, bake, role, grid, maskImgs = {}, donors =
     g.setAttribute('position', pos);
     if (nrm) g.setAttribute('normal', nrm);
     g.setAttribute('uv', uv);
+    // vertex colours (game model without texture): always RGB
+    if (src.attributes.color) {
+      const c = floatAttr(src.attributes.color), n3 = new Float32Array(c.count * 3);
+      for (let i = 0; i < c.count; i++) for (let k = 0; k < 3; k++) n3[i * 3 + k] = c.getComponent(i, k);
+      g.setAttribute('color', new THREE.BufferAttribute(n3, 3));
+    }
     if (src.index) g.setIndex(src.index.clone());
     const n = pos.count;
     const bIdx = new Float32Array(n * 4), bW = new Float32Array(n * 4);
@@ -354,8 +513,19 @@ function mergeCharacterGeometry(scene, bake, role, grid, maskImgs = {}, donors =
         bi = p ? bake.boneIndex.get(p.name) ?? -1 : -1;
       }
       if (bi < 0) { bi = 0; }
+      const pv = bake.boneIndex.get('@prop:' + name); // tool: own bone = the node itself
+      if (pv !== undefined) {
+        // Rest pose of the tool node in *this* file (LOD levels quantise their geometry differently).
+        // The scene of the original is no longer in rest pose after baking → use the remembered one there.
+        bi = pv;
+        if (scene === bake.scene) {
+          chain.copy(bake.boneInverses[pv]).invert();
+          if (partNode !== o) { o.updateMatrix(); chain.multiply(o.matrix); }
+        } else { chain.identity(); for (let q = o; q && q !== scene; q = q.parent) { q.updateMatrix(); chain.premultiply(q.matrix); } }
+        pre = chain.clone();
+      }
       for (let i = 0; i < n; i++) { bIdx[i * 4] = bi; bW[i * 4] = 1; }
-      pre = bake.boneInverses[bi].clone().invert().multiply(chain);
+      pre ??= bake.boneInverses[bi].clone().invert().multiply(chain);
     }
     g.applyMatrix4(pre);
     g.setAttribute('aBoneIdx', new THREE.BufferAttribute(bIdx, 4));
@@ -367,15 +537,20 @@ function mergeCharacterGeometry(scene, bake, role, grid, maskImgs = {}, donors =
       if (!Array.isArray(o.material) || !src.groups.length) return mats[0]?.name ?? '';
       return mats[0]?.name ?? '';
     };
+    const teamAttr = src.attributes._team ?? null; // team area as vertex attribute (game model)
     for (let i = 0; i < n; i++) {
       const u = uv.getX(i), v = uv.getY(i), mn = matOf(i);
-      mask[i * 2] = maskWeight(role.team, name, mn, u, v, grid, maskImgs.team);
+      mask[i * 2] = Math.max(maskWeight(role.team, name, mn, u, v, grid, maskImgs.team), teamAttr ? teamAttr.getX(i) : 0);
       mask[i * 2 + 1] = maskWeight(role.tint, name, mn, u, v, grid, maskImgs.tint);
     }
     g.setAttribute('aMask', new THREE.BufferAttribute(mask, 2));
     parts.push(g);
   }
   if (!parts.length) return null;
+  // Vertex colours: if some parts have them, the others get white (otherwise they cannot be merged)
+  if (parts.some((p) => p.attributes.color)) {
+    for (const p of parts) if (!p.attributes.color) p.setAttribute('color', new THREE.BufferAttribute(new Float32Array(p.attributes.position.count * 3).fill(1), 3));
+  }
   // all parts indexed or none
   const allIndexed = parts.every((p) => p.index);
   const list = allIndexed ? parts : parts.map((p) => (p.index ? p.toNonIndexed() : p));
@@ -437,22 +612,72 @@ function maskReference(geo, pix, channel) {
   return n ? Math.max(0.05, sum / n) : 0.5;
 }
 
+/**
+ * Bring a figure texture to a maximum size (low graphics level/phone: 1024 instead of 2048 – a quarter
+ * of the graphics memory). Once per model, the result is remembered on the loaded model.
+ */
+function limitTexture(map, max, loaded, slot = 'smallMap') {
+  const img = map?.image;
+  if (!img || typeof document === 'undefined' || !(img.width > max || img.height > max)) return map;
+  if (loaded[slot]?.max === max) return loaded[slot].tex;
+  const k = max / Math.max(img.width, img.height);
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  const tex = new THREE.CanvasTexture(c);
+  tex.flipY = map.flipY; tex.colorSpace = map.colorSpace; tex.wrapS = map.wrapS; tex.wrapT = map.wrapT;
+  tex.anisotropy = map.anisotropy;
+  loaded[slot] = { max, tex };
+  return tex;
+}
+
+/** Mean brightness (max channel, linear) of the vertex colours in a mask – like maskReference for vertex colours. */
+function vertexColorReference(geo, channel) {
+  const c = geo.attributes.color, m = geo.attributes.aMask;
+  let sum = 0, n = 0;
+  for (let i = 0; i < c.count; i++) {
+    if (m.getComponent(i, channel) < 0.5) continue;
+    sum += Math.max(c.getX(i), c.getY(i), c.getZ(i)); n++;
+  }
+  return n ? Math.max(0.05, sum / n) : 0.5;
+}
+
+/** Like maskReference, but from a mask texture (pixels with mask ≥ 50 %). */
+function maskImageReference(pix, maskPix, channel) {
+  if (!pix || !maskPix) return 0.5;
+  let sum = 0, n = 0;
+  const c = new THREE.Color();
+  for (let k = 0; k < maskPix.data.length; k += 4) {
+    if (maskPix.data[k + channel] < 128) continue;
+    c.setRGB(pix.data[k] / 255, pix.data[k + 1] / 255, pix.data[k + 2] / 255, THREE.SRGBColorSpace);
+    sum += Math.max(c.r, c.g, c.b); n++;
+  }
+  return n ? Math.max(0.05, sum / n) : 0.5;
+}
+
 // ---------- Material ----------
 
 /**
  * Standard material with GPU skinning from the bone texture and player colour/tint.
- * @param {{ map?: THREE.Texture|null, vertexColors?: boolean, bones: THREE.DataTexture, refTeam?: number, refTint?: number }} o
+ * Optional `maskMap`: mask texture (R = player colour, G = tint), pixel-exact instead of per corner.
+ * Optional `rim`: strength of the rim light (0 = off).
+ * @param {{ map?: THREE.Texture|null, maskMap?: THREE.Texture|null, vertexColors?: boolean, bones: THREE.DataTexture, refTeam?: number, refTint?: number, rim?: number }} o
  */
 export function characterMaterial(o) {
   const m = new THREE.MeshStandardMaterial({
     map: o.map ?? null, vertexColors: !!o.vertexColors, roughness: 0.78, metalness: 0,
-    flatShading: !!o.flatShading,
+    flatShading: !!o.flatShading, normalMap: o.normalMap ?? null,
   });
   const uniforms = {
     uBones: { value: o.bones },
     uRefTeam: { value: o.refTeam ?? 1 }, uRefTint: { value: o.refTint ?? 1 },
+    uMaskMap: { value: o.maskMap ?? null },
+    uRim: { value: o.rim ?? 0 },
   };
+  const maskMap = !!(o.maskMap && o.map); // needs the UV of the base colour
+  const marker = !!(o.marker && o.map); // team area is magenta in the texture (manifest teamMarker)
   m.userData.charUniforms = uniforms;
+  m.userData.teamMarker = !!(o.marker && o.map);
   m.onBeforeCompile = (s) => {
     Object.assign(s.uniforms, uniforms);
     s.vertexShader = s.vertexShader
@@ -461,9 +686,11 @@ ${SKIN_PARS}
 attribute vec2 aMask;
 attribute vec3 aTeam;
 attribute vec3 aTint;
+attribute float aFade;
 varying vec2 vCharMask;
 varying vec3 vTeam;
-varying vec3 vTint;`)
+varying vec3 vTint;
+varying float vFade;`)
       .replace('#include <beginnormal_vertex>', `kSkin = charSkin();
 vec3 objectNormal = normalize((kSkin * vec4(normal, 0.0)).xyz);
 #ifdef USE_TANGENT
@@ -473,22 +700,41 @@ vec3 objectTangent = vec3(tangent.xyz);
 #ifdef USE_ALPHAHASH
 vPosition = vec3(position);
 #endif
-vCharMask = aMask; vTeam = aTeam; vTint = aTint;`);
+vCharMask = aMask; vTeam = aTeam; vTint = aTint; vFade = aFade;`);
     s.fragmentShader = s.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform float uRefTeam;
 uniform float uRefTint;
+uniform float uRim;
+${maskMap ? 'uniform sampler2D uMaskMap;' : ''}
+${marker ? MARKER_PARS : ''}
 varying vec2 vCharMask;
 varying vec3 vTeam;
-varying vec3 vTint;`)
+varying vec3 vTint;
+varying float vFade;
+${DITHER_PARS}`)
+      // Cross-fade between LOD levels: fade out pixels by Bayer pattern (the incoming level shows
+      // the pixels under vFade, the outgoing the rest – together exactly one full figure, without transparency)
+      .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+if (vFade < 0.999) { if (charBayer(gl_FragCoord.xy) >= vFade) discard; }
+else if (vFade > 1.001) { if (charBayer(gl_FragCoord.xy) < vFade - 1.0) discard; }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
 {
+  vec2 cm = vCharMask;
+  ${maskMap ? 'cm = max(cm, texture2D(uMaskMap, vMapUv).rg);' : ''}
+  ${marker ? 'cm.x = max(cm.x, charMarker(diffuseColor.rgb));' : ''}
   float v = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
-  diffuseColor.rgb = mix(diffuseColor.rgb, vTeam * clamp(v / uRefTeam, 0.45, 1.6), vCharMask.x);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vTint * clamp(v / uRefTint, 0.45, 1.6), vCharMask.y);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vTeam * clamp(v / uRefTeam, 0.45, 1.6), cm.x);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vTint * clamp(v / uRefTint, 0.45, 1.6), cm.y);
+}`)
+      // Rim light: brighten edges slightly so that figures stand out from the ground (readability from game height)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+if (uRim > 0.0) {
+  float fres = 1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
+  totalEmissiveRadiance += diffuseColor.rgb * uRim * fres * fres;
 }`);
   };
-  m.customProgramCacheKey = () => `kr-char-${o.map ? 'm' : ''}${o.vertexColors ? 'c' : ''}${o.flatShading ? 'f' : ''}`;
+  m.customProgramCacheKey = () => `kr-char-${o.map ? 'm' : ''}${maskMap ? 'k' : ''}${marker ? 'p' : ''}${o.normalMap ? 'n' : ''}${o.vertexColors ? 'c' : ''}${o.flatShading ? 'f' : ''}`;
   return m;
 }
 
@@ -506,6 +752,85 @@ vec3 transformed = (kSkin * vec4(position, 1.0)).xyz;`);
   };
   m.customProgramCacheKey = () => 'kr-char-depth';
   return m;
+}
+
+/**
+ * Team colour directly from the texture: how strongly magenta is a (linear) colour? Same rule as markerWeight in
+ * scripts/asset-gen/postprocess.mjs (hue 285°–352°, saturation from 0.25), on sRGB values.
+ */
+const MARKER_PARS = /* glsl */`
+float charMarker(vec3 lin) {
+  vec3 c = pow(max(lin, vec3(0.0)), vec3(1.0 / 2.2));
+  float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), d = mx - mn;
+  if (mx < 0.2 || d < 1e-4) return 0.0;
+  float h;
+  if (mx == c.r) h = 60.0 * (c.g - c.b) / d; else if (mx == c.g) h = 120.0 + 60.0 * (c.b - c.r) / d; else h = 240.0 + 60.0 * (c.r - c.g) / d;
+  if (h < 0.0) h += 360.0;
+  float hue = h < 295.0 ? clamp((h - 285.0) / 10.0, 0.0, 1.0) : 1.0 - clamp((h - 342.0) / 10.0, 0.0, 1.0);
+  return hue * clamp((d / mx - 0.25) / 0.15, 0.0, 1.0);
+}`;
+
+/** JS counterpart of charMarker (sRGB 0–255), for the mean brightness of the team area. */
+export function markerWeightSrgb(r, g, b) {
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (mx < 51 || d === 0) return 0;
+  let h;
+  if (mx === r) h = (60 * (g - b)) / d; else if (mx === g) h = 120 + (60 * (b - r)) / d; else h = 240 + (60 * (r - g)) / d;
+  if (h < 0) h += 360;
+  const cl = (x) => Math.min(1, Math.max(0, x));
+  const hue = h < 295 ? cl((h - 285) / 10) : 1 - cl((h - 342) / 10);
+  return hue * cl((d / mx - 0.25) / 0.15);
+}
+
+/** Mean brightness (max channel, linear) of the magenta pixels – so that player colours look equally strong. */
+function markerReference(pix) {
+  if (!pix) return 0.5;
+  let sum = 0, n = 0;
+  const c = new THREE.Color();
+  for (let k = 0; k < pix.data.length; k += 4 * 3) {
+    if (markerWeightSrgb(pix.data[k], pix.data[k + 1], pix.data[k + 2]) < 0.8) continue;
+    c.setRGB(pix.data[k] / 255, pix.data[k + 1] / 255, pix.data[k + 2] / 255, THREE.SRGBColorSpace);
+    sum += Math.max(c.r, c.g, c.b); n++;
+  }
+  return n ? Math.max(0.05, sum / n) : 0.5;
+}
+
+const DITHER_PARS = /* glsl */`
+float charBayer(vec2 p) {
+  ivec2 q = ivec2(mod(p, 4.0));
+  int m[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
+  return (float(m[q.x + q.y * 4]) + 0.5) / 16.0;
+}`;
+
+/** Duration of the cross-fade when switching between near and game model (s). */
+export const LOD_FADE = 0.35;
+
+/**
+ * Cross-fade value per instance: 1 = fully visible; (0,1) = incoming level visible by this fraction;
+ * (1,2) = outgoing level, 1 + fraction of the points already faded out. Both together cover each point exactly once.
+ * @param {number} t seconds since the switch @returns {[number, number]} [incoming, outgoing]
+ */
+export function lodFadeValues(t) {
+  const f = Math.min(1, Math.max(0, t / LOD_FADE));
+  return [f >= 1 ? 1 : Math.max(0.001, f), f >= 1 ? 2 : 1 + Math.max(0.001, f)];
+}
+
+/**
+ * Track the mesh switch of a figure (near ↔ game model) and determine the cross-fade.
+ * Own fields `lodFrom`/`lodT0`: `fadeT0` belongs to the cross-fade between animations.
+ * @param {{ meshLvl?: number, lodFrom?: number, lodT0?: number, dying?: boolean }} r record (is updated)
+ * @param {number} meshLvl mesh in this frame @param {number} time
+ * @returns {{ fin: number, fout: number, from: number }} cross-fade values; from = outgoing mesh or −1
+ */
+export function lodTransition(r, meshLvl, time) {
+  if (r.meshLvl >= 0 && r.meshLvl !== meshLvl) { r.lodFrom = r.meshLvl; r.lodT0 = time; }
+  r.meshLvl = meshLvl;
+  if (r.lodFrom === undefined || r.lodFrom === meshLvl || r.dying || time - r.lodT0 >= LOD_FADE) {
+    r.lodFrom = undefined;
+    return { fin: 1, fout: 2, from: -1 };
+  }
+  const [fin, fout] = lodFadeValues(time - r.lodT0);
+  return { fin, fout, from: r.lodFrom };
 }
 
 const SKIN_PARS = /* glsl */`
@@ -677,6 +1002,8 @@ class Variant {
     this.has = (k) => !!(this.names[k] && bake.clips[this.names[k]]);
     this.clipCache = new Map();
     this.radius = opts.radius ?? 0.35;
+    /** Height in world units (for the LOD level by screen height) */
+    this.worldHeight = opts.worldHeight ?? 0.95;
   }
   /** Clip key → clip with fallback (incl. role renaming, e.g. rider: walk → ride). */
   clip(key) {
@@ -749,14 +1076,27 @@ export class CharacterSystem {
     return v;
   }
 
-  buildVariant(roleKey) {
+  /**
+   * Key of the rendering for a unit: roles with variants get '#<index>' (chosen by ID).
+   * @param {string} roleKey @param {number} id
+   */
+  variantKey(roleKey, id) {
+    let list = (this.variantLists ??= new Map()).get(roleKey);
+    if (list === undefined) { list = roleVariants(store.manifest, roleKey); this.variantLists.set(roleKey, list); }
+    return list ? `${roleKey}#${pickVariant(list, id)}` : roleKey;
+  }
+
+  buildVariant(key) {
     const manifest = store.manifest;
-    const res = resolveRole(manifest ?? { roles: {} }, roleKey, (m) => this.gpuModels && store.models.has(m))
+    const hash = key.indexOf('#');
+    const roleKey = hash < 0 ? key : key.slice(0, hash);
+    const pick = hash < 0 ? 0 : Number(key.slice(hash + 1));
+    const res = resolveRole(manifest ?? { roles: {} }, roleKey, (m) => this.gpuModels && store.models.has(m), pick)
       ?? { key: roleKey, role: {}, model: null, procedural: PROCEDURAL_DEFAULT(roleKey) };
     const role = res.role ?? {};
     let v;
-    if (res.model) v = this.buildModelVariant(roleKey, res.model, role);
-    if (!v) v = this.buildProceduralVariant(roleKey, res.procedural ?? PROCEDURAL_DEFAULT(roleKey), role);
+    if (res.model) v = this.buildModelVariant(key, res.model, role);
+    if (!v) v = this.buildProceduralVariant(key, res.procedural ?? PROCEDURAL_DEFAULT(roleKey), role);
     if (!v) return null;
     // attachments: mount, crew
     for (const a of role.attach ?? []) {
@@ -776,19 +1116,21 @@ export class CharacterSystem {
     const fps = manifest.fps ?? FPS_DEFAULT;
     let bake = this.modelBakes.get(model);
     if (!bake) {
-      bake = bakeGltfAnimations(loaded.gltf, clipNamesFor(manifest, model), fps);
+      bake = bakeGltfAnimations(loaded.gltf, clipNamesFor(manifest, model), fps, propClipNames(def.props, def.clips));
       if (!bake) return null;
       this.modelBakes.set(model, bake);
     }
     const grid = def.uvGrid ?? [8, 4];
     const team = role.team !== undefined ? role.team : def.team;
     const tint = role.tint !== undefined ? role.tint : def.tint;
-    const r = { include: role.include ?? def.include ?? [], exclude: role.exclude ?? def.exclude, team, tint };
+    const include = [...(role.include ?? def.include ?? []), ...Object.keys(def.props ?? {})];
+    const r = { include, exclude: role.exclude ?? def.exclude, team, tint };
     let map = null;
     loaded.gltf.scene.traverse((o) => { if (!map && o.isMesh && o.material?.map) map = o.material.map; });
+    map = limitTexture(map, this.quality.characterTexture ?? 2048, loaded);
     const pix = imagePixels(map?.image);
     const scenes = [loaded.gltf.scene, ...loaded.lods.map((l) => l.scene)];
-    const levels = scenes.map((sc, lvl) => {
+    const built = scenes.map((sc, lvl) => {
       // donor parts in the matching LOD level
       const donors = new Map();
       for (const inc of r.include) {
@@ -796,21 +1138,60 @@ export class CharacterSystem {
         const dm = store.models.get(inc.split(':')[0]);
         if (dm) donors.set(inc.split(':')[0], (lvl > 0 ? dm.lods[Math.min(lvl, dm.lods.length) - 1]?.scene : null) ?? dm.gltf.scene);
       }
-      return mergeCharacterGeometry(sc, bake, r, grid, {}, donors);
-    }).filter(Boolean);
-    if (!levels.length) return null;
+      return { geo: mergeCharacterGeometry(sc, bake, r, grid, {}, donors), sc, lvl };
+    }).filter((x) => x.geo);
+    if (!built.length) return null;
+    const levels = built.map((x) => x.geo);
     // Height from the rest pose (baked frame 0): scale the figure so that it is def.height tiles tall
     const bb = posedBounds(levels[0], bake, 0);
     const height = def.height ?? 1;
     const scale = (def.scale ?? height / Math.max(0.01, bb.max.y - Math.max(0, bb.min.y))) * (role.scale ?? 1);
-    const material = characterMaterial({
-      map, bones: bake.texture,
-      refTeam: maskReference(levels[0], pix, 0), refTint: maskReference(levels[0], pix, 1),
-    });
+    // Material per LOD level: far and middle levels may have their own texture (e.g. flat palette colours)
+    // and mask; otherwise the texture and mask of the original apply. Equal combinations share a material.
+    const cache = new Map();
+    const materialFor = (sc, lvl, geo) => {
+      if (geo.attributes.color) {
+        // game model with vertex colours: no texture (does not blur together in the distance), team area from the corners
+        const key = 'vc';
+        if (!cache.has(key)) cache.set(key, characterMaterial({ vertexColors: true, bones: bake.texture, rim: def.rim ?? 0, refTeam: vertexColorReference(geo, 0), refTint: vertexColorReference(geo, 1) }));
+        return cache.get(key);
+      }
+      let own = null, nrm = null;
+      if (lvl > 0) sc.traverse((o) => { if (!own && o.isMesh && o.material?.map) own = o.material.map; });
+      let nscale = null;
+      sc.traverse((o) => { if (!nrm && o.isMesh && o.material?.normalMap) { nrm = o.material.normalMap; nscale = o.material.normalScale; } });
+      const lmap = own ?? map;
+      if (def.teamMarker) {
+        // team area as magenta in the texture: no mask image, the shader recognises it
+        const key = `tm|${lmap?.uuid}|${nrm?.uuid}`;
+        if (!cache.has(key)) {
+          cache.set(key, characterMaterial({
+            map: lmap, normalMap: nrm ? limitTexture(nrm, this.quality.characterTexture ?? 2048, loaded, 'smallNormal' + lvl) : null,
+            marker: true, bones: bake.texture, refTeam: markerReference(own ? imagePixels(own.image) : pix),
+          }));
+          if (nscale) cache.get(key).normalScale.copy(nscale); // as set by the GLTFLoader (sign y)
+        }
+        return cache.get(key);
+      }
+      const maskMap = loaded.masks?.get(maskFileFor(def, lvl)) ?? (lvl === 0 ? loaded.mask : null) ?? null;
+      const key = `${lmap?.uuid}|${maskMap?.uuid}`;
+      if (cache.has(key)) return cache.get(key);
+      const lpix = own ? imagePixels(own.image) : pix;
+      const maskPix = maskMap ? imagePixels(maskMap.image) : null;
+      const mat = characterMaterial({
+        map: lmap, maskMap, bones: bake.texture, rim: def.rim ?? 0,
+        refTeam: maskPix ? maskImageReference(lpix, maskPix, 0) : maskReference(geo, lpix, 0),
+        refTint: maskPix ? maskImageReference(lpix, maskPix, 1) : maskReference(geo, lpix, 1),
+      });
+      cache.set(key, mat);
+      return mat;
+    };
+    const materials = built.map((x) => materialFor(x.sc, x.lvl, x.geo));
     const names = { ...(def.clips ?? {}), ...(role.clips ?? {}) };
-    const v = new Variant(roleKey, levels, bake, material, characterDepthMaterial(bake.texture), names, {
-      yaw: def.yaw, scale, alias: role.clipAlias,
+    const v = new Variant(roleKey, levels, bake, materials[0], characterDepthMaterial(bake.texture), names, {
+      yaw: def.yaw, scale, alias: role.clipAlias, worldHeight: (def.height ?? 1) * (role.scale ?? 1),
     });
+    v.materials = materials;
     v.tintColor = tint?.color ? new THREE.Color(tint.color) : null;
     v.model = model;
     return v;
@@ -825,7 +1206,7 @@ export class CharacterSystem {
     for (const [k, src] of Object.entries({ chop: 'work', mine: 'work', hammer: 'work', build: 'work', shoot: 'attack', run: 'walk', carry: 'walk', cheer: 'idle', ride: 'idle' })) names[k] ??= src;
     const material = characterMaterial({ vertexColors: true, flatShading: true, bones: bake.texture, refTeam: 1, refTint: 1 });
     const v = new Variant(roleKey, [bake.geometry], bake, material, characterDepthMaterial(bake.texture), names, {
-      scale: role.procScale ?? 1, alias: role.procAlias ?? {}, radius: p.radius,
+      scale: role.procScale ?? 1, alias: role.procAlias ?? {}, radius: p.radius, worldHeight: 0.9 * (role.procScale ?? 1),
     });
     v.tintColor = role.tint?.color ? new THREE.Color(role.tint.color) : (p.tintDefault !== undefined ? new THREE.Color(p.tintDefault) : null);
     v.procedural = true;
@@ -847,7 +1228,8 @@ export class CharacterSystem {
     geo.setAttribute('aAnim', new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3).setUsage(THREE.DynamicDrawUsage));
     geo.setAttribute('aTeam', new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3).setUsage(THREE.DynamicDrawUsage));
     geo.setAttribute('aTint', new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3).setUsage(THREE.DynamicDrawUsage));
-    m = new THREE.InstancedMesh(geo, v.material, cap);
+    geo.setAttribute('aFade', new THREE.InstancedBufferAttribute(new Float32Array(cap).fill(1), 1).setUsage(THREE.DynamicDrawUsage));
+    m = new THREE.InstancedMesh(geo, v.materials?.[level] ?? v.material, cap);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     m.customDepthMaterial = v.depth;
     m.frustumCulled = false;
@@ -867,7 +1249,8 @@ export class CharacterSystem {
    * @param {string} roleKey
    * @param {{ x:number, y:number, z:number, yaw:number, clip:string, team:number, tint?:number|null, visible?:boolean, speed?:number }} s
    */
-  set(id, roleKey, s) {
+  set(id, role, s) {
+    const roleKey = this.variantKey(role, id);
     let r = this.records.get(id);
     if (!r || r.roleKey !== roleKey) {
       r = { id, roleKey, variant: this.variantFor(roleKey), lod: new LodState(), clip: null, clipT0: 0, prevClip: null, prevT0: 0, fadeT0: -1, seen: 0, dying: false, phase: (((id * 2654435761) >>> 0) / 4294967296) * 3 };
@@ -921,7 +1304,8 @@ export class CharacterSystem {
     const time = this.time;
     const camPos = camera.position;
     const bias = this.lodSettings.bias;
-    /** @type {Map<Variant, any[][]>} Variante → Stufe → [Datensatz, Stufe, Absinken, Anhang] */
+    const viewH = this.viewH ?? 800;
+    /** @type {Map<Variant, any[][]>} variant → level → [record, level, sinking, attachment, cross-fade] */
     const buckets = new Map();
     const push = (v, lvl, item) => {
       let b = buckets.get(v);
@@ -934,14 +1318,18 @@ export class CharacterSystem {
       if (!v || !r.visible) continue;
       const sink = r.dying ? Math.max(0, (time - r.dieAt - 2.6) / 1.6) : 0;
       const p = r.position;
-      if (!sphereVisible(frustum, p.x, p.y + 0.5, p.z, 0.9)) { st.culled++; continue; }
-      const d = effectiveDistance(camPos.distanceTo(p), camera.fov, bias);
-      const lvl = r.lod.update(d, this.lodSettings);
-      if (lvl < 0) { st.culled++; continue; }
+      if (!sphereVisible(frustum, p.x, p.y + 0.5, p.z, 0.9)) { st.culled++; r.meshLvl = -1; continue; }
+      // level by screen height of the figure (phone and desktop equal), graphics level shifts the thresholds
+      const px = screenHeightPx(v.worldHeight, camPos.distanceTo(p), camera.fov, viewH) * bias;
+      const lvl = r.lod.update(pixelMetric(px), this.lodSettings);
+      if (lvl < 0) { st.culled++; r.meshLvl = -1; continue; }
       st.levels[lvl]++; st.drawn++;
       counter?.add('character', lvl);
-      push(v, lvl, [r, lvl, sink, null]);
-      for (const a of v.attach) push(a.variant, lvl, [r, lvl, sink, a]);
+      // mesh switch (near ↔ game model): briefly draw both, cross-faded by dither
+      const tr = lodTransition(r, Math.min(lvl, v.levels.length - 1), time);
+      push(v, lvl, [r, lvl, sink, null, tr.fin]);
+      if (tr.from >= 0) push(v, tr.from, [r, tr.from, sink, null, tr.fout]);
+      for (const a of v.attach) push(a.variant, lvl, [r, lvl, sink, a, 1]);
     }
     for (const v of this.variants.values()) {
       if (!v) continue;
@@ -950,9 +1338,9 @@ export class CharacterSystem {
         const list = b[lvl] ?? [];
         if (!list.length) { if (v.meshes[lvl]) { v.meshes[lvl].count = 0; v.meshes[lvl].visible = false; } continue; }
         const m = this.meshFor(v, lvl, list.length);
-        const anim = m.geometry.attributes.aAnim, team = m.geometry.attributes.aTeam, tint = m.geometry.attributes.aTint;
+        const anim = m.geometry.attributes.aAnim, team = m.geometry.attributes.aTeam, tint = m.geometry.attributes.aTint, fade = m.geometry.attributes.aFade;
         let i = 0;
-        for (const [r, rl, sink, a] of list) {
+        for (const [r, rl, sink, a, fv] of list) {
           const host = r.variant;
           const yaw = r.yaw + v.yaw;
           tmpP.copy(r.position);
@@ -984,6 +1372,7 @@ export class CharacterSystem {
             fb = w < 0.5 ? fa : fb; fa = pa; w = fadeK;
           }
           anim.setXYZ(i, fa, fb, w);
+          fade.setX(i, fv ?? 1);
           tmpC.setHex(r.team);
           team.setXYZ(i, tmpC.r, tmpC.g, tmpC.b);
           if (r.tint !== null && !a) tmpC.setHex(r.tint);
@@ -994,7 +1383,7 @@ export class CharacterSystem {
         }
         m.count = i;
         m.visible = i > 0;
-        for (const at of [m.instanceMatrix, anim, team, tint]) { at.clearUpdateRanges(); at.addUpdateRange(0, i * at.itemSize); at.needsUpdate = true; }
+        for (const at of [m.instanceMatrix, anim, team, tint, fade]) { at.clearUpdateRanges(); at.addUpdateRange(0, i * at.itemSize); at.needsUpdate = true; }
       }
     }
     if (this.blob) this.renderBlobs(buckets);
@@ -1033,8 +1422,8 @@ export class CharacterSystem {
   renderBlobs(buckets) {
     let n = 0;
     const cap = this.blobs.instanceMatrix.count;
-    for (const [v, b] of buckets) for (const list of b) for (const [r, lvl, , att] of list ?? []) {
-      if (n >= cap || lvl > 2 || att) continue;
+    for (const [v, b] of buckets) for (const list of b) for (const [r, lvl, , att, fv] of list ?? []) {
+      if (n >= cap || lvl > 2 || att || fv > 1) continue; // outgoing level of the cross-fade: no second shadow
       const sz = v.radius * 1.8 * (v.attach.length ? 1.6 : 1);
       tmpM.makeScale(sz, 1, sz).setPosition(r.position.x, r.position.y + 0.035, r.position.z);
       this.blobs.setMatrixAt(n++, tmpM);

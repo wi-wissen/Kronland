@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { newSim, quickBuild, hqOf, serfsOf } from './helpers.js';
 import { BUILDING_TECHS, techsOfBuilding, RESEARCH_BUILDINGS } from '../../src/sim/data/buildingTechs.js';
 import { BUILDINGS } from '../../src/sim/data/buildings.js';
+import { MILITIA } from '../../src/sim/data/units.js';
 import { combatStats, maxHp } from '../../src/sim/systems/military.js';
 import { techBonus, buildingTechPoints, grantBuildingTech, buildingMaxHp } from '../../src/sim/systems/techs.js';
 import { serfSpeed } from '../../src/sim/systems/serfs.js';
@@ -169,11 +170,12 @@ describe('Building technologies: effect', () => {
     const sim = newSim();
     const hq = hqOf(sim);
     const a0 = combatStats(sim, hq).armor;
-    hq.hp = 1250; // halbe LP
+    const full = BUILDINGS.headquarters.levels[0].hp;
+    hq.hp = full >> 1; // half HP
     grantBuildingTech(sim, 0, 'masonry');
     expect(combatStats(sim, hq).armor).toBe(a0 + 2);
-    expect(maxHp(sim, hq)).toBe(3000);
-    expect(hq.hp).toBe(1500);
+    expect(maxHp(sim, hq)).toBe(Math.trunc((full * 120) / 100));
+    expect(hq.hp).toBe(Math.trunc(((full >> 1) * 120) / 100));
     const res = quickBuild(sim, 'residence');
     expect(res.hp).toBe(buildingMaxHp(sim, res));
     expect(res.hp).toBe(720);
@@ -200,7 +202,7 @@ describe('Building technologies: effect', () => {
     grantBuildingTech(sim, 0, 'tracking');
     const plain = combatStats(sim, serf).attack;
     sim.step([{ type: 'militia', player: 0, on: true }]);
-    expect(combatStats(sim, serf).attack).toBe(10 + 4);
+    expect(combatStats(sim, serf).attack).toBe(MILITIA.attack + 4);
     expect(plain).toBe(5);
     expect(combatStats(sim, L).sight).toBe(sight0 + 2);
   });

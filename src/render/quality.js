@@ -28,6 +28,7 @@ export const QUALITY_LABELS = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }
  * @property {number} anisotropy
  * @property {number} margin tiles of border terrain outside the map
  * @property {'models'|'procedural'} characterModels figures from GLB models or procedural (both instanced)
+ * @property {number} characterTexture largest edge length of the figure textures (larger ones are downscaled on load)
  * @property {boolean} [shadows] shadows (default: on)
  * @property {boolean} [software] software rasterizer detected
  */
@@ -36,15 +37,15 @@ export const QUALITY_LABELS = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }
 export const QUALITY_PRESETS = {
   low: {
     tier: 'low', maxPixelRatio: 1.25, antialias: false, shadowMapSize: 1024, shadowRadius: 1,
-    textureSize: 256, terrainDetail: 1, scatter: 0.25, treeDetail: false, waterDetail: false, terrainBump: false, anisotropy: 2, margin: 12, characterModels: 'models',
+    textureSize: 256, terrainDetail: 1, scatter: 0.25, treeDetail: false, waterDetail: false, terrainBump: false, anisotropy: 2, margin: 12, characterModels: 'models', characterTexture: 1024,
   },
   medium: {
     tier: 'medium', maxPixelRatio: 1.5, antialias: true, shadowMapSize: 2048, shadowRadius: 2,
-    textureSize: 512, terrainDetail: 2, scatter: 0.6, treeDetail: true, waterDetail: true, terrainBump: true, anisotropy: 4, margin: 18, characterModels: 'models',
+    textureSize: 512, terrainDetail: 2, scatter: 0.6, treeDetail: true, waterDetail: true, terrainBump: true, anisotropy: 4, margin: 18, characterModels: 'models', characterTexture: 2048,
   },
   high: {
     tier: 'high', maxPixelRatio: 2, antialias: true, shadowMapSize: 4096, shadowRadius: 3,
-    textureSize: 1024, terrainDetail: 2, scatter: 1, treeDetail: true, waterDetail: true, terrainBump: true, anisotropy: 8, margin: 24, characterModels: 'models',
+    textureSize: 1024, terrainDetail: 2, scatter: 1, treeDetail: true, waterDetail: true, terrainBump: true, anisotropy: 8, margin: 24, characterModels: 'models', characterTexture: 2048,
   },
 };
 

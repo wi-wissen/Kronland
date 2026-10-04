@@ -34,17 +34,14 @@ async function screenAt(page, x, y) {
   }, [x, y]);
 }
 
-test('Start menu: expansion content on/off, expansion heroes only with the expansion', async ({ page }) => {
+test('Start menu: expansion content always included, no switch; all heroes selectable', async ({ page }) => {
   await page.goto(playUrl(''));
   await expect(page.getByTestId('start-menu')).toBeVisible();
-  await expect(page.getByTestId('addon-on')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('addon-on')).toHaveCount(0);
+  await expect(page.getByTestId('addon-off')).toHaveCount(0);
   await expect(page.getByTestId('hero-pick-falk')).toBeVisible();
   await page.getByTestId('hero-pick-morla').click();
-  await page.getByTestId('addon-off').click();
-  await expect(page.getByTestId('hero-pick-falk')).toHaveCount(0);
-  await expect(page.getByTestId('hero-pick-bertram')).toHaveAttribute('aria-pressed', 'true');
-  await page.getByTestId('addon-on').click();
-  await expect(page.getByTestId('hero-pick-morla')).toBeVisible();
+  await expect(page.getByTestId('hero-pick-morla')).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('Tavern: recruit thief and scout, steal, search resources, throw torch', async ({ page }, testInfo) => {

@@ -8,7 +8,7 @@ Arbeitstitel; Name, Grafiken und Texte sind eigene.
 
 ```bash
 npm install
-npm run dev     # Entwicklungsserver: Startseite /, Spiel /play/, Handbuch /manual/, Wiki /compendium/
+npm run dev     # Entwicklungsserver: Startseite /, Spiel /play/, Handbuch /manual/, Kompendium /compendium/
 npm test        # Simulationstests (Vitest)
 npm run test:e2e  # Oberflächentests Desktop + Handy (Playwright); anderer Port: E2E_PORT=4204 npm run test:e2e
 npm run build   # Produktionsbuild nach dist/ (statische Website, alle Pfade relativ)
@@ -20,10 +20,10 @@ npm run build   # Produktionsbuild nach dist/ (statische Website, alle Pfade rel
 |---|---|
 | `./` | Startseite: Titelbild, Funktionen, Galerie, „Für die Schule“ (Entwicklermodus), Danksagung |
 | `play/` | das Spiel (URL-Parameter wie unten, z. B. `play/?seed=42`; PWA mit Start `play/`) |
-| `manual/` | Anwenderhandbuch DE/EN mit Inhaltsverzeichnis, Suche, Druckansicht (Markdown in `src/site/manual/`) |
-| `compendium/` | Spielmechanik-Wiki mit Seitenleiste, Suche, Deep-Links – alle Tabellen aus `src/sim/data/` erzeugt, neue Inhalte erscheinen automatisch |
+| `manual/` | Handbuch DE/EN mit Inhaltsverzeichnis, Suche, Druckansicht (Markdown in `src/site/manual/`) |
+| `compendium/` | Kompendium: alle Werte und Formeln mit Seitenleiste, Suche, Deep-Links – alle Tabellen aus `src/sim/data/` erzeugt, neue Inhalte erscheinen automatisch |
 
-Aufbau, Erweitern von Handbuch und Wiki, Pfade und PWA: [docs/WEBSITE.md](docs/WEBSITE.md).
+Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](docs/WEBSITE.md).
 
 ## Stand
 
@@ -39,7 +39,8 @@ Aufbau, Erweitern von Handbuch und Wiki, Pfade und PWA: [docs/WEBSITE.md](docs/W
 | 8 | Gebäude-Technologien, Marktplatz, Wetterturm/-kraftwerk, Erfahrung, Brand/Reparatur/Ruinen | fertig |
 | 9 | Nebel des Krieges (unerkundet/erkundet/sichtbar, zuletzt gesehene Gebäude, faire KI) | fertig |
 | 10 | Erweiterungsinhalte: Wirtshaus, Dieb, Kundschafter, verborgene Lagerstätten, Brücken, Büchsenschützen, Helden Falk/Morla, Brunnen/Denkmal | fertig |
-| 11 | Website: Startseite, Spiel unter `play/`, Handbuch, Wiki aus den Spieldaten | fertig |
+| 11 | Website: Startseite, Spiel unter `play/`, Handbuch, Kompendium aus den Spieldaten | fertig |
+| 12 | Python-Skripte (eigene VM), Lernabenteuer mit Debugger, Skript-Missionen, Welteneditor | fertig |
 
 ## Spielen
 
@@ -47,9 +48,14 @@ Aufbau, Erweitern von Handbuch und Wiki, Pfade und PWA: [docs/WEBSITE.md](docs/W
 - **Kampagne** „Die Rückkehr der Krone“: fünf Kapitel mit Briefing, Haupt- und Nebenzielen,
   Räubern, Wetter und einem Endkampf gegen Fürst Morwald. Fortschritt und Bestzeiten speichert der Browser.
   Direktstart: `play/?mission=c1` … `play/?mission=c5`, `play/?mission=tutorial`.
-- **Freies Spiel**: Im Startmenü Gegnerzahl (1–3), Stärke, Helden, Nebel des Krieges an/aus, Erweiterungsinhalte an/aus und Karte wählen.
-- Direktstart per Adresse: `play/?seed=42&ai=hard&players=3&hero=hedda` (ohne Nebel: `&fog=off`, ohne Erweiterung: `&addon=off`)
-- **Erweiterungsinhalte** nach Vorbild der Siedler-5-Erweiterungen (Standard an): Wirtshaus mit Dieb (unsichtbar,
+- **Programmier-Abenteuer**: Bertram mit Python steuern – fünf Lernabenteuer (Schleifen, Bedingungen, Funktionen,
+  Listen), Code-Panel mit Einzelschritt, Haltepunkten und Variablenansicht, Fehlermeldungen mit Vorschlag.
+  Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Orte, Missionen programmieren,
+  Welt aus Code erzeugen, als JSON speichern, testspielen) und eigene Szenario-Dateien.
+  Direktstart: `play/?mission=adv1` … `adv5`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
+- **Freies Spiel**: Im Startmenü Gegnerzahl (1–3), Stärke, Helden, Nebel des Krieges an/aus und Karte wählen.
+- Direktstart per Adresse: `play/?seed=42&ai=hard&players=3&hero=hedda` (ohne Nebel: `&fog=off`)
+- **Erweiterungsinhalte** nach Vorbild der Siedler-5-Erweiterungen, im freien Spiel fest dabei (kein Schalter): Wirtshaus mit Dieb (unsichtbar,
   stiehlt, Sprengladungen) und Kundschafter (Fackel, Rohstoffsuche), verborgene Lagerstätten, Brücken an
   Brückenstellen, Büchsenschützen, Helden Falk und Morla, Brunnen und Denkmal. Die KI nutzt sie und wehrt Diebe mit
   Türmen ab. Details: [Erweiterung](docs/ADDON.md), [Spielregeln §13](docs/SPIELREGELN.md#13-erweiterungsinhalte).
@@ -58,7 +64,9 @@ Aufbau, Erweitern von Handbuch und Wiki, Pfade und PWA: [docs/WEBSITE.md](docs/W
   Sichtweiten und Regeln: [Spielregeln §12](docs/SPIELREGELN.md#12-sicht-und-nebel-des-krieges).
 - Grafikstufe: automatisch (Handy/ohne Grafikkarte niedrig, Desktop hoch), erzwingbar per `?quality=low|medium|high`
   (wird gemerkt; im Code: `setQuality()` aus `src/render/quality.js`). Objekte werden je nach Abstand/Zoom
-  vereinfacht (Detailstufen), Figuren sind instanziert und GPU-animiert – Details in [Modelle](docs/MODELLE.md).
+  vereinfacht (Detailstufen), Figuren sind instanziert und GPU-animiert. Figuren haben zwei Darstellungen:
+  ein detailliertes Nahmodell beim Heranzoomen und ein flach gefärbtes, gut lesbares Spielmodell, umgeschaltet
+  nach ihrer Bildschirmhöhe mit kurzer Überblendung – Details in [Modelle](docs/MODELLE.md).
 - Kamera wie ein Kartenprogramm: Ziehen (mittlere Maustaste, ein Finger) greift den Boden, Mausrad und
   Zwei-Finger-Zoom zoomen zum Zeiger bzw. zur Fingermitte, nichts gleitet oder wippt nach.
 - Nahzoom bis dicht an Figuren und Gebäude; ganz nah wird der Blick flacher, Figuren und Gebäude bleiben in
@@ -78,10 +86,20 @@ Aufbau, Erweitern von Handbuch und Wiki, Pfade und PWA: [docs/WEBSITE.md](docs/W
   (`kronland-<name>-<datum>.json`, wahlweise kompakt) – per Dateiauswahl (auch Handy) oder Ziehen & Ablegen.
   Gespeichert wird der vollständige Simulationszustand (inkl. eingeebnetem Gelände), nicht der Entwicklermodus.
   Format, Prüfung und Migration: [Architektur → Spielstände](docs/ARCHITEKTUR.md#spielstände-srcsave).
-- Sprache Deutsch/Englisch, Grafikstufe, Lautstärken, Oberflächengröße, Randscrollen und Beschriftungen im Menü „Einstellungen“ (Startmenü und Spielmenü).
+- Sprache Deutsch/Englisch, Grafikstufe, Lautstärken, Oberflächengröße, Randscrollen, Beschriftungen und „Dialoge vorlesen“ im Menü „Einstellungen“ (Startmenü und Spielmenü).
+- **Spieloberfläche** aus freistehenden Schildern mit Abstand zum Bildrand, jedes nur so breit wie sein Inhalt – die Mitte gehört
+  der Karte: oben Rohstoffe, Wappen genau in der Bildschirmmitte mit Zahltag-Medaillon (Sekunden erst kurz vorher, ein Lichtimpuls am
+  Zahltag) und Münzknöpfe für Pause, Tempo (Ausklappmenü 1× · 2× · 4×) und Menü; unten runde Minikarte mit Schnellzugriff (Burg, Untätige mit Zahl,
+  Alle Leibeigenen, Truppen), darüber die Heldenporträts (Klick wählt den Helden und holt ihn ins Bild) und die
+  **Steuergruppen** (Umschalt+1–9 merkt die Auswahl, 1–9 ruft sie ab, zweimal holt sie ins Bild; am Handy über
+  „Als Gruppe merken“),
+  Befehlstafel nur bei Auswahl und Porträt der Auswahl. Das Baumenü zeigt alle Gruppen ohne Reiter.
+  Nichts überlappt: bei weniger Breite brechen Leisten um, Karte und Kacheln werden kleiner, am Handy wird die
+  Tafel zur Schublade.
 - Jedes Symbol ist erklärt: Maus darüber (Desktop) oder **lang drücken** (Handy) zeigt Name, Kosten und Erklärung,
-  ohne die Aktion auszulösen. „Beschriftungen anzeigen“ (am Handy standardmäßig an) setzt Kurznamen unter die
-  Symbole in Bau-, Heer- und Schnellleiste sowie an die Forschungslinien.
+  ohne die Aktion auszulösen. Was nur bei einer Auswahl erscheint (Baumenü, Befehle von Gebäuden und Truppen),
+  ist immer beschriftet; „Beschriftungen anzeigen“ (am Handy standardmäßig an) setzt zusätzlich Namen unter
+  den Schnellzugriff und an die Forschungslinien.
 - Auf dem Handy als App installierbar (PWA, startet `play/`); der Spielcode ist danach offline verfügbar.
 - Steuerung: siehe [Architektur](docs/ARCHITEKTUR.md#steuerung) oder Menü → „Steuerung anzeigen“.
 
@@ -90,6 +108,18 @@ Aufbau, Erweitern von Handbuch und Wiki, Pfade und PWA: [docs/WEBSITE.md](docs/W
 ```bash
 node scripts/ai-match.js 1 60 hard easy   # Seed, Minuten, Stärke Spieler 1 und 2
 node scripts/ai-match.js 1 60 hard easy --addon   # mit Erweiterungsinhalten
+```
+
+Veredler-Leistung je Motivation und Haus/Hof nachmessen (Abgleich mit dem Vorbild, siehe [Spielregeln §4](docs/SPIELREGELN.md#4-arbeiter-motivation-steuern)):
+
+```bash
+node scripts/refiner-analysis.js 10 300 200 100 50 30   # Minuten, Motivationsstufen
+```
+
+Truppen gegeneinander antreten lassen (Abstimmung der Truppenwerte, siehe [Spielregeln §8](docs/SPIELREGELN.md#8-militär)):
+
+```bash
+node scripts/troop-duels.js 6   # Anzahl Seeds je Duell
 ```
 
 ## Modelle neu erzeugen
@@ -105,7 +135,10 @@ scripts/build-assets.sh <Pfad Hexagon-Paket> <Pfad Figuren-Paket>
 Das Skript optimiert die Modelle, kürzt die Figuren-Animationen auf die im Manifest genannten Clips
 (`scripts/trim-animations.mjs`) und erzeugt die Detailstufen `*.lod1.glb`, `*.lod2.glb` (`scripts/build-lods.mjs`).
 Zuordnung Gebäudetyp → Modell: `src/render/assets.js`; Figuren: `public/models/characters/manifest.json`.
-Eigene Figuren (z. B. aus Tripo) einbauen: [docs/MODELLE.md](docs/MODELLE.md).
+Eigene Figuren erzeugen (Konzeptbild → Meshy → Nachbearbeitung, `scripts/asset-gen/`) und einbauen:
+[docs/MODELLE.md](docs/MODELLE.md), Stilregeln und Prompts: [docs/STIL.md](docs/STIL.md).
+Leibeigene erscheinen zufällig, aber stabil als Leibeigener oder Leibeigene (Teamfarbe an Mütze/Haarband und Schal),
+mit Axt, Hammer und Spitzhacke je nach Tätigkeit.
 Ohne Modelle zeigt das Spiel prozedurale Platzhalter.
 
 Die bunten Symbole (Rohstoffe, Gebäude, Einheiten …) stammen aus einem Sprite-Atlas, den ein Bildmodell
@@ -119,10 +152,11 @@ Die bunten Symbole (Rohstoffe, Gebäude, Einheiten …) stammen aus einem Sprite
 - [Architektur](docs/ARCHITEKTUR.md)
 - [Missionen schreiben](docs/MISSIONEN.md)
 - [Modelle, Figuren, Detailstufen](docs/MODELLE.md)
+- [Figurenstil und Prompts (Pipeline)](docs/STIL.md)
 - [Symbole aus dem Bildmodell (Atlas, Prompts, Neuerzeugung)](docs/SYMBOLE.md)
 - [Stilreferenz für Figuren und Symbole](docs/STILREFERENZ.md)
 - [Ton: Effekte, Musik, eigene Audiodateien](docs/AUDIO.md)
 - [Entwicklermodus: was man zeigen kann, Unterrichtsideen](docs/ENTWICKLERMODUS.md)
 - [QA-Bericht: Befunde, Fuzz-/Dauertests, Leistung](docs/QA-BERICHT.md)
-- [Website: Seiten, Handbuch und Wiki erweitern](docs/WEBSITE.md)
+- [Website: Seiten, Handbuch und Kompendium erweitern](docs/WEBSITE.md)
 - [Lizenzen und Danksagung](CREDITS.md)
