@@ -2,10 +2,13 @@
 
 import { UNITS, MILITIA, SERF_COMBAT, TOWER, HEROES, HERO_COMMON, WORKER_COMBAT } from '../data/units.js';
 import { COMBAT, computeDamage } from '../data/combat.js';
-import { BUILDINGS, buildingArmor } from '../data/buildings.js';
+import { buildingArmor } from '../data/buildings.js';
 import { moveAlong, pathTo } from './movement.js';
 import { idiv, isqrt, toTile, UNIT } from '../fixed.js';
 import { removeWorker } from './workers.js';
+import { techBonus, boosted, buildingMaxHp } from './techs.js';
+import { EXPERIENCE as XP, starsOf } from '../data/experience.js';
+import { BALANCE } from '../data/balance.js';
 
 const FIGHTERS = new Set(['leader', 'soldier', 'hero']);
 
@@ -16,11 +19,23 @@ export function combatStats(sim, e) {
   switch (e.kind) {
     case 'leader': case 'soldier': {
       const d = UNITS[e.def];
-      let attack = d.attack;
       const L = e.kind === 'leader' ? e : sim.entities.get(e.leader);
+      // Building technologies (armour, weapons, speed)
+      const tb = techBonus(sim, e.owner, 'units', d.line);
+      let attack = d.attack + tb.attack, armor = d.armor + tb.armor, range = d.range + tb.range;
+      const ranged = d.range > 2000;
+      let sight = COMBAT.sight + techBonus(sim, e.owner, 'leaders').sight;
+      // Experience of the squad leader (applies to the whole squad)
+      const stars = starsOf(L?.xp);
+      if (stars >= 2 && (ranged || d.line === 'lightCav' || d.line === 'heavyCav')) { sight += XP.sightBonus; if (ranged) range += XP.rangeBonus; }
+      if (stars >= 4) attack += XP.attackBonus;
+      if (stars >= 5) { if (ranged) attack += XP.rangedAttackBonus; else armor += XP.meleeArmorBonus; }
       if (L?.buff && sim.tick < L.buff.until) attack = idiv(attack * L.buff.attackPercent, 100);
-      if (d.range > 2000 && sim.weather?.state === 'rain') attack = idiv(attack * 70, 100); // (A)
-      return { attack, armor: d.armor, attackType: d.attackType, armorType: d.armorType, range: d.range, cooldown: d.cooldown, speed: d.speed };
+      if (ranged && sim.weather?.state === 'rain') attack = idiv(attack * 70, 100); // (A)
+      return {
+        attack, armor, attackType: d.attackType, armorType: d.armorType, range, cooldown: d.cooldown,
+        speed: boosted(d.speed, tb.speed), sight, crit: stars >= 1 ? XP.critPercent : 0,
+      };
     }
     case 'hero': {
       const h = HEROES[e.hero];
@@ -29,13 +44,17 @@ export function combatStats(sim, e) {
     }
     case 'unit': {
       const c = e.militia ? MILITIA : SERF_COMBAT;
-      return { ...c, speed: 200 };
+      const sb = techBonus(sim, e.owner, 'serfs');
+      const mb = e.militia ? techBonus(sim, e.owner, 'militia') : sb;
+      const extra = e.militia ? mb : { attack: 0, armor: 0 };
+      return { ...c, attack: c.attack + extra.attack, armor: c.armor + sb.armor + extra.armor, speed: boosted(BALANCE.serf.speed, sb.speed) };
     }
-    case 'worker': return { attack: 0, ...WORKER_COMBAT, range: 0, cooldown: 0, speed: 0 };
+    case 'worker': return { attack: 0, ...WORKER_COMBAT, armor: WORKER_COMBAT.armor + techBonus(sim, e.owner, 'workers').armor, range: 0, cooldown: 0, speed: 0 };
     case 'building': {
       const t = e.type === 'tower' && e.done ? TOWER[e.level] : null;
+      const own = e.owner >= 0 && sim.players[e.owner] ? techBonus(sim, e.owner, 'buildings').armor : 0;
       return {
-        attack: t?.attack ?? 0, armor: buildingArmor(e.type, e.level), attackType: t?.attackType ?? 'chaos',
+        attack: t?.attack ?? 0, armor: buildingArmor(e.type, e.level) + own, attackType: t?.attackType ?? 'chaos',
         armorType: 'fortified', range: t?.range ?? 0, cooldown: t?.cooldown ?? 0, speed: 0,
       };
     }
@@ -52,7 +71,7 @@ export function maxHp(sim, e) {
     case 'hero': return HEROES[e.hero].hp;
     case 'unit': return 200;
     case 'worker': return WORKER_COMBAT.hp;
-    case 'building': return BUILDINGS[e.type].levels[e.level].hp;
+    case 'building': return buildingMaxHp(sim, e);
     default: return e.maxHp ?? 1;
   }
 }
@@ -168,13 +187,11 @@ export function kill(sim, t, attacker) {
       break;
     case 'worker': removeWorker(sim, t, 'killed'); break;
     case 'building':
-      sim.events.push({ type: 'buildingDestroyed', building: t.id, buildingType: t.type, owner: t.owner });
-      sim.removeEntity(t);
-      if (t.type === 'headquarters') sim.checkDefeat(t.owner);
+      sim.destroyBuilding(t, attacker);
       break;
     case 'unit': {
       // Serf: release from construction site
-      const site = t.job?.kind === 'build' ? sim.entities.get(t.job.target) : null;
+      const site = t.job?.kind === 'build' || t.job?.kind === 'repair' ? sim.entities.get(t.job.target) : null;
       if (site) site.builders = site.builders.filter((id) => id !== t.id);
       sim.entities.delete(t.id);
       break;
@@ -185,7 +202,10 @@ export function kill(sim, t, attacker) {
 
 function attack(sim, e, st, t) {
   const tst = combatStats(sim, t.kind === 'leader' && t.soldiers.length ? sim.entities.get(t.soldiers[0]) ?? t : t);
-  const dmg = computeDamage(st.attack, st.attackType, tst.armorType, tst.armor, sim.rng.int(3));
+  let dmg = computeDamage(st.attack, st.attackType, tst.armorType, tst.armor, sim.rng.int(3));
+  // Experience: hits count for the squad leader; from 1 star critical hits
+  if (st.crit && sim.rng.int(100) < st.crit) dmg *= 2;
+  if (e.kind === 'leader' || e.kind === 'soldier') gainXp(sim, e.kind === 'leader' ? e : sim.entities.get(e.leader));
   if (st.range > 2000) {
     const a = posOf(e), b = posOf(t);
     sim.events.push({ type: 'shot', from: a, to: b, owner: e.owner, kind: e.kind === 'building' || e.kind === 'turret' ? 'bolt' : (UNITS[e.def]?.line === 'cannon' ? 'ball' : 'arrow') });
@@ -193,6 +213,25 @@ function attack(sim, e, st, t) {
     sim.events.push({ type: 'hit', by: e.id, target: t.id });
   }
   applyDamage(sim, t, dmg, e);
+}
+
+/** Experience point for a hit; reports new stars. */
+function gainXp(sim, L) {
+  if (!L) return;
+  const before = starsOf(L.xp);
+  L.xp = (L.xp ?? 0) + 1;
+  const after = starsOf(L.xp);
+  if (after > before) sim.events.push({ type: 'promoted', player: L.owner, leader: L.id, stars: after });
+}
+
+/** From 3 stars the squad slowly heals itself. */
+function regenerate(sim, L) {
+  if (starsOf(L.xp) < 3 || (sim.tick + L.id) % XP.regenTicks !== 0) return;
+  L.hp = Math.min(UNITS[L.def].hp, L.hp + XP.regenHp);
+  for (const id of L.soldiers) {
+    const s = sim.entities.get(id);
+    if (s) s.hp = Math.min(UNITS[s.def].soldierHp, s.hp + XP.regenHp);
+  }
 }
 
 // ---------- Movement ----------
@@ -283,7 +322,7 @@ function updateCommander(sim, e) {
   }
 
   if (o.type === 'attackMove') {
-    if (!t) t = nearestEnemy(sim, e, COMBAT.sight * UNIT, { units: true, buildings: true });
+    if (!t) t = nearestEnemy(sim, e, (st.sight ?? COMBAT.sight) * UNIT, { units: true, buildings: true });
     if (t) { engage(sim, e, st, t); return; }
     if (!e.path.length) {
       if (distPt(e, o) < 600) { e.order = { type: 'idle' }; e.anchor = { x: e.px, y: e.py }; return; }
@@ -302,7 +341,7 @@ function updateCommander(sim, e) {
 
   // Defend (default): attack enemies in sight, not too far from the anchor point
   const anchor = e.anchor ?? (e.anchor = { x: e.px, y: e.py });
-  if (!t) t = nearestEnemy(sim, e, COMBAT.sight * UNIT, { units: true, buildings: false });
+  if (!t) t = nearestEnemy(sim, e, (st.sight ?? COMBAT.sight) * UNIT, { units: true, buildings: false });
   if (t && distPt(anchor, posOf(t)) <= COMBAT.leash * UNIT) { engage(sim, e, st, t); return; }
   e.targetId = 0;
   if (distPt(e, anchor) > 1200) {
@@ -330,7 +369,7 @@ function updateSoldier(sim, s) {
   if (!t && !moving) {
     const lt = L.targetId ? sim.entities.get(L.targetId) : null;
     if (lt && targetable(sim, lt)) t = lt;
-    else t = nearestEnemy(sim, s, (L.order?.type === 'hold' ? st.range : COMBAT.sight * UNIT), { units: true, buildings: L.order?.type === 'attack' || L.order?.type === 'attackMove' });
+    else t = nearestEnemy(sim, s, (L.order?.type === 'hold' ? st.range : (st.sight ?? COMBAT.sight) * UNIT), { units: true, buildings: L.order?.type === 'attack' || L.order?.type === 'attackMove' });
     if (t && distTo(L, t) > COMBAT.leash * UNIT) t = null;
   }
   if (t) {
@@ -367,12 +406,12 @@ function updateHero(sim, h) {
   updateCommander(sim, h);
 }
 
-/** Trigger an ability. @returns {string|null} error text */
+/** Trigger ability. @returns {string|null} error code (see src/i18n) */
 export function useAbility(sim, h, ability, x, y) {
   const def = HEROES[h.hero]?.abilities[ability];
-  if (!def) return 'Unbekannte Fähigkeit';
-  if (h.down) return 'Held ist bewusstlos';
-  if ((h.ready[ability] ?? 0) > sim.tick) return 'Noch nicht bereit';
+  if (!def) return 'err.unknownAbility';
+  if (h.down) return 'err.heroDown';
+  if ((h.ready[ability] ?? 0) > sim.tick) return 'err.notReady';
   h.ready[ability] = sim.tick + def.cooldown;
   const around = (radius, pred) => {
     const out = [];
@@ -403,7 +442,7 @@ export function useAbility(sim, h, ability, x, y) {
       sim.entities.set(obj.id, obj);
       break;
     }
-    default: return 'Unbekannte Fähigkeit';
+    default: return 'err.unknownAbility';
   }
   sim.events.push({ type: 'ability', hero: h.id, ability, owner: h.owner, x: x ?? h.px, y: y ?? h.py });
   return null;
@@ -425,7 +464,7 @@ export function updateMilitary(sim) {
   for (const e of [...sim.entities.values()]) {
     if (!sim.entities.has(e.id)) continue;
     switch (e.kind) {
-      case 'leader': updateCommander(sim, e); break;
+      case 'leader': regenerate(sim, e); updateCommander(sim, e); break;
       case 'soldier': updateSoldier(sim, e); break;
       case 'hero': updateHero(sim, e); break;
       case 'unit': if (e.militia) updateCommander(sim, e); break;
@@ -461,7 +500,7 @@ export function setMilitia(sim, owner, on) {
   for (const e of sim.entities.values()) {
     if (e.kind !== 'unit' || e.owner !== owner) continue;
     if (on && !e.militia) {
-      const site = e.job?.kind === 'build' ? sim.entities.get(e.job.target) : null;
+      const site = e.job?.kind === 'build' || e.job?.kind === 'repair' ? sim.entities.get(e.job.target) : null;
       if (site) site.builders = site.builders.filter((id) => id !== e.id);
       e.job = null; e.path = []; e.goal = undefined;
       e.militia = true; e.cooldown = 0; e.targetId = 0;

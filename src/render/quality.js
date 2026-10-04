@@ -27,6 +27,7 @@ export const QUALITY_LABELS = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }
  * @property {boolean} terrainBump fine surface texture from the textures
  * @property {number} anisotropy
  * @property {number} margin tiles of border terrain outside the map
+ * @property {'models'|'procedural'} characterModels figures from GLB models or procedural (both instanced)
  * @property {boolean} [shadows] shadows (default: on)
  * @property {boolean} [software] software rasterizer detected
  */
@@ -35,15 +36,15 @@ export const QUALITY_LABELS = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }
 export const QUALITY_PRESETS = {
   low: {
     tier: 'low', maxPixelRatio: 1.25, antialias: false, shadowMapSize: 1024, shadowRadius: 1,
-    textureSize: 256, terrainDetail: 1, scatter: 0.25, treeDetail: false, waterDetail: false, terrainBump: false, anisotropy: 1, margin: 12,
+    textureSize: 256, terrainDetail: 1, scatter: 0.25, treeDetail: false, waterDetail: false, terrainBump: false, anisotropy: 1, margin: 12, characterModels: 'models',
   },
   medium: {
     tier: 'medium', maxPixelRatio: 1.5, antialias: true, shadowMapSize: 2048, shadowRadius: 2,
-    textureSize: 512, terrainDetail: 2, scatter: 0.6, treeDetail: true, waterDetail: true, terrainBump: true, anisotropy: 4, margin: 18,
+    textureSize: 512, terrainDetail: 2, scatter: 0.6, treeDetail: true, waterDetail: true, terrainBump: true, anisotropy: 4, margin: 18, characterModels: 'models',
   },
   high: {
     tier: 'high', maxPixelRatio: 2, antialias: true, shadowMapSize: 4096, shadowRadius: 3,
-    textureSize: 1024, terrainDetail: 2, scatter: 1, treeDetail: true, waterDetail: true, terrainBump: true, anisotropy: 8, margin: 24,
+    textureSize: 1024, terrainDetail: 2, scatter: 1, treeDetail: true, waterDetail: true, terrainBump: true, anisotropy: 8, margin: 24, characterModels: 'models',
   },
 };
 
@@ -108,7 +109,7 @@ export function getQualityTier() {
 export function getQuality() {
   const q = QUALITY_PRESETS[getQualityTier()];
   if (q.tier === 'low' && isSoftwareGpu()) {
-    return { ...q, maxPixelRatio: 0.5, shadowMapSize: 512, shadows: false, scatter: 0.08, textureSize: 256, software: true };
+    return { ...q, maxPixelRatio: 0.5, shadowMapSize: 512, shadows: false, scatter: 0.08, textureSize: 256, software: true, characterModels: 'procedural' };
   }
   return q;
 }

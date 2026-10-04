@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds the CC0 models in use (KayKit, Kay Lousberg) into compressed GLB files under public/models/.
 # Usage: scripts/build-assets.sh <path to KayKit-Medieval-Hexagon-Pack-1.0> <path to KayKit-Character-Pack-Adventures-1.0>
+# Afterwards the originals and simplified LOD levels (*.lod1.glb, *.lod2.glb, …) are under public/models/.
 set -euo pipefail
 HEX="$1/addons/kaykit_medieval_hexagon_pack/Assets/gltf"
 CHR="$2/addons/kaykit_character_pack_adventures/Characters/gltf"
@@ -27,9 +28,13 @@ done
 for p in resource_lumber resource_stone sack crate_A_big barrel weaponrack target; do
   opt "$HEX/decoration/props/$p.gltf" "$OUT/props/$p.glb"
 done
-for ch in Knight Mage Barbarian; do
+# Figures (placeholders until own models, see docs/MODELLE.md): keep the clips listed in manifest.json
+for ch in Knight Mage Barbarian Rogue Rogue_Hooded; do
   opt "$CHR/$ch.glb" "$OUT/characters/$ch.glb"
 done
+node "$(dirname "$0")/trim-animations.mjs" "$OUT"/characters/*.glb
+# LOD levels for buildings and figures: <name>.lod1.glb, .lod2.glb (…)
+node "$(dirname "$0")/build-lods.mjs" "$OUT/buildings" "$OUT/characters"
 cp "$1/LICENSE.txt" "$OUT/LICENSE-KayKit-Medieval-Hexagon.txt"
 cp "$2/LICENSE.txt" "$OUT/LICENSE-KayKit-Adventurers.txt"
 du -sh "$OUT"

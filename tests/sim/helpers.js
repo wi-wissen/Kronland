@@ -1,5 +1,6 @@
 import { Sim } from '../../src/sim/sim.js';
 import { TECHS } from '../../src/sim/data/technologies.js';
+import { BUILDING_TECHS } from '../../src/sim/data/buildingTechs.js';
 
 export const newSim = (seed = 42) => new Sim({ seed });
 
@@ -47,7 +48,7 @@ export function quickBuild(sim, type, owner = 0, near = null) {
     // bypass technology and cost locks for tests
     const pl = sim.players[owner];
     const had = pl.techs, stock = { ...pl.stock };
-    pl.techs = new Set([...had, ...Object.keys(TECHS)]);
+    pl.techs = new Set([...had, ...Object.keys(TECHS), ...Object.keys(BUILDING_TECHS)]);
     for (const r of Object.keys(pl.stock)) pl.stock[r] += 100000;
     const p = sim.findPlacement(owner, type, c.x, c.y, 30);
     pl.techs = had; pl.stock = stock;

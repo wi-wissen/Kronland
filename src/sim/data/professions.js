@@ -1,6 +1,6 @@
 // Worker professions. One work cycle lasts `cycle` ticks and costs 100 stamina. "(A)" = assumption.
 // kind: 'none' (only pays taxes), 'mine' (raw goods), 'refine' (raw goods → refined),
-//       'gold' (Taler), 'faith' (Glaube), 'research' (Forschungspunkte)
+//       'gold' (taler), 'faith' (faith), 'research' (research points), 'energy' (weather energy)
 
 export const PROFESSIONS = {
   farmer:     { name: 'Bauer',          building: 'farm',       kind: 'none',     cycle: 60 },
@@ -14,6 +14,7 @@ export const PROFESSIONS = {
   treasurer:  { name: 'Schatzmeister',  building: 'bank',       kind: 'gold',     cycle: 50, yield: 3 },
   priest:     { name: 'Priester',       building: 'chapel',     kind: 'faith',    cycle: 50, yield: 25 },
   trader:     { name: 'Händler',        building: 'storehouse', kind: 'none',     cycle: 60 },
+  weatherman: { name: 'Wettertechniker', building: 'weatherPlant', kind: 'energy',  cycle: 50, yield: 10 }, // (A)
 };
 
 /** Profession for a work building. */

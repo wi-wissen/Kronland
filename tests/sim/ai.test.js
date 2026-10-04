@@ -55,8 +55,39 @@ describe('AI opponent', () => {
 
   it('only gives valid commands for itself', () => {
     const { rejects } = match(3, ['normal', 'normal'], 12000, false);
-    const foreign = rejects.filter((r) => /eigene|ausgewählt|Unbekannt/.test(r.reason));
+    const foreign = rejects.filter((r) => /notOwn|noSerfs|noUnits|noTroops|unknown/.test(r.reason));
     expect(foreign).toEqual([]);
     expect(rejects.length).toBeLessThan(40);
+  });
+
+  it('repairs damaged buildings with serfs', () => {
+    const sim = new Sim({ seed: 2 });
+    const ai = new AiPlayer(sim, 0, 'normal');
+    const vc = sim.findBuilding(0, 'villageCenter');
+    vc.hp = 600; // burning (< 50 %)
+    let t = 0;
+    for (; t < 3000 && vc.hp < 1500; t++) { ai.update(); sim.step(); }
+    expect(vc.hp).toBe(1500);
+  });
+
+  it('uses the marketplace to trade surpluses', () => {
+    const sim = new Sim({ seed: 2 });
+    const ai = new AiPlayer(sim, 0, 'normal');
+    const hq = sim.findBuilding(0, 'headquarters');
+    const pos = sim.findPlacement(0, 'storehouse', hq.x + 2, hq.y + 8, 30) ?? (() => { sim.players[0].techs.add('education'); return sim.findPlacement(0, 'storehouse', hq.x + 2, hq.y + 8, 30); })();
+    const m = sim.createBuilding(0, 'storehouse', pos.x, pos.y, true);
+    m.level = 1;
+    const p = sim.players[0];
+    p.stock.wood = 0; p.raw.wood = 0; p.stock.iron = 5000;
+    const trades = [];
+    for (let t = 0; t < 3000; t++) { ai.update(); for (const e of sim.step()) if (e.type === 'tradeStarted' && e.player === 0) trades.push(e); }
+    expect(trades.length).toBeGreaterThan(0);
+    expect(trades[0]).toMatchObject({ give: 'iron' });
+  });
+
+  it('researches building technologies when enough resources are available', () => {
+    const { sim } = match(1, ['hard', 'easy'], 24000, false);
+    const own = [...sim.players[0].techs].filter((t) => ['leatherMail', 'softLeather', 'woodHardening', 'marching', 'masonry', 'loom'].includes(t));
+    expect(own.length).toBeGreaterThan(0);
   });
 });

@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildingAssetName, fittedModel } from './assets.js';
+import { buildingAssetName, fittedModel, assetLods, hasAsset } from './assets.js';
 
 export const PLAYER_COLORS = [0x2f5d9e, 0xa8323a, 0x3d8a4a, 0xc08a2a];
 export const RES_COLORS = {
@@ -96,6 +96,35 @@ const BUILDERS = {
     const face = mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 12), 0xf4efe2);
     face.rotation.x = Math.PI / 2; face.position.set(0, 1.55, 0.2); g.add(face);
     g.add(cone(0.28, 0.4, 0x5a6670, 0, 1.8, 0, 4));
+  },
+  /** Weather tower: slender stone tower with measuring platform, wind vane and glass sphere (forecast). */
+  weatherTower(g, w, d, level, pc) {
+    g.add(cyl(0.5, 0.62, 2.6, STONE, 0, 0, 0, 8));
+    g.add(box(0.3, 0.5, 0.05, DARK, 0, 0, 0.6));
+    g.add(cyl(0.72, 0.72, 0.14, BEAM, 0, 2.6, 0, 8));
+    for (let i = 0; i < 8; i++) g.add(box(0.05, 0.3, 0.05, BEAM, Math.sin(i * 0.785) * 0.66, 2.74, Math.cos(i * 0.785) * 0.66));
+    g.add(cone(0.62, 0.7, pc, 0, 3.05, 0, 8));
+    const orb = mesh(new THREE.SphereGeometry(0.17, 10, 8), 0x9fd0f0);
+    orb.material = mat(0x9fd0f0, { roughness: 0.25, metalness: 0.1, emissive: 0x24506a, emissiveIntensity: 0.6 });
+    orb.position.set(0, 3.85, 0); g.add(orb);
+    // wind vane (turns like the windmill)
+    const vane = new THREE.Group(); vane.position.set(0, 4.05, 0); vane.name = 'spinY';
+    vane.add(box(0.03, 0.4, 0.03, DARK, 0, 0, 0));
+    for (let i = 0; i < 4; i++) { const c = mesh(new THREE.SphereGeometry(0.06, 6, 4), 0xc9c2b0); c.position.set(Math.sin(i * 1.571) * 0.22, 0.3, Math.cos(i * 1.571) * 0.22); vane.add(c); vane.add(box(0.22, 0.02, 0.02, DARK, Math.sin(i * 1.571) * 0.11, 0.29, Math.cos(i * 1.571) * 0.11)); }
+    g.add(vane);
+  },
+  /** Weather power plant: workshop hall with power pole, copper coils and glowing weather sphere. */
+  weatherPlant(g, w, d, level, pc) {
+    house(g, { w: w - 1.6, d: d - 1, h: 1.3, wall: 0xb9b2a4, roof: 0x5a6670, x: -0.6 });
+    const mx = w / 2 - 0.8;
+    g.add(box(0.7, 0.4, 0.7, STONE, mx, 0, 0));
+    g.add(cyl(0.12, 0.18, 2.8, 0x6d717c, mx, 0.4, 0, 6));
+    for (let i = 0; i < 3; i++) g.add(cyl(0.26, 0.26, 0.12, 0xb87333, mx, 1.2 + i * 0.45, 0, 10));
+    const orb = mesh(new THREE.SphereGeometry(0.34, 12, 8), 0x9fd0f0);
+    orb.material = mat(0x9fd0f0, { roughness: 0.2, metalness: 0.15, emissive: 0x3a78a0, emissiveIntensity: 0.8 });
+    orb.position.set(mx, 3.45, 0); g.add(orb);
+    g.add(box(1.1, 0.06, 0.06, 0xb87333, mx - 0.55, 2.3, 0));
+    flag(g, pc, -w / 2 + 0.6, 0, d / 2 - 0.5);
   },
   windwheel(g) {
     g.add(cyl(0.06, 0.1, 1.8, BEAM));
@@ -199,7 +228,10 @@ BUILDERS.stoneMine = mineBuilder('stone');
 BUILDERS.ironMine = mineBuilder('iron');
 BUILDERS.sulfurMine = mineBuilder('sulfur');
 
-/** Creates the model of a building. */
+/**
+ * Creates the model of a building. For KayKit models g.userData.lods holds the LOD levels
+ * (only one is visible; chosen in the renderer by distance), for procedural buildings one level.
+ */
 export function buildingModel(type, w, d, level, owner) {
   const g = new THREE.Group();
   foundation(g, w - 0.2, d - 0.2);
@@ -207,9 +239,18 @@ export function buildingModel(type, w, d, level, owner) {
   if (asset) {
     // castle and towers fill their area, workshops leave some margin
     const fill = type === 'headquarters' ? 1.05 : type === 'tower' ? 1.0 : type.endsWith('Mine') ? 1.05 : 0.92;
-    const body = fittedModel(asset, w, d, fill);
+    const body = new THREE.Group();
     body.name = 'body';
+    const lods = assetLods(asset).map((n, i) => {
+      const m = fittedModel(n, w, d, fill, asset);
+      m.visible = i === 0;
+      m.name = 'lod' + i;
+      // fine levels cast shadows; the coarsest only if there is no other
+      body.add(m);
+      return m;
+    });
     g.add(body);
+    g.userData.lods = lods;
     return g;
   }
   const inner = new THREE.Group();
@@ -217,6 +258,30 @@ export function buildingModel(type, w, d, level, owner) {
   inner.name = 'body';
   g.add(inner);
   return g;
+}
+
+/** Construction phases (KayKit stage_A–C) available? */
+export const hasConstructionStages = () => hasAsset('buildings/stage_A') && hasAsset('buildings/stage_C');
+
+/**
+ * Construction site in a phase: 0–2 = stage_A/B/C (foundation, walls, roof truss).
+ * @returns {THREE.Group|null}
+ */
+export function constructionStage(stage, w, d) {
+  const n = `buildings/stage_${'ABC'[stage]}`;
+  return fittedModel(n, w, d, 0.92);
+}
+
+/** Ruin of a destroyed building. */
+export function ruinModel(w, d) {
+  const g = fittedModel('buildings/destroyed', w, d, 0.95);
+  if (g) return g;
+  const r = new THREE.Group();
+  for (let i = 0; i < 7; i++) {
+    const b = box(0.3 + (i % 3) * 0.15, 0.25 + (i % 2) * 0.3, 0.3, i % 2 ? STONE : 0x4a3a2c, ((i * 37) % 10) / 10 * w * 0.6 - w * 0.3, 0, ((i * 53) % 10) / 10 * d * 0.6 - d * 0.3);
+    b.rotation.y = i; r.add(b);
+  }
+  return r;
 }
 
 /** Scaffolding for construction sites. */
@@ -371,17 +436,48 @@ export function unitModel(line, owner, leader = false) {
     fl.position.set(-0.08 + 0.12, 1.07, -0.1); fl.rotation.y = Math.PI / 2; g.userData.body.add(fl);
   }
   if (cav) {
-    const horse = new THREE.Group();
-    horse.add(box(0.22, 0.28, 0.75, line === 'heavyCav' ? 0x4a3a2a : 0x8a6a4a, 0, 0.32, 0));
-    horse.add(box(0.14, 0.32, 0.16, 0x6a5038, 0, 0.55, 0.38));
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) horse.add(box(0.06, 0.32, 0.06, 0x3a2a1c, sx * 0.08, 0, sz * 0.28));
+    const horse = horseModel(line === 'heavyCav' ? 0x4a3a2a : 0x8a6a4a, owner);
     g.add(horse);
     g.userData.body.position.y = 0.38;
     g.userData.legs.forEach((l) => { l.visible = false; });
     g.userData.horse = horse;
+    g.userData.horseLegs = horse.userData.legs;
   }
   g.scale.setScalar(1.25);
   return g;
+}
+
+/**
+ * Horse with movable legs (for riders; also as a mount under figure models).
+ * Head towards +z. userData.legs: four hip groups; userData.saddle: saddle height.
+ */
+export function horseModel(color = 0x8a6a4a, owner = 0, scale = 1) {
+  const horse = new THREE.Group();
+  const dark = 0x2a1e14;
+  horse.add(box(0.24, 0.27, 0.62, color, 0, 0.36, -0.02));            // body
+  horse.add(box(0.26, 0.29, 0.2, color, 0, 0.35, 0.22));              // chest
+  const neck = box(0.14, 0.34, 0.16, color, 0, 0, 0);
+  neck.position.set(0, 0.52, 0.3); neck.rotation.x = 0.55; horse.add(neck);
+  const head = box(0.13, 0.13, 0.3, color, 0, 0, 0);
+  head.position.set(0, 0.78, 0.47); head.rotation.x = 0.35; horse.add(head);
+  horse.add(box(0.1, 0.09, 0.08, 0x3a2a1c, 0, 0.71, 0.6));            // muzzle
+  for (const sx of [-1, 1]) horse.add(box(0.03, 0.08, 0.03, color, sx * 0.04, 0.86, 0.38)); // ears
+  const mane = box(0.05, 0.3, 0.14, dark, 0, 0, 0);
+  mane.position.set(0, 0.58, 0.25); mane.rotation.x = 0.55; horse.add(mane);
+  const tail = box(0.05, 0.3, 0.07, dark, 0, 0, 0);
+  tail.position.set(0, 0.32, -0.35); tail.rotation.x = -0.35; horse.add(tail);
+  horse.add(box(0.27, 0.04, 0.26, PLAYER_COLORS[owner % 4], 0, 0.62, -0.04)); // Satteldecke
+  horse.add(box(0.16, 0.05, 0.16, 0x5a3b22, 0, 0.66, -0.04));          // saddle
+  const legs = [];
+  for (const sz of [1, -1]) for (const sx of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(sx * 0.08, 0.36, sz * 0.22 - 0.02);
+    hip.add(box(0.065, 0.32, 0.065, color, 0, -0.32, 0));
+    hip.add(box(0.07, 0.05, 0.075, dark, 0, -0.36, 0.005));            // hoof
+    horse.add(hip); legs.push(hip);
+  }
+  horse.scale.setScalar(scale);
+  horse.userData = { legs, saddle: 0.66 * scale };
+  return horse;
 }
 
 /** Hero: bigger, with a cape. */
@@ -454,6 +550,20 @@ Object.assign(BUILDERS, {
     flag(g, pc, -0.5, top, -0.5);
   },
 });
+
+// Bandit camp (missions): two tents, palisade, campfire
+BUILDERS.banditCamp = (g, w, d, level, pc) => {
+  for (const [x, z, c] of [[-0.6, -0.4, 0x7a5a3a], [0.7, 0.1, 0x5e4a36]]) {
+    const tent = cone(0.75, 1.1, c, x, 0, z, 4);
+    tent.rotation.y = Math.PI / 4; g.add(tent);
+  }
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 1.6 + 0.9;
+    g.add(cyl(0.06, 0.07, 0.75, BEAM, Math.cos(a) * (w / 2 - 0.25), 0, Math.sin(a) * (d / 2 - 0.25), 5));
+  }
+  const fire = campfireModel(); fire.position.set(0.1, 0, 0.9); g.add(fire);
+  flag(g, pc, -w / 2 + 0.4, 0, d / 2 - 0.4);
+};
 
 /** Health bar (billboard). */
 export function healthBar() {

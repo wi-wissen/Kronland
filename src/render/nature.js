@@ -130,6 +130,32 @@ function conifer(detail, seed, opts = {}) {
   return mergeGeometries(parts);
 }
 
+/** Far level broadleaf tree: one dented sphere on a short trunk (~30 triangles). */
+function farLeafy(seed, opts = {}) {
+  const { trunkH = 0.62, crownR = 0.5, dark = 0x2f5a22, light = 0x8fbf4a, trunk = 0x6b4a2e, slim = 1 } = opts;
+  const t = trunkGeo(0.085 * slim, 0.055 * slim, trunkH + 0.1, 3, trunk);
+  const g = new THREE.IcosahedronGeometry(crownR * 1.18, 0);
+  jitter(g, crownR * 0.18, seed);
+  g.scale(1.08, 0.92, 1.08);
+  g.translate(0, trunkH + crownR * 0.75, 0);
+  return mergeGeometries([t, crownPaint(g, dark, light, trunkH, trunkH + crownR * 2.1, seed)]);
+}
+
+/** Far level conifer: two cones (~20 triangles). */
+function farConifer(seed, opts = {}) {
+  const { h = 1.9, r0 = 0.5, dark = 0x1f4a2c, light = 0x4f8a4a } = opts;
+  const parts = [];
+  for (let i = 0; i < 2; i++) {
+    const ch = (h - 0.3) * (i ? 0.62 : 0.78), rad = r0 * (i ? 0.62 : 1);
+    const g = new THREE.ConeGeometry(rad, ch, 5, 1);
+    const y = 0.32 + i * (h - 0.3) * 0.38;
+    g.translate(0, y + ch / 2, 0);
+    g.rotateY(i * 0.6);
+    parts.push(crownPaint(g, dark, light, y, y + ch, seed + i));
+  }
+  return mergeGeometries(parts);
+}
+
 /** Tree stump with annual rings. */
 function stumpGeo() {
   const side = new THREE.CylinderGeometry(0.09, 0.12, 0.16, 7, 1, true);
@@ -144,7 +170,7 @@ function stumpGeo() {
  * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
  */
 export function natureMaterial(shared, opts = {}) {
-  const { wind = 0.05, vertexColors = true, map = null, snowCap = true, upNormal = false } = opts;
+  const { wind = 0.05, vertexColors = true, map = null, snowCap = true, upNormal = false, fade = null } = opts;
   const m = new THREE.MeshStandardMaterial({ vertexColors, map, roughness: 0.88, metalness: 0, flatShading: true });
   // Wind and snow cap as uniforms: all nature materials share a few shader programs
   const uWind = { value: wind }, uSnowCap = { value: snowCap ? 1 : 0 };
@@ -154,13 +180,17 @@ export function natureMaterial(shared, opts = {}) {
     s.uniforms.uSnow = shared.uSnow;
     s.uniforms.uWind = uWind;
     s.uniforms.uSnowCap = uSnowCap;
+    if (fade) s.uniforms.uFade = fade;
     s.vertexShader = s.vertexShader
       .replace('#include <common>', `#include <common>
 uniform float uTime;
 uniform float uWind;
+${fade ? 'uniform vec2 uFade;' : ''}
 varying float vUp;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
 #ifdef USE_INSTANCING
+${fade ? `// shrink into the ground with distance (instead of suddenly disappearing)
+transformed *= 1.0 - smoothstep(uFade.x, uFade.y, distance((modelMatrix * instanceMatrix[3]).xyz, cameraPosition));` : ''}
 vec2 ip = vec2(instanceMatrix[3].x, instanceMatrix[3].z);
 float sway = sin(uTime * 1.4 + ip.x * 0.6 + ip.y * 0.45) + sin(uTime * 2.3 + ip.x * 1.3) * 0.35;
 float bend = max(0.0, position.y - 0.45);
@@ -184,7 +214,7 @@ diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.96, 1.0), uSnow * uSnowCap
     if (upNormal) s.fragmentShader = s.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
 normal = normalize(vNormal);`);
   };
-  m.customProgramCacheKey = () => 'kr-nature' + (upNormal ? '-up' : '');
+  m.customProgramCacheKey = () => 'kr-nature' + (upNormal ? '-up' : '') + (fade ? '-fade' : '');
   return m;
 }
 
@@ -219,6 +249,29 @@ export function treeVariants(detail, shared) {
   }
   for (const t of v) { t.geometry.computeBoundingSphere(); }
   return v;
+}
+
+/**
+ * Tree variants with LOD levels: levels[0] nearest, levels[n] farthest.
+ * High/medium tier: [detailed, simple, far]; low tier: [simple, far].
+ * @param {boolean} detail
+ * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
+ */
+export function treeLodVariants(detail, shared) {
+  const near = treeVariants(detail, shared);
+  const simple = detail ? treeVariants(false, shared) : null;
+  const P = [
+    ['leafy', 11, {}], ['leafy', 23, { crownR: 0.56, trunkH: 0.55, dark: 0x3a6424, light: 0xa3c853 }],
+    ['birch', 37, { crownR: 0.4, trunkH: 0.8, trunk: 0xe6e1d4, dark: 0x5a8a2c, light: 0xc8dc6a, slim: 0.75 }],
+    ['conifer', 41, {}], ['conifer', 53, { h: 2.2, r0: 0.44, dark: 0x1a3f2a, light: 0x3f7a48 }],
+  ];
+  return near.map((v, i) => {
+    const p = P[i];
+    if (!p) return { ...v, levels: [v.geometry] }; // KayKit pines: already very simple
+    const far = p[0] === 'conifer' ? farConifer(p[1], p[2]) : farLeafy(p[1], p[2]);
+    far.computeBoundingSphere();
+    return { ...v, levels: simple ? [v.geometry, simple[i].geometry, far] : [v.geometry, far] };
+  });
 }
 
 export function stumpVariant(shared) {
@@ -322,24 +375,27 @@ function rockGeo(seed, size = 1) {
  * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
  */
 export function scatterKinds(shared) {
-  const soft = natureMaterial(shared, { wind: 0.12, snowCap: false, upNormal: true });
+  // distance at which small decoration is faded out (set by the renderer per graphics level and field of view)
+  const fade = (shared.uFade ??= { value: new THREE.Vector2(45, 60) });
+  const soft = natureMaterial(shared, { wind: 0.12, snowCap: false, upNormal: true, fade });
   soft.flatShading = false;
   soft.side = THREE.DoubleSide;
   const plant = natureMaterial(shared, { wind: 0.03 });
   const stone = natureMaterial(shared, { wind: 0 });
+  const stoneSmall = natureMaterial(shared, { wind: 0, fade });
   const kinds = {
-    grass: { geometry: grassTuft(3, [0x406a26, 0x8cbc4a]), material: soft, winter: false },
-    grassDry: { geometry: grassTuft(5, [0x6a7a34, 0xc2c070]), material: soft, winter: false },
-    flowerW: { geometry: flowerPatch(7, 0xf6f2e6), material: soft, winter: false },
-    flowerY: { geometry: flowerPatch(9, 0xf7cf3a), material: soft, winter: false },
-    flowerP: { geometry: flowerPatch(11, 0xc770c8), material: soft, winter: false },
-    flowerR: { geometry: flowerPatch(12, 0xe0503a), material: soft, winter: false },
+    grass: { small: true, geometry: grassTuft(3, [0x406a26, 0x8cbc4a]), material: soft, winter: false },
+    grassDry: { small: true, geometry: grassTuft(5, [0x6a7a34, 0xc2c070]), material: soft, winter: false },
+    flowerW: { small: true, geometry: flowerPatch(7, 0xf6f2e6), material: soft, winter: false },
+    flowerY: { small: true, geometry: flowerPatch(9, 0xf7cf3a), material: soft, winter: false },
+    flowerP: { small: true, geometry: flowerPatch(11, 0xc770c8), material: soft, winter: false },
+    flowerR: { small: true, geometry: flowerPatch(12, 0xe0503a), material: soft, winter: false },
     bush: { geometry: bushGeo(13, 0x2d5a24, 0x76a844), material: plant, winter: true },
     bushB: { geometry: bushGeo(17, 0x3e5c22, 0x9ab04c), material: plant, winter: true },
-    pebbles: { geometry: pebbleGeo(19), material: stone, winter: true },
+    pebbles: { geometry: pebbleGeo(19), material: stoneSmall, winter: true, small: true },
     rock: { geometry: rockGeo(23), material: stone, winter: true },
     rockB: { geometry: rockGeo(29, 1.4), material: stone, winter: true },
-    reeds: { geometry: reedsGeo(31), material: soft, winter: false },
+    reeds: { small: true, geometry: reedsGeo(31), material: soft, winter: false },
   };
   // KayKit models in addition (if loaded): rocks, rock peaks, water lilies
   const kay = (name, key, winter, snowCap = true) => {

@@ -4,6 +4,8 @@
 import { Sim } from './sim.js';
 import { Rng } from './rng.js';
 import { TileMap } from './map.js';
+import { MissionRuntime } from './missions/runtime.js';
+import { createMarket } from './systems/market.js';
 
 const toB64 = (typed) => {
   const bytes = new Uint8Array(typed.buffer, typed.byteOffset, typed.byteLength);
@@ -35,6 +37,7 @@ export function saveGame(sim, extra = {}) {
     weather: sim.weather,
     weatherCycle: sim.weatherCycle,
     winner: sim.winner,
+    market: sim.market,
     pending: sim.pending,
     map: {
       width: sim.map.width, height: sim.map.height, frozen: sim.map.frozen,
@@ -42,6 +45,8 @@ export function saveGame(sim, extra = {}) {
     },
     players: sim.players.map((p) => ({ ...p, techs: [...p.techs] })),
     entities: [...sim.entities.values()],
+    // Mission state (pure JSON); the definition is found by ID when loading
+    mission: sim.mission ? sim.mission.getState() : null,
     extra,
   };
 }
@@ -59,10 +64,12 @@ export function loadGame(data) {
     seed: data.seed, tick: data.tick, nextId: data.nextId, map, waterLevel: data.waterLevel,
     starts: data.starts, spots: data.spots, shafts: data.shafts, weather: data.weather,
     weatherCycle: data.weatherCycle, winner: data.winner, pending: data.pending ?? [], events: [],
+    market: structuredClone(data.market ?? createMarket()),
   });
   sim.rng = new Rng(0);
   sim.rng.setState(data.rng);
   sim.players = data.players.map((p) => ({ ...p, techs: new Set(p.techs) }));
   sim.entities = new Map(data.entities.map((e) => [e.id, structuredClone(e)]));
+  sim.mission = data.mission ? MissionRuntime.fromState(data.mission) : null;
   return sim;
 }

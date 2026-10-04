@@ -173,7 +173,7 @@ describe('Taxes and motivation', () => {
     expect(farmers.every((w) => w.motivation === 80 + WORKER.blessingMotivation)).toBe(true);
     expect(sim.players[0].faith).toBe(0);
     const ev = sim.step([{ type: 'bless', player: 0, building: chapel.id, blessing: 'bell' }]);
-    expect(ev.find((e) => e.type === 'rejected')?.reason).toBe('Nicht genug Glaube');
+    expect(ev.find((e) => e.type === 'rejected')?.reason).toBe('err.notEnoughFaith');
   });
 });
 
@@ -194,16 +194,16 @@ describe('Research and upgrade', () => {
     const sim = newSim();
     const uni = quickBuild(sim, 'university');
     const reason = (tech) => sim.step([{ type: 'research', player: 0, building: uni.id, tech }]).find((e) => e.type === 'rejected')?.reason;
-    expect(reason('trade')).toBe('Erst „Bildung“ erforschen');
+    expect(reason('trade')).toBe('err.techFirst');
     sim.players[0].techs.add('education');
-    expect(reason('trade')).toBe('Erst die Burg zur Festung ausbauen');
+    expect(reason('trade')).toBe('err.fortressFirst');
   });
 
   it('house upgrade needs construction and serfs', () => {
     const sim = newSim();
     const home = quickBuild(sim, 'residence');
     let ev = sim.step([{ type: 'upgradeBuilding', player: 0, building: home.id }]);
-    expect(ev.find((e) => e.type === 'rejected')?.reason).toBe('Erst „Konstruktion“ erforschen');
+    expect(ev.find((e) => e.type === 'rejected')).toMatchObject({ reason: 'err.techFirst', params: { tech: 'construction' } });
     sim.players[0].techs.add('construction');
     const units = serfsOf(sim).map((u) => u.id);
     sim.step([{ type: 'upgradeBuilding', player: 0, building: home.id, units }]);

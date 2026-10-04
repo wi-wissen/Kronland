@@ -163,6 +163,22 @@ BUILDINGS.windwheel = {
   levels: [{ name: 'Windrad', cost: { gold: 200, iron: 100 }, buildTime: 20, hp: 400 }],
 };
 
+// Weather (alchemist technologies). Size, cost, HP (A).
+BUILDINGS.weatherTower = {
+  id: 'weatherTower', w: 2, h: 2, placement: 'free', requires: 'weatherForecast',
+  levels: [{ name: 'Wetterturm', cost: { gold: 100, wood: 100, stone: 250 }, buildTime: 50, hp: 800 }],
+};
+BUILDINGS.weatherPlant = {
+  id: 'weatherPlant', w: 4, h: 3, placement: 'free', requires: 'meteorology',
+  levels: [{ name: 'Wetterkraftwerk', cost: { gold: 300, stone: 300, iron: 200 }, buildTime: 80, hp: 1200, workers: 3 }],
+};
+
+// Bandit camp (missions only): not buildable, placed by mission scripts (A).
+BUILDINGS.banditCamp = {
+  id: 'banditCamp', w: 3, h: 3, placement: 'free', buildable: false, armor: 3,
+  levels: [{ name: 'Räuberlager', cost: {}, buildTime: 0, hp: 1200 }],
+};
+
 /** Technology that an upgrade to level i (1-based from level 2) requires. null = none. */
 export const UPGRADE_REQUIRES = {
   headquarters: [null, null, 'printing'],          // citadel (A)

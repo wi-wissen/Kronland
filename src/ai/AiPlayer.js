@@ -12,6 +12,11 @@ import { TECHS } from '../sim/data/technologies.js';
 import { UNITS, unitOf, fullCost, LINE_UPGRADE_COST, HEROES } from '../sim/data/units.js';
 import { workerSlots, averageMotivation } from '../sim/systems/workers.js';
 import { UNIT } from '../sim/fixed.js';
+import { BUILDING_TECHS } from '../sim/data/buildingTechs.js';
+import { checkBuildingResearch } from '../sim/systems/techs.js';
+import { checkTrade, tradeCost } from '../sim/systems/market.js';
+import { isDamaged } from '../sim/systems/damage.js';
+import { MARKET } from '../sim/data/market.js';
 
 export const DIFFICULTY = {
   easy:   { name: 'Leicht', think: 50, serfs: 14, attackSize: 3, firstAttack: 21000, maxSites: 2, bonusGold: 0, reserve: 200, militaryShare: 30 },
@@ -20,16 +25,27 @@ export const DIFFICULTY = {
 };
 
 /** Research order. */
-const RESEARCH = ['construction', 'education', 'conscription', 'alchemy', 'standingArmy', 'gears', 'alloys', 'trade', 'metallurgy', 'pulley', 'printing', 'tactics', 'chemistry', 'architecture', 'libraries', 'horseBreeding'];
+const RESEARCH = ['construction', 'education', 'conscription', 'alchemy', 'standingArmy', 'trade', 'gears', 'alloys', 'metallurgy', 'pulley', 'printing', 'tactics', 'chemistry', 'architecture', 'libraries', 'horseBreeding'];
+
+/**
+ * Building technologies in desired order. The AI researches them only if it is "rich"
+ * (cost × 2 plus reserve available), so that build-up and troops do not suffer.
+ */
+const BUILDING_RESEARCH = [
+  'leatherMail', 'softLeather', 'woodHardening', 'marching', 'masonry', 'loom', 'fletching', 'masterShooter',
+  'chainMail', 'paddedLeather', 'masterSmith', 'tracking', 'gunpowder', 'turnery', 'bodkin', 'weatherForecast',
+  'plateArmor', 'reinforcedLeather', 'ironCasting', 'heatedShots', 'shoes', 'undercarriage', 'horseshoe', 'cityGuard',
+];
 
 /** Extension wish list: [building, count]. Worked through from top to bottom. */
 const BUILD_PLAN = [
   ['residence', 1], ['farm', 1], ['university', 1], ['clayMine', 1], ['stoneMine', 1],
   ['residence', 2], ['farm', 2], ['sawmill', 1], ['ironMine', 1], ['brickworks', 1],
-  ['barracks', 1], ['stoneMine', 2], ['sulfurMine', 1], ['smithy', 1], ['stonemason', 1], ['sawmill', 2],
+  ['barracks', 1], ['stoneMine', 2], ['sulfurMine', 1], ['smithy', 1], ['storehouse', 1], ['stonemason', 1], ['sawmill', 2],
   ['tower', 1], ['archery', 1], ['residence', 3], ['farm', 3], ['alchemist', 1], ['smithy', 2],
   ['foundry', 1], ['chapel', 1], ['bank', 1], ['ironMine', 2], ['residence', 4], ['farm', 4], ['tower', 2],
   ['stonemason', 2], ['clock', 1], ['residence', 5], ['farm', 5], ['sulfurMine', 2], ['bank', 2],
+  ['weatherTower', 1],
 ];
 
 export class AiPlayer {
@@ -54,7 +70,10 @@ export class AiPlayer {
 
   /** State for save games. */
   getState() {
-    return { player: this.player, difficulty: this.difficulty, rng: this.rng.getState(), armyState: this.armyState, attackStrength: this.attackStrength };
+    return {
+      player: this.player, difficulty: this.difficulty, rng: this.rng.getState(), armyState: this.armyState, attackStrength: this.attackStrength,
+      attackNowSeen: this.attackNowSeen ?? 0, forceAttack: !!this.forceAttack,
+    };
   }
 
   static fromState(sim, st) {
@@ -62,13 +81,46 @@ export class AiPlayer {
     ai.rng.setState(st.rng);
     ai.armyState = st.armyState;
     ai.attackStrength = st.attackStrength;
+    ai.attackNowSeen = st.attackNowSeen ?? 0;
+    ai.forceAttack = !!st.forceAttack;
     return ai;
+  }
+
+  /**
+   * Take over mission settings (src/sim/missions): strength, aggressiveness, start delay,
+   * forbidden buildings, immediate attack. Without a mission everything stays as in free play.
+   * @returns {boolean} false = AI is still waiting
+   */
+  applyMission() {
+    const mc = this.sim.mission?.state?.ai?.[this.player];
+    if (!mc) return true;
+    if (this.sim.tick < mc.startTick) return false;
+    const key = `${mc.difficulty}|${mc.aggression}`;
+    if (key !== this.missionKey) {
+      this.missionKey = key;
+      this.difficulty = mc.difficulty;
+      const base = DIFFICULTY[mc.difficulty] ?? DIFFICULTY.normal;
+      const agg = mc.aggression;
+      this.cfg = {
+        ...base,
+        // passive: never attacks on its own; aggressive: earlier and with smaller armies
+        firstAttack: agg === 'passive' ? Infinity : agg === 'aggressive' ? Math.trunc(base.firstAttack / 3) : base.firstAttack,
+        attackSize: agg === 'aggressive' ? Math.max(2, base.attackSize - 2) : base.attackSize,
+      };
+    }
+    this.forbid = mc.forbid ?? [];
+    if (mc.attackNow && mc.attackNow !== this.attackNowSeen) {
+      this.attackNowSeen = mc.attackNow;
+      this.forceAttack = true;
+    }
+    return true;
   }
 
   /** Call once per tick; issues commands directly to the simulation. */
   update() {
     const sim = this.sim;
     if (this.me.defeated || sim.winner !== null) return;
+    if (!this.applyMission()) return;
     // bonus as in the original ("refresh") for the hard level
     if (this.cfg.bonusGold && sim.tick > 0 && sim.tick % 1200 === 0) this.me.stock.gold += this.cfg.bonusGold;
     if ((sim.tick + this.offset) % this.cfg.think !== 0) return;
@@ -103,6 +155,10 @@ export class AiPlayer {
         if (d < 22) this.enemyNearHome.push(e);
       }
     }
+    // Bottleneck: one resource is missing while another piles up → the market pays off
+    const av = (r) => sim.available(me, r);
+    const big = ['clay', 'stone', 'iron', 'sulfur'].some((r) => av(r) > 1500);
+    this.starved = big && (av('wood') < 200 || av('gold') < 150 || av('stone') < 150);
     this.count = {};
     this.sites = 0;
     for (const b of this.buildings) {
@@ -118,10 +174,74 @@ export class AiPlayer {
   economy() {
     this.buySerfs();
     this.research();
+    this.researchBuildings();
+    this.trade();
     this.taxes();
     this.planBuildings();
     this.upgradeBuildings();
+    this.repairBuildings();
     this.assignSerfs();
+  }
+
+  /** Building technologies (armour, weapons, pace …) if enough resources are left over. */
+  researchBuildings() {
+    const sim = this.sim;
+    // Only once the basic economy stands
+    if (this.workers < 25 || !this.has('barracks')) return;
+    for (const t of BUILDING_RESEARCH) {
+      if (this.me.techs.has(t)) continue;
+      const def = BUILDING_TECHS[t];
+      if (!this.affordable(def.cost, 2)) continue;
+      const b = this.buildings.find((x) => x.type === def.building && !checkBuildingResearch(sim, this.player, x, t));
+      if (!b) continue;
+      this.issue({ type: 'research', building: b.id, tech: t });
+      return;
+    }
+  }
+
+  /**
+   * Market: trade surpluses (esp. iron/sulphur/clay) for scarce goods (thalers, wood, stone).
+   * One trade at a time; only if the exchange is not too unfavourable.
+   */
+  trade() {
+    const sim = this.sim;
+    const market = this.buildings.find((b) => b.type === 'storehouse' && b.level >= 1 && b.done && !b.trade && b.workers.length);
+    if (!market) return;
+    const avail = (r) => sim.available(this.player, r);
+    const want = { gold: 400 + this.cfg.reserve, wood: 500, stone: 400, clay: 400, iron: 300, sulfur: 200 };
+    // Scarcest resource (relative to demand) and largest surplus
+    const res = ['gold', 'wood', 'stone', 'clay', 'iron', 'sulfur'];
+    const need = res.filter((r) => avail(r) < want[r]).sort((a, b) => avail(a) / want[a] - avail(b) / want[b])[0];
+    if (!need) return;
+    const surplus = res.filter((r) => r !== need && avail(r) > want[r] * 3).sort((a, b) => avail(b) / want[b] - avail(a) / want[a]);
+    for (const give of surplus) {
+      for (const amount of [200, 100, MARKET.step]) {
+        const cost = tradeCost(sim, give, need, amount);
+        // Use at most half the surplus and do not pay a usurious price
+        if (cost > (avail(give) - want[give]) / 2) continue;
+        if (cost * MARKET.basePrice[give] > amount * MARKET.basePrice[need] * 1.6) continue;
+        if (checkTrade(sim, this.player, market, give, need, amount)) continue;
+        this.issue({ type: 'trade', building: market.id, give, take: need, amount });
+        return;
+      }
+    }
+  }
+
+  /** Have damaged buildings repaired (burning ones first). */
+  repairBuildings() {
+    const sim = this.sim;
+    if (this.enemyNearHome?.length > 2) return; // do not run into the fight
+    const damaged = this.buildings.filter((b) => isDamaged(sim, b) && b.builders.length < 2)
+      .sort((a, b) => (b.burning ? 1 : 0) - (a.burning ? 1 : 0) || a.id - b.id);
+    for (const b of damaged.slice(0, 2)) {
+      const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      const serfs = this.serfs.filter((u) => !u.militia && !this.reserved?.has(u.id) && u.job?.kind !== 'build' && u.job?.kind !== 'repair')
+        .sort((u, v) => Math.hypot(u.px / UNIT - cx, u.py / UNIT - cy) - Math.hypot(v.px / UNIT - cx, v.py / UNIT - cy) || u.id - v.id)
+        .slice(0, (b.burning ? 3 : 2) - b.builders.length);
+      if (!serfs.length) return;
+      this.issue({ type: 'assignWork', units: serfs.map((u) => u.id), target: b.id });
+      this.reserved = new Set([...(this.reserved ?? []), ...serfs.map((u) => u.id)]);
+    }
   }
 
   buySerfs() {
@@ -135,7 +255,8 @@ export class AiPlayer {
     const sim = this.sim;
     for (const b of this.buildings) {
       if (b.type !== 'university' || !b.done || b.research) continue;
-      for (const t of RESEARCH) {
+      const order = this.starved && !this.me.techs.has('trade') ? ['education', 'trade', ...RESEARCH] : RESEARCH;
+      for (const t of order) {
         if (this.me.techs.has(t)) continue;
         if (sim.checkResearch(this.player, b, t)) continue;
         // leave a reserve for the extension
@@ -171,6 +292,7 @@ export class AiPlayer {
     if (seats < slots - 2) urgent.push('farm');
     // New village centre if the limit presses
     if (sim.popLimit(this.player) - sim.popUsed(this.player) < 10) urgent.push('villageCenter');
+    if (this.starved && !this.has('storehouse')) urgent.push('storehouse');
     for (const type of urgent) if (this.tryBuild(type)) return;
     for (const [type, n] of BUILD_PLAN) {
       if (this.has(type, n)) continue;
@@ -181,6 +303,7 @@ export class AiPlayer {
 
   tryBuild(type) {
     const sim = this.sim, def = BUILDINGS[type];
+    if (this.forbid?.includes(type)) return false;
     if (def.requires && !this.me.techs.has(def.requires)) return false;
     if (!this.affordable(def.levels[0].cost)) return false;
     const near = type.endsWith('Mine') || type === 'villageCenter' ? this.home : this.spotNear(type);
@@ -214,7 +337,16 @@ export class AiPlayer {
     if (this.sites >= this.cfg.maxSites) return;
     const sim = this.sim;
     // castle to fortress as soon as basic supply stands
-    const order = ['headquarters', 'university', 'villageCenter', 'residence', 'farm', 'barracks', 'clayMine', 'stoneMine', 'ironMine', 'tower'];
+    // Bottleneck: extend the storehouse to a market first
+    if (this.starved) {
+      const st = this.buildings.find((b) => b.type === 'storehouse' && b.done && b.level === 0 && !sim.checkUpgrade(this.player, b));
+      if (st) {
+        this.issue({ type: 'upgradeBuilding', building: st.id, units: this.idleSerfs().slice(0, 4).map((u) => u.id) });
+        this.sites++;
+        return;
+      }
+    }
+    const order = ['headquarters', 'university', 'villageCenter', 'residence', 'farm', 'barracks', 'clayMine', 'stoneMine', 'ironMine', 'tower', 'storehouse', 'smithy', 'sawmill', 'alchemist'];
     for (const type of order) {
       for (const b of this.buildings) {
         if (b.type !== type || !b.done) continue;
@@ -258,17 +390,17 @@ export class AiPlayer {
     this.reserved = new Set();
   }
 
+  /** Nearest tree/pile; first within 45 tiles around the castle, otherwise up to 70 tiles. */
   nearestNode(res, from) {
-    let best = null, bd = Infinity;
+    let best = null, bd = Infinity, far = null, fd = Infinity;
     const fx = from.px / UNIT, fy = from.py / UNIT;
     for (const e of this.sim.entities.values()) {
       if ((e.kind !== 'tree' && e.kind !== 'pile') || e.res !== res || e.amount <= 0) continue;
       const d = (e.x - fx) ** 2 + (e.y - fy) ** 2;
       const home = (e.x - this.home.x) ** 2 + (e.y - this.home.y) ** 2;
-      if (home > 45 * 45) continue;
-      if (d < bd) { bd = d; best = e; }
+      if (home <= 45 * 45) { if (d < bd) { bd = d; best = e; } } else if (home <= 70 * 70 && home < fd) { fd = home; far = e; }
     }
-    return best;
+    return best ?? far;
   }
 
   // ---------- Military ----------
@@ -388,7 +520,9 @@ export class AiPlayer {
         }
       }
       const late = sim.tick >= this.cfg.firstAttack + 9000 && army.length >= 3;
-      const ready = (army.length >= this.cfg.attackSize && sim.tick >= this.cfg.firstAttack) || late;
+      const forced = this.forceAttack && army.length > 0;
+      this.forceAttack = false;
+      const ready = (army.length >= this.cfg.attackSize && sim.tick >= this.cfg.firstAttack) || late || forced;
       if (ready && enemy) {
         this.armyState = 'attack';
         this.attackStrength = strength;

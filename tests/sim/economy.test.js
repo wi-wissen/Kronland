@@ -30,7 +30,7 @@ describe('Buying serfs', () => {
     const ev = sim.step([{ type: 'buySerf', player: 0, count: 11 }]);
     expect(serfsOf(sim).length).toBe(BALANCE.startSerfs + 10);
     expect(sim.players[0].stock.gold).toBe(0);
-    expect(ev.some((e) => e.type === 'rejected' && e.reason === 'Nicht genug Taler')).toBe(true);
+    expect(ev.some((e) => e.type === 'rejected' && e.reason === 'err.notEnoughGold')).toBe(true);
   });
 
   it('respects the population limit', () => {
@@ -54,11 +54,11 @@ describe('Building', () => {
     const hq = hqOf(sim);
     const reject = (cmd) => sim.step([{ player: 0, type: 'placeBuilding', ...cmd }]).find((e) => e.type === 'rejected')?.reason;
     expect(reject({ building: 'residence', x: hq.x, y: hq.y })).toBeTruthy(); // on the castle
-    expect(reject({ building: 'villageCenter', x: hq.x + 10, y: hq.y + 10 })).toBe('Nur auf Siedlungsplätzen');
+    expect(reject({ building: 'villageCenter', x: hq.x + 10, y: hq.y + 10 })).toBe('err.settlementOnly');
     const clayShaft = sim.shafts.find((s) => s.res === 'clay');
-    expect(reject({ building: 'ironMine', x: clayShaft.x, y: clayShaft.y })).toBe('Nur auf passendem Schacht');
-    expect(reject({ building: 'chapel', x: hq.x + 10, y: hq.y + 10 })).toBe('Technologie fehlt');
-    expect(reject({ building: 'headquarters', x: hq.x + 10, y: hq.y + 10 })).toBe('Gebäude nicht baubar');
+    expect(reject({ building: 'ironMine', x: clayShaft.x, y: clayShaft.y })).toBe('err.shaftOnly');
+    expect(reject({ building: 'chapel', x: hq.x + 10, y: hq.y + 10 })).toBe('err.techMissing');
+    expect(reject({ building: 'headquarters', x: hq.x + 10, y: hq.y + 10 })).toBe('err.notBuildable');
     // water
     const m = sim.map;
     let wx = -1, wy = -1;
@@ -171,7 +171,8 @@ describe('Walking and payday', () => {
   it('taxes can only be changed after "education"', () => {
     const sim = newSim();
     let ev = sim.step([{ type: 'setTax', player: 0, level: 4 }]);
-    expect(ev[0]?.reason).toBe('Erst „Bildung“ erforschen');
+    expect(ev[0]?.reason).toBe('err.techFirst');
+    expect(ev[0]?.params).toEqual({ tech: 'education' });
     sim.players[0].techs.add('education');
     sim.step([{ type: 'setTax', player: 0, level: 4 }]);
     expect(sim.players[0].taxLevel).toBe(4);

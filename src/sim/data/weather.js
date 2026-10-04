@@ -9,3 +9,13 @@ export const WEATHER_CYCLE = [
   ['summer', 6000],
   ['winter', 1800],
 ];
+
+// Weather tower and weather plant (alchemist technologies "Wettervorhersage" / "Meteorologie").
+// Values (A): the original charges weather energy via workers in the plant; a change needs a full charge.
+export const WEATHER_CONTROL = {
+  maxEnergy: 1000,      // storage per player (A)
+  changeCost: 1000,     // energy per weather change (A)
+  duration: 1800,       // ticks that the induced weather lasts (3 min) (A)
+  cooldown: 1800,       // ticks until the next change by the same player (A)
+  forecastCount: 3,     // this many upcoming weathers are shown by the weather tower
+};

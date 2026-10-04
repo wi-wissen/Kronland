@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kronland – Audio Check</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; background: #1a221e; color: #f1ead8; margin: 16px; }
+  button { margin: 2px; padding: 4px 10px; }
+  table { border-collapse: collapse; margin-top: 12px; }
+  td, th { padding: 2px 8px; border-bottom: 1px solid #334; text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+</style>
+</head>
+<body>
+<h1>Audio check</h1>
+<p>Start the dev server (<code>npx vite</code>) and open <code>/scripts/audio-check.html</code>.
+Buttons play sounds live; <code>scripts/audio-check.py</code> renders everything offline and checks levels.</p>
+<div id="buttons"></div>
+<table id="out"></table>
+<script type="module">
+import { SFX, birdCall, droplet, distantClash } from '../src/audio/sfx.js';
+import { composeSection, composeJingle, THEMES } from '../src/audio/composer.js';
+import { scheduleNotes, createReverb } from '../src/audio/synth.js';
+import { Ambient } from '../src/audio/ambient.js';
+import { mulberry32 } from '../src/audio/rng.js';
+
+const RATE = 44100;
+
+/** Render an effect offline (stereo, unit level – worst case without bus attenuation and limiter). */
+async function renderSfx(name, seed = 1) {
+  const def = SFX[name];
+  const secs = def.dur + 0.6;
+  const ctx = new OfflineAudioContext(2, Math.ceil(secs * RATE), RATE);
+  const g = ctx.createGain();
+  g.connect(ctx.destination);
+  def.play(ctx, g, 0.02, mulberry32(seed));
+  return ctx.startRendering();
+}
+
+/** Music: n sections of a theme in sequence (like SynthTrack), with reverb. */
+async function renderMusic(theme, sections = 2, seed = 42, lite = false) {
+  const th = THEMES[theme];
+  const parts = [];
+  let total = 0;
+  for (let s = 0; s < sections; s++) {
+    const sec = composeSection(theme, s, seed, { lite });
+    parts.push({ sec, at: total });
+    total += (sec.beats * 60) / sec.bpm;
+  }
+  const ctx = new OfflineAudioContext(2, Math.ceil((total + 3) * RATE), RATE);
+  const master = ctx.createGain(); master.gain.value = 1; master.connect(ctx.destination);
+  const rev = createReverb(ctx, lite);
+  rev.input.gain.value = 0.5;
+  rev.output.connect(master);
+  for (const p of parts) scheduleNotes(ctx, { dry: master, wet: rev.input }, p.sec.events, 0.1 + p.at, p.sec.bpm);
+  void th;
+  return ctx.startRendering();
+}
+
+async function renderJingle(name) {
+  const j = composeJingle(name);
+  const secs = (j.beats * 60) / j.bpm + 3;
+  const ctx = new OfflineAudioContext(2, Math.ceil(secs * RATE), RATE);
+  const rev = createReverb(ctx);
+  rev.output.connect(ctx.destination);
+  const w = ctx.createGain(); w.gain.value = 0.4; w.connect(rev.input);
+  scheduleNotes(ctx, { dry: ctx.destination, wet: w }, j.events, 0.1, j.bpm);
+  return ctx.startRendering();
+}
+
+/** Ambience: real Ambient class with a stub of the engine, single events via tick(now). */
+async function renderAmbient(weather, secs = 12, { water = 0, battle = 0 } = {}) {
+  const ctx = new OfflineAudioContext(2, Math.ceil(secs * RATE), RATE);
+  const amb = ctx.createGain(); amb.connect(ctx.destination);
+  const eng = {
+    ctx, lite: false, buses: { ambient: amb },
+    loadEntryBuffer: () => Promise.resolve(null), manifestGain: () => 1,
+    panNode(out, pan) { const p = ctx.createStereoPanner(); p.pan.value = pan; p.connect(out); return p; },
+    play() { return false; },
+  };
+  const a = new Ambient(/** @type {any} */ (eng));
+  a.weather = weather;
+  a.water = water; a.battle = battle;
+  a.start();
+  for (let t = 0; t < secs - 1; t += 0.2) a.tick(t);
+  return ctx.startRendering();
+}
+
+// ---------- Output ----------
+
+function toB64(buf) {
+  // Float32 interleaved → base64
+  const n = buf.length, ch = buf.numberOfChannels;
+  const f = new Float32Array(n * ch);
+  const cs = [...Array(ch)].map((_, c) => buf.getChannelData(c));
+  for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) f[i * ch + c] = cs[c][i];
+  const bytes = new Uint8Array(f.buffer);
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+function stats(buf) {
+  let peak = 0, sum = 0, clip = 0, nan = 0;
+  const n = buf.length * buf.numberOfChannels;
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    for (const v of buf.getChannelData(c)) {
+      if (!Number.isFinite(v)) { nan++; continue; }
+      const a = Math.abs(v);
+      if (a > peak) peak = a;
+      if (a >= 1) clip++;
+      sum += v * v;
+    }
+  }
+  const db = (x) => (x > 0 ? 20 * Math.log10(x) : -Infinity);
+  return { peakDb: db(peak), rmsDb: db(Math.sqrt(sum / n)), clip, nan, secs: buf.duration };
+}
+
+const jobs = {
+  sfx: (name, seed) => renderSfx(name, seed),
+  music: (theme, sections, seed, lite) => renderMusic(theme, sections, seed, lite),
+  jingle: (name) => renderJingle(name),
+  ambient: (w, secs, o) => renderAmbient(w, secs, o),
+};
+
+/** For the Python check script. */
+window.renderJob = async (kind, args, withData = true) => {
+  const buf = await jobs[kind](...args);
+  return { ...stats(buf), channels: buf.numberOfChannels, rate: buf.sampleRate, data: withData ? toB64(buf) : null };
+};
+window.sfxNames = Object.keys(SFX);
+window.themeNames = Object.keys(THEMES);
+
+// ---------- Live listening ----------
+let live = null;
+const box = document.getElementById('buttons');
+const play = (buf) => {
+  live ??= new AudioContext();
+  const s = live.createBufferSource(); s.buffer = buf; s.connect(live.destination); s.start();
+};
+for (const name of Object.keys(SFX)) {
+  const b = document.createElement('button');
+  b.textContent = name;
+  b.onclick = async () => play(await renderSfx(name, Math.floor(Math.random() * 1e6)));
+  box.append(b);
+}
+for (const th of Object.keys(THEMES)) {
+  const b = document.createElement('button');
+  b.textContent = `Music: ${th}`;
+  b.onclick = async () => play(await renderMusic(th, 2, Math.floor(Math.random() * 1e6)));
+  box.append(b);
+}
+for (const w of ['summer', 'rain', 'winter']) {
+  const b = document.createElement('button');
+  b.textContent = `Ambience: ${w}`;
+  b.onclick = async () => play(await renderAmbient(w, 12, { water: 0.5 }));
+  box.append(b);
+}
+void birdCall; void droplet; void distantClash;
+window.ready = true;
+</script>
+</body>
+</html>

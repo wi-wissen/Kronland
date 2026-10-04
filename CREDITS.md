@@ -14,3 +14,9 @@ erzeugt (`src/render/models.js`).
 Die Spielmechanik orientiert sich an *Die Siedler – Das Erbe der Könige* (Blue Byte, 2004).
 Namen, Texte, Helden und Grafiken sind eigene. Zahlenwerte stammen aus der Community-Dokumentation
 (dedk.de-Wiki) und sind in `docs/SPIELREGELN.md` belegt.
+
+## Ton
+
+- Alle Klangeffekte und die Musik werden im Spiel prozedural erzeugt (Web Audio API); eigene
+  Komposition, keine fremden Aufnahmen. Später ergänzte Audiodateien unter `public/audio/` siehe
+  [docs/AUDIO.md](docs/AUDIO.md) – deren Herkunft und Lizenz bitte hier eintragen.

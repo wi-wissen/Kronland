@@ -1,9 +1,10 @@
-// Serfs: walk, build, fell wood, mine resource piles, look for follow-up work.
+// Serfs: walk, build, repair, chop wood, mine resource piles, look for follow-up work.
 
 import { moveAlong, pathTo, isAdjacent } from './movement.js';
 import { BALANCE } from '../data/balance.js';
-import { BUILDINGS } from '../data/buildings.js';
 import { toTile } from '../fixed.js';
+import { techBonus, boosted, buildingMaxHp } from './techs.js';
+import { DAMAGE, isDamaged } from './damage.js';
 
 const S = BALANCE.serf;
 
@@ -16,12 +17,13 @@ function rectOf(t) {
 function jobValid(sim, u, t) {
   if (!t) return false;
   if (u.job.kind === 'build') return t.kind === 'building' && !t.done && t.owner === u.owner;
+  if (u.job.kind === 'repair') return t.kind === 'building' && t.owner === u.owner && isDamaged(sim, t);
   return (t.kind === 'tree' || t.kind === 'pile') && t.amount > 0;
 }
 
 /** Release a serf from their work. */
 export function clearJob(sim, u) {
-  if (u.job?.kind === 'build') {
+  if (u.job?.kind === 'build' || u.job?.kind === 'repair') {
     const t = sim.entities.get(u.job.target);
     if (t && t.kind === 'building') t.builders = t.builders.filter((id) => id !== u.id);
   }
@@ -33,12 +35,14 @@ export function clearJob(sim, u) {
 /** Arbeit zuweisen. @returns {boolean} */
 export function assignJob(sim, u, t) {
   if (t.kind === 'building') {
-    if (t.done || t.owner !== u.owner) return false;
+    if (t.owner !== u.owner) return false;
+    // Finished buildings: repair, if damaged
+    if (t.done && !isDamaged(sim, t)) return false;
     if (t.builders.includes(u.id)) return true;
     if (t.builders.length >= S.maxBuildersPerSite) return false;
     clearJob(sim, u);
     t.builders.push(u.id);
-    u.job = { kind: 'build', target: t.id };
+    u.job = { kind: t.done ? 'repair' : 'build', target: t.id };
   } else if (t.kind === 'tree' || t.kind === 'pile') {
     if (t.amount <= 0) return false;
     clearJob(sim, u);
@@ -56,6 +60,7 @@ function findNextJob(sim, u, prev) {
   for (const e of sim.entities.values()) {
     let fits = false;
     if (prev.kind === 'build') fits = e.kind === 'building' && !e.done && e.owner === u.owner && e.builders.length < S.maxBuildersPerSite;
+    else if (prev.kind === 'repair') fits = e.kind === 'building' && e.owner === u.owner && isDamaged(sim, e) && e.builders.length < S.maxBuildersPerSite;
     else fits = (e.kind === 'tree' || e.kind === 'pile') && e.res === prev.res && e.amount > 0;
     if (!fits) continue;
     const r = rectOf(e);
@@ -68,13 +73,26 @@ function findNextJob(sim, u, prev) {
   return false;
 }
 
-const moveSerf = (sim, u) => moveAlong(sim, u, S.speed);
+/** Speed of a serf (high-quality shoes). */
+export const serfSpeed = (sim, u) => boosted(S.speed, techBonus(sim, u.owner, 'serfs').speed);
+
+const moveSerf = (sim, u) => moveAlong(sim, u, serfSpeed(sim, u));
 
 function doWork(sim, u, t) {
+  if (u.job.kind === 'repair') {
+    const max = buildingMaxHp(sim, t);
+    t.hp = Math.min(max, t.hp + DAMAGE.repairHpPerTick);
+    if (t.hp >= max) {
+      const builders = t.builders.map((id) => sim.entities.get(id)).filter(Boolean);
+      t.builders = [];
+      sim.events.push({ type: 'repaired', player: t.owner, building: t.id });
+      for (const b of builders) { b.job = null; findNextJob(sim, b, { kind: 'repair' }); }
+    }
+    return;
+  }
   if (u.job.kind === 'build') {
     t.progress++;
-    const def = BUILDINGS[t.type];
-    const maxHp = def.levels[t.level].hp;
+    const maxHp = buildingMaxHp(sim, t);
     t.hp = Math.max(t.hp, Math.trunc((maxHp * t.progress) / t.work));
     if (t.progress >= t.work) {
       t.done = true;

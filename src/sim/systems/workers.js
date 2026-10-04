@@ -6,6 +6,8 @@ import { PROFESSIONS, WORKER as W, professionFor } from '../data/professions.js'
 import { researchPoints, TECHS } from '../data/technologies.js';
 import { moveAlong, pathTo, isAdjacent } from './movement.js';
 import { tileCenter, toTile } from '../fixed.js';
+import { techBonus, boosted } from './techs.js';
+import { addWeatherEnergy } from './weather.js';
 
 /**
  * @typedef {Object} Worker
@@ -216,6 +218,7 @@ function finishCycle(sim, w) {
     case 'refine': if (w.carry > 0) { w.carry--; p.stock[prof.res] += prof.yield; } break;
     case 'gold': p.stock.gold += prof.yield; break;
     case 'faith': p.faith += prof.yield; break;
+    case 'energy': addWeatherEnergy(sim, w.owner, prof.yield); break;
     default: break;
   }
   w.stamina -= W.cycleCost;
@@ -232,7 +235,7 @@ export function updateWorker(sim, w) {
     case 'walk': {
       const target = sim.entities.get(w.target);
       if (!target) { decide(sim, w); return; }
-      if (moveAlong(sim, w, W.speed)) {
+      if (moveAlong(sim, w, boosted(W.speed, techBonus(sim, w.owner, 'workers').speed))) {
         if (isAdjacent(w, target)) arrive(sim, w); else decide(sim, w);
       }
       return;

@@ -6,7 +6,11 @@
 // Touch:    1 finger drag = pan, tap = select or command,
 //           2 fingers = zoom and rotate.
 
+import { get as setting } from '../ui/settings.js';
+
 const DRAG_PX = 8;
+/** Width of the edge strip (px) in which the mouse pushes the camera */
+const EDGE_PX = 6;
 
 export class Input {
   /** @param {import('./Engine.js').Engine} engine @param {HTMLCanvasElement} canvas */
@@ -30,13 +34,34 @@ export class Input {
     this.on(canvas, 'contextmenu', (e) => e.preventDefault());
     this.on(window, 'keydown', this.keydown);
     this.on(window, 'keyup', (e) => this.rig.keys.delete(e.key.toLowerCase()));
-    this.on(window, 'blur', () => this.rig.keys.clear());
+    this.on(window, 'blur', () => { this.rig.keys.clear(); this.mouse = null; });
+    // Edge scrolling: remember the last mouse position; if the mouse leaves the window, it ends
+    this.on(window, 'mousemove', (e) => { this.mouse = { x: e.clientX, y: e.clientY, buttons: e.buttons }; });
+    this.on(document, 'mouseleave', () => { this.mouse = null; });
   }
 
   on(target, type, fn, opts) {
     const bound = fn.bind(this);
     target.addEventListener(type, bound, opts);
     (this.off ??= []).push(() => target.removeEventListener(type, bound, opts));
+  }
+
+  /**
+   * Push the camera when the mouse is at the screen edge (setting "Randscrollen").
+   * Called by the Engine every frame.
+   * @param {number} dt seconds
+   */
+  edgeScroll(dt) {
+    const m = this.mouse;
+    if (!m || m.buttons || this.engine.touch || !setting('edgeScroll')) return;
+    if (typeof document !== 'undefined' && !document.hasFocus()) return;
+    const W = window.innerWidth, H = window.innerHeight;
+    let dx = 0, dy = 0;
+    if (m.x <= EDGE_PX) dx = 1; else if (m.x >= W - 1 - EDGE_PX) dx = -1;
+    if (m.y <= EDGE_PX) dy = 1; else if (m.y >= H - 1 - EDGE_PX) dy = -1;
+    if (!dx && !dy) return;
+    const speed = 900 * dt;
+    this.rig.pan(dx * speed, dy * speed, this.canvas.clientHeight || H);
   }
 
   dispose() { for (const f of this.off ?? []) f(); this.box.remove(); }

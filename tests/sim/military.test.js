@@ -48,7 +48,7 @@ describe('Recruiting', () => {
     const sim = newSim();
     const bar = quickBuild(sim, 'barracks');
     const ev = sim.step([{ type: 'recruit', player: 0, building: bar.id, line: 'bow' }]);
-    expect(ev[0].reason).toBe('Passendes Militärgebäude nötig');
+    expect(ev[0].reason).toBe('err.militaryBuildingNeeded');
   });
 
   it('re-buying soldiers only near the barracks', () => {
@@ -62,7 +62,7 @@ describe('Recruiting', () => {
     expect(L.soldiers.length).toBe(4);
     const L2 = sim.spawnLeader(0, 'sword1', 5, 5, 0);
     const r = sim.step([{ type: 'buySoldiers', player: 0, leader: L2.id }]);
-    expect(r[0].reason).toMatch(/Kaserne/);
+    expect(r[0]).toMatchObject({ reason: 'err.leaderNotNear', params: { building: 'barracks' } });
   });
 
   it('level 2 sword needs a smithy and upgrades existing troops', () => {
@@ -71,7 +71,7 @@ describe('Recruiting', () => {
     quickBuild(sim, 'barracks');
     const L = sim.spawnLeader(0, 'sword1', 10, 10, 2);
     let ev = sim.step([{ type: 'upgradeLine', player: 0, line: 'sword' }]);
-    expect(ev[0].reason).toBe('Schmiede nötig');
+    expect(ev[0]).toMatchObject({ reason: 'err.buildingNeeded', params: { building: 'smithy' } });
     quickBuild(sim, 'smithy');
     sim.step([{ type: 'upgradeLine', player: 0, line: 'sword' }]);
     expect(sim.players[0].unitTier.sword).toBe(2);
@@ -185,7 +185,7 @@ describe('Heroes', () => {
     const hits = L.soldiers.filter((id, i) => sim.entities.get(id).hp < hp0[i]).length;
     expect(hits).toBeGreaterThan(0);
     const ev = sim.step([{ type: 'ability', player: 0, hero: h.id, ability: 'whirl' }]);
-    expect(ev.find((e) => e.type === 'rejected')?.reason).toBe('Noch nicht bereit');
+    expect(ev.find((e) => e.type === 'rejected')?.reason).toBe('err.notReady');
   });
 
   it('Heilen stellt Lebenspunkte eigener Truppen her', () => {

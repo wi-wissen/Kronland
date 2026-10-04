@@ -1,0 +1,78 @@
+{
+  "$doc": "Figuren-Zuordnung (siehe docs/MODELLE.md). Rollen → Modell, Teile, Masken, Clips. Fehlende Modelle fallen auf 'procedural' zurück.",
+  "version": 1,
+  "fps": 24,
+  "models": {
+    "Rogue_Hooded": {
+      "lods": 3, "height": 0.92,
+      "clips": { "idle": "Idle", "walk": "Walking_A", "run": "Running_A", "chop": "2H_Melee_Attack_Chop", "mine": "2H_Melee_Attack_Chop",
+                 "hammer": "1H_Melee_Attack_Chop", "build": "Interact", "carry": "Walking_B", "attack": "1H_Melee_Attack_Stab",
+                 "die": "Death_A", "cheer": "Cheer", "sit": "Sit_Floor_Idle", "ride": "Sit_Chair_Idle" },
+      "include": [],
+      "team": { "uvCells": [[1, 1], [1, 2]] },
+      "tint": { "uvCells": [[0, 1]] }
+    },
+    "Rogue": {
+      "lods": 3, "height": 0.92,
+      "clips": { "idle": "Idle", "walk": "Walking_A", "run": "Running_A", "chop": "2H_Melee_Attack_Chop", "mine": "2H_Melee_Attack_Chop",
+                 "hammer": "1H_Melee_Attack_Chop", "build": "Interact", "carry": "Walking_B", "attack": "1H_Melee_Attack_Stab",
+                 "shoot": "2H_Ranged_Shoot", "die": "Death_A", "cheer": "Cheer", "sit": "Sit_Floor_Idle", "ride": "Sit_Chair_Idle" },
+      "include": [],
+      "team": { "parts": ["Rogue_Cape"] },
+      "tint": { "uvCells": [[0, 1], [1, 1], [1, 2]] }
+    },
+    "Knight": {
+      "lods": 3, "height": 0.98,
+      "clips": { "idle": "Idle", "walk": "Walking_A", "run": "Running_A", "attack": "1H_Melee_Attack_Slice_Diagonal", "hammer": "1H_Melee_Attack_Chop",
+                 "die": "Death_A", "cheer": "Cheer", "sit": "Sit_Floor_Idle", "ride": "Sit_Chair_Idle", "block": "Blocking" },
+      "include": ["1H_Sword", "Round_Shield", "Knight_Helmet", "Knight_Cape"],
+      "team": { "uvCells": [[0, 1], [2, 2]] }
+    },
+    "Barbarian": {
+      "lods": 3, "height": 1.0,
+      "clips": { "idle": "Idle", "walk": "Walking_A", "run": "Running_A", "attack": "2H_Melee_Attack_Chop", "chop": "2H_Melee_Attack_Chop",
+                 "hammer": "1H_Melee_Attack_Chop", "die": "Death_A", "cheer": "Cheer", "sit": "Sit_Floor_Idle", "ride": "Sit_Chair_Idle" },
+      "include": ["2H_Axe", "Barbarian_Cape", "Barbarian_Hat"],
+      "team": { "uvCells": [[0, 1], [1, 1]], "parts": ["Barbarian_Cape"] }
+    },
+    "Mage": {
+      "lods": 3, "height": 0.98,
+      "clips": { "idle": "Idle", "walk": "Walking_A", "run": "Running_A", "attack": "Spellcast_Shoot", "shoot": "Spellcast_Shoot",
+                 "die": "Death_A", "cheer": "Cheer", "sit": "Sit_Floor_Idle", "ride": "Sit_Chair_Idle" },
+      "include": ["2H_Staff", "Mage_Hat", "Mage_Cape"],
+      "team": { "uvCells": [[0, 1], [1, 1], [2, 1]] }
+    }
+  },
+  "roles": {
+    "serf":            { "model": "Rogue_Hooded", "include": ["Barbarian:1H_Axe"], "tint": { "uvCells": [[0, 1]], "color": "#b08452" }, "procedural": "serf" },
+    "worker":          { "model": "Rogue", "procedural": "worker" },
+    "crew":            { "model": "Rogue_Hooded", "tint": { "uvCells": [[0, 1]], "color": "#6b5a44" }, "procedural": "serf" },
+
+    "soldier.sword":   { "model": "Knight", "procedural": "sword" },
+    "soldier.sword.leader": { "model": "Knight", "include": ["1H_Sword", "Badge_Shield", "Knight_Helmet", "Knight_Cape"], "scale": 1.08, "procedural": "sword:leader" },
+    "soldier.spear":   { "model": "Knight", "include": ["2H_Sword", "Knight_Helmet", "Knight_Cape"], "clips": { "idle": "2H_Melee_Idle", "attack": "2H_Melee_Attack_Stab" }, "procedural": "spear" },
+    "soldier.spear.leader": { "model": "Knight", "include": ["2H_Sword", "Knight_Helmet", "Knight_Cape"], "clips": { "idle": "2H_Melee_Idle", "attack": "2H_Melee_Attack_Stab" }, "scale": 1.08, "procedural": "spear:leader" },
+    "soldier.bow":     { "model": "Rogue", "include": ["2H_Crossbow"], "team": { "uvCells": [[0, 1], [1, 1], [1, 2]] }, "tint": null, "procedural": "bow" },
+    "soldier.bow.leader": { "model": "Rogue", "include": ["2H_Crossbow", "Rogue_Cape"], "team": { "uvCells": [[0, 1], [1, 1], [1, 2]] }, "tint": null, "scale": 1.08, "procedural": "bow:leader" },
+    "soldier.heavyCav": { "model": "Knight", "include": ["1H_Sword", "Badge_Shield", "Knight_Helmet", "Knight_Cape"], "seat": 0.86,
+                          "clipAlias": { "walk": "ride", "run": "ride", "idle": "ride" },
+                          "attach": [{ "role": "mount.horse", "offset": [0, 0, 0.06], "scale": 1.75 }], "procedural": "heavyCav" },
+    "soldier.heavyCav.leader": { "fallback": "soldier.heavyCav", "procedural": "heavyCav:leader" },
+    "soldier.lightCav": { "model": "Rogue", "include": ["1H_Crossbow"], "seat": 0.82, "team": { "uvCells": [[0, 1], [1, 1], [1, 2]] }, "tint": null,
+                          "clipAlias": { "walk": "ride", "run": "ride", "idle": "ride" },
+                          "attach": [{ "role": "mount.horse", "offset": [0, 0, 0.06], "scale": 1.7 }], "procedural": "lightCav" },
+    "soldier.lightCav.leader": { "fallback": "soldier.lightCav", "procedural": "lightCav:leader" },
+    "soldier.cannon":  { "procedural": "cannon",
+                         "attach": [{ "role": "crew", "offset": [-0.38, 0, -0.62], "clipAlias": { "attack": "hammer" } },
+                                    { "role": "crew", "offset": [0.38, 0, -0.62], "clipAlias": { "attack": "idle" } }] },
+    "soldier.cannon.leader": { "fallback": "soldier.cannon" },
+    "mount.horse":     { "procedural": "horse" },
+
+    "bandit":          { "model": "Barbarian", "include": ["1H_Axe", "Barbarian_Round_Shield", "Barbarian_Hat"], "procedural": "sword" },
+    "bandit.bow":      { "model": "Rogue_Hooded", "include": ["1H_Crossbow"], "tint": { "uvCells": [[0, 1]], "color": "#4a3a2c" }, "procedural": "bow" },
+
+    "hero.bertram":    { "model": "Knight", "include": ["1H_Sword", "Badge_Shield", "Knight_Helmet", "Knight_Cape"], "scale": 1.18, "procedural": "hero:bertram" },
+    "hero.hedda":      { "model": "Mage", "scale": 1.18, "procedural": "hero:hedda" },
+    "hero.gerold":     { "model": "Barbarian", "scale": 1.18, "procedural": "hero:gerold" }
+  }
+}

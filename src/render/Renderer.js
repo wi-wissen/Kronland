@@ -6,20 +6,27 @@ import { Water } from './water.js';
 import { Environment } from './environment.js';
 import { getQuality } from './quality.js';
 import {
-  treeVariants, stumpVariant, scatterKinds, depositModel, shaftMarker, spotMarker, markerUniforms, rng,
+  treeLodVariants, stumpVariant, scatterKinds, depositModel, shaftMarker, spotMarker, markerUniforms, rng,
 } from './nature.js';
+import {
+  ChunkedInstances, LodCounter, LodState, ViewTracker, cameraFrustum, effectiveDistance, lodSettings, LOD_TIERS, sphereVisible, splitGridMesh,
+} from './lod.js';
+import { CharacterSystem } from './characters.js';
+import { Effects, HealthBars, GroundMarks } from './effects.js';
+import { DebugOverlay, debugEnabled } from './debug.js';
 import { CameraRig } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT } from '../sim/fixed.js';
 import { WATER, CLIFF, OCCUPIED, RESERVED } from '../sim/map.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import {
   buildingModel, scaffold, serfModel, mat, PROF_COLORS, campfireModel,
-  unitModel, heroModel, gadgetModel, healthBar,
+  unitModel, heroModel, gadgetModel, horseModel, constructionStage, ruinModel, hasConstructionStages,
 } from './models.js';
 import { UNITS, HEROES } from '../sim/data/units.js';
-import { instancedParts, heroAsset } from './assets.js';
 import { PLAYER_COLORS } from './models.js';
+import { HintMarker } from './hints.js';
 
 const PLAYER_COLORS_HEX = (owner) => PLAYER_COLORS[owner % 4];
 
@@ -44,7 +51,10 @@ export class Renderer {
     this.terrain = new Terrain(sim.map, sim.waterLevel, q);
     this.water = new Water(this.terrain, q);
     this.terrain.water = this.water.mesh; // compatibility for older accesses
-    this.scene.add(this.terrain.mesh, this.water.mesh);
+    // Draw terrain and water in tiles: areas outside the screen drop out
+    this.terrainChunks = splitGridMesh(this.terrain.mesh, 24);
+    this.waterChunks = splitGridMesh(this.water.mesh, 32);
+    this.scene.add(this.terrainChunks, this.waterChunks);
     this.rig = new CameraRig(this.camera, { w: sim.map.width, h: sim.map.height });
     this.rig.groundAt = (x, z) => this.terrain.heightAt(x, z);
 
@@ -67,6 +77,23 @@ export class Renderer {
     this.ghostKey = '';
     this.raycaster = new THREE.Raycaster();
 
+    // LOD levels, visibility check, figures, effects
+    this.lodTier = LOD_TIERS[q.tier] ?? LOD_TIERS.high;
+    this.lodCounter = new LodCounter();
+    this.frustum = new THREE.Frustum();
+    this.view = new ViewTracker();
+    /** @type {ChunkedInstances[]} */
+    this.chunked = [];
+    this.chars = new CharacterSystem(this.scene, q, { procedural: proceduralFigures() });
+    this.fx = new Effects(this.scene, q);
+    this.bars = new HealthBars(this.scene);
+    this.marks = new GroundMarks(this.scene);
+    /** Destroyed buildings as ruins (rendering only) */
+    this.ruins = [];
+    /** Construction values from the last frame (dust clouds on progress) */
+    this.buildProgress = new Map();
+    this.debug = debugEnabled() ? new DebugOverlay() : null;
+
     const hq = sim.findBuilding(0, 'headquarters');
     if (hq) this.rig.lookAt(hq.x + hq.w / 2, hq.y + hq.h / 2 + 3);
   }
@@ -82,10 +109,16 @@ export class Renderer {
       const r = this.renderer;
       const size = r.getSize(new THREE.Vector2());
       r.setSize(32, 32, false);
-      const cull = [];
+      const cull = [], hidden = [];
+      this.chars.prewarm(true);
+      for (const lv of this.buildingLods?.values() ?? []) for (const m of lv) if (!m.visible) { hidden.push(m); m.visible = true; }
+      for (const c of this.chunked) for (const m of c.meshes) if (!m.visible) { hidden.push(m); m.visible = true; }
+      for (const m of [this.fx.smoke.mesh, this.fx.fire.mesh, this.fx.flames.mesh, this.bars.mesh, this.marks.mesh]) if (!m.visible) { hidden.push(m); m.visible = true; }
       this.scene.traverse((o) => { if (o.frustumCulled) { cull.push(o); o.frustumCulled = false; } });
       r.render(this.scene, this.camera);
       for (const o of cull) o.frustumCulled = true;
+      for (const o of hidden) o.visible = false;
+      this.chars.prewarm(false);
       r.setSize(Math.max(1, size.x), Math.max(1, size.y), false);
     } catch { /* without GL context */ }
   }
@@ -121,7 +154,7 @@ export class Renderer {
   buildTrees() {
     const q = this.quality;
     const trees = [...this.sim.entities.values()].filter((e) => e.kind === 'tree');
-    const variants = treeVariants(q.treeDetail, this.natureUniforms);
+    const variants = treeLodVariants(q.treeDetail, this.natureUniforms);
     const byKind = { leafy: [], birch: [], conifer: [] };
     variants.forEach((v, i) => byKind[v.kind].push(i));
     const pickVariant = (x, z, h) => {
@@ -144,41 +177,33 @@ export class Renderer {
     const deco = this.decorTreeSpots();
     for (const d of deco) items.push({ ...d, v: pickVariant(d.x, d.z, d.h), id: 0 });
 
-    const counts = variants.map(() => 0);
-    for (const it of items) counts[it.v]++;
-    variants.forEach((v, k) => {
-      const m = new THREE.InstancedMesh(v.geometry, v.material, Math.max(1, counts[k]));
-      m.count = 0;
-      m.castShadow = true; m.receiveShadow = true;
-      m.name = 'trees';
-      this.scene.add(m);
-      v.mesh = m;
-    });
-    /** @type {Map<number, {v:number, i:number, x:number, z:number, s:number}>} */
+    // per variant a chunk grid with LOD levels (near: full geometry, far: few faces)
+    const groups = variants.map((v, k) => new ChunkedInstances({
+      name: `trees-${k}`, chunkSize: 8, colors: true, kind: 'tree',
+      // farthest level without shadow casting: saves the expensive shadow pass for the horizon
+      levels: v.levels.map((g, i) => ({ geometry: g, material: v.material, castShadow: i < v.levels.length - 1 || v.levels.length === 1, receiveShadow: i === 0 })),
+    }));
+    /** @type {Map<number, {v:number, h:any, x:number, z:number, s:number}>} */
     this.treeIndex = new Map();
     this.treeVariants = variants;
     const c = new THREE.Color();
     const up = new THREE.Vector3(0, 1, 0);
     for (const it of items) {
-      const v = variants[it.v], m = v.mesh, i = m.count++;
+      const v = variants[it.v];
       const s = it.s * v.scale;
       tmpP.set(it.x, this.terrain.heightAt(it.x, it.z) - 0.04, it.z);
       tmpQ.setFromAxisAngle(up, it.rot);
       tmpS.set(s, s * (0.9 + ((it.h >>> 20) % 25) / 100), s);
       tmpM.compose(tmpP, tmpQ, tmpS);
-      m.setMatrixAt(i, tmpM);
       // colour variation per tree (autumn dabs on broadleaf trees)
       const r = ((it.h >>> 7) % 100) / 100;
       c.setRGB(0.88 + r * 0.22, 0.9 + r * 0.16, 0.86 + ((it.h >>> 15) % 20) / 100);
       if (v.kind !== 'conifer' && (it.h >>> 22) % 23 === 0) c.setRGB(1.35, 1.05, 0.55);
-      m.setColorAt(i, c);
-      if (it.id) this.treeIndex.set(it.id, { v: it.v, i, x: it.x, z: it.z, s });
+      const handle = groups[it.v].add(it.x, it.z, tmpM, c);
+      if (it.id) this.treeIndex.set(it.id, { v: it.v, h: handle, x: it.x, z: it.z, s });
     }
-    for (const v of variants) {
-      v.mesh.instanceMatrix.needsUpdate = true;
-      if (v.mesh.instanceColor) v.mesh.instanceColor.needsUpdate = true;
-      v.mesh.computeBoundingSphere();
-    }
+    for (const g of groups) { g.finalize(this.scene); this.chunked.push(g); }
+    this.treeGroups = groups;
     // tree stumps (felled trees)
     const st = stumpVariant(this.natureUniforms);
     this.stumps = new THREE.InstancedMesh(st.geometry, st.material, Math.max(1, trees.length));
@@ -227,9 +252,8 @@ export class Renderer {
   removeTree(id) {
     const t = this.treeIndex.get(id);
     if (!t) return;
-    const m = this.treeVariants[t.v].mesh;
-    m.setMatrixAt(t.i, new THREE.Matrix4().makeScale(0, 0, 0));
-    m.instanceMatrix.needsUpdate = true;
+    this.treeGroups[t.v].hide(t.h);
+    this.view.pos.set(Infinity, 0, 0); // collect chunks anew
     this.treeIndex.delete(id);
     // leave stump standing
     if (this.stumps.count < this.stumps.instanceMatrix.count) {
@@ -326,40 +350,41 @@ export class Renderer {
     for (const [name, list] of Object.entries(lists)) {
       if (!list.length) continue;
       const kind = kinds[name];
-      const m = new THREE.InstancedMesh(kind.geometry, kind.material, list.length);
       const big = name.startsWith('kk') || name.startsWith('mt') || name.startsWith('rock') || name.startsWith('bush');
-      m.castShadow = big; m.receiveShadow = true;
-      m.name = 'scatter-' + name;
-      list.forEach((it, i) => {
+      // small decoration (grass, flowers, pebbles) in tight chunks that drop out entirely in the distance
+      const ci = new ChunkedInstances({
+        name: 'scatter-' + name, chunkSize: kind.small ? 6 : 12, kind: kind.small ? 'scatterSmall' : 'scatterLarge',
+        levels: [{ geometry: kind.geometry, material: kind.material, castShadow: big, receiveShadow: true }],
+      });
+      for (const it of list) {
         // let rocks sink in a little; water lilies float on the water
         const y = it.water ? t.waterY + 0.01 : t.heightAt(it.x, it.z) - (name.startsWith('mt') ? 0.35 * it.s : big ? 0.06 * it.s : 0.01);
         tmpP.set(it.x, y, it.z);
         tmpQ.setFromAxisAngle(up, it.rot);
         tmpS.set(it.s, it.s * (name.startsWith('kk') ? 0.8 : 1), it.s);
         tmpM.compose(tmpP, tmpQ, tmpS);
-        m.setMatrixAt(i, tmpM);
+        const h = ci.add(it.x, it.z, tmpM);
         if (!this.scatterByTile.has(it.tile)) this.scatterByTile.set(it.tile, []);
-        this.scatterByTile.get(it.tile).push([m, i]);
-      });
-      m.instanceMatrix.needsUpdate = true;
-      m.computeBoundingSphere();
-      m.userData.winter = kind.winter;
-      this.scene.add(m);
-      this.scatter.push(m);
+        this.scatterByTile.get(it.tile).push([ci, h]);
+      }
+      ci.finalize(this.scene);
+      ci.userData.winter = kind.winter;
+      this.chunked.push(ci);
+      this.scatter.push(ci);
     }
   }
 
   /** Hide decoration under a surface (new buildings). */
   hideScatter(x, y, w, h) {
     const { map } = this.sim;
-    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
     for (let j = y - 1; j <= y + h; j++) for (let i = x - 1; i <= x + w; i++) {
       if (!map.inBounds(i, j)) continue;
       const list = this.scatterByTile.get(map.idx(i, j));
       if (!list) continue;
-      for (const [m, k] of list) { m.setMatrixAt(k, zero); m.instanceMatrix.needsUpdate = true; }
+      for (const [ci, handle] of list) ci.hide(handle);
       this.scatterByTile.delete(map.idx(i, j));
     }
+    this.view.pos.set(Infinity, 0, 0);
   }
 
   buildMarkers() {
@@ -411,15 +436,61 @@ export class Renderer {
   onEvents(events) {
     for (const ev of events) {
       if (ev.type === 'shot') this.addProjectile(ev);
-      else if (ev.type === 'hit') (this.hitAt ??= new Map()).set(ev.by, this.time ?? 0);
+      else if (ev.type === 'hit') {
+        (this.hitAt ??= new Map()).set(ev.by, this.time ?? 0);
+        const t = this.sim.entities.get(ev.target);
+        if (t?.px !== undefined && this.fx.chance(0.5)) {
+          const x = t.px / UNIT, z = t.py / UNIT;
+          this.fx.sparks(x, this.terrain.heightAt(x, z) + 0.55, z);
+        }
+      }
       else if (ev.type === 'explosion') this.addExplosion(ev.x / UNIT, ev.y / UNIT);
       else if (ev.type === 'weather') this.applyWeather(ev.state);
+      else if (ev.type === 'killed') this.onKilled(ev);
+      else if (ev.type === 'buildingDestroyed' || ev.type === 'demolished') this.onBuildingGone(ev);
+      else if (ev.type === 'buildingDone') this.onBuildingDone(ev);
       if (ev.type === 'nodeDepleted') {
         this.removeTree(ev.node);
         const p = this.piles.get(ev.node);
         if (p) { this.scene.remove(p); this.piles.delete(ev.node); }
       }
     }
+  }
+
+  /** Unit died: death animation at its last position. */
+  onKilled(ev) {
+    if (ev.kind === 'building' || ev.kind === 'hero') return;
+    this.chars.kill(ev.id);
+  }
+
+  /** Destroyed/demolished building: dust cloud and (if the simulation keeps no ruin) a fading ruin. */
+  onBuildingGone(ev) {
+    const g = this.buildings.get(ev.building);
+    const e = g?.userData.rect;
+    if (!e) return;
+    const cx = e.x + e.w / 2, cz = e.y + e.h / 2, y = g.position.y;
+    this.fx.poof(cx, y, cz, Math.max(e.w, e.h) * 0.6, 0xb8ab94, 30);
+    if (ev.type === 'buildingDestroyed') {
+      for (let i = 0; i < 6; i++) this.fx.smokePuff(cx + (Math.random() - 0.5) * e.w * 0.6, y + 0.4, cz + (Math.random() - 0.5) * e.h * 0.6, 1, 0.5);
+      // a ruin from the simulation (kind 'ruin') takes precedence
+      const simRuin = [...this.sim.entities.values()].some((r) => r.kind === 'ruin' && r.x === e.x && r.y === e.y);
+      if (!simRuin) {
+        const r = ruinModel(e.w - 0.6, e.h - 0.6);
+        r.position.set(cx, y, cz);
+        r.rotation.y = (ev.building % 4) * (Math.PI / 2);
+        r.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; } });
+        this.scene.add(r);
+        this.ruins.push({ g: r, t: 0, x: cx, y, z: cz, w: e.w });
+      }
+    }
+  }
+
+  /** Construction finished: dust ring and sparkle. */
+  onBuildingDone(ev) {
+    const e = this.sim.entities.get(ev.building);
+    if (!e) return;
+    const g = this.buildings.get(e.id);
+    this.fx.poof(e.x + e.w / 2, g?.position.y ?? this.terrain.heightAt(e.x, e.y), e.y + e.h / 2, Math.max(e.w, e.h) * 0.55);
   }
 
   // ---------- Per frame ----------
@@ -431,27 +502,48 @@ export class Renderer {
    * @param {{ selected: Set<number>, ghost: null|{type:string,x:number,y:number,valid:boolean} }} view
    */
   frame(alpha, dt, prev, view) {
-    if (!this.warmed) { this.warmed = true; this.buildWorld(); this.warmUp(); }
+    if (!this.warmed) {
+      this.warmed = true;
+      const t0 = performance.now();
+      this.buildWorld();
+      const t1 = performance.now();
+      this.prepareFigures();
+      const t2 = performance.now();
+      this.warmUp();
+      this.startupMs = { world: Math.round(t1 - t0), figures: Math.round(t2 - t1), warmUp: Math.round(performance.now() - t2) };
+    }
     const sim = this.sim;
     this.frameDt = dt;
     this.time = (this.time ?? 0) + dt;
+    // camera first: LOD levels and visibility check refer to the current frame
+    this.rig.update(dt);
+    this.camera.updateMatrixWorld();
+    cameraFrustum(this.camera, this.frustum);
+    this.chars.begin(this.time);
+    this.lodCounter.groups = {};
+    this.bars.begin();
+    this.marks.begin();
+    this.selectedIds = view.selected;
     const seen = new Set();
 
     for (const e of sim.entities.values()) {
       if (e.kind === 'building') { seen.add(e.id); this.syncBuilding(e); }
       else if (e.kind === 'unit' || e.kind === 'worker') { seen.add(e.id); this.syncUnit(e, alpha, prev.get(e.id), dt); }
       else if (e.px !== undefined) { seen.add(e.id); this.syncFighter(e, alpha, prev.get(e.id)); }
+      else if (e.kind === 'ruin') { seen.add(e.id); this.syncRuin(e); }
       else if (e.kind === 'pile') {
         const g = this.piles.get(e.id);
         if (g) g.scale.setScalar(0.55 + 0.45 * Math.min(1, e.amount / 400));
       }
     }
-    for (const [id, g] of this.buildings) if (!seen.has(id)) { this.scene.remove(g); this.buildings.delete(id); }
-    for (const [id, g] of this.units) if (!seen.has(id)) {
-      this.scene.remove(g);
-      if (g.userData.hb) this.scene.remove(g.userData.hb);
-      this.units.delete(id);
+    for (const [id, g] of this.buildings) if (!seen.has(id)) { this.scene.remove(g); this.buildings.delete(id); this.buildProgress.delete(id); }
+    for (const [id, g] of this.units) if (!seen.has(id)) { this.scene.remove(g); this.units.delete(id); }
+    for (const [id, g] of this.simRuins ?? []) if (!seen.has(id)) { this.scene.remove(g); this.simRuins.delete(id); }
+    // clean up per-unit markers (occasionally is enough)
+    if ((this.frameNo = (this.frameNo ?? 0) + 1) % 120 === 0) {
+      for (const m of [this.unitYaw, this.hitAt, this.shotAt]) if (m) for (const id of m.keys()) if (!seen.has(id)) m.delete(id);
     }
+    this.chars.prune();
 
     // hide markers as soon as something is built there
     for (const m of this.markers) m.g.visible = sim.map.owner[sim.map.idx(m.x, m.y)] === 0;
@@ -459,6 +551,7 @@ export class Renderer {
     this.updateEffects(dt);
     this.syncSelection(view.selected);
     this.syncGhost(view.ghost);
+    (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, dt);
 
     this.syncGround();
     this.natureUniforms.uTime.value = this.time;
@@ -468,156 +561,262 @@ export class Renderer {
       if (b) b.rotation.y = Math.sin(this.time * 2.2 + m.x) * 0.25;
     }
 
-    this.rig.update(dt);
+    this.updateLod();
+    this.chars.render(this.camera, this.frustum, this.lodCounter);
+    this.fx.update(dt);
+    this.bars.end(this.viewport ?? { w: 1280, h: 800 }, this.renderer.getPixelRatio());
+    this.marks.end();
     this.env.follow(this.rig.target, this.rig.dist);
     this.env.tick();
     this.renderer.render(this.scene, this.camera);
+    this.debug?.tick(() => this.debugStats());
+  }
+
+  /** Choose LOD levels of trees, decoration and buildings by camera. */
+  updateLod() {
+    const cam = this.camera;
+    const bias = this.lodTier.bias;
+    const eff = (d) => effectiveDistance(d, cam.fov, bias);
+    // small decoration: fade out with distance in the shader (matching the chunk cut-off limit)
+    const fade = this.natureUniforms.uFade;
+    if (fade) {
+      const cut = lodSettings('scatterSmall', this.quality.tier).cull * bias / (Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) / Math.tan(THREE.MathUtils.degToRad(20)));
+      fade.value.set(cut * 0.72, cut * 0.97);
+    }
+    if (this.view.changed(cam)) {
+      for (const c of this.chunked) {
+        c.update(this.frustum, cam.position, eff, lodSettings(c.kind, this.quality.tier), this.lodCounter);
+      }
+      this.lastChunkCounts = structuredClone(this.lodCounter.groups);
+    } else if (this.lastChunkCounts) {
+      for (const [k, v] of Object.entries(this.lastChunkCounts)) v.forEach((n, i) => this.lodCounter.add(k, i, n));
+    }
+    // buildings: one level per building (group with userData.lods)
+    const bs = lodSettings('building', this.quality.tier);
+    for (const g of this.buildings.values()) {
+      const lods = g.userData.lods;
+      if (!lods || lods.length < 2) { this.lodCounter.add('building', 0); continue; }
+      const st = (g.userData.lodState ??= new LodState());
+      const d = eff(cam.position.distanceTo(g.position));
+      const lvl = Math.min(st.update(d, bs), lods.length - 1);
+      if (lvl !== g.userData.lodLevel) {
+        lods.forEach((m, i) => { m.visible = i === lvl; });
+        g.userData.lodLevel = lvl;
+      }
+      this.lodCounter.add('building', lvl);
+    }
+  }
+
+  /** Numbers for the debug display and measurements. */
+  debugStats() {
+    const info = this.renderer.info;
+    const particles = this.fx.smoke.alive + this.fx.fire.alive + this.fx.flames.alive;
+    return {
+      tier: this.quality.tier, calls: info.render.calls, triangles: info.render.triangles, geometries: info.memory.geometries,
+      chars: this.chars.info(), particles, projectiles: this.projectiles?.length ?? 0, lod: this.lodCounter.groups,
+    };
+  }
+
+  /** LOD counters (for tests and measurements). */
+  lodStats() { return { ...this.debugStats(), lod: structuredClone(this.lodCounter.groups) }; }
+
+  /** Pre-bake frequent figures (avoids hitches at first appearance). */
+  prepareFigures() {
+    for (const k of ['serf', 'worker', 'soldier.sword', 'soldier.sword.leader', 'soldier.bow', 'soldier.spear', `hero.${[...this.sim.entities.values()].find((e) => e.kind === 'hero')?.hero ?? 'bertram'}`]) this.chars.variantFor(k);
   }
 
   syncBuilding(e) {
     let g = this.buildings.get(e.id);
-    const key = `${e.level}:${e.done}`;
+    const stages = !e.done && hasConstructionStages();
+    const p = e.work ? e.progress / e.work : 1;
+    // construction phase: foundation → walls → roof truss (KayKit), afterwards the finished house growing under the scaffolding
+    const stage = !stages ? -1 : e.level > 0 ? 3 : p < 0.22 ? 0 : p < 0.45 ? 1 : p < 0.68 ? 2 : 3;
+    const key = `${e.level}:${e.done}:${stage}`;
     if (!g || g.userData.key !== key) {
-      if (g) this.scene.remove(g);
+      const old = g;
       g = buildingModel(e.type, e.w, e.h, e.level, e.owner);
       g.userData.key = key;
+      g.userData.rect = { x: e.x, y: e.y, w: e.w, h: e.h };
       if (!e.done) {
+        if (stage >= 0 && stage < 3) {
+          const body = g.getObjectByName('body');
+          body.visible = false;
+          g.userData.lods = null;
+          const st = constructionStage(stage, e.w - 0.4, e.h - 0.4);
+          if (st) { st.name = 'stage'; g.add(st); }
+        }
         const sc = scaffold(e.w, e.h); sc.name = 'scaffold'; g.add(sc);
       }
       g.position.set(e.x + e.w / 2, this.terrain.rectHeight(e.x, e.y, e.w, e.h), e.y + e.h / 2);
       if (e.type === 'villageCenter' || e.type === 'headquarters') {
         const fire = campfireModel(); fire.position.set(-e.w / 2 - 0.2, 0, e.h / 2 + 0.6); g.add(fire);
       }
+      // height of the house (for smoke, fire, health bars)
+      const body = g.getObjectByName('body');
+      const bb = new THREE.Box3().setFromObject(body);
+      g.userData.height = Number.isFinite(bb.max.y) ? Math.max(0.6, bb.max.y) : 2;
+      // chimneys: smoke while working (position relative to half the footprint, height relative to house size)
+      const cp = CHIMNEY[e.type];
+      g.userData.chimney = cp ? new THREE.Vector3(cp[0] * e.w / 2, cp[1] * g.userData.height, cp[2] * e.h / 2) : null;
       g.traverse((m) => { m.userData.entity = e.id; });
       this.scene.add(g);
       this.buildings.set(e.id, g);
+      if (old) {
+        this.scene.remove(old);
+        // phase change: dust
+        if (!e.done) this.fx.dust(g.position.x, g.position.y, g.position.z, 10, 0.5);
+      }
     }
     const rotor = g.getObjectByName('rotor');
     if (rotor) rotor.rotation.z = this.time * 1.5;
+    const spin = g.getObjectByName('spinY');
+    if (spin) spin.rotation.y = this.time * 2.2;
     const flame = g.getObjectByName('flame');
     if (flame) flame.scale.y = 0.8 + Math.sin(this.time * 12 + e.id) * 0.2;
+    const near = sphereVisible(this.frustum, g.position.x, g.position.y + 1, g.position.z, Math.max(e.w, e.h));
     if (!e.done) {
       const body = g.getObjectByName('body');
-      const p = e.work ? e.progress / e.work : 1;
-      body.scale.y = 0.08 + 0.92 * p;
+      if (stage === 3 || stage < 0) body.scale.y = 0.08 + 0.92 * (stage === 3 ? Math.min(1, (p - 0.68) / 0.32 * 0.85 + 0.15) : p);
+      // progress: small dust clouds while building
+      const last = this.buildProgress.get(e.id) ?? e.progress;
+      if (near && e.progress > last && this.fx.chance(0.35)) {
+        this.fx.dust(g.position.x + (Math.random() - 0.5) * e.w * 0.7, g.position.y + 0.1, g.position.z + (Math.random() - 0.5) * e.h * 0.7, 2, 0.28);
+      }
+      this.buildProgress.set(e.id, e.progress);
+    }
+    if (!near) return;
+    // damage: below 50 % smoke, below 25 % (or e.burning) fire
+    const maxHp = BUILDINGS[e.type]?.levels[e.level]?.hp ?? e.hp;
+    const frac = e.done ? e.hp / maxHp : 1;
+    const burning = e.burning || (e.done && frac < 0.25);
+    const dt = this.frameDt ?? 0.016;
+    if (e.done && (frac < 0.5 || e.burning)) {
+      const H = g.userData.height ?? 2;
+      const k = (1 - Math.min(1, frac / 0.5)) * 0.8 + (burning ? 0.5 : 0.35);
+      if (Math.random() < dt * 9 * k * this.fx.density) {
+        const sx = g.position.x + (Math.random() - 0.5) * e.w * 0.45, sz = g.position.z + (Math.random() - 0.5) * e.h * 0.45;
+        this.fx.smokePuff(sx, g.position.y + H * (0.75 + Math.random() * 0.25), sz, burning ? 1 : 0.6, burning ? 0.55 : 0.45);
+      }
+      if (burning && Math.random() < dt * 40 * this.fx.density) {
+        // flames on roof and walls: on the edge of the footprint or at the top
+        const top = Math.random() < 0.5;
+        const a = Math.random() * Math.PI * 2;
+        const rx = top ? (Math.random() - 0.5) * e.w * 0.5 : Math.cos(a) * e.w * 0.34;
+        const rz = top ? (Math.random() - 0.5) * e.h * 0.5 : Math.sin(a) * e.h * 0.34;
+        this.fx.flame(g.position.x + rx, g.position.y + (top ? H * (0.6 + Math.random() * 0.35) : H * (0.15 + Math.random() * 0.5)), g.position.z + rz, 0.55);
+      }
+    }
+    // chimney smoke when the building works (workers inside) or castle/village centre
+    const ch = g.userData.chimney;
+    if (ch && e.done && frac >= 0.5 && Math.random() < dt * 2.2 * this.fx.density) {
+      const working = e.type === 'headquarters' || e.type === 'villageCenter' || e.workers?.some((id) => this.sim.entities.get(id)?.state === 'working');
+      if (working) this.fx.smokePuff(g.position.x + ch.x, g.position.y + ch.y, g.position.z + ch.z, 0, 0.22);
     }
   }
 
+  /** Ruin from the simulation (if present). */
+  syncRuin(e) {
+    const m = (this.simRuins ??= new Map());
+    if (m.has(e.id)) return;
+    const w = e.w ?? 3, h = e.h ?? 3;
+    const g = ruinModel(w - 0.6, h - 0.6);
+    g.position.set(e.x + w / 2, this.terrain.rectHeight(e.x, e.y, w, h), e.y + h / 2);
+    this.scene.add(g);
+    m.set(e.id, g);
+  }
+
+  /** Role of a serf/worker/fighter for the figure manifest. */
+  roleOf(e) {
+    if (e.kind === 'unit') return e.militia ? 'soldier.spear' : 'serf';
+    if (e.kind === 'worker') return 'worker';
+    if (e.kind === 'hero') return `hero.${e.hero}`;
+    const line = UNITS[e.def]?.line ?? 'sword';
+    if (this.sim.players[e.owner]?.neutral) return line === 'bow' ? 'bandit.bow' : 'bandit';
+    return `soldier.${line}${e.kind === 'leader' ? '.leader' : ''}`;
+  }
+
   syncUnit(e, alpha, prev, dt) {
-    let g = this.units.get(e.id);
-    if (!g) {
-      g = e.kind === 'worker' ? serfModel(e.owner, PROF_COLORS[e.prof]) : serfModel(e.owner);
-      if (e.kind === 'worker') g.userData.tool.visible = false;
-      g.traverse((m) => { m.userData.entity = e.id; });
-      this.scene.add(g);
-      this.units.set(e.id, g);
-    }
     const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
     const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
     const x = px / UNIT, z = py / UNIT;
     const moving = prev && (prev.px !== e.px || prev.py !== e.py);
-    if (moving) g.rotation.y = Math.atan2(e.px - prev.px, e.py - prev.py);
-    g.position.set(x, this.terrain.heightAt(x, z), z);
-    const { body, legs, tool } = g.userData;
-    const ph = this.time * 9 + e.id;
-    legs[0].rotation.x = moving ? Math.sin(ph) * 0.6 : 0;
-    legs[1].rotation.x = moving ? -Math.sin(ph) * 0.6 : 0;
-    body.position.y = moving ? Math.abs(Math.sin(ph)) * 0.03 : 0;
+    const st = (this.unitYaw ??= new Map());
+    let yaw = st.get(e.id) ?? 0;
+    if (moving) yaw = Math.atan2(e.px - prev.px, e.py - prev.py);
+    let clip = moving ? 'walk' : 'idle';
+    let visible = true;
     if (e.kind === 'worker') {
-      g.visible = !e.inside;
-      if (e.state === 'camping') { body.rotation.x = 0.35; }
-      else body.rotation.x = 0;
-      return;
+      visible = !e.inside;
+      if (e.state === 'camping') clip = 'sit';
+    } else {
+      const working = !moving && e.job && e.path.length === 0;
+      if (working) {
+        const t = this.sim.entities.get(e.job.target);
+        if (t) {
+          const cx = t.kind === 'building' ? t.x + t.w / 2 : t.x + 0.5, cz = t.kind === 'building' ? t.y + t.h / 2 : t.y + 0.5;
+          yaw = Math.atan2(cx - x, cz - z);
+          clip = t.kind === 'building' ? 'build' : t.kind === 'tree' ? 'chop' : 'mine';
+        }
+      } else if (moving && e.carry) clip = 'carry';
     }
-    const working = !moving && e.job && e.path.length === 0;
-    tool.rotation.x = working ? -Math.max(0, Math.sin(this.time * 6 + e.id)) * 1.6 : 0;
-    body.rotation.x = working ? Math.max(0, Math.sin(this.time * 6 + e.id)) * 0.2 : 0;
-    if (working) {
-      const t = this.sim.entities.get(e.job.target);
-      if (t) {
-        const cx = t.kind === 'building' ? t.x + t.w / 2 : t.x + 0.5, cz = t.kind === 'building' ? t.y + t.h / 2 : t.y + 0.5;
-        g.rotation.y = Math.atan2(cx - x, cz - z);
-      }
-    }
+    st.set(e.id, yaw);
+    const tint = e.kind === 'worker' ? PROF_COLORS[e.prof] ?? null : null;
+    this.chars.set(e.id, this.roleOf(e), { x, y: this.terrain.heightAt(x, z), z, yaw, clip, team: PLAYER_COLORS_HEX(e.owner), tint, visible, speed: 1 });
   }
 
   /** Captains, soldiers, heroes, traps and siege weapons. */
   syncFighter(e, alpha, prev) {
-    let g = this.units.get(e.id);
-    if (!g) {
-      const ha = e.kind === 'hero' ? heroAsset(e.hero) : null;
-      if (ha) {
-        g = new THREE.Group();
-        ha.obj.scale.setScalar(0.5);
-        g.add(ha.obj);
-        g.userData = { anim: ha, current: null };
-        const ring = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.34, 20).rotateX(-Math.PI / 2), mat(PLAYER_COLORS_HEX(e.owner), { flatShading: false }));
-        ring.position.y = 0.03; g.add(ring);
-      } else if (e.kind === 'hero') g = heroModel(e.hero, e.owner);
-      else if (e.kind === 'leader' || e.kind === 'soldier') g = unitModel(UNITS[e.def].line, e.owner, e.kind === 'leader');
-      else g = gadgetModel(e.kind, e.owner);
-      g.userData.def = e.def;
-      g.traverse((m) => { m.userData.entity = e.kind === 'soldier' ? e.leader : e.id; });
-      if (e.kind === 'leader' || e.kind === 'hero') { const hb = healthBar(); hb.name = 'hb'; this.scene.add(hb); g.userData.hb = hb; }
-      this.scene.add(g);
-      this.units.set(e.id, g);
-    }
     const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
     const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
     const x = px / UNIT, z = py / UNIT;
+    const y = this.terrain.heightAt(x, z);
     const moving = prev && (prev.px !== e.px || prev.py !== e.py);
-    if (moving) g.rotation.y = Math.atan2(e.px - prev.px, e.py - prev.py);
+    const st = (this.unitYaw ??= new Map());
+    let yaw = st.get(e.id) ?? 0;
+    if (moving) yaw = Math.atan2(e.px - prev.px, e.py - prev.py);
     else if (e.targetId) {
       const t = this.sim.entities.get(e.targetId);
       if (t) {
         const tx = t.kind === 'building' ? t.x + t.w / 2 : (t.px ?? t.x * UNIT) / UNIT, tz = t.kind === 'building' ? t.y + t.h / 2 : (t.py ?? t.y * UNIT) / UNIT;
-        g.rotation.y = Math.atan2(tx - x, tz - z);
+        yaw = Math.atan2(tx - x, tz - z);
       }
     }
-    g.position.set(x, this.terrain.heightAt(x, z), z);
-    if (g.userData.anim) { this.animateHero(g, e, moving); }
-    const { body, legs, arm, horse } = g.userData;
-    const ph = this.time * 9 + e.id;
-    if (legs) {
-      legs[0] && (legs[0].rotation.x = moving ? Math.sin(ph) * 0.6 : 0);
-      legs[1] && (legs[1].rotation.x = moving ? -Math.sin(ph) * 0.6 : 0);
+    st.set(e.id, yaw);
+    // traps, bombs, self-firing: small static objects (few)
+    if (e.kind !== 'hero' && e.kind !== 'leader' && e.kind !== 'soldier') {
+      let g = this.units.get(e.id);
+      if (!g) {
+        g = gadgetModel(e.kind, e.owner);
+        g.traverse((m) => { m.userData.entity = e.id; });
+        this.scene.add(g);
+        this.units.set(e.id, g);
+      }
+      g.position.set(x, y, z);
+      g.rotation.y = yaw;
+      return;
     }
-    if (horse) horse.position.y = moving ? Math.abs(Math.sin(ph)) * 0.04 : 0;
     const hit = this.hitAt?.get(e.id);
-    if (arm) arm.rotation.x = hit !== undefined && this.time - hit < 0.35 ? -Math.sin(((this.time - hit) / 0.35) * Math.PI) * 1.6 : 0;
-    if (body && e.kind === 'hero') body.rotation.x = e.down ? -1.4 : 0;
-    const hb = g.userData.hb;
-    if (hb) {
-      let frac;
-      if (e.kind === 'leader') {
-        const d = UNITS[e.def];
-        const total = d.hp + d.soldierHp * d.soldiers;
-        let cur = e.hp;
-        for (const id of e.soldiers) cur += this.sim.entities.get(id)?.hp ?? 0;
-        frac = Math.max(0, cur / total);
-      } else frac = Math.max(0, e.hp / HEROES[e.hero].hp);
-      hb.position.set(x, g.position.y + (e.kind === 'hero' ? 1.45 : 1.25), z);
-      hb.quaternion.copy(this.camera.quaternion);
-      const fg = hb.getObjectByName('fg');
-      fg.scale.x = Math.max(0.001, frac); fg.position.x = -0.3 * (1 - frac);
-      fg.material.color.setHex(frac > 0.5 ? 0x6fcf7a : frac > 0.25 ? 0xe0a93b : 0xef6b6b);
-    }
-  }
-
-  /** Choose and play the hero figure animations. */
-  animateHero(g, e, moving) {
-    const { anim } = g.userData;
-    const hit = this.hitAt?.get(e.id);
-    const attacking = hit !== undefined && this.time - hit < 0.6;
-    const want = e.down ? 'Death_A_Pose' : attacking ? '1H_Melee_Attack_Chop' : moving ? 'Walking_A' : 'Idle';
-    if (g.userData.current !== want && anim.clips[want]) {
-      const next = anim.mixer.clipAction(anim.clips[want]);
-      next.reset().fadeIn(0.2).play();
-      if (g.userData.action) g.userData.action.fadeOut(0.2);
-      g.userData.action = next;
-      g.userData.current = want;
-    }
-    anim.mixer.update(this.frameDt ?? 0.016);
+    const shotAt = this.shotAt?.get(e.id);
+    const attacking = (hit !== undefined && this.time - hit < 0.7) || (shotAt !== undefined && this.time - shotAt < 0.7);
+    const line = e.kind === 'hero' ? null : UNITS[e.def]?.line;
+    const ranged = line === 'bow' || line === 'lightCav';
+    const clip = e.down ? 'die' : attacking ? (ranged ? 'shoot' : 'attack') : moving ? (line === 'lightCav' || line === 'heavyCav' ? 'run' : 'walk') : 'idle';
+    const role = this.roleOf(e);
+    const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: PLAYER_COLORS_HEX(e.owner), speed: line === 'cannon' ? 0.6 : 1 });
+    // hoof dust
+    if (moving && (line === 'lightCav' || line === 'heavyCav') && this.fx.chance(0.22) && rec.lod.level >= 0 && rec.lod.level <= 1) this.fx.hoofDust(x, y, z);
+    // health bars: captains (squad as a whole) and heroes
+    if (e.kind === 'soldier' || rec.lod.level < 0 || rec.lod.level > 2) return;
+    let frac;
+    if (e.kind === 'leader') {
+      const d = UNITS[e.def];
+      const total = d.hp + d.soldierHp * d.soldiers;
+      let cur = e.hp;
+      for (const id of e.soldiers) cur += this.sim.entities.get(id)?.hp ?? 0;
+      frac = Math.max(0, cur / total);
+    } else frac = Math.max(0, e.hp / HEROES[e.hero].hp);
+    const sel = this.selectedIds?.has(e.id);
+    if (frac < 0.999 || sel || e.kind === 'hero') this.bars.add(x, y + (e.kind === 'hero' ? 1.55 : 1.3) + (rec.variant?.seat ?? 0), z, frac, e.kind === 'hero' ? 40 : 32, 6);
   }
 
   addProjectile(ev) {
@@ -625,27 +824,55 @@ export class Renderer {
     const to = new THREE.Vector3(ev.to.x / UNIT, 0, ev.to.y / UNIT);
     from.y = this.terrain.heightAt(from.x, from.z) + (ev.kind === 'bolt' ? 2.6 : 0.6);
     to.y = this.terrain.heightAt(to.x, to.z) + 0.4;
-    const geo = ev.kind === 'ball' ? (this.ballGeo ??= new THREE.SphereGeometry(0.08, 6, 4)) : (this.arrowGeo ??= new THREE.BoxGeometry(0.02, 0.02, 0.4));
-    const m = new THREE.Mesh(geo, mat(ev.kind === 'ball' ? 0x2a2a2e : 0x5a3b22));
+    // shooter: shot animation
+    const shooter = this.nearestFighter(ev.from.x, ev.from.y, ev.owner);
+    if (shooter) (this.shotAt ??= new Map()).set(shooter, this.time ?? 0);
+    const geo = ev.kind === 'ball' ? (this.ballGeo ??= new THREE.SphereGeometry(0.08, 8, 6)) : (this.arrowGeo ??= arrowGeometry());
+    const m = new THREE.Mesh(geo, ev.kind === 'ball' ? mat(0x2a2a2e) : (this.arrowMat ??= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })));
     m.position.copy(from); m.lookAt(to);
+    m.castShadow = true;
     this.scene.add(m);
-    (this.projectiles ??= []).push({ m, from, to, t: 0, dur: Math.max(0.15, from.distanceTo(to) / 22) });
+    const dist = from.distanceTo(to);
+    (this.projectiles ??= []).push({ m, from, to, t: 0, dur: Math.max(0.15, dist / (ev.kind === 'ball' ? 16 : 22)), arc: ev.kind === 'ball' ? 0.25 + dist * 0.06 : 0.15 + dist * 0.05, kind: ev.kind, trail: 0 });
+    if (ev.kind === 'ball') this.fx.smokePuff(from.x, from.y + 0.1, from.z, 0.3, 0.3);
+  }
+
+  /** Fighter at the firing position (for the shot animation). */
+  nearestFighter(px, py, owner) {
+    let best = 0, bd = 400 * 400;
+    for (const e of this.sim.entities.values()) {
+      if (e.owner !== owner || (e.kind !== 'leader' && e.kind !== 'soldier' && e.kind !== 'hero')) continue;
+      const d = (e.px - px) ** 2 + (e.py - py) ** 2;
+      if (d < bd) { bd = d; best = e.id; }
+    }
+    return best;
   }
 
   addExplosion(x, z) {
-    const m = new THREE.Mesh(this.boomGeo ??= new THREE.SphereGeometry(0.5, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffb040, transparent: true, opacity: 0.85 }));
+    const m = new THREE.Mesh(this.boomGeo ??= new THREE.SphereGeometry(0.5, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffb040, transparent: true, opacity: 0.85 }));
     m.position.set(x, this.terrain.heightAt(x, z) + 0.3, z);
     this.scene.add(m);
     (this.booms ??= []).push({ m, t: 0 });
+    this.fx.explosion(x, this.terrain.heightAt(x, z), z);
   }
 
   updateEffects(dt) {
+    const tmp = new THREE.Vector3();
     for (const p of this.projectiles ?? []) {
       p.t += dt / p.dur;
       const k = Math.min(1, p.t);
+      tmp.copy(p.m.position);
       p.m.position.lerpVectors(p.from, p.to, k);
-      p.m.position.y += Math.sin(k * Math.PI) * 0.8;
-      if (k >= 1) this.scene.remove(p.m);
+      p.m.position.y += Math.sin(k * Math.PI) * p.arc;
+      // align to the flight direction
+      if (k < 1) { const dir = p.m.position.clone().sub(tmp); if (dir.lengthSq() > 1e-8) p.m.lookAt(p.m.position.clone().add(dir)); }
+      // trail
+      p.trail += dt;
+      if (p.trail > 0.016) { p.trail = 0; this.fx.trail(p.m.position.x, p.m.position.y, p.m.position.z, p.kind); }
+      if (k >= 1) {
+        this.scene.remove(p.m);
+        if (p.kind === 'ball') this.fx.dust(p.to.x, p.to.y - 0.3, p.to.z, 6, 0.4, 0x8c7a5e);
+      }
     }
     this.projectiles = (this.projectiles ?? []).filter((p) => p.t < 1);
     for (const b of this.booms ?? []) {
@@ -655,6 +882,19 @@ export class Renderer {
       if (b.t >= 1) { this.scene.remove(b.m); b.m.material.dispose(); }
     }
     this.booms = (this.booms ?? []).filter((b) => b.t < 1);
+    // ruins: smoke, sink after a while and disappear
+    for (const r of this.ruins) {
+      r.t += dt;
+      if (r.t < 8 && Math.random() < dt * 4 * this.fx.density) this.fx.smokePuff(r.x + (Math.random() - 0.5) * r.w * 0.5, r.y + 0.5, r.z + (Math.random() - 0.5) * r.w * 0.5, 1, 0.4);
+      if (r.t < 3 && Math.random() < dt * 10 * this.fx.density) this.fx.flame(r.x + (Math.random() - 0.5) * r.w * 0.4, r.y + 0.3, r.z + (Math.random() - 0.5) * r.w * 0.4, 0.3);
+      const fade = Math.max(0, Math.min(1, (r.t - RUIN_TIME) / 2.5));
+      if (fade > 0) {
+        r.g.position.y = r.y - fade * 0.8;
+        r.g.traverse((m) => { if (m.isMesh) m.material.opacity = 1 - fade; });
+      }
+      if (fade >= 1) { this.scene.remove(r.g); r.g.traverse((m) => { if (m.isMesh) m.material.dispose(); }); }
+    }
+    this.ruins = this.ruins.filter((r) => r.t < RUIN_TIME + 2.5);
     if (this.rain) {
       const pos = this.rain.geometry.attributes.position;
       const t = this.rig.target;
@@ -698,33 +938,27 @@ export class Renderer {
     }
   }
 
+  /** Selection: rings under units, frames around buildings, health bars for selected buildings. */
   syncSelection(selected) {
-    const marks = (this.selMarks ??= new Map());
-    for (const [id, m] of marks) {
-      if (!selected.has(id) || !this.sim.entities.has(id)) {
-        this.selectionGroup.remove(m);
-        if (!m.userData.shared) m.geometry.dispose();
-        marks.delete(id);
-      }
-    }
+    const t = this.time ?? 0;
+    const pulse = 0.85 + Math.sin(t * 5) * 0.15;
     for (const id of selected) {
       const e = this.sim.entities.get(id);
       if (!e) continue;
-      let m = marks.get(id);
-      if (e.kind !== 'building') {
-        const u = this.units.get(id);
-        if (!u) continue;
-        if (!m) {
-          m = new THREE.Mesh(this.ringGeo ??= new THREE.RingGeometry(0.22, 0.3, 16).rotateX(-Math.PI / 2), mat(0xfff2b0, { flatShading: false }));
-          m.userData.shared = true;
-          marks.set(id, m); this.selectionGroup.add(m);
-        }
-        m.position.copy(u.position).y += 0.04;
-      } else if (e.kind === 'building' && !m) {
-        const pts = [[e.x, e.y], [e.x + e.w, e.y], [e.x + e.w, e.y + e.h], [e.x, e.y + e.h]]
-          .map(([x, z]) => new THREE.Vector3(x, this.terrain.heightAt(x, z) + 0.06, z));
-        m = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xfff2b0 }));
-        marks.set(id, m); this.selectionGroup.add(m);
+      if (e.kind === 'building') {
+        const g = this.buildings.get(id);
+        const y = g ? g.position.y : this.terrain.rectHeight(e.x, e.y, e.w, e.h);
+        this.marks.rect(e.x + e.w / 2, y + 0.06, e.y + e.h / 2, e.w + 0.2, e.h + 0.2, 0xfff2b0, 0.95 * pulse, 0.09);
+        const maxHp = BUILDINGS[e.type]?.levels[e.level]?.hp ?? e.hp;
+        if (e.done) this.bars.add(e.x + e.w / 2, y + (g?.userData.height ?? 2.5) + 0.45, e.y + e.h / 2, e.hp / maxHp, 64, 8);
+        continue;
+      }
+      const ids = e.kind === 'leader' ? [e.id, ...e.soldiers] : [e.id];
+      for (const k of ids) {
+        const r = this.chars.records.get(k);
+        if (!r || !r.visible) continue;
+        const big = r.variant?.attach.length ? 0.5 : 0.32;
+        this.marks.ring(r.position.x, r.position.y + 0.04, r.position.z, big, k === e.id ? 0xfff2b0 : 0xe8dca0, k === e.id ? pulse : 0.7, 0.05, 0.4);
       }
     }
   }
@@ -779,13 +1013,41 @@ export class Renderer {
     return null;
   }
 
-  /** Entity under a screen position (units and buildings via raycast). */
+  /**
+   * Entity under a screen position. Figures are instanced: selection via the screen distance
+   * to the body (capsule from foot to head point); buildings and small items via raycast. The nearer one wins.
+   */
   pickEntity(clientX, clientY) {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
     const objs = [...this.units.values(), ...this.buildings.values()];
     const hit = this.raycaster.intersectObjects(objs, true)[0];
+    let best = null, bestScore = Infinity;
+    const a = new THREE.Vector3(), b = new THREE.Vector3();
+    const px = clientX - rect.left, py = clientY - rect.top;
+    const touch = matchMedia?.('(pointer: coarse)').matches;
+    for (const r of this.chars.records.values()) {
+      if (!r.visible || r.dying || r.lod.level < 0) continue;
+      a.copy(r.position).project(this.camera);
+      b.copy(r.position); b.y += 0.95 + (r.variant?.seat ?? 0);
+      b.project(this.camera);
+      if (a.z > 1 || b.z > 1) continue;
+      const ax = (a.x + 1) / 2 * rect.width, ay = (1 - a.y) / 2 * rect.height;
+      const bx = (b.x + 1) / 2 * rect.width, by = (1 - b.y) / 2 * rect.height;
+      // Abstand Punkt–Strecke
+      const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L));
+      const d = Math.hypot(ax + dx * t - px, ay + dy * t - py);
+      const radius = Math.max(touch ? 16 : 9, Math.sqrt(L) * 0.32);
+      if (d > radius) continue;
+      const score = a.z + d * 1e-5;
+      if (score < bestScore) { bestScore = score; best = r; }
+    }
+    if (best && (!hit || bestScore <= new THREE.Vector3().copy(hit.point).project(this.camera).z)) {
+      const e = this.sim.entities.get(best.id);
+      return e?.kind === 'soldier' ? e.leader : best.id;
+    }
     return hit ? hit.object.userData.entity ?? null : null;
   }
 
@@ -795,4 +1057,58 @@ export class Renderer {
     const rect = this.renderer.domElement.getBoundingClientRect();
     return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height, behind: v.z > 1 };
   }
+}
+
+/** Time after which a ruin (without simulation ruin) begins to fade (seconds). */
+const RUIN_TIME = 14;
+
+/** Chimney positions per building type: x/z relative to half the footprint, y relative to house height. */
+const CHIMNEY = {
+  smithy: [0.25, 0.95, -0.35], brickworks: [0.45, 0.95, 0.4], alchemist: [0.35, 0.95, -0.4], residence: [0.12, 1.0, -0.05],
+  bank: [-0.3, 0.95, -0.3], villageCenter: [0.3, 0.9, -0.4], foundry: [0.5, 0.95, -0.4], headquarters: [0.15, 0.85, 0.1],
+  sawmill: [-0.3, 0.9, -0.4], stonemason: [0.3, 0.95, -0.3], university: [-0.3, 0.95, -0.2], farm: [-0.45, 0.9, -0.2],
+};
+
+/** Arrow with tip and fletching (corners coloured). */
+function arrowGeometry() {
+  const parts = [];
+  const shaft = new THREE.CylinderGeometry(0.012, 0.012, 0.42, 4).rotateX(Math.PI / 2);
+  const tip = new THREE.ConeGeometry(0.03, 0.08, 4).rotateX(Math.PI / 2).translate(0, 0, 0.25);
+  const fl = new THREE.BoxGeometry(0.06, 0.004, 0.08).translate(0, 0, -0.18);
+  const fl2 = new THREE.BoxGeometry(0.004, 0.06, 0.08).translate(0, 0, -0.18);
+  for (const [g, c] of [[shaft, 0x8a6a42], [tip, 0x9aa0a8], [fl, 0xe8e2d4], [fl2, 0xe8e2d4]]) {
+    const n = g.index ? g.toNonIndexed() : g;
+    const col = new Float32Array(n.attributes.position.count * 3);
+    const cc = new THREE.Color(c);
+    for (let i = 0; i < col.length; i += 3) { col[i] = cc.r; col[i + 1] = cc.g; col[i + 2] = cc.b; }
+    n.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    n.deleteAttribute('uv');
+    parts.push(n);
+  }
+  return mergeGeometries(parts);
+}
+
+/**
+ * Procedural figures (fallback without models) for the figure system.
+ * Keys as in the manifest: 'serf', 'worker', 'sword', 'sword:leader', 'heavyCav', 'cannon', 'hero:bertram', 'horse' …
+ */
+function proceduralFigures() {
+  const TEAM = 0xff00ff, TINT = 0x00ffff; // detection colours for the masks
+  const swapColors = (g, from, to) => g.traverse((m) => { if (m.isMesh && m.material.color?.getHex() === from) m.material = mat(to); });
+  const fig = (make, opts = {}) => (kind) => {
+    const g = make(kind);
+    // mark colour of player 0 as mask
+    swapColors(g, PLAYER_COLORS[0], TEAM);
+    return { group: g, team: TEAM, tint: opts.tint ? TINT : undefined, tintDefault: opts.tintDefault, saddle: opts.saddle, radius: opts.radius ?? 0.3 };
+  };
+  const unit = (line) => fig((kind) => unitModel(line, 0, kind.endsWith(':leader')), { radius: line.endsWith('Cav') ? 0.5 : line === 'cannon' ? 0.5 : 0.3 });
+  const out = {
+    serf: fig(() => serfModel(0), {}),
+    worker: fig(() => { const g = serfModel(0, TINT); g.userData.tool.visible = false; return g; }, { tint: true, tintDefault: 0xc39a5e }),
+    horse: fig(() => { const h = horseModel(0x8a6a4a, 0, 1); const g = new THREE.Group(); g.add(h); g.userData = { horse: h, horseLegs: h.userData.legs }; return g; }, { saddle: 0.62, radius: 0.5 }),
+  };
+  for (const line of ['sword', 'spear', 'bow', 'lightCav', 'heavyCav', 'cannon']) out[line] = unit(line);
+  for (const hero of ['bertram', 'hedda', 'gerold']) out['hero:' + hero] = fig(() => heroModel(hero, 0), {});
+  out.hero = out['hero:bertram'];
+  return out;
 }

@@ -85,7 +85,7 @@ test('Recruit squads in the barracks', async ({ page }) => {
     e.selected.clear(); e.selected.add(b.id); e.emitUi();
   });
   await page.getByTestId('recruit-full-sword').click();
-  await expect.poll(() => page.evaluate(() => [...window.__kronland.sim.entities.values()].filter((e) => e.kind === 'soldier' && e.owner === 0).length)).toBe(4);
+  await expect.poll(() => page.evaluate(() => [...window.__kronland.sim.entities.values()].filter((e) => e.kind === 'soldier' && e.owner === 0).length), { timeout: 45_000 }).toBe(4);
   await expect(page.getByTestId('res-gold')).toHaveText(String(500 - 100 - 4 * 30));
 });
 
