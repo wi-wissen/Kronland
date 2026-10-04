@@ -65,6 +65,8 @@ export function buildingMaxHp(sim, b) {
 export function checkBuildingResearch(sim, owner, b, techId) {
   const t = typeof techId === 'string' && Object.hasOwn(BUILDING_TECHS, techId) ? BUILDING_TECHS[techId] : null;
   if (!t) return REASONS.unknownTech;
+  // Expansion technologies (mathematics, rifled barrels) only with expansion content
+  if (t.addon && !sim.addon) return 'err.addonOff';
   if (!b || b.kind !== 'building' || b.owner !== owner) return REASONS.notOwnBuilding;
   if (b.type !== t.building) return REASONS.wrongBuilding;
   if (!b.done) return REASONS.notReady;

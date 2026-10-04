@@ -40,6 +40,7 @@
 <script>
 import CostList from '../CostList.vue';
 import { TECH_LINE_ICONS } from '../icons/index.js';
+import { techUnlocks } from '../techUnlocks.js';
 
 export default {
   name: 'ResearchGrid',
@@ -74,10 +75,20 @@ export default {
       if (t.running !== null) return this.$t('bld.techRunning', { p: t.running });
       return t.reason ? this.$reason(t.reason) : this.$t('build.clickToBuild');
     },
+    /** "Unlocks: …" as rows for the tooltip */
+    unlockNotes(id) {
+      const u = techUnlocks(id), out = [];
+      if (u.build.length) out.push(this.$t('bld.techBuild', { list: u.build.map((b) => this.$name.building(b)).join(', ') }));
+      if (u.upgrade.length) out.push(this.$t('bld.techUpgrade', { list: u.upgrade.map(([b, l]) => this.$name.building(b, l)).join(', ') }));
+      for (const k of u.extra) out.push(this.$t(k));
+      if (out.length) out[0] = this.$t('bld.techUnlocks') + ' – ' + out[0];
+      return out;
+    },
     tipFor(t) {
       return {
         title: this.$name.tech(t.id),
         text: this.$t('bld.techLine.' + t.line) + ' · ' + this.$t('bld.techTier', { n: t.tier }) + ' · ' + this.$t('bld.techTime', { s: t.time }),
+        notes: this.unlockNotes(t.id),
         cost: t.done ? null : t.cost, have: this.have,
         reason: !t.done && t.running === null && t.reason ? this.$reason(t.reason) : null,
       };
@@ -122,5 +133,9 @@ export default {
   .rg-linename { display: none; }
   .rg-link { left: -0.8125rem; width: 0.8125rem; }
   .rg-cell { min-height: var(--touch); }
+  /* "Show labels" setting: name of the research line under the icon */
+  .show-labels .rg-head, .show-labels .rg-row { grid-template-columns: 3.75rem repeat(4, minmax(6.25rem, 1fr)); }
+  .show-labels .rg-line { flex-direction: column; justify-content: center; gap: 0; }
+  .show-labels .rg-linename { display: block; max-width: 100%; font-size: 0.625rem; line-height: 1.1; }
 }
 </style>

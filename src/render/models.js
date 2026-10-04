@@ -235,6 +235,7 @@ BUILDERS.sulfurMine = mineBuilder('sulfur');
  * (only one is visible; chosen in the renderer by distance), for procedural buildings one level.
  */
 export function buildingModel(type, w, d, level, owner) {
+  if (type === 'bridge') return bridgeModel(w, d, owner);
   const g = new THREE.Group();
   foundation(g, w - 0.2, d - 0.2);
   const asset = buildingAssetName(type, level, owner);
@@ -253,6 +254,12 @@ export function buildingModel(type, w, d, level, owner) {
     });
     g.add(body);
     g.userData.lods = lods;
+    // Expansion: tell the tavern from the (identical-looking) village centre – barrels and sign
+    if (type === 'tavern') {
+      for (const [x, z] of [[w / 2 - 0.35, d / 2 - 0.3], [w / 2 - 0.75, d / 2 - 0.25]]) g.add(cyl(0.14, 0.14, 0.32, 0x7a4a2a, x, 0, z));
+      g.add(box(0.05, 0.9, 0.05, BEAM, -w / 2 + 0.3, 0, d / 2 - 0.25));
+      g.add(box(0.36, 0.26, 0.04, 0xe0b13a, -w / 2 + 0.3, 0.75, d / 2 - 0.2));
+    }
     return g;
   }
   const inner = new THREE.Group();
@@ -419,7 +426,7 @@ export function unitModel(line, owner, leader = false) {
     return g;
   }
   const cav = line === 'lightCav' || line === 'heavyCav';
-  const tunic = line === 'sword' ? 0x6a6f78 : line === 'spear' ? 0x6b5a3a : line === 'bow' ? 0x4f6a3a : line === 'heavyCav' ? 0x8a8f98 : 0x6b5a3a;
+  const tunic = line === 'sword' ? 0x6a6f78 : line === 'spear' ? 0x6b5a3a : line === 'bow' ? 0x4f6a3a : line === 'heavyCav' ? 0x8a8f98 : line === 'rifle' ? 0x3b3f46 : 0x6b5a3a;
   const g = humanoid(tunic, owner);
   const { arm } = g.userData;
   if (line === 'sword' || line === 'heavyCav') arm.add(box(0.03, 0.42, 0.03, METAL, 0, -0.05, 0.08));
@@ -428,6 +435,8 @@ export function unitModel(line, owner, leader = false) {
     const bow = mesh(new THREE.TorusGeometry(0.18, 0.015, 4, 10, Math.PI), BEAM);
     bow.rotation.y = Math.PI / 2; bow.position.set(0.02, 0, 0.05); arm.add(bow);
   }
+  // Expansion: rifle (long barrel)
+  if (line === 'rifle') { const r = box(0.025, 0.7, 0.025, 0x3a3a40, 0, -0.15, 0.08); r.rotation.x = 0.4; arm.add(r); }
   if (line === 'sword') {
     const shield = mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 8), PLAYER_COLORS[owner % 4]);
     shield.rotation.z = Math.PI / 2; shield.position.set(-0.15, 0.36, 0.05); g.userData.body.add(shield);
@@ -484,13 +493,15 @@ export function horseModel(color = 0x8a6a4a, owner = 0, scale = 1) {
 
 /** Hero: bigger, with a cape. */
 export function heroModel(hero, owner) {
-  const colors = { bertram: 0x9aa0a8, hedda: 0x5a7a4a, gerold: 0x8a5a3a };
+  const colors = { bertram: 0x9aa0a8, hedda: 0x5a7a4a, gerold: 0x8a5a3a, falk: 0x4f6a3a, morla: 0x5b3f7a };
   const g = humanoid(colors[hero] ?? 0x9aa0a8, owner, { helmet: hero === 'bertram' });
   const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.4), mat(PLAYER_COLORS[owner % 4], { side: THREE.DoubleSide }));
   cape.position.set(0, 0.32, -0.12); cape.rotation.x = 0.15; g.userData.body.add(cape);
   const { arm } = g.userData;
   if (hero === 'bertram') arm.add(box(0.035, 0.5, 0.035, METAL, 0, -0.05, 0.1));
   if (hero === 'hedda') arm.add(box(0.03, 0.8, 0.03, BEAM, 0, -0.1, 0.05));
+  if (hero === 'falk') { const r = box(0.03, 0.75, 0.03, 0x3a3a40, 0, -0.15, 0.08); r.rotation.x = 0.4; arm.add(r); }
+  if (hero === 'morla') arm.add(box(0.025, 0.45, 0.025, 0x3a2a4a, 0, -0.05, 0.08));
   if (hero === 'gerold') { const h = box(0.18, 0.08, 0.08, 0x3a3a40, 0, -0.2, 0.08); arm.add(h); arm.add(box(0.03, 0.35, 0.03, BEAM, 0, -0.05, 0.08)); }
   const ring = mesh(new THREE.TorusGeometry(0.1, 0.012, 4, 12), 0xe0b13a);
   ring.rotation.x = Math.PI / 2; ring.position.y = 0.78; g.userData.body.add(ring);
@@ -507,9 +518,97 @@ export function gadgetModel(kind, owner) {
   } else if (kind === 'bomb') {
     const b = mesh(new THREE.SphereGeometry(0.14, 8, 6), 0x2a2a2e); b.position.y = 0.14; g.add(b);
     g.add(box(0.02, 0.1, 0.02, 0xffa632, 0, 0.27, 0));
+  } else if (ADDON_GADGETS[kind]) {
+    ADDON_GADGETS[kind](g, owner);
   } else {
     g.add(unitModel('cannon', owner));
   }
+  return g;
+}
+
+// ---------- Erweiterung: Sprengladung, Fackel, Giftnebel ----------
+const ADDON_GADGETS = {
+  charge(g) {
+    g.add(cyl(0.16, 0.16, 0.34, 0x7a3a22));
+    g.add(box(0.34, 0.03, 0.34, 0x4a2a1a, 0, 0.1, 0));
+    const fuse = box(0.02, 0.12, 0.02, 0xffa632, 0.06, 0.34, 0); fuse.name = 'flame'; g.add(fuse);
+  },
+  torch(g) {
+    g.add(cyl(0.04, 0.05, 0.9, BEAM));
+    const f = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.3, 6), new THREE.MeshBasicMaterial({ color: 0xffb030 }));
+    f.position.y = 1.0; f.name = 'flame'; g.add(f);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd070, transparent: true, opacity: 0.35, depthWrite: false }));
+    glow.position.y = 1.0; g.add(glow);
+  },
+  cloud(g) {
+    const m = new THREE.MeshBasicMaterial({ color: 0x8fbf5a, transparent: true, opacity: 0.28, depthWrite: false });
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.9 + (i % 3) * 0.3, 10, 8), m);
+      b.position.set(Math.cos(a) * 1.6, 0.6 + (i % 2) * 0.4, Math.sin(a) * 1.6); b.name = i ? '' : 'spinY'; g.add(b);
+    }
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(1.5, 12, 8), m));
+    g.userData.spin = true;
+  },
+};
+
+// ---------- Expansion: buildings (procedural, if no KayKit model is assigned) ----------
+Object.assign(BUILDERS, {
+  tavern(g, w, d, level, pc) {
+    house(g, { w: w - 0.5, d: d - 0.9, h: 1.2 + level * 0.3, wall: 0xe0cfa6, roof: 0x8a4a2e, z: -0.2 });
+    g.add(box(0.05, 0.7, 0.05, BEAM, w / 2 - 0.35, 0, d / 2 - 0.35));
+    g.add(box(0.3, 0.22, 0.03, 0xe0b13a, w / 2 - 0.35, 0.62, d / 2 - 0.35));
+    for (const x of [-0.5, 0.1]) g.add(cyl(0.12, 0.12, 0.3, 0x7a4a2a, x, 0, d / 2 - 0.3));
+    flag(g, pc, -w / 2 + 0.3, 0, d / 2 - 0.3);
+  },
+  gunsmith(g, w, d, level, pc) {
+    house(g, { w: 2.2, d: 1.6, h: 1.3 + level * 0.3, wall: 0x9a8a7a, roof: 0x4a4a52, x: -0.5, z: -0.3 });
+    g.add(box(0.35, 1.9, 0.35, 0x6d5a4a, 0.9, 0, -0.6));
+    for (let i = 0; i < 3; i++) { const r = box(0.03, 0.6, 0.03, 0x3a3a40, 0.6 + i * 0.15, 0.1, d / 2 - 0.5); r.rotation.z = 0.2; g.add(r); }
+    flag(g, pc, -w / 2 + 0.4, 0, d / 2 - 0.4);
+  },
+  fountain(g, w, d) {
+    g.add(cyl(w / 2 - 0.15, w / 2 - 0.1, 0.3, STONE));
+    const water = cyl(w / 2 - 0.3, w / 2 - 0.3, 0.05, 0x5a9ad0, 0, 0.27, 0); g.add(water);
+    g.add(cyl(0.12, 0.16, 0.9, STONE, 0, 0.2, 0));
+    g.add(cyl(0.35, 0.2, 0.08, STONE, 0, 1.05, 0));
+  },
+  statue(g) {
+    g.add(box(1.2, 0.5, 1.2, STONE));
+    g.add(box(0.9, 0.2, 0.9, 0xcfc9bf, 0, 0.5, 0));
+    const body = cyl(0.16, 0.22, 0.8, 0xc8b071, 0, 0.7, 0); g.add(body);
+    const head = mesh(new THREE.SphereGeometry(0.13, 10, 8), 0xc8b071); head.position.y = 1.62; g.add(head);
+    const arm = box(0.06, 0.5, 0.06, 0xc8b071, 0.2, 1.3, 0); arm.rotation.z = -0.6; g.add(arm);
+  },
+});
+
+/**
+ * Bridge (expansion): wooden deck on piers over the full length of the bridge site; y = 0 is the
+ * deck top edge (the renderer sets it to shore height), piers reach into the water.
+ */
+export function bridgeModel(w, d, owner) {
+  const g = new THREE.Group();
+  const body = new THREE.Group(); body.name = 'body';
+  const along = w >= d ? 'x' : 'z', len = Math.max(w, d) + 0.6, wid = Math.min(w, d) - 0.15;
+  const deck = along === 'x' ? box(len, 0.14, wid, 0x9a6a3a, 0, -0.14, 0) : box(wid, 0.14, len, 0x9a6a3a, 0, -0.14, 0);
+  body.add(deck);
+  const n = Math.max(2, Math.round(len / 1.2));
+  for (let i = 0; i <= n; i++) {
+    const t = -len / 2 + (i * len) / n;
+    for (const s of [-1, 1]) {
+      const px = along === 'x' ? t : s * (wid / 2 - 0.05), pz = along === 'x' ? s * (wid / 2 - 0.05) : t;
+      body.add(box(0.07, 0.45, 0.07, BEAM, px, 0, pz));
+      if (i > 0 && i < n) body.add(box(0.16, 1.8, 0.16, 0x6a4a2a, px, -1.9, pz));
+    }
+  }
+  for (const s of [-1, 1]) {
+    const rail = along === 'x' ? box(len, 0.06, 0.06, BEAM, 0, 0.42, s * (wid / 2 - 0.05)) : box(0.06, 0.06, len, BEAM, s * (wid / 2 - 0.05), 0.42, 0);
+    body.add(rail);
+  }
+  // pennant in player colour at the bridgehead
+  const pc = PLAYER_COLORS[owner % 4];
+  flag(body, pc, along === 'x' ? -len / 2 + 0.1 : wid / 2 - 0.05, 0, along === 'x' ? wid / 2 - 0.05 : -len / 2 + 0.1);
+  g.add(body);
   return g;
 }
 

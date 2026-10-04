@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Bildschirmfotos der Oberfläche für die Gestaltungsprüfung (nicht Teil der Tests).
+"""Screenshots of the UI for the design review (not part of the tests).
 
-Aufruf (Vorschau-Server muss laufen, z. B. `npx vite preview --port 4211`):
-    python3 scripts/ui-screens.py [basis-url] [filter]
-Ergebnis: review/ui-<ansicht>-<gerät>-<sprache>.png
+Usage (preview server must be running, e.g. `npx vite preview --port 4211`):
+    python3 scripts/ui-screens.py [base-url] [filter]
+Output: review/ui-<view>-<device>-<language>.png
 """
 import sys
 from pathlib import Path
@@ -80,7 +80,7 @@ def run(pw, dev, lang):
         return not FILTER or FILTER in n
 
     if want('start') or want('settings') or want('campaign'):
-        page.goto(BASE + '/')
+        page.goto(BASE + '/play/')
         page.wait_for_selector('[data-testid=start-menu]')
         page.wait_for_timeout(400)
         shot(page, 'start', dev, lang)
@@ -96,7 +96,7 @@ def run(pw, dev, lang):
             shot(page, 'campaign', dev, lang)
 
     if want('hud') or want('build') or want('uni') or want('army') or want('gmenu') or want('recruit') or want('hq') or want('victory'):
-        page.goto(BASE + '/?seed=42')
+        page.goto(BASE + '/play/?seed=42')
         wait_game(page)
         shot(page, 'hud', dev, lang)
         page.click('[data-testid=quick-all]')
@@ -130,14 +130,14 @@ def run(pw, dev, lang):
         shot(page, 'victory', dev, lang)
 
     if want('tutorial') or want('mission'):
-        page.goto(BASE + '/?mission=tutorial')
+        page.goto(BASE + '/play/?mission=tutorial')
         wait_game(page)
         page.click('[data-testid=tutorial-next]')
         page.wait_for_timeout(500)
         page.click('[data-testid=tutorial-next]')
         page.wait_for_timeout(1200)
         shot(page, 'tutorial', dev, lang)
-        page.goto(BASE + '/?mission=c1')
+        page.goto(BASE + '/play/?mission=c1')
         wait_game(page)
         page.wait_for_timeout(1000)
         shot(page, 'mission', dev, lang)

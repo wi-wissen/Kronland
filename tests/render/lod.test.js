@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import {
   selectLod, withinCull, effectiveDistance, lodSettings, LodState, LodCounter, LOD_PROFILES, LOD_TIERS,
-  ChunkedInstances, ViewTracker, cameraFrustum,
+  ChunkedInstances, ViewTracker, cameraFrustum, NEAR_FULL_DETAIL,
 } from '../../src/render/lod.js';
 
 const T = [20, 40];
@@ -159,5 +159,19 @@ describe('ChunkedInstances', () => {
     expect(v.changed(cam)).toBe(false);
     cam.position.x += 1; cam.updateMatrixWorld();
     expect(v.changed(cam)).toBe(true);
+  });
+});
+
+describe('Near view full LOD level', () => {
+  it('effective distance is continuous across the near boundary', () => {
+    for (const [fov, bias] of [[55, 0.55], [55, 0.8], [40, 1]]) {
+      let last = effectiveDistance(0, fov, bias);
+      for (let d = 0.05; d < NEAR_FULL_DETAIL * 2; d += 0.05) {
+        const e = effectiveDistance(d, fov, bias);
+        expect(Math.abs(e - last)).toBeLessThan(0.5); // step 0.05: no jump
+        expect(e).toBeGreaterThanOrEqual(last - 1e-9);
+        last = e;
+      }
+    }
   });
 });

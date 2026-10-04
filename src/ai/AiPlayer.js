@@ -22,8 +22,10 @@ import { checkBuildingResearch } from '../sim/systems/techs.js';
 import { checkTrade, tradeCost } from '../sim/systems/market.js';
 import { isDamaged } from '../sim/systems/damage.js';
 import { MARKET } from '../sim/data/market.js';
-import { WATER, OCCUPIED, CLIFF } from '../sim/map.js';
+import { WATER, OCCUPIED, CLIFF, BRIDGE } from '../sim/map.js';
 import { canSee, knownBuildings } from '../sim/systems/vision.js';
+import { hiddenFrom } from '../sim/systems/hidden.js';
+import { addonPlan, addonMilitary, wantsGuardTower, visibleEnemySpecialist, ADDON_PLAN_TYPES } from './addonAi.js';
 
 export const DIFFICULTY = {
   easy:   { name: 'Leicht', think: 50, serfs: 14, attackSize: 3, firstAttack: 21000, maxSites: 2, bonusGold: 0, reserve: 200, militaryShare: 30 },
@@ -33,20 +35,22 @@ export const DIFFICULTY = {
 // intel: guards report enemies within 22 tiles around the castle even in the fog (small knowledge advantage)
 
 /** Research order. */
-const RESEARCH = ['construction', 'education', 'conscription', 'alchemy', 'standingArmy', 'trade', 'gears', 'alloys', 'metallurgy', 'pulley', 'printing', 'tactics', 'chemistry', 'architecture', 'libraries', 'horseBreeding'];
+export const RESEARCH = ['construction', 'education', 'conscription', 'alchemy', 'standingArmy', 'trade', 'gears', 'alloys', 'metallurgy', 'pulley', 'printing', 'tactics', 'chemistry', 'architecture', 'libraries', 'horseBreeding'];
 
 /**
  * Building technologies in desired order. The AI researches them only if it is "rich"
  * (cost × 2 plus reserve available), so that build-up and troops do not suffer.
  */
-const BUILDING_RESEARCH = [
+export const BUILDING_RESEARCH = [
   'leatherMail', 'softLeather', 'woodHardening', 'marching', 'masonry', 'loom', 'fletching', 'masterShooter',
   'chainMail', 'paddedLeather', 'masterSmith', 'tracking', 'gunpowder', 'turnery', 'bodkin', 'weatherForecast',
   'plateArmor', 'reinforcedLeather', 'ironCasting', 'heatedShots', 'shoes', 'undercarriage', 'horseshoe', 'cityGuard',
+  // Add-on (rejected without add-on content, so harmless here)
+  'mathematics', 'rifling',
 ];
 
 /** Extension wish list: [building, count]. Worked through from top to bottom. */
-const BUILD_PLAN = [
+export const BUILD_PLAN = [
   ['residence', 1], ['farm', 1], ['university', 1], ['clayMine', 1], ['stoneMine', 1],
   ['residence', 2], ['farm', 2], ['sawmill', 1], ['ironMine', 1], ['brickworks', 1],
   ['barracks', 1], ['stoneMine', 2], ['sulfurMine', 1], ['smithy', 1], ['storehouse', 1], ['stonemason', 1], ['sawmill', 2],
@@ -81,6 +85,8 @@ export class AiPlayer {
     return {
       player: this.player, difficulty: this.difficulty, rng: this.rng.getState(), armyState: this.armyState, attackStrength: this.attackStrength,
       attackNowSeen: this.attackNowSeen ?? 0, forceAttack: !!this.forceAttack,
+      robbedSeen: this.robbedSeen ?? 0, robbedAt: this.robbedAt ?? -99999, scoutLeg: this.scoutLeg ?? 0,
+      badTargets: [...(this.badTargets ?? [])], thiefOrders: this.thiefOrders ?? {},
     };
   }
 
@@ -91,6 +97,9 @@ export class AiPlayer {
     ai.attackStrength = st.attackStrength;
     ai.attackNowSeen = st.attackNowSeen ?? 0;
     ai.forceAttack = !!st.forceAttack;
+    ai.robbedSeen = st.robbedSeen ?? 0; ai.robbedAt = st.robbedAt ?? -99999; ai.scoutLeg = st.scoutLeg ?? 0;
+    if (st.badTargets?.length) ai.badTargets = new Set(st.badTargets);
+    if (st.thiefOrders) ai.thiefOrders = st.thiefOrders;
     return ai;
   }
 
@@ -164,10 +173,12 @@ export class AiPlayer {
         else if (e.kind === 'leader') this.leaders.push(e);
         else if (e.kind === 'hero') this.heroes.push(e);
         else if (e.kind === 'worker') this.workers++;
-      } else if (e.owner !== undefined && e.owner >= 0 && !sim.allied(me, e.owner) && (e.kind === 'leader' || e.kind === 'soldier' || e.kind === 'hero')) {
+      } else if (e.owner !== undefined && e.owner >= 0 && !sim.allied(me, e.owner) && (e.kind === 'leader' || e.kind === 'soldier' || e.kind === 'hero' || visibleEnemySpecialist(this, e))) {
         if (e.kind === 'hero' && e.down) continue;
         // Fog: only seen enemies (Hard: guards also report enemies in the fog near the castle)
         if (!this.cfg.intel && !canSee(sim, me, e)) continue;
+        // Even the hard AI does not notice invisible units (thieves, mist veil)
+        if (e.hidden || (e.seenBy !== undefined && hiddenFrom(sim, me, e))) continue;
         const d = Math.hypot(e.px / UNIT - this.home.x, e.py / UNIT - this.home.y);
         // Only enemies the troops can get to (not on the other shore)
         if (d < 22 && this.reachableAt(e.px / UNIT, e.py / UNIT)) this.enemyNearHome.push(e);
@@ -230,7 +241,11 @@ export class AiPlayer {
     if (this.seenBuf?.length !== n) { this.seenBuf = new Uint8Array(n); this.queueBuf = new Int32Array(n); }
     const seen = this.seenBuf.fill(0), queue = this.queueBuf;
     const inRect = (i, j) => i >= x && i < x + w && j >= y && j < y + h;
-    const free = (i, j) => i >= 0 && j >= 0 && i < W && j < H && !(flags[j * W + i] & (WATER | OCCUPIED | CLIFF)) && !inRect(i, j);
+    const free = (i, j) => {
+      if (i < 0 || j < 0 || i >= W || j >= H || inRect(i, j)) return false;
+      const f = flags[j * W + i];
+      return !(f & (OCCUPIED | CLIFF)) && (!(f & WATER) || !!(f & BRIDGE));
+    };
     let head = 0, tail = 0;
     const hq = this.hq;
     for (const k of map.ring(hq.x, hq.y, hq.w, hq.h)) if (free(k % W, (k / W) | 0) && !seen[k]) { seen[k] = 1; queue[tail++] = k; }
@@ -383,25 +398,33 @@ export class AiPlayer {
     // New village centre if the limit presses
     if (sim.popLimit(this.player) - sim.popUsed(this.player) < 10) urgent.push('villageCenter');
     if (this.starved && !this.has('storehouse')) urgent.push('storehouse');
+    // Add-on: robbed → guard tower at the castle (detects thieves)
+    if (sim.addon && wantsGuardTower(this) && this.tryBuild('tower', this.home)) return;
     for (const type of urgent) if (this.tryBuild(type)) return;
-    for (const [type, n] of BUILD_PLAN) {
+    for (const [type, n] of (sim.addon ? (this.plan ??= addonPlan(BUILD_PLAN)) : BUILD_PLAN)) {
       if (this.has(type, n)) continue;
+      // Add-on buildings only once barracks and a small army stand and resources are plentiful
+      // (otherwise wood and time are lacking for the village extension, and workers fill the population before the army)
+      if (ADDON_PLAN_TYPES.has(type) && (!this.has('barracks') || this.leaders.length < (type === 'tavern' ? 2 : 3)
+        || !this.affordable(BUILDINGS[type].levels[0].cost, type === 'tavern' || type === 'bridge' ? 1.5 : 2.5))) continue;
       if (this.tryBuild(type)) return;
       // Do not get stuck on expensive but reachable targets: keep searching in the list
     }
   }
 
-  tryBuild(type) {
+  tryBuild(type, at = null) {
     const sim = this.sim, def = BUILDINGS[type];
     if (this.forbid?.includes(type)) return false;
     if (def.requires && !this.me.techs.has(def.requires)) return false;
     if (!this.affordable(def.levels[0].cost)) return false;
-    const near = type.endsWith('Mine') || type === 'villageCenter' ? this.home : this.spotNear(type);
+    const near = at ?? (type.endsWith('Mine') || type === 'villageCenter' ? this.home : this.spotNear(type));
     // Only building sites the serfs can reach from the castle
     const pos = sim.findPlacement(this.player, type, near.x, near.y, 26, (x, y) => this.reachableAfterBuild(x, y, def.w, def.h));
     if (!pos) return false;
     // Shafts and settlement spots: only within sensible proximity
-    if (Math.hypot(pos.x - this.home.x, pos.y - this.home.y) > 38) return false;
+    if (Math.hypot(pos.x - this.home.x, pos.y - this.home.y) > (type === 'bridge' ? 60 : 38)) return false;
+    // Bridge only as a shortcut: spot near the middle between own and (known) enemy castle
+    if (type === 'bridge' && Math.hypot(pos.x - near.x, pos.y - near.y) > 20) return false;
     const builders = this.idleSerfs().slice(0, 4).map((u) => u.id);
     this.issue({ type: 'placeBuilding', building: type, x: pos.x, y: pos.y, units: builders });
     this.sites++;
@@ -414,7 +437,9 @@ export class AiPlayer {
   spotNear(type) {
     const h = this.home;
     const enemy = this.enemyHome(true);
-    if (['barracks', 'archery', 'stable', 'foundry', 'tower'].includes(type) && enemy) {
+    if (['barracks', 'archery', 'stable', 'foundry', 'tower', 'gunsmith', 'bridge'].includes(type) && enemy) {
+      // Bridge: the bridge spot nearest to the route to the opponent
+      if (type === 'bridge') return { x: Math.round((h.x + enemy.x) / 2), y: Math.round((h.y + enemy.y) / 2) };
       const dx = enemy.x - h.x, dy = enemy.y - h.y, d = Math.hypot(dx, dy) || 1;
       return { x: Math.round(h.x + (dx / d) * 9), y: Math.round(h.y + (dy / d) * 9) };
     }
@@ -566,6 +591,7 @@ export class AiPlayer {
     this.refill();
     this.commandArmy();
     this.useHeroes();
+    addonMilitary(this);
   }
 
   recruit() {
@@ -579,9 +605,10 @@ export class AiPlayer {
       if (!b.done) continue;
       const fitting = b.type === 'barracks' ? (line === 'bow' || line === 'cannon' ? 'sword' : line)
         : b.type === 'archery' ? 'bow'
-          : b.type === 'foundry' && cannons < 3 ? 'cannon' : null;
+          : b.type === 'gunsmith' && (line === 'bow' || line === 'cannon') ? 'rifle'
+            : b.type === 'foundry' && cannons < 3 ? 'cannon' : null;
       if (!fitting) continue;
-      const def = unitOf(fitting, this.me.unitTier[fitting]);
+      const def = unitOf(fitting, this.me.unitTier[fitting] ?? 1);
       // Share of thalers the AI spends on the military rises with difficulty
       const cost = fullCost(def);
       const gold = this.me.stock.gold;
@@ -592,8 +619,8 @@ export class AiPlayer {
   }
 
   upgradeLines() {
-    for (const line of ['sword', 'bow', 'spear']) {
-      const tier = this.me.unitTier[line];
+    for (const line of ['sword', 'bow', 'spear', 'rifle']) {
+      const tier = this.me.unitTier[line] ?? 1;
       const cost = LINE_UPGRADE_COST[`${line}${tier}`];
       if (!cost || this.sim.checkLineTier(this.player, line, tier + 1)) continue;
       if (!this.affordable(cost, 1.5)) continue;
@@ -700,7 +727,9 @@ export class AiPlayer {
       for (const [ab, def] of Object.entries(HEROES[h.hero].abilities)) {
         if ((h.ready[ab] ?? 0) > sim.tick) continue;
         if (ab === 'heal' && h.hp > HEROES[h.hero].hp * 0.6) continue;
-        void def;
+        // Aimed shot (add-on) only at squads in range, mist veil only when in danger
+        if (ab === 'aimedShot' && (near.kind === 'building' || Math.hypot(near.px - h.px, near.py - h.py) > def.range - 300)) continue;
+        if (ab === 'mistVeil' && h.hp > HEROES[h.hero].hp * 0.7) continue;
         this.issue({ type: 'ability', hero: h.id, ability: ab });
         break;
       }

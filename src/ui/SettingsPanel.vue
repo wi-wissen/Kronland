@@ -69,6 +69,21 @@
       <button class="switch" role="switch" :aria-checked="s.hints" data-testid="hints" @click="set('hints', !s.hints)">
         <span class="st-sl-label"><Icon name="hint" />{{ $t('set.hints') }}</span><span class="track"></span>
       </button>
+      <button class="switch" role="switch" :aria-checked="s.labels" data-testid="labels" @click="set('labels', !s.labels)">
+        <span class="st-sl-label"><Icon name="info" />{{ $t('set.labels') }}</span><span class="track"></span>
+      </button>
+      <p class="st-note">{{ $t('set.labelsNote') }}</p>
+      <button class="switch" role="switch" :aria-checked="dev.on" data-testid="dev-mode" @click="toggleDev">
+        <span class="st-sl-label"><Icon name="display" />{{ $t('dev.toggle') }}</span><span class="track"></span>
+      </button>
+      <p class="st-note">{{ $t('dev.settingsNote') }}</p>
+    </section>
+
+    <section class="st-sec">
+      <h4 class="h-label"><Icon name="save" />{{ $t('set.saves') }}</h4>
+      <button class="switch" role="switch" :aria-checked="s.autosave" data-testid="autosave" @click="set('autosave', !s.autosave)">
+        <span class="st-sl-label"><Icon name="time" />{{ $t('set.autosave') }}</span><span class="track"></span>
+      </button>
     </section>
 
     <div class="st-foot">
@@ -81,15 +96,17 @@
 <script>
 import { settings, set, DEFAULTS } from './settings.js';
 import { LANGS } from '../i18n/index.js';
+import { devState, setDevMode } from '../dev/state.js';
 
 export default {
   name: 'SettingsPanel',
   props: { inGame: Boolean },
   emits: ['close', 'quality'],
-  data() { return { s: settings, langs: LANGS, qualities: ['auto', 'low', 'medium', 'high'], preview: null }; },
+  data() { return { s: settings, langs: LANGS, qualities: ['auto', 'low', 'medium', 'high'], preview: null, dev: devState }; },
   methods: {
     set(k, v) { set(k, v); if (k === 'uiScale') this.preview = null; },
     setQuality(q) { set('quality', q); this.$emit('quality', q); },
+    toggleDev() { setDevMode(!this.dev.on); },
     reset() { for (const [k, v] of Object.entries(DEFAULTS)) set(k, v); },
   },
 };

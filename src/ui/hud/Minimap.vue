@@ -1,5 +1,5 @@
 <template>
-  <div class="minimap frame" data-testid="minimap">
+  <div v-tip="{ title: $t('minimap.title'), text: $t('minimap.hint') + ' – ' + (touch ? $t('minimap.tipTouch') : $t('minimap.tip')) }" class="minimap frame" data-testid="minimap">
     <div class="mm-frame">
       <canvas
         ref="cv"
@@ -7,7 +7,6 @@
         data-testid="minimap-canvas"
         role="img"
         :aria-label="$t('minimap.title')"
-        :title="touch ? $t('minimap.tipTouch') : $t('minimap.tip')"
         @pointerdown="down"
         @pointermove="move"
         @pointerup="up"

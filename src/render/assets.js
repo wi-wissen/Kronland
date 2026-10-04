@@ -7,6 +7,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { loadCharacterManifest, loadCharacterModels, characterFileCount } from './characters.js';
+import { siteUrl } from '../paths.js';
 
 /** Player colours in player order. */
 export const ASSET_COLORS = ['blue', 'red', 'green', 'yellow'];
@@ -25,10 +26,14 @@ export const BUILDING_ASSETS = {
   chapel: ['church'],
   storehouse: ['market'],
   tower: ['tower_A', 'tower_catapult'],
+  // Erweiterung
+  tavern: ['tavern'],
+  gunsmith: ['blacksmith'],
+  fountain: ['well'],
 };
 
 /** Heroes → figure. */
-export const HERO_ASSETS = { bertram: 'Knight', hedda: 'Mage', gerold: 'Barbarian' };
+export const HERO_ASSETS = { bertram: 'Knight', hedda: 'Mage', gerold: 'Barbarian', falk: 'Rogue', morla: 'Mage' };
 
 /** Number of simplified LOD levels per building model (<name>.lod1.glb …, see scripts/build-lods.mjs). */
 export const BUILDING_LODS = 2;
@@ -54,7 +59,7 @@ export const sharedAssetRoots = () => [...cache.values()].map((a) => a.scene);
  * @param {number} players
  * @param {(done: number, total: number) => void} [onProgress]
  */
-export async function loadAssets(players, onProgress = () => {}, baseUrl = './models/', opts = {}) {
+export async function loadAssets(players, onProgress = () => {}, baseUrl = siteUrl('models/'), opts = {}) {
   base = baseUrl;
   const names = [...NEUTRAL, ...Object.values(HERO_ASSETS).map((c) => `characters/${c}`)];
   const files = new Set(Object.values(BUILDING_ASSETS).flat());

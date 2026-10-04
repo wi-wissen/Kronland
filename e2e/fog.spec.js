@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { playUrl } from './paths.js';
 
 // Fog of war: minimap, enemy castle, selection, fog off (start menu and URL).
 
@@ -26,7 +27,7 @@ const enemyHq = (page) => page.evaluate(() => {
 });
 
 test('Game start: minimap black except the start region, enemy castle invisible', async ({ page }) => {
-  const errors = await boot(page, '/?seed=42');
+  const errors = await boot(page, playUrl('?seed=42'));
   const share = await blackShare(page);
   expect(share).toBeGreaterThan(0.6);
   expect(share).toBeLessThan(0.98);
@@ -60,7 +61,7 @@ test('Game start: minimap black except the start region, enemy castle invisible'
 });
 
 test('Scout reveals: enemy castle appears, stays in the fog as last seen state', async ({ page }) => {
-  const errors = await boot(page, '/?seed=42');
+  const errors = await boot(page, playUrl('?seed=42'));
   await page.evaluate(() => {
     const e = window.__kronland, s = e.sim, ehq = s.findBuilding(1, 'headquarters');
     const L = s.spawnLeader(0, 'bow1', ehq.x + 2, ehq.y + 10, 0);
@@ -85,7 +86,7 @@ test('Scout reveals: enemy castle appears, stays in the fog as last seen state',
 });
 
 test('Fog off via URL: everything visible', async ({ page }) => {
-  const errors = await boot(page, '/?seed=42&fog=off');
+  const errors = await boot(page, playUrl('?seed=42&fog=off'));
   expect(await blackShare(page)).toBe(0);
   expect(await enemyHq(page)).toEqual({ drawn: true, seen: true, selectable: true });
   const mm = await page.evaluate(() => window.__kronland.minimapDynamic().buildings.filter((b) => b.owner === 1).length);
@@ -94,7 +95,7 @@ test('Fog off via URL: everything visible', async ({ page }) => {
 });
 
 test('Start menu: switch off fog of war', async ({ page }) => {
-  await page.goto('/');
+  await page.goto(playUrl());
   await expect(page.getByTestId('fog-on')).toHaveAttribute('aria-checked', 'true');
   await page.getByTestId('fog-off').click();
   await expect(page.getByTestId('fog-off')).toHaveAttribute('aria-checked', 'true');

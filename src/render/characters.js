@@ -1060,5 +1060,6 @@ export function PROCEDURAL_DEFAULT(roleKey) {
   if (a === 'hero') return 'hero:' + (b ?? 'bertram');
   if (a === 'soldier' || a === 'bandit') return b ?? 'sword';
   if (a === 'cannonCrew') return 'serf';
+  if (a === 'specialist') return b ?? 'serf';
   return 'serf';
 }

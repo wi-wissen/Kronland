@@ -13,16 +13,17 @@ import {
 } from './lod.js';
 import { CharacterSystem, sharedCharacterRoots } from './characters.js';
 import { Effects, HealthBars, GroundMarks, sharedPuffTexture } from './effects.js';
-import { DebugOverlay, debugEnabled } from './debug.js';
-import { CameraRig } from './CameraRig.js';
+import { CameraRig, nearFactor } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT } from '../sim/fixed.js';
-import { WATER, CLIFF, OCCUPIED, RESERVED } from '../sim/map.js';
+import { WATER, CLIFF, OCCUPIED, RESERVED, BRIDGE } from '../sim/map.js';
+import { SPECIALISTS } from '../sim/data/addon.js';
+import { hiddenFrom } from '../sim/systems/hidden.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import {
   buildingModel, scaffold, serfModel, mat, PROF_COLORS, campfireModel,
-  unitModel, heroModel, gadgetModel, horseModel, constructionStage, ruinModel, hasConstructionStages,
+  unitModel, heroModel, gadgetModel, horseModel, constructionStage, ruinModel, hasConstructionStages, bridgeModel,
 } from './models.js';
 import { UNITS, HEROES } from '../sim/data/units.js';
 import { PLAYER_COLORS, sharedModelMaterials } from './models.js';
@@ -71,6 +72,7 @@ export class Renderer {
     this.scene.add(this.terrainChunks, this.waterChunks);
     this.rig = new CameraRig(this.camera, { w: sim.map.width, h: sim.map.height });
     this.rig.groundAt = (x, z) => this.terrain.heightAt(x, z);
+    this.rig.obstacleAt = (x, z) => this.buildingTopAt(x, z);
 
     // Trees, decoration and markers are only created at the first frame (see buildWorld)
     this.piles = new Map();
@@ -106,7 +108,8 @@ export class Renderer {
     this.ruins = [];
     /** Construction values from the last frame (dust clouds on progress) */
     this.buildProgress = new Map();
-    this.debug = debugEnabled() ? new DebugOverlay() : null;
+    /** Developer-mode hooks (src/dev/DevTools.js): beforeRender/afterRender, otherwise null */
+    this.devHook = null;
 
     const hq = sim.findBuilding(0, 'headquarters');
     if (hq) this.rig.lookAt(hq.x + hq.w / 2, hq.y + hq.h / 2 + 3);
@@ -118,8 +121,7 @@ export class Renderer {
    * every game would stay in the context. Jointly cached models are re-uploaded by three.js on demand.
    */
   dispose() {
-    this.debug?.dispose();
-    this.debug = null;
+    this.devHook = null;
     const seen = new Set();
     const free = (x) => { if (x && !seen.has(x)) { seen.add(x); x.dispose?.(); } };
     const props = this.renderer.properties;
@@ -161,7 +163,7 @@ export class Renderer {
   warmUp() {
     try {
       this.rig.update(0);
-      this.env.follow(this.rig.target, this.rig.dist);
+      this.env.follow(this.rig.target, this.rig.dist, nearFactor(this.rig.dist), this.rig.yaw);
       const r = this.renderer;
       const size = r.getSize(new THREE.Vector2());
       r.setSize(32, 32, false);
@@ -491,17 +493,27 @@ export class Renderer {
     this.view.pos.set(Infinity, 0, 0);
   }
 
+  /** Create resource piles (also later: deposits uncovered by the scout). */
+  addPileMarker(e) {
+    const g = new THREE.Group();
+    const d = depositModel(e.res, e.id);
+    d.rotation.y = (e.id * 1.7) % 6.28;
+    g.add(d);
+    g.position.set(e.x + 0.5, this.terrain.heightAt(e.x + 0.5, e.y + 0.5) - 0.03, e.y + 0.5);
+    patchFogTree(g);
+    this.scene.add(g);
+    this.piles.set(e.id, g);
+    return g;
+  }
+
   buildMarkers() {
-    for (const e of this.sim.entities.values()) {
-      if (e.kind !== 'pile') continue;
-      const g = new THREE.Group();
-      const d = depositModel(e.res, e.id);
-      d.rotation.y = (e.id * 1.7) % 6.28;
-      g.add(d);
-      g.position.set(e.x + 0.5, this.terrain.heightAt(e.x + 0.5, e.y + 0.5) - 0.03, e.y + 0.5);
+    for (const e of this.sim.entities.values()) if (e.kind === 'pile') this.addPileMarker(e);
+    // add-on: bridge sites (posts at both banks, weak board over the water)
+    if (this.sim.addon) for (const s of this.sim.bridgeSites ?? []) {
+      const g = bridgeSiteMarker(s, this.bridgeDeckY(s));
       patchFogTree(g);
       this.scene.add(g);
-      this.piles.set(e.id, g);
+      this.markers.push({ g, x: s.x, y: s.y, cx: s.x + s.w / 2, cz: s.y + s.h / 2, free: true, bridge: true });
     }
     for (const s of this.sim.shafts) {
       const g = shaftMarker(s.res);
@@ -520,23 +532,81 @@ export class Renderer {
     }
   }
 
-  /** Adapt trampled ground and levelling to the current buildings. */
+  /** Adapt trampled ground and building surfaces (exactly flat edge corners) to the current buildings. */
   syncGround() {
     const ids = this.buildings;
     let changed = ids.size !== this.padIds.size;
     if (!changed) for (const id of ids.keys()) if (!this.padIds.has(id)) { changed = true; break; }
     if (!changed) return;
     const rects = [];
-    for (const id of this.padIds) if (!ids.has(id)) this.terrain.restorePad(id);
+    for (const id of this.padIds) if (!ids.has(id)) { const r = this.terrain.pads.get(id); if (r) this.reshapeGround(r, () => this.terrain.clearPad(id)); }
     for (const [id, g] of ids) {
       // rectangle from the rendering (also last seen buildings in the fog that no longer exist)
       const e = g.userData.rect;
-      if (!e) continue;
+      if (!e || g.userData.noPad) continue;
       rects.push(e);
-      if (!this.padIds.has(id)) { this.terrain.flattenPad(id, e.x, e.y, e.w, e.h); this.hideScatter(e.x, e.y, e.w, e.h); }
+      if (!this.padIds.has(id)) { this.reshapeGround(e, () => this.terrain.setPad(id, e.x, e.y, e.w, e.h)); this.hideScatter(e.x, e.y, e.w, e.h); }
     }
     this.padIds = new Set(ids.keys());
     this.terrain.setTrampled(rects);
+  }
+
+  /**
+   * Rebuild terrain in a tile area and put everything standing on it (trees, decoration, stumps,
+   * piles, markers) onto the new ground. Figures and buildings read the height every frame anyway.
+   * @param {{x:number,y:number,w:number,h:number}} r @param {() => void} update changes the terrain
+   */
+  reshapeGround(r, update) {
+    const t = this.terrain;
+    // area of influence: corners of the rectangle act two corners far (Catmull-Rom)
+    const x0 = r.x - 3, z0 = r.y - 3, x1 = r.x + r.w + 3, z1 = r.y + r.h + 3;
+    const before = new Map();
+    const key = (x, z) => `${Math.round(x * 1000)}:${Math.round(z * 1000)}`;
+    const old = (x, z) => { const k = key(x, z); let v = before.get(k); if (v === undefined) { v = t.heightAt(x, z); before.set(k, v); } return v; };
+    // remember old heights of the affected instances
+    const groups = [...(this.treeGroups ?? []), ...(this.scatter ?? [])];
+    for (const g of groups) g.shiftY(x0, z0, x1, z1, (x, z) => (old(x, z), 0));
+    const st = this.stumps, sm = st?.instanceMatrix.array;
+    if (st) for (let i = 0; i < st.count; i++) old(sm[i * 16 + 12], sm[i * 16 + 14]);
+    update();
+    const dy = (x, z) => t.heightAt(x, z) - old(x, z);
+    for (const g of groups) g.shiftY(x0, z0, x1, z1, (x, z) => (before.has(key(x, z)) ? dy(x, z) : 0));
+    if (st) {
+      let any = false;
+      for (let i = 0; i < st.count; i++) {
+        const x = sm[i * 16 + 12], z = sm[i * 16 + 14];
+        if (x < x0 || x > x1 || z < z0 || z > z1) continue;
+        const d = dy(x, z);
+        if (d) { sm[i * 16 + 13] += d; any = true; }
+      }
+      if (any) st.instanceMatrix.needsUpdate = true;
+    }
+    for (const g of this.piles.values()) {
+      if (g.position.x < x0 || g.position.x > x1 || g.position.z < z0 || g.position.z > z1) continue;
+      g.position.y = t.heightAt(g.position.x, g.position.z) - 0.03;
+    }
+    for (const m of this.markers) {
+      if (m.cx < x0 || m.cx > x1 || m.cz < z0 || m.cz > z1) continue;
+      if (m.bridge) continue; // bridge sites: deck between the banks, banks are not levelled
+      const w = (m.cx - m.x) * 2;
+      m.g.position.y = t.rectHeight(m.x, m.y, w, w) - 0.1;
+    }
+    if (this.view) this.view.pos.set(Infinity, 0, 0); // collect chunks anew
+  }
+
+  /**
+   * Take over levelling from the simulation. In fog only when the player sees the area
+   * (otherwise the ground would reveal enemy construction sites).
+   */
+  syncTerrain() {
+    const list = this.pendingTerrain;
+    if (!list?.length) return;
+    const fog = this.fog;
+    this.pendingTerrain = list.filter((r) => {
+      if (fog.active && !fog.rectVisible(r.x, r.y, r.w, r.h)) return true;
+      this.reshapeGround(r, () => this.terrain.updateArea(r.x, r.y, r.w, r.h));
+      return false;
+    });
   }
 
   // ---------- Events ----------
@@ -559,6 +629,7 @@ export class Renderer {
       else if (ev.type === 'killed') this.onKilled(ev);
       else if (ev.type === 'buildingDestroyed' || ev.type === 'demolished') this.onBuildingGone(ev);
       else if (ev.type === 'buildingDone') this.onBuildingDone(ev);
+      else if (ev.type === 'terrainChanged') (this.pendingTerrain ??= []).push({ x: ev.x, y: ev.y, w: ev.w, h: ev.h });
       if (ev.type === 'nodeDepleted') {
         this.removeTree(ev.node);
         const p = this.piles.get(ev.node);
@@ -652,8 +723,9 @@ export class Renderer {
         if (fogOn && !mine(e.owner) && !fog.rectVisible(e.x, e.y, e.w, e.h)) continue;
         seen.add(e.id); this.syncBuilding(e);
       } else if (e.px !== undefined) {
-        // enemy figures, traps and projectiles only in visible tiles
+        // enemy figures, traps and projectiles only in visible tiles; invisible ones (thief, fog veil) never
         if (fogOn && !mine(e.owner) && !fog.visibleAt(e.px / UNIT, e.py / UNIT)) continue;
+        if (!mine(e.owner) && !view.revealAll && (e.hidden || (e.seenBy !== undefined && hiddenFrom(sim, me, e)))) continue;
         seen.add(e.id);
         if (e.kind === 'unit' || e.kind === 'worker') this.syncUnit(e, alpha, prev.get(e.id), dt);
         else this.syncFighter(e, alpha, prev.get(e.id));
@@ -661,7 +733,7 @@ export class Renderer {
         if (fogOn && !fog.rectVisible(e.x, e.y, e.w ?? 3, e.h ?? 3)) continue;
         seen.add(e.id); this.syncRuin(e);
       } else if (e.kind === 'pile') {
-        const g = this.piles.get(e.id);
+        const g = this.piles.get(e.id) ?? (this.warmed ? this.addPileMarker(e) : null);
         if (g) {
           g.visible = fog.exploredAt(e.x + 0.5, e.y + 0.5);
           if (!fogOn || fog.visibleAt(e.x + 0.5, e.y + 0.5)) g.scale.setScalar(0.55 + 0.45 * Math.min(1, e.amount / 400));
@@ -691,7 +763,8 @@ export class Renderer {
 
     // hide markers as soon as something is built there (in fog the last seen state stays)
     for (const m of this.markers) {
-      if (fog.visibleAt(m.cx, m.cz)) m.free = sim.map.owner[sim.map.idx(m.x, m.y)] === 0;
+      if (m.bridge) { if (fog.visibleAt(m.cx, m.cz)) m.free = !(sim.map.flags[sim.map.idx(m.x, m.y)] & (OCCUPIED | BRIDGE)); }
+      else if (fog.visibleAt(m.cx, m.cz)) m.free = sim.map.owner[sim.map.idx(m.x, m.y)] === 0;
       m.g.visible = m.free && fog.exploredAt(m.cx, m.cz);
     }
 
@@ -700,6 +773,7 @@ export class Renderer {
     this.syncGhost(view.ghost);
     (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, dt);
 
+    this.syncTerrain();
     this.syncGround();
     this.natureUniforms.uTime.value = this.time;
     this.water.update(this.time);
@@ -713,10 +787,31 @@ export class Renderer {
     this.fx.update(dt);
     this.bars.end(this.viewport ?? { w: 1280, h: 800 }, this.renderer.getPixelRatio());
     this.marks.end();
-    this.env.follow(this.rig.target, this.rig.dist);
+    this.env.follow(this.rig.target, this.rig.dist, nearFactor(this.rig.dist), this.rig.yaw);
     this.env.tick();
+    this.devHook?.beforeRender();
     this.renderer.render(this.scene, this.camera);
-    this.debug?.tick(() => this.debugStats());
+    this.devHook?.afterRender();
+  }
+
+  /**
+   * Top edge of the buildings at (x, z) for the camera (never into a house): above the footprint the house height
+   * (under construction the height of the shell), outside a soft edge so that the camera rises steadily instead of jumping.
+   * @returns {number} −∞ if there is no building
+   */
+  buildingTopAt(x, z) {
+    let top = -Infinity;
+    for (const g of this.buildings.values()) {
+      const r = g.userData.rect;
+      if (!r) continue;
+      const h = (g.userData.height ?? 2) * (g.userData.body?.scale.y ?? 1);
+      const edge = 0.8 + 0.35 * h;
+      const dx = Math.max(r.x - x, 0, x - (r.x + r.w)), dz = Math.max(r.y - z, 0, z - (r.y + r.h));
+      if (dx >= edge || dz >= edge) continue;
+      const s = Math.min(1, Math.hypot(dx, dz) / edge);
+      top = Math.max(top, g.position.y + h * (1 - s * s * (3 - 2 * s)));
+    }
+    return top;
   }
 
   /** Choose LOD levels of trees, decoration and buildings by camera. */
@@ -787,7 +882,7 @@ export class Renderer {
   /** @param {any} e building (or ghostEntity) @param {boolean} [ghost] last seen state: no effects */
   syncBuilding(e, ghost = false) {
     let g = this.buildings.get(e.id);
-    const stages = !e.done && hasConstructionStages();
+    const stages = !e.done && e.type !== 'bridge' && hasConstructionStages();
     const p = e.work ? e.progress / e.work : 1;
     // construction phase: foundation → walls → roof truss (KayKit), afterwards the finished house growing under the scaffolding
     const stage = !stages ? -1 : e.level > 0 ? 3 : p < 0.22 ? 0 : p < 0.45 ? 1 : p < 0.68 ? 2 : 3;
@@ -805,14 +900,17 @@ export class Renderer {
           const st = constructionStage(stage, e.w - 0.4, e.h - 0.4);
           if (st) { st.name = 'stage'; g.add(st); }
         }
-        const sc = scaffold(e.w, e.h); sc.name = 'scaffold'; g.add(sc);
+        if (e.type !== 'bridge') { const sc = scaffold(e.w, e.h); sc.name = 'scaffold'; g.add(sc); }
       }
-      g.position.set(e.x + e.w / 2, this.terrain.rectHeight(e.x, e.y, e.w, e.h), e.y + e.h / 2);
+      g.position.set(e.x + e.w / 2, e.type === 'bridge' ? this.bridgeDeckY(e) : this.footY(e.x, e.y, e.w, e.h), e.y + e.h / 2);
+      // bridge: do not level the terrain below
+      if (e.type === 'bridge') g.userData.noPad = true;
       if (e.type === 'villageCenter' || e.type === 'headquarters') {
         const fire = campfireModel(); fire.position.set(-e.w / 2 - 0.2, 0, e.h / 2 + 0.6); g.add(fire);
       }
-      // height of the house (for smoke, fire, health bars)
+      // height of the house (for smoke, fire, health bars, camera)
       const body = g.getObjectByName('body');
+      g.userData.body = body;
       const bb = new THREE.Box3().setFromObject(body);
       g.userData.height = Number.isFinite(bb.max.y) ? Math.max(0.6, bb.max.y) : 2;
       // chimneys: smoke while working (position relative to half the footprint, height relative to house size)
@@ -880,13 +978,20 @@ export class Renderer {
     }
   }
 
+  /** Ground height of a building surface: the plane from the simulation, otherwise (older save games) from the mesh. */
+  footY(x, y, w, h) {
+    const m = this.sim.map;
+    if (m.inBounds(x, y) && m.inBounds(x + w - 1, y + h - 1) && m.slope(x, y, w, h) === 0) return this.terrain.padY(m.heights[m.idx(x, y)]);
+    return this.terrain.rectHeight(x, y, w, h);
+  }
+
   /** Ruin from the simulation (if present). */
   syncRuin(e) {
     const m = (this.simRuins ??= new Map());
     if (m.has(e.id)) return;
     const w = e.w ?? 3, h = e.h ?? 3;
     const g = ruinModel(w - 0.6, h - 0.6);
-    g.position.set(e.x + w / 2, this.terrain.rectHeight(e.x, e.y, w, h), e.y + h / 2);
+    g.position.set(e.x + w / 2, this.footY(e.x, e.y, w, h), e.y + h / 2);
     patchFogTree(g);
     this.scene.add(g);
     m.set(e.id, g);
@@ -897,6 +1002,7 @@ export class Renderer {
     if (e.kind === 'unit') return e.militia ? 'soldier.spear' : 'serf';
     if (e.kind === 'worker') return 'worker';
     if (e.kind === 'hero') return `hero.${e.hero}`;
+    if (e.kind === 'specialist') return `specialist.${e.spec}`;
     const line = UNITS[e.def]?.line ?? 'sword';
     if (this.sim.players[e.owner]?.neutral) return line === 'bow' ? 'bandit.bow' : 'bandit';
     return `soldier.${line}${e.kind === 'leader' ? '.leader' : ''}`;
@@ -928,7 +1034,7 @@ export class Renderer {
     }
     st.set(e.id, yaw);
     const tint = e.kind === 'worker' ? PROF_COLORS[e.prof] ?? null : null;
-    this.chars.set(e.id, this.roleOf(e), { x, y: this.terrain.heightAt(x, z), z, yaw, clip, team: PLAYER_COLORS_HEX(e.owner), tint, visible, speed: 1 });
+    this.chars.set(e.id, this.roleOf(e), { x, y: this.groundY(x, z), z, yaw, clip, team: PLAYER_COLORS_HEX(e.owner), tint, visible, speed: 1 });
   }
 
   /** Captains, soldiers, heroes, traps and siege weapons. */
@@ -936,7 +1042,7 @@ export class Renderer {
     const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
     const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
     const x = px / UNIT, z = py / UNIT;
-    const y = this.terrain.heightAt(x, z);
+    const y = this.groundY(x, z);
     const moving = prev && (prev.px !== e.px || prev.py !== e.py);
     const st = (this.unitYaw ??= new Map());
     let yaw = st.get(e.id) ?? 0;
@@ -950,7 +1056,7 @@ export class Renderer {
     }
     st.set(e.id, yaw);
     // traps, bombs, self-firing: small static objects (few)
-    if (e.kind !== 'hero' && e.kind !== 'leader' && e.kind !== 'soldier') {
+    if (e.kind !== 'hero' && e.kind !== 'leader' && e.kind !== 'soldier' && e.kind !== 'specialist') {
       let g = this.units.get(e.id);
       if (!g) {
         g = gadgetModel(e.kind, e.owner);
@@ -959,14 +1065,16 @@ export class Renderer {
         this.units.set(e.id, g);
       }
       g.position.set(x, y, z);
-      g.rotation.y = yaw;
+      g.rotation.y = g.userData.spin ? (this.time ?? 0) * 0.3 : yaw;
+      const flame = g.getObjectByName('flame');
+      if (flame) flame.scale.y = 0.8 + Math.sin((this.time ?? 0) * 13 + e.id) * 0.25;
       return;
     }
     const hit = this.hitAt?.get(e.id);
     const shotAt = this.shotAt?.get(e.id);
     const attacking = (hit !== undefined && this.time - hit < 0.7) || (shotAt !== undefined && this.time - shotAt < 0.7);
     const line = e.kind === 'hero' ? null : UNITS[e.def]?.line;
-    const ranged = line === 'bow' || line === 'lightCav';
+    const ranged = line === 'bow' || line === 'lightCav' || line === 'rifle' || (e.kind === 'hero' && !!HEROES[e.hero]?.ranged);
     const clip = e.down ? 'die' : attacking ? (ranged ? 'shoot' : 'attack') : moving ? (line === 'lightCav' || line === 'heavyCav' ? 'run' : 'walk') : 'idle';
     const role = this.roleOf(e);
     const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: PLAYER_COLORS_HEX(e.owner), speed: line === 'cannon' ? 0.6 : 1 });
@@ -981,6 +1089,10 @@ export class Renderer {
       let cur = e.hp;
       for (const id of e.soldiers) cur += this.sim.entities.get(id)?.hp ?? 0;
       frac = Math.max(0, cur / total);
+    } else if (e.kind === 'specialist') {
+      frac = Math.max(0, e.hp / (SPECIALISTS[e.spec]?.hp ?? 1));
+      // eigener unsichtbarer Dieb: schwacher Schleier-Ring
+      if (e.hidden && rec.lod.level <= 1) this.marks.ring(x, y + 0.04, z, 0.34, 0xb0a4d0, 0.55, 0.04, 0.15);
     } else frac = Math.max(0, e.hp / HEROES[e.hero].hp);
     const sel = this.selectedIds?.has(e.id);
     if (frac < 0.999 || sel || e.kind === 'hero') this.bars.add(x, y + (e.kind === 'hero' ? 1.55 : 1.3) + (rec.variant?.seat ?? 0), z, frac, e.kind === 'hero' ? 40 : 32, 6);
@@ -1002,6 +1114,7 @@ export class Renderer {
     const dist = from.distanceTo(to);
     (this.projectiles ??= []).push({ m, from, to, t: 0, dur: Math.max(0.15, dist / (ev.kind === 'ball' ? 16 : 22)), arc: ev.kind === 'ball' ? 0.25 + dist * 0.06 : 0.15 + dist * 0.05, kind: ev.kind, trail: 0 });
     if (ev.kind === 'ball') this.fx.smokePuff(from.x, from.y + 0.1, from.z, 0.3, 0.3);
+    else if (ev.kind === 'bullet') this.fx.smokePuff(from.x, from.y + 0.35, from.z, 0.15, 0.18);
   }
 
   /** Fighter at the firing position (for the shot animation). */
@@ -1105,6 +1218,25 @@ export class Renderer {
     }
   }
 
+  // ---------- Add-on: bridges ----------
+
+  /** Deck height of a bridge (rectangle in tiles): shore height at both ends. */
+  bridgeDeckY(r) {
+    const t = this.terrain, horiz = r.w >= r.h;
+    const a = horiz ? t.heightAt(r.x - 0.5, r.y + r.h / 2) : t.heightAt(r.x + r.w / 2, r.y - 0.5);
+    const b = horiz ? t.heightAt(r.x + r.w + 0.5, r.y + r.h / 2) : t.heightAt(r.x + r.w / 2, r.y + r.h + 0.5);
+    return Math.max(t.waterLevelY + 0.25, Math.min(a, b) + 0.05);
+  }
+
+  /** Ground height for figures: on bridges the deck instead of the riverbed. */
+  groundY(x, z) {
+    const h = this.terrain.heightAt(x, z);
+    const m = this.sim.map, tx = Math.floor(x), tz = Math.floor(z);
+    if (!this.sim.addon || !m.inBounds(tx, tz) || !(m.flags[m.idx(tx, tz)] & BRIDGE)) return h;
+    const b = this.sim.entities.get(m.owner[m.idx(tx, tz)]) ?? (this.sim.bridgeSites ?? []).find((s) => tx >= s.x && tz >= s.y && tx < s.x + s.w && tz < s.y + s.h);
+    return Math.max(h, b ? this.bridgeDeckY(b) : this.terrain.waterLevelY + 0.25);
+  }
+
   /** Selection: rings under units, frames around buildings, health bars for selected buildings. */
   syncSelection(selected) {
     const t = this.time ?? 0;
@@ -1125,24 +1257,30 @@ export class Renderer {
         const r = this.chars.records.get(k);
         if (!r || !r.visible) continue;
         const big = r.variant?.attach.length ? 0.5 : 0.32;
-        this.marks.ring(r.position.x, r.position.y + 0.04, r.position.z, big, k === e.id ? 0xfff2b0 : 0xe8dca0, k === e.id ? pulse : 0.7, 0.05, 0.4);
+        // fit the ring to the slope (slope from the height field over the ring diameter)
+        const px = r.position.x, pz = r.position.z, hf = this.terrain;
+        const sx = (hf.heightAt(px + big, pz) - hf.heightAt(px - big, pz)) / (2 * big);
+        const sz = (hf.heightAt(px, pz + big) - hf.heightAt(px, pz - big)) / (2 * big);
+        const gy = Math.max(r.position.y, hf.heightAt(px, pz));
+        this.marks.ring(px, gy + 0.05, pz, big, k === e.id ? 0xfff2b0 : 0xe8dca0, k === e.id ? pulse : 0.7, 0.05, 0.4, sx, sz);
       }
     }
   }
 
   syncGhost(ghost) {
-    const key = ghost ? `${ghost.type}` : '';
+    const key = ghost ? `${ghost.type}:${ghost.w ?? ''}x${ghost.h ?? ''}` : '';
     if (key !== this.ghostKey) {
       if (this.ghost) this.scene.remove(this.ghost);
       this.ghost = null;
       this.ghostKey = key;
       if (ghost) {
         const def = BUILDINGS[ghost.type];
-        const g = buildingModel(ghost.type, def.w, def.h, 0, 0);
+        const gw = ghost.w ?? def.w, gh = ghost.h ?? def.h;
+        const g = buildingModel(ghost.type, gw, gh, 0, 0);
         g.traverse((m) => {
           if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = 0.55; m.castShadow = false; }
         });
-        const pad = new THREE.Mesh(new THREE.PlaneGeometry(def.w, def.h).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.45 }));
+        const pad = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.45 }));
         pad.name = 'pad'; pad.position.y = 0.08; g.add(pad);
         this.ghost = g;
         this.scene.add(g);
@@ -1150,8 +1288,16 @@ export class Renderer {
     }
     if (ghost && this.ghost) {
       const def = BUILDINGS[ghost.type];
-      this.ghost.position.set(ghost.x + def.w / 2, this.terrain.rectHeight(ghost.x, ghost.y, def.w, def.h), ghost.y + def.h / 2);
-      this.ghost.getObjectByName('pad').material.color.setHex(ghost.valid ? 0x4cd964 : 0xe5484d);
+      const gw = ghost.w ?? def.w, gh = ghost.h ?? def.h;
+      // Building on a slope: ghost stands on the future plane; green = flat, yellow = will be levelled, red = not possible.
+      // bridge: deck height between the banks (is not levelled)
+      const lvl = ghost.slope?.state;
+      const y = ghost.type === 'bridge' ? this.bridgeDeckY({ x: ghost.x, y: ghost.y, w: gw, h: gh })
+        : ghost.valid && ghost.slope ? this.terrain.padY(ghost.slope.target) : this.terrain.rectHeight(ghost.x, ghost.y, gw, gh);
+      this.ghost.position.set(ghost.x + gw / 2, y, ghost.y + gh / 2);
+      const pad = this.ghost.getObjectByName('pad');
+      pad.material.color.setHex(!ghost.valid ? 0xe5484d : lvl === 'level' ? 0xf4bd4f : 0x4cd964);
+      pad.position.y = lvl === 'level' && ghost.valid ? 0.03 : 0.08;
     }
   }
 
@@ -1294,8 +1440,31 @@ function proceduralFigures() {
     worker: fig(() => { const g = serfModel(0, TINT); g.userData.tool.visible = false; return g; }, { tint: true, tintDefault: 0xc39a5e }),
     horse: fig(() => { const h = horseModel(0x8a6a4a, 0, 1); const g = new THREE.Group(); g.add(h); g.userData = { horse: h, horseLegs: h.userData.legs }; return g; }, { saddle: 0.62, radius: 0.5 }),
   };
-  for (const line of ['sword', 'spear', 'bow', 'lightCav', 'heavyCav', 'cannon']) out[line] = unit(line);
-  for (const hero of ['bertram', 'hedda', 'gerold']) out['hero:' + hero] = fig(() => heroModel(hero, 0), {});
+  for (const line of ['sword', 'spear', 'bow', 'lightCav', 'heavyCav', 'cannon', 'rifle']) out[line] = unit(line);
+  for (const hero of ['bertram', 'hedda', 'gerold', 'falk', 'morla']) out['hero:' + hero] = fig(() => heroModel(hero, 0), {});
+  // add-on: thief (dark), scout (green)
+  out.thief = fig(() => serfModel(0, 0x34373d), {});
+  out.scout = fig(() => serfModel(0, 0x6f7f4a), {});
   out.hero = out['hero:bertram'];
   return out;
+}
+
+/** Marker of a free bridge site: posts at both banks, weak board above (add-on). */
+function bridgeSiteMarker(s, deckY) {
+  const g = new THREE.Group();
+  const horiz = s.w >= s.h, len = Math.max(s.w, s.h), wid = Math.min(s.w, s.h);
+  const post = new THREE.CylinderGeometry(0.06, 0.07, 0.7, 6).translate(0, 0.35, 0);
+  const pm = mat(0x6a4a2a);
+  for (const end of [-1, 1]) for (const side of [-1, 1]) {
+    const m = new THREE.Mesh(post, pm);
+    const a = end * (len / 2 + 0.35), b = side * (wid / 2 - 0.2);
+    m.position.set(horiz ? a : b, -0.1, horiz ? b : a);
+    g.add(m);
+  }
+  const plank = new THREE.Mesh(new THREE.PlaneGeometry(horiz ? len : wid - 0.3, horiz ? wid - 0.3 : len).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0xe8d29a, transparent: true, opacity: 0.22, depthWrite: false }));
+  plank.position.y = 0.02;
+  g.add(plank);
+  g.position.set(s.x + s.w / 2, deckY, s.y + s.h / 2);
+  return g;
 }

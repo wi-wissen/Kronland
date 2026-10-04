@@ -31,13 +31,15 @@ export default {
       if (!has(t.key)) return t.key;
       if (t.key.startsWith('err.')) return reasonText(t.key, t.params);
       const p = { ...(t.params ?? {}) };
-      // IDs in Namen umsetzen
+      // convert IDs to names
       if (p.building) p.building = buildingName(p.building, p.level ?? 0);
       if (p.tech) p.tech = this.$name.tech(p.tech);
       if (p.line) p.line = this.$name.line(p.line);
       if (p.unit) p.unit = this.$name.unit(p.unit);
       if (p.res) p.res = this.$name.res(p.res);
       if (p.weather) p.weather = this.$name.weather(p.weather);
+      // name as i18n key (e.g. 'addon.spec.thief')
+      if (typeof p.name === 'string' && has(p.name)) p.name = this.$t(p.name);
       if (p.rank !== undefined && p.rank !== null) p.rank = rankName(p.rank);
       return this.$t(t.key, p);
     },

@@ -1,6 +1,37 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { VitePWA } from 'vite-plugin-pwa';
+import { resolve } from 'node:path';
+
+// Website made of several pages (Vite multi-page): home, game, manual, compendium. All paths relative (base './').
+const PAGES = {
+  main: 'index.html',
+  play: 'play/index.html',
+  manual: 'manual/index.html',
+  compendium: 'compendium/index.html',
+};
+
+/**
+ * Post-processing of the HTML pages after vite-plugin-pwa: the plugin writes the manifest link relative to the
+ * root into every page. It belongs only in the game (play/) and must point one level up there.
+ */
+function pagePaths() {
+  return {
+    name: 'kronland:page-paths',
+    enforce: 'post',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        const page = (ctx.path ?? '').replace(/^\//, '').replace(/(^|\/)$/, '$1index.html');
+        const depth = page.split('/').length - 1;
+        const up = depth ? '../'.repeat(depth) : './';
+        const link = /<link rel="manifest" href="[^"]*?manifest\.webmanifest"([^>]*)>/;
+        if (page !== PAGES.play) return html.replace(link, '');
+        return html.replace(link, `<link rel="manifest" href="${up}manifest.webmanifest"$1>`);
+      },
+    },
+  };
+}
 
 export default defineConfig({
   base: './',
@@ -8,12 +39,17 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registration itself (src/main.js, with path to the root): the plugin script would sit relative to the page
+      injectRegister: null,
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Kronland',
         short_name: 'Kronland',
         description: 'Aufbau-Strategiespiel im Browser',
         lang: 'de',
+        // Manifest is in the root, the game under play/ – start and scope only the game
+        start_url: 'play/',
+        scope: 'play/',
         display: 'fullscreen',
         orientation: 'any',
         background_color: '#1a221e',
@@ -25,8 +61,14 @@ export default defineConfig({
       },
       workbox: {
         // Precache game code, models on first load (they are large)
-        globPatterns: ['**/*.{js,css,html,png}'],
-        globIgnores: ['models/**'],
+        globPatterns: ['**/*.{js,css,html,png,webp}'], // webp: Symbol-Atlas icons/symbols.webp
+        globIgnores: ['models/**', 'site/**'],
+        // Multiple pages: no fallback page for navigations (otherwise /play/ would get the home page)
+        navigateFallback: null,
+        // Serve play/?seed=42&dev=1 etc. offline from the precached page (the game reads the parameters itself)
+        ignoreURLParametersMatching: [/.*/],
+        skipWaiting: true,
+        clientsClaim: true,
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         runtimeCaching: [
           { urlPattern: /\/models\/.*\.glb$/, handler: 'CacheFirst', options: { cacheName: 'models', expiration: { maxEntries: 400 } } }, // 4 players load ~205 files (incl. LOD levels), there are ~260 in total
@@ -35,11 +77,19 @@ export default defineConfig({
           // Sound: manifest always fresh, audio files from the cache after the first load (see docs/AUDIO.md)
           { urlPattern: /\/audio\/manifest\.json$/, handler: 'NetworkFirst', options: { cacheName: 'sound-manifest' } },
           { urlPattern: /\/audio\/.*\.(ogg|mp3|m4a|wav|webm|opus)$/, handler: 'CacheFirst', options: { cacheName: 'audio', expiration: { maxEntries: 300 } } },
+          // Website images (screenshots) only on demand
+          { urlPattern: /\/site\/.*\.(webp|jpg|png)$/, handler: 'CacheFirst', options: { cacheName: 'site-images', expiration: { maxEntries: 60 } } },
           { urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/, handler: 'CacheFirst', options: { cacheName: 'fonts', expiration: { maxEntries: 20 } } },
         ],
       },
     }),
+    pagePaths(),
   ],
+  build: {
+    rollupOptions: {
+      input: Object.fromEntries(Object.entries(PAGES).map(([k, v]) => [k, resolve(import.meta.dirname, v)])),
+    },
+  },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.js'],

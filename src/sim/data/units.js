@@ -5,7 +5,7 @@
  * @typedef {Object} UnitDef
  * @property {string} id
  * @property {string} name
- * @property {string} line  sword | spear | bow | lightCav | heavyCav | cannon
+ * @property {string} line  sword | spear | bow | lightCav | heavyCav | cannon | rifle (Erweiterung)
  * @property {number} tier 1…4
  * @property {number} attack @property {number} armor @property {number} hp @property {number} soldierHp
  * @property {number} soldiers maximum soldiers
@@ -43,6 +43,9 @@ export const UNITS = {
   cannon1: u({ id: 'cannon1', name: 'Bombarde', line: 'cannon', tier: 1, attack: 30, armor: 2, hp: 190, soldierHp: 0, soldiers: 0, attackType: 'slash', armorType: 'none', range: 7000, cooldown: 50, speed: 120, pop: 5, leaderCost: { gold: 150, iron: 50, sulfur: 100 }, soldierCost: {}, building: 'foundry' }),
   cannon2: u({ id: 'cannon2', name: 'Bronzekanone', line: 'cannon', tier: 2, attack: 40, armor: 2, hp: 190, soldierHp: 0, soldiers: 0, attackType: 'slash', armorType: 'none', range: 7500, cooldown: 50, speed: 120, pop: 5, leaderCost: { gold: 200, iron: 50, sulfur: 120 }, soldierCost: {}, building: 'foundry' }),
   cannon3: u({ id: 'cannon3', name: 'Eisenkanone', line: 'cannon', tier: 3, attack: 65, armor: 2, hp: 230, soldierHp: 0, soldiers: 0, attackType: 'siege', armorType: 'none', range: 8000, cooldown: 60, speed: 110, pop: 5, leaderCost: { gold: 300, iron: 100, sulfur: 150 }, soldierCost: {}, building: 'foundry' }),
+  // Add-on: riflemen (firearms, attack type 'shot'; values (A))
+  rifle1: u({ id: 'rifle1', name: 'Hakenbüchse', line: 'rifle', tier: 1, attack: 18, armor: 1, hp: 160, soldierHp: 110, soldiers: 4, attackType: 'shot', armorType: 'leather', range: 7000, cooldown: 30, speed: 175, pop: 1, leaderCost: { gold: 200, sulfur: 80 }, soldierCost: { gold: 50, sulfur: 30 }, building: 'gunsmith', addon: true }),
+  rifle2: u({ id: 'rifle2', name: 'Muskete', line: 'rifle', tier: 2, attack: 24, armor: 2, hp: 160, soldierHp: 110, soldiers: 6, attackType: 'shot', armorType: 'leather', range: 7500, cooldown: 30, speed: 175, pop: 1, leaderCost: { gold: 260, sulfur: 100 }, soldierCost: { gold: 60, sulfur: 40 }, building: 'gunsmith', addon: true }),
   cannon4: u({ id: 'cannon4', name: 'Belagerungskanone', line: 'cannon', tier: 4, attack: 75, armor: 2, hp: 230, soldierHp: 0, soldiers: 0, attackType: 'siege', armorType: 'none', range: 8500, cooldown: 60, speed: 100, pop: 5, leaderCost: { gold: 300, iron: 200, sulfur: 200 }, soldierCost: {}, building: 'foundry' }),
 };
 
@@ -53,6 +56,7 @@ export const LINES = {
   lightCav: { name: 'Leichte Reiterei', building: 'stable', refiner: null },
   heavyCav: { name: 'Schwere Reiterei', building: 'stable', refiner: null },
   cannon: { name: 'Kanonen', building: 'foundry', refiner: null },
+  rifle: { name: 'Büchsenschützen', building: 'gunsmith', refiner: null, addon: true },
 };
 
 /** Unit of a line at a tier. */
@@ -101,6 +105,22 @@ export const HEROES = {
     },
   },
 };
+// Add-on: two more heroes (own figures, abilities modelled on the master marksman and
+// the mist witch from "Nebelreich"; values (A)). Abilities see src/sim/systems/addon.js.
+HEROES.falk = {
+  name: 'Falk', title: 'Meisterschütze', attack: 20, armor: 3, hp: 550, range: 6500, cooldown: 18, speed: 230, addon: true, ranged: true,
+  abilities: {
+    aimedShot: { name: 'Gezielter Schuss', cooldown: 600, range: 9000, damage: 160 },
+    eagleEye: { name: 'Adlerauge', cooldown: 1200, radius: 6000, duration: 600, rangeBonus: 1500, attackPercent: 125 },
+  },
+};
+HEROES.morla = {
+  name: 'Morla', title: 'Nebelhexe', attack: 14, armor: 3, hp: 600, range: 1300, cooldown: 14, speed: 220, addon: true,
+  abilities: {
+    poisonFog: { name: 'Giftnebel', cooldown: 1200, radius: 3500, duration: 120, interval: 10, damage: 14, slowPercent: 60 },
+    mistVeil: { name: 'Nebelschleier', cooldown: 1800, radius: 6000, duration: 300 },
+  },
+};
 export const HERO_COMMON = { attackType: 'hero', armorType: 'hero' };
 
 /** Cost to raise a line from tier n to n+1 (source: dedk.de). */
@@ -110,4 +130,5 @@ export const LINE_UPGRADE_COST = {
   bow1: { gold: 400, wood: 200 }, bow2: { gold: 600, iron: 400 }, bow3: { gold: 600, iron: 400 },
   lightCav1: { gold: 500, wood: 400 }, heavyCav1: { gold: 500, iron: 400 },
   cannon1: { gold: 300, iron: 200 }, cannon2: { gold: 400, iron: 300 }, cannon3: { gold: 500, iron: 400 },
+  rifle1: { gold: 500, sulfur: 400 }, // (A)
 };

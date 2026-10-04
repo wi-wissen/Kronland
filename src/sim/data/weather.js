@@ -3,6 +3,14 @@
 
 export const WEATHER_NAMES = { summer: 'Sommer', rain: 'Regen', winter: 'Winter' };
 
+// Effects per weather (A): percentage factors on ranged attack and walking speed, water frozen/walkable.
+// Read by the simulation (systems/military.js, sim.js) and by the compendium.
+export const WEATHER_EFFECTS = {
+  summer: { rangedAttackPercent: 100, speedPercent: 100, freezesWater: false },
+  rain: { rangedAttackPercent: 70, speedPercent: 100, freezesWater: false },
+  winter: { rangedAttackPercent: 100, speedPercent: 75, freezesWater: true },
+};
+
 export const WEATHER_CYCLE = [
   ['summer', 6000],
   ['rain', 1200],

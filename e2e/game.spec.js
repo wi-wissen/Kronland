@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { playUrl } from './paths.js';
 
 /** Load the game and wait for the engine. */
 async function boot(page) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/?seed=42');
+  await page.goto(playUrl('?seed=42'));
   await page.waitForFunction(() => !!window.__kronland);
   await expect(page.getByTestId('res-gold')).toHaveText('500');
   return errors;
@@ -90,9 +91,11 @@ test('Recruit squads in the barracks', async ({ page }) => {
 });
 
 test('Start menu: start a new game, save and load again', async ({ page }) => {
+  // Saving compresses and writes asynchronously (IndexedDB); with software graphics the process takes longer
+  test.setTimeout(240_000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
+  await page.goto(playUrl());
   await page.getByTestId('diff-easy').click();
   await page.getByTestId('start').click();
   await page.waitForFunction(() => !!window.__kronland);
@@ -100,9 +103,13 @@ test('Start menu: start a new game, save and load again', async ({ page }) => {
   await page.evaluate(() => { window.__kronland.sim.players[0].stock.gold = 777; window.__kronland.emitUi(); });
   await page.getByTestId('menu').click();
   await page.getByTestId('save').click();
+  await page.getByTestId('save-new').click();
+  await expect(page.getByTestId('game-menu')).toBeHidden();
   await page.evaluate(() => { window.__kronland.sim.players[0].stock.gold = 1; });
   await page.getByTestId('menu').click();
   await page.getByRole('button', { name: 'Gespeichertes Spiel laden' }).click();
+  await page.getByTestId('save-load').click();
+  await page.getByTestId('confirm-ok').click();
   await page.waitForFunction(() => window.__kronland?.sim.players[0].stock.gold === 777);
   await expect(page.getByTestId('res-gold')).toHaveText('777');
   expect(errors).toEqual([]);

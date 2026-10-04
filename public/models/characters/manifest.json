@@ -73,6 +73,13 @@
 
     "hero.bertram":    { "model": "Knight", "include": ["1H_Sword", "Badge_Shield", "Knight_Helmet", "Knight_Cape"], "scale": 1.18, "procedural": "hero:bertram" },
     "hero.hedda":      { "model": "Mage", "scale": 1.18, "procedural": "hero:hedda" },
-    "hero.gerold":     { "model": "Barbarian", "scale": 1.18, "procedural": "hero:gerold" }
+    "hero.gerold":     { "model": "Barbarian", "scale": 1.18, "procedural": "hero:gerold" },
+
+    "soldier.rifle":   { "model": "Rogue", "include": ["2H_Crossbow"], "team": { "uvCells": [[1, 1], [1, 2]] }, "tint": { "uvCells": [[0, 1]], "color": "#3b3f46" }, "procedural": "rifle" },
+    "soldier.rifle.leader": { "model": "Rogue", "include": ["2H_Crossbow", "Rogue_Cape"], "team": { "uvCells": [[1, 1], [1, 2]] }, "tint": { "uvCells": [[0, 1]], "color": "#3b3f46" }, "scale": 1.08, "procedural": "rifle:leader" },
+    "hero.falk":       { "model": "Rogue", "include": ["2H_Crossbow", "Rogue_Cape"], "tint": { "uvCells": [[0, 1]], "color": "#4f6a3a" }, "scale": 1.18, "procedural": "hero:falk" },
+    "hero.morla":      { "model": "Mage", "include": ["1H_Wand", "Spellbook", "Mage_Hat", "Mage_Cape"], "scale": 1.18, "procedural": "hero:morla" },
+    "specialist.thief": { "model": "Rogue_Hooded", "include": ["Knife", "Knife_Offhand"], "tint": { "uvCells": [[0, 1]], "color": "#34373d" }, "procedural": "thief" },
+    "specialist.scout": { "model": "Rogue", "include": ["1H_Crossbow", "Rogue_Cape"], "team": { "uvCells": [[1, 1], [1, 2]] }, "tint": { "uvCells": [[0, 1]], "color": "#6f7f4a" }, "procedural": "scout" }
   }
 }

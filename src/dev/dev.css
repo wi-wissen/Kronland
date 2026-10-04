@@ -1,0 +1,19 @@
+/* Developer mode: labels above figures and tile info at the pointer (created by DevTools.js). */
+.dev-labels { position: fixed; inset: 0; pointer-events: none; z-index: 6; overflow: hidden; }
+.dev-label {
+  position: absolute; left: 0; top: 0; white-space: pre; text-align: center;
+  font: 600 10.5px/1.3 ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  color: #eaf6ff; background: rgba(8, 14, 20, 0.78); border: 1px solid rgba(140, 200, 255, 0.35);
+  border-radius: 4px; padding: 2px 5px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+.dev-label[data-state='walk'], .dev-label[data-state='carry'] { border-color: rgba(255, 236, 120, 0.7); }
+.dev-label[data-state='work'] { border-color: rgba(120, 230, 140, 0.7); }
+.dev-label[data-state='fight'], .dev-label[data-state='down'] { border-color: rgba(255, 110, 90, 0.85); }
+.dev-label[data-state='eat'], .dev-label[data-state='sleep'], .dev-label[data-state='rest'] { border-color: rgba(190, 150, 255, 0.7); }
+.dev-tip {
+  position: fixed; left: 0; top: 0; z-index: 26; pointer-events: none; white-space: pre;
+  font: 11px/1.4 ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; color: #eaf6ff;
+  background: rgba(8, 14, 20, 0.88); border: 1px solid rgba(140, 200, 255, 0.35); border-radius: 5px; padding: 4px 7px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+.dev-tip.has-search::first-line { color: #8fe9ff; font-weight: 700; }

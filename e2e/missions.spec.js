@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { playUrl } from './paths.js';
 
 /** Record page errors; progress and language back to the start. */
 async function fresh(page) {
@@ -11,7 +12,7 @@ async function fresh(page) {
       sessionStorage.setItem('e2e-init', '1');
     }
   });
-  await page.goto('/');
+  await page.goto(playUrl());
   return errors;
 }
 
@@ -96,7 +97,7 @@ test('Open the campaign, start mission 1, see objectives and dialogue', async ({
 
 test('Victory unlocks the next mission', async ({ page }) => {
   const errors = await fresh(page);
-  await page.goto('/?mission=c1');
+  await page.goto(playUrl('?mission=c1'));
   await page.waitForFunction(() => window.__kronland?.sim.mission?.state.id === 'c1');
   await page.evaluate(() => { const e = window.__kronland; e.sim.mission.finish(e.sim, true, 'objectives'); e.emitUi(); });
   await expect(page.getByTestId('mission-result-title')).toHaveText('Sieg!');
@@ -109,7 +110,7 @@ test('Victory unlocks the next mission', async ({ page }) => {
 test('English texts via the saved language', async ({ page }) => {
   await fresh(page);
   await page.evaluate(() => localStorage.setItem('kronland-lang', 'en'));
-  await page.goto('/?mission=tutorial');
+  await page.goto(playUrl('?mission=tutorial'));
   await page.waitForFunction(() => !!window.__kronland);
   await expect(page.getByTestId('tutorial-title')).toHaveText('Welcome');
   await expect(page.getByTestId('tutorial-next')).toHaveText('Next');

@@ -20,13 +20,13 @@ const EXT = /\.(ogg|oga|mp3|m4a|aac|wav|webm|opus|flac)$/i;
 /** Empty manifest (everything synthetic). @returns {Manifest} */
 export const emptyManifest = () => ({ music: {}, sfx: {}, ambient: {} });
 
-/** Path in the manifest → URL relative to the page; only relative paths inside audio/ are allowed. */
+/** Path in the manifest → URL (base = audio/ folder relative to the page, see src/paths.js); only relative paths inside audio/ are allowed. */
 export function resolvePath(p, base = 'audio/') {
   if (typeof p !== 'string') return null;
   const s = p.trim().replace(/\\/g, '/').replace(/^\.\//, '');
   if (!s || s.includes('..') || /^[a-z]+:/i.test(s) || s.startsWith('/') || !EXT.test(s)) return null;
   const b = base.endsWith('/') ? base : base + '/';
-  return s.startsWith('audio/') ? s : b + s;
+  return b + (s.startsWith('audio/') ? s.slice(6) : s);
 }
 
 /**

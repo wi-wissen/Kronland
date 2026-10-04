@@ -64,6 +64,20 @@ function reachable(map, sx, sy, goals) {
   return false;
 }
 
+/**
+ * Observer of an A* search (developer mode). Events:
+ *   'open'  tile enters the open list (or gets a shorter path): g, h, predecessor
+ *   'close' tile is examined (taken from the open list, neighbours are checked)
+ *   'goal'  goal reached (search ends with a path)
+ *   'unreachable' goal lies in another region (no search needed), 'exhausted' no path/aborted
+ * @callback PathObserver
+ * @param {'open'|'close'|'goal'|'unreachable'|'exhausted'} type
+ * @param {number} i tile index
+ * @param {number} g cost so far (straight 10, diagonal 14 per step)
+ * @param {number} h estimated remaining cost (octile distance)
+ * @param {number} parent predecessor tile or −1
+ */
+
 /** Counters for measurements and tests (no effect on the simulation). */
 export const pathStats = { searches: 0, unreachable: 0, exhausted: 0, onFail: null };
 
@@ -78,16 +92,23 @@ function octile(ax, ay, bx, by) {
  * @param {number} sx @param {number} sy
  * @param {number[]} goals tile indices; all must be walkable
  * @param {number} [maxNodes]
+ * @param {PathObserver|null} [observer] only for rendering/teaching (developer mode): receives every
+ *   search step. Without an observer (normal case in the simulation) this costs just a null check;
+ *   with an observer the search does not count in `pathStats`. The result is identical in both cases.
  * @returns {number[]|null} tile indices without start, or null if no path
  */
-export function findPath(map, sx, sy, goals, maxNodes = 20000) {
+export function findPath(map, sx, sy, goals, maxNodes = 20000, observer = null) {
   if (!goals.length) return null;
   const W = map.width;
   const start = sy * W + sx;
   const goalSet = new Set(goals);
   if (goalSet.has(start)) return [];
-  pathStats.searches++;
-  if (!reachable(map, sx, sy, goals)) { pathStats.unreachable++; pathStats.onFail?.(sx, sy, goals); return null; }
+  if (!observer) pathStats.searches++;
+  if (!reachable(map, sx, sy, goals)) {
+    if (observer) observer('unreachable', start, 0, 0, -1);
+    else { pathStats.unreachable++; pathStats.onFail?.(sx, sy, goals); }
+    return null;
+  }
   const gx = goals.map((g) => g % W), gy = goals.map((g) => (g / W) | 0);
   const h = (x, y) => {
     let best = Infinity;
@@ -101,6 +122,7 @@ export function findPath(map, sx, sy, goals, maxNodes = 20000) {
   const open = new Heap();
   const h0 = h(sx, sy);
   open.push({ i: start, f: h0, h: h0 });
+  if (observer) observer('open', start, 0, h0, -1);
   let expanded = 0;
 
   while (open.size) {
@@ -109,10 +131,12 @@ export function findPath(map, sx, sy, goals, maxNodes = 20000) {
     if (goalSet.has(cur.i)) {
       const path = [];
       for (let n = cur.i; n !== start; n = parent.get(n)) path.push(n);
+      if (observer) observer('goal', cur.i, g.get(cur.i), cur.h, parent.get(cur.i) ?? -1);
       return path.reverse();
     }
     closed.add(cur.i);
-    if (++expanded > maxNodes) { pathStats.exhausted++; return null; }
+    if (observer) observer('close', cur.i, g.get(cur.i), cur.h, parent.get(cur.i) ?? -1);
+    if (++expanded > maxNodes) { if (observer) observer('exhausted', cur.i, 0, 0, -1); else pathStats.exhausted++; return null; }
     const cx = cur.i % W, cy = (cur.i / W) | 0;
     const cg = g.get(cur.i);
     for (let d = 0; d < 8; d++) {
@@ -129,8 +153,10 @@ export function findPath(map, sx, sy, goals, maxNodes = 20000) {
       parent.set(ni, cur.i);
       const nh = h(nx, ny);
       open.push({ i: ni, f: ng + nh, h: nh });
+      if (observer) observer('open', ni, ng, nh, cur.i);
     }
   }
-  pathStats.exhausted++;
+  if (observer) observer('exhausted', start, 0, 0, -1);
+  else pathStats.exhausted++;
   return null;
 }

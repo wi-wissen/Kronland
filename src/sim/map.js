@@ -4,6 +4,7 @@ export const WATER = 1;      // not walkable, not buildable
 export const OCCUPIED = 2;   // building, tree, resource pile: not walkable
 export const RESERVED = 4;   // settlement spot or shaft: walkable, only for the matching building
 export const CLIFF = 8;      // steep slope or peak: never walkable, never buildable (not even in winter)
+export const BRIDGE = 16;    // finished bridge over water: walkable, not buildable (expansion)
 
 export class TileMap {
   /** @param {number} width @param {number} height */
@@ -18,6 +19,8 @@ export class TileMap {
     this.frozen = false;
     /** Counter for changes of the occupation (invalidates the region numbers) */
     this.version = 0;
+    /** Counter for height changes (levelling when building); only for caches of the rendering */
+    this.heightVersion = 0;
     /** @type {Int32Array|null} connected walkable regions (0 = not walkable), lazy */
     this.regions = null;
     this.regionKey = '';
@@ -60,7 +63,7 @@ export class TileMap {
     const reg = reuse && reuse.length === n ? reuse.fill(0) : new Int32Array(n);
     const queue = new Int32Array(n);
     const flags = this.flags;
-    const ok = (k) => { const f = flags[k]; return !(f & (OCCUPIED | CLIFF)) && (!(f & WATER) || frozen); };
+    const ok = (k) => { const f = flags[k]; return !(f & (OCCUPIED | CLIFF)) && (!(f & WATER) || frozen || !!(f & BRIDGE)); };
     let id = 0;
     for (let s = 0; s < n; s++) {
       if (reg[s] || !ok(s)) continue;
@@ -85,7 +88,7 @@ export class TileMap {
     if (!this.inBounds(x, y)) return false;
     const f = this.flags[this.idx(x, y)];
     if (f & (OCCUPIED | CLIFF)) return false;
-    return !(f & WATER) || this.frozen;
+    return !(f & WATER) || this.frozen || !!(f & BRIDGE);
   }
 
   /** Occupy or release a rectangle. */

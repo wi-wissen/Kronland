@@ -9,6 +9,12 @@
 Alle übrigen Modelle (Figuren der Siedler und Soldaten, einige Gebäude) sind prozedural im Code
 erzeugt (`src/render/models.js`).
 
+## Symbole
+
+Die bunten Symbole (`public/icons/symbols.webp`) hat das Bildmodell `openai/gpt-5.4-image-2` (über
+OpenRouter) für dieses Projekt erzeugt. Vorlage waren die eigenen SVG-Symbole und die eigenen, mit ChatGPT
+erstellten Figurenbögen (`assets-src/icons/stil-*.webp`). Ablauf und Prompts: [docs/SYMBOLE.md](docs/SYMBOLE.md).
+
 ## Vorbild
 
 Die Spielmechanik orientiert sich an *Die Siedler – Das Erbe der Könige* (Blue Byte, 2004).

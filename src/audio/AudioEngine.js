@@ -7,6 +7,7 @@ import { loadAudioSettings, saveAudioSettings, broadcastAudioSettings, normalize
 import { VoiceLimiter } from './voices.js';
 import { spatialize } from './spatial.js';
 import { parseManifest, emptyManifest, lookup, pickFile, MANIFEST_URL } from './manifest.js';
+import { siteUrl } from '../paths.js';
 import { SFX } from './sfx.js';
 import { createReverb } from './synth.js';
 import { mulberry32 } from './rng.js';
@@ -167,11 +168,11 @@ export class AudioEngine {
   async loadManifest() {
     if (typeof fetch === 'undefined') return;
     try {
-      const res = await fetch(MANIFEST_URL, { cache: 'no-cache' });
+      const res = await fetch(siteUrl(MANIFEST_URL), { cache: 'no-cache' });
       if (!res.ok) return;
       const type = res.headers.get('content-type') ?? '';
       if (type.includes('html')) return;
-      this.manifest = parseManifest(await res.json());
+      this.manifest = parseManifest(await res.json(), siteUrl('audio/'));
     } catch { return; }
     // Preload effect files so they are ready immediately when played
     for (const [name, e] of Object.entries(this.manifest.sfx)) {

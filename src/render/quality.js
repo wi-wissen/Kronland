@@ -36,7 +36,7 @@ export const QUALITY_LABELS = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }
 export const QUALITY_PRESETS = {
   low: {
     tier: 'low', maxPixelRatio: 1.25, antialias: false, shadowMapSize: 1024, shadowRadius: 1,
-    textureSize: 256, terrainDetail: 1, scatter: 0.25, treeDetail: false, waterDetail: false, terrainBump: false, anisotropy: 1, margin: 12, characterModels: 'models',
+    textureSize: 256, terrainDetail: 1, scatter: 0.25, treeDetail: false, waterDetail: false, terrainBump: false, anisotropy: 2, margin: 12, characterModels: 'models',
   },
   medium: {
     tier: 'medium', maxPixelRatio: 1.5, antialias: true, shadowMapSize: 2048, shadowRadius: 2,

@@ -4,7 +4,9 @@
 
 import { Rng } from './rng.js';
 import { TileMap, WATER, CLIFF, RESERVED } from './map.js';
+import { BALANCE } from './data/balance.js';
 import { isqrt } from './fixed.js';
+import { ADDON } from './data/addon.js';
 
 function hash32(x, y, s) {
   let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 1442695041)) | 0;
@@ -227,6 +229,7 @@ export function generateMap(seed, opts = {}) {
 
   // ---------- River: follows the valleys (Dijkstra over the heights) from map edge to map edge ----------
   const riverTiles = [];
+  let fordCount = 0;
   {
     let a, b;
     const j0 = scale(14) + rng.int(scale(14)), j1 = scale(14) + rng.int(scale(14));
@@ -260,7 +263,7 @@ export function generateMap(seed, opts = {}) {
       }
     }
     // Fords: flat land bridges at two to three places
-    const fordCount = size >= 128 ? 3 : 2;
+    fordCount = size >= 128 ? 3 : 2;
     for (let f = 1; f <= fordCount; f++) {
       const k = path[Math.trunc((path.length * f) / (fordCount + 1))];
       const x = k % S, y = (k / S) | 0;
@@ -486,7 +489,7 @@ export function generateMap(seed, opts = {}) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const x = cx + dx, y = cy + dy;
         if (taken(x - 1, y - 1, w + 2, h + 2)) continue;
-        if (map.slope(x, y, w, h) > 300 || !ringReach(reach, x, y, w, h)) continue;
+        if (map.slope(x, y, w, h) > BALANCE.maxSlope || !ringReach(reach, x, y, w, h)) continue;
         if (minStart && minStartDist(x + (w >> 1), y + (h >> 1)) < minStart) continue;
         return { x, y };
       }
@@ -663,7 +666,71 @@ export function generateMap(seed, opts = {}) {
   };
   const finalFeatures = features.filter((f) => f.kind !== 'tree' || (!removed.has(f.y * S + f.x) && reachableTree(f.x, f.y)));
 
-  return { map, features: finalFeatures, starts, hqs, waterLevel, massifs, mineHills, river: riverTiles };
+  // Bridge sites (add-on): pure extra data, do not change the map
+  const bridges = findBridgeSites(map, riverTiles, fordCount, ADDON.bridge);
+  return { map, features: finalFeatures, starts, hqs, waterLevel, massifs, mineHills, river: riverTiles, bridges };
+}
+
+/**
+ * Bridge sites along the river: per section between fords (and river ends) the shortest straight
+ * crossing (horizontal or vertical, 2 tiles wide) with solid bank at both ends. Deterministic,
+ * no randomness. Result: rectangles of water tiles only.
+ * @param {TileMap} map @param {number[]} river river course (tile indices) @param {number} fordCount
+ * @returns {{x:number,y:number,w:number,h:number}[]}
+ */
+export function findBridgeSites(map, river, fordCount, opts = { minLen: 2, maxLen: 9, spacing: 12 }) {
+  const S = map.width, out = [];
+  if (!river.length) return out;
+  const flag = (x, y) => (map.inBounds(x, y) ? map.flags[y * S + x] : CLIFF);
+  const water = (x, y) => !!(flag(x, y) & WATER);
+  const shore = (x, y) => x > 0 && y > 0 && x < S - 1 && y < map.height - 1 && !(flag(x, y) & (WATER | CLIFF));
+  /** Water stretch of a row/column through (along, across) in direction dir: [a, b] or null. */
+  const run = (along, across, dir) => {
+    const at = (k) => (dir === 0 ? water(k, across) : water(across, k));
+    if (!at(along)) return null;
+    let a = along, b = along;
+    while (at(a - 1) && along - a <= opts.maxLen) a--;
+    while (at(b + 1) && b - along <= opts.maxLen) b++;
+    return [a, b];
+  };
+  /** Crossing through (cx,cy): horizontal (dir 0) or vertical (dir 1), two tiles wide. */
+  const crossing = (cx, cy, dir) => {
+    const along = dir === 0 ? cx : cy, across = dir === 0 ? cy : cx;
+    const r0 = run(along, across, dir);
+    if (!r0) return null;
+    // second row: water at the same place (banks may be offset by one tile)
+    const r1 = run(along, across + 1, dir);
+    if (!r1 || Math.abs(r0[0] - r1[0]) > 1 || Math.abs(r0[1] - r1[1]) > 1) return null;
+    const A = Math.min(r0[0], r1[0]), B = Math.max(r0[1], r1[1]);
+    const len = B - A + 1;
+    if (len < opts.minLen || len > opts.maxLen) return null;
+    const pt = (k, t) => (dir === 0 ? [k, t] : [t, k]);
+    for (const t of [across, across + 1]) {
+      if (!shore(...pt(A - 1, t)) || !shore(...pt(B + 1, t))) return null;
+      for (let k = A; k <= B; k++) if (flag(...pt(k, t)) & CLIFF) return null;
+    }
+    return dir === 0 ? { x: A, y: across, w: len, h: 2, len } : { x: across, y: A, w: 2, h: len, len };
+  };
+  // Per section between the fords the shortest crossing (on a tie near the section centre)
+  const n = fordCount + 1;
+  for (let seg = 0; seg < n; seg++) {
+    const i0 = Math.trunc((river.length * seg) / n) + 3, i1 = Math.trunc((river.length * (seg + 1)) / n) - 3;
+    const mid = (i0 + i1) >> 1;
+    let best = null;
+    for (let i = i0; i <= i1; i++) {
+      if (i < 0 || i >= river.length) continue;
+      const cx = river[i] % S, cy = (river[i] / S) | 0;
+      for (const dir of [0, 1]) for (const off of [0, -1]) {
+        const c = crossing(dir === 0 ? cx : cx + off, dir === 0 ? cy + off : cy, dir);
+        if (!c) continue;
+        const score = c.len * 1000 + Math.abs(i - mid);
+        if (out.some((o) => Math.abs(o.x - c.x) + Math.abs(o.y - c.y) < opts.spacing)) continue;
+        if (!best || score < best.score) best = { ...c, score };
+      }
+    }
+    if (best) out.push({ x: best.x, y: best.y, w: best.w, h: best.h });
+  }
+  return out;
 }
 
 /**

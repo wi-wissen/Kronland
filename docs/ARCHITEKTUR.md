@@ -1,7 +1,11 @@
 # Architektur
 
 ```
+index.html, play/, manual/, compendium/   Seiten der Website (Vite Multi-Page, siehe WEBSITE.md); das Spiel ist play/
 src/
+  main.js     Einstieg des Spiels (play/index.html); pwa.js registriert den Service-Worker
+  paths.js    siteRoot()/siteUrl(): Pfade zur Website-Wurzel (models/, audio/, sw.js) relativ zur Seite
+  site/       Startseite, Handbuch, Wiki (Vue, gemeinsames Layout; Wiki erzeugt aus sim/data)
   sim/        Spiellogik: reines JS, kein DOM, kein Three.js, deterministisch
     data/     Balancing-Werte (Gebäude, Rohstoffe, Einheiten, Techs)
     systems/  Ablauf pro Takt (Bauen, Abbau, Zahltag, Gebäude-Forschung, Markt, Wetter, Brand/Reparatur, …)
@@ -9,16 +13,18 @@ src/
     missions/ Missionslaufzeit, Tutorial, Kampagne (siehe docs/MISSIONEN.md)
   i18n/       Wörterbücher de.js/en.js, t(key, params), tr({ de, en }), reaktive Sprache
   ai/         Computergegner – erzeugt nur Befehle
+  save/       Spielstände: Speicherformat (Umschlag, Prüfung, Migration), Plätze, Kompression, Import/Export
   render/     Three.js-Darstellung, liest den Zustand der Simulation
   game/       Engine (Spielschleife, Auswahl, Bauvorschau) und Eingabe (Maus, Tastatur, Touch);
               buildingUi.js liefert die Gebäude-Daten selection.techs/market/weather/repair
   game/       Engine (Spielschleife, Auswahl, Bauvorschau) und Eingabe (Maus, Tastatur, Touch)
   audio/      Ton: synthetisierte Effekte, generative Musik, Umgebung, Dateien per Manifest (docs/AUDIO.md)
   i18n/       Wörterbücher DE/EN, t(), Namen aus Spieldaten, Ablehnungsgründe
+  dev/        Entwicklermodus (nur lesen, nachgeladen): Drahtgitter, A*-Aufnahme, Raster-Overlays, Statistik
   ui/         Vue 3 (Options API): Menüs, Leisten, Panels; ui/hud/ Befehlsleiste, ui/icons/ Symbole,
-              ui/mission/ für Kampagne und Tutorial
-tests/        Vitest (Simulation, KI)
-e2e/          Playwright (Desktop und Handy-Viewport)
+              ui/mission/ für Kampagne und Tutorial, ui/saves/ Spielstandliste und Bestätigungsdialog
+tests/        Vitest (Simulation, KI, Website)
+e2e/          Playwright (Desktop und Handy-Viewport); Adresse des Spiels zentral in e2e/paths.js
 docs/         Spielregeln und Architektur
 ```
 
@@ -58,6 +64,16 @@ docs/         Spielregeln und Architektur
 8. **Bewegung** (`sim/systems/movement.js`): Jeder Teilschritt geht höchstens in eine Nachbarkachel, diagonal
    nur ohne Eckenschneiden (`canStep`, gleiche Regel wie A*); `moveAlong` verwirft unzulässige Pfade.
    `unstickAll()` setzt zu Beginn jedes Takts Figuren auf gesperrten Kacheln auf die nächste freie Kachel.
+9. **Erweiterungsinhalte** (`sim/systems/addon.js`, Daten `sim/data/addon.js`, Übersicht [ADDON.md](ADDON.md)):
+   nur mit `sim.addon`. Neue Entities `specialist`, `charge`, `torch`, `cloud`, `deposit`; Unsichtbarkeit über das
+   Feld `hidden` (in `canSee` und `targetable` ausgewertet) und `seenBy` (Teams, die entdecken; `systems/hidden.js`,
+   auch in `nearestEnemy`); Brücken setzen das Kartenbit `BRIDGE` (begehbar trotz Wasser, Gebiete und Wegsuche
+   übernehmen das automatisch), werden nicht eingeebnet, ihre Brückenköpfe sind `RESERVED`.
+   Oberfläche: `game/addonUi.js`, KI: `ai/addonAi.js`.
+10. **Gelände** (`sim/systems/terrain.js`): `createBuilding` ebnet die Grundfläche in `map.heights` ein
+   (`levelSite`, gerundeter Mittelwert, 1 Kachel Übergangsrand, Flags bleiben), zählt `map.heightVersion` hoch und
+   meldet `terrainChanged` (Rechteck). `padPreview()` liefert der Bauvorschau Zielhöhe und Abweichung, ohne etwas
+   zu ändern. Höhen stehen im Spielstand und im Zustands-Hash. Regeln: [Spielregeln §6a](SPIELREGELN.md#6a-bauen-am-hang).
 
 ## Darstellung (src/render)
 
@@ -68,9 +84,10 @@ docs/         Spielregeln und Architektur
 | `characters.js` | Figuren aus `manifest.json`, gebackene Animationen, GPU-Skinning, instanziert |
 | `effects.js` | Partikel (Staub, Rauch, Feuer, Spuren), Lebensbalken und Auswahlmarkierungen |
 | `terrain.js`, `water.js`, `environment.js`, `nature.js` | Gelände, Wasser, Himmel/Licht, Bäume und Deko |
+| `terrain.js` `updateArea()` | übernimmt geänderte Sim-Höhen: Ecken, Catmull-Rom-Raster, Normalen, Texturgewichte im Bereich; `setPad/clearPad` legen die Rand-Ecken lebender Gebäude exakt auf ihre Ebene. `Renderer.reshapeGround()` setzt Bäume, Deko, Stümpfe, Haufen und Markierungen nach; `terrainChanged` im Nebel wird erst bei Sicht übernommen |
 | `fog.js` | Nebel des Krieges: Datentextur (1 Texel je Kachel, R sichtbar, G erkundet, weichgezeichnet und überblendet), Shader-Zusatz `patchFog()` für alle Weltmaterialien |
 | `models.js`, `assets.js` | prozedurale Modelle und das Laden der GLB-Modelle |
-| `debug.js` | Leistungsanzeige (`?debug=1`) |
+| `devHook` | Haken des Entwicklermodus (`src/dev/`, [ENTWICKLERMODUS.md](ENTWICKLERMODUS.md)): vor/nach dem Zeichnen, sonst `null` |
 
 Pro Bild: Kamera → Sichtprüfung (Frustum) → Entities abgleichen → Detailstufen wählen → Instanzdaten
 schreiben → zeichnen. Die Simulation bleibt unberührt. Siehe [MODELLE.md](MODELLE.md).
@@ -88,6 +105,20 @@ Grafikstufe im laufenden Spiel: `setQuality()` meldet `kronland-quality`, die En
 `Renderer.applyQuality()` (Pixeldichte, Schatten, Deko-Dichte, Detailstufen sofort; Kantenglättung, Texturen,
 Gelände-/Wasser-/Baumdetail erst beim nächsten Start). Kamerasprünge, bei denen das Ziel sichtbar bleiben soll,
 gehen über `Engine.focusPoint()` (auf Handys über dem Kontextpanel, `CameraRig.lookAtScreen`).
+
+Kamera und Nahzoom (`CameraRig`): Abstand `MIN_DIST` (3) bis `MAX_DIST` (75) Kacheln. Unter `TILT_START` (18)
+wird der Blick weich flacher bis `NEAR_PITCH` (≈ 17°) wie in Siedler 5, der Blickpunkt hebt sich leicht über
+den Boden, die nahe Schnittebene rückt von 0,3 auf 0,08; die eingestellte Neigung bleibt erhalten und kehrt
+beim Herauszoomen zurück. Die Höhe des Zielpunkts ist das räumlich geglättete Gelände (Radius 2,5–10 Kacheln,
+mit dem Abstand wachsend) – ohne zeitliche Verzögerung, also ohne Nachwippen. Bodenfreiheit: Kamera und ein
+Ring um sie bleiben über dem Gelände (nah 0,45, weit 1,5) und über Gebäuden (`Renderer.buildingTopAt`:
+Grundriss mit Haushöhe, weicher Rand, damit die Kamera stetig steigt statt hineinzufahren); Hügel zwischen
+Kamera und Ziel heben sie an.
+Weil die Kamera der Geländehöhe folgt, gleicht `holdUnder()` beim Ziehen und Drehen den Rest begrenzt aus
+(nur solange er kleiner wird, nie weiter als der Schritt selbst). Strahlen nahe am Horizont sind auf eine
+Reichweite begrenzt (`rayPlane`), nichts schießt ins Unendliche. Detailstufen: bis `NEAR_FULL_DETAIL` (14 Kacheln echter
+Abstand, `lod.js`) gilt auf jeder Grafikstufe Stufe 0, dahinter stetiger Übergang. Der Schattenausschnitt wird
+nah dran kleiner und nach vorn verschoben (`Environment.follow`), damit Schatten scharf bleiben.
 
 Spielende/neues Spiel/Laden: `Engine.stop()` ruft `Renderer.dispose()`. Jedes Spiel bekommt einen neuen
 Canvas und WebGL-Kontext; `dispose()` gibt Szene, modulweite Zwischenspeicher (Modelle, Materialien,
@@ -115,14 +146,113 @@ Texturen) und den Kontext frei. Neue modulweite three.js-Ressourcen dort mit auf
   aus `src/game/Engine.js`; Aktionen schicken ihren `cmd` als normalen Befehl. Neue Gebäude im Baumenü:
   `BUILD_MENU` + `BUILD_CATEGORY` (Reiter `home`, `raw`, `refine`, `military`, `admin`).
 - Gestaltung: Tokens in `src/ui/style.css` (Holz, Pergament, Messing/Gold, Abstände in rem, skaliert
-  über `--ui-scale`), Symbole im Code gezeichnet in `src/ui/icons/` (`<Icon name="gold" />`), Tooltips
-  über `v-tip="{ title, text, cost, reason, key }"`.
+  über `--ui-scale`), Symbole in `src/ui/icons/` (`<Icon name="gold" />`; bunte aus dem KI-Atlas
+  `public/icons/symbols.webp`, SVG als Rückfall, siehe [SYMBOLE.md](SYMBOLE.md)), Tooltips
+  über `v-tip="{ title, text, notes, cost, reason, key }"` (`src/ui/tooltip.js`). Touch: Langdruck
+  (`LONG_PRESS_MS`) öffnet den Tooltip und verwirft den folgenden Klick; er bleibt bis zum nächsten Tippen.
+  Jedes Bedienelement mit Symbol braucht deshalb einen `v-tip` mit Titel und Erklärung (DE/EN).
+- Beschriftungen: Einstellung `labels` (Standard: an bei `pointer: coarse`) setzt `.show-labels` auf `.game`;
+  Komponenten blenden darüber Kurznamen unter Symbolen ein (nur per CSS).
 - Bildschirmfotos zur Gestaltungsprüfung: `python3 scripts/ui-screens.py http://localhost:4211`
-  (Ergebnis in `review/`, nicht im Repository).
+  (Ergebnis in `review/`, nicht im Repository). Bilder für Startseite/Handbuch: `scripts/site-screens.py`.
+- Dateien aus `public/` (Modelle, Ton) nie mit festen Pfaden laden, sondern über `siteUrl()` aus `src/paths.js` –
+  das Spiel liegt unter `play/`, die Dateien in der Wurzel.
 - Spielsysteme im HUD (`src/ui/hud/systems/`): Gebäude-Technologien, Marktplatz, Wetterturm/-kraftwerk,
   Reparatur/Brand. Daten liefert `src/game/buildingUi.js` (nur IDs, Zahlen und `err.*`-Codes, z. B.
   `selection.techs`, `selection.market`, `selection.weather`, `selection.repair`); Hauptleute mit
   Erfahrungssternen stehen in `selection.leaders` (Rang als Index → `rank.<n>`).
+
+## Spielstände (src/save)
+
+Drei Schichten, jede einzeln getestet (`tests/save/`):
+
+| Datei | Aufgabe |
+|---|---|
+| `sim/serialize.js` | `saveGame(sim, extra)` → reiner JSON-Zustand der Simulation, `loadGame(state)` → `Sim`. Karte als Base64 (Int32/Uint8), Nebel als Bitfelder, KI-Zustand und Kamera in `extra`. |
+| `save/format.js` | Umschlag mit Kennzeichen und Versionen, Metadaten, Prüfung (`parseSaveText`), Migration, Dateiname. Fehler als `SaveError` mit i18n-Code `saves.err.*`. |
+| `save/store.js`, `backends.js`, `codec.js` | Mehrere Plätze: `index` (Liste mit Vorschaubild) + `slot:<id>` (komprimierter Umschlag). Schreibvorgänge in einer Warteschlange; Platz und Liste werden gemeinsam geschrieben (`backend.atomic`). |
+
+**Ablage.** IndexedDB (Datenbank `kronland`, Objektspeicher `saves`) – großes Kontingent und asynchron,
+blockiert das Spiel beim Schreiben nicht. Ohne IndexedDB: `localStorage` (Präfix `kronland-saves:`), sonst nur
+Arbeitsspeicher mit Hinweis „exportiere als Datei“. Gespeichert wird immer gzip-komprimiert (`CompressionStream`)
+und Base64-kodiert (Präfix `gz:`, ohne gzip `js:`): ein früher Spielstand schrumpft von ~160 kB auf ~25 kB.
+Speicher voll (`QuotaExceededError`) und gesperrter Speicher (privates Fenster) werden zu `saves.err.quota`
+bzw. `saves.err.storage`; ein gescheiterter Schreibvorgang lässt vorhandene Stände unverändert.
+Platz und Liste ändern sich immer zusammen: bei IndexedDB in *einer* Transaktion (die Liste wird darin gelesen
+und neu geschrieben – zwei offene Tabs überschreiben sich so keine Einträge), bei localStorage/Arbeitsspeicher
+der Reihe nach mit Rücknahme bei Fehlern. Geht die IndexedDB-Verbindung verloren (Safari im Hintergrund,
+`versionchange` aus einem anderen Tab), wird sie einmal neu geöffnet. Die Liste zeigt die Belegung laut
+`navigator.storage.estimate()`; nach dem ersten Speichern wird `navigator.storage.persist()` erbeten, damit der
+Browser die Stände bei Platzmangel nicht räumt.
+Der frühere Einzelspielstand (`localStorage['kronland-save-1']`) wird beim ersten Öffnen übernommen, ebenso
+Stände aus einer Sitzung, in der IndexedDB nicht ging (`adoptFrom`, bei gleicher ID gewinnt der neuere).
+Die Frist für `indexedDB.open()` (~8 s) zählt in 250-ms-Schritten: Ist der Hauptthread beim Spielstart lange
+belegt, wird eine längst eingetroffene Antwort nicht als „hängt“ gewertet (sonst landete man fälschlich im
+localStorage).
+
+**Vorschaubild.** `ui/saves/thumb.js` zeichnet die Minikarte (Gelände, Nebel, Gebäude) auf 96×96 px
+(WebP, sonst PNG, wenige kB) – kein Bildschirmfoto der 3D-Szene, das bräuchte `preserveDrawingBuffer`. Mit Nebel
+zeigt es nur den erkundeten Bereich (quadratischer Ausschnitt, `ui/saves/crop.js`).
+Importierte Dateien bekommen ihr Bild aus dem probeweise geladenen Zustand (`thumbFromState`, Sicht von Spieler 0).
+
+**Autosave.** Platz `auto` (fest), alle 5 Spielminuten (3000 Takte), beim Verlassen ins Hauptmenü und wenn
+die Seite verborgen wird (`visibilitychange`/`pagehide`). Einstellung `autosave` (an/aus) im Einstellungsmenü.
+Beendete Partien werden nicht mehr gesichert. „Weiterspielen“ im Startmenü lädt den neuesten Platz.
+Zustand und Vorschaubild werden synchron kopiert, das Schreiben läuft danach über die Warteschlange; derselbe
+Takt wird nicht doppelt gesichert (`visibilitychange` + `pagehide`).
+
+**Was (nicht) im Spielstand steht.** Alles, was die Simulation braucht – auch die durch Einebnung beim Bauen
+am Hang geänderten Geländehöhen (`map.heights`, stehen ohnehin im Zustands-Hash). Nicht gespeichert werden
+Zwischenspeicher (`heightVersion`, Gebietsnummern) und alles aus dem Entwicklermodus (Schalter in
+`localStorage['kronland-dev']`, Werkzeuge lesen nur). Der Roundtrip-Test prüft gleichen Hash nach weiteren
+Takten für Freies Spiel und Mission mit Nebel, Markthandel und eingeebnetem Gelände (`tests/save/roundtrip.test.js`).
+
+**Dateiformat (Export/Import).** Dateiname `kronland-<name>-<YYYY-MM-DD>.json`, standardmäßig eingerückt
+(lesbar – im Unterricht lässt sich der Spielzustand ansehen), wahlweise kompakt. Ausschnitt:
+
+```json
+{
+  "format": "kronland-save",
+  "formatVersion": 1,
+  "gameVersion": "1.0.0",
+  "meta": {
+    "name": "Mission 2 – 42:10",
+    "savedAt": "2026-10-04T12:00:00.000Z",
+    "tick": 25300, "mode": "mission", "mission": "c2", "seed": 7, "players": 3, "fog": true
+  },
+  "state": {
+    "version": 1, "seed": 7, "tick": 25300, "nextId": 4711, "rng": [1130501896, -297207299, 816914994, 2217],
+    "map": { "width": 96, "height": 96, "frozen": false, "heights": "AAAAAP…", "flags": "AQEB…", "owner": "AAAA…" },
+    "players": [ { "id": 0, "stock": { "gold": 1300, "clay": 1800, "wood": 2200, "stone": 1200, "iron": 600, "sulfur": 0 },
+                   "taxLevel": 2, "techs": ["construction"], "faith": 0, "team": 0, "defeated": false } ],
+    "entities": [ { "id": 140, "kind": "building", "type": "headquarters", "owner": 0, "x": 14, "y": 14, "w": 5, "h": 5,
+                    "level": 0, "done": true, "hp": 2500, "workers": [], "trade": null, "burning": false } ],
+    "market": { "prices": { "gold": 1000, "clay": 800, "wood": 800, "stone": 900, "iron": 1200, "sulfur": 1200 } },
+    "mission": { "id": "c2", "objectives": [], "flags": {}, "messages": [] },
+    "vision": { "enabled": true, "teams": [ { "team": 0, "explored": "…", "visible": "…", "ghosts": [] } ] },
+    "extra": { "ais": [], "camera": { "x": 41.5, "z": 33, "yaw": 0.6, "dist": 30 } }
+  }
+}
+```
+
+`meta` dient Liste und Dateiname und wird beim Einlesen aus `state` nachgezogen; maßgeblich ist `state`.
+Positionen bewegter Figuren (`px`, `py`) stehen in Tausendstel Kacheln (Festkomma, siehe Leitregel 2).
+
+**Prüfung beim Import** (`readSaveFile` → `parseSaveText(text, { deep: true })`): kein JSON → `notJson`;
+fremdes Objekt → `wrongFormat`; `formatVersion` größer als bekannt → `newer` (nennt Spiel- und Formatversion);
+fehlende/falsche Felder → `broken` (mit Feldname); unbekannte Mission → `unknownMission`; Datei > 32 MB →
+`tooLarge`. Die tiefe Prüfung lädt den Zustand probeweise (`loadGame`) und findet so auch kaputtes Base64.
+
+**Migration.** `MIGRATIONS[v]` hebt ein Dokument von Formatversion `v` auf `v + 1`; `migrate()` wendet die
+Schritte nacheinander an und prüft jede Zielversion. Version 0 ist der frühere Zustand ohne Umschlag.
+Neue Formatversion: `FORMAT_VERSION` erhöhen, `MIGRATIONS[alt]` ergänzen, Test in `tests/save/format.test.js`.
+Ändert sich nur der Simulationszustand (`state.version`), gehört die Umstellung ebenfalls in eine Migration.
+
+**Oberfläche.** `ui/saves/SaveBrowser.vue` (Modus `save` im Spielmenü, `load` im Spielmenü und Startmenü →
+„Spielstände“): Liste mit Vorschaubild, Datum, Spielzeit, Modus; Speichern unter neuem Namen (Vorschlag
+„Mission 2 – 0:42:10“ / „Freies Spiel Seed 42 – 12:30“), Überschreiben, Umbenennen, Löschen, Export, Import per
+Dateiauswahl (auf Touch-Geräten ohne Typfilter, weil Android/iOS `.json` sonst oft ausgrauen) und Ziehen &
+Ablegen (fensterweit, damit eine danebengeworfene Datei nicht das Spiel verlässt). Rückfragen über `ConfirmDialog.vue` (kein `window.confirm`).
 
 ## Multiplayer (später)
 
@@ -140,9 +270,10 @@ Prüfung im Editor, ohne Build-Schritt.
 |---|---|---|
 | Auswählen | Linksklick, Rahmen ziehen, Shift fügt hinzu | Tippen |
 | Befehl (laufen, bauen, abbauen) | Rechtsklick | Tippen mit Auswahl |
-| Kamera verschieben | WASD/Pfeile, mittlere Taste ziehen, Bildschirmrand | 1 Finger ziehen |
-| Kamera drehen | Q/E, Einfg/Entf, rechte Taste ziehen | 2 Finger drehen |
-| Zoomen | Mausrad, Bild↑/↓ | 2 Finger spreizen |
+| Kamera verschieben | mittlere Taste ziehen (greift den Boden), WASD/Pfeile, Bildschirmrand | 1 Finger ziehen (greift den Boden) |
+| Kamera drehen | Q/E, Einfg/Entf, rechte Taste seitlich ziehen | 2 Finger umeinander drehen (ab 25 px Drehweg) |
+| Kamera neigen | R/F, Pos1/Ende, rechte Taste hoch/runter, Umschalt+Mausrad | 2 Finger parallel hoch/runter |
+| Zoomen (bis ganz nah, Blick dann flacher) | Mausrad zum Mauszeiger, Bild↑/↓ zur Bildmitte | 2 Finger spreizen, zur Fingermitte |
 | Bauen | Baumenü, Klick setzt, Rechtsklick bricht ab | Baumenü, Tippen, „Hier bauen“ |
 | Untätige Leibeigene | Taste . | Knopf „Untätige“ |
 | Pause | Leertaste | Knopf |
@@ -151,3 +282,13 @@ Prüfung im Editor, ohne Build-Schritt.
 | Zur Burg | H | Knopf „Burg“ |
 | Minikarte | Klick/Ziehen | Tippen (Knopf „Karte“ blendet ein) |
 | Menü | Esc | Knopf |
+| Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
+
+Die Kamera folgt der Hand direkt wie ein Kartenprogramm (Vorbild three.js `MapControls`, Gesten wie
+MapLibre), ohne Nachgleiten oder Nachwippen: Die Kameralage ist eine reine Funktion von Ziel, Drehung,
+Neigung und Abstand (`CameraRig.pose()`). Ziehen greift den Boden, der Punkt unter Maus bzw. Finger wandert
+mit. Mausrad und Zwei-Finger-Zoom fahren entlang des Strahls durch Zeiger bzw. Fingermitte
+(wie `OrbitControls.zoomToCursor`). Zwei Finger legen die Geste einmal fest: Neigen nur, wenn beide Finger
+parallel senkrecht gleiten; sonst Zoomen und Verschieben, Drehen erst ab 25 px Drehweg (wie MapLibre), damit
+ein Zoom nicht nebenbei dreht. Randscrollen läuft sanft an und endet, sobald die Maus das Fenster verlässt
+(auch nach oben in die Browserleiste).

@@ -4,7 +4,7 @@
       <button
         v-for="(c, i) in categories"
         :key="c.id"
-        v-tip="{ title: $t('build.cat.' + c.id), key: touch ? null : String(i + 1) }"
+        v-tip="{ title: $t('build.cat.' + c.id), text: $t('build.catTip.' + c.id), key: touch ? null : String(i + 1) }"
         role="tab"
         class="bm-tab"
         :class="{ active: cat === c.id }"
@@ -140,5 +140,9 @@ export default {
   .bm-tab { min-height: var(--touch); }
   .bm-grid { grid-template-columns: repeat(auto-fill, minmax(9.75rem, 1fr)); }
   .bm-item { min-height: var(--touch); }
+  /* Setting "Show labels": short name under the icon */
+  .show-labels .bm-tab { flex-direction: column; gap: 0; padding: 0.1875rem 0.125rem; }
+  .show-labels .bm-tab .ico { width: 1.375rem; height: 1.375rem; }
+  .show-labels .bm-tablabel { display: block; max-width: 100%; font-size: 0.5625rem; letter-spacing: -0.02em; line-height: 1.1; }
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <div class="scrim" @click.self="$emit('close')">
-    <div class="dialog frame gmenu" role="dialog" aria-modal="true" :aria-label="title" data-testid="game-menu">
+    <div class="dialog frame gmenu" :class="{ wide: view === 'save' || view === 'load' }" role="dialog" aria-modal="true" :aria-label="title" data-testid="game-menu">
       <header class="dialog-head">
         <button v-if="view !== 'main'" class="icon-btn ghost" :aria-label="$t('common.back')" data-testid="gmenu-back" @click="view = 'main'"><Icon name="back" /></button>
         <h2 class="h-title">{{ title }}</h2>
@@ -10,12 +10,16 @@
       <div v-if="view === 'main'" class="dialog-body scroll-y gm-main">
         <p class="gm-paused"><Icon name="pause" />{{ $t('gmenu.paused') }}</p>
         <button class="primary gm-btn" data-testid="resume" @click="$emit('close')"><Icon name="play" />{{ $t('gmenu.resume') }}</button>
-        <button class="gm-btn" data-testid="save" @click="$emit('save')"><Icon name="save" />{{ $t('gmenu.save') }}</button>
-        <button class="gm-btn" :disabled="!hasSave" data-testid="load" @click="$emit('load')"><Icon name="load" />{{ $t('gmenu.load') }}</button>
+        <button class="gm-btn" data-testid="save" @click="view = 'save'"><Icon name="save" />{{ $t('gmenu.save') }}</button>
+        <button class="gm-btn" data-testid="load" @click="view = 'load'"><Icon name="load" />{{ $t('gmenu.load') }}</button>
         <button class="gm-btn" data-testid="open-settings" @click="view = 'settings'"><Icon name="settings" />{{ $t('gmenu.settings') }}</button>
         <button class="gm-btn" data-testid="open-controls" @click="view = 'controls'"><Icon name="keyboard" />{{ $t('gmenu.controls') }}</button>
         <div class="gm-sep"></div>
         <button class="gm-btn" :class="{ danger: confirmQuit }" data-testid="quit" @click="quit"><Icon name="quit" />{{ confirmQuit ? $t('gmenu.quitConfirm') : $t('gmenu.quit') }}</button>
+      </div>
+
+      <div v-else-if="view === 'save' || view === 'load'" class="dialog-body scroll-y">
+        <SaveBrowser ref="saves" :key="view" :mode="view" :engine="engine" :touch="touch" in-game @load="$emit('load', $event)" @saved="$emit('saved', $event)" />
       </div>
 
       <div v-else-if="view === 'settings'" class="dialog-body scroll-y">
@@ -37,19 +41,24 @@
 
 <script>
 import SettingsPanel from './SettingsPanel.vue';
+import SaveBrowser from './saves/SaveBrowser.vue';
 
 export default {
   name: 'GameMenu',
-  components: { SettingsPanel },
-  props: { hasSave: Boolean, touch: Boolean },
-  emits: ['close', 'save', 'load', 'quit'],
+  components: { SettingsPanel, SaveBrowser },
+  props: { touch: Boolean, engine: { type: Object, default: null } },
+  emits: ['close', 'saved', 'load', 'quit'],
   data() { return { view: 'main', confirmQuit: false }; },
   computed: {
-    title() { return this.view === 'settings' ? this.$t('set.title') : this.view === 'controls' ? this.$t('gmenu.controls') : this.$t('gmenu.title'); },
+    title() {
+      const v = this.view;
+      if (v === 'save' || v === 'load') return this.$t('saves.title.' + v);
+      return v === 'settings' ? this.$t('set.title') : v === 'controls' ? this.$t('gmenu.controls') : this.$t('gmenu.title');
+    },
     controls() {
-      if (this.touch) return ['select', 'command', 'pan', 'rotate', 'zoom', 'build'].map((k) => [k, this.$t('help.touch.' + k)]);
+      if (this.touch) return ['select', 'command', 'pan', 'rotate', 'tilt', 'zoom', 'build', 'info'].map((k) => [k, this.$t('help.touch.' + k)]);
       return [
-        ...['select', 'command', 'pan', 'rotate', 'zoom', 'build'].map((k) => [k, this.$t('help.desk.' + k)]),
+        ...['select', 'command', 'pan', 'rotate', 'tilt', 'zoom', 'build', 'info'].map((k) => [k, this.$t('help.desk.' + k)]),
         ['categories', '1 – 5'], ['idle', '.'], ['hq', 'H'], ['pause', this.$t('key.space')], ['menu', 'Esc'],
       ];
     },
@@ -57,7 +66,10 @@ export default {
   mounted() {
     this.onKey = (e) => {
       if (e.key !== 'Escape') return;
+      // An open confirmation dialog handles Esc itself
+      if (document.querySelector('[data-testid="confirm-dialog"]')) return;
       e.stopImmediatePropagation();
+      if (this.$refs.saves?.escape()) return;
       if (this.view !== 'main') this.view = 'main'; else this.$emit('close');
     };
     window.addEventListener('keydown', this.onKey, true);
@@ -72,6 +84,7 @@ export default {
 
 <style>
 .gmenu { width: min(27rem, 100%); }
+.gmenu.wide { width: min(40rem, 100%); }
 .gm-main { gap: 0.4375rem; }
 .gm-paused { margin: 0 0 0.25rem; display: flex; align-items: center; gap: 0.4375rem; color: var(--ink-muted); font-size: var(--fs-sm); }
 .gm-paused .ico { width: 0.875rem; height: 0.875rem; }

@@ -9,7 +9,7 @@ import { findPath } from '../pathfinding.js';
 import { idiv, isqrt, tileCenter, toTile } from '../fixed.js';
 
 /** Figures that walk (and can thus get stuck). */
-const MOBILE = new Set(['unit', 'worker', 'leader', 'soldier', 'hero']);
+const MOBILE = new Set(['unit', 'worker', 'leader', 'soldier', 'hero', 'specialist']);
 
 /**
  * May a figure go from (ax,ay) to (bx,by) (milli-tiles, sub-step at most one tile)?
@@ -119,4 +119,51 @@ export function unstickAll(sim) {
 export function isAdjacent(e, r) {
   const tx = toTile(e.px), ty = toTile(e.py);
   return tx >= r.x - 1 && tx <= r.x + r.w && ty >= r.y - 1 && ty <= r.y + r.h;
+}
+
+/**
+ * Walk targets for a group so that they do not stand on top of each other: grid points at spacing `spacing`
+ * (tiles) around (tx,ty), from inside out, only walkable and in the same region as the centre.
+ * Assignment greedy by shortest path (pair with the smallest distance first), so that the paths
+ * hardly cross. Deterministic: ties by order.
+ * @param {import('../map.js').TileMap} map
+ * @param {{px:number, py:number}[]} units
+ * @returns {number[]} tile index per unit (same order as `units`)
+ */
+export function formationTiles(map, tx, ty, units, spacing = 1) {
+  const n = units.length;
+  let ck = map.walkable(tx, ty) ? map.idx(tx, ty) : nearestWalkable(map, tx, ty, tileCenter(tx), tileCenter(ty), 12);
+  if (ck < 0) return units.map(() => -1);
+  if (n === 1) return [ck];
+  const cx = ck % map.width, cy = (ck / map.width) | 0, region = map.regionAt(ck);
+  /** @type {number[]} */
+  const slots = [];
+  for (let r = 0; slots.length < n && r <= 40; r++) {
+    const ring = [];
+    for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+      if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue;
+      const x = cx + i * spacing, y = cy + j * spacing;
+      if (!map.walkable(x, y) || map.regionAt(map.idx(x, y)) !== region) continue;
+      ring.push({ k: map.idx(x, y), d: i * i + j * j });
+    }
+    // In the ring the round spots first (circle instead of square)
+    ring.sort((a, b) => a.d - b.d || a.k - b.k);
+    for (const s of ring) if (slots.length < n) slots.push(s.k);
+  }
+  while (slots.length < n) slots.push(ck);
+  const pairs = [];
+  for (let u = 0; u < n; u++) for (let s = 0; s < n; s++) {
+    const k = slots[s];
+    const d = (tileCenter(k % map.width) - units[u].px) ** 2 + (tileCenter((k / map.width) | 0) - units[u].py) ** 2;
+    pairs.push({ u, s, d });
+  }
+  pairs.sort((a, b) => a.d - b.d || a.u - b.u || a.s - b.s);
+  const out = new Array(n).fill(-1), used = new Uint8Array(n);
+  let left = n;
+  for (const p of pairs) {
+    if (out[p.u] >= 0 || used[p.s]) continue;
+    out[p.u] = slots[p.s]; used[p.s] = 1;
+    if (!--left) break;
+  }
+  return out;
 }

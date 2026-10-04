@@ -11,6 +11,8 @@ export const BALANCE = {
     mineTicks: 40,           // one mining cycle at piles (A)
     mineYield: 1,            // (A)
     searchRadius: 12,        // tiles: radius for follow-up work (A)
+    gatherersPerTree: 1,     // serfs per tree; others look for the nearest free tree
+    gatherersPerPile: 4,     // serfs per resource pile
   },
   tree: { wood: 30 },        // wood per tree (A)
   pile: { amount: 400 },     // supply of a resource pile (A)
@@ -23,5 +25,7 @@ export const BALANCE = {
   },
   wagePerLeader: 10,         // pay per squad leader at payday (A)
   startSerfs: 4,             // (A)
-  maxSlope: 300,             // max. height difference (cm) under a building (A)
+  // Building on slopes (docs/SPIELREGELN.md §6a): largest height difference (cm) within the footprint.
+  // The area is levelled to the mean when building. 400 cm ≈ 1.1 tile widths (A, justified in §6a).
+  maxSlope: 400,
 };

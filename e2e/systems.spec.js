@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { playUrl } from './paths.js';
 
 // Building systems: building research, marketplace, weather plant, repair.
 
@@ -7,7 +8,7 @@ async function boot(page) {
   page.on('pageerror', (e) => errors.push(e.message));
   // Force German (texts in the expectations), independent of earlier runs
   await page.addInitScript(() => { try { localStorage.setItem('kronland-lang', 'de'); } catch { /* ignore */ } });
-  await page.goto('/?seed=42');
+  await page.goto(playUrl('?seed=42'));
   await page.waitForFunction(() => !!window.__kronland);
   await expect(page.getByTestId('res-gold')).toHaveText('500');
   return errors;
@@ -89,7 +90,7 @@ test('Repair of a burning building', async ({ page }) => {
 
 test('Captain with experience stars and rank (English)', async ({ page }) => {
   await page.addInitScript(() => { try { localStorage.setItem('kronland-lang', 'en'); } catch { /* ignore */ } });
-  await page.goto('/?seed=42');
+  await page.goto(playUrl('?seed=42'));
   await page.waitForFunction(() => !!window.__kronland);
   await page.evaluate(() => {
     const e = window.__kronland, s = e.sim;

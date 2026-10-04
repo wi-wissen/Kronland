@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { playUrl } from './paths.js';
 
 // Sound system: unlock on first click, menu and game music, ambience, settings, UI sounds.
 // The test cannot listen; it checks state and that nothing throws (sound analysis: scripts/audio-check.py).
@@ -6,7 +7,7 @@ import { test, expect } from '@playwright/test';
 test('Sound unlocks on first click, menu music and settings', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
+  await page.goto(playUrl());
   await page.waitForFunction(() => !!window.__kronlandAudio);
   // No AudioContext before a user gesture (autoplay rules)
   expect(await page.evaluate(() => window.__kronlandAudio.ctx)).toBeNull();
@@ -33,7 +34,7 @@ test('In game: build music, ambience, spatial sounds, events', async ({ page }) 
   test.setTimeout(120_000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/?seed=42&no-models');
+  await page.goto(playUrl('?seed=42&no-models'));
   await page.waitForFunction(() => !!window.__kronland);
   await page.getByTestId('quick-hq').click();
   await page.waitForFunction(() => window.__kronlandAudio.ctx?.state === 'running' && window.__kronlandAudio.ambient.active);
@@ -89,7 +90,7 @@ test('Files from the manifest replace synthetic sounds and music', async ({ page
   await page.route('**/audio/sfx/coin.wav', (r) => r.fulfill({ contentType: 'audio/wav', body: sineWav(0.3, 880) }));
   await page.route('**/audio/music/menu.wav', (r) => r.fulfill({ contentType: 'audio/wav', body: sineWav(2, 220) }));
   await page.route('**/audio/sfx/missing.wav', (r) => r.fulfill({ status: 404, body: '' }));
-  await page.goto('/');
+  await page.goto(playUrl());
   await page.waitForFunction(() => !!window.__kronlandAudio);
   await page.mouse.click(5, 5);
   await page.waitForFunction(() => window.__kronlandAudio.manifest.sfx.coin && window.__kronlandAudio.sfxFiles.size === 1);
@@ -102,7 +103,8 @@ test('Files from the manifest replace synthetic sounds and music', async ({ page
   });
   // Missing file: fall back to the synthetic sound, no errors
   expect(r.played).toEqual([true, true, true, true]);
-  expect(r.files).toEqual(['audio/sfx/coin.wav']);
+  // Paths relative to the page: the game lives under play/, the audio files in the site root
+  expect(r.files).toEqual(['../audio/sfx/coin.wav']);
   expect(errors).toEqual([]);
 });
 });

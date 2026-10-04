@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { playUrl } from './paths.js';
 
 // UI: language, settings, build menu categories, minimap, notices.
 
@@ -18,7 +19,7 @@ async function fresh(page) {
   return errors;
 }
 
-async function bootGame(page, url = '/?seed=42') {
+async function bootGame(page, url = playUrl('?seed=42')) {
   await page.goto(url);
   await page.waitForFunction(() => !!window.__kronland);
   await expect(page.getByTestId('res-gold')).toHaveText('500');
@@ -26,7 +27,7 @@ async function bootGame(page, url = '/?seed=42') {
 
 test('Switch language in the start menu: texts change at once and stay saved', async ({ page }) => {
   const errors = await fresh(page);
-  await page.goto('/');
+  await page.goto(playUrl());
   await expect(page.getByTestId('start')).toHaveText('Neues Spiel starten');
   await page.getByTestId('menu-lang-en').click();
   await expect(page.getByTestId('start')).toHaveText('Start new game');
@@ -48,7 +49,7 @@ test('Switch language in the start menu: texts change at once and stay saved', a
 
 test('Settings are saved and offered in the game', async ({ page }) => {
   const errors = await fresh(page);
-  await page.goto('/');
+  await page.goto(playUrl());
   await page.getByTestId('menu-settings').click();
   await expect(page.getByTestId('settings')).toBeVisible();
   await page.getByTestId('vol-music').fill('30');

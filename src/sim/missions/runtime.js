@@ -18,6 +18,7 @@ import { averageMotivation } from '../systems/workers.js';
 import * as api from './setupApi.js';
 import { getMission } from './registry.js';
 import { revealArea } from '../systems/vision.js';
+import { WEATHER_EFFECTS } from '../data/weather.js';
 
 const T = TICKS_PER_SECOND;
 const MAX_MESSAGES = 30;
@@ -98,7 +99,7 @@ export class MissionRuntime {
     if (def.weatherCycle) {
       sim.weatherCycle = def.weatherCycle;
       sim.weather = { state: def.weatherCycle[0][0], index: 0, until: def.weatherCycle[0][1] };
-      sim.map.frozen = sim.weather.state === 'winter';
+      sim.map.frozen = !!WEATHER_EFFECTS[sim.weather.state]?.freezesWater;
     }
     const hero = [...sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === st.human);
     if (hero) st.refs.hero = hero.id;

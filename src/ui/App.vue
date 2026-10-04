@@ -1,5 +1,5 @@
 <template>
-  <StartMenu v-if="screen === 'menu'" :has-save="hasSave" @start="newGame" @continue="continueGame" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" />
+  <StartMenu v-if="screen === 'menu'" :latest="latest" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" />
   <CampaignMenu v-else-if="screen === 'campaign'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @tutorial="startMission('tutorial')" />
 
   <div v-else-if="screen === 'loading'" class="loading backdrop" data-testid="loading">
@@ -13,7 +13,7 @@
     </div>
   </div>
 
-  <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact }" :style="hudVars">
+  <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact, 'show-labels': settings.labels }" :style="hudVars">
     <canvas ref="canvas" data-testid="game-canvas"></canvas>
 
     <template v-if="ui && engine">
@@ -65,7 +65,9 @@
         @menu="quit"
       />
 
-      <GameMenu v-if="menuOpen" :has-save="hasSave" :touch="ui.touch" @close="closeMenu" @save="save" @load="loadSaved" @quit="quit" />
+      <DevPanel v-if="dev.on" :engine="engine" :touch="!!ui.touch" />
+
+      <GameMenu v-if="menuOpen" :engine="engine" :touch="ui.touch" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" />
     </template>
   </div>
 
@@ -73,7 +75,8 @@
 </template>
 
 <script>
-import { markRaw } from 'vue';
+import { markRaw, toRaw, defineAsyncComponent } from 'vue';
+import { mergeUi } from './uiMerge.js';
 import { Engine } from '../game/Engine.js';
 import { loadAssets } from '../render/assets.js';
 import TopBar from './TopBar.vue';
@@ -90,18 +93,21 @@ import { getMission } from '../sim/missions/registry.js';
 import { setMenuMusic } from '../audio/index.js';
 import { settings } from './settings.js';
 import { clock } from './plugin.js';
-
-const SAVE_KEY = 'kronland-save-1';
-const storage = {
-  get() { try { return localStorage.getItem(SAVE_KEY); } catch { return null; } },
-  set(v) { try { localStorage.setItem(SAVE_KEY, v); return true; } catch { return false; } },
-};
+import { getStore, autosaveDue, AUTO_ID, SaveError } from '../save/index.js';
+import { defaultSaveName } from '../save/format.js';
+import { makeThumb } from './saves/thumb.js';
+import { t } from '../i18n/index.js';
+import { devState, setDevMode, isDevHotkey } from '../dev/state.js';
 /** From this width (CSS px) the command bar gets minimap and selection card side by side. */
 const WIDE = 900;
 
 export default {
   name: 'App',
-  components: { TopBar, CommandBar, ToastFeed, StartMenu, GameMenu, Tooltip, CampaignMenu, MissionHud, MissionResult },
+  components: {
+    TopBar, CommandBar, ToastFeed, StartMenu, GameMenu, Tooltip, CampaignMenu, MissionHud, MissionResult,
+    // Developer mode: loaded only when switched on
+    DevPanel: defineAsyncComponent(() => import('./dev/DevPanel.vue')),
+  },
   data() {
     return {
       screen: 'menu',
@@ -110,7 +116,8 @@ export default {
       ui: null,
       progress: 0,
       menuOpen: false,
-      hasSave: !!storage.get(),
+      /** Latest save game (entry) for "Continue" */
+      latest: null,
       /** New best time in the mission just won */
       record: false,
       settings,
@@ -119,14 +126,20 @@ export default {
       topH: 64,
       watching: false,
       tipNo: 1,
+      dev: devState,
     };
   },
   computed: {
     hudVars() { return { '--bottom-h': `${this.bottomH}px`, '--top-total': `${this.topH}px` }; },
   },
   watch: {
+    'dev.on'(on) { this.engine?.setDevMode(on); },
     // Menu music on start and campaign screens (plays after the first click; in-game GameAudio takes over)
     screen: { immediate: true, handler(s) { if (s === 'menu' || s === 'campaign') setMenuMusic(true); else if (s === 'loading') setMenuMusic(false); } },
+    // Autosave every 5 game minutes (setting "Save automatically")
+    'ui.tick'(tick) {
+      if (tick !== undefined && settings.autosave && autosaveDue(tick, this.lastAutoTick ?? tick)) this.autosave();
+    },
     // Record mission end once (progress, best time)
     'ui.mission.result'(r) {
       if (!r || this.recorded) return;
@@ -149,10 +162,17 @@ export default {
     window.addEventListener('resize', this.layout);
     this.layoutTimer = setInterval(this.layout, 1000);
     this.onKey = (e) => {
+      // Developer mode: F3 or Ctrl+Shift+D
+      if (isDevHotkey(e) && !(e.target instanceof HTMLInputElement)) { e.preventDefault(); setDevMode(!devState.on); return; }
       if (e.key !== 'Escape' || this.screen !== 'game' || !this.ui || this.menuOpen) return;
       if (!this.ui.selection && !this.ui.placing && !this.ui.mission?.result) this.openMenu();
     };
     window.addEventListener('keydown', this.onKey);
+    // Save automatically when leaving the page (switching tab, closing the app)
+    this.onHide = () => { if (document.visibilityState === 'hidden') this.autosave(); };
+    document.addEventListener('visibilitychange', this.onHide);
+    window.addEventListener('pagehide', this.onHide);
+    this.refreshLatest();
     // Direct start via address (for tests and links): ?seed=…&ai=easy|normal|hard&players=2
     const q = new URLSearchParams(location.search);
     if (q.has('mission') && getMission(q.get('mission'))) {
@@ -165,6 +185,8 @@ export default {
         hero: q.get('hero') ?? 'bertram',
         // Fog of war: ?fog=off turns it off
         fog: !['off', '0'].includes(q.get('fog') ?? ''),
+        // Expansion content: ?addon=off turns it off
+        addon: !['off', '0'].includes(q.get('addon') ?? ''),
         noAssets: q.has('no-models'),
       });
     }
@@ -173,9 +195,16 @@ export default {
     this.engine?.stop();
     window.removeEventListener('resize', this.layout);
     window.removeEventListener('keydown', this.onKey);
+    document.removeEventListener('visibilitychange', this.onHide);
+    window.removeEventListener('pagehide', this.onHide);
     clearInterval(this.layoutTimer);
   },
   methods: {
+    /** New engine state: replace only what changed (otherwise Vue redraws everything every 200 ms). */
+    applyUi(state) {
+      if (!this.ui) this.ui = state;
+      else mergeUi(this.ui, toRaw(this.ui), state);
+    },
     clock,
     async boot(opts) {
       this.engine?.stop();
@@ -189,8 +218,10 @@ export default {
       if (!opts.noAssets) await loadAssets(players, (d, t) => { this.progress = Math.round((d / t) * 100); });
       this.progress = 100;
       await this.$nextTick();
-      this.engine = markRaw(new Engine(this.$refs.canvas, { ...opts, onUi: (state) => { this.ui = state; } }));
+      this.engine = markRaw(new Engine(this.$refs.canvas, { ...opts, onUi: (state) => this.applyUi(state) }));
+      this.lastAutoTick = this.engine.sim.tick;
       this.engine.start();
+      if (devState.on) this.engine.setDevMode(true);
       this.screen = 'game';
       this.$nextTick(this.layout);
       // For E2E tests and debugging
@@ -207,23 +238,61 @@ export default {
       this.boot({ mission: { id, seed: extra.seed }, players, noAssets: extra.noAssets });
     },
     toCampaign() { this.quit(); this.screen = 'campaign'; },
-    continueGame() { this.loadSaved(); },
-    loadSaved() {
-      const raw = storage.get();
-      if (!raw) return;
-      this.menuOpen = false;
-      try { this.boot({ load: JSON.parse(raw) }); } catch { this.engine?.toast('toast.loadFailed', null, { icon: 'warning', tone: 'bad' }); }
+    /** Determine the latest save game for "Continue". */
+    async refreshLatest() {
+      try { this.latest = await (await getStore({ legacyName: t('saves.legacyName') })).latest(); } catch { this.latest = null; }
     },
-    save() {
-      const ok = storage.set(JSON.stringify(this.engine.save()));
-      this.hasSave = ok || this.hasSave;
-      this.engine.toast(ok ? 'toast.saved' : 'toast.saveFailed', null, { icon: 'save', tone: ok ? 'good' : 'bad' });
+    /** Load a checked envelope (src/save/format.js). */
+    loadDoc(doc) {
+      this.menuOpen = false;
+      this.recorded = false;
+      this.record = false;
+      this.boot({ load: doc.state });
+    },
+    onSaved(entry) {
+      this.latest = entry;
+      this.engine?.toast('saves.saved', { name: entry.name }, { icon: 'save', tone: 'good' });
       this.closeMenu();
+    },
+    /**
+     * Write the autosave slot (silently; only errors are reported). State and preview image are
+     * copied synchronously; the store queues the writes one after another (store.serial), so
+     * the latest state always wins - even if an autosave is still running on leaving.
+     */
+    async autosave() {
+      const e = this.engine, ui = this.ui;
+      if (!e || !settings.autosave || this.screen !== 'game') return;
+      // Do not save finished games any more
+      if (ui?.gameOver || ui?.mission?.result || e.sim.winner !== null) return;
+      const sim = e.sim;
+      this.lastAutoTick = sim.tick;
+      // The same tick is already saved (pagehide often follows right after visibilitychange)
+      if (this.autoSaved?.engine === e && this.autoSaved.tick === sim.tick) return this.autoSaved.promise;
+      const meta = { tick: sim.tick, mode: sim.mission ? 'mission' : 'free', mission: sim.mission?.def?.id ?? null, seed: sim.seed };
+      let state, thumb;
+      try { state = e.save(); thumb = makeThumb(e); } catch (err) { console.error(err); return; }
+      const promise = (async () => {
+        try {
+          const entry = await (await getStore()).save(state, { id: AUTO_ID, name: defaultSaveName(meta, t), thumb });
+          this.latest = entry;
+          if (this.engine === e && document.visibilityState !== 'hidden') e.toast('saves.autosaved', null, { icon: 'save', ttl: 2000 });
+        } catch (err) {
+          const code = err instanceof SaveError ? err.code : 'saves.err.unknown';
+          if (!(err instanceof SaveError)) console.error(err);
+          if (this.engine === e) e.toast(code, err?.params ?? null, { icon: 'warning', tone: 'bad', ttl: 6000 });
+          // Next attempt allowed at the next occasion
+          if (this.autoSaved?.promise === promise) this.autoSaved = null;
+        }
+      })();
+      this.autoSaved = { engine: e, tick: sim.tick, promise };
+      return promise;
     },
     openMenu() { this.menuOpen = true; this.wasPaused = this.engine.paused; this.engine.paused = true; this.engine.emitUi(); },
     closeMenu() { this.menuOpen = false; if (this.engine) { this.engine.paused = !!this.wasPaused; this.engine.emitUi(); } },
     quit() {
       this.menuOpen = false;
+      // Save automatically on leaving (before halting: the state is copied synchronously)
+      if (this.engine) Promise.resolve(this.autosave()).finally(() => this.refreshLatest());
       this.engine?.stop();
       this.engine = null;
       this.ui = null;
@@ -248,6 +317,7 @@ export default {
       else if (a.kind === 'order') e.armyOrder(a.order);
       else if (a.kind === 'refill') e.refillSoldiers();
       else if (a.kind === 'ability') e.ability(a.hero, a.ability);
+      else if (a.kind === 'special') e.special(a.action);
       else if (a.kind === 'recruit') e.recruit(a.id, a.line, a.full);
       else if (a.kind === 'upgradeLine') e.upgradeLine(a.line);
       else if (a.kind === 'militia') e.militia(a.on);

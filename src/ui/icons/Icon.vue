@@ -1,12 +1,16 @@
 <template>
-  <!-- Coloured icons as an image, control icons as a mask in the text colour (currentColor). -->
+  <!-- Control icons as a mask in the text colour (currentColor), coloured icons from the atlas,
+       while it is not loaded (or missing) as a drawn SVG. -->
   <span v-if="isGlyph" class="ico glyph" :style="{ '--mask': `url(&quot;${src}&quot;)` }" aria-hidden="true"></span>
+  <span v-else-if="atlasStyle" class="ico atlas" :data-icon="name" :style="atlasStyle" aria-hidden="true"></span>
   <img v-else class="ico" :src="src" alt="" aria-hidden="true" draggable="false">
 </template>
 
 <script>
 import { reactive } from 'vue';
 import { ICONS, GLYPHS } from './index.js';
+import { ATLAS, ATLAS_INDEX } from './atlas.js';
+import { siteUrl } from '../../paths.js';
 
 /*
  * Performance: an SVG image is re-rasterised on every redraw of its tile. Above the 3D scene
@@ -54,14 +58,47 @@ export function iconUrl(name) {
   return svgUrl(name);
 }
 
+/*
+ * Coloured icons come from an atlas (public/icons/symbols.webp, produced by scripts/icons/slice.mjs):
+ * one image for all, one request, offline in the PWA cache. Until it is loaded – or if it is missing –
+ * the drawn SVG applies.
+ */
+const atlas = reactive({ ready: false });
+let atlasRequested = false;
+function loadAtlas() {
+  if (atlasRequested || typeof Image === 'undefined') return;
+  atlasRequested = true;
+  const img = new Image();
+  img.onload = () => { atlas.ready = true; };
+  img.src = siteUrl(ATLAS.url);
+}
+
+/** Background style for an atlas icon or null (then SVG). */
+export function atlasStyle(name) {
+  const i = ATLAS_INDEX[name];
+  if (i === undefined) return null;
+  loadAtlas();
+  if (!atlas.ready) return null;
+  const col = i % ATLAS.cols, row = Math.floor(i / ATLAS.cols);
+  return {
+    backgroundImage: `url("${siteUrl(ATLAS.url)}")`,
+    backgroundSize: `${ATLAS.cols * 100}% ${ATLAS.rows * 100}%`,
+    backgroundPosition: `${(col / (ATLAS.cols - 1)) * 100}% ${(row / (ATLAS.rows - 1)) * 100}%`,
+  };
+}
+
 /** Convert all icons in advance (e.g. during the loading screen). */
-export function preloadIcons() { for (const n of Object.keys(ICONS)) rasterize(n); }
+export function preloadIcons() {
+  loadAtlas();
+  for (const n of Object.keys(ICONS)) if (GLYPHS.has(n) || ATLAS_INDEX[n] === undefined) rasterize(n);
+}
 
 export default {
   name: 'Icon',
   props: { name: { type: String, required: true } },
   computed: {
     isGlyph() { return GLYPHS.has(this.name); },
+    atlasStyle() { return atlasStyle(this.name); },
     src() { return iconUrl(this.name); },
   },
 };
@@ -69,6 +106,7 @@ export default {
 
 <style>
 img.ico { object-fit: contain; -webkit-user-drag: none; }
+.ico.atlas { background-repeat: no-repeat; }
 .ico.glyph {
   background-color: currentColor;
   -webkit-mask: var(--mask) center / contain no-repeat;

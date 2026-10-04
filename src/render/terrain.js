@@ -1,7 +1,8 @@
 // Terrain mesh from the simulation's height map. 1 tile = 1 world unit.
 // One draw call: smooth mesh (optionally subdivided more finely), texture blending in the shader from
 // grass, meadow, earth, sand, rock (triplanar) and snow via weights per corner.
-// The ground around buildings is trampled (small data texture) and levelled beneath them.
+// Around buildings the ground is trodden (small data texture). The levelling under buildings
+// is computed by the simulation (sim/systems/terrain.js); updateArea() takes changed heights into the mesh.
 
 import * as THREE from 'three';
 import { WATER, CLIFF } from '../sim/map.js';
@@ -44,16 +45,11 @@ export class Terrain {
     this.waterY = waterLevel / HEIGHT_SCALE - 0.12;
     this.waterLevelY = waterLevel / HEIGHT_SCALE;
 
+    /** Building surfaces whose edge corners lie exactly on the plane (id → rectangle) */
+    this.pads = new Map();
     // corner heights = mean of the adjacent tiles
     this.corners = new Float32Array((W + 1) * (H + 1));
-    for (let j = 0; j <= H; j++) for (let i = 0; i <= W; i++) {
-      let sum = 0, n = 0;
-      for (let y = j - 1; y <= j; y++) for (let x = i - 1; x <= i; x++) {
-        if (x < 0 || y < 0 || x >= W || y >= H) continue;
-        sum += map.heights[map.idx(x, y)]; n++;
-      }
-      this.corners[j * (W + 1) + i] = sum / n / HEIGHT_SCALE;
-    }
+    this.computeCorners(0, 0, W, H);
     this.buildGrid();
     this.uniforms = {
       uSnow: { value: 0 }, uWet: { value: 0 }, uTrample: { value: null },
@@ -61,8 +57,33 @@ export class Terrain {
     };
     this.buildTrample();
     this.mesh = this.buildMesh();
-    /** Levelled areas per building (for demolition) */
-    this.pads = new Map();
+  }
+
+  /** Corner heights in the corner region [i0..i1]×[j0..j1] from the simulation's tile heights (building surfaces exactly flat). */
+  computeCorners(i0, j0, i1, j1) {
+    const { W, H, map } = this;
+    i0 = Math.max(0, i0); j0 = Math.max(0, j0); i1 = Math.min(W, i1); j1 = Math.min(H, j1);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      let sum = 0, n = 0;
+      for (let y = j - 1; y <= j; y++) for (let x = i - 1; x <= i; x++) {
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        sum += map.heights[map.idx(x, y)]; n++;
+      }
+      this.corners[j * (W + 1) + i] = sum / n / HEIGHT_SCALE;
+    }
+    // corners on the edge of a building surface lie on its plane (mean if two surfaces touch)
+    let acc = null;
+    for (const r of this.pads.values()) {
+      if (r.x > i1 || r.x + r.w < i0 || r.y > j1 || r.y + r.h < j0) continue;
+      const v = map.heights[map.idx(r.x, r.y)] / HEIGHT_SCALE;
+      for (let j = Math.max(j0, r.y); j <= Math.min(j1, r.y + r.h); j++) for (let i = Math.max(i0, r.x); i <= Math.min(i1, r.x + r.w); i++) {
+        const k = j * (W + 1) + i;
+        acc ??= new Map();
+        const a = acc.get(k);
+        if (a) { a[0] += v; a[1]++; } else acc.set(k, [v, 1]);
+      }
+    }
+    if (acc) for (const [k, [sum, n]] of acc) this.corners[k] = sum / n;
   }
 
   // ---------- Height grid ----------
@@ -88,16 +109,25 @@ export class Terrain {
       const v = base + Math.min(1, d / 10) * (1.2 + n * 3.5) * smooth(0, 14, d) + (n - 0.5) * 0.4 * Math.min(1, d / 3);
       return Math.min(v, Math.max(base, this.waterLevelY + 6.5));
     };
+    this.outer = outer;
     // compute the extended corner grid once (edge + 2 for the Catmull-Rom neighbours)
     const E = M + 2, EW = W + 2 * E + 1;
-    const ext = new Float32Array(EW * (H + 2 * E + 1));
-    for (let j = -E; j <= H + E; j++) for (let i = -E; i <= W + E; i++) ext[(j + E) * EW + i + E] = outer(i, j);
+    this.E = E; this.EW = EW;
+    this.ext = new Float32Array(EW * (H + 2 * E + 1));
+    for (let j = -E; j <= H + E; j++) for (let i = -E; i <= W + E; i++) this.ext[(j + E) * EW + i + E] = outer(i, j);
+    this.grid = g;
+    this.fillGrid(0, 0, GW - 1, GH - 1);
+  }
+
+  /** Fine mesh points in the area [gx0..gx1]×[gy0..gy1] from the extended corner grid (Catmull-Rom). */
+  fillGrid(gx0, gy0, gx1, gy1) {
+    const { W, H, R, M, E, EW, GW, ext, grid: g } = this;
     const C = (i, j) => ext[(Math.max(-E, Math.min(H + E, j)) + E) * EW + Math.max(-E, Math.min(W + E, i)) + E];
     const cr = (p0, p1, p2, p3, t) => {
       const t2 = t * t, t3 = t2 * t;
       return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
     };
-    for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) {
+    for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
       const fx = gx / R - M, fz = gy / R - M;
       const i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
       let v;
@@ -107,13 +137,15 @@ export class Terrain {
         for (let k = -1; k <= 2; k++) rows.push(cr(C(i - 1, j + k), C(i, j + k), C(i + 1, j + k), C(i + 2, j + k), tx));
         v = cr(rows[0], rows[1], rows[2], rows[3], tz);
         // limit overshoot so that shores do not bulge beyond the neighbours
-        const lo = Math.min(C(i, j), C(i + 1, j), C(i, j + 1), C(i + 1, j + 1));
-        const hi = Math.max(C(i, j), C(i + 1, j), C(i, j + 1), C(i + 1, j + 1));
-        v = Math.max(lo - 0.15, Math.min(hi + 0.15, v));
+        // points on a cell edge depend only on its two corners
+        const i1 = tx === 0 ? i : i + 1, j1 = tz === 0 ? j : j + 1;
+        const lo = Math.min(C(i, j), C(i1, j), C(i, j1), C(i1, j1));
+        const hi = Math.max(C(i, j), C(i1, j), C(i, j1), C(i1, j1));
+        // flat cells and edges (e.g. building surfaces) stay exactly flat
+        v = lo === hi ? lo : Math.max(lo - 0.15, Math.min(hi + 0.15, v));
       }
       g[gy * GW + gx] = v;
     }
-    this.grid = g;
   }
 
   gridY(gx, gy) {
@@ -297,54 +329,88 @@ export class Terrain {
     this.trampleTex.needsUpdate = true;
   }
 
-  /**
-   * Level the mesh under a building to its build height (rendering only).
-   * @param {number} id @param {number} x @param {number} y @param {number} w @param {number} h
-   */
-  flattenPad(id, x, y, w, h) {
-    if (this.pads.has(id)) return;
-    const target = this.rectHeight(x, y, w, h);
-    const { R, M, GW } = this;
-    const saved = [];
-    const x0 = (x - 1 + M) * R, x1 = (x + w + 1 + M) * R, y0 = (y - 1 + M) * R, y1 = (y + h + 1 + M) * R;
-    for (let gy = y0; gy <= y1; gy++) for (let gx = x0; gx <= x1; gx++) {
-      if (gx < 0 || gy < 0 || gx >= GW || gy >= this.GH) continue;
-      const k = gy * GW + gx;
-      const wx = gx / R - M, wz = gy / R - M;
-      const d = Math.max(x - wx, wx - (x + w), y - wz, wz - (y + h), 0); // distance to the area
-      const t = d === 0 ? 1 : smooth(1, 0, d);
-      if (t <= 0) continue;
-      saved.push(k, this.grid[k]);
-      this.grid[k] = this.grid[k] + (target - this.grid[k]) * t;
-    }
-    this.pads.set(id, saved);
-    this.refreshRegion(x0, y0, x1, y1);
+  // ---------- Height changes from the simulation ----------
+
+  /** Remember a building surface: its edge corners lie exactly on the plane. Returns true if new. */
+  setPad(id, x, y, w, h) {
+    if (this.pads.has(id)) return false;
+    this.pads.set(id, { x, y, w, h });
+    this.updateArea(x, y, w, h);
+    return true;
   }
 
-  /** Undo the levelling of a demolished building. */
-  restorePad(id) {
-    const saved = this.pads.get(id);
-    if (!saved) return;
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (let i = saved.length - 2; i >= 0; i -= 2) {
-      const k = saved[i];
-      this.grid[k] = saved[i + 1];
-      const gx = k % this.GW, gy = (k / this.GW) | 0;
-      x0 = Math.min(x0, gx); y0 = Math.min(y0, gy); x1 = Math.max(x1, gx); y1 = Math.max(y1, gy);
-    }
+  /** Forget a building surface (demolition); the ground stays flat in the simulation, only the corners smooth out. */
+  clearPad(id) {
+    const r = this.pads.get(id);
+    if (!r) return;
     this.pads.delete(id);
-    this.refreshRegion(x0, y0, x1, y1);
+    this.updateArea(r.x, r.y, r.w, r.h);
   }
 
-  refreshRegion(x0, y0, x1, y1) {
+  /**
+   * Take changed tile heights (rectangle in tiles) into the mesh: corners, fine grid (Catmull-Rom
+   * reaches two corners far), positions, normals and texture weights (rock by steepness) in the area.
+   * @returns {{x0:number,z0:number,x1:number,z1:number}} affected world area
+   */
+  updateArea(x, y, w, h) {
+    const { W, H, R, M, E, EW, GW, GH } = this;
+    // corners of the tiles in the rectangle
+    const i0 = Math.max(0, x), j0 = Math.max(0, y), i1 = Math.min(W, x + w), j1 = Math.min(H, y + h);
+    this.computeCorners(i0, j0, i1, j1);
+    // extended grid: at the map edge also the outer corners (they continue the edge)
+    const ei0 = i0 === 0 ? -E : i0, ej0 = j0 === 0 ? -E : j0, ei1 = i1 === W ? W + E : i1, ej1 = j1 === H ? H + E : j1;
+    for (let j = ej0; j <= ej1; j++) for (let i = ei0; i <= ei1; i++) this.ext[(j + E) * EW + i + E] = this.outer(i, j);
+    // fine points that depend on these corners (Catmull-Rom: ±2 corners)
+    const clampX = (v) => Math.max(0, Math.min(GW - 1, v)), clampY = (v) => Math.max(0, Math.min(GH - 1, v));
+    const gx0 = clampX((ei0 - 2 + M) * R), gx1 = clampX((ei1 + 2 + M) * R);
+    const gy0 = clampY((ej0 - 2 + M) * R), gy1 = clampY((ej1 + 2 + M) * R);
+    this.fillGrid(gx0, gy0, gx1, gy1);
     const pos = this.geometry.attributes.position;
-    for (let gy = Math.max(0, y0); gy <= Math.min(this.GH - 1, y1); gy++) for (let gx = Math.max(0, x0); gx <= Math.min(this.GW - 1, x1); gx++) {
-      const k = gy * this.GW + gx;
+    for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
+      const k = gy * GW + gx;
       pos.array[k * 3 + 1] = this.grid[k];
     }
-    pos.needsUpdate = true;
-    this.geometry.computeVertexNormals();
+    // normals one row further (neighbouring surfaces), texture weights in the same area
+    const nx0 = clampX(gx0 - 1), nx1 = clampX(gx1 + 1), ny0 = clampY(gy0 - 1), ny1 = clampY(gy1 + 1);
+    this.computeNormals(nx0, ny0, nx1, ny1);
+    this.computeSplat(nx0, ny0, nx1, ny1);
+    const start = ny0 * GW, count = (ny1 - ny0 + 1) * GW;
+    for (const [attr, n] of [[pos, 3], [this.geometry.attributes.normal, 3], [this.geometry.attributes.splatA, 4], [this.geometry.attributes.splatB, 4]]) {
+      attr.clearUpdateRanges?.();
+      attr.addUpdateRange?.(start * n, count * n);
+      attr.needsUpdate = true;
+    }
+    this.version = (this.version ?? 0) + 1;
+    return { x0: gx0 / R - M, z0: gy0 / R - M, x1: gx1 / R - M, z1: gy1 / R - M };
   }
+
+  /**
+   * Recompute normals of the mesh points in the area – same weighting as
+   * BufferGeometry.computeVertexNormals (face normals weighted by area), so that no seams appear.
+   */
+  computeNormals(gx0, gy0, gx1, gy1) {
+    const { GW, GH } = this;
+    const p = this.geometry.attributes.position.array, n = this.geometry.attributes.normal.array;
+    for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) { const k = (gy * GW + gx) * 3; n[k] = n[k + 1] = n[k + 2] = 0; }
+    const inside = (v) => { const gx = v % GW, gy = (v / GW) | 0; return gx >= gx0 && gx <= gx1 && gy >= gy0 && gy <= gy1; };
+    const tri = (a, b, c) => {
+      const cbx = p[c * 3] - p[b * 3], cby = p[c * 3 + 1] - p[b * 3 + 1], cbz = p[c * 3 + 2] - p[b * 3 + 2];
+      const abx = p[a * 3] - p[b * 3], aby = p[a * 3 + 1] - p[b * 3 + 1], abz = p[a * 3 + 2] - p[b * 3 + 2];
+      const x = cby * abz - cbz * aby, y = cbz * abx - cbx * abz, z = cbx * aby - cby * abx;
+      for (const v of [a, b, c]) if (inside(v)) { n[v * 3] += x; n[v * 3 + 1] += y; n[v * 3 + 2] += z; }
+    };
+    for (let qy = Math.max(0, gy0 - 1); qy <= Math.min(GH - 2, gy1); qy++) for (let qx = Math.max(0, gx0 - 1); qx <= Math.min(GW - 2, gx1); qx++) {
+      const a = qy * GW + qx, b = a + 1, c = a + GW, d = c + 1;
+      tri(a, c, b); tri(b, c, d);
+    }
+    for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
+      const k = (gy * GW + gx) * 3, l = Math.hypot(n[k], n[k + 1], n[k + 2]) || 1;
+      n[k] /= l; n[k + 1] /= l; n[k + 2] /= l;
+    }
+  }
+
+  /** Build height of a surface according to the simulation (plane after levelling), in world units. */
+  padY(height) { return height / HEIGHT_SCALE; }
 
   // ---------- Material ----------
 

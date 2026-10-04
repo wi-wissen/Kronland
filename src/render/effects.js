@@ -326,7 +326,7 @@ void main() {
 
 /**
  * Ground markings: rings (units) and rectangle frames (buildings) with an edge-smooth line (fwidth),
- * lie flat just above the ground. One draw call.
+ * lie just above the ground, tilted accordingly on slopes. One draw call.
  */
 export class GroundMarks {
   constructor(scene, max = 512) {
@@ -338,7 +338,9 @@ export class GroundMarks {
     this.aPos = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4).setUsage(THREE.DynamicDrawUsage); // xyz + shape (0 ring, 1 rectangle)
     this.aSize = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4).setUsage(THREE.DynamicDrawUsage); // width, depth, line width, fill
     this.aCol = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4).setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute('iPos', this.aPos); g.setAttribute('iSize', this.aSize); g.setAttribute('iCol', this.aCol);
+    // Slope (dy/dx, dy/dz): rings lie tilted on the terrain on a slope instead of horizontal
+    this.aTilt = new THREE.InstancedBufferAttribute(new Float32Array(max * 2), 2).setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute('iPos', this.aPos); g.setAttribute('iSize', this.aSize); g.setAttribute('iCol', this.aCol); g.setAttribute('iTilt', this.aTilt);
     g.instanceCount = 0;
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
     this.uniforms = { uTime: { value: 0 } };
@@ -347,12 +349,13 @@ export class GroundMarks {
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
       extensions: { derivatives: true },
       vertexShader: /* glsl */`
-attribute vec4 iPos; attribute vec4 iSize; attribute vec4 iCol;
+attribute vec4 iPos; attribute vec4 iSize; attribute vec4 iCol; attribute vec2 iTilt;
 varying vec2 vP; varying vec4 vSize; varying vec4 vCol; varying float vShape;
 void main() {
   vSize = iSize; vCol = iCol; vShape = iPos.w;
   vec3 p = position * vec3(iSize.x, 1.0, iSize.y);
   vP = p.xz;
+  p.y += dot(iTilt, p.xz);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(iPos.xyz + p, 1.0);
 }`,
       fragmentShader: /* glsl */`
@@ -390,9 +393,11 @@ void main() {
     this.c = new THREE.Color();
   }
   begin() { this.n = 0; }
-  ring(x, y, z, r, color, alpha = 1, line = 0.06, fill = 0) {
+  /** @param {number} [sx] slope in x direction @param {number} [sz] slope in z direction */
+  ring(x, y, z, r, color, alpha = 1, line = 0.06, fill = 0, sx = 0, sz = 0) {
     if (this.n >= this.max) return;
     const i = this.n++;
+    this.aTilt.setXY(i, sx, sz);
     this.c.setHex(color);
     this.aPos.setXYZW(i, x, y, z, 0);
     this.aSize.setXYZW(i, r * 2, r * 2, line, fill);
@@ -402,6 +407,7 @@ void main() {
     if (this.n >= this.max) return;
     const i = this.n++;
     this.c.setHex(color);
+    this.aTilt.setXY(i, 0, 0);
     this.aPos.setXYZW(i, x, y, z, 1);
     this.aSize.setXYZW(i, w, d, line, 0);
     this.aCol.setXYZW(i, this.c.r, this.c.g, this.c.b, alpha);
@@ -409,6 +415,6 @@ void main() {
   end() {
     this.geo.instanceCount = this.n;
     this.mesh.visible = this.n > 0;
-    for (const a of [this.aPos, this.aSize, this.aCol]) { a.clearUpdateRanges(); a.addUpdateRange(0, Math.max(1, this.n) * a.itemSize); a.needsUpdate = true; }
+    for (const a of [this.aPos, this.aSize, this.aCol, this.aTilt]) { a.clearUpdateRanges(); a.addUpdateRange(0, Math.max(1, this.n) * a.itemSize); a.needsUpdate = true; }
   }
 }

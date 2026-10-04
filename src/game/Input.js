@@ -1,12 +1,17 @@
 // Input: mouse, keyboard, touch. Translates gestures into camera and game actions of the Engine.
+// The camera follows the hand directly as in a map application (model: three.js MapControls, gestures as
+// in MapLibre): the ground itself is dragged, zoom goes to the pointer, nothing glides on afterwards.
 //
 // Desktop:  left click = select, left drag = selection box, right click = command,
-//           right drag = rotate, middle button drag = pan, wheel = zoom,
-//           WASD/arrows = pan, Q/E or Ins/Del = rotate.
-// Touch:    1 finger drag = pan, tap = select or command,
-//           2 fingers = zoom and rotate.
+//           right drag = rotate (sideways) and tilt (up/down), middle button drag = grab
+//           the map, wheel = zoom to the mouse pointer (tilt follows), Shift+wheel = tilt,
+//           WASD/arrows = pan, Q/E or Ins/Del = rotate, R/F or Home/End = tilt.
+// Touch:    1 finger drag = grab the map, tap = select or command,
+//           2 fingers = zoom to the finger centre and pan, twist fingers = rotate (above a threshold),
+//           2 fingers parallel up/down = tilt.
 
 import { get as setting } from '../ui/settings.js';
+import { pinchMode, twistUnlocked, wrapAngle } from './gestures.js';
 
 const DRAG_PX = 8;
 /** Width of the edge strip (px) in which the mouse pushes the camera */
@@ -32,18 +37,29 @@ export class Input {
     this.on(window, 'pointercancel', this.up);
     this.on(canvas, 'wheel', this.wheel, { passive: false });
     this.on(canvas, 'contextmenu', (e) => e.preventDefault());
+    // Middle button grabs the map (no automatic scrolling of the browser)
+    this.on(canvas, 'mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
     this.on(window, 'keydown', this.keydown);
     this.on(window, 'keyup', (e) => this.rig.keys.delete(e.key.toLowerCase()));
     this.on(window, 'blur', () => { this.rig.keys.clear(); this.mouse = null; });
     // Edge scrolling: remember the last mouse position; if the mouse leaves the window, it ends
     this.on(window, 'mousemove', (e) => { this.mouse = { x: e.clientX, y: e.clientY, buttons: e.buttons }; });
+    // If the mouse leaves the window (e.g. upwards into the browser bar), edge scrolling ends.
+    // mouseleave on the document does not arrive in every browser, mouseout without a target does.
     this.on(document, 'mouseleave', () => { this.mouse = null; });
+    this.on(window, 'mouseout', (e) => { if (!e.relatedTarget) this.mouse = null; });
   }
 
   on(target, type, fn, opts) {
     const bound = fn.bind(this);
     target.addEventListener(type, bound, opts);
     (this.off ??= []).push(() => target.removeEventListener(type, bound, opts));
+  }
+
+  /** Screen point → image coordinates −1…1 (y up). @returns {[number, number]} */
+  ndc(x, y) {
+    const r = this.canvas.getBoundingClientRect();
+    return [((x - r.left) / (r.width || 1)) * 2 - 1, -((y - r.top) / (r.height || 1)) * 2 + 1];
   }
 
   /**
@@ -53,34 +69,89 @@ export class Input {
    */
   edgeScroll(dt) {
     const m = this.mouse;
-    if (!m || m.buttons || this.engine.touch || !setting('edgeScroll')) return;
-    if (typeof document !== 'undefined' && !document.hasFocus()) return;
     const W = window.innerWidth, H = window.innerHeight;
     let dx = 0, dy = 0;
-    if (m.x <= EDGE_PX) dx = 1; else if (m.x >= W - 1 - EDGE_PX) dx = -1;
-    if (m.y <= EDGE_PX) dy = 1; else if (m.y >= H - 1 - EDGE_PX) dy = -1;
+    if (m && !m.buttons && !this.engine.touch && setting('edgeScroll')
+      && !(typeof document !== 'undefined' && !document.hasFocus())) {
+      if (m.x <= EDGE_PX) dx = 1; else if (m.x >= W - 1 - EDGE_PX) dx = -1;
+      if (m.y <= EDGE_PX) dy = 1; else if (m.y >= H - 1 - EDGE_PX) dy = -1;
+    }
+    // gentle ramp-up (0.25 s) instead of full speed at once
+    this.edgeT = dx || dy ? Math.min(1, (this.edgeT ?? 0) + dt * 4) : 0;
     if (!dx && !dy) return;
-    const speed = 900 * dt;
+    const speed = 900 * dt * this.edgeT;
     this.rig.pan(dx * speed, dy * speed, this.canvas.clientHeight || H);
   }
 
   dispose() { for (const f of this.off ?? []) f(); this.box.remove(); }
 
+  /** Grab the map at the screen position (x, y). */
+  startPan(x, y) {
+    this.gesture = { kind: 'pan', h: this.rig.grabHeight(...this.ndc(x, y)), x, y };
+  }
+
+  /** Drag the grabbed ground under (x, y). */
+  panTo(x, y) {
+    const g = this.gesture;
+    if (x === g.x && y === g.y) return;
+    this.rig.dragStep(...this.ndc(g.x, g.y), ...this.ndc(x, y), g.h);
+    g.x = x; g.y = y;
+  }
+
   down(e) {
     this.canvas.setPointerCapture?.(e.pointerId);
-    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, button: e.button, type: e.pointerType });
-    if (e.pointerType === 'touch' && this.pointers.size === 2) this.startPinch();
+    const p = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, button: e.button, type: e.pointerType };
+    this.pointers.set(e.pointerId, p);
     this.engine.touch = e.pointerType === 'touch';
+    if (e.pointerType === 'touch') {
+      if (this.pointers.size === 2) this.startPinch();
+    } else if (e.button === 1) this.startPan(p.x, p.y);
   }
 
   startPinch() {
     const [a, b] = [...this.pointers.values()];
+    const dist = Math.hypot(a.x - b.x, a.y - b.y);
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     this.gesture = {
       kind: 'pinch',
-      dist: Math.hypot(a.x - b.x, a.y - b.y),
-      angle: Math.atan2(b.y - a.y, b.x - a.x),
-      mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+      /** null = still open; 'zoom' = zoom, pan, rotate; 'tilt' = tilt */
+      mode: null,
+      a0: { x: a.x, y: a.y }, b0: { x: b.x, y: b.y }, dist0: dist,
+      dist, angle: Math.atan2(b.y - a.y, b.x - a.x), mid,
+      h: this.rig.grabHeight(...this.ndc(mid.x, mid.y)),
+      twist: 0, minDist: dist, rotating: false,
     };
+    for (const p of this.pointers.values()) p.sx = -1e9; // never count as a tap any more
+  }
+
+  /** Two fingers moved. The kind of gesture is fixed once (like MapLibre), then applied directly. */
+  pinchMove() {
+    const g = this.gesture;
+    const [a, b] = [...this.pointers.values()];
+    const dist = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    if (!g.mode) {
+      g.mode = pinchMode({ x: a.x - g.a0.x, y: a.y - g.a0.y }, { x: b.x - g.b0.x, y: b.y - g.b0.y }, dist - g.dist0);
+      if (!g.mode) return;
+    }
+    if (g.mode === 'tilt') {
+      this.rig.rotate(0, (mid.y - g.mid.y) * 0.004);
+    } else {
+      // ground under the finger centre moves along, zoom to the finger centre
+      this.rig.dragStep(...this.ndc(g.mid.x, g.mid.y), ...this.ndc(mid.x, mid.y), g.h);
+      this.rig.zoomAt(g.dist / dist, ...this.ndc(mid.x, mid.y));
+      // rotate only above a threshold, so zooming does not rotate on the side
+      let dA = wrapAngle(angle - g.angle);
+      if (!g.rotating) {
+        g.twist += dA;
+        g.minDist = Math.min(g.minDist, dist);
+        g.rotating = twistUnlocked(g.twist, g.minDist);
+        dA = 0; // keep rotating from here without catching up the threshold path (no jerk)
+      }
+      if (dA) this.rig.rotateAt(dA, ...this.ndc(mid.x, mid.y));
+    }
+    g.dist = dist; g.angle = angle; g.mid = mid;
   }
 
   move(e) {
@@ -93,28 +164,18 @@ export class Input {
     const dx = e.clientX - p.x, dy = e.clientY - p.y;
     p.x = e.clientX; p.y = e.clientY;
     const moved = Math.hypot(p.x - p.sx, p.y - p.sy) > DRAG_PX;
-    const H = this.canvas.clientHeight || 600;
 
     if (p.type === 'touch') {
-      if (this.pointers.size >= 2 && this.gesture?.kind === 'pinch') {
-        const [a, b] = [...this.pointers.values()];
-        const dist = Math.hypot(a.x - b.x, a.y - b.y);
-        const angle = Math.atan2(b.y - a.y, b.x - a.x);
-        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-        this.rig.zoom(this.gesture.dist / Math.max(1, dist));
-        this.rig.rotate(angle - this.gesture.angle, (mid.y - this.gesture.mid.y) * 0.004);
-        this.gesture.dist = dist; this.gesture.angle = angle; this.gesture.mid = mid;
-        p.sx = -1e9; // never count as a tap any more
-        return;
-      }
-      if (moved) { this.rig.pan(dx, dy, H); this.gesture = { kind: 'pan' }; }
+      if (this.pointers.size >= 2 && this.gesture?.kind === 'pinch') { this.pinchMove(); return; }
+      if (this.gesture?.kind !== 'pan' && moved) this.startPan(p.sx, p.sy);
+      if (this.gesture?.kind === 'pan') this.panTo(p.x, p.y);
       if (this.engine.placing) this.engine.hover(e.clientX, e.clientY);
       return;
     }
 
     // mouse
     if (p.button === 2 && moved) { this.rig.rotate(-dx * 0.006, dy * 0.004); this.gesture = { kind: 'rotate' }; }
-    else if (p.button === 1) { this.rig.pan(dx, dy, H); this.gesture = { kind: 'pan' }; }
+    else if (p.button === 1 && this.gesture?.kind === 'pan') this.panTo(p.x, p.y);
     else if (p.button === 0 && moved && !this.engine.placing) {
       this.gesture = { kind: 'box' };
       const x = Math.min(p.sx, p.x), y = Math.min(p.sy, p.y);
@@ -134,6 +195,10 @@ export class Input {
       if (this.pointers.size === 0) {
         if (!moved && this.gesture?.kind !== 'pinch') this.engine.tap(e.clientX, e.clientY);
         this.gesture = null;
+      } else if (this.gesture?.kind === 'pinch') {
+        // one finger stays: continue dragging seamlessly with it
+        const [rest] = [...this.pointers.values()];
+        this.startPan(rest.x, rest.y);
       }
       return;
     }
@@ -156,7 +221,13 @@ export class Input {
 
   wheel(e) {
     e.preventDefault();
-    this.rig.zoom(e.deltaY > 0 ? 1.1 : 1 / 1.1);
+    // Strength by wheel rotation: one notch (≈ 100 px) ≈ factor 1.1; touchpad and line mode continuous
+    const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1;
+    const d = Math.max(-300, Math.min(300, (e.shiftKey ? e.deltaY || e.deltaX : e.deltaY) * unit));
+    // Shift+wheel tilts the camera (touchpad, without right mouse button), otherwise zoom to the mouse pointer.
+    // Touchpad pinch comes as a wheel with Ctrl and small steps: weight more strongly.
+    if (e.shiftKey) this.rig.rotate(0, -d * 0.0006);
+    else this.rig.zoomAt(Math.exp(d * (e.ctrlKey && Math.abs(d) < 50 ? 0.01 : 0.001)), ...this.ndc(e.clientX, e.clientY));
   }
 
   keydown(e) {

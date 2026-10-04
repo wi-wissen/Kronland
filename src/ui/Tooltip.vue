@@ -1,7 +1,8 @@
 <template>
-  <div v-if="tip.data" ref="box" class="tooltip parchment" :style="pos" role="tooltip" data-testid="tooltip">
+  <div v-if="tip.data" ref="box" class="tooltip parchment" :class="{ pinned: tip.pinned }" :style="pos" role="tooltip" data-testid="tooltip">
     <b v-if="tip.data.title" class="tt-title">{{ tip.data.title }}</b>
     <p v-if="tip.data.text" class="tt-text">{{ tip.data.text }}</p>
+    <p v-for="(n, i) in tip.data.notes ?? []" :key="'n' + i" class="tt-note">{{ n }}</p>
     <dl v-if="tip.data.lines?.length" class="tt-lines">
       <template v-for="(l, i) in tip.data.lines" :key="i">
         <dt>
@@ -58,9 +59,11 @@ export default {
   display: flex; flex-direction: column; gap: 0.25rem;
   animation: tt-in 0.12s ease-out;
 }
+.tooltip.pinned { box-shadow: 0 0 0 2px var(--gold-400), 0 6px 18px rgba(0, 0, 0, 0.55); }
 @keyframes tt-in { from { opacity: 0; transform: translateY(3px); } }
 .tt-title { font-family: var(--display); font-size: var(--fs-md); color: #4a2c0d; }
 .tt-text { margin: 0; color: var(--parch-ink); }
+.tt-note { margin: 0; color: var(--parch-ink); font-size: var(--fs-xs); }
 .tt-lines { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 0.125rem 0.875rem; }
 .tt-lines dt { color: var(--parch-ink-muted); display: flex; align-items: center; gap: 0.3125rem; }
 .tt-lines dt .ico { width: 1rem; height: 1rem; }

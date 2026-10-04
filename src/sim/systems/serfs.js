@@ -52,16 +52,89 @@ export function assignJob(sim, u, t) {
   return true;
 }
 
+/** How many serfs work at a tree or pile at the same time (after that they move aside). */
+const gatherCap = (t) => (t.kind === 'tree' ? S.gatherersPerTree : S.gatherersPerPile);
+
+/**
+ * Serfs per resource node (tree, pile). `skip` are serfs that are currently being redistributed –
+ * their previous work no longer counts.
+ * @returns {Map<number, number>}
+ */
+function gathererCounts(sim, skip = null) {
+  const counts = new Map();
+  for (const e of sim.entities.values()) {
+    if (e.kind !== 'unit' || e.job?.kind !== 'gather' || skip?.has(e.id)) continue;
+    counts.set(e.job.target, (counts.get(e.job.target) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/** Is a 1×1 node reachable from region `region` (a free neighbouring tile in it)? */
+function reachable(map, e, region) {
+  for (let y = e.y - 1; y <= e.y + 1; y++) for (let x = e.x - 1; x <= e.x + 1; x++) {
+    if (map.walkable(x, y) && map.regionAt(map.idx(x, y)) === region) return true;
+  }
+  return false;
+}
+
+/**
+ * Nearest node reachable for `u` with resource `res` around the tile (tx,ty) within the search radius.
+ * Prefers nodes with a free spot; if all are occupied, the nearest at all (better to share than
+ * stand idle). Tie: smaller ID (insertion order) – deterministic.
+ */
+function nearestNode(sim, u, res, tx, ty, counts) {
+  const m = sim.map, r2 = S.searchRadius * S.searchRadius;
+  const here = m.idx(toTile(u.px), toTile(u.py));
+  const region = m.walkable(toTile(u.px), toTile(u.py)) ? m.regionAt(here) : 0;
+  let free = null, freeD = Infinity, any = null, anyD = Infinity;
+  for (const e of sim.entities.values()) {
+    if ((e.kind !== 'tree' && e.kind !== 'pile') || e.res !== res || e.amount <= 0) continue;
+    const d = (e.x - tx) ** 2 + (e.y - ty) ** 2;
+    if (d > r2 || (d >= anyD && d >= freeD)) continue;
+    if (region && !reachable(m, e, region)) continue;
+    if (d < anyD) { any = e; anyD = d; }
+    if (d < freeD && (counts.get(e.id) ?? 0) < gatherCap(e)) { free = e; freeD = d; }
+  }
+  return free ?? any;
+}
+
+/**
+ * Send several serfs to mine: the clicked node is staffed up to its limit
+ * (the nearest first), the others distribute over free nodes of the same kind nearby.
+ * @returns {number} number of assigned serfs
+ */
+export function assignGather(sim, serfs, t) {
+  if (t.amount <= 0) return 0;
+  const counts = gathererCounts(sim, new Set(serfs.map((u) => u.id)));
+  const dist = (u) => (toTile(u.px) - t.x) ** 2 + (toTile(u.py) - t.y) ** 2;
+  const order = serfs.map((u) => ({ u, d: dist(u) })).sort((a, b) => a.d - b.d || a.u.id - b.u.id);
+  let ok = 0;
+  for (const { u } of order) {
+    const node = (counts.get(t.id) ?? 0) < gatherCap(t) ? t : nearestNode(sim, u, t.res, t.x, t.y, counts) ?? t;
+    if (!assignJob(sim, u, node)) continue;
+    counts.set(node.id, (counts.get(node.id) ?? 0) + 1);
+    ok++;
+  }
+  return ok;
+}
+
 /** Find the nearest work of the same kind in the surroundings. */
 function findNextJob(sim, u, prev) {
   const tx = toTile(u.px), ty = toTile(u.py);
+  if (prev.kind === 'gather') {
+    const node = nearestNode(sim, u, prev.res, tx, ty, gathererCounts(sim, new Set([u.id])));
+    if (node && assignJob(sim, u, node)) return true;
+    clearJob(sim, u);
+    // Nothing left nearby: notice, so that the player reassigns the idle ones
+    sim.events.push({ type: 'noMoreNodes', player: u.owner, res: prev.res, unit: u.id });
+    return false;
+  }
   const r2 = S.searchRadius * S.searchRadius;
   let best = null, bestD = Infinity;
   for (const e of sim.entities.values()) {
     let fits = false;
     if (prev.kind === 'build') fits = e.kind === 'building' && !e.done && e.owner === u.owner && e.builders.length < S.maxBuildersPerSite;
     else if (prev.kind === 'repair') fits = e.kind === 'building' && e.owner === u.owner && isDamaged(sim, e) && e.builders.length < S.maxBuildersPerSite;
-    else fits = (e.kind === 'tree' || e.kind === 'pile') && e.res === prev.res && e.amount > 0;
     if (!fits) continue;
     const r = rectOf(e);
     const cx = r.x + (r.w >> 1), cy = r.y + (r.h >> 1);

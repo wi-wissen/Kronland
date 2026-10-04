@@ -25,6 +25,13 @@ import { starsOf, EXPERIENCE } from '../sim/data/experience.js';
 import { GameAudio } from '../audio/GameAudio.js';
 import { canSee, isExplored, isVisible, knownBuildings, fogEnabled } from '../sim/systems/vision.js';
 import { Vector3 } from 'three';
+import {
+  ADDON_BUILD_MENU, ADDON_BUILD_CATEGORY, tavernSection, ownSpecialistIds, specialistSelection, specialAction, specialCommandAt, addonToasts, watchThieves,
+} from './addonUi.js';
+import { padPreview } from '../sim/systems/terrain.js';
+
+/** Build preview yellow ("will be levelled") if a tile deviates from the plane by more than this many cm. */
+export const LEVEL_NOTICE = 40;
 
 const TICK_MS = 100;
 
@@ -61,19 +68,26 @@ export const BUILDING_SECTIONS = [];
 /** @param {(engine: Engine, building: any) => any} fn */
 export const registerBuildingSection = (fn) => { BUILDING_SECTIONS.push(fn); };
 
+// Expansion content (src/game/addonUi.js): build menu and inn
+BUILD_MENU.push(...ADDON_BUILD_MENU);
+Object.assign(BUILD_CATEGORY, ADDON_BUILD_CATEGORY);
+registerBuildingSection(tavernSection);
+
 /** Mindestabstand (ms) zwischen zwei Angriffsmeldungen in derselben Gegend */
 const ATTACK_TOAST_MS = 15000;
 
 export class Engine {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ seed?: number, onUi?: (state: any) => void, difficulty?: string, players?: number, hero?: string, fog?: boolean }} opts
+   * @param {{ seed?: number, onUi?: (state: any) => void, difficulty?: string, players?: number, hero?: string, fog?: boolean, addon?: boolean }} opts
    */
   constructor(canvas, opts = {}) {
     this.player = 0;
     const players = opts.players ?? 2;
-    const heroes = ['bertram', 'hedda', 'gerold', 'bertram'];
-    if (opts.hero) { const i = heroes.indexOf(opts.hero); if (i > 0) [heroes[0], heroes[i]] = [heroes[i], heroes[0]]; }
+    // Expansion content on by default in free play; opponents then also get the new heroes
+    const addon = opts.addon ?? true;
+    const heroes = addon ? ['bertram', 'morla', 'falk', 'hedda', 'gerold'] : ['bertram', 'hedda', 'gerold', 'bertram'];
+    if (opts.hero && (addon || !HEROES[opts.hero]?.addon)) { const i = heroes.indexOf(opts.hero); if (i > 0) [heroes[0], heroes[i]] = [heroes[i], heroes[0]]; }
     if (opts.load) {
       this.sim = loadGame(opts.load);
       this.ais = (opts.load.extra?.ais ?? []).map((st) => AiPlayer.fromState(this.sim, st));
@@ -83,7 +97,7 @@ export class Engine {
       this.ais = this.sim.mission.def.players
         .map((p, i) => (p.kind === 'ai' ? new AiPlayer(this.sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
     } else {
-      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes, fog: opts.fog ?? true });
+      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes, fog: opts.fog ?? true, addon });
       /** AI opponents for all other players */
       this.ais = [];
       for (let p = 1; p < players; p++) this.ais.push(new AiPlayer(this.sim, p, opts.difficulty ?? 'normal'));
@@ -110,7 +124,7 @@ export class Engine {
     this.resize();
     this.lastUi = 0;
     const cam = opts.load?.extra?.camera;
-    if (cam) { this.renderer.rig.lookAt(cam.x, cam.z); this.renderer.rig.yaw = cam.yaw; this.renderer.rig.dist = cam.dist; }
+    if (cam) { this.renderer.rig.lookAt(cam.x, cam.z); this.renderer.rig.yaw = cam.yaw; this.renderer.rig.dist = cam.dist; if (cam.pitch !== undefined) this.renderer.rig.pitch = cam.pitch; this.renderer.rig.clamp(); }
     // make weather visible after loading
     if (this.sim.weather.state !== 'summer') this.renderer.applyWeather(this.sim.weather.state);
     /** Mission-related UI state (camera jumps, tutorial checks) */
@@ -120,6 +134,21 @@ export class Engine {
     window.addEventListener('kronland-quality', this.onQuality);
     // audio (a silent no-op without Web Audio; errors in the audio system must never disturb the game)
     try { this.audio = new GameAudio(this); } catch { this.audio = null; }
+    /** Developer mode (src/dev/DevTools.js), only loaded when switched on */
+    this.dev = null;
+  }
+
+  /**
+   * Switch developer mode on/off. The tools are only loaded now; they only read.
+   * @param {boolean} on
+   * @returns {Promise<void>}
+   */
+  async setDevMode(on) {
+    this.devWanted = !!on;
+    if (!on) { this.dev?.dispose(); this.dev = null; return; }
+    if (this.dev) return;
+    const { DevTools } = await import('../dev/DevTools.js');
+    if (this.devWanted && !this.dev && !this.stopped) this.dev = new DevTools(this);
   }
 
   start() {
@@ -135,6 +164,9 @@ export class Engine {
 
   stop() {
     this.running = false;
+    this.stopped = true;
+    this.dev?.dispose();
+    this.dev = null;
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     window.removeEventListener('kronland-quality', this.onQuality);
@@ -145,7 +177,8 @@ export class Engine {
   }
 
   frame(now) {
-    const dt = Math.min(0.1, (now - this.last) / 1000);
+    // never negative: the rAF timestamp can lie before the start time (long warm-up) – otherwise the game would stand still for seconds
+    const dt = Math.max(0, Math.min(0.1, (now - this.last) / 1000));
     this.last = now;
     if (!this.paused) this.acc += dt * 1000 * this.speed;
     let steps = 0;
@@ -162,6 +195,7 @@ export class Engine {
       hint: this.missionView.hint,
       revealAll: this.fogLifted(),
     });
+    this.dev?.frame(dt);
     this.audio?.frame(dt);
     if (now - this.lastUi > 200) { this.lastUi = now; this.emitUi(); }
   }
@@ -169,13 +203,17 @@ export class Engine {
   stepOnce() {
     this.prev = new Map();
     for (const e of this.sim.entities.values()) if (e.px !== undefined) this.prev.set(e.id, { px: e.px, py: e.py });
+    const t0 = this.dev ? performance.now() : 0;
     // Eliminated AI opponents stop thinking
     for (const ai of this.ais) if (!this.sim.players[ai.player]?.defeated) ai.update();
+    const t1 = this.dev ? performance.now() : 0;
     const events = this.sim.step(this.queue);
+    if (this.dev) this.dev.afterTick(performance.now() - t1, t1 - t0);
     this.queue = [];
     this.renderer.onEvents(events);
     if (this.audio) { this.audio.onEvents(events, this.prev); this.audio.onTick(); }
     this.eventToasts(events);
+    watchThieves(this);
     // Selection: deselect what has vanished and foreign things that vanish into the fog
     for (const id of this.selected) if (!this.canSee(this.sim.entities.get(id))) this.selected.delete(id);
   }
@@ -240,9 +278,10 @@ export class Engine {
       if (ev.type === 'hit') this.attackToast(ev);
       if (ev.type === 'weatherChanged' && ev.player !== me) this.toast('toast.weatherChangedEnemy', { weather: ev.state }, { icon: `weather-${ev.state}`, tone: 'warn' });
       if (ev.type === 'payday' && ev.player === me) this.lastPayday = { income: ev.income, wages: ev.wages, tick: sim.tick };
+      addonToasts(this, ev);
       if (ev.player !== me) continue;
       if (ev.type === 'rejected') this.toast(ev.reason, ev.params ?? null, { icon: 'warning', tone: 'warn', ttl: 3500 });
-      if (ev.type === 'buildingDone') {
+      if (ev.type === 'buildingDone' && ev.buildingType !== 'bridge') { // bridge: own notice (addonUi)
         const b = sim.entities.get(ev.building);
         this.toast(ev.level ? 'toast.upgradeDone' : 'toast.buildingDone', { building: ev.buildingType, level: ev.level ?? 0 }, { icon: `b-${ev.buildingType}`, tone: 'good', pos: this.entityPos(b) });
       }
@@ -270,6 +309,11 @@ export class Engine {
       if (ev.type === 'heroRevived') this.toast('toast.heroRevived', null, { icon: 'heal', tone: 'good', pos: this.entityPos(sim.entities.get(ev.id)) });
       if (ev.type === 'workerLeft' && ev.reason === 'motivation') this.toast('toast.workerLeft', null, { icon: 'motivationLow', tone: 'warn' });
       if (ev.type === 'recruited') this.toast('toast.recruited', { unit: UNITS[ev.def] ? ev.def : null }, { icon: `u-${UNITS[ev.def]?.line}`, pos: this.entityPos(sim.entities.get(ev.leader)) });
+      if (ev.type === 'noMoreNodes' && ev.player === me && !(this.noNodesToast?.[ev.res] > performance.now())) {
+        // at most every 15 s per resource, otherwise every serf reports individually
+        (this.noNodesToast ??= {})[ev.res] = performance.now() + 15000;
+        this.toast('toast.noMoreNodes', { res: ev.res }, { icon: 'idle', tone: 'warn', pos: this.entityPos(sim.entities.get(ev.unit)), ttl: 6000 });
+      }
       if (ev.type === 'nodeDepleted' && ev.res !== 'wood') this.toast('toast.nodeDepleted', { res: ev.res }, { icon: ev.res, ttl: 3500 });
     }
     // remember positions of buildings so destruction notices can jump
@@ -364,14 +408,14 @@ export class Engine {
     return e && this.canSee(e) ? e : null;
   }
 
-  clearSelection() { this.selected.clear(); this.attackMode = false; this.emitUi(); }
+  clearSelection() { this.selected.clear(); this.attackMode = false; this.specialMode = null; this.emitUi(); }
 
   selectAt(cx, cy, additive = false) {
     const e = this.selectable(this.renderer.pickEntity(cx, cy));
     const id = e?.id;
     if (!additive) this.selected.clear();
     if (e) {
-      if ((e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero') && e.owner === this.player) {
+      if ((e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero' || e.kind === 'specialist') && e.owner === this.player) {
         if (additive && this.selected.has(id)) this.selected.delete(id); else this.selected.add(id);
       } else {
         this.selected.clear();
@@ -385,7 +429,7 @@ export class Engine {
     if (!additive) this.selected.clear();
     const [l, r] = [Math.min(x1, x2), Math.max(x1, x2)], [t, b] = [Math.min(y1, y2), Math.max(y1, y2)];
     for (const e of this.sim.entities.values()) {
-      if (!(e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero') || e.owner !== this.player) continue;
+      if (!(e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero' || e.kind === 'specialist') || e.owner !== this.player) continue;
       const x = e.px / UNIT, z = e.py / UNIT;
       const s = this.renderer.project(x, this.renderer.terrain.heightAt(x, z) + 0.3, z);
       if (!s.behind && s.x >= l && s.x <= r && s.y >= t && s.y <= b) this.selected.add(e.id);
@@ -427,9 +471,12 @@ export class Engine {
 
   /** Context command for the selected serfs at a screen position. */
   commandAt(cx, cy, attackMove = false) {
+    // Expansion: thief/scout (target mode consumes the click)
+    const sp = specialCommandAt(this, cx, cy);
+    if (sp === 'mode') return true;
     const army = this.ownArmyIds();
-    let done = false;
-    if (army.length) done = this.armyCommandAt(army, cx, cy, attackMove || this.attackMode);
+    let done = !!sp;
+    if (army.length) done = this.armyCommandAt(army, cx, cy, attackMove || this.attackMode) || done;
     this.attackMode = false;
     const units = this.ownSerfIds();
     if (!units.length) { this.emitUi(); return done; }
@@ -493,6 +540,8 @@ export class Engine {
     }
   }
   ability(hero, ability) { this.issue({ type: 'ability', hero, ability }); }
+  /** Expansion: action of the selected specialists (target actions switch on target mode). */
+  special(action) { specialAction(this, action); }
   recruit(building, line, full) { this.issue({ type: 'recruit', building, line, full }); }
   upgradeLine(line) { this.issue({ type: 'upgradeLine', line }); }
   militia(on) { this.issue({ type: 'militia', on }); }
@@ -502,8 +551,10 @@ export class Engine {
     if (this.placing) { this.hover(cx, cy); this.emitUi(); return; }
     const e = this.selectable(this.renderer.pickEntity(cx, cy));
     const id = e?.id;
-    const haveSerfs = this.ownSerfIds().length > 0 || this.ownArmyIds().length > 0;
-    if ((e?.kind === 'unit' || e?.kind === 'leader' || e?.kind === 'hero') && e.owner === this.player) {
+    const haveSerfs = this.ownSerfIds().length > 0 || this.ownArmyIds().length > 0 || ownSpecialistIds(this).length > 0;
+    // Specialist target mode: the tap is meant for the target
+    if (this.specialMode && ownSpecialistIds(this).length) { this.commandAt(cx, cy); return; }
+    if ((e?.kind === 'unit' || e?.kind === 'leader' || e?.kind === 'hero' || e?.kind === 'specialist') && e.owner === this.player) {
       if (haveSerfs && this.multi) this.selected.has(id) ? this.selected.delete(id) : this.selected.add(id);
       else { this.selected.clear(); this.selected.add(id); }
       this.emitUi();
@@ -548,7 +599,7 @@ export class Engine {
 
   /** Save game as a JSON-capable object. */
   save() {
-    return saveGame(this.sim, { ais: this.ais.map((a) => a.getState()), camera: { ...this.renderer.rig.target, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist } });
+    return saveGame(this.sim, { ais: this.ais.map((a) => a.getState()), camera: { ...this.renderer.rig.target, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist, pitch: this.renderer.rig.pitch } });
   }
   togglePause() { this.paused = !this.paused; this.emitUi(); }
 
@@ -559,6 +610,20 @@ export class Engine {
     this.emitUi();
   }
 
+  /**
+   * Test and diagnostic aid (building on a slope): height difference of an area in the simulation (cm) and
+   * in the rendered terrain (world units, measured at the corners and inside the area).
+   */
+  groundProbe(x, y, w, h) {
+    const t = this.renderer.terrain;
+    let lo = Infinity, hi = -Infinity;
+    for (let j = 0; j <= h * 2; j++) for (let i = 0; i <= w * 2; i++) {
+      const v = t.heightAt(x + i / 2, y + j / 2);
+      lo = Math.min(lo, v); hi = Math.max(hi, v);
+    }
+    return { simSlope: this.sim.map.slope(x, y, w, h), meshSpread: hi - lo, meshY: lo, simHeight: this.sim.map.heights[this.sim.map.idx(x, y)] };
+  }
+
   cancelPlacement() { if (this.placing) { this.placing = null; this.emitUi(); } }
 
   hover(cx, cy) {
@@ -567,17 +632,25 @@ export class Engine {
     if (!g) return;
     const def = BUILDINGS[this.placing.type];
     let x = Math.round(g.x - def.w / 2), y = Math.round(g.z - def.h / 2);
-    // An Siedlungsplatz bzw. Schacht einrasten
+    // snap to settlement spot, shaft or bridge site
+    let w = def.w, h = def.h;
     if (def.placement !== 'free') {
-      const list = def.placement === 'settlement' ? this.sim.spots : this.sim.shafts.filter((s) => s.res === def.shaftResource);
-      let best = null, bd = 9;
-      for (const s of list) { const d = Math.hypot(s.x - x, s.y - y); if (d < bd) { bd = d; best = s; } }
-      if (best) { x = best.x; y = best.y; }
+      const list = def.placement === 'settlement' ? this.sim.spots : def.placement === 'bridge' ? this.sim.bridgeSites ?? [] : this.sim.shafts.filter((s) => s.res === def.shaftResource);
+      let best = null, bd = def.placement === 'bridge' ? 12 : 9;
+      for (const s of list) { const d = Math.hypot(s.x + (s.w ?? def.w) / 2 - g.x, s.y + (s.h ?? def.h) / 2 - g.z); if (d < bd) { bd = d; best = s; } }
+      if (best) { x = best.x; y = best.y; w = best.w ?? w; h = best.h ?? h; }
     }
     let reason = this.sim.checkPlacement(this.player, this.placing.type, x, y);
     // Fog: do not build into the unexplored (centre of the area counts)
-    if (!reason && !this.tileExplored(x + (def.w >> 1), y + (def.h >> 1))) reason = 'err.unexplored';
-    Object.assign(this.placing, { x, y, valid: !reason, reason, hasPos: true });
+    if (!reason && !this.tileExplored(x + (w >> 1), y + (h >> 1))) reason = 'err.unexplored';
+    // Building on a slope: 'flat' (even), 'level' (will be levelled), 'steep' (too steep); target = future height (cm).
+    // Bridges are not levelled (no slope preview).
+    let slope = null;
+    if (def.placement !== 'bridge' && this.sim.map.inBounds(x, y) && this.sim.map.inBounds(x + w - 1, y + h - 1)) {
+      const pv = padPreview(this.sim.map, x, y, w, h);
+      slope = { state: reason === 'err.tooSteep' ? 'steep' : pv.maxCut > LEVEL_NOTICE ? 'level' : 'flat', target: pv.target, cut: pv.maxCut };
+    }
+    Object.assign(this.placing, { x, y, w, h, valid: !reason, reason, hasPos: true, slope });
   }
 
   confirmPlacement(keep = false) {
@@ -596,7 +669,7 @@ export class Engine {
     const sim = this.sim, pl = sim.players[this.player];
     const free = sim.popLimit(this.player) - sim.popUsed(this.player);
     return lines.map(([line]) => {
-      const tier = pl.unitTier[line];
+      const tier = pl.unitTier[line] ?? 1;
       const def = unitOf(line, tier);
       const full = fullCost(def);
       const popFull = def.pop * (1 + def.soldiers);
@@ -626,8 +699,9 @@ export class Engine {
   minimapTerrain() {
     const m = this.sim.map, W = m.width, H = m.height;
     let trees = 0;
-    for (const e of this.sim.entities.values()) if (e.kind === 'tree') trees++;
-    const key = `${m.frozen ? 1 : 0}:${trees >> 3}`;
+    let bridges = 0;
+    for (const e of this.sim.entities.values()) { if (e.kind === 'tree') trees++; else if (e.type === 'bridge' && e.done) bridges++; }
+    const key = `${m.frozen ? 1 : 0}:${trees >> 3}:${bridges}:${m.heightVersion}`;
     if (this.mmCache?.key === key) return this.mmCache;
     const data = new Uint8ClampedArray(W * H * 4);
     const wl = this.sim.waterLevel ?? 0;
@@ -636,7 +710,8 @@ export class Engine {
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const k = y * W + x, f = m.flags[k], h = m.heights[k];
       let c;
-      if (f & 1) {
+      if (f & 16) c = [150, 104, 60]; // bridge (extension)
+      else if (f & 1) {
         const depth = Math.min(1, (wl - h) / 400);
         c = m.frozen ? [196 - depth * 30, 222 - depth * 20, 236] : [74 - depth * 30, 142 - depth * 40, 196 - depth * 30];
       } else if (f & 8) {
@@ -674,8 +749,8 @@ export class Engine {
       if (e.kind === 'building') {
         // enemy buildings: visible ones current, otherwise as last seen state (below)
         if (seeAll || this.canSee(e)) buildings.push({ x: e.x, y: e.y, w: e.w, h: e.h, owner: e.owner });
-      } else if (e.kind === 'leader' || e.kind === 'hero') {
-        if (seeAll || this.canSee(e)) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: true });
+      } else if (e.kind === 'leader' || e.kind === 'hero' || e.kind === 'specialist') {
+        if (seeAll || this.canSee(e)) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: e.kind !== 'specialist' });
       } else if (e.kind === 'unit' || e.kind === 'worker' && !e.inside) {
         if (seeAll || this.canSee(e)) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: false });
       }
@@ -836,6 +911,9 @@ export class Engine {
         else mining++;
       }
       selection = { kind: 'serfs', count: serfs.length, idle, jobs: { wood, mining, building } };
+    } else if (ownSpecialistIds(this).length) {
+      // Erweiterung: Dieb/Kundschafter
+      selection = specialistSelection(this);
     } else if (this.selected.size === 1) {
       const e = sim.entities.get([...this.selected][0]);
       if (e?.kind === 'building') {
@@ -881,10 +959,10 @@ export class Engine {
         };
       } else if (e) {
         const kind = e.kind === 'leader' ? 'leader' : e.kind;
-        selection = { kind: 'foreign', entity: kind, owner: e.owner ?? -1, unit: e.def ?? null, hero: e.hero ?? null, prof: e.prof ?? null, type: e.kind === 'ruin' ? e.type : null, level: e.kind === 'ruin' ? e.level : null };
+        selection = { kind: 'foreign', entity: kind, owner: e.owner ?? -1, unit: e.def ?? null, hero: e.hero ?? null, spec: e.spec ?? null, prof: e.prof ?? null, type: e.kind === 'ruin' ? e.type : null, level: e.kind === 'ruin' ? e.level : null };
       }
     }
-    const buildOptions = serfs.length ? BUILD_MENU.filter((type) => BUILDINGS[type]).map((type) => {
+    const buildOptions = serfs.length ? BUILD_MENU.filter((type) => BUILDINGS[type] && (!BUILDINGS[type].addon || sim.addon)).map((type) => {
       const def = BUILDINGS[type];
       const cost = def.levels[0].cost;
       let reason = null;
@@ -914,7 +992,7 @@ export class Engine {
       paused: this.paused,
       selection,
       buildOptions,
-      placing: this.placing ? { type: this.placing.type, valid: this.placing.valid, reason: this.placing.reason, hasPos: this.placing.hasPos } : null,
+      placing: this.placing ? { type: this.placing.type, valid: this.placing.valid, reason: this.placing.reason, hasPos: this.placing.hasPos, level: this.placing.slope?.state ?? null } : null,
       toasts: this.toasts.map((t) => ({ id: t.id, key: t.key, params: t.params, icon: t.icon, tone: t.tone, pos: t.pos })),
       touch: this.touch,
       weather: {

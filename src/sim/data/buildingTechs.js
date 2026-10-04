@@ -104,6 +104,11 @@ const list = [
     cost: { gold: 200, stone: 300 }, time: 40, // effect and cost (A)
     effects: [{ target: 'buildings', armor: 2, hpPercent: 20 }], desc: 'Gebäude: Rüstung +2, Lebenspunkte +20 %' },
 
+  // Add-on: bridge building (in the original mathematics/architect's office; here in the stonemason's hut (A))
+  { id: 'mathematics', name: 'Mathematik', building: 'stonemason', minLevel: 0, prev: null, addon: true,
+    cost: { gold: 200, stone: 250 }, time: 40, unlocks: 'bridge', // (A)
+    effects: [], desc: 'Schaltet den Brückenbau an Brückenstellen frei' },
+
   // ---------- Castle ----------
   { id: 'tracking', name: 'Fährtenlesen', building: 'headquarters', minLevel: 0, prev: null,
     cost: { gold: 200, wood: 200 }, time: 30, // (A)
@@ -130,6 +135,9 @@ const list = [
   { id: 'horseshoe', name: 'Hufbeschlag', building: 'stable', minLevel: 0, prev: null,
     cost: { gold: 200, iron: 200 }, time: 30,
     effects: [{ target: 'units', lines: ['lightCav', 'heavyCav'], speed: 20 }], desc: 'Reiterei: Tempo +20 %' },
+  { id: 'rifling', name: 'Gezogene Läufe', building: 'gunsmith', minLevel: 0, prev: null, addon: true,
+    cost: { gold: 250, sulfur: 250 }, time: 40, // (A)
+    effects: [{ target: 'units', lines: ['rifle'], attack: 2, range: 500 }], desc: 'Büchsenschützen: Angriff +2, etwas mehr Reichweite' },
   { id: 'undercarriage', name: 'Verbessertes Fahrgestell', building: 'foundry', minLevel: 0, prev: null,
     cost: { wood: 200, iron: 200 }, time: 30,
     effects: [{ target: 'units', lines: ['cannon'], speed: 25 }], desc: 'Kanonen: Tempo +25 %' },

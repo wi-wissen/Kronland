@@ -5,6 +5,8 @@
 //  - Control icons (pause, menu, close …): single colour in currentColor, they take over the text colour.
 // Usage: <Icon name="gold" /> (src/ui/icons/Icon.vue) or iconFor*(id) for game data.
 
+import { ADDON_ICONS } from './addon.js';
+
 const O = '#2b1d12';
 const SW = 'stroke="' + O + '" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"';
 const p = (d, fill, extra = '') => `<path d="${d}" fill="${fill}" ${SW} ${extra}/>`;
@@ -112,6 +114,11 @@ const GLYPH = {
   target: g('M16 5a11 11 0 1 0 0 22 11 11 0 0 0 0-22zM16 10a6 6 0 1 0 0 12 6 6 0 0 0 0-12z', 2.2) + gf('M14 14h4v4h-4z'),
   dice: g('M6 6h20v20H6z', 2.4) + gf('M10 10h3v3h-3zM19 10h3v3h-3zM14.5 14.5h3v3h-3zM10 19h3v3h-3zM19 19h3v3h-3z'),
   jump: g('M16 4v6M16 22v6M4 16h6M22 16h6M16 10a6 6 0 1 0 0 12 6 6 0 0 0 0-12z', 2.4),
+  // Save games
+  edit: g('M20.5 6.5l5 5L12 25H7v-5zM17.5 9.5l5 5', 2.4),
+  trash: g('M6 9h20M13 9V6h6v3M8.5 9l1.5 17h12l1.5-17M13.5 13.5v8M18.5 13.5v8', 2.3),
+  download: g('M16 5v14M10 13.5l6 6 6-6M6 22v4h20v-4', 2.6),
+  upload: g('M16 20V6M10 11.5l6-6 6 6M6 22v4h20v-4', 2.6),
 };
 
 // ---------- Display crests ----------
@@ -474,6 +481,9 @@ export const ICONS = {
   ...Object.fromEntries(Object.entries(HERO).map(([k, v]) => [`hero-${k}`, v])),
   ...Object.fromEntries(Object.entries(ABILITY).map(([k, v]) => [`ab-${k}`, v])),
 };
+
+// Expansion content (own file)
+Object.assign(ICONS, ADDON_ICONS);
 
 /** Icon names drawn in a single colour (currentColor). */
 export const GLYPHS = new Set(Object.keys(GLYPH));

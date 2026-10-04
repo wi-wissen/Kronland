@@ -159,13 +159,21 @@ void main() {
    * Move sun and shadow camera along with the viewpoint.
    * @param {THREE.Vector3} target @param {number} dist camera distance
    */
-  follow(target, dist) {
-    const r = Math.max(22, dist * 1.05);
+  /**
+   * Move sun and shadow section along with the view.
+   * @param {THREE.Vector3} target target point of the camera @param {number} dist camera distance
+   * @param {number} [near] share of close view 0…1: smaller section shifted forward (sharper
+   *   shadows, and in front of the flat camera there is more picture than behind it)
+   * @param {number} [yaw] rotation of the camera
+   */
+  follow(target, dist, near = 0, yaw = 0) {
+    const r = Math.max(22 - 6 * near, dist * 1.05);
+    const ahead = r * 0.5 * near;
     const sun = this.sun;
     // Snap the shadow section to texels so shadows do not flicker when moving
     const texel = (2 * r) / this.q.shadowMapSize;
     const snap = (v) => Math.round(v / texel) * texel;
-    const tx = snap(target.x), tz = snap(target.z);
+    const tx = snap(target.x - Math.sin(yaw) * ahead), tz = snap(target.z - Math.cos(yaw) * ahead);
     sun.position.set(tx + SUN_DIR.x * 80, target.y + SUN_DIR.y * 80, tz + SUN_DIR.z * 80);
     sun.target.position.set(tx, target.y, tz);
     const cam = sun.shadow.camera;

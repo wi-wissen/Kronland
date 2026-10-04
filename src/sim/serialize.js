@@ -36,6 +36,9 @@ export function saveGame(sim, extra = {}) {
     starts: sim.starts,
     spots: sim.spots,
     shafts: sim.shafts,
+    // Expansion: on/off and bridge sites
+    addon: !!sim.addon,
+    bridgeSites: sim.bridgeSites ?? [],
     weather: sim.weather,
     weatherCycle: sim.weatherCycle,
     winner: sim.winner,
@@ -71,6 +74,7 @@ export function loadGame(data) {
     starts: data.starts, spots: data.spots, shafts: data.shafts, weather: data.weather,
     weatherCycle: data.weatherCycle, winner: data.winner, pending: data.pending ?? [], events: [],
     market: data.market ?? createMarket(),
+    addon: !!data.addon, bridgeSites: data.bridgeSites ?? [],
   });
   sim.rng = new Rng(0);
   sim.rng.setState(data.rng);

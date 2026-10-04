@@ -9,7 +9,8 @@ und stehen gebündelt in `src/sim/data/`.
 
 ## 1. Grundprinzip
 
-- Keine Wege, keine Träger, kein Territorium. Gebaut wird frei auf ebenem, freiem Gelände.
+- Keine Wege, keine Träger, kein Territorium. Gebaut wird frei auf freiem Gelände; mäßige Hänge werden
+  beim Bauen eingeebnet (§6a).
 - Rohstoffe werden beim Abbau sofort dem Spieler gutgeschrieben.
 - Ausnahmen beim Bauen: Dorfzentren nur auf **Siedlungsplätzen**, Minen nur auf **Schächten**.
 - Spielzeit läuft in festen Takten (10 Takte pro Sekunde).
@@ -39,6 +40,12 @@ und stehen gebündelt in `src/sim/data/`.
 - Aufgaben (vom Spieler befohlen): bauen (max. 4 je Baustelle), reparieren, Holz fällen,
   Haufen abbauen. Nach getaner Arbeit suchen sie im Umkreis gleichartige Arbeit **(A)**
   (auch nach einer Reparatur: nächstes beschädigtes eigenes Gebäude).
+- Abbau verteilt sich: höchstens 1 Leibeigener je Baum und 4 je Rohstoffhaufen **(A)**. Schickt man
+  mehrere zu einem Baum, gehen die übrigen zu freien Bäumen in der Nähe (Umkreis 12 Kacheln, nur
+  erreichbare). Ist dort nichts mehr frei, teilen sie sich einen Baum; ist gar nichts mehr da, bleiben sie
+  untätig und es erscheint die Meldung „Kein Holz mehr in der Nähe“.
+- Laufbefehle fächern auf: Jede Figur bekommt eine eigene Zielkachel um den Klickpunkt (Leibeigene
+  1 Kachel Abstand, Truppen und Helden 3 Kacheln, damit die Soldaten dahinter Platz haben).
 - Beim Platzieren eines Gebäudes mit ausgewählten Leibeigenen fangen diese sofort an zu bauen.
 - „Zu den Waffen“: werden zu Miliz (Angriff 10, Rüstung 1), rückverwandelbar.
 
@@ -75,6 +82,47 @@ und stehen gebündelt in `src/sim/data/`.
 
 Siehe `src/sim/data/buildings.js` (Kosten, Bauzeit, Größe, Stufen, Freischaltung).
 Bauzeit gilt bei 4 Leibeigenen; mit weniger entsprechend länger **(A)**.
+
+## 6a. Bauen am Hang
+
+**Regel in Kronland**
+- Bebaubar ist eine Fläche, wenn der Höhenunterschied ihrer Kacheln höchstens `BALANCE.maxSlope` =
+  **400 cm** beträgt **(A)** und sie frei von Wasser, Klippen, Belegung und reservierten Plätzen ist.
+  Sonst Ablehnung `err.tooSteep` („Gelände zu steil“), Vorschau rot.
+- Beim Setzen der Baustelle ebnet die Simulation die Grundfläche auf den **gerundeten Mittelwert** ihrer
+  Kachelhöhen ein (Ganzzahl, cm) **(A)**. Übergangsrand: eine Kachel rundum, Kanten-Nachbarn rücken halb,
+  Eck-Nachbarn ein Viertel zur Ebene **(A)**. Wasser, Klippen, belegte Kacheln (Gebäude, Bäume, Haufen)
+  und reservierte Plätze (Siedlungsplätze, Schächte) im Rand bleiben unverändert – Fundamente der Nachbarn
+  werden nie verschoben. Gilt für alle Gebäude gleich, auch für vorgegebene (Burg, Missionsgebäude);
+  Siedlungsplätze und Schächte prüfen keine Steigung (die Kartenerzeugung legt sie eben bzw. höchstens
+  `maxSlope` steil an), eingeebnet werden auch sie. Ausnahme **Brücken** (Erweiterung, §13): keine Einebnung;
+  ihre Brückenköpfe sind reserviert und bleiben daher auch beim Bauen daneben unverändert.
+- Die Ebene **bleibt nach Abriss und Zerstörung** bestehen **(A)** (Ruinen liegen auf ihr, neu bauen ändert nichts).
+- Klippen- und Wasser-Flags ändern sich durch die Einebnung nie; Begehbarkeit und Wegsuche bleiben gleich.
+- Die Höhen sind Teil des Spielstands und des Zustands-Hashes. Ereignis `terrainChanged` (Rechteck in Kacheln)
+  meldet die Darstellung; im Nebel übernimmt sie es erst, wenn der Bereich sichtbar ist.
+- Vorschau: grün = eben (keine Kachel weicht mehr als 40 cm ab), gelb = wird eingeebnet (der Geist steht auf
+  der künftigen Ebene), rot = nicht möglich.
+
+**Recherche (Stand 10/2026)**
+- Belegt: Beim Platzieren zeigt das Spiel den Umriss; rot heißt „hier kann nicht gebaut werden“
+  ([Handbuch, Abschnitt 2.5](https://cdn.akamai.steamstatic.com/steam/apps/965300/manuals/Settlers_5_Heritage_of_Kings_Manual_english.pdf)).
+- Belegt: Das Gelände ist ein Höhenraster mit Knoten im Abstand von 100 Welteinheiten, per Skript änderbar
+  (`Logic.SetTerrainNodeHeight(x, y, h)`); Blockierung (unbegehbar/unbebaubar) wird aus der Höhe abgeleitet
+  und muss nach Höhenänderungen neu berechnet werden (`Logic.UpdateBlocking`, `CUtil.UpdateBlockingWholeMapWithHeight`)
+  – Skripte im [EMS-Projekt](https://github.com/MadShadow-/EMS) (`EMS/tools/rmg/rmg.lua`).
+- Belegt: Im Editor sind rot markierte Stellen „unzugänglich und unbebaubar“; für Bauflächen wird das
+  Plateau-Werkzeug empfohlen, steile Übergänge soll man glätten
+  ([dedk.de-Wiki: Terrainhöhen](https://dedk.de/wiki/doku.php?id=scripting:tutorials:level1:terrain_heights)).
+- **Nicht belegt** (keine Quelle gefunden; Foren siedler-maps.de/siedler-games.de waren nicht abrufbar):
+  genaue Steigungsgrenze, wie die Zielhöhe bestimmt wird, ob es Übergangsbereiche gibt, ob der Boden nach
+  Abriss eben bleibt, Sonderregeln je Gebäudeart. Die Werte oben sind Annahmen, die das Spielgefühl
+  treffen sollen: an mäßigen Hängen bauen, an Steilhängen und Klippen nicht.
+- Begründung 400 cm: 1 Kachel ≈ 3,6 m (Darstellung: 360 cm Höhe je Kachelbreite); Klippe ab 230 cm je Kachel.
+  400 cm über eine Fläche erlauben kleinen Gebäuden (2×2, 3×3) Hänge bis knapp unter Klippensteilheit,
+  großen (4×4) nur mäßige Hänge – mehr Erdarbeit, wie man es erwartet. Kartenstatistik (Seeds 1/7/42,
+  ohne Wasser/Klippen): bebaubar sind ca. 100 % der 2×2-, 90 % der 3×3- und 72 % der 4×4-Flächen
+  (vorher mit 300 cm: 98/77/56 %). Die Ebene liegt höchstens etwa 2 m über/unter dem alten Boden.
 
 ## 7. Forschung
 
@@ -186,7 +234,7 @@ sind kumulativ (Stufentexte aus dem Handbuch, Zahlen **(A)**):
 - Bewegung: Figuren betreten nie Wasser (außer Eis im Winter), Felsen oder Gebäude und schneiden
   keine Ecken (diagonal nur, wenn beide Nachbarkacheln frei sind). Wer auf einer gesperrten Kachel
   steht (z. B. unter einem neuen Gebäude), geht sofort zur nächsten freien Kachel.
-- Regen: Fernkampf −30 % **(A)**. Winter: −25 % Tempo **(A)**.
+- Regen: Fernkampf −30 % **(A)**. Winter: −25 % Tempo **(A)**. Werte in `WEATHER_EFFECTS` (`src/sim/data/weather.js`).
 - Miliz: „Zu den Waffen!“ in der Burg bewaffnet alle Leibeigenen.
 
 ## 9. Wetter
@@ -296,3 +344,37 @@ Wie im Original kennt jede Kachel drei Zustände (je Team; Verbündete teilen Si
   an; Tutorial: an, aber großzügig erkundet. Nach Spielende oder Ausscheiden zeigt die Karte alles.
 - Berechnung: alle 5 Takte (0,5 s), ganzzahlig und deterministisch; Spielstände enthalten Erkundung,
   Sicht (Bitfelder) und die zuletzt gesehenen Gebäude.
+
+## 13. Erweiterungsinhalte
+
+Nach Vorbild der Erweiterungen des Originals (Recherche und Auswahl: [ADDON.md](ADDON.md)). Freies Spiel:
+Startmenü „Erweiterungsinhalte an/aus“ (Standard an) bzw. `?addon=off`; Kampagne und Tutorial: aus
+(Missionen schalten sie mit `addon: true` ein). Ohne Erweiterung lehnt die Simulation alle Erweiterungsbefehle
+ab (`err.addonOff`). Werte: `src/sim/data/addon.js`, `buildings.js`, `units.js`, `buildingTechs.js` (alle (A)).
+
+| Inhalt | Voraussetzung | Kosten | Wirkung |
+|---|---|---|---|
+| **Wirtshaus** (→ Gasthof) | Bildung | 150 Holz, 250 Lehm | wirbt Dieb und Kundschafter an (je höchstens 3, 1 Bevölkerungsplatz) |
+| **Dieb** | Wirtshaus | 300 Taler, 50 Eisen | 160 LP, schnell, kämpft nicht. **Unsichtbar** für Gegner (weder sichtbar noch angreifbar), außer bis 9 Kacheln an einem feindlichen Turm oder 6 an einem feindlichen Kundschafter – dann sieht und bekämpft ihn nur das entdeckende Team. Gilt auch ohne Nebel |
+| ↳ Stehlen | Burg, Lager oder Dorfzentrum eines Gegners | Abklingzeit 90 s | 4 s am Gebäude: 15 % der Taler (höchstens 250) und bis 120 vom reichlichsten Rohstoff; Beute wird zur eigenen Burg getragen (stirbt der Dieb, ist sie weg); mit Beute kein neuer Diebstahl |
+| ↳ Sprengladung | beliebiges feindliches Gebäude | Abklingzeit 120 s | zündet nach 10 s: 500 Schaden am Gebäude (Brücken ×3), 40 an Feinden im Umkreis 1,5 |
+| **Kundschafter** | Wirtshaus | 200 Taler, 50 Holz | 220 LP, Sicht 18, entdeckt Diebe im Umkreis 6 |
+| ↳ Fackel | Ort bis 8 Kacheln | Abklingzeit 60 s | erhellt 60 s einen Kreis mit Radius 11 |
+| ↳ Rohstoffe suchen | – | Abklingzeit 90 s | legt verborgene Lagerstätten im Umkreis 26 frei (werden zu Rohstoffhaufen mit 700) |
+| **Verborgene Lagerstätten** | – | – | je Spieler 3 im Abstand 18–42 zur Burg, 2 in der Kartenmitte (Eisen, Schwefel, Stein, Lehm); unsichtbar und nicht abbaubar, bis ein Kundschafter sie findet |
+| **Brücke** | Mathematik (Steinmetzhütte) | 300 Holz, 250 Stein | nur an Brückenstellen (Kartengenerator, je Flussabschnitt zwischen Furten die kürzeste 2 Kacheln breite Querung, 2–9 lang). Brücken werden nicht eingeebnet; Brückenköpfe (Ufer an beiden Enden) und Landkacheln der Stelle sind von Anfang an frei und reserviert (dort baut niemand, die Einebnung lässt sie unverändert). Fertig: begehbar für alle; zerstört/abgerissen: wieder Wasser, wer darauf steht, ertrinkt (Helden zurück zur Burg), keine Ruine. Niemand greift Brücken von selbst an |
+| **Büchsenmacherei** | Legierungen | 250 Holz, 300 Stein, 100 Schwefel | bildet **Büchsenschützen** aus: Hakenbüchse (Angriff 18, Reichweite 7) → Muskete (24, 7,5; Büchsenmanufaktur), Angriffstyp Schuss (×1,8 gegen gepolstert), im Regen −30 %. Technik „Gezogene Läufe“ +2 Angriff |
+| **Brunnen** / **Denkmal** | Konstruktion / Buchdruck | 150 T + 150 S / 400 T + 300 S | Zierde: max. Motivation +3 / +6 (und einmalig die aktuelle) |
+| **Falk**, Meisterschütze | Held | – | Fernkampf (6,5). *Gezielter Schuss*: 160 Schaden am nächsten Feind bis 9 Kacheln (60 s). *Adlerauge*: eigene Schützen im Umkreis 6 Reichweite +1,5, Angriff ×1,25 für 60 s (120 s) |
+| **Morla**, Nebelhexe | Held | – | *Giftnebel*: Wolke (Radius 3,5, 12 s) – alle 1 s 14 Schaden, Feinde darin 60 % langsamer (120 s). *Nebelschleier*: eigene Truppen und Held im Umkreis 6 sind 30 s unsichtbar, bis sie selbst angreifen (180 s) |
+
+- **Steuerung**: Dieb/Kundschafter wählen wie Truppen; Rechtsklick auf den Boden = laufen, Dieb auf feindliche
+  Burg/Lager = stehlen. Fähigkeiten im Spezialistenpanel (Tasten 1/2); *Stehlen*, *Sprengladung* und *Fackel*
+  schalten einen Zielmodus, der nächste Klick wählt das Ziel. Eigene unsichtbare Diebe tragen einen hellen Schleierring.
+- **Meldungen**: Diebstahl (beide Seiten), abgelieferte Beute, gelegte Ladung, entdeckter feindlicher Dieb,
+  Ladung am eigenen Gebäude (nur wenn sichtbar), Brücke fertig/eingestürzt, gefundene Lagerstätten.
+- **Computergegner**: baut Wirtshaus, Brücke Richtung Gegner, Büchsenmacherei und Zierden; Kundschafter erkunden
+  Wegpunkte und suchen Lagerstätten, werfen beim Angriff Fackeln; Diebe (Normal/Schwer) bestehlen die zuletzt
+  gesehene feindliche Burg bzw. das Lager, Schwer sprengt beim Angriff einen bekannten Turm. Bestohlen baut die KI
+  einen Wachturm an der Burg und stellt einen Kundschafter als Wache ab; sichtbare feindliche Spezialisten nahe der
+  Burg greift ihr Heer an. Unsichtbares sieht auch die schwere KI nicht.

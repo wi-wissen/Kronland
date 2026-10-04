@@ -108,6 +108,7 @@ body {
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none; /* iOS: long press shows our tooltip instead of the system menu */
   -webkit-font-smoothing: antialiased;
 }
 * { box-sizing: border-box; }

@@ -34,6 +34,13 @@ export const LOD_TIERS = {
   low: { bias: 0.55, hysteresis: 0.12, scatterFade: 0.48 },
 };
 
+/**
+ * Up to this real distance (tiles) level 0 always applies, also on "low" and in portrait:
+ * it lies below all first thresholds including hysteresis (figures: 16 · 0.9), and the effective distance is
+ * at most the real one here.
+ */
+export const NEAR_FULL_DETAIL = 14;
+
 const REF_TAN = Math.tan(THREE.MathUtils.degToRad(20)); // 40° field of view = reference
 
 /**
@@ -45,7 +52,12 @@ const REF_TAN = Math.tan(THREE.MathUtils.degToRad(20)); // 40° field of view = 
  */
 export function effectiveDistance(dist, fovDeg = 40, bias = 1) {
   const t = Math.tan(THREE.MathUtils.degToRad(fovDeg / 2)) / REF_TAN;
-  return (dist * t) / Math.max(0.05, bias);
+  const eff = (dist * t) / Math.max(0.05, bias);
+  // close view: full level of detail regardless of field of view and graphics level; beyond it a continuous transition
+  // (no jump at the threshold, which would make levels flicker)
+  if (eff <= dist) return eff;
+  const w = Math.max(0, Math.min(1, (dist - NEAR_FULL_DETAIL) / (NEAR_FULL_DETAIL * 0.5)));
+  return dist + (eff - dist) * w;
 }
 
 /**
@@ -218,6 +230,24 @@ export class ChunkedInstances {
     const m = this.chunks[ci].matrices, o = handle.index * 16;
     for (let i = 0; i < 16; i++) m[o + i] = 0;
     this.dirty = true;
+  }
+
+  /**
+   * Raise or lower visible instances in a world area (x/z), e.g. after levelling.
+   * @param {(x:number, z:number) => number} dy height change at the position of the instance
+   */
+  shiftY(x0, z0, x1, z1, dy) {
+    for (const c of this.chunks) {
+      if ((c.cx + 1) * this.size < x0 || c.cx * this.size > x1 || (c.cz + 1) * this.size < z0 || c.cz * this.size > z1) continue;
+      const m = c.matrices;
+      for (let o = 0; o < c.n * 16; o += 16) {
+        if (m[o + 15] === 0) continue; // hidden
+        const x = m[o + 12], z = m[o + 14];
+        if (x < x0 || x > x1 || z < z0 || z > z1) continue;
+        const d = dy(x, z);
+        if (d) { m[o + 13] += d; this.dirty = true; }
+      }
+    }
   }
 
   set visible(v) { for (const m of this.meshes) m.visible = v; }

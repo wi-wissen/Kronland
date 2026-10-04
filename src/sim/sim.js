@@ -2,7 +2,7 @@
 
 import { Rng } from './rng.js';
 import { generateMap } from './mapgen.js';
-import { OCCUPIED, RESERVED, WATER, CLIFF } from './map.js';
+import { OCCUPIED, RESERVED, WATER, CLIFF, BRIDGE } from './map.js';
 import { BUILDINGS, UPGRADE_REQUIRES } from './data/buildings.js';
 import { TECHS } from './data/technologies.js';
 import { BLESSINGS, WORKER } from './data/professions.js';
@@ -10,13 +10,13 @@ import { BALANCE } from './data/balance.js';
 import { RESOURCES, START_RESOURCES, emptyStock } from './data/resources.js';
 import { UNIT, tileCenter, toTile, secondsToTicks } from './fixed.js';
 import { Hasher } from './hash.js';
-import { updateSerf, clearJob, assignJob } from './systems/serfs.js';
-import { unstickAll, nearestWalkable } from './systems/movement.js';
+import { updateSerf, clearJob, assignJob, assignGather } from './systems/serfs.js';
+import { unstickAll, nearestWalkable, formationTiles } from './systems/movement.js';
 import { updatePayday } from './systems/payday.js';
 import { updateSpawning, updateWorker, removeWorker, workersOf, maxMotivation } from './systems/workers.js';
 import { updateMilitary, setMilitia, useAbility, slotOffset } from './systems/military.js';
 import { UNITS, LINES, unitOf, fullCost, LINE_UPGRADE_COST, HEROES } from './data/units.js';
-import { WEATHER_CYCLE } from './data/weather.js';
+import { WEATHER_CYCLE, WEATHER_EFFECTS } from './data/weather.js';
 import { BUILDING_TECHS } from './data/buildingTechs.js';
 import { REASONS } from './reasons.js';
 import { checkBuildingResearch, startBuildingResearch, updateBuildingResearch, buildingMaxHp } from './systems/techs.js';
@@ -24,6 +24,9 @@ import { createMarket, checkTrade, startTrade, updateMarket } from './systems/ma
 import { updateDamage, createRuin, isDamaged } from './systems/damage.js';
 import { checkWeatherChange, changeWeather } from './systems/weather.js';
 import { createVision, updateVision, revealStart, hashVision } from './systems/vision.js';
+import { SPECIALISTS } from './data/addon.js';
+import { setupAddon, updateAddon, hashAddon, checkBridgeSite, bridgeSiteAt, bridgeDone, bridgeGone, cmdRecruitSpecial, cmdSpecial } from './systems/addon.js';
+import { levelSite } from './systems/terrain.js';
 
 /** Own key of a data table? Protects against commands like { building: 'constructor' }. */
 export const hasKey = (table, key) => typeof key === 'string' && Object.hasOwn(table, key);
@@ -93,8 +96,10 @@ export const hasKey = (table, key) => typeof key === 'string' && Object.hasOwn(t
 
 export class Sim {
   /**
-   * @param {{ seed?: number, players?: number, size?: number, mission?: any, fog?: boolean, startReveal?: number }} [opts]
+   * @param {{ seed?: number, players?: number, size?: number, mission?: any, fog?: boolean, startReveal?: number, addon?: boolean }} [opts]
    *   fog: fog of war (default on); startReveal: explored radius around each castle at the start
+   *   addon: extension content (tavern, thief, scout, bridges, rifle soldiers, heroes Falk/Morla …;
+   *   off by default, the start menu enables it by default in free play; missions: entry `addon`)
    *   mission: optional mission script (src/sim/missions/runtime.js). It gets exactly three
    *   entry points: setup(sim) at the end of the constructor, update(sim) at the end of every tick and
    *   command(sim, cmd) for commands of type 'mission'. Without a mission nothing changes.
@@ -103,6 +108,8 @@ export class Sim {
     this.seed = opts.seed ?? 1;
     /** Mission script or null (free play) */
     this.mission = opts.mission ?? null;
+    /** Erweiterungsinhalte (src/sim/systems/addon.js) */
+    this.addon = !!(opts.addon ?? opts.mission?.def?.addon ?? false);
     this.tick = 0;
     this.rng = new Rng(this.seed);
     const gen = generateMap(this.seed, { size: opts.size ?? 96, players: opts.players ?? 2 });
@@ -138,7 +145,7 @@ export class Sim {
       this.players.push({
         id: p, stock, raw: emptyStock(), taxLevel: BALANCE.tax.defaultLevel, techs: new Set(), defeated: false, faith: 0,
         weatherEnergy: 0, weatherReadyAt: 0,
-        unitTier: { sword: 1, spear: 1, bow: 1, lightCav: 1, heavyCav: 1, cannon: 1 }, team: opts.teams?.[p] ?? p,
+        unitTier: { sword: 1, spear: 1, bow: 1, lightCav: 1, heavyCav: 1, cannon: 1, rifle: 1 }, team: opts.teams?.[p] ?? p,
       });
       const hq = gen.hqs[p];
       this.createBuilding(p, 'headquarters', hq.x, hq.y, true);
@@ -148,6 +155,8 @@ export class Sim {
       const hero = opts.heroes?.[p] ?? ['bertram', 'hedda', 'gerold'][p % 3];
       if (hero) this.spawnHero(p, hero);
     }
+    // Extension: bridge sites, hidden deposits
+    setupAddon(this, gen.bridges);
     /** Weather: state and tick of the next change */
     this.weatherCycle = opts.weatherCycle ?? WEATHER_CYCLE;
     this.weather = { state: this.weatherCycle[0][0], index: 0, until: this.weatherCycle[0][1] };
@@ -196,17 +205,23 @@ export class Sim {
   createBuilding(owner, type, x, y, done = false) {
     const def = BUILDINGS[type];
     const lvl = def.levels[0];
+    // Bridge: size from the bridge site
+    const site = def.placement === 'bridge' ? bridgeSiteAt(this, x, y) : null;
     /** @type {Building} */
     const b = {
-      id: this.nextId++, kind: 'building', type, owner, x, y, w: def.w, h: def.h,
+      id: this.nextId++, kind: 'building', type, owner, x, y, w: site?.w ?? def.w, h: site?.h ?? def.h,
       level: 0, done, progress: 0, work: secondsToTicks(lvl.buildTime) * BALANCE.serf.maxBuildersPerSite,
       hp: done ? lvl.hp : Math.max(1, Math.trunc(lvl.hp / 10)), builders: [], cooldown: 0,
       workers: [], residents: [], eaters: [], overtime: false, research: null, trade: null, burning: false,
     };
     if (done) b.hp = buildingMaxHp(this, b);
     this.entities.set(b.id, b);
-    this.map.occupy(x, y, def.w, def.h, b.id);
+    // Building on slopes: permanently level the terrain under the footprint (docs/SPIELREGELN.md §6a).
+    // Not bridges: they span the water, river bed and banks (bridgeheads) stay as they are.
+    if (def.placement !== 'bridge') levelSite(this, x, y, b.w, b.h);
+    this.map.occupy(x, y, b.w, b.h, b.id);
     this.ejectUnits(b);
+    if (done && type === 'bridge') bridgeDone(this, b);
     return b;
   }
 
@@ -216,7 +231,7 @@ export class Sim {
     if (!ring.length) return;
     let k = 0;
     for (const e of this.entities.values()) {
-      if (e.px === undefined || !(e.kind === 'unit' || e.kind === 'worker' || e.kind === 'leader' || e.kind === 'soldier' || e.kind === 'hero')) continue;
+      if (e.px === undefined || !(e.kind === 'unit' || e.kind === 'worker' || e.kind === 'leader' || e.kind === 'soldier' || e.kind === 'hero' || e.kind === 'specialist')) continue;
       const tx = toTile(e.px), ty = toTile(e.py);
       if (tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h) {
         const t = ring[k++ % ring.length];
@@ -231,6 +246,7 @@ export class Sim {
     if (e.kind === 'ruin') this.map.release(e.x, e.y, e.w, e.h);
     if (e.kind === 'building') {
       this.map.release(e.x, e.y, e.w, e.h);
+      if (e.type === 'bridge') bridgeGone(this, e);
       for (const id of e.workers) { const w = this.entities.get(id); if (w) removeWorker(this, w, 'noWorkplace'); }
       for (const id of [...e.residents, ...e.eaters]) {
         const w = this.entities.get(id);
@@ -247,13 +263,15 @@ export class Sim {
   destroyBuilding(b, attacker) {
     for (const id of b.builders) { const u = this.entities.get(id); if (u?.job) { u.job = null; u.path = []; } }
     this.removeEntity(b);
-    const ruin = createRuin(this, b);
-    this.events.push({ type: 'buildingDestroyed', building: b.id, buildingType: b.type, owner: b.owner, level: b.level, ruin: ruin.id, by: attacker?.owner ?? -1 });
+    // Bridges leave no ruin (the tiles are water again)
+    const ruin = b.type === 'bridge' ? null : createRuin(this, b);
+    this.events.push({ type: 'buildingDestroyed', building: b.id, buildingType: b.type, owner: b.owner, level: b.level, ruin: ruin?.id ?? 0, by: attacker?.owner ?? -1 });
     if (b.type === 'headquarters') this.checkDefeat(b.owner);
   }
 
   /** Called when a build or upgrade is finished. */
   onBuildingDone(b) {
+    if (b.type === 'bridge' && b.level === 0) bridgeDone(this, b);
     this.events.push({ type: 'buildingDone', player: b.owner, building: b.id, buildingType: b.type, level: b.level });
     const effect = BUILDINGS[b.type].motivationEffect;
     if (effect) {
@@ -298,6 +316,7 @@ export class Sim {
       if (e.owner !== owner) continue;
       if (e.kind === 'unit' || e.kind === 'worker') n++;
       else if (e.kind === 'leader' || e.kind === 'soldier') n += UNITS[e.def].pop;
+      else if (e.kind === 'specialist') n += SPECIALISTS[e.spec]?.pop ?? 1;
     }
     return n;
   }
@@ -363,6 +382,9 @@ export class Sim {
       case 'militia': setMilitia(this, cmd.player, !!cmd.on); return true;
       case 'trade': return this.cmdTrade(cmd);
       case 'changeWeather': return this.cmdChangeWeather(cmd);
+      // Extension: recruit and command thief/scout (src/sim/systems/addon.js)
+      case 'recruitSpecial': return cmdRecruitSpecial(this, cmd);
+      case 'special': return cmdSpecial(this, cmd);
       // Mission: e.g. confirm or skip a tutorial step (hook 2 of 3)
       case 'mission': return this.mission ? this.mission.command(this, cmd) : this.reject(cmd, 'err.noMission');
       default: return this.reject(cmd, 'err.unknownCommand');
@@ -399,12 +421,16 @@ export class Sim {
     if (!hasKey(BUILDINGS, type)) return 'err.notBuildable';
     const def = BUILDINGS[type];
     if (def.buildable === false) return 'err.notBuildable';
+    if (def.addon && !this.addon) return 'err.addonOff';
     if (!Number.isInteger(x) || !Number.isInteger(y)) return 'err.notFree';
     if (def.requires && !this.players[owner].techs.has(def.requires)) return { code: 'err.techMissing', params: { tech: def.requires } };
     const m = this.map;
     if (def.placement === 'settlement') {
       if (!this.spots.some((s) => s.x === x && s.y === y)) return 'err.settlementOnly';
       if (!m.rectFree(x, y, def.w, def.h, WATER | OCCUPIED | CLIFF)) return 'err.spotTaken';
+    } else if (def.placement === 'bridge') {
+      const e = checkBridgeSite(this, x, y);
+      if (e) return e;
     } else if (def.placement === 'shaft') {
       if (!this.shafts.some((s) => s.x === x && s.y === y && s.res === def.shaftResource)) return 'err.shaftOnly';
       if (!m.rectFree(x, y, def.w, def.h, WATER | OCCUPIED | CLIFF)) return 'err.spotTaken';
@@ -424,7 +450,7 @@ export class Sim {
   findPlacement(owner, type, cx, cy, radius = 20, accept = null) {
     const def = BUILDINGS[type];
     if (def.placement !== 'free') {
-      const list = def.placement === 'settlement' ? this.spots : this.shafts.filter((s) => s.res === def.shaftResource);
+      const list = def.placement === 'settlement' ? this.spots : def.placement === 'bridge' ? this.bridgeSites ?? [] : this.shafts.filter((s) => s.res === def.shaftResource);
       let best = null, bestD = Infinity;
       for (const s of list) {
         const d = (s.x - cx) ** 2 + (s.y - cy) ** 2;
@@ -473,7 +499,8 @@ export class Sim {
     if (t.kind === 'building' && t.done && t.owner === cmd.player && t.builders.length >= BALANCE.serf.maxBuildersPerSite
       && !serfs.some((u) => t.builders.includes(u.id))) return this.reject(cmd, REASONS.repairFull);
     let ok = 0;
-    for (const u of serfs) if (assignJob(this, u, t)) ok++;
+    if (t.kind === 'tree' || t.kind === 'pile') ok = assignGather(this, serfs, t);
+    else for (const u of serfs) if (assignJob(this, u, t)) ok++;
     if (!ok) return this.reject(cmd, 'err.noWork');
     return true;
   }
@@ -482,11 +509,13 @@ export class Sim {
     const serfs = this.ownSerfs(cmd);
     if (!serfs.length) return this.reject(cmd, 'err.noUnits');
     if (!Number.isInteger(cmd.x) || !Number.isInteger(cmd.y) || !this.map.walkable(cmd.x, cmd.y)) return this.reject(cmd, 'err.notWalkable');
-    for (const u of serfs) {
+    // Fan out targets: each serf gets their own tile around the click point
+    const goals = formationTiles(this.map, cmd.x, cmd.y, serfs, 1);
+    serfs.forEach((u, i) => {
       clearJob(this, u);
-      u.goal = this.map.idx(cmd.x, cmd.y);
+      u.goal = goals[i] >= 0 ? goals[i] : this.map.idx(cmd.x, cmd.y);
       u.path = [];
-    }
+    });
     return true;
   }
 
@@ -646,9 +675,10 @@ export class Sim {
   cmdRecruit(cmd) {
     const b = this.ownBuilding(cmd);
     const L = hasKey(LINES, cmd.line) ? LINES[cmd.line] : null;
+    if (L?.addon && !this.addon) return this.reject(cmd, 'err.addonOff');
     if (!b || !L || b.type !== L.building || !b.done) return this.reject(cmd, 'err.militaryBuildingNeeded');
     const p = this.players[cmd.player];
-    const def = unitOf(cmd.line, p.unitTier[cmd.line]);
+    const def = unitOf(cmd.line, p.unitTier[cmd.line] ?? 1); // older saves/missions without line 'rifle'
     const soldiers = cmd.full ? def.soldiers : 0;
     const cost = cmd.full ? fullCost(def) : def.leaderCost;
     if (this.popUsed(cmd.player) + def.pop * (1 + soldiers) > this.popLimit(cmd.player)) return this.reject(cmd, 'err.popLimit');
@@ -704,7 +734,7 @@ export class Sim {
 
   cmdUpgradeLine(cmd) {
     const p = this.players[cmd.player];
-    const tier = hasKey(LINES, cmd.line) ? p.unitTier[cmd.line] : 0;
+    const tier = hasKey(LINES, cmd.line) ? p.unitTier[cmd.line] ?? 1 : 0;
     if (!tier) return this.reject(cmd, 'err.unknownLine');
     const cost = LINE_UPGRADE_COST[`${cmd.line}${tier}`];
     if (!cost) return this.reject(cmd, 'err.maxLevel');
@@ -726,20 +756,16 @@ export class Sim {
     if (!units.length) return this.reject(cmd, 'err.noTroops');
     if ((cmd.order === 'move' || cmd.order === 'attackMove')
       && !(Number.isInteger(cmd.x) && Number.isInteger(cmd.y) && this.map.inBounds(cmd.x, cmd.y))) return this.reject(cmd, 'err.notWalkable');
-    units.forEach((e, i) => {
-      if (e.kind === 'hero' && e.down) return;
+    // Fan out targets so that the squads do not stand on top of each other: spacing 3 tiles, because the
+    // soldiers of a squad leader stand in two rows behind him (slotOffset)
+    const moving = cmd.order === 'move' || cmd.order === 'attackMove';
+    const active = units.filter((e) => !(e.kind === 'hero' && e.down));
+    const goals = moving ? formationTiles(this.map, cmd.x, cmd.y, active, 3) : [];
+    active.forEach((e, i) => {
       e.path = []; e.targetId = 0;
-      if (cmd.order === 'move' || cmd.order === 'attackMove') {
-        // Fan out the targets so the squads do not stand on top of each other
-        const ox = ((i % 4) * 2 - 3) * 1000, oy = Math.floor(i / 4) * 2000;
-        let x = cmd.x * UNIT + 500 + ox, y = cmd.y * UNIT + 500 + oy;
-        if (!this.map.walkable(toTile(x), toTile(y))) { x = cmd.x * UNIT + 500; y = cmd.y * UNIT + 500; }
-        if (!this.map.walkable(cmd.x, cmd.y)) {
-          // Target on a building/water: nearest walkable tile (otherwise the squad would just stay put)
-          const k = nearestWalkable(this.map, toTile(x), toTile(y), x, y, 8);
-          if (k >= 0) { x = tileCenter(k % this.map.width); y = tileCenter((k / this.map.width) | 0); }
-        }
-        e.order = { type: cmd.order, x, y };
+      if (moving) {
+        const k = goals[i] >= 0 ? goals[i] : this.map.idx(cmd.x, cmd.y);
+        e.order = { type: cmd.order, x: tileCenter(k % this.map.width), y: tileCenter((k / this.map.width) | 0) };
       } else if (cmd.order === 'attack') e.order = { type: 'attack', target: cmd.target };
       else if (cmd.order === 'hold') e.order = { type: 'hold' };
       else { e.order = { type: 'idle' }; e.anchor = { x: e.px, y: e.py }; }
@@ -770,14 +796,15 @@ export class Sim {
    * after `index`. A thaw makes everyone on the ice drown.
    */
   setWeather(state, dur, index = this.weather.index) {
-    const wasWinter = this.weather.state === 'winter';
+    const wasWinter = !!WEATHER_EFFECTS[this.weather.state]?.freezesWater;
     this.weather = { state, index, until: this.tick + dur };
-    this.map.frozen = state === 'winter';
+    this.map.frozen = !!WEATHER_EFFECTS[state]?.freezesWater;
     this.events.push({ type: 'weather', state });
     if (wasWinter && !this.map.frozen) {
       // Thaw: whoever stands on the ice drowns; heroes return to the castle
       for (const e of [...this.entities.values()]) {
-        if (e.px === undefined || !(this.map.flags[this.map.idx(toTile(e.px), toTile(e.py))] & WATER)) continue;
+        const f = e.px === undefined ? 0 : this.map.flags[this.map.idx(toTile(e.px), toTile(e.py))];
+        if (!(f & WATER) || (f & BRIDGE)) continue;
         if (e.kind === 'hero') {
           const hq = this.findBuilding(e.owner, 'headquarters');
           if (hq) { e.px = tileCenter(hq.x + 2); e.py = tileCenter(hq.y + hq.h + 1); e.path = []; }
@@ -829,6 +856,8 @@ export class Sim {
     // Whoever stands on a blocked tile (ruin, mission setup) goes to the nearest free one
     unstickAll(this);
     updateSpawning(this);
+    // Erweiterung: Spezialisten, Sprengladungen, Fackeln, Giftnebel, Unsichtbarkeit
+    if (this.addon) updateAddon(this);
     for (const e of [...this.entities.values()]) {
       if (!this.entities.has(e.id)) continue;
       if (e.kind === 'unit' && !e.militia) updateSerf(this, e);
@@ -883,7 +912,10 @@ export class Sim {
       } else if (e.kind === 'ruin') h.int(e.x).int(e.y).int(e.until);
       else h.int(e.x).int(e.y).int(e.amount);
     }
+    // Terrain heights (change through levelling when building)
+    for (const v of this.map.heights) h.int(v);
     hashVision(this, h);
+    hashAddon(this, h);
     this.mission?.hash(h);
     return h.value;
   }

@@ -26,7 +26,7 @@ export function buildingSystemsUi(sim, player, b) {
   const out = { techs: null, market: null, weather: null, repair: null, burning: !!b.burning, maxHp: buildingMaxHp(sim, b) };
   if (!own) return out;
 
-  const list = techsOfBuilding(b.type);
+  const list = techsOfBuilding(b.type).filter((t) => !t.addon || sim.addon);
   if (list.length && b.done) {
     out.techs = list.map((t) => {
       const running = b.research?.tech === t.id;

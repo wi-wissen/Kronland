@@ -19,11 +19,12 @@
  * @property {string} id
  * @property {number} w width in tiles
  * @property {number} h depth in tiles
- * @property {'free'|'settlement'|'shaft'} placement
+ * @property {'free'|'settlement'|'shaft'|'bridge'} placement
  * @property {boolean} [buildable] false = cannot be built by the player (castle)
  * @property {string} [shaftResource]
  * @property {string} [requires] technology that unlocks it
  * @property {BuildingLevel[]} levels
+ * @property {boolean} [addon] only with expansion content
  */
 
 /** @type {Record<string, BuildingDef>} */
@@ -179,6 +180,39 @@ BUILDINGS.banditCamp = {
   levels: [{ name: 'Räuberlager', cost: {}, buildTime: 0, hp: 1200 }],
 };
 
+// ---------- Expansion (only with expansion content, `addon: true`; cost/values (A)) ----------
+// Inn: recruits thief and scout (src/sim/data/addon.js)
+BUILDINGS.tavern = {
+  id: 'tavern', w: 3, h: 3, placement: 'free', requires: 'education', addon: true,
+  levels: [
+    { name: 'Wirtshaus', cost: { wood: 150, clay: 250 }, buildTime: 60, hp: 900 },
+    { name: 'Gasthof', cost: { gold: 200, stone: 250 }, buildTime: 50, hp: 1200 },
+  ],
+};
+// Gunsmith: trains riflemen (line 'rifle')
+BUILDINGS.gunsmith = {
+  id: 'gunsmith', w: 4, h: 3, placement: 'free', requires: 'alloys', armor: 4, addon: true,
+  levels: [
+    { name: 'Büchsenmacherei', cost: { wood: 250, stone: 300, sulfur: 100 }, buildTime: 80, hp: 1400 },
+    { name: 'Büchsenmanufaktur', cost: { gold: 300, stone: 400, iron: 150 }, buildTime: 70, hp: 2000 },
+  ],
+};
+// Bridge: only at predefined bridge sites over rivers (placement 'bridge', position from the map generator).
+// Width/depth follow from the site; walkable for everyone once built.
+BUILDINGS.bridge = {
+  id: 'bridge', w: 2, h: 2, placement: 'bridge', requires: 'mathematics', armor: 5, addon: true,
+  levels: [{ name: 'Brücke', cost: { wood: 300, stone: 250 }, buildTime: 70, hp: 900 }],
+};
+// Ornamental buildings of the expansion (raise the maximum and, once, the current motivation)
+BUILDINGS.fountain = {
+  id: 'fountain', w: 2, h: 2, placement: 'free', requires: 'construction', motivationEffect: 3, addon: true,
+  levels: [{ name: 'Brunnen', cost: { gold: 150, stone: 150 }, buildTime: 20, hp: 400 }],
+};
+BUILDINGS.statue = {
+  id: 'statue', w: 2, h: 2, placement: 'free', requires: 'printing', motivationEffect: 6, addon: true,
+  levels: [{ name: 'Denkmal', cost: { gold: 400, stone: 300 }, buildTime: 30, hp: 600 }],
+};
+
 /** Technology that an upgrade to level i (1-based from level 2) requires. null = none. */
 export const UPGRADE_REQUIRES = {
   headquarters: [null, null, 'printing'],          // citadel (A)
@@ -203,6 +237,8 @@ export const UPGRADE_REQUIRES = {
   stable: [null, 'horseBreeding'],
   foundry: [null, 'chemistry'],
   tower: [null, 'gears', 'metallurgy'],
+  tavern: [null, 'trade'],
+  gunsmith: [null, 'chemistry'],
 };
 
 /** Armor of a building (source: dedk.de, otherwise 3). */

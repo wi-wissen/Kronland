@@ -21,7 +21,7 @@ wird beim Laden über die ID aus `registry.js` geholt.
 4. `npx vitest run tests/sim/missions.test.js` – der Test richtet jede Kampagnenmission auf
    mehreren Karten ein und prüft Warnungen, Bezüge und Erreichbarkeit.
 
-Direktstart zum Ausprobieren: `?mission=c3` (optional `&seed=7`, `&no-models`).
+Direktstart zum Ausprobieren: `play/?mission=c3` (optional `&seed=7`, `&no-models`).
 
 ## Aufbau einer Missionsdatei
 

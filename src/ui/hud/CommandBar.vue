@@ -3,12 +3,12 @@
   <div ref="bar" class="cmdbar" :class="{ compact, collapsed }">
     <div class="cb-left">
       <div class="cb-quick frame" role="toolbar" :aria-label="$t('ctx.overview')">
-        <button v-tip="{ text: $t('quick.hqTip'), key: 'H' }" class="cb-q" data-testid="quick-hq" @click="$emit('quick', 'hq')"><Icon name="castle" /><span>{{ $t('quick.hq') }}</span></button>
-        <button v-tip="{ text: $t('quick.idleTip'), key: '.' }" class="cb-q" data-testid="quick-idle" @click="$emit('quick', 'idle')"><Icon name="idle" /><span>{{ $t('quick.idle') }}</span></button>
-        <button v-tip="$t('quick.allTip')" class="cb-q" data-testid="quick-all" @click="$emit('quick', 'all')"><Icon name="serf" /><span>{{ $t('quick.all') }}</span></button>
+        <button v-tip="{ title: $t('quick.hq'), text: $t('quick.hqTip'), key: 'H' }" class="cb-q" data-testid="quick-hq" @click="$emit('quick', 'hq')"><Icon name="castle" /><span>{{ $t('quick.hq') }}</span></button>
+        <button v-tip="{ title: $t('quick.idle'), text: $t('quick.idleTip'), key: '.' }" class="cb-q" data-testid="quick-idle" @click="$emit('quick', 'idle')"><Icon name="idle" /><span>{{ $t('quick.idle') }}</span></button>
+        <button v-tip="{ title: $t('quick.all'), text: $t('quick.allTip') }" class="cb-q" data-testid="quick-all" @click="$emit('quick', 'all')"><Icon name="serf" /><span>{{ $t('quick.all') }}</span></button>
         <button
           v-if="compact"
-          v-tip="{ text: $t('quick.minimapTip'), key: 'M' }"
+          v-tip="{ title: $t('quick.minimap'), text: $t('quick.minimapTip'), key: 'M' }"
           class="cb-q"
           :class="{ active: mapOpen }"
           :aria-pressed="mapOpen"
@@ -25,8 +25,8 @@
         <h3 class="h-title cx-title">{{ panelTitle }}</h3>
         <span v-if="headSub" class="cx-sub">{{ headSub }}</span>
         <span class="cx-tools">
-          <button v-if="ui.touch && buildOpen && sel?.kind === 'serfs'" class="icon-btn ghost" :aria-label="$t('build.closeMenu')" data-testid="build-toggle" @click="buildOpen = false"><Icon name="back" /></button>
-          <button v-if="compact" class="icon-btn ghost" :aria-label="collapsed ? $t('ctx.expand') : $t('ctx.collapse')" :aria-expanded="!collapsed" data-testid="panel-collapse" @click="collapsed = !collapsed">
+          <button v-if="ui.touch && buildOpen && sel?.kind === 'serfs'" v-tip="$t('build.closeMenu')" class="icon-btn ghost" :aria-label="$t('build.closeMenu')" data-testid="build-toggle" @click="buildOpen = false"><Icon name="back" /></button>
+          <button v-if="compact" v-tip="collapsed ? $t('ctx.expand') : $t('ctx.collapse')" class="icon-btn ghost" :aria-label="collapsed ? $t('ctx.expand') : $t('ctx.collapse')" :aria-expanded="!collapsed" data-testid="panel-collapse" @click="collapsed = !collapsed">
             <Icon :name="collapsed ? 'chevronUp' : 'chevronDown'" />
           </button>
           <button v-if="ui.selection && compact" v-tip="$t('ctx.deselect')" class="icon-btn ghost" :aria-label="$t('ctx.deselect')" @click="$emit('deselect')"><Icon name="close" /></button>
@@ -39,8 +39,8 @@
           <div class="cx-place">
             <span class="cx-placeicon"><Icon :name="'b-' + ui.placing.type" /></span>
             <span class="cx-placestate">
-              <b v-if="ui.placing.hasPos" :class="ui.placing.valid ? 'ok' : 'err'">
-                <Icon :name="ui.placing.valid ? 'check' : 'warning'" />{{ ui.placing.valid ? $t('build.placeOk') : $reason(ui.placing.reason) }}
+              <b v-if="ui.placing.hasPos" :class="!ui.placing.valid ? 'err' : ui.placing.level === 'level' ? 'warn' : 'ok'" data-testid="place-state">
+                <Icon :name="ui.placing.valid ? 'check' : 'warning'" />{{ !ui.placing.valid ? $reason(ui.placing.reason) : ui.placing.level === 'level' ? $t('slope.willLevel') : $t('build.placeOk') }}
               </b>
               <span v-else class="muted">{{ ui.touch ? $t('build.placeHintTouch') : $t('build.placeHint') }}</span>
             </span>
@@ -52,6 +52,7 @@
         </template>
 
         <ArmyPanel v-else-if="sel?.kind === 'army'" :sel="sel" :touch="ui.touch" :hints="hints" @action="$emit('action', $event)" />
+        <SpecialistPanel v-else-if="sel?.kind === 'specialists'" :sel="sel" :touch="ui.touch" :hints="hints" @action="$emit('action', $event)" />
 
         <template v-else-if="sel?.kind === 'serfs'">
           <template v-if="ui.touch && !buildOpen">
@@ -95,10 +96,11 @@ import BuildMenu from './BuildMenu.vue';
 import BuildingPanel from './BuildingPanel.vue';
 import ArmyPanel from './ArmyPanel.vue';
 import SelectionCard from './SelectionCard.vue';
+import SpecialistPanel from './SpecialistPanel.vue';
 
 export default {
   name: 'CommandBar',
-  components: { Minimap, BuildMenu, BuildingPanel, ArmyPanel, SelectionCard },
+  components: { Minimap, BuildMenu, BuildingPanel, ArmyPanel, SelectionCard, SpecialistPanel },
   props: {
     ui: { type: Object, required: true },
     engine: { type: Object, required: true },
@@ -110,7 +112,7 @@ export default {
   computed: {
     sel() { return this.ui.selection; },
     hintIds() { return this.ui.mission?.tutorial?.hint?.ui ?? []; },
-    showHead() { return this.compact || !!this.ui.placing || this.sel?.kind === 'serfs' || this.sel?.kind === 'army'; },
+    showHead() { return this.compact || !!this.ui.placing || this.sel?.kind === 'serfs' || this.sel?.kind === 'army' || this.sel?.kind === 'specialists'; },
     panelTitle() {
       const s = this.sel, p = this.ui.placing;
       if (p) return this.$t('build.place', { building: this.$name.building(p.type) });
@@ -118,6 +120,7 @@ export default {
       if (s.kind === 'serfs') return this.compact ? (s.count === 1 ? this.$t('serfs.one') : this.$t('serfs.count', { n: s.count })) : this.$t('build.title');
       if (s.kind === 'army') return this.compact && s.heroes.length === 1 && !s.groups.length ? this.$name.hero(s.heroes[0].hero) : this.$t('army.title');
       if (s.kind === 'building') return this.$name.building(s.type, s.levelIndex);
+      if (s.kind === 'specialists') return s.units.length === 1 ? this.$t('addon.spec.' + s.units[0].spec) : this.$t('addon.title');
       return this.$t('foreign.enemy');
     },
     headSub() {
@@ -135,6 +138,7 @@ export default {
       if (s.kind === 'building') return 'b-' + s.type;
       if (s.kind === 'serfs') return 'serf';
       if (s.kind === 'army') return s.heroes[0] ? 'hero-' + s.heroes[0].hero : 'banner';
+      if (s.kind === 'specialists') return 'sp-' + s.units[0].spec;
       return 'skull';
     },
   },
@@ -208,6 +212,7 @@ export default {
 .cx-placestate b .ico { width: 1.125rem; height: 1.125rem; }
 .cx-placestate .ok { color: var(--good); }
 .cx-placestate .err { color: var(--bad); }
+.cx-placestate .warn { color: var(--warn); }
 .cx-placebtns { display: flex; gap: 0.375rem; margin-left: auto; }
 .cx-placebtns button { min-height: var(--touch); padding-inline: 1rem; }
 .cx-serfs { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
@@ -232,6 +237,12 @@ export default {
   .cmdbar.compact .context.empty { margin-right: 4.25rem; max-width: 30rem; }
   .cmdbar.compact .cb-q span:not(.ico) { display: none; }
   .cmdbar.compact .cb-quick { width: auto; }
+  .show-labels .cmdbar.compact .cb-q span:not(.ico) { display: block; }
+  .show-labels .cmdbar.compact .cb-quick { width: 3.5rem; }
+}
+/* Labels switched off: quick access on narrow screens with icons only */
+.game:not(.show-labels) .cmdbar.compact .cb-q span:not(.ico) { display: none; }
+@media (max-height: 480px) and (orientation: landscape) {
   .cmdbar.compact .cb-map { right: calc(var(--hud-gap) + var(--safe-r) + 3.75rem); width: min(11rem, 40vh); }
 }
 </style>

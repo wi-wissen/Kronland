@@ -204,5 +204,13 @@ export default {
   .hc-abilities { gap: 0.5rem; }
   .ap-leaders { grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); }
   .lc-troop { display: none; }
+  /* Setting "show labels": commands and abilities with names below the icon */
+  .show-labels .ap-order { flex-direction: column; gap: 0; width: auto; min-width: 3.5rem; padding: 0.1875rem 0.375rem; }
+  .show-labels .ap-order span:not(.ico) { display: block; font-size: 0.625rem; line-height: 1.1; max-width: 5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .show-labels .ap-order.active { flex-direction: row; gap: 0.375rem; }
+  .show-labels .ap-order.active span:not(.ico) { font-size: var(--fs-sm); max-width: none; }
+  .show-labels .ab-name { display: block; max-width: 4rem; }
+  .show-labels .hc-abilities { gap: 1.25rem; padding-right: 0.25rem; }
+  .show-labels .hcard { padding-bottom: 1.125rem; }
 }
 </style>

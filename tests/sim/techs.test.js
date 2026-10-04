@@ -207,6 +207,7 @@ describe('Building technologies: effect', () => {
 
   it('every research can be completed in its building with full equipment', () => {
     const sim = newSim(5);
+    sim.addon = true; // also the expansion's technologies (Mathematik, Gezogene Läufe)
     const p = sim.players[0];
     rich(sim);
     for (const t of ['alchemy', 'construction', 'gears', 'conscription', 'standingArmy', 'tactics', 'metallurgy', 'pulley', 'alloys']) p.techs.add(t);
