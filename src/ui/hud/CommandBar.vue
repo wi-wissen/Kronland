@@ -43,40 +43,60 @@
           </button>
         </div>
       </div>
-      <Minimap v-if="!compact || mapOpen" :engine="engine" :touch="ui.touch" class="cb-disc" />
-      <div class="cb-quick" role="toolbar" :aria-label="$t('quick.title')">
-        <button
-          v-if="compact && code"
-          class="coin cb-q cb-code"
-          :class="{ on: code.open }"
-          :aria-pressed="code.open"
-          :aria-label="$t('script.code')"
-          data-testid="script-open"
-          @click="$emit('code')"
-        ><span class="cb-code-ico" aria-hidden="true">&lt;/&gt;</span><i v-if="code.running" class="cb-code-run" aria-hidden="true"></i><span class="cb-qlbl">{{ $t('script.code') }}</span></button>
-        <button
-          v-if="compact"
-          v-tip="{ title: $t('quick.minimap'), text: $t('quick.minimapTip'), key: 'M' }"
-          class="coin cb-q"
-          :class="{ on: mapOpen }"
-          :aria-pressed="mapOpen"
-          :aria-label="$t('quick.minimap')"
-          data-testid="minimap-toggle"
-          @click="mapOpen = !mapOpen"
-        ><Icon name="map" /><span class="cb-qlbl">{{ $t('quick.minimap') }}</span></button>
-        <button v-tip="{ title: $t('quick.hq'), text: $t('quick.hqTip'), key: 'H' }" class="coin cb-q cb-q1" :aria-label="$t('quick.hq')" data-testid="quick-hq" @click="$emit('quick', 'hq')">
-          <Icon name="castle" /><span class="cb-qlbl">{{ $t('quick.hq') }}</span>
-        </button>
-        <button v-tip="{ title: $t('quick.idle'), text: $t('quick.idleTip'), key: '.' }" class="coin cb-q cb-q2" :aria-label="$t('quick.idle')" data-testid="quick-idle" @click="$emit('quick', 'idle')">
-          <Icon name="idle" /><i v-if="ui.idleSerfs" class="badge num" data-testid="idle-count">{{ ui.idleSerfs }}</i><span class="cb-qlbl">{{ $t('quick.idle') }}</span>
-        </button>
-        <button v-tip="{ title: $t('quick.all'), text: $t('quick.allTip') }" class="coin cb-q cb-q3" :aria-label="$t('quick.all')" data-testid="quick-all" @click="$emit('quick', 'all')">
-          <Icon name="serf" /><span class="cb-qlbl">{{ $t('quick.all') }}</span>
-        </button>
-        <button v-tip="{ title: $t('quick.army'), text: $t('quick.armyTip') }" class="coin cb-q cb-q4" :aria-label="$t('quick.army')" data-testid="quick-army" @click="$emit('quick', 'army')">
-          <Icon name="soldiers" /><span class="cb-qlbl">{{ $t('quick.army') }}</span>
-        </button>
-      </div>
+      <!-- Desktop: quick access left, minimap right on the map panel -->
+      <template v-if="!compact">
+        <Minimap :engine="engine" :touch="ui.touch" class="cb-disc" />
+        <div class="cb-quick" role="toolbar" :aria-label="$t('quick.title')">
+          <button
+            v-for="q in quickBtns"
+            :key="q.k"
+            v-tip="q.tip"
+            class="coin cb-q"
+            :aria-label="$t('quick.' + q.k)"
+            :data-testid="'quick-' + q.k"
+            @click="quick(q.k)"
+          ><Icon :name="q.icon" /><i v-if="q.badge" class="badge num" data-testid="idle-count">{{ q.badge }}</i><span class="cb-qlbl">{{ $t('quick.' + q.k) }}</span></button>
+        </div>
+      </template>
+      <!-- Phone: bottom right only the map button (and the code button of the coding adventures). It unfolds a panel with
+           minimap and quick access; tapping again, the cross or a quick access folds it shut again. -->
+      <template v-else>
+        <div class="cb-mtools">
+          <button
+            v-if="code"
+            class="coin cb-q cb-code"
+            :class="{ on: code.open }"
+            :aria-pressed="code.open"
+            :aria-label="$t('script.code')"
+            data-testid="script-open"
+            @click="$emit('code')"
+          ><span class="cb-code-ico" aria-hidden="true">&lt;/&gt;</span><i v-if="code.running" class="cb-code-run" aria-hidden="true"></i><span class="cb-qlbl">{{ $t('script.code') }}</span></button>
+          <button
+            v-tip="{ title: $t('quick.minimap'), text: $t('quick.minimapTip'), key: 'M' }"
+            class="coin cb-q cb-maptoggle"
+            :class="{ on: mapOpen }"
+            :aria-expanded="mapOpen"
+            :aria-label="$t('quick.minimap')"
+            :data-hint-for="mapOpen ? null : 'quick-hq quick-idle quick-all quick-army'"
+            data-testid="minimap-toggle"
+            @click="mapOpen = !mapOpen"
+          ><Icon :name="mapOpen ? 'close' : 'map'" /><span class="cb-qlbl">{{ $t('quick.minimap') }}</span></button>
+        </div>
+        <div v-if="mapOpen" class="cb-pop frame" role="group" :aria-label="$t('quick.title')" data-testid="map-panel">
+          <Minimap :engine="engine" :touch="ui.touch" class="cb-disc" />
+          <div class="cb-quick" role="toolbar" :aria-label="$t('quick.title')">
+            <button
+              v-for="q in quickBtns"
+              :key="q.k"
+              v-tip="q.tip"
+              class="coin cb-q"
+              :aria-label="$t('quick.' + q.k)"
+              :data-testid="'quick-' + q.k"
+              @click="quick(q.k)"
+            ><Icon :name="q.icon" /><i v-if="q.badge" class="badge num" data-testid="idle-count">{{ q.badge }}</i><span class="cb-qlbl">{{ $t('quick.' + q.k) }}</span></button>
+          </div>
+        </div>
+      </template>
     </div>
 
     <section v-if="open" class="context frame" :class="{ wide: sel?.kind === 'building' && sel.own && !compact && !mid, tall: (sel?.kind === 'serfs' || sel?.kind === 'building') && !compact }" data-testid="context-panel" :aria-label="panelTitle">
@@ -201,12 +221,24 @@ export default {
     },
     headIcon() { return this.ui.placing ? 'b-' + this.ui.placing.type : selectionIcon(this.sel); },
     portrait() { return this.ui.placing ? null : selectionPortrait(this.sel, siteRoot()); },
+    /** Quick accesses (desktop on the map panel, phone in the foldable map panel) */
+    quickBtns() {
+      const tip = (k, key) => ({ title: this.$t('quick.' + k), text: this.$t('quick.' + k + 'Tip'), key });
+      return [
+        { k: 'hq', icon: 'castle', tip: tip('hq', 'H') },
+        { k: 'idle', icon: 'idle', tip: tip('idle', '.'), badge: this.ui.idleSerfs },
+        { k: 'all', icon: 'serf', tip: tip('all') },
+        { k: 'army', icon: 'soldiers', tip: tip('army') },
+      ];
+    },
   },
   watch: {
     // A new selection unfolds the panel again
     'ui.selection.kind'() { this.collapsed = false; },
     'ui.selection.id'() { this.collapsed = false; },
     'ui.placing'(v) { if (v) this.collapsed = false; },
+    // From phone to desktop: map panel closed again (there it is always visible)
+    compact(v) { if (!v) this.mapOpen = false; },
   },
   mounted() {
     this.ro = new ResizeObserver(() => this.reportHeight());
@@ -224,6 +256,11 @@ export default {
   },
   beforeUnmount() { this.ro?.disconnect(); this.mo?.disconnect(); window.removeEventListener('keydown', this.onKey); },
   methods: {
+    /** Quick access: on phones the map panel folds shut afterwards so the result lies free */
+    quick(k) {
+      this.$emit('quick', k);
+      if (this.compact) this.mapOpen = false;
+    },
     heroTip(h) {
       const text = !h.down ? this.$t('quick.heroTip')
         : h.threatened ? this.$t('quick.heroDownThreat') : this.$t('quick.heroDownTip', { s: h.reviveIn });
@@ -270,6 +307,8 @@ button.cb-hero {
 }
 .cb-pic { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center; background: var(--tile-bg); box-shadow: inset 0 0 0 2px var(--wood-950); }
 .cb-pic .ico { width: 85%; height: 85%; }
+/* Painted portrait fills the circle inside the ring (cut out round, no overhang) */
+.cb-pic .ico.portrait { width: calc(100% - 4px); height: calc(100% - 4px); border-radius: 50%; }
 button.cb-hero.sel { box-shadow: 0 0 0 2px var(--gold-100), 0 0 12px rgba(243, 200, 94, 0.8); }
 /* Unconscious: grey, red border, ring fills green until waking up; remaining time instead of health bar */
 button.cb-hero.down { background: conic-gradient(var(--good) calc(var(--rv, 0) * 1%), var(--bad) 0); }
@@ -326,21 +365,29 @@ button.cb-group.sel { box-shadow: 0 0 0 2px var(--gold-100), 0 0 0 3px var(--woo
 .mid .cb-map { --d: 9.5rem; }
 .mid .cb-card { --portrait: 5.75rem; }
 
-/* Phone / narrow: board as a drawer across the full width; quick access as a column above it on the right */
+/* Phone / narrow: panel as a drawer across the full width; above it a strip with heroes on the left and the
+   map button on the right, which unfolds minimap and quick access as a small panel */
 .cmdbar.compact { display: block; left: var(--safe-l); right: var(--safe-r); }
-/* Strip above the board: heroes on the left (row), quick access on the right (column) */
+/* Strip above the panel: heroes left (row), map button right */
 .cmdbar.compact .cb-map {
   position: absolute; left: calc(var(--hud-gap) + var(--safe-l)); right: calc(var(--hud-gap) + var(--safe-r)); bottom: calc(100% + 0.75rem); margin: 0;
   width: auto; height: auto; padding: 0; justify-self: stretch; display: flex; flex-wrap: wrap-reverse; align-items: flex-end; justify-content: space-between; gap: 0.625rem;
 }
-.cmdbar.compact .cb-quick { flex-direction: row; gap: 0.5rem; margin-left: auto; }
+.cmdbar.compact .cb-mtools { display: flex; gap: 0.5rem; margin-left: auto; align-items: flex-end; }
+.cmdbar.compact .cb-herocol { flex-direction: row; gap: 0.625rem; }
+.cmdbar.compact .cb-pop {
+  position: absolute; right: 0; bottom: calc(100% + 0.75rem); z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 0.625rem; padding: 0.875rem 0.625rem 0.625rem;
+}
+.cmdbar.compact .cb-pop .cb-disc { width: min(14rem, 62vw, 40vh); height: min(14rem, 62vw, 40vh); }
+.cmdbar.compact .cb-pop .cb-quick { flex-direction: row; gap: 0.5rem; }
+.show-labels .cmdbar.compact .cb-pop { padding-bottom: 1.375rem; }
 /* Without a panel the buttons stand free above the playing field: strong brass border */
 .cmdbar.compact button.coin.cb-q { box-shadow: 0 0 0 2px var(--gold-600), 0 0 0 3px var(--wood-950), inset 0 0 0 1px rgba(255, 225, 170, 0.25), 0 4px 10px rgba(0, 0, 0, 0.45); }
 .cmdbar.compact button.coin.cb-q.on { box-shadow: 0 0 0 2px var(--gold-300), 0 0 0 3px var(--wood-950), 0 0 14px rgba(243, 200, 94, 0.55); }
 .cmdbar.compact .cb-units { position: static; width: auto; flex: 0 1 auto; min-width: 0; }
 .cmdbar.compact .cb-hero { width: 2.75rem; height: 2.75rem; }
 .cmdbar.compact .cb-group { width: 2.625rem; height: 2.625rem; }
-.cmdbar.compact .cb-disc { position: absolute; left: auto; top: auto; right: 0; bottom: calc(100% + 0.75rem); width: min(12rem, 50vw, 40vh); height: min(12rem, 50vw, 40vh); }
 .cmdbar.compact .context { min-width: 0; margin: 0 calc(var(--hud-gap) + var(--safe-r)) calc(var(--hud-gap) + var(--safe-b)) calc(var(--hud-gap) + var(--safe-l)); max-height: min(50dvh, 26rem); padding: 0.375rem 0.625rem 0.625rem; }
 .cmdbar.compact.collapsed .context { padding-bottom: 0.375rem; }
 /* Code button of the coding adventures: golden button so it stands out among the quick accesses */
@@ -353,13 +400,15 @@ button.cb-group.sel { box-shadow: 0 0 0 2px var(--gold-100), 0 0 0 3px var(--woo
   font-size: 0.5625rem; font-weight: 700; line-height: 1; color: var(--ink); white-space: nowrap; text-shadow: 0 1px 2px #000, 0 0 3px #000;
 }
 .show-labels .cmdbar.compact .cb-map { margin-bottom: 0.75rem; }
-/* Phone landscape: quick access at the top right below the header bar, board leaves room on the right */
+/* Landscape phone: heroes and map button top right under the top bar, map panel unfolds to the left */
 @media (max-height: 480px) and (orientation: landscape) {
   .cmdbar.compact .cb-map { position: fixed; top: calc(var(--top-total, 3rem) + var(--hud-gap)); bottom: auto; left: auto; flex-direction: column; flex-wrap: nowrap; align-items: flex-end; }
-  .cmdbar.compact .cb-units, .cmdbar.compact .cb-quick, .cmdbar.compact .cb-groups { flex-direction: column; flex-wrap: nowrap; }
-  .cmdbar.compact .cb-disc { right: calc(100% + 0.5rem); top: 0; bottom: auto; }
-  .cmdbar.compact .context { max-height: calc(100dvh - var(--top-total, 3rem) - var(--hud-gap) * 3 - var(--safe-b)); margin-right: calc(4.25rem + var(--safe-r)); }
-  .cmdbar.compact .cb-quick { gap: 0.375rem; }
+  .cmdbar.compact .cb-units, .cmdbar.compact .cb-herocol, .cmdbar.compact .cb-mtools, .cmdbar.compact .cb-groups { flex-direction: column; flex-wrap: nowrap; }
+  .cmdbar.compact .cb-pop { right: calc(100% + 0.5rem); top: 0; bottom: auto; flex-direction: row; align-items: flex-start; }
+  .cmdbar.compact .cb-pop .cb-quick { flex-direction: column; gap: 0.375rem; }
+  .cmdbar.compact .cb-pop .cb-disc { width: min(12rem, 50vh); height: min(12rem, 50vh); }
+  /* at the top there is room for the goals button of the missions (otherwise the panel lay above it) */
+  .cmdbar.compact .context { max-height: calc(100dvh - var(--top-total, 3rem) - 2.5rem - var(--hud-gap) * 4 - var(--safe-b)); margin-right: calc(4.25rem + var(--safe-r)); }
   .cmdbar.compact .cb-q { width: 2.5rem; height: 2.5rem; min-width: 2.5rem; min-height: 2.5rem; }
   .show-labels .cmdbar.compact .cb-qlbl { display: none; }
 }

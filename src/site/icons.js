@@ -1,7 +1,7 @@
 // Game icons for the website: coloured icons from the same atlas as in the game
 // (public/icons/symbols.webp, docs/SYMBOLE.md), control icons and names without an atlas cell as SVG
 // (src/ui/icons). Without the game's PNG conversion – nothing redraws constantly on reading pages.
-import { ICONS, GLYPHS } from '../ui/icons/index.js';
+import { ICONS, GLYPHS, PORTRAITS, IMAGE_ICONS } from '../ui/icons/index.js';
 import { ATLAS, ATLAS_INDEX } from '../ui/icons/atlas.js';
 import { siteUrl } from '../paths.js';
 
@@ -36,6 +36,8 @@ export function atlasCss(name, url = siteUrl(ATLAS.url)) {
 
 /** Icon as an HTML snippet (for v-html tables). */
 export function iconHtml(name) {
+  if (PORTRAITS[name]) return `<img class="ico portrait" src="${siteUrl(PORTRAITS[name])}" alt="" aria-hidden="true" decoding="async">`;
+  if (IMAGE_ICONS[name]) return `<img class="ico" src="${siteUrl(IMAGE_ICONS[name])}" alt="" aria-hidden="true" decoding="async">`;
   const atlas = atlasCss(name);
   if (atlas) return `<span class="ico atlas" data-icon="${name}" style="${atlas}" aria-hidden="true"></span>`;
   const src = svgIcon(name);

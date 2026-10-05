@@ -59,192 +59,603 @@
         ]
       }
     },
-    "Rogue_Hooded": {
-      "lods": 3,
-      "height": 0.92,
+    "Swordsman": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
       "clips": {
-        "idle": "Idle",
-        "walk": "Walking_A",
-        "run": "Running_A",
-        "chop": "2H_Melee_Attack_Chop",
-        "mine": "2H_Melee_Attack_Chop",
-        "hammer": "1H_Melee_Attack_Chop",
-        "build": "Interact",
-        "carry": "Walking_B",
-        "attack": "1H_Melee_Attack_Stab",
-        "die": "Death_A",
-        "cheer": "Cheer",
-        "sit": "Sit_Floor_Idle",
-        "ride": "Sit_Chair_Idle"
-      },
-      "include": [],
-      "team": {
-        "uvCells": [
-          [
-            1,
-            1
-          ],
-          [
-            1,
-            2
-          ]
-        ]
-      },
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ]
-        ]
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
       }
     },
-    "Rogue": {
-      "lods": 3,
-      "height": 0.92,
+    "SwordsmanF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
       "clips": {
-        "idle": "Idle",
-        "walk": "Walking_A",
-        "run": "Running_A",
-        "chop": "2H_Melee_Attack_Chop",
-        "mine": "2H_Melee_Attack_Chop",
-        "hammer": "1H_Melee_Attack_Chop",
-        "build": "Interact",
-        "carry": "Walking_B",
-        "attack": "1H_Melee_Attack_Stab",
-        "shoot": "2H_Ranged_Shoot",
-        "die": "Death_A",
-        "cheer": "Cheer",
-        "sit": "Sit_Floor_Idle",
-        "ride": "Sit_Chair_Idle"
-      },
-      "include": [],
-      "team": {
-        "parts": [
-          "Rogue_Cape"
-        ]
-      },
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ],
-          [
-            1,
-            1
-          ],
-          [
-            1,
-            2
-          ]
-        ]
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
       }
     },
-    "Knight": {
-      "lods": 3,
-      "height": 0.98,
+    "Spearman": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
       "clips": {
-        "idle": "Idle",
-        "walk": "Walking_A",
-        "run": "Running_A",
-        "attack": "1H_Melee_Attack_Slice_Diagonal",
-        "hammer": "1H_Melee_Attack_Chop",
-        "die": "Death_A",
-        "cheer": "Cheer",
-        "sit": "Sit_Floor_Idle",
-        "ride": "Sit_Chair_Idle",
-        "block": "Blocking"
-      },
-      "include": [
-        "1H_Sword",
-        "Round_Shield",
-        "Knight_Helmet",
-        "Knight_Cape"
-      ],
-      "team": {
-        "uvCells": [
-          [
-            0,
-            1
-          ],
-          [
-            2,
-            2
-          ]
-        ]
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
       }
     },
-    "Barbarian": {
-      "lods": 3,
-      "height": 1.0,
+    "SpearmanF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
       "clips": {
-        "idle": "Idle",
-        "walk": "Walking_A",
-        "run": "Running_A",
-        "attack": "2H_Melee_Attack_Chop",
-        "chop": "2H_Melee_Attack_Chop",
-        "hammer": "1H_Melee_Attack_Chop",
-        "die": "Death_A",
-        "cheer": "Cheer",
-        "sit": "Sit_Floor_Idle",
-        "ride": "Sit_Chair_Idle"
-      },
-      "include": [
-        "2H_Axe",
-        "Barbarian_Cape",
-        "Barbarian_Hat"
-      ],
-      "team": {
-        "uvCells": [
-          [
-            0,
-            1
-          ],
-          [
-            1,
-            1
-          ]
-        ],
-        "parts": [
-          "Barbarian_Cape"
-        ]
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
       }
     },
-    "Mage": {
-      "lods": 3,
-      "height": 0.98,
+    "Archer": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
       "clips": {
-        "idle": "Idle",
-        "walk": "Walking_A",
-        "run": "Running_A",
-        "attack": "Spellcast_Shoot",
-        "shoot": "Spellcast_Shoot",
-        "die": "Death_A",
-        "cheer": "Cheer",
-        "sit": "Sit_Floor_Idle",
-        "ride": "Sit_Chair_Idle"
-      },
-      "include": [
-        "2H_Staff",
-        "Mage_Hat",
-        "Mage_Cape"
-      ],
-      "team": {
-        "uvCells": [
-          [
-            0,
-            1
-          ],
-          [
-            1,
-            1
-          ],
-          [
-            2,
-            1
-          ]
-        ]
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "ArcherF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Gunner": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "GunnerF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Bandit": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "BanditArcher": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "BanditArcherF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "BanditF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Malvor": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Nelia": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Orrin": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "HeavyRider": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "ride": "ride",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "HeavyRiderF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "ride": "ride",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "LightRider": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "ride": "ride",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "LightRiderF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "die": "die",
+        "idle": "idle",
+        "ride": "ride",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Taran": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "attack": "attack",
+        "cheer": "cheer",
+        "die": "die",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Alchemist": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "AlchemistF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Brickmaker": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "BrickmakerF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Farmer": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "FarmerF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Mason": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "MasonF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Miner": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "MinerF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Priest": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "PriestF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Sawyer": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "SawyerF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Scholar": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "ScholarF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Smith": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "SmithF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Trader": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "TraderF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Treasurer": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "TreasurerF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "Weatherman": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
+      }
+    },
+    "WeathermanF": {
+      "lods": 1,
+      "height": 0.95,
+      "teamMarker": true,
+      "clips": {
+        "carry": "carry",
+        "cheer": "cheer",
+        "die": "die",
+        "hammer": "hammer",
+        "idle": "idle",
+        "run": "run",
+        "walk": "walk"
       }
     }
   },
@@ -265,127 +676,105 @@
       "procedural": "serf"
     },
     "worker": {
-      "model": "Rogue",
+      "variants": [
+        {
+          "model": "Trader",
+          "weight": 1
+        },
+        {
+          "model": "TraderF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
       "procedural": "worker"
     },
     "crew": {
-      "model": "Rogue_Hooded",
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ]
-        ],
-        "color": "#6b5a44"
-      },
+      "variants": [
+        {
+          "model": "Gunner",
+          "weight": 1
+        },
+        {
+          "model": "GunnerF",
+          "weight": 1
+        }
+      ],
       "procedural": "serf"
     },
     "soldier.sword": {
-      "model": "Knight",
+      "variants": [
+        {
+          "model": "Swordsman",
+          "weight": 1
+        },
+        {
+          "model": "SwordsmanF",
+          "weight": 1
+        }
+      ],
       "procedural": "sword",
       "voice": "sword"
     },
     "soldier.sword.leader": {
-      "model": "Knight",
-      "include": [
-        "1H_Sword",
-        "Badge_Shield",
-        "Knight_Helmet",
-        "Knight_Cape"
-      ],
+      "model": "Swordsman",
       "scale": 1.08,
       "procedural": "sword:leader",
       "voice": "sword"
     },
     "soldier.spear": {
-      "model": "Knight",
-      "include": [
-        "2H_Sword",
-        "Knight_Helmet",
-        "Knight_Cape"
+      "variants": [
+        {
+          "model": "Spearman",
+          "weight": 1
+        },
+        {
+          "model": "SpearmanF",
+          "weight": 1
+        }
       ],
-      "clips": {
-        "idle": "2H_Melee_Idle",
-        "attack": "2H_Melee_Attack_Stab"
-      },
       "procedural": "spear",
       "voice": "sword"
     },
     "soldier.spear.leader": {
-      "model": "Knight",
-      "include": [
-        "2H_Sword",
-        "Knight_Helmet",
-        "Knight_Cape"
-      ],
-      "clips": {
-        "idle": "2H_Melee_Idle",
-        "attack": "2H_Melee_Attack_Stab"
-      },
+      "model": "Spearman",
       "scale": 1.08,
       "procedural": "spear:leader",
       "voice": "sword"
     },
     "soldier.bow": {
-      "model": "Rogue",
-      "include": [
-        "2H_Crossbow"
+      "variants": [
+        {
+          "model": "Archer",
+          "weight": 1
+        },
+        {
+          "model": "ArcherF",
+          "weight": 1
+        }
       ],
-      "team": {
-        "uvCells": [
-          [
-            0,
-            1
-          ],
-          [
-            1,
-            1
-          ],
-          [
-            1,
-            2
-          ]
-        ]
-      },
-      "tint": null,
       "procedural": "bow",
       "voice": "soldierF"
     },
     "soldier.bow.leader": {
-      "model": "Rogue",
-      "include": [
-        "2H_Crossbow",
-        "Rogue_Cape"
-      ],
-      "team": {
-        "uvCells": [
-          [
-            0,
-            1
-          ],
-          [
-            1,
-            1
-          ],
-          [
-            1,
-            2
-          ]
-        ]
-      },
-      "tint": null,
+      "model": "Archer",
       "scale": 1.08,
       "procedural": "bow:leader",
-      "voice": "soldierF"
+      "voice": "sword"
     },
     "soldier.heavyCav": {
-      "model": "Knight",
-      "include": [
-        "1H_Sword",
-        "Badge_Shield",
-        "Knight_Helmet",
-        "Knight_Cape"
+      "variants": [
+        {
+          "model": "HeavyRider",
+          "weight": 1
+        },
+        {
+          "model": "HeavyRiderF",
+          "weight": 1
+        }
       ],
       "seat": 0.86,
       "clipAlias": {
@@ -408,33 +797,40 @@
       "voice": "sword"
     },
     "soldier.heavyCav.leader": {
-      "fallback": "soldier.heavyCav",
+      "model": "HeavyRider",
+      "scale": 1.08,
+      "seat": 0.86,
+      "clipAlias": {
+        "walk": "ride",
+        "run": "ride",
+        "idle": "ride"
+      },
+      "attach": [
+        {
+          "role": "mount.horse",
+          "offset": [
+            0,
+            0,
+            0.06
+          ],
+          "scale": 1.75
+        }
+      ],
       "procedural": "heavyCav:leader",
       "voice": "sword"
     },
     "soldier.lightCav": {
-      "model": "Rogue",
-      "include": [
-        "1H_Crossbow"
+      "variants": [
+        {
+          "model": "LightRider",
+          "weight": 1
+        },
+        {
+          "model": "LightRiderF",
+          "weight": 1
+        }
       ],
       "seat": 0.82,
-      "team": {
-        "uvCells": [
-          [
-            0,
-            1
-          ],
-          [
-            1,
-            1
-          ],
-          [
-            1,
-            2
-          ]
-        ]
-      },
-      "tint": null,
       "clipAlias": {
         "walk": "ride",
         "run": "ride",
@@ -455,9 +851,27 @@
       "voice": "soldierF"
     },
     "soldier.lightCav.leader": {
-      "fallback": "soldier.lightCav",
+      "model": "LightRider",
+      "scale": 1.08,
+      "seat": 0.82,
+      "clipAlias": {
+        "walk": "ride",
+        "run": "ride",
+        "idle": "ride"
+      },
+      "attach": [
+        {
+          "role": "mount.horse",
+          "offset": [
+            0,
+            0,
+            0.06
+          ],
+          "scale": 1.7
+        }
+      ],
       "procedural": "lightCav:leader",
-      "voice": "soldierF"
+      "voice": "sword"
     },
     "soldier.cannon": {
       "procedural": "cannon",
@@ -495,82 +909,254 @@
       "procedural": "horse"
     },
     "bandit": {
-      "model": "Barbarian",
-      "include": [
-        "1H_Axe",
-        "Barbarian_Round_Shield",
-        "Barbarian_Hat"
+      "variants": [
+        {
+          "model": "Bandit",
+          "weight": 1
+        },
+        {
+          "model": "BanditF",
+          "weight": 1
+        }
       ],
       "procedural": "sword"
     },
     "bandit.bow": {
-      "model": "Rogue_Hooded",
-      "include": [
-        "1H_Crossbow"
+      "variants": [
+        {
+          "model": "BanditArcher",
+          "weight": 1
+        },
+        {
+          "model": "BanditArcherF",
+          "weight": 1
+        }
       ],
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ]
-        ],
-        "color": "#4a3a2c"
-      },
       "procedural": "bow"
     },
     "hero.nelia": {
-      "model": "Rogue",
-      "include": [
-        "Barbarian:1H_Axe",
-        "Rogue_Cape"
-      ],
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ]
-        ],
-        "color": "#b08452"
-      },
-      "scale": 1.15,
+      "model": "Nelia",
+      "scale": 1.12,
       "procedural": "hero:nelia"
     },
     "hero.orrin": {
-      "model": "Rogue_Hooded",
-      "include": [],
-      "tint": {
-        "uvCells": [
-          [
-            0,
-            1
-          ]
-        ],
-        "color": "#c26a3a"
-      },
-      "scale": 1.18,
+      "model": "Orrin",
+      "scale": 1.12,
       "procedural": "hero:orrin"
     },
     "hero.taran": {
-      "model": "Knight",
-      "include": [
-        "1H_Sword",
-        "Round_Shield",
-        "Knight_Helmet",
-        "Knight_Cape"
-      ],
-      "scale": 1.18,
+      "model": "Taran",
+      "scale": 1.12,
       "procedural": "hero:taran"
     },
     "hero.malvor": {
-      "model": "Mage",
-      "include": [
-        "1H_Wand",
-        "Mage_Cape"
-      ],
-      "scale": 1.18,
+      "model": "Malvor",
+      "scale": 1.12,
       "procedural": "hero:malvor"
+    },
+    "worker.farmer": {
+      "variants": [
+        {
+          "model": "Farmer",
+          "weight": 1
+        },
+        {
+          "model": "FarmerF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.scholar": {
+      "variants": [
+        {
+          "model": "Scholar",
+          "weight": 1
+        },
+        {
+          "model": "ScholarF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.miner": {
+      "variants": [
+        {
+          "model": "Miner",
+          "weight": 1
+        },
+        {
+          "model": "MinerF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.brickmaker": {
+      "variants": [
+        {
+          "model": "Brickmaker",
+          "weight": 1
+        },
+        {
+          "model": "BrickmakerF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.sawyer": {
+      "variants": [
+        {
+          "model": "Sawyer",
+          "weight": 1
+        },
+        {
+          "model": "SawyerF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.mason": {
+      "variants": [
+        {
+          "model": "Mason",
+          "weight": 1
+        },
+        {
+          "model": "MasonF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.smith": {
+      "variants": [
+        {
+          "model": "Smith",
+          "weight": 1
+        },
+        {
+          "model": "SmithF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.alchemist": {
+      "variants": [
+        {
+          "model": "Alchemist",
+          "weight": 1
+        },
+        {
+          "model": "AlchemistF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.treasurer": {
+      "variants": [
+        {
+          "model": "Treasurer",
+          "weight": 1
+        },
+        {
+          "model": "TreasurerF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.priest": {
+      "variants": [
+        {
+          "model": "Priest",
+          "weight": 1
+        },
+        {
+          "model": "PriestF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.trader": {
+      "variants": [
+        {
+          "model": "Trader",
+          "weight": 1
+        },
+        {
+          "model": "TraderF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
+    },
+    "worker.weatherman": {
+      "variants": [
+        {
+          "model": "Weatherman",
+          "weight": 1
+        },
+        {
+          "model": "WeathermanF",
+          "weight": 1
+        }
+      ],
+      "clips": {
+        "build": "hammer",
+        "sit": "idle"
+      },
+      "procedural": "worker"
     }
   }
 }

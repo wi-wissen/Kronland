@@ -2,7 +2,8 @@
 
 Die bunten Symbole (Rohstoffe, Gebäude, Einheiten, Helden, Fähigkeiten, Wetter, Status) kommen aus einem
 **Sprite-Atlas**, den ein Bildmodell in einem einzigen Durchgang gemalt hat. Die 34 einfarbigen
-Bediensymbole (Pause, Menü, Schließen …) bleiben Vektoren, weil sie die Textfarbe übernehmen.
+Bediensymbole (Pause, Menü, Schließen …) bleiben Vektoren, weil sie die Textfarbe übernehmen. Wenige Symbole ohne
+Atlasfeld (Brunnen, Denkmal, Brücke, drei Heldenfähigkeiten) sind Einzelbilder, siehe [unten](#einzelbilder-fähigkeiten-herold-menükulissen).
 
 Diese Seite beschreibt, wie der Atlas entstanden ist und wie man ihn neu erzeugt, etwa für neue Symbole
 oder einen anderen Stil.
@@ -20,6 +21,34 @@ oder einen anderen Stil.
   (`globPatterns` in `vite.config.js`), danach funktioniert es offline.
 - **Neue Symbole:** Ein neues Symbol in `index.js` erscheint sofort als SVG. Es kommt in den Atlas, sobald
   der Bogen neu erzeugt ist (Ablauf unten).
+
+## Einzelbilder: Fähigkeiten, Herold, Menükulissen
+
+Einzelne gemalte Bilder ohne Atlasfeld entstehen mit `scripts/art/` (Gemini 3 Pro Image über OpenRouter).
+Je Auftrag liegt unter `assets-src/art/<auftrag>/` ein `prompt.txt` und ein `job.json` (Modell, Format,
+Referenzbilder mit Ausschnitt, alle Läufe mit Kosten, Auswahl fürs Spiel unter `finish`); die Rohbilder als
+`raw-N.webp`.
+
+```bash
+node scripts/art/generate.mjs symbols      # neues Rohbild (raw-N.webp), etwa 25 s, 0,14 $
+node scripts/art/finish.mjs symbols --preview /tmp/v.png
+```
+
+| Auftrag | Ergebnis | Einbindung |
+|---|---|---|
+| `symbols` | `public/icons/ab-farsight.webp`, `ab-bribe.webp`, `ab-intimidate.webp` (128 px, Alpha) | `IMAGE_ICONS` in `src/ui/icons/index.js` |
+| `herald` | `public/portraits/sp-herald.webp` (256 px, Cremegrund `#f1ece4`) | `SPEAKER_PORTRAITS` |
+| `title`, `loading` | `public/art/title.webp` (2560 px), `loading.webp` (1920 px), je < 400 KB | `src/ui/art.js` → `.backdrop` |
+
+- **Symbole:** drei Gegenstände nebeneinander auf Weiß, Stilvorlage sind zwei Streifen aus `sheet.webp` und ein
+  Figurenbogen. `finish.mjs` wählt je Symbol Rohbild und Drittel (`finish`), stellt frei wie `slice.mjs`
+  (Flut vom Rand, eingeschlossenes Weiß, „Farbe über Weiß“) und passt in 128 px ein. Gemini malt in einem Lauf mal
+  plastischer, mal mit Konturen; darum stammen Fernrohr und Hand aus Lauf 2, das Horn aus Lauf 1.
+- **Herold:** Malvors Herold aus Mission 5 (Morvale). Neutrale Farben (Grau, Creme, Ocker), keine Spielerfarbe.
+  Wichtig im Prompt: dieselbe Überzeichnung wie die Vorlagen (große Augen, Knollennase), sonst wird er zu realistisch.
+- **Kulissen:** Burg auf dem Hügel in der Bildmitte (bleibt beim hochkant zugeschnittenen Handy sichtbar), ruhiger
+  Himmel oben hinter dem Titel, ruhige Ränder. Der Ladebildschirm hat ein helleres, ruhigeres Morgenbild.
+  Im Spiel liegt ein abdunkelnder Verlauf darüber; lädt das Bild nicht, bleiben die CSS-Verläufe.
 
 ## Favicon und App-Icons
 

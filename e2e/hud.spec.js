@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
+import { quick, openQuick } from './quick.js';
 
 // Game UI: hanging top bar, grid at the bottom (map | panel | portrait), quick access with heroes.
 
 const SLOW = { timeout: 20_000 };
 
-async function boot(page, url = '/?seed=42&no-models') {
+async function boot(page, url = '/?seed=42&no-models', gold = '500') {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.addInitScript(() => {
@@ -17,7 +18,7 @@ async function boot(page, url = '/?seed=42&no-models') {
   });
   await page.goto(playUrl(url.replace(/^\//, '')));
   await page.waitForFunction(() => !!window.__kronland);
-  await expect(page.getByTestId('res-gold')).toHaveText('500', SLOW);
+  await expect(page.getByTestId('res-gold')).toHaveText(gold, SLOW);
   return errors;
 }
 
@@ -45,6 +46,8 @@ test('Without selection only the map and quick access remain at the bottom; idle
   await expect(page.getByTestId('selection-card')).toHaveCount(0);
   const idle = await page.evaluate(() => window.__kronland.uiState().idleSerfs);
   expect(idle).toBeGreaterThan(0);
+  // Mobile: quick access sits in the map panel behind the map button
+  await openQuick(page);
   await expect(page.getByTestId('idle-count')).toHaveText(String(idle));
   expect(errors).toEqual([]);
 });
@@ -100,7 +103,7 @@ test('Hero portrait selects the hero and brings it into view', async ({ page }) 
   expect(d).toBeLessThan(12);
   // "Truppen" selects all own squads including the hero
   await page.evaluate(() => window.__kronland.clearSelection());
-  await page.getByTestId('quick-army').click();
+  await quick(page, 'army');
   await expect(page.getByTestId('context-panel')).toContainText('Orrin');
   expect(errors).toEqual([]);
 });
@@ -113,7 +116,7 @@ test('Commands are labelled and grouped', async ({ page }) => {
   await expect(page.getByTestId('context-panel')).toContainText('Haltung');
   await expect(page.getByTestId('context-panel')).toContainText('Fähigkeiten');
   // Building: upgrade names the next level
-  await page.getByTestId('quick-hq').click();
+  await quick(page, 'hq');
   await expect(page.getByTestId('upgrade')).toContainText('Ausbauen');
   await expect(page.getByTestId('upgrade')).toContainText('Stufe 2');
   expect(errors).toEqual([]);
@@ -122,7 +125,7 @@ test('Commands are labelled and grouped', async ({ page }) => {
 test('Mobile: build menu right after the selection, tapping starts the build', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'mobile only');
   const errors = await boot(page);
-  await page.getByTestId('quick-all').click();
+  await quick(page, 'all');
   // No intermediate step any more: tiles are there immediately
   await expect(page.getByTestId('build-residence')).toBeVisible();
   // Jump mark brings a group further right into view
@@ -140,8 +143,8 @@ test('Nothing overlaps: top bar and bottom row at different window widths', asyn
   test.setTimeout(120_000);
   const errors = await boot(page, '/?seed=42&no-models&hero=orrin');
   for (const sel of ['all', 'hq', 'hero']) {
-    if (sel === 'all') await page.getByTestId('quick-all').click();
-    else if (sel === 'hq') await page.getByTestId('quick-hq').click();
+    if (sel === 'all') await quick(page, 'all');
+    else if (sel === 'hq') await quick(page, 'hq');
     else await page.getByTestId('quick-hero-orrin').click();
     for (const width of [1920, 1600, 1440, 1280, 1100, 960, 800]) {
       await page.setViewportSize({ width, height: 900 });
@@ -195,8 +198,17 @@ test('Desktop: crest exactly at the screen centre, castle panel two-column, 5 se
     await page.setViewportSize({ width, height: 900 });
     await expect.poll(() => page.getByTestId('payday').evaluate((el, w) => { const r = el.getBoundingClientRect(); return Math.abs(r.left + r.width / 2 - w / 2); }, width), { message: `Medallion at ${width}px` }).toBeLessThan(2);
   }
+  // Season is shown with its name as long as there is room; when it gets tight (faith added), the name goes first,
+  // the crest stays in one row
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.getByTestId('quick-hq').click();
+  await expect(page.locator('.tb-wxname')).toBeVisible();
+  await page.evaluate(() => { const e = window.__kronland; e.sim.players[0].faith = 1234; e.emitUi(); });
+  await expect(page.getByTestId('faith')).toBeVisible();
+  await expect(page.locator('.topbar')).not.toHaveClass(/tight/);
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await expect(page.locator('.tb-wxname')).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await quick(page, 'hq');
   await expect(page.getByTestId('buy-serf-5')).toContainText('5 Leibeigene kaufen');
   await expect(page.locator('.bpanel.cols')).toHaveCount(1);
   const cols = await page.locator('.bpanel.cols').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
@@ -244,5 +256,144 @@ test('Sound button: mute and music volume right in the top bar', async ({ page }
   // Click elsewhere closes the menu
   await page.mouse.click(5, 400);
   await expect(page.getByTestId('sound-menu')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+/** Set all resources to one value (storehouse, nothing raw). */
+async function setStock(page, n) {
+  await page.evaluate((v) => {
+    const e = window.__kronland, p = e.sim.players[0];
+    for (const r of Object.keys(p.stock)) { p.stock[r] = v; if (r in p.raw) p.raw[r] = 0; }
+    e.emitUi();
+  }, n);
+}
+
+test('Resource bar: large amounts shortened, everything in one row with the crest', async ({ page, isMobile }) => {
+  const errors = await boot(page);
+  await setStock(page, 50000);
+  await expect(page.getByTestId('res-gold')).toHaveText('50k');
+  await expect(page.getByTestId('res-gold')).toHaveAttribute('data-value', '50000');
+  // Exact value is in the tooltip (mouse; on mobile via long press, see labels.spec.js)
+  if (!isMobile) {
+    await page.getByTestId('res-gold').hover();
+    await expect(page.getByTestId('tooltip')).toContainText('50000');
+  }
+  const box = (s) => page.locator(s).first().evaluate((el) => { const r = el.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; });
+  if (isMobile) {
+    // Last resource fully visible, crest and coin buttons share the second row
+    const vw = page.viewportSize().width;
+    const items = await page.locator('.tb-resitem').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right));
+    for (const r of items) expect(r).toBeLessThanOrEqual(vw);
+    const crest = await box('.tb-crest'), sys = await box('.tb-sys');
+    expect(sys.t).toBeLessThan(crest.b);
+    expect(sys.l).toBeGreaterThanOrEqual(crest.r - 1);
+  } else {
+    for (const width of [1440, 1180]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.waitForTimeout(200);
+      // Crest stays in the first row (no row of its own), medallion centred
+      await expect(page.getByTestId('topbar')).not.toHaveClass(/tight/);
+      const res = await box('.tb-res'), crest = await box('.tb-crest');
+      expect(crest.t, `Crest at ${width}px`).toBeLessThan(res.b);
+      expect(res.r).toBeLessThan(crest.l);
+    }
+    // Narrower: resources in two rows instead of the crest in its own row
+    await expect(page.getByTestId('res-bar')).toHaveClass(/two/);
+  }
+  // Below the limit the exact number stays
+  await setStock(page, 9999);
+  await expect(page.getByTestId('res-gold')).toHaveText('9999');
+  expect(errors).toEqual([]);
+});
+
+test('Hero images sit round in the frame', async ({ page }) => {
+  const errors = await boot(page, '/?seed=42&no-models&hero=orrin');
+  await page.getByTestId('quick-hero-orrin').click();
+  await expect(page.getByTestId('hero-orrin')).toBeVisible();
+  for (const frame of ['[data-testid=quick-hero-orrin] .cb-pic', '[data-testid=hero-orrin] .hc-portrait']) {
+    const fit = await page.locator(frame).evaluate((el) => {
+      const img = el.querySelector('img.ico.portrait');
+      const a = el.getBoundingClientRect(), b = img.getBoundingClientRect();
+      return { radius: getComputedStyle(img).borderRadius, inside: b.left >= a.left - 0.5 && b.right <= a.right + 0.5 && b.top >= a.top - 0.5 && b.bottom <= a.bottom + 0.5, fill: b.width / a.width };
+    });
+    expect(fit.radius, frame).toBe('50%');
+    expect(fit.inside, frame).toBe(true);
+    expect(fit.fill, frame).toBeGreaterThan(0.85);
+  }
+  expect(errors).toEqual([]);
+});
+
+test('Mobile: map button unfolds minimap and quick access and folds them again', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'mobile only');
+  const errors = await boot(page);
+  await page.evaluate(() => window.__kronland.clearSelection());
+  const toggle = page.getByTestId('minimap-toggle');
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByTestId('quick-hq')).toHaveCount(0);
+  await expect(page.getByTestId('minimap')).toHaveCount(0);
+  // Bottom right
+  const vp = page.viewportSize();
+  const b = await toggle.boundingBox();
+  expect(b.x + b.width).toBeGreaterThan(vp.width * 0.8);
+  expect(b.y).toBeGreaterThan(vp.height * 0.7);
+  // Unfold: minimap and four quick accesses in the panel, within the screen
+  await toggle.click();
+  const panel = page.getByTestId('map-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByTestId('minimap-canvas')).toBeVisible();
+  for (const k of ['hq', 'idle', 'all', 'army']) await expect(panel.getByTestId('quick-' + k)).toBeVisible();
+  const p = await panel.boundingBox();
+  expect(p.x).toBeGreaterThanOrEqual(0);
+  expect(p.x + p.width).toBeLessThanOrEqual(vp.width);
+  // Tapping again folds it
+  await toggle.click();
+  await expect(panel).toHaveCount(0);
+  // Quick access folds after triggering
+  await toggle.click();
+  await page.getByTestId('quick-all').click();
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByTestId('build-residence')).toBeVisible(SLOW);
+  expect(errors).toEqual([]);
+});
+
+test('Objectives: on mobile a compact button with a full-screen view, "Ziel zeigen" closes it', async ({ page, isMobile }) => {
+  test.setTimeout(180_000);
+  const errors = await boot(page, '/?mission=showcase&no-models&quality=low', '50k');
+  const toggle = page.getByTestId('objectives-toggle');
+  await expect(toggle).toBeVisible(SLOW);
+  const vp = page.viewportSize();
+  if (!isMobile) {
+    // Desktop: panel unfolds in itself, no full-screen view
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('objectives-sheet')).toHaveCount(0);
+    await expect(page.getByTestId('objective-go-see-buildingArea')).toBeVisible();
+    expect(errors).toEqual([]);
+    return;
+  }
+  // Mobile: initially only a small button at the top left
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  const chip = await page.getByTestId('objectives').boundingBox();
+  expect(chip.width).toBeLessThan(vp.width * 0.5);
+  expect(chip.x).toBeLessThan(vp.width * 0.1);
+  await expect(toggle).toContainText('Ziele');
+  await toggle.click();
+  const sheet = page.getByTestId('objectives-sheet');
+  await expect(sheet).toBeVisible();
+  const s = await sheet.boundingBox();
+  expect(s.width).toBeGreaterThan(vp.width * 0.9);
+  expect(s.height).toBeGreaterThan(vp.height * 0.9);
+  // Close button
+  await page.getByTestId('objectives-close').click();
+  await expect(sheet).toHaveCount(0);
+  // "Ziel zeigen" jumps there and closes the view
+  await toggle.click();
+  const before = await page.evaluate(() => ({ ...window.__kronland.renderer.rig.target }));
+  await page.getByTestId('objective-go-see-buildingArea').click();
+  await expect(sheet).toHaveCount(0);
+  await expect.poll(async () => {
+    const after = await page.evaluate(() => ({ ...window.__kronland.renderer.rig.target }));
+    return Math.abs(after.x - before.x) + Math.abs(after.z - before.z);
+  }).toBeGreaterThan(3);
   expect(errors).toEqual([]);
 });

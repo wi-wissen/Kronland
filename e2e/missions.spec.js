@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
+import { quick } from './quick.js';
 
 /** Record page errors; progress and language back to the start. */
 async function fresh(page) {
@@ -39,7 +40,7 @@ test('Start the tutorial from the menu, see the first step, complete a step, ski
 
   // Action step: highlight points at "Alle", click completes it
   await expect(page.getByTestId('tutorial-highlight')).toBeVisible();
-  await page.getByTestId('quick-all').click();
+  await quick(page, 'all');
   await expect(page.getByTestId('tutorial-title')).toHaveText('Holz schlagen', SLOW);
   expect(await stepId(page)).toBe('wood');
 

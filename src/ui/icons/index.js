@@ -510,6 +510,28 @@ export const GLYPHS = new Set(Object.keys(GLYPH));
 
 export const iconForBuilding = (type) => (ICONS[`b-${type}`] ? `b-${type}` : 'cat-home');
 export const iconForLine = (line) => (ICONS[`u-${line}`] ? `u-${line}` : 'soldiers');
+/** Painted portraits (public/portraits/, cut from the concept sheets: scripts/portraits.py) instead of drawn icons. */
+export const PORTRAITS = {
+  'hero-nelia': 'portraits/hero-nelia.webp', 'hero-orrin': 'portraits/hero-orrin.webp',
+  'hero-taran': 'portraits/hero-taran.webp', 'hero-malvor': 'portraits/hero-malvor.webp',
+};
+/**
+ * Painted icons without an atlas field: buildings (cut-out concept images, scripts/portraits.py) and
+ * abilities (painted individually, scripts/art/, see docs/SYMBOLE.md).
+ */
+export const IMAGE_ICONS = {
+  'b-fountain': 'icons/b-fountain.webp', 'b-statue': 'icons/b-statue.webp', 'b-bridge': 'icons/b-bridge.webp',
+  'ab-farsight': 'icons/ab-farsight.webp', 'ab-bribe': 'icons/ab-bribe.webp', 'ab-intimidate': 'icons/ab-intimidate.webp',
+};
+const SPEAKER_PORTRAITS = new Set(['elder', 'villager', 'collector', 'merchant', 'bandit', 'miner', 'scholar', 'prisoner', 'herald']);
+/** Portrait of a figure speaking in missions (SPEAKERS key), or null (narrator, unknown). */
+export function speakerPortrait(id) {
+  if (!id) return null;
+  if (PORTRAITS[`hero-${id}`]) return PORTRAITS[`hero-${id}`];
+  const sp = id === 'kunz' ? 'bandit' : id;
+  return SPEAKER_PORTRAITS.has(sp) ? `portraits/sp-${sp}.webp` : null;
+}
+
 export const iconForHero = (hero) => (ICONS[`hero-${hero}`] ? `hero-${hero}` : 'crown');
 export const iconForAbility = (id) => (ICONS[`ab-${id}`] ? `ab-${id}` : 'target');
 export const iconForWeather = (state) => (ICONS[`weather-${state}`] ? `weather-${state}` : 'weather-summer');

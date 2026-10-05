@@ -1,4 +1,5 @@
 // Pure helper functions for the game UI (without DOM, tested with Vitest).
+import { PORTRAITS } from '../icons/index.js';
 
 /** Share of the side length taken up by the longer map edge in the minimap. The minimap is square
  *  like the map (only slightly rounded corners), so the map fills it completely – nothing lies under the frame. */
@@ -60,9 +61,11 @@ export function selectionIcon(s) {
   return 'info';
 }
 
-/** Painted portrait (public/portraits/) for own serfs and workers, otherwise null (then icon). */
+/** Painted portrait (public/portraits/) for heroes, own serfs and workers, otherwise null (then icon). */
 export function selectionPortrait(s, base = '/') {
   if (!s) return null;
+  const hero = s.kind === 'army' && s.heroes.length && !s.groups.length ? s.heroes[0].hero : s.kind === 'foreign' ? s.hero : null;
+  if (hero && PORTRAITS[`hero-${hero}`]) return base + PORTRAITS[`hero-${hero}`];
   if (s.kind === 'serfs') return base + 'portraits/serf.webp';
   if (s.kind === 'foreign' && s.owner === 0 && s.entity === 'worker') return base + 'portraits/worker.webp';
   return null;
@@ -85,4 +88,56 @@ export function softHyphens(name, min = 9) {
     }
     return w;
   }).join(' ');
+}
+
+/** From this amount the resource bar shows short forms ("50k"); the exact value is given by the tooltip. */
+export const SHORT_AMOUNT = 10000;
+
+/**
+ * Amount in short form for the resource bar: unchanged below `limit`, above it with thousand/million abbreviation.
+ * It is rounded down (never show more than available): 12 345 → "12.3k", 50 000 → "50k", 123 456 → "123k".
+ * @param {number} n
+ * @param {{ limit?: number, dec?: string, k?: string, m?: string }} [o] decimal separator and abbreviations (from i18n)
+ */
+export function shortAmount(n, { limit = SHORT_AMOUNT, dec = ',', k = 'k', m = 'M' } = {}) {
+  const v = Math.floor(Number(n) || 0);
+  if (Math.abs(v) < limit) return String(v);
+  const sign = v < 0 ? '-' : '', a = Math.abs(v);
+  const [unit, sfx] = a >= 1e6 ? [1e6, m] : [1e3, k];
+  const x = a / unit;
+  // below 100 one decimal place (rounded down), otherwise whole number; ",0" is dropped
+  const body = x < 100 ? String(Math.floor(x * 10) / 10) : String(Math.floor(x));
+  return sign + body.replace('.', dec) + sfx;
+}
+
+/**
+ * Width of the resource bar in pixels if its entries are distributed over `rows` rows
+ * (row by row as in the CSS grid, the widest entry counts per column).
+ * @param {number[]} widths width of the individual entries
+ * @param {number} gap gap between the entries
+ * @param {number} pad inner padding left + right
+ */
+export function resBarWidth(widths, gap, pad, rows = 1) {
+  const cols = Math.ceil(widths.length / rows);
+  let w = pad + gap * Math.max(0, cols - 1);
+  for (let c = 0; c < cols; c++) {
+    let max = 0;
+    for (let r = 0; r < rows; r++) max = Math.max(max, widths[r * cols + c] ?? 0);
+    w += max;
+  }
+  return w;
+}
+
+/**
+ * Arrangement of the top bar on desktop: the crest should stand exactly centred in the same row.
+ * 'one' – resources in one row; 'two' – resources in two rows so the crest stays in the row;
+ * 'tight' – even that is not enough, the crest gets its own row.
+ * @param {{ widths: number[], gap: number, pad: number, sys: number, crest: number, barGap: number, width: number }} m
+ * @returns {'one'|'two'|'tight'}
+ */
+export function topbarMode({ widths, gap, pad, sys, crest, barGap, width }) {
+  const fits = (res) => 2 * Math.max(res, sys) + crest + 2 * barGap <= width;
+  if (fits(resBarWidth(widths, gap, pad, 1))) return 'one';
+  if (fits(resBarWidth(widths, gap, pad, 2))) return 'two';
+  return 'tight';
 }

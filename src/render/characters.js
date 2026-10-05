@@ -97,6 +97,14 @@ export function variantRole(role, pick, available = () => true) {
 export { pickVariant };
 
 /** Variants list of the role that a key resolves to (or null). */
+/** Placeholder whose model has been loaded in the meantime (also in attachments such as the crew)? */
+export function variantStale(v) {
+  if (!v) return false;
+  if (v.pendingModel && store.models.has(v.pendingModel)) return true;
+  if (v.pendingCheck?.()) return true;
+  return (v.attach ?? []).some((a) => variantStale(a.variant));
+}
+
 export function roleVariants(manifest, key) {
   const roles = manifest?.roles ?? {};
   const seen = new Set();
@@ -226,8 +234,37 @@ export function modelFiles(name, def) {
   return [file, ...Array.from({ length: n }, (_, i) => file.replace(/\.glb$/i, `.lod${i + 1}.glb`))];
 }
 
+/** Roles whose models are needed right at the start; all others are loaded on demand. */
+export const START_ROLES = ['serf'];
+
+/** Models that are loaded at start (start roles including part donors and attachments). */
+export function startModels(m) {
+  const roles = {};
+  const add = (k) => { if (!m.roles?.[k] || roles[k]) return; roles[k] = m.roles[k]; for (const a of m.roles[k].attach ?? []) add(a.role); };
+  for (const k of START_ROLES) add(k);
+  return usedModels({ ...m, roles });
+}
+
+async function loadModel(name, tick = () => {}) {
+  const m = store.manifest, def = m?.models?.[name];
+  const { load, base } = store.lazy ?? {};
+  if (!def || !load) return;
+  const files = modelFiles(name, def);
+  const mf = maskFiles(def);
+  const [res, maskList] = await Promise.all([
+    Promise.all(files.map((f) => load(`${base}characters/${f}`).catch(() => null).finally(tick))),
+    Promise.all(mf.map((f) => loadMaskTexture(`${base}characters/${f}`).finally(tick))),
+  ]);
+  if (!res[0]) return;
+  const masks = new Map(mf.map((f, i) => [f, maskList[i]]));
+  // do not shift LOD levels if a file is missing: gap → previous level
+  const lods = [];
+  for (const g of res.slice(1)) if (g) lods.push(g);
+  store.models.set(name, { gltf: res[0], lods, masks, mask: masks.get(maskFileFor(def, 0)) ?? null });
+}
+
 /**
- * Load the models used by roles.
+ * Load the models of the start roles; the others are loaded by requestCharacterModel as soon as a figure needs them.
  * @param {(url:string)=>Promise<any>} load GLTF loader
  * @param {string} base
  * @param {() => void} [tick] progress
@@ -235,32 +272,24 @@ export function modelFiles(name, def) {
 export async function loadCharacterModels(load, base, tick = () => {}) {
   const m = store.manifest;
   if (!m) return;
-  const used = usedModels(m);
-  await Promise.all([...used].map(async (name) => {
-    const def = m.models?.[name];
-    if (!def) return;
-    const files = modelFiles(name, def);
-    const mf = maskFiles(def);
-    const [res, maskList] = await Promise.all([
-      Promise.all(files.map((f) => load(`${base}characters/${f}`).catch(() => null).finally(tick))),
-      Promise.all(mf.map((f) => loadMaskTexture(`${base}characters/${f}`).finally(tick))),
-    ]);
-    if (!res[0]) return;
-    const masks = new Map(mf.map((f, i) => [f, maskList[i]]));
-    // do not shift LOD levels if a file is missing: gap → previous level
-    const lods = [];
-    for (const g of res.slice(1)) if (g) lods.push(g);
-    store.models.set(name, { gltf: res[0], lods, masks, mask: masks.get(maskFileFor(def, 0)) ?? null });
-  }));
+  store.lazy = { load, base, pending: new Set() };
+  await Promise.all(startModels(m).map((name) => loadModel(name, tick)));
 }
 
-/** Number of files that loadCharacterModels loads (for progress). */
+/** Reload a figure model (once); rendering switches from the placeholder to the model at the next frame. */
+export function requestCharacterModel(name) {
+  const l = store.lazy;
+  if (!l || store.models.has(name) || l.pending.has(name) || !store.manifest?.models?.[name]) return;
+  l.pending.add(name);
+  loadModel(name).finally(() => l.pending.delete(name));
+}
+
+/** Number of files that loadCharacterModels loads at start (for progress). */
 export function characterFileCount() {
   const m = store.manifest;
   if (!m) return 0;
-  const used = usedModels(m);
   let n = 0;
-  for (const name of used) if (m.models?.[name]) n += modelFiles(name, m.models[name]).length + maskFiles(m.models[name]).length;
+  for (const name of startModels(m)) if (m.models?.[name]) n += modelFiles(name, m.models[name]).length + maskFiles(m.models[name]).length;
   return n;
 }
 
@@ -739,7 +768,7 @@ vec3 transformed = (kSkin * vec4(position, 1.0)).xyz;`);
  * Team colour directly from the texture: how strongly magenta is a (linear) colour? Same rule as markerWeight in
  * scripts/asset-gen/postprocess.mjs (hue 285°–352°, saturation from 0.25), on sRGB values.
  */
-const MARKER_PARS = /* glsl */`
+export const MARKER_PARS = /* glsl */`
 float charMarker(vec3 lin) {
   vec3 c = pow(max(lin, vec3(0.0)), vec3(1.0 / 2.2));
   float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), d = mx - mn;
@@ -876,16 +905,20 @@ export function bakeProcedural(g, markers, poses, durations, fps = FPS_DEFAULT) 
     while (p && bi < 0) { bi = boneObjs.indexOf(p); if (bi < 0) p = p.parent; }
     if (bi < 0) bi = 0;
     let geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    // vertex colours and team area per corner (own model, obtained from the texture: cannonFigureGeometry in models.js)
+    const vc = geo.attributes.color?.array, vt = geo.attributes.teamMask?.array;
     for (const k of Object.keys(geo.attributes)) if (k !== 'position' && k !== 'normal') geo.deleteAttribute(k);
     geo.applyMatrix4(o.matrixWorld);
     const n = geo.attributes.position.count;
     const col = new Float32Array(n * 3), mask = new Float32Array(n * 2), bIdx = new Float32Array(n * 4), bW = new Float32Array(n * 4);
     const mc = o.material.color ?? new THREE.Color(1, 1, 1);
     const isTeam = mc.equals(tc), isTint = tt && mc.equals(tt);
+    const white = { r: 1, g: 1, b: 1 };
     for (let i = 0; i < n; i++) {
-      const c = isTeam || isTint ? { r: 1, g: 1, b: 1 } : mc;
+      const team = vt ? vt[i] > 0.5 : isTeam;
+      const c = team || isTint ? white : vc ? { r: vc[i * 3], g: vc[i * 3 + 1], b: vc[i * 3 + 2] } : mc;
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-      mask[i * 2] = isTeam ? 1 : 0; mask[i * 2 + 1] = isTint ? 1 : 0;
+      mask[i * 2] = team ? 1 : 0; mask[i * 2 + 1] = isTint ? 1 : 0;
       bIdx[i * 4] = bi; bW[i * 4] = 1;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -1049,6 +1082,12 @@ export class CharacterSystem {
   }
 
   /** What is the variant key for a role? Loads/bakes on demand. @returns {Variant|null} */
+  /** Discard the rendering of a role (is rebuilt at the next need). */
+  dropVariant(key, v) {
+    this.variants.delete(key);
+    for (const m of v.meshes ?? []) if (m) { m.visible = false; m.count = 0; this.group.remove(m); }
+  }
+
   variantFor(roleKey) {
     if (this.variants.has(roleKey)) return this.variants.get(roleKey);
     let v = null;
@@ -1074,16 +1113,21 @@ export class CharacterSystem {
     const pick = hash < 0 ? 0 : Number(key.slice(hash + 1));
     const res = resolveRole(manifest ?? { roles: {} }, roleKey, (m) => this.gpuModels && store.models.has(m), pick)
       ?? { key: roleKey, role: {}, model: null, procedural: PROCEDURAL_DEFAULT(roleKey) };
+    // desired model not loaded yet: reload, until then placeholder (is swapped in set())
+    const want = this.gpuModels && manifest ? resolveRole(manifest, roleKey, () => true, pick)?.model : null;
+    if (want && !store.models.has(want)) requestCharacterModel(want);
     const role = res.role ?? {};
     let v;
     if (res.model) v = this.buildModelVariant(key, res.model, role);
     if (!v) v = this.buildProceduralVariant(key, res.procedural ?? PROCEDURAL_DEFAULT(roleKey), role);
     if (!v) return null;
-    // attachments: mount, crew
-    for (const a of role.attach ?? []) {
-      const av = this.variantFor(a.role);
-      if (av) v.attach.push({ variant: av, offset: a.offset ?? [0, 0, 0], scale: a.scale ?? 1, alias: a.clipAlias ?? {} });
-    }
+    if (want && want !== res.model) v.pendingModel = want;
+    // attachments: mount, crew (roles with variants in turn: two different gunners)
+    (role.attach ?? []).forEach((a, i) => {
+      const list = roleVariants(store.manifest, a.role);
+      const av = this.variantFor(list ? `${a.role}#${i % list.length}` : a.role);
+      if (av) v.attach.push({ key: av.key ?? null, variant: av, offset: a.offset ?? [0, 0, 0], scale: a.scale ?? 1, alias: a.clipAlias ?? {} });
+    });
     // seat height on the mount
     const mount = v.attach.find((a) => a.variant.saddle);
     if (mount) v.seat = role.seat ?? mount.variant.saddle * mount.scale;
@@ -1192,6 +1236,8 @@ export class CharacterSystem {
     v.tintColor = role.tint?.color ? new THREE.Color(role.tint.color) : (p.tintDefault !== undefined ? new THREE.Color(p.tintDefault) : null);
     v.procedural = true;
     v.saddle = p.saddle ?? 0;
+    // own model is being reloaded (e.g. the cannon): then bake anew (set() swaps)
+    if (p.pending) v.pendingCheck = p.pending;
     return v;
   }
 
@@ -1233,6 +1279,15 @@ export class CharacterSystem {
   set(id, role, s) {
     const roleKey = this.variantKey(role, id);
     let r = this.records.get(id);
+    // reloaded model is there: replace the placeholder rendering of this role
+    if (r?.roleKey === roleKey && variantStale(r.variant)) {
+      // also rebuild reloaded attachments (crew, mount)
+      for (const [k, v] of this.variants) {
+        if (v && v !== r.variant && r.variant.attach.some((a) => a.variant === v) && variantStale(v)) this.dropVariant(k, v);
+      }
+      if (this.variants.get(roleKey) === r.variant) this.dropVariant(roleKey, r.variant);
+      r.variant = this.variantFor(roleKey);
+    }
     if (!r || r.roleKey !== roleKey) {
       r = { id, roleKey, variant: this.variantFor(roleKey), lod: new LodState(), clip: null, clipT0: 0, prevClip: null, prevT0: 0, fadeT0: -1, seen: 0, dying: false, phase: (((id * 2654435761) >>> 0) / 4294967296) * 3 };
       r.position = new THREE.Vector3();

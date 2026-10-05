@@ -7,9 +7,9 @@ import { devEn } from './dev.js';
 import { scriptEn } from './script.js';
 
 export default {
-  // Entwicklermodus (eigener Namensraum dev.*, src/i18n/dev.js)
+  // Developer mode (own namespace dev.*, src/i18n/dev.js)
   ...devEn,
-  // Skriptsprache, Code-Editor, Abenteuer, Welteneditor (src/i18n/script.js)
+  // Script language, code editor, adventures, world editor (src/i18n/script.js)
   ...scriptEn,
   // ---------- General ----------
   'app.title': 'Kronland',
@@ -62,9 +62,9 @@ export default {
   'menu.roll': 'Roll',
   'menu.start': 'Start new game',
   'menu.settings': 'Settings',
-  'menu.credits': '3D models: KayKit by Kay Lousberg (CC0) · Icons and interface: original work',
+  'menu.credits': 'Buildings, characters, icons and art: original work (self-generated) · Nature and construction sites partly KayKit by Kay Lousberg (CC0)',
   'menu.language': 'Language',
-  // Website (Namensraum site.*)
+  // Website (namespace site.*)
   'site.links': 'Website',
   'site.home': 'Home page',
   'site.manual': 'Manual',
@@ -83,6 +83,10 @@ export default {
   'loading.tip6': 'Clicking a message with a location jumps there.',
 
   // ---------- Top bar ----------
+  // Short forms of large amounts in the resource bar (50k)
+  'num.dec': '.',
+  'num.k': 'k',
+  'num.m': 'M',
   'top.resources': 'Resources',
   'top.refined': 'Refined',
   'top.raw': 'Raw (still to be processed)',
@@ -131,7 +135,7 @@ export default {
   'quick.group': 'Group {n}',
   'quick.groupTip': 'Click selects the group, a second click brings it into view',
   'quick.minimap': 'Map',
-  'quick.minimapTip': 'Show or hide the minimap',
+  'quick.minimapTip': 'Open or close the minimap and quick access',
 
   // ---------- Minimap ----------
   'minimap.title': 'Minimap',
@@ -366,6 +370,13 @@ export default {
   // ---------- Settings ----------
   'set.title': 'Settings',
   'set.language': 'Language',
+  'set.playerColor': 'Player colour',
+  'set.playerColorNote': 'Your colour for buildings, figures and the minimap. Whoever would otherwise have it gets your previous one.',
+  'set.playerColorNoteGame': 'Takes effect from the next game start (or when loading a save).',
+  'set.color.blue': 'Blue',
+  'set.color.red': 'Red',
+  'set.color.green': 'Green',
+  'set.color.ochre': 'Ochre',
   'set.lang.de': 'Deutsch',
   'set.lang.en': 'English',
   'set.graphics': 'Graphics',
@@ -427,6 +438,8 @@ export default {
   'mission.campaign': 'Campaign',
   'mission.campaignSub': 'Crown of Ice – six chapters',
   'mission.back': 'Back',
+  'adv.showcase': 'Showcase',
+  'adv.showcaseSub': 'See every building, figure and map object on one map',
   'mission.start': 'Start mission',
   'mission.locked': 'Win the previous mission first',
   'mission.best': 'Best time {t}',
@@ -862,6 +875,6 @@ export default {
   'set.autosave': 'Save automatically (every 5 game minutes and when leaving)',
   'menu.saves': 'Saved games',
   'menu.continueLatest': 'Continue',
-  // Erweiterungsinhalte (eigene Datei)
+  // Expansion content (own file)
   ...extras,
 };

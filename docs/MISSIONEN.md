@@ -26,6 +26,25 @@ wird beim Laden über die ID aus `registry.js` geholt.
 
 Direktstart zum Ausprobieren: `play/?mission=c3` (optional `&seed=7`, `&no-models`).
 
+## Schaukasten
+
+`src/sim/missions/showcase.js` (ID `showcase`) ist keine Kampagnenmission, sondern eine Ausstellungskarte:
+Zufallskarte 128×128 (Seed 1), um die Burg wird ein Rechteck eingeebnet, darauf steht alles, was das Spiel
+zeichnen kann. Kein Nebel (`fog: false`), alle Parteien neutral, keine Hauptziele (kein Sieg), `noDefeat`.
+
+- Laden: `play/?mission=showcase` (gern mit `&quality=high`) oder Startmenü → **Programmier-Abenteuer** →
+  „Schaukasten“.
+- Finden: Die Ziele-Liste ist ein Wegweiser – jedes Feld ist ein Nebenziel mit „Ziel zeigen“ (Kamerasprung).
+- Felder (von oben nach unten): Helden, Feldgeschütz, Fußangeln, zwei Gesprächsfiguren · jede Truppe (alle Linien
+  und Stufen) mit Hauptmann · Gebäude in allen Ausbaustufen (je Typ links Stufe 1) · Arbeiter jedes Berufs (stehen
+  still) · Baustellen 10/30/55/85 % und ein Wohnhaus im Ausbau · Ruinen · zweiter Spieler (andere Wappenfarbe, ohne
+  Wohnhaus/Hof, darum Lagerfeuer) · freie Schächte, Siedlungsplätze, Rohstoffhaufen jeder Art, Wald mit Leibeigenen.
+  Außerhalb der Fläche: fertige Brücke und freie Brückenstelle am natürlichen Fluss, Räuberlager, Felsen/Berge.
+- Die Simulation läuft normal weiter (Arbeiter ziehen ein, weitere Lagerfeuer entstehen, wo Betten fehlen);
+  Baustellen bleiben stehen, solange niemand Leibeigene schickt.
+- Test: `tests/sim/showcase.test.js` (Vollständigkeit, Frieden, Determinismus), `e2e/showcase.spec.js`
+  (Bildschirmfotos aller Felder nach `test-results/showcase/`).
+
 ## Aufbau einer Missionsdatei
 
 ```js
@@ -41,6 +60,7 @@ export default {
   defeatTexts: { hq: t('…', '…'), protectVc: t('…', '…') }, // je Grund (Ziel-ID, 'hq', eigener Grund)
   next: 'c10',            // null = letzte Mission
   weatherCycle: [['summer', 1800], ['winter', 3000]], // optional, Takte
+  forest: 'conifer',      // optional, nur Darstellung: 'mixed' (Standard, Laub- und Mischwald), 'conifer' (kalt), 'leafy'
   noDefeat: false,        // true: keine Niederlage (Tutorial)
   fog: true,              // Nebel des Krieges (Standard an)
   vision: { startReveal: 20 }, // erkundeter Umkreis um jede Burg zu Beginn (Tutorial: 34)

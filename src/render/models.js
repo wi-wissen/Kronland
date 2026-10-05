@@ -3,9 +3,12 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildingAssetName, fittedModel, assetLods, hasAsset } from './assets.js';
+import { buildingAssetName, fittedModel, assetLods, hasAsset, isOwnBuildingModel, ownBuildingFill, ownBuildingPit, ownAsset, instancedParts, BRIDGE_ASSET } from './assets.js';
+import { MARKER_PARS } from './characters.js';
+import { playerHex } from './playerColors.js';
+import { paintObject } from './painted.js';
 
-export const PLAYER_COLORS = [0x2f5d9e, 0xa8323a, 0x3d8a4a, 0xc08a2a];
+export { PLAYER_COLOR_HEX as PLAYER_COLORS } from './playerColors.js';
 export const RES_COLORS = {
   gold: 0xe0b13a, clay: 0xb5653a, wood: 0x8a5a2b, stone: 0x9a968e, iron: 0x6d717c, sulfur: 0xd8c33a,
 };
@@ -13,8 +16,38 @@ export const RES_COLORS = {
 const BEAM = 0x5a3b22, DARK = 0x3a2a1c, STONE = 0x9b968c, PLASTER = 0xe3d6b8, THATCH = 0x9a7b45, ROOF = 0xa8503a;
 
 const cache = new Map();
+const teamCache = new Map();
+/**
+ * Material of an own building model with team colour: magenta in the texture becomes the player colour (same rule as
+ * for the figures, charMarker). One material per source material and player, the textures stay shared.
+ */
+export function teamMaterial(src, owner) {
+  const hex = playerHex(owner);
+  const key = `${src.uuid}:${hex}`; // by colour, not player: the colour choice can change between games
+  if (teamCache.has(key)) return teamCache.get(key);
+  const m = src.clone();
+  const team = new THREE.Color(hex);
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uTeam = { value: team };
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform vec3 uTeam;
+${MARKER_PARS}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+{
+  float w = charMarker(diffuseColor.rgb);
+  float v = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+  diffuseColor.rgb = mix(diffuseColor.rgb, uTeam * clamp(v / 0.75, 0.45, 1.6), w);
+}`);
+  };
+  m.customProgramCacheKey = () => 'kr-bld-team';
+  teamCache.set(key, m);
+  return m;
+}
+/** Team-colour materials (for Renderer.dispose). */
+export const sharedTeamMaterials = () => [...teamCache.values()];
 /** Shared materials (for Renderer.dispose). */
-export const sharedModelMaterials = () => [...cache.values()];
+export const sharedModelMaterials = () => [...cache.values(), ...teamCache.values()];
 /** Shared material per colour. */
 export function mat(color, opts = {}) {
   const key = color + JSON.stringify(opts);
@@ -237,15 +270,19 @@ BUILDERS.sulfurMine = mineBuilder('sulfur');
 export function buildingModel(type, w, d, level, owner) {
   if (type === 'bridge') return bridgeModel(w, d, owner);
   const g = new THREE.Group();
-  foundation(g, w - 0.2, d - 0.2);
   const asset = buildingAssetName(type, level, owner);
+  // stone base only for KayKit and procedural buildings; own models bring their foundation with them
+  if (!isOwnBuildingModel(asset)) foundation(g, w - 0.2, d - 0.2);
   if (asset) {
     // castle and towers fill their area, workshops leave some margin
-    const fill = type === 'headquarters' ? 1.05 : type === 'tower' ? 1.0 : type.endsWith('Mine') ? 1.05 : 0.92;
+    const fill = (type === 'headquarters' ? 1.05 : type === 'tower' ? 1.0 : type.endsWith('Mine') ? 1.05 : 0.92) * ownBuildingFill(asset);
     const body = new THREE.Group();
     body.name = 'body';
+    const own = isOwnBuildingModel(asset);
     const lods = assetLods(asset).map((n, i) => {
-      const m = fittedModel(n, w, d, fill, asset);
+      const m = fittedModel(n, w, d, fill, asset, ownBuildingPit(asset));
+      // own models: pennant (magenta) is turned into the player colour when drawing
+      if (own) m.traverse((o) => { if (o.isMesh && !o.userData.noTeam) o.material = teamMaterial(o.material, owner); });
       m.visible = i === 0;
       m.name = 'lod' + i;
       // fine levels cast shadows; the coarsest only if there is no other
@@ -257,7 +294,7 @@ export function buildingModel(type, w, d, level, owner) {
     return g;
   }
   const inner = new THREE.Group();
-  (BUILDERS[type] ?? BUILDERS.residence)(inner, w, d, level, PLAYER_COLORS[owner % 4]);
+  (BUILDERS[type] ?? BUILDERS.residence)(inner, w, d, level, playerHex(owner));
   inner.name = 'body';
   g.add(inner);
   return g;
@@ -272,18 +309,31 @@ export const hasConstructionStages = () => hasAsset('buildings/stage_A') && hasA
  */
 export function constructionStage(stage, w, d) {
   const n = `buildings/stage_${'ABC'[stage]}`;
-  return fittedModel(n, w, d, 0.92);
+  return paintObject(fittedModel(n, w, d, 0.92));
 }
 
-/** Own ruin models per building type (`public/models/buildings/<name>.glb`). */
-const RUIN_ASSETS = { villageCenter: 'villagecenter_ruin', residence: 'residence_ruin' };
+/** Own campfire model (assets-src/buildings/campfire). */
+export const CAMPFIRE_ASSET = 'campfire';
 
-/** Ruin of a destroyed building (own ruin of the type, otherwise the generic one). @param {string} [type] */
+/** Own ruin models per building type (otherwise the general rubble). */
+export const RUIN_ASSETS = { villageCenter: 'village_ruin', residence: 'house_ruin' };
+
+/**
+ * Ruin on the footprint w × d (tiles). With an own model (RUIN_ASSETS) once it is loaded;
+ * until then rubble and userData.pending (the renderer then rebuilds).
+ */
 export function ruinModel(w, d, type) {
-  const own = RUIN_ASSETS[type] && fittedModel(`buildings/${RUIN_ASSETS[type]}`, w, d, 0.95);
-  if (own) return own;
-  const g = fittedModel('buildings/destroyed', w, d, 0.95);
-  if (g) return g;
+  const file = RUIN_ASSETS[type];
+  if (file) {
+    if (ownAsset(file)) {
+      const own = fittedModel(`buildings/${file}`, w, d, 0.92);
+      own.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+      return own;
+    }
+  }
+  const g = paintObject(fittedModel('buildings/destroyed', w - 0.6, d - 0.6, 0.95));
+  if (g) { g.userData.pending = !!file; return g; }
+  w -= 0.6; d -= 0.6;
   const r = new THREE.Group();
   for (let i = 0; i < 7; i++) {
     const b = box(0.3 + (i % 3) * 0.15, 0.25 + (i % 2) * 0.3, 0.3, i % 2 ? STONE : 0x4a3a2c, ((i * 37) % 10) / 10 * w * 0.6 - w * 0.3, 0, ((i * 53) % 10) / 10 * d * 0.6 - d * 0.3);
@@ -294,7 +344,7 @@ export function ruinModel(w, d, type) {
 
 /** Scaffolding for construction sites. */
 export function scaffold(w, d) {
-  const kk = fittedModel('buildings/scaffolding', w, d, 0.95);
+  const kk = paintObject(fittedModel('buildings/scaffolding', w, d, 0.95));
   if (kk) return kk;
   const g = new THREE.Group();
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(box(0.08, 1.6, 0.08, 0xb08a5a, sx * (w / 2 - 0.4), 0, sz * (d / 2 - 0.4)));
@@ -317,51 +367,10 @@ export function serfModel(owner, tunic = 0xc39a5e) {
   }
   b.add(cyl(0.1, 0.15, 0.32, tunic, 0, 0.24, 0));
   const head = mesh(new THREE.SphereGeometry(0.09, 8, 6), 0xe6c2a0); head.position.y = 0.64; b.add(head);
-  b.add(cyl(0.06, 0.11, 0.08, PLAYER_COLORS[owner % 4], 0, 0.7, 0));
+  b.add(cyl(0.06, 0.11, 0.08, playerHex(owner), 0, 0.7, 0));
   const tool = box(0.04, 0.3, 0.04, BEAM, 0.12, 0.3, 0.05); b.add(tool);
   g.scale.setScalar(1.25);
   g.userData = { body: b, legs, tool };
-  return g;
-}
-
-/** Geometries for instanced trees. */
-export function treeGeometries() {
-  const trunk = new THREE.CylinderGeometry(0.07, 0.11, 0.6, 6); trunk.translate(0, 0.3, 0);
-  const cones = [0, 1, 2].map((i) => { const c = new THREE.ConeGeometry(0.55 - i * 0.14, 0.7, 7); c.translate(0, 0.75 + i * 0.4, 0); return c; });
-  const conifer = mergeGeometries(cones);
-  const leafy = new THREE.IcosahedronGeometry(0.55, 0); leafy.scale(1, 1.1, 1); leafy.translate(0, 1.05, 0);
-  return { trunk, conifer, leafy };
-}
-
-/** Rohstoffhaufen. */
-export function pileModel(res) {
-  const g = new THREE.Group();
-  const offs = [[0, 0, 0.32], [0.25, 0.12, 0.22], [-0.22, 0.18, 0.25], [0.05, -0.25, 0.2], [0, 0.02, 0.18]];
-  offs.forEach(([x, z, r], i) => {
-    const m = mesh(new THREE.DodecahedronGeometry(r, 0), RES_COLORS[res]);
-    m.position.set(x, r * 0.6 + (i === 4 ? 0.25 : 0), z); m.scale.y = 0.75; g.add(m);
-  });
-  return g;
-}
-
-/** Shaft marker (before the mine is built). */
-export function shaftModel(res) {
-  const g = new THREE.Group();
-  const ring = mesh(new THREE.CylinderGeometry(0.75, 0.85, 0.12, 10), 0x5a4d40); ring.position.set(0, 0.06, 0); g.add(ring);
-  const hole = mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.13, 10), 0x1e1a16); hole.position.set(0, 0.07, 0); g.add(hole);
-  for (const [x, z] of [[0.9, 0.5], [-0.8, 0.7], [0.6, -0.9]]) {
-    const s = mesh(new THREE.DodecahedronGeometry(0.2, 0), RES_COLORS[res]); s.position.set(x, 0.14, z); g.add(s);
-  }
-  return g;
-}
-
-/** Siedlungsplatz-Markierung. */
-export function spotModel() {
-  const g = new THREE.Group();
-  for (const [x, z] of [[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6]]) {
-    g.add(box(0.14, 0.5, 0.14, 0xc8b89a, x, 0, z));
-  }
-  flag(g, 0xf0e6c8, 0, 0, 0);
   return g;
 }
 
@@ -373,7 +382,15 @@ export const PROF_COLORS = {
 
 /** Campfire (workers without bed or dining spot, bandit camp). */
 export function campfireModel() {
+  // own model (stone ring, logs, pot): flames then come as particles from the renderer
+  if (ownAsset(CAMPFIRE_ASSET)) {
+    const own = fittedModel(`buildings/${CAMPFIRE_ASSET}`, 1.15, 1.15, 1);
+    own.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+    own.userData.own = true;
+    return own;
+  }
   const g = new THREE.Group();
+  g.userData.pending = true;
   for (let i = 0; i < 5; i++) {
     const s = mesh(new THREE.DodecahedronGeometry(0.1, 0), 0x6d6a64);
     s.position.set(Math.cos(i * 1.256) * 0.28, 0.06, Math.sin(i * 1.256) * 0.28); g.add(s);
@@ -403,15 +420,86 @@ function humanoid(tunic, owner, opts = {}) {
   const head = mesh(new THREE.SphereGeometry(0.09, 8, 6), 0xe6c2a0); head.position.y = 0.64; b.add(head);
   if (opts.helmet !== false) b.add(cyl(0.07, 0.1, 0.08, opts.helmetColor ?? METAL, 0, 0.68, 0));
   // shoulder sash in player colour
-  b.add(box(0.22, 0.05, 0.16, PLAYER_COLORS[owner % 4], 0, 0.5, 0));
+  b.add(box(0.22, 0.05, 0.16, playerHex(owner), 0, 0.5, 0));
   const arm = new THREE.Group(); arm.position.set(0.14, 0.5, 0); b.add(arm);
   g.userData = { body: b, legs, arm };
   return g;
 }
 
-/** Foot soldier, rider or cannon. */
-export function unitModel(line, owner, leader = false) {
+/** Own cannon model (assets-src/buildings/cannon): muzzle towards +z, pennant in magenta (team colour). */
+export const CANNON_ASSET = 'cannon';
+/** Length of the cannon in tiles (largest extent in the plan, like the previous shape). */
+const CANNON_LENGTH = 1.05;
+
+/** Cannon as an own model with texture, pennant in player colour (field gun), or null (still loading). */
+function ownCannon(owner) {
+  if (!ownAsset(CANNON_ASSET)) return null;
+  const g = fittedModel(`buildings/${CANNON_ASSET}`, CANNON_LENGTH, CANNON_LENGTH, 1);
+  g?.traverse((o) => { if (o.isMesh) { o.material = teamMaterial(o.material, owner); o.castShadow = o.receiveShadow = true; } });
+  return g;
+}
+
+/** Team area in the texture (magenta like charMarker), colour sRGB 0…255. */
+export const isMagenta = (r, g, b) => r > 120 && b > 120 && g < Math.min(r, b) * 0.55;
+
+/** Stand geometries together on the ground, centre them, scale the largest plan extent to `len`. */
+export function normalizeToLength(geos, len) {
+  const box = new THREE.Box3();
+  for (const g of geos) { g.computeBoundingBox(); box.union(g.boundingBox); }
+  const size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const k = len / Math.max(size.x, size.z, 1e-6);
+  for (const g of geos) { g.translate(-c.x, -box.min.y, -c.z); g.scale(k, k, k); }
+  return geos;
+}
+
+let cannonGeo;
+/**
+ * Cannon for the figure system (baked vertex colours instead of texture): middle LOD level of the own model, per
+ * triangle the texture colour of the face centre; magenta becomes the team area (attribute teamMask). null while the
+ * model is loading or without a canvas (tests).
+ */
+function cannonFigureGeometry() {
+  if (cannonGeo !== undefined) return cannonGeo;
+  if (!ownAsset(CANNON_ASSET) || typeof document === 'undefined') return null;
+  const name = `buildings/${CANNON_ASSET}`, main = instancedParts(name), parts = instancedParts(`${name}.lod1`) ?? main;
+  const img = main[0].material.map?.image;
+  if (!img) return (cannonGeo = null);
+  const S = 256, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, S, S);
+  const px = ctx.getImageData(0, 0, S, S).data;
+  const geos = normalizeToLength(parts.map(({ geometry }) => (geometry.index ? geometry.toNonIndexed() : geometry)), CANNON_LENGTH);
+  const col = new THREE.Color();
+  for (const g of geos) {
+    const uv = g.attributes.uv, n = g.attributes.position.count;
+    const color = new Float32Array(n * 3), team = new Float32Array(n);
+    for (let i = 0; i + 2 < n; i += 3) {
+      // glTF textures: UV (0, 0) top left
+      const u = (uv.getX(i) + uv.getX(i + 1) + uv.getX(i + 2)) / 3, v = (uv.getY(i) + uv.getY(i + 1) + uv.getY(i + 2)) / 3;
+      const x = Math.min(S - 1, Math.max(0, Math.floor((u - Math.floor(u)) * S))), y = Math.min(S - 1, Math.max(0, Math.floor((v - Math.floor(v)) * S)));
+      const o = (y * S + x) * 4;
+      col.setRGB(px[o] / 255, px[o + 1] / 255, px[o + 2] / 255, THREE.SRGBColorSpace);
+      const t = isMagenta(px[o], px[o + 1], px[o + 2]) ? 1 : 0;
+      for (let k = 0; k < 3; k++) { color.set([col.r, col.g, col.b], (i + k) * 3); team[i + k] = t; }
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(color, 3));
+    g.setAttribute('teamMask', new THREE.BufferAttribute(team, 1));
+  }
+  cannonGeo = mergeGeometries(geos.map((g) => { for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'color', 'teamMask'].includes(k)) g.deleteAttribute(k); return g; }));
+  return cannonGeo;
+}
+
+/**
+ * Foot soldier, rider or cannon. Cannon: own model (opts.figure: baked vertex colours for the figure system),
+ * until it is loaded the procedural shape with userData.pendingAsset.
+ * @param {{figure?: boolean}} [opts]
+ */
+export function unitModel(line, owner, leader = false, opts = {}) {
   if (line === 'cannon') {
+    const geo = opts.figure ? cannonFigureGeometry() : null;
+    const own = geo ? new THREE.Group().add(new THREE.Mesh(geo, mat(0xffffff, { vertexColors: true }))) : opts.figure ? null : ownCannon(owner);
+    if (own) { own.userData = { body: own, legs: [], arm: new THREE.Group() }; return own; }
     const g = new THREE.Group();
     const barrel = cyl(0.09, 0.12, 0.8, 0x3a3a40, 0, 0, 0, 8);
     barrel.rotation.x = Math.PI / 2 - 0.25; barrel.position.set(0, 0.32, 0.1); g.add(barrel);
@@ -420,8 +508,8 @@ export function unitModel(line, owner, leader = false) {
       w.rotation.z = Math.PI / 2; w.position.set(s * 0.18, 0.2, -0.05); g.add(w);
     }
     g.add(box(0.26, 0.08, 0.5, BEAM, 0, 0.14, -0.1));
-    g.add(box(0.12, 0.12, 0.12, PLAYER_COLORS[owner % 4], 0, 0.22, -0.35));
-    g.userData = { body: g, legs: [], arm: new THREE.Group() };
+    g.add(box(0.12, 0.12, 0.12, playerHex(owner), 0, 0.22, -0.35));
+    g.userData = { body: g, legs: [], arm: new THREE.Group(), pendingAsset: `buildings/${CANNON_ASSET}` };
     return g;
   }
   const cav = line === 'lightCav' || line === 'heavyCav';
@@ -435,12 +523,12 @@ export function unitModel(line, owner, leader = false) {
     bow.rotation.y = Math.PI / 2; bow.position.set(0.02, 0, 0.05); arm.add(bow);
   }
   if (line === 'sword') {
-    const shield = mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 8), PLAYER_COLORS[owner % 4]);
+    const shield = mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 8), playerHex(owner));
     shield.rotation.z = Math.PI / 2; shield.position.set(-0.15, 0.36, 0.05); g.userData.body.add(shield);
   }
   if (leader) {
     const pole = box(0.02, 0.7, 0.02, BEAM, -0.08, 0.45, -0.1); g.userData.body.add(pole);
-    const fl = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.16), mat(PLAYER_COLORS[owner % 4], { side: THREE.DoubleSide }));
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.16), mat(playerHex(owner), { side: THREE.DoubleSide }));
     fl.position.set(-0.08 + 0.12, 1.07, -0.1); fl.rotation.y = Math.PI / 2; g.userData.body.add(fl);
   }
   if (cav) {
@@ -474,7 +562,7 @@ export function horseModel(color = 0x8a6a4a, owner = 0, scale = 1) {
   mane.position.set(0, 0.58, 0.25); mane.rotation.x = 0.55; horse.add(mane);
   const tail = box(0.05, 0.3, 0.07, dark, 0, 0, 0);
   tail.position.set(0, 0.32, -0.35); tail.rotation.x = -0.35; horse.add(tail);
-  horse.add(box(0.27, 0.04, 0.26, PLAYER_COLORS[owner % 4], 0, 0.62, -0.04)); // Satteldecke
+  horse.add(box(0.27, 0.04, 0.26, playerHex(owner), 0, 0.62, -0.04)); // saddle blanket
   horse.add(box(0.16, 0.05, 0.16, 0x5a3b22, 0, 0.66, -0.04));          // saddle
   const legs = [];
   for (const sz of [1, -1]) for (const sx of [-1, 1]) {
@@ -492,7 +580,7 @@ export function horseModel(color = 0x8a6a4a, owner = 0, scale = 1) {
 export function heroModel(hero, owner) {
   const colors = { nelia: 0xb08452, orrin: 0xc26a3a, taran: 0x6a6f76, malvor: 0x3d4a5e };
   const g = humanoid(colors[hero] ?? 0x9aa0a8, owner, { helmet: hero === 'taran' });
-  const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.4), mat(PLAYER_COLORS[owner % 4], { side: THREE.DoubleSide }));
+  const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.4), mat(playerHex(owner), { side: THREE.DoubleSide }));
   cape.position.set(0, 0.32, -0.12); cape.rotation.x = 0.15; g.userData.body.add(cape);
   const { arm } = g.userData;
   if (hero === 'nelia') { arm.add(box(0.03, 0.35, 0.03, BEAM, 0, -0.05, 0.08)); arm.add(box(0.1, 0.07, 0.03, METAL, 0.04, -0.2, 0.08)); }
@@ -515,7 +603,9 @@ export function gadgetModel(kind, owner) {
     const b = mesh(new THREE.SphereGeometry(0.14, 8, 6), 0x2a2a2e); b.position.y = 0.14; g.add(b);
     g.add(box(0.02, 0.1, 0.02, 0xffa632, 0, 0.27, 0));
   } else {
-    g.add(unitModel('cannon', owner));
+    const c = unitModel('cannon', owner);
+    g.add(c);
+    g.userData.pendingAsset = c.userData.pendingAsset; // field gun: rebuild after loading
   }
   return g;
 }
@@ -542,6 +632,8 @@ Object.assign(BUILDERS, {
  * deck top edge (the renderer sets it to shore height), piers reach into the water.
  */
 export function bridgeModel(w, d, owner) {
+  const own = ownAsset(BRIDGE_ASSET);
+  if (own) return bridgeAssetModel(own, w, d, owner);
   const g = new THREE.Group();
   const body = new THREE.Group(); body.name = 'body';
   const along = w >= d ? 'x' : 'z', len = Math.max(w, d) + 0.6, wid = Math.min(w, d) - 0.15;
@@ -561,8 +653,58 @@ export function bridgeModel(w, d, owner) {
     body.add(rail);
   }
   // pennant in player colour at the bridgehead
-  const pc = PLAYER_COLORS[owner % 4];
+  const pc = playerHex(owner);
   flag(body, pc, along === 'x' ? -len / 2 + 0.1 : wid / 2 - 0.05, 0, along === 'x' ? wid / 2 - 0.05 : -len / 2 + 0.1);
+  g.add(body);
+  return g;
+}
+
+/**
+ * Own bridge model (Meshy): a whole bridge with two abutments. The ends (BRIDGE_END of the length)
+ * stay undistorted, only the uniform middle part is stretched to the length of the bridge site.
+ * Deck top edge at BRIDGE_DECK of the model height → y = 0.
+ */
+const BRIDGE_END = 0.17, BRIDGE_DECK = 0.36;
+export function bridgeAssetModel(src, w, d, owner) {
+  const g = new THREE.Group();
+  const body = new THREE.Group(); body.name = 'body';
+  src.updateMatrixWorld(true);
+  const meshes = [];
+  src.traverse((m) => {
+    if (!m.isMesh) return;
+    const mesh = new THREE.Mesh(m.geometry.clone().applyMatrix4(m.matrixWorld), teamMaterial(m.material, owner));
+    mesh.castShadow = mesh.receiveShadow = true;
+    meshes.push(mesh);
+  });
+  const box = new THREE.Box3();
+  for (const m of meshes) { m.geometry.computeBoundingBox(); box.union(m.geometry.boundingBox); }
+  const size = box.getSize(new THREE.Vector3());
+  // longitudinal axis of the model (Meshy delivers it in x or z depending on the view)
+  const ax = size.z >= size.x ? 2 : 0, cross = ax === 2 ? size.x : size.z, long = ax === 2 ? size.z : size.x;
+  const lo = ax === 2 ? box.min.z : box.min.x;
+  const len = Math.max(w, d) + 0.6, wid = Math.min(w, d) - 0.1;
+  const s = wid / cross, e = BRIDGE_END * long, mid = long - 2 * e;
+  // middle part to the target length; for very short bridges also squash the ends a little
+  const midT = Math.max(len / s - 2 * e, 0.25 * mid), k = len / s / (2 * e + midT);
+  for (const m of meshes) {
+    const pos = m.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const u = pos.getComponent(i, ax) - lo;
+      const v = u < e ? u : u > long - e ? u - long + 2 * e + midT : e + ((u - e) * midT) / mid;
+      pos.setComponent(i, ax, (v - (2 * e + midT) / 2) * k);
+    }
+    pos.needsUpdate = true;
+    m.geometry.computeVertexNormals();
+    m.geometry.computeBoundingSphere();
+    body.add(m);
+  }
+  body.scale.setScalar(s);
+  body.position.y = -(box.min.y + BRIDGE_DECK * size.y) * s;
+  // centre across, rotate the longitudinal axis onto that of the bridge site
+  const cc = ax === 2 ? (box.min.x + box.max.x) / 2 : (box.min.z + box.max.z) / 2;
+  for (const m of meshes) m.geometry.translate(ax === 2 ? -cc : 0, 0, ax === 2 ? 0 : -cc);
+  const alongX = w >= d;
+  body.rotation.y = (ax === 2) === alongX ? Math.PI / 2 : 0;
   g.add(body);
   return g;
 }

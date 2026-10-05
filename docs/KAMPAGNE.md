@@ -37,8 +37,9 @@ nah am Original.
 - „Feilschen“ (bessere Marktkurse) gibt es im Original nicht und entfällt; Orrin hat stattdessen die Wundsalbe.
 - Taran hat nicht die Stärke-Aura (die ist Nelias), sondern Einschüchtern.
 - **Figuren:** Konzeptbögen in `assets-src/characters/<hero>/` (Prompts: `hero-prompts.json`, Stil:
-  `style-reference-prompt.md`, Modell `openai/gpt-5.4-image-2`). Im Spiel stehen bis zu den eigenen 3D-Figuren
-  Platzhalter aus dem KayKit-Paket (`public/models/characters/manifest.json`, Rollen `hero.<id>`). Nelia trägt
+  `style-reference-prompt.md`, Modell `openai/gpt-5.4-image-2`). Im Spiel eigene 3D-Figuren (`Nelia.glb` …,
+  Rollen `hero.<id>` in `public/models/characters/manifest.json`); Porträts in `public/portraits/hero-<id>.webp`,
+  aus den Vorderansichten geschnitten (`scripts/portraits.py`). Nelia trägt
   einen Kapuzenumhang in Spielerfarbe, damit sie sich von oben von den Leibeigenen abhebt.
 
 ## Story → Mechanik
@@ -127,8 +128,8 @@ dem Eis zum Tauen verleiten und den See wieder einfrieren, sobald das eigene Kra
 
 ## Offene Punkte
 
-- [ ] Eigene 3D-Figuren für Nelia, Orrin, Taran, Malvor (Meshy, siehe [Modelle](MODELLE.md)), Heldensymbole aus
-  den Konzeptbögen.
+- [x] Eigene 3D-Figuren für Nelia, Orrin, Taran, Malvor (Meshy, siehe [Modelle](MODELLE.md)), Heldenporträts aus
+  den Konzeptbögen (auch für die Sprecher in Dialogen).
 - [ ] Balancing der Kauf-oder-Kampf-Entscheidungen mit echten Spielern (der Test-Bot nimmt jeweils einen Weg,
   der andere ist durch Tests abgedeckt).
 - [x] Erweiterungsinhalte ausgedünnt: nur Brücken, Brunnen und Denkmal bleiben (Wirtshaus, Dieb, Kundschafter, Lagerstätten, Büchsenschützen entfernt).

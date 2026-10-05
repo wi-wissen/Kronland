@@ -75,6 +75,38 @@ export async function openrouter(body) {
   return JSON.parse(text);
 }
 
+/** Pure image models (Seedream, Qwen …) run via /api/v1/images instead of chat completions. */
+export const isImageApiModel = (model) => /^(bytedance-seed|qwen|black-forest-labs)\//.test(model);
+
+/**
+ * Generate an image – via the image API or chat completions depending on the model.
+ * Note: the environment cuts off responses after ~30 s; fast models (Seedream 5.0 Flash) get through.
+ * @param {string} model @param {string} prompt @param {Buffer[]} refs PNG references
+ * @returns {Promise<{ buf: Buffer, cost?: number }>}
+ */
+export async function generateImage(model, prompt, refs = [], extra = {}) {
+  const url = (b) => `data:image/png;base64,${b.toString('base64')}`;
+  if (isImageApiModel(model)) {
+    const h = { 'Content-Type': 'application/json', 'X-Title': 'Kronland asset-gen' };
+    if (process.env.OPENROUTER_API_KEY) h.Authorization = `Bearer ${process.env.OPENROUTER_API_KEY}`;
+    const body = { model, prompt, n: 1, aspect_ratio: '1:1', ...extra, input_references: refs.map((b) => ({ type: 'image_url', image_url: { url: url(b) } })) };
+    const r = await fetch('https://openrouter.ai/api/v1/images', { method: 'POST', headers: h, body: JSON.stringify(body) });
+    const text = await r.text();
+    if (!r.ok) throw new Error(`OpenRouter image: ${r.status} ${text.slice(0, 300)}`);
+    const j = JSON.parse(text);
+    const d = j.data?.[0];
+    if (!d?.b64_json) throw new Error('No image in the response');
+    return { buf: Buffer.from(d.b64_json, 'base64'), cost: j.usage?.cost };
+  }
+  const res = await openrouter({
+    model, modalities: ['image', 'text'],
+    messages: [{ role: 'user', content: [...refs.map((b) => ({ type: 'image_url', image_url: { url: url(b) } })), { type: 'text', text: prompt }] }],
+  });
+  const u = res.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  if (!u) throw new Error('No image in the response: ' + JSON.stringify(res.choices?.[0]?.message?.content ?? res).slice(0, 300));
+  return { buf: Buffer.from(u.split(',')[1], 'base64'), cost: res.usage?.cost };
+}
+
 // ---------- Files ----------
 
 export async function download(url, file) {
@@ -106,7 +138,13 @@ export function saveJob(job) {
 
 /** Credit limit: environment ASSET_CREDIT_LIMIT, otherwise assets-src/credits.json → limit. */
 export function creditLedger() {
-  const l = fs.existsSync(LEDGER) ? JSON.parse(fs.readFileSync(LEDGER, 'utf8')) : { limit: 400, spent: 0, log: [] };
+  // Several jobs run in parallel: briefly wait for a half-written file instead of aborting
+  let l = null;
+  for (let i = 0; i < 50 && !l; i++) {
+    try { l = fs.existsSync(LEDGER) ? JSON.parse(fs.readFileSync(LEDGER, 'utf8')) : { limit: 400, spent: 0, log: [] }; }
+    catch { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20); }
+  }
+  if (!l) throw new Error('credits.json not readable');
   if (process.env.ASSET_CREDIT_LIMIT) l.limit = Number(process.env.ASSET_CREDIT_LIMIT);
   return l;
 }
@@ -121,5 +159,8 @@ export function spend(estimate, what) {
   l.spent += estimate;
   l.log.push({ what, credits: estimate });
   fs.mkdirSync(path.dirname(LEDGER), { recursive: true });
-  fs.writeFileSync(LEDGER, JSON.stringify(l, null, 2) + '\n');
+  // write atomically (parallel readers never see a half file)
+  const tmp = `${LEDGER}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(l, null, 2) + '\n');
+  fs.renameSync(tmp, LEDGER);
 }

@@ -2,7 +2,8 @@
 // at several zoom levels.
 //
 //   node scripts/asset-gen/ingame.mjs [output-folder=review] [--stops closest:3,close:6,medium:12,game:28,far:50,farthest:75]
-//                                     [--root <anderer Checkout>] [--focus baum|bau] [--pitch 0.95] [--yaw 0.7]
+//                                     [--root <other checkout>] [--focus tree|site] [--pitch 0.95] [--yaw 0.7] [--query nature=off]
+//                                     [--weather winter|rain] (switch the rendering's weather, wait for winter models)
 //
 // Starts Vite (port 4391 or PREVIEW_PORT) with the checkout `--root` (default: this repo), a game with
 // ?quality=high (GLB characters even without a real GPU), sends serfs to the nearest tree and to a construction site,
@@ -16,11 +17,18 @@ import { chromium, devices } from '@playwright/test';
 import { createServer } from 'vite';
 import { ROOT } from './lib.mjs';
 
+import { BUILDINGS } from '../../src/sim/data/buildings.js';
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(n); if (i < 0) return d; const v = args[i + 1]; args.splice(i, 2); return v; };
 const root = path.resolve(opt('--root', ROOT));
 const stops = opt('--stops', 'closest:3,close:6,medium:12,game:28,far:50,farthest:75').split(',').map((s) => { const [name, d] = s.split(':'); return { name, dist: Number(d) }; });
 const focus = opt('--focus', 'tree');
+const buildType = opt('--build'); // building test: place finished buildings of this type next to the castle (3× blue, 1× red)
+const buildLevels = Number(opt('--levels', 3));
+const army = opt('--army'); // character test: captain with a squad of this unit (e.g. sword1) in blue and red next to the castle // blue in level 1 … levels (upgrade levels side by side)
+const hpPercent = opt('--hp'); // building test: hit points of the levels in percent, e.g. 40,20 (smoke, fire)
+const query = opt('--query', ''); // further URL parameters, e.g. nature=off
+const weather = opt('--weather'); // e.g. winter: snow, bare deciduous trees (rendering only)
 const pitchOpt = opt('--pitch');
 const pitch = pitchOpt === undefined ? null : Number(pitchOpt); // without argument: pitch as in the game
 const yawOpt = opt('--yaw');
@@ -109,11 +117,61 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
   const page = await browser.newPage(ctx);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(`${url}?seed=42&quality=high&fog=off`);
+  await page.goto(`${url}?seed=42&quality=high&fog=off${query ? '&' + query : ''}`);
   await page.waitForFunction(() => !!window.__kronland?.sim, null, { timeout: 180000 });
   const info = await page.evaluate(SETUP);
+  if (buildType) {
+    info.build = await page.evaluate(({ type, levels, hp, def }) => {
+      const e = window.__kronland, s = e.sim;
+      const hq = s.findBuilding(0, 'headquarters');
+      const made = [];
+      const probe = { headquarters: 'university', villageCenter: 'university' }[type] ?? type;
+      // upgrade levels (blue) in a row: search a free strip for all (water, occupied, steep slope = 1 | 2 | 8)
+      const cx0 = hq.x + hq.w + 2, cy0 = hq.y + hq.h + 3, W = levels * (def.w + 1) + 1, H = def.h + 2;
+      let row = null;
+      for (let r = 0; r <= 30 && !row; r++) for (let dy = -r; dy <= r && !row; dy++) for (let dx = -r; dx <= r && !row; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) === r && s.map.rectFree(cx0 + dx, cy0 + dy, W, H, 1 | 2 | 8)) row = { x: cx0 + dx, y: cy0 + dy };
+      }
+      for (let k = 0; k < levels; k++) {
+        // castle and village centre cannot be built freely: if necessary look for a spot via a free type of similar size
+        const p = row ? { x: row.x + 1 + k * (def.w + 1), y: row.y + 1 } : s.findPlacement(0, probe, cx0, cy0, 25);
+        if (!p) continue;
+        const b = s.createBuilding(0, type, p.x, p.y, true);
+        b.level = k;
+        if (hp.length) b.hp = Math.max(1, Math.round((b.hp * hp[k % hp.length]) / 100));
+        made.push({ x: b.x + b.w / 2, y: b.y + b.h / 2, owner: 0 });
+      }
+      // red (level 1) for colour comparison
+      const p = s.findPlacement(0, probe, cx0, cy0 + def.h + 3, 25);
+      if (p) { const b = s.createBuilding(1, type, p.x, p.y, true); made.push({ x: b.x + b.w / 2, y: b.y + b.h / 2, owner: 1 }); }
+      e.stepOnce();
+      // view onto the upgrade levels (blue); red only stands next to them for colour comparison
+      const blue = made.filter((m) => m.owner === 0);
+      const cx = blue.reduce((a, m) => a + m.x, 0) / blue.length, cy = blue.reduce((a, m) => a + m.y, 0) / blue.length;
+      return { x: cx, y: cy, yaw: 0.7, n: made.length, made };
+    }, { type: buildType, levels: buildLevels, hp: hpPercent ? hpPercent.split(',').map(Number) : [], def: { w: BUILDINGS[buildType].w, h: BUILDINGS[buildType].h } });
+  }
+  if (army) {
+    info.army = await page.evaluate((defId) => {
+      const e = window.__kronland, s = e.sim;
+      const hq = s.findBuilding(0, 'headquarters');
+      const x = hq.x + hq.w + 3, y = hq.y + 1;
+      s.spawnLeader(0, defId, x, y);
+      s.spawnLeader(1, defId, x + 3, y + 2);
+      for (let k = 0; k < 5; k++) e.stepOnce();
+      return { x: x + 1.5, y: y + 1.5, yaw: 0.7 };
+    }, army);
+  }
+  if (weather) {
+    await page.evaluate((w) => window.__kronland.renderer.applyWeather(w), weather);
+    // winter versions of the trees are loaded on the first winter; ambient light a few frames later
+    await page.waitForFunction(() => !window.__kronland.renderer.env.envDirty, null, { timeout: 90000 }).catch(() => {});
+    await page.waitForTimeout(6000);
+  }
+  // own building models are loaded later
+  if (buildType || army) await page.waitForTimeout(8000);
   meta[`view-${name}`] = info;
-  const at = focus === 'site' ? info.site : info.tree;
+  const at = army ? info.army : buildType ? info.build : focus === 'site' ? info.site : info.tree;
   for (const s of stops) {
     await page.evaluate(({ at, dist, pitch, yaw }) => {
       const r = window.__kronland.renderer.rig;
@@ -134,7 +192,7 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
     await page.waitForFunction(() => [...window.__kronland.renderer.chars.records.values()].every((r) => r.lodFrom === undefined), null, { timeout: 60000 }).catch(() => {});
     await frames(1);
     const file = `${s.name}-${name}.png`;
-    await page.screenshot({ path: path.join(out, file) });
+    await page.screenshot({ path: path.join(out, file) , timeout: 180000 });
     meta[file] = { ...(await page.evaluate(MEASURE)), dist: s.dist, scale: ctx.deviceScaleFactor ?? 1 };
   }
   console.log(name, errors.length ? 'Errors: ' + errors.join(' | ') : 'ok');

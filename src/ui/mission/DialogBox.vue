@@ -1,7 +1,9 @@
 <template>
   <transition name="dlg">
     <div v-if="current" :key="current.seq" class="dialogbox frame" role="status" aria-live="polite" data-testid="dialog">
-      <span class="dlg-seal" :style="{ '--sp': speaker.color }" aria-hidden="true">{{ speaker.initial }}</span>
+      <span class="dlg-seal" :class="{ pic: portrait }" :style="{ '--sp': speaker.color }" aria-hidden="true">
+        <img v-if="portrait" :src="portrait" alt="" draggable="false"><template v-else>{{ speaker.initial }}</template>
+      </span>
       <div class="dlg-body">
         <b class="dlg-name" data-testid="dialog-speaker">{{ $tr(speaker.name) }}</b>
         <p data-testid="dialog-text">{{ $tr(current.text) }}</p>
@@ -17,6 +19,8 @@ import { tr } from '../../i18n/index.js';
 import { SPEAKERS } from '../../sim/missions/speakers.js';
 import { speak, stopSpeech } from '../../audio/speech.js';
 import { loadVoiceIndex } from '../../audio/voiceLines.js';
+import { speakerPortrait } from '../icons/index.js';
+import { siteUrl } from '../../paths.js';
 
 const SHOW_MS = 14000;
 /** With recording: visible at least this long; pause after the recording ends; longest recording */
@@ -42,6 +46,11 @@ export default {
       if (!open.length) return null;
       const newest = open[open.length - 1].tick;
       return open.find((x) => x.tick >= newest - 100) ?? null;
+    },
+    /** Painted portrait of the speaker (heroes, side characters), otherwise a seal with initial letter. */
+    portrait() {
+      const p = speakerPortrait(this.current?.speaker);
+      return p ? siteUrl(p) : null;
     },
     /** Further waiting sentences after the current one (for "Skip all"). */
     waiting() { return this.current ? this.messages.filter((x) => x.seq > this.current.seq).length : 0; },
@@ -121,6 +130,8 @@ export default {
   background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--sp) 60%, #fff), var(--sp) 70%);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3), 0 0 0 2px var(--gold-500), 0 0 0 4px var(--wood-950), 0 3px 6px rgba(0, 0, 0, 0.5);
 }
+.dlg-seal.pic { overflow: hidden; background: #f1ece4; }
+.dlg-seal.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .dlg-body { flex: 1; min-width: 0; }
 .dlg-name { font-family: var(--display); font-size: var(--fs-md); display: block; margin-bottom: 0.125rem; color: var(--gold-200); }
 .dlg-body p { margin: 0; font-size: var(--fs-md); line-height: 1.45; }

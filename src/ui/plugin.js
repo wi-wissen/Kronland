@@ -4,6 +4,7 @@
 import { I18nPlugin, buildingName, techName, unitName, lineName, resName, profName, weatherName, blessingName, heroTitle, heroName, abilityName, techDesc, rankName } from '../i18n/index.js';
 import Icon from './icons/Icon.vue';
 import { tipDirective } from './tooltip.js';
+import { playerCss } from '../render/playerColors.js';
 
 export const UiPlugin = {
   install(app) {
@@ -28,6 +29,5 @@ export function clock(ticks) {
 /** Seconds as m:ss. */
 export const mmss = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
 
-/** Player colours (like the 3D models) as CSS colour. */
-export const PLAYER_CSS = ['#3b6fbf', '#c03a3f', '#46a052', '#d79a2c', '#8a5cc0', '#4a4a4a'];
-export const playerColor = (i) => (i >= 0 ? PLAYER_CSS[i % PLAYER_CSS.length] : '#8a8a8a');
+/** Player colour (like the 3D models, with the human's colour choice) as CSS colour; mapping in render/playerColors.js. */
+export const playerColor = (i) => playerCss(i);

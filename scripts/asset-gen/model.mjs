@@ -13,6 +13,7 @@
 // Each step writes task IDs to job.json and is skipped or resumed on a repeated call
 // (no double credit spend). Costs are booked against the budget (assets-src/credits.json) in advance.
 
+import { stripAnim } from './strip-anims.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { reexecWithProxy, meshy, meshyWait, meshyBalance, download, dataUri, loadJob, saveJob, spend, SRC_DIR } from './lib.mjs';
@@ -86,16 +87,17 @@ async function rig(id) {
   const t = await meshyWait('v1/rigging', job.rig.task, { label: `${id} Rig` });
   await download(t.result.rigged_character_glb_url, path.join(dir, 'rigged.glb'));
   const basic = t.result.basic_animations ?? {};
-  if (basic.walking_glb_url) await download(basic.walking_glb_url, path.join(dir, 'anim-basic-walk.glb'));
-  if (basic.running_glb_url) await download(basic.running_glb_url, path.join(dir, 'anim-basic-run.glb'));
+  if (basic.walking_glb_url) { await download(basic.walking_glb_url, path.join(dir, 'anim-basic-walk.glb')); await stripAnim(path.join(dir, 'anim-basic-walk.glb')); }
+  if (basic.running_glb_url) { await download(basic.running_glb_url, path.join(dir, 'anim-basic-run.glb')); await stripAnim(path.join(dir, 'anim-basic-run.glb')); }
   saveJob(job);
   console.log(`\n${id}: rigged.glb`);
 }
 
 /** Create custom motions (text → motion) once; they apply to all characters with the same set. */
-async function motions() {
+async function motions(only) {
   const a = readAnims();
   for (const [setName, set] of Object.entries(a.sets)) {
+    if (only && setName !== only) continue;
     for (const [key, src] of Object.entries(set.clips)) {
       if (!src.motion) continue;
       // Meshy keeps motions only for 3 days: regenerate older ones
@@ -134,6 +136,7 @@ async function animate(id) {
     if (fs.existsSync(file) && a.done) continue;
     const t = await meshyWait('v1/animations', a.task, { label: `${id} ${key}` });
     await download(t.result.animation_glb_url, file);
+    await stripAnim(file); // keep only motion tracks (see strip-anims.mjs)
     a.done = true;
     saveJob(job);
     console.log(`\n${id}: anim-${key}.glb`);
@@ -145,7 +148,7 @@ try {
   if (cmd === 'generate') await generate(id);
   else if (cmd === 'remesh') await remesh(id);
   else if (cmd === 'rig') await rig(id);
-  else if (cmd === 'motions') await motions();
+  else if (cmd === 'motions') await motions(id); // optional: only this set, e.g. motions rider
   else if (cmd === 'animate') await animate(id);
   else if (cmd === 'all') { await generate(id); await remesh(id); await rig(id); await motions(); await animate(id); }
   else if (cmd === 'balance') console.log(await meshyBalance());

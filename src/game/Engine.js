@@ -18,7 +18,7 @@ import { resetSpeech, stopSpeech } from '../audio/speech.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
 import { getQuality } from '../render/quality.js';
-import { get as setting } from '../ui/settings.js';
+import { get as setting, applyPlayerColor } from '../ui/settings.js';
 import { Input } from './Input.js';
 import { ControlGroups } from './groups.js';
 import { COMBAT } from '../sim/data/combat.js';
@@ -99,6 +99,7 @@ export class Engine {
       this.ais = [];
       for (let p = 1; p < players; p++) this.ais.push(new AiPlayer(this.sim, p, opts.difficulty ?? 'normal'));
     }
+    applyPlayerColor(this.player); // player colour (pure rendering, no sim state)
     this.renderer = new Renderer(canvas, this.sim, { player: this.player });
     this.onUi = opts.onUi ?? (() => {});
     /** @type {Set<number>} */

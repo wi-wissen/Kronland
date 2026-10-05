@@ -6,6 +6,7 @@
 import { reactive } from 'vue';
 import { i18n, setLang } from '../i18n/index.js';
 import { setQuality } from '../render/quality.js';
+import { setPlayerColors, PLAYER_COLOR_IDS } from '../render/playerColors.js';
 
 const KEY = 'kronland-settings';
 const QUALITY_KEY = 'kronland.quality';
@@ -26,6 +27,7 @@ const QUALITY_KEY = 'kronland.quality';
  * @property {boolean} autosave save automatically (save slot "Autosave")
  * @property {boolean} muted sound off (all sounds, music and voices)
  * @property {'off'|'short'|'normal'|'long'} musicPause pause between two peaceful music pieces
+ * @property {number} playerColor colour of the human (index in PLAYER_COLOR_IDS: 0 blue, 1 red, 2 green, 3 ochre); applies from the next game start
  * @property {'off'|'rare'|'often'} barks how often figures say something when selected and on commands
  */
 
@@ -33,7 +35,7 @@ const QUALITY_KEY = 'kronland.quality';
 const coarse = () => { try { return globalThis.matchMedia?.('(pointer: coarse)').matches ?? false; } catch { return false; } };
 
 /** @type {Omit<Settings, 'lang'|'quality'>} */
-export const DEFAULTS = { master: 0.8, music: 0.6, effects: 0.8, uiScale: 1, edgeScroll: true, hints: true, labels: coarse(), speech: true, dialogCamera: true, autosave: true, muted: false, musicPause: 'normal', barks: 'rare' };
+export const DEFAULTS = { master: 0.8, music: 0.6, effects: 0.8, uiScale: 1, edgeScroll: true, hints: true, labels: coarse(), speech: true, dialogCamera: true, autosave: true, muted: false, musicPause: 'normal', playerColor: 0, barks: 'rare' };
 
 export const MUSIC_PAUSE_OPTIONS = ['off', 'short', 'normal', 'long'];
 export const BARK_OPTIONS = ['off', 'rare', 'often'];
@@ -62,6 +64,7 @@ function sanitize(key, value) {
     const [lo, hi] = LIMITS[key];
     return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n * 100) / 100)) : DEFAULTS[key];
   }
+  if (key === 'playerColor') { const n = Number(value); return Number.isInteger(n) && n >= 0 && n < PLAYER_COLOR_IDS.length ? n : DEFAULTS.playerColor; }
   if (key === 'musicPause') return MUSIC_PAUSE_OPTIONS.includes(value) ? value : DEFAULTS.musicPause;
   if (key === 'barks') return BARK_OPTIONS.includes(value) ? value : DEFAULTS.barks;
   if (key === 'edgeScroll' || key === 'hints' || key === 'labels' || key === 'speech' || key === 'dialogCamera' || key === 'autosave' || key === 'muted') return !!value;
@@ -126,4 +129,13 @@ export function onChange(fn) {
 /** Set the UI size as a CSS variable (all HUD dimensions are in rem). */
 export function applyUiScale() {
   try { document.documentElement.style.setProperty('--ui-scale', String(settings.uiScale)); } catch { /* without DOM */ }
+}
+
+/**
+ * Apply the chosen player colour for rendering (at game start, before the models are loaded).
+ * Rendering only: the simulation and its state hash stay untouched.
+ * @param {number} [human] player number of the human
+ */
+export function applyPlayerColor(human = 0) {
+  setPlayerColors({ human, color: settings.playerColor });
 }

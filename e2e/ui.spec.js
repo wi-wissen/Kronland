@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
+import { quick } from './quick.js';
 
 // UI: language, settings, build menu categories, minimap, notices.
 
@@ -39,7 +40,7 @@ test('Switch language in the start menu: texts change at once and stay saved', a
   // In game: building names and rejection reasons in English
   await page.getByTestId('start').click();
   await page.waitForFunction(() => !!window.__kronland);
-  await page.getByTestId('quick-all').click();
+  await quick(page, 'all');
   await expect(page.getByTestId('build-residence')).toContainText('Residence');
   await page.evaluate(() => { const e = window.__kronland; e.toast('err.popLimit', null, { ttl: 20000 }); });
   await expect(page.getByTestId('toasts')).toContainText('Population limit reached', SLOW);
@@ -84,7 +85,7 @@ test('Settings are saved and offered in the game', async ({ page }) => {
 test('Build menu: all groups without tabs, tiles labelled, locked ones with reason', async ({ page, isMobile }) => {
   const errors = await fresh(page);
   await bootGame(page);
-  await page.getByTestId('quick-all').click();
+  await quick(page, 'all');
   await expect(page.getByTestId('build-residence')).toBeVisible();
   // All groups are present at once, every tile carries its name
   for (const g of ['home', 'raw', 'refine', 'military', 'admin']) await expect(page.getByTestId('build-group-' + g)).toHaveCount(1);
@@ -167,7 +168,7 @@ test('Portrait: camera jump to the castle puts it above the open panel', async (
   await bootGame(page);
   // Move the camera away, then "Burg": castle gets selected, its panel opens
   await page.evaluate(() => window.__kronland.renderer.rig.lookAt(60, 60));
-  await page.getByTestId('quick-hq').click();
+  await quick(page, 'hq');
   await expect(page.getByTestId('context-panel')).toBeVisible();
   const hq = await page.evaluate(() => { const b = window.__kronland.sim.findBuilding(0, 'headquarters'); return { x: b.x + b.w / 2, z: b.y + b.h / 2 }; });
   await page.waitForTimeout(300);

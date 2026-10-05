@@ -22,20 +22,29 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import {
   buildingModel, scaffold, serfModel, mat, PROF_COLORS, campfireModel,
-  unitModel, heroModel, gadgetModel, horseModel, constructionStage, ruinModel, hasConstructionStages, bridgeModel,
+  unitModel, heroModel, gadgetModel, horseModel, constructionStage, ruinModel, RUIN_ASSETS, CAMPFIRE_ASSET, hasConstructionStages, bridgeModel,
 } from './models.js';
 import { UNITS, HEROES, HERO_IDS } from '../sim/data/units.js';
-import { PLAYER_COLORS, sharedModelMaterials } from './models.js';
-import { sharedAssetRoots } from './assets.js';
+import { sharedModelMaterials } from './models.js';
+import { playerHex } from './playerColors.js';
+import { sharedAssetRoots, assetPending, hasAsset, ownAsset, loadNatureModels } from './assets.js';
+import { pickTreeVariant, neighborCount, forestType, treeHash, applySeason, WINTER_NATURE_MODELS, MODEL_STUMP_SCALE, TREE_LOD_HEIGHT } from './treeModels.js';
 import { sharedMarkerMaterials } from './nature.js';
 import { sharedTerrainTextures } from './textures.js';
+import { sharedNatureTextures } from './naturetex.js';
 import { HintMarker, NpcMarks } from './hints.js';
 import { FogOfWar, patchFog, patchFogTree } from './fog.js';
 import { TileGrid, overviewDist } from './grid.js';
 import { knownBuildings } from '../sim/systems/vision.js';
 
 /** Player colour; figures without owner (conversation figures) in neutral brown. */
-const PLAYER_COLORS_HEX = (owner) => (owner >= 0 ? PLAYER_COLORS[owner % 4] : 0x8a6a4a);
+/**
+ * Which reconciliation draws a mobile figure? Serfs, workers and conversation figures go through
+ * syncUnit, everything else (captains, soldiers, heroes, traps, siege weapons) through syncFighter – never both,
+ * otherwise a serf additionally gets a replacement siege weapon (gadgetModel) and flickering clips.
+ * @param {string} kind @returns {'unit'|'fighter'}
+ */
+export const figureSync = (kind) => (kind === 'unit' || kind === 'worker' || kind === 'npc' ? 'unit' : 'fighter');
 /** Rotation per viewing direction from scripts (0 = north/−z, 1 = east/+x, 2 = south/+z, 3 = west). */
 const FACE_YAW = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 
@@ -133,6 +142,7 @@ export class Renderer {
    * every game would stay in the context. Jointly cached models are re-uploaded by three.js on demand.
    */
   dispose() {
+    this.disposed = true;
     this.devHook = null;
     const seen = new Set();
     const free = (x) => { if (x && !seen.has(x)) { seen.add(x); x.dispose?.(); } };
@@ -156,7 +166,7 @@ export class Renderer {
     // cache holds on to the old renderer including context, canvas, UI and simulation.
     for (const root of [...sharedAssetRoots(), ...sharedCharacterRoots(), this.ghost]) freeTree(root);
     for (const m of [...sharedModelMaterials(), ...sharedMarkerMaterials(), this.arrowMat].filter(Boolean)) freeMaterial(m);
-    for (const x of [...sharedTerrainTextures(), sharedPuffTexture(), this.ballGeo, this.arrowGeo, this.boomGeo]) free(x);
+    for (const x of [...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), this.ballGeo, this.arrowGeo, this.boomGeo]) free(x);
     this.env?.dispose?.();
     this.fog?.dispose();
     this.grid?.dispose();
@@ -238,6 +248,25 @@ export class Renderer {
     }
     const snow = this.weather === 'winter';
     for (const m of this.scatter) m.visible = snow ? m.userData.winter : true;
+    this.setNatureSeason(snow);
+  }
+
+  /**
+   * Show trees and bushes from own models in summer or winter version (broadleaf bare, conifers and bush
+   * snowy). The instance matrices stay, only geometry and material per LOD level change – no
+   * recomputation per frame. If the winter models are missing, they are reloaded once; until then (or entirely without)
+   * the summer version shows snow from the shader.
+   * @param {boolean} winter
+   */
+  setNatureSeason(winter) {
+    const { missing, materials } = applySeason([...(this.treeGroups ?? []), ...(this.scatter ?? [])], winter);
+    for (const m of materials) patchFog(m);
+    if (missing && !this.winterModelsRequested) {
+      this.winterModelsRequested = true;
+      loadNatureModels(WINTER_NATURE_MODELS).then((n) => {
+        if (n && !this.disposed && this.weather === 'winter') this.setNatureSeason(true);
+      });
+    }
   }
 
   setSize(w, h) {
@@ -275,19 +304,18 @@ export class Renderer {
     const variants = treeLodVariants(q.treeDetail, this.natureUniforms);
     const byKind = { leafy: [], birch: [], conifer: [] };
     variants.forEach((v, i) => byKind[v.kind].push(i));
-    const pickVariant = (x, z, h) => {
-      const alt = this.altitude(x, z);
-      const r = h % 1000 / 1000;
-      // share of conifers rises with altitude
-      const pc = Math.max(0, Math.min(1, (alt - 2.2) / 4.5)) * 0.9 + 0.1;
-      let kind = r < pc ? 'conifer' : (h >>> 10) % 5 === 0 ? 'birch' : 'leafy';
-      const list = byKind[kind];
-      return list[(h >>> 13) % list.length];
-    };
+    const byModel = {};
+    variants.forEach((v, i) => { if (v.model && byModel[v.model] === undefined) byModel[v.model] = i; });
+    // kind by position, height, density and hash (rendering; the simulation only knows the tile): stands of the same kind,
+    // pines only in dense forest, single trees mostly oaks
+    const W = this.sim.map.width;
+    const occupied = new Set(trees.map((t) => t.y * W + t.x));
+    const forest = forestType(this.sim);
+    const pickVariant = (x, z, h) => pickTreeVariant({ x, z, h, forest, alt: this.altitude(x, z), neighbors: neighborCount(occupied, Math.floor(x), Math.floor(z), W) }, byKind, byModel);
     /** @type {{x:number,z:number,v:number,s:number,rot:number,h:number,id:number}[]} */
     const items = [];
     for (const t of trees) {
-      const h = (Math.imul(t.id, 2654435761) ^ Math.imul(t.x * 31 + t.y, 40503)) >>> 0;
+      const h = treeHash(t.id, t.x, t.y);
       const x = t.x + 0.5 + ((h >>> 4) % 36 - 18) / 100, z = t.y + 0.5 + ((h >>> 12) % 36 - 18) / 100;
       items.push({ x, z, v: pickVariant(x, z, h), s: 0.78 + (h % 45) / 100, rot: (h % 628) / 100, h, id: t.id });
     }
@@ -299,7 +327,9 @@ export class Renderer {
     const groups = variants.map((v, k) => new ChunkedInstances({
       name: `trees-${k}`, chunkSize: 8, colors: true, kind: 'tree',
       // LOD level by screen height: height of the variant at medium instance size
-      height: (v.geometry.boundingBox ?? (v.geometry.computeBoundingBox(), v.geometry.boundingBox)).max.y * v.scale,
+      // Model trees are about twice as tall as the earlier ones: calculate with half the height so that the levels switch at
+      // the same distances (otherwise they would stay in the full model far out, ~2000 triangles per tree)
+      height: (v.geometry.boundingBox ?? (v.geometry.computeBoundingBox(), v.geometry.boundingBox)).max.y * v.scale * (v.model ? TREE_LOD_HEIGHT[q.tier] ?? 0.5 : 1),
       // farthest level without shadow casting: saves the expensive shadow pass for the horizon
       levels: v.levels.map((g, i) => ({ geometry: g, material: v.material, castShadow: i < v.levels.length - 1 || v.levels.length === 1, receiveShadow: i === 0 })),
     }));
@@ -323,6 +353,8 @@ export class Renderer {
       if (it.id) this.treeIndex.set(it.id, { v: it.v, h: handle, x: it.x, z: it.z, s });
     }
     for (const g of groups) { g.finalize(this.scene); this.chunked.push(g); for (const m of g.meshes) patchFog(m.material); }
+    // season: remember summer version, winter version (lazy) for swapping on weather change
+    groups.forEach((g, k) => { g.userData.summer = variants[k]; g.userData.season = variants[k].winter; });
     this.treeGroups = groups;
     // tree stumps (felled trees)
     const st = stumpVariant(this.natureUniforms);
@@ -399,7 +431,8 @@ export class Renderer {
     this.treeIndex.delete(id);
     // leave stump standing
     if (this.stumps.count < this.stumps.instanceMatrix.count) {
-      const s = 0.8 + t.s * 0.25;
+      // Model trees are larger than the earlier procedural ones: let the stump grow along
+      const s = (0.8 + t.s * 0.25) * (this.treeVariants[t.v]?.model ? MODEL_STUMP_SCALE : 1);
       tmpP.set(t.x, this.terrain.heightAt(t.x, t.z) - 0.02, t.z);
       tmpQ.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (id % 628) / 100);
       tmpS.set(s, s, s);
@@ -421,7 +454,6 @@ export class Renderer {
     const lists = Object.fromEntries(Object.keys(kinds).map((k) => [k, []]));
     const kk = Object.keys(kinds).filter((k) => k.startsWith('kk'));
     const mt = Object.keys(kinds).filter((k) => k.startsWith('mt'));
-    const lily = Object.keys(kinds).filter((k) => k.startsWith('lily'));
     const splat = (x, z) => {
       const gx = Math.round((x + t.M) * t.R), gz = Math.round((z + t.M) * t.R);
       const k = Math.max(0, Math.min(t.GH - 1, gz)) * t.GW + Math.max(0, Math.min(t.GW - 1, gx));
@@ -437,11 +469,6 @@ export class Renderer {
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const k = map.idx(x, y), f = map.flags[k];
       if (f & WATER) {
-        // water lilies on calm, moderately deep water
-        const depth = -this.altitude(x + 0.5, y + 0.5);
-        if (lily.length && depth > 0.35 && depth < 1.6 && r() < 0.05 * dens) {
-          for (let i = 0; i < 3; i++) lists[lily[(r() * lily.length) | 0]].push({ x: x + r(), z: y + r(), s: 1.6 + r() * 1.2, rot: r() * 6.283, tile: k, water: true });
-        }
         // reeds in shallow water at the shore
         if (near(x, y, 0xff) && this.altitude(x + 0.5, y + 0.5) > -0.45 && r() < 0.35 * dens) {
           let shore = false;
@@ -480,6 +507,7 @@ export class Renderer {
         if (dirt > 0.55) { if (roll < 0.15) add('pebbles', px, pz, 0.5 + r() * 0.5, k); else if (roll < 0.5) add('grassDry', px, pz, 0.8 + r() * 0.4, k); continue; }
         if (roll < 0.62) add(r() < 0.2 ? 'grassDry' : 'grass', px, pz, 0.75 + r() * 0.7, k);
         else if (meadow > 0.4 && roll < 0.82) add(['flowerW', 'flowerY', 'flowerP', 'flowerR'][(r() * 4) | 0], px, pz, 0.8 + r() * 0.5, k);
+        // bush model (larger, one type): only half of the spots ('bushB' does not exist then)
         else if (roll < 0.86 && near(x, y, OCCUPIED) && !occupied) add(r() < 0.5 ? 'bush' : 'bushB', px, pz, 0.7 + r() * 0.6, k);
         else if (roll < 0.868) add('pebbles', px, pz, 0.5 + r() * 0.4, k);
         else if (roll < 0.88) add('rock', px, pz, 0.35 + r() * 0.3, k);
@@ -496,13 +524,15 @@ export class Renderer {
       // small decoration (grass, flowers, pebbles) in tight chunks that drop out entirely in the distance
       const level = { geometry: kind.geometry, material: kind.material, castShadow: big, receiveShadow: true };
       const ci = new ChunkedInstances({
-        name: 'scatter-' + name, chunkSize: kind.small ? 6 : 12, kind: kind.small ? 'scatterSmall' : 'scatterLarge',
-        // distant rocks and bushes without shadow casting (second level, same geometry)
-        levels: big ? [level, { ...level, castShadow: false }] : [level],
+        name: 'scatter-' + name, chunkSize: kind.small ? 6 : 12, kind: kind.small ? 'scatterSmall' : kind.levels ? 'bush' : 'scatterLarge',
+        // bush model: own LOD levels (far without shadows); rocks and bushes otherwise without
+        // shadow casting in the distance (second level, same geometry)
+        levels: kind.levels ? kind.levels.map((g, i) => ({ geometry: g, material: kind.material, castShadow: i === 0, receiveShadow: true }))
+          : big ? [level, { ...level, castShadow: false }] : [level],
       });
       for (const it of list) {
-        // let rocks sink in a little; water lilies float on the water
-        const y = it.water ? t.waterY + 0.01 : t.heightAt(it.x, it.z) - (name.startsWith('mt') ? 0.35 * it.s : big ? 0.06 * it.s : 0.01);
+        // let rocks sink in a little
+        const y = t.heightAt(it.x, it.z) - (name.startsWith('mt') ? 0.35 * it.s : big ? 0.06 * it.s : 0.01);
         tmpP.set(it.x, y, it.z);
         tmpQ.setFromAxisAngle(up, it.rot);
         tmpS.set(it.s, it.s * (name.startsWith('kk') ? 0.8 : 1), it.s);
@@ -514,6 +544,7 @@ export class Renderer {
       ci.finalize(this.scene);
       for (const m of ci.meshes) patchFog(m.material);
       ci.userData.winter = kind.winter;
+      if (kind.season) { ci.userData.summer = { levels: kind.levels, material: kind.material }; ci.userData.season = kind.season; }
       this.chunked.push(ci);
       this.scatter.push(ci);
     }
@@ -563,12 +594,23 @@ export class Renderer {
       this.markers.push({ g, x: s.x, y: s.y, cx: s.x + 1.5, cz: s.y + 1.5, free: true });
     }
     for (const s of this.sim.spots) {
-      const g = spotMarker();
-      g.position.set(s.x + 2, this.terrain.rectHeight(s.x, s.y, 4, 4) - 0.1, s.y + 2);
-      patchFogTree(g);
+      const g = this.spotModel(s);
       this.scene.add(g);
-      this.markers.push({ g, x: s.x, y: s.y, cx: s.x + 2, cz: s.y + 2, free: true });
+      this.markers.push({ g, x: s.x, y: s.y, cx: s.x + 2, cz: s.y + 2, free: true, spot: true });
     }
+  }
+
+  /**
+   * Settlement spot: the ruin of a village centre (only a village centre can be rebuilt there). Until the
+   * model is reloaded, the staked-out area with pennant (userData.pending; frame() then swaps).
+   */
+  spotModel(s) {
+    const ruin = ownAsset(RUIN_ASSETS.villageCenter) ? ruinModel(4, 4, 'villageCenter') : null;
+    const g = ruin ?? spotMarker();
+    if (!ruin) g.userData.pending = true;
+    g.position.set(s.x + 2, this.terrain.rectHeight(s.x, s.y, 4, 4) - (ruin ? 0 : 0.1), s.y + 2);
+    patchFogTree(g);
+    return g;
   }
 
   /**
@@ -707,7 +749,7 @@ export class Renderer {
       // a ruin from the simulation (kind 'ruin') takes precedence
       const simRuin = [...this.sim.entities.values()].some((r) => r.kind === 'ruin' && r.x === e.x && r.y === e.y);
       if (!simRuin) {
-        const r = ruinModel(e.w - 0.6, e.h - 0.6, e.type);
+        const r = ruinModel(e.w, e.h, e.type);
         r.position.set(cx, y, cz);
         r.rotation.y = (ev.building % 4) * (Math.PI / 2);
         r.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; } });
@@ -777,9 +819,10 @@ export class Renderer {
         // enemy figures, traps and projectiles only in visible tiles
         if (fogOn && !mine(e.owner) && !fog.visibleAt(e.px / UNIT, e.py / UNIT)) continue;
         seen.add(e.id);
-        if (e.kind === 'unit' || e.kind === 'worker' || e.kind === 'npc') this.syncUnit(e, alpha, prev.get(e.id), dt);
-        if (e.kind === 'npc' && e.talk) talkers.push(e);
-        else this.syncFighter(e, alpha, prev.get(e.id));
+        if (figureSync(e.kind) === 'unit') {
+          this.syncUnit(e, alpha, prev.get(e.id), dt);
+          if (e.kind === 'npc' && e.talk) talkers.push(e);
+        } else this.syncFighter(e, alpha, prev.get(e.id));
       } else if (e.kind === 'camp') {
         // campfires (workers without bed or dining spot): foreign ones only in sight
         if (fogOn && !mine(e.owner) && !fog.visibleAt(e.x + 0.5, e.y + 0.5)) continue;
@@ -819,6 +862,12 @@ export class Renderer {
 
     // hide markers as soon as something is built there (in fog the last seen state stays)
     for (const m of this.markers) {
+      // settlement spot: ruin model has been reloaded → swap placeholder
+      if (m.spot && m.g.userData.pending && hasAsset(`buildings/${RUIN_ASSETS.villageCenter}`)) {
+        this.scene.remove(m.g);
+        m.g = this.spotModel({ x: m.x, y: m.y });
+        this.scene.add(m.g);
+      }
       if (m.bridge) { if (fog.visibleAt(m.cx, m.cz)) m.free = !(sim.map.flags[sim.map.idx(m.x, m.y)] & (OCCUPIED | BRIDGE)); }
       else if (fog.visibleAt(m.cx, m.cz)) m.free = sim.map.owner[sim.map.idx(m.x, m.y)] === 0;
       m.g.visible = m.free && fog.exploredAt(m.cx, m.cz);
@@ -950,7 +999,8 @@ export class Renderer {
     const p = e.work ? e.progress / e.work : 1;
     // construction phase: foundation → walls → roof truss (KayKit), afterwards the finished house growing under the scaffolding
     const stage = !stages ? -1 : e.level > 0 ? 3 : p < 0.22 ? 0 : p < 0.45 ? 1 : p < 0.68 ? 2 : 3;
-    const key = `${e.level}:${e.done}:${stage}`;
+    // own models are reloaded: rebuild once after loading
+    const key = `${e.level}:${e.done}:${stage}:${assetPending(e.type, e.level) ? 0 : 1}`;
     if (!g || g.userData.key !== key) {
       const old = g;
       g = buildingModel(e.type, e.w, e.h, e.level, e.owner);
@@ -1019,20 +1069,31 @@ export class Renderer {
     const dt = this.frameDt ?? 0.016;
     if (e.done && (frac < 0.5 || e.burning)) {
       const H = g.userData.height ?? 2;
-      const k = (1 - Math.min(1, frac / 0.5)) * 0.8 + (burning ? 0.5 : 0.35);
-      if (Math.random() < dt * 9 * k * this.fx.density) {
-        const sx = g.position.x + (Math.random() - 0.5) * e.w * 0.45, sz = g.position.z + (Math.random() - 0.5) * e.h * 0.45;
-        this.fx.smokePuff(sx, g.position.y + H * (0.75 + Math.random() * 0.25), sz, burning ? 1 : 0.6, burning ? 0.55 : 0.45);
+      // fixed fire spots (same per building): more with damage, flames in building size
+      const spots = (g.userData.fireSpots ??= roofOnModel(g, fireSpots(e.id, e.w, e.h, H)));
+      const heat = burning ? Math.min(1, 0.35 + (1 - Math.min(1, frac / 0.5)) * 0.9) : 0;
+      const nSpots = burning ? Math.max(1, Math.round(heat * spots.length)) : 0; // roof first (order in fireSpots)
+      const size = 0.32 * Math.sqrt(e.w * e.h);
+      for (let i = 0; i < nSpots; i++) {
+        const sp = spots[i];
+        const fx = g.position.x + sp.x, fy = g.position.y + sp.y, fz = g.position.z + sp.z;
+        const n = Math.random() < (dt * 55 * this.fx.density) % 1 ? Math.ceil(dt * 55 * this.fx.density) : Math.floor(dt * 55 * this.fx.density);
+        for (let j = 0; j < n; j++) {
+          const r = size * 0.55, a = Math.random() * Math.PI * 2;
+          this.fx.flame(fx + Math.cos(a) * r * Math.random(), fy, fz + Math.sin(a) * r * Math.random(), size * (0.45 + heat * 0.35));
+        }
+        // smoke column above every spot
+        if (Math.random() < dt * 6 * this.fx.density) this.fx.smokePuff(fx, fy + size * 1.2, fz, 1, size * 1.1);
       }
-      if (burning && Math.random() < dt * 40 * this.fx.density) {
-        // flames on roof and walls: on the edge of the footprint or at the top
-        const top = Math.random() < 0.5;
-        const a = Math.random() * Math.PI * 2;
-        const rx = top ? (Math.random() - 0.5) * e.w * 0.5 : Math.cos(a) * e.w * 0.34;
-        const rz = top ? (Math.random() - 0.5) * e.h * 0.5 : Math.sin(a) * e.h * 0.34;
-        this.fx.flame(g.position.x + rx, g.position.y + (top ? H * (0.6 + Math.random() * 0.35) : H * (0.15 + Math.random() * 0.5)), g.position.z + rz, 0.55);
+      // only smoke (damaged, no fire yet) or general fumes
+      const k = (1 - Math.min(1, frac / 0.5)) * 0.8 + (burning ? 0.3 : 0.35);
+      if (Math.random() < dt * 6 * k * this.fx.density) {
+        const sx = g.position.x + (Math.random() - 0.5) * e.w * 0.45, sz = g.position.z + (Math.random() - 0.5) * e.h * 0.45;
+        this.fx.smokePuff(sx, g.position.y + H * (0.75 + Math.random() * 0.25), sz, burning ? 1 : 0.6, burning ? 0.6 : 0.45);
       }
     }
+    // charring and being lit by the fire (materials per building, only copied at the first damage)
+    scorch(g, e.done ? Math.max(0, 1 - frac / 0.5) : 0, burning, this.time);
     // chimney smoke when the building works (workers inside) or castle/village centre
     const ch = g.userData.chimney;
     if (ch && e.done && frac >= 0.5 && Math.random() < dt * 2.2 * this.fx.density) {
@@ -1052,22 +1113,29 @@ export class Renderer {
   syncCamp(e, dt) {
     const m = (this.camps ??= new Map());
     let g = m.get(e.id);
+    // procedural placeholder until the own model is loaded – then rebuild once
+    if (g?.userData.pending && hasAsset(`buildings/${CAMPFIRE_ASSET}`)) { this.scene.remove(g); g = null; }
     if (!g) {
       g = campfireModel();
-      g.scale.setScalar(2);
+      if (!g.userData.own) g.scale.setScalar(2);
       g.position.set(e.x + 0.5, this.terrain.heightAt(e.x + 0.5, e.y + 0.5), e.y + 0.5);
       patchFogTree(g);
       this.scene.add(g);
       m.set(e.id, g);
     }
-    const flame = g.getObjectByName('flame');
-    if (flame) flame.scale.y = 0.8 + Math.sin(this.time * 12 + e.id) * 0.25;
-    if (Math.random() < dt * 3 * this.fx.density && sphereVisible(this.frustum, g.position.x, g.position.y, g.position.z, 1)) {
+    const near = sphereVisible(this.frustum, g.position.x, g.position.y, g.position.z, 1);
+    if (g.userData.own) {
+      // flames as particles (like burning buildings), smaller
+      if (near && Math.random() < dt * 14 * this.fx.density) this.fx.flame(g.position.x, g.position.y + 0.12, g.position.z, 0.18);
+    } else {
+      const flame = g.getObjectByName('flame');
+      if (flame) flame.scale.y = 0.8 + Math.sin(this.time * 12 + e.id) * 0.25;
+    }
+    if (near && Math.random() < dt * 3 * this.fx.density) {
       this.fx.smokePuff(g.position.x, g.position.y + 0.55, g.position.z, 0, 0.2);
     }
   }
 
-  /** Ruin from the simulation (if present). */
   /**
    * Landmark of the mission (rendering only): foundations of a building (`ruin` with `building`, top left corner
    * at `at`; disappear as soon as something is built there).
@@ -1075,7 +1143,9 @@ export class Renderer {
    * @param {Array<{model:string, building?:string|null, at:{x:number,y:number}}>|null} list
    */
   syncLandmarks(list, fog, map) {
-    const key = list?.length ? list.map((l) => `${l.model}@${l.at.x},${l.at.y}`).join(';') : '';
+    // own ruin model reloaded → rebuild once
+    const loaded = Object.values(RUIN_ASSETS).map((f) => (hasAsset(`buildings/${f}`) ? 1 : 0)).join('');
+    const key = list?.length ? list.map((l) => `${l.model}@${l.at.x},${l.at.y}`).join(';') + loaded : '';
     if (key !== this.landmarkKey) {
       for (const g of this.landmarks ?? []) this.scene.remove(g.mesh);
       this.landmarks = [];
@@ -1083,7 +1153,7 @@ export class Renderer {
       for (const l of list ?? []) {
         if (l.model !== 'ruin' || !BUILDINGS[l.building]) continue;
         const { w, h } = BUILDINGS[l.building];
-        const mesh = ruinModel(w - 0.6, h - 0.6, l.building);
+        const mesh = ruinModel(w, h, l.building);
         patchFogTree(mesh);
         const x = l.at.x + w / 2, z = l.at.y + h / 2;
         mesh.position.set(x, this.footY(l.at.x, l.at.y, w, h), z);
@@ -1096,11 +1166,15 @@ export class Renderer {
     for (const l of this.landmarks) l.mesh.visible = fog.exploredAt(l.x, l.z) && !map.owner[map.idx(l.foot.x, l.foot.y)];
   }
 
+  /** Ruin from the simulation (if present). */
   syncRuin(e) {
     const m = (this.simRuins ??= new Map());
-    if (m.has(e.id)) return;
+    const old = m.get(e.id);
+    // own ruin model is being reloaded: then rebuild once
+    if (old && !(old.userData.pending && hasAsset(`buildings/${RUIN_ASSETS[e.type]}`))) return;
+    if (old) this.scene.remove(old);
     const w = e.w ?? 3, h = e.h ?? 3;
-    const g = ruinModel(w - 0.6, h - 0.6, e.type);
+    const g = ruinModel(w, h, e.type);
     g.position.set(e.x + w / 2, this.footY(e.x, e.y, w, h), e.y + h / 2);
     patchFogTree(g);
     this.scene.add(g);
@@ -1111,7 +1185,7 @@ export class Renderer {
   roleOf(e) {
     if (e.kind === 'unit') return e.militia ? 'soldier.spear' : 'serf';
     if (e.kind === 'npc') return e.look ?? 'serf';
-    if (e.kind === 'worker') return 'worker';
+    if (e.kind === 'worker') return `worker.${e.prof}`; // own model per profession, otherwise role 'worker'
     if (e.kind === 'hero') return `hero.${e.hero}`;
     const line = UNITS[e.def]?.line ?? 'sword';
     if (this.sim.players[e.owner]?.neutral && !this.sim.players[e.owner].soldierLook) return line === 'bow' ? 'bandit.bow' : 'bandit';
@@ -1144,7 +1218,7 @@ export class Renderer {
     }
     st.set(e.id, yaw);
     const tint = e.kind === 'worker' ? PROF_COLORS[e.prof] ?? null : null;
-    this.chars.set(e.id, this.roleOf(e), { x, y: this.groundY(x, z), z, yaw, clip, team: PLAYER_COLORS_HEX(e.owner), tint, visible, speed: 1 });
+    this.chars.set(e.id, this.roleOf(e), { x, y: this.groundY(x, z), z, yaw, clip, team: playerHex(e.owner), tint, visible, speed: 1 });
   }
 
   /** Captains, soldiers, heroes, traps and siege weapons. */
@@ -1177,6 +1251,8 @@ export class Renderer {
     // traps, bombs, self-firing: small static objects (few)
     if (e.kind !== 'hero' && e.kind !== 'leader' && e.kind !== 'soldier') {
       let g = this.units.get(e.id);
+      // field gun: own model reloaded → rebuild
+      if (g?.userData.pendingAsset && hasAsset(g.userData.pendingAsset)) { this.scene.remove(g); this.units.delete(e.id); g = null; }
       if (!g) {
         g = gadgetModel(e.kind, e.owner);
         g.traverse((m) => { m.userData.entity = e.id; });
@@ -1196,7 +1272,7 @@ export class Renderer {
     const ranged = line === 'bow' || line === 'lightCav';
     const clip = e.down ? 'die' : attacking ? (ranged ? 'shoot' : 'attack') : moving ? (line === 'lightCav' || line === 'heavyCav' ? 'run' : 'walk') : 'idle';
     const role = this.roleOf(e);
-    const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: PLAYER_COLORS_HEX(e.owner), speed: line === 'cannon' ? 0.6 : 1 });
+    const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: playerHex(e.owner), speed: line === 'cannon' ? 0.6 : 1 });
     // hoof dust
     if (moving && (line === 'lightCav' || line === 'heavyCav') && this.fx.chance(0.22) && rec.lod.level >= 0 && rec.lod.level <= 1) this.fx.hoofDust(x, y, z);
     // health bars: captains (squad as a whole) and heroes
@@ -1319,6 +1395,7 @@ export class Renderer {
     this.water.setWeather(state);
     // hide grass and flowers in winter
     for (const m of this.scatter ?? []) m.visible = snow ? m.userData.winter : true;
+    this.setNatureSeason(snow);
     if (state === 'rain') {
       const n = this.quality.tier === 'low' ? 600 : 1400, pos = new Float32Array(n * 6);
       const c = this.rig.target;
@@ -1545,11 +1622,13 @@ function proceduralFigures() {
   const swapColors = (g, from, to) => g.traverse((m) => { if (m.isMesh && m.material.color?.getHex() === from) m.material = mat(to); });
   const fig = (make, opts = {}) => (kind) => {
     const g = make(kind);
-    // mark colour of player 0 as mask
-    swapColors(g, PLAYER_COLORS[0], TEAM);
-    return { group: g, team: TEAM, tint: opts.tint ? TINT : undefined, tintDefault: opts.tintDefault, saddle: opts.saddle, radius: opts.radius ?? 0.3 };
+    // mark colour of player 0 (with colour choice) as mask
+    swapColors(g, playerHex(0), TEAM);
+    // own model is still loading (cannon): then bake anew
+    const pending = g.userData.pendingAsset ? () => hasAsset(g.userData.pendingAsset) : undefined;
+    return { group: g, team: TEAM, tint: opts.tint ? TINT : undefined, tintDefault: opts.tintDefault, saddle: opts.saddle, radius: opts.radius ?? 0.3, pending };
   };
-  const unit = (line) => fig((kind) => unitModel(line, 0, kind.endsWith(':leader')), { radius: line.endsWith('Cav') ? 0.5 : line === 'cannon' ? 0.5 : 0.3 });
+  const unit = (line) => fig((kind) => unitModel(line, 0, kind.endsWith(':leader'), { figure: true }), { radius: line.endsWith('Cav') ? 0.5 : line === 'cannon' ? 0.5 : 0.3 });
   const out = {
     serf: fig(() => serfModel(0), {}),
     worker: fig(() => { const g = serfModel(0, TINT); g.userData.tool.visible = false; return g; }, { tint: true, tintDefault: 0xc39a5e }),
@@ -1579,4 +1658,88 @@ function bridgeSiteMarker(s, deckY) {
   g.add(plank);
   g.position.set(s.x + s.w / 2, deckY, s.y + s.h / 2);
   return g;
+}
+
+/**
+ * Fire spots of a building: places on the roof and at the walls (from the ID, so that they stay on rebuild).
+ * @param {number} id @param {number} w @param {number} h @param {number} H building height
+ */
+export function fireSpots(id, w, h, H) {
+  let x = (id * 2654435761) >>> 0;
+  const r = () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; };
+  const out = [];
+  // order = spread: first roof, then a window, then more roof …
+  for (const roof of [true, false, true, true, false, true]) {
+    const a = r() * Math.PI * 2;
+    out.push(roof
+      ? { x: (r() - 0.5) * w * 0.6, y: H * (0.7 + r() * 0.2), z: (r() - 0.5) * h * 0.6, roof: true }
+      : { x: Math.cos(a) * w * 0.36, y: H * (0.25 + r() * 0.3), z: Math.sin(a) * h * 0.36, roof: false });
+  }
+  return out;
+}
+
+const fireRay = new THREE.Raycaster();
+/** Put roof spots onto the roof surface, wall spots onto the outer wall of the model. */
+const DOWN = new THREE.Vector3(0, -1, 0);
+/**
+ * Put roof fire spots onto the actual roof surface of the model (ray from above); wall spots stay.
+ * @param {THREE.Object3D} g building group (origin centre of the footprint) @param {ReturnType<typeof fireSpots>} spots
+ */
+function roofOnModel(g, spots) {
+  // finest LOD level (lod0), otherwise the whole body
+  const body = g.getObjectByName('lod0') ?? g.getObjectByName('body') ?? g;
+  g.updateMatrixWorld(true);
+  const meshes = [];
+  body.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  if (!meshes.length) return spots;
+  const top = new THREE.Box3().setFromObject(body).max.y + 1;
+  return spots.map((sp) => {
+    if (sp.roof) {
+      fireRay.set(new THREE.Vector3(g.position.x + sp.x, top, g.position.z + sp.z), DOWN);
+      const hit = fireRay.intersectObjects(meshes, false)[0];
+      return hit ? { ...sp, y: hit.point.y - g.position.y + 0.05 } : sp;
+    }
+    // wall: horizontally from outside towards the centre, flame just in front of the wall (flames out of the window)
+    const out = new THREE.Vector3(sp.x, 0, sp.z).normalize();
+    const from = new THREE.Vector3(g.position.x + out.x * 6, g.position.y + sp.y, g.position.z + out.z * 6);
+    fireRay.set(from, out.clone().negate());
+    const hit = fireRay.intersectObjects(meshes, false)[0];
+    if (!hit) return sp;
+    return { ...sp, x: hit.point.x - g.position.x + out.x * 0.08, z: hit.point.z - g.position.z + out.z * 0.08 };
+  });
+}
+
+/**
+ * Make damage visible: darker (charred) and orange flickering fire glow. Materials are only copied at the
+ * first damage per building (shared model materials stay untouched).
+ * @param {THREE.Object3D} g @param {number} char 0…1 @param {boolean} burning @param {number} time
+ */
+const SOOT = new THREE.Color(0x2a2522);
+function scorch(g, char, burning, time) {
+  const st = g.userData.scorch;
+  if (!st && char <= 0) return;
+  if (!st) {
+    const mats = [];
+    g.traverse((o) => {
+      if (!o.isMesh || !o.material?.color) return;
+      const src = o.material;
+      o.material = src.clone();
+      // clone() does not take over the shader addition (team colour from magenta): take it along
+      o.material.onBeforeCompile = src.onBeforeCompile;
+      o.material.customProgramCacheKey = src.customProgramCacheKey;
+      mats.push({ m: o.material, c: o.material.color.clone(), e: o.material.emissive?.clone() });
+    });
+    g.userData.scorch = { mats, last: -1 };
+  }
+  const s = g.userData.scorch;
+  const glow = burning ? 0.05 + 0.035 * Math.sin(time * 9 + g.id) + 0.02 * Math.sin(time * 23) : 0;
+  const key = Math.round(char * 50) + (burning ? Math.round(glow * 100) * 100 : 0);
+  if (key === s.last) return;
+  s.last = key;
+  // charred: darker and desaturated (towards soot)
+  const dark = 1 - char * 0.6;
+  for (const { m, c, e } of s.mats) {
+    m.color.copy(c).lerp(SOOT, char * 0.35).multiplyScalar(dark);
+    if (m.emissive) { m.emissive.copy(e ?? new THREE.Color(0)); if (glow > 0) m.emissive.add(new THREE.Color(0xff5a10).multiplyScalar(glow)); }
+  }
 }

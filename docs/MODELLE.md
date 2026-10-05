@@ -8,7 +8,8 @@ Detailstufen (LOD) funktionieren.
 | Was | Wo | Wie gezeichnet |
 |---|---|---|
 | Gebäude | `public/models/buildings/*.glb` (+ `.lod1.glb`, `.lod2.glb`) | eigenes Objekt je Gebäude, Stufe nach Abstand |
-| Bäume, Deko | prozedural (`src/render/nature.js`) + KayKit-Felsen | instanziert in Chunks (8×8 bzw. 6×6 Kacheln), Stufe je Chunk |
+| Bäume, Busch | eigene Meshy-Modelle `public/models/buildings/tree_*.glb`, `bush.glb` (+ Winterfassung, `.lod2`/`.lod3`), siehe [Bäume und Büsche](#bäume-und-büsche); ohne Modelle prozedural (`src/render/nature.js`) | instanziert in Chunks (8×8 Kacheln), Stufe je Chunk |
+| Deko | prozedural (`src/render/nature.js`) + KayKit-Felsen und -Felsgipfel; Felsbrocken, Stümpfe, Rohstoffhaufen und Schächte mit gemalter Struktur (Fels, Rinde; `natureDetail`, triplanar, [Naturtexturen](BODEN.md#naturtexturen-bäume-büsche-felsen); Vergleich: `?nature=off`) | instanziert in Chunks (12×12 bzw. 6×6 Kacheln) |
 | Figuren | `public/models/characters/*.glb` + `manifest.json` | instanziert, GPU-Skinning aus gebackener Knochen-Textur |
 | Rückfall | `src/render/models.js` (prozedurale Figuren) | dieselbe Instanzierung, Körperteile als „Knochen“ |
 
@@ -23,9 +24,10 @@ Stufe, auf Handy wie Desktop. Eine Hysterese von ±10–12 % verhindert Flackern
 | Gruppe | Grenzen (Kacheln, Stufe „hoch“) | Stufen |
 |---|---|---|
 | Gebäude | 38 / 72 | Original → lod1 (~50–70 %) → lod2 (~25–35 %) |
-| Bäume | Bildschirmhöhe 80 / 40 px (2 Kacheln hoher Baum am Desktop: ~30 / 62) | detailliert → einfach → Fernform (≈20–40 Dreiecke, ohne Schattenwurf). Auf „niedrig“ fehlt die detaillierte Stufe: einfach bis 40 px, dann Fernform |
+| Bäume | Bildschirmhöhe 80 / 40 px, gerechnet mit der halben Baumhöhe (`TREE_LOD_HEIGHT`: hoch 0,5, mittel 0,4, niedrig 0,3) – Modellbäume sind doppelt so hoch wie die früheren und wechseln so bei denselben Abständen (Desktop ~30 / 62 Kacheln), mittel/niedrig früher | Modell (~1000–2100 Dreiecke) → `.lod2` (~550–1400) → `.lod3` (~170–450, ohne Schattenwurf). Auf „niedrig“ fehlt das Original: `.lod2`, dann `.lod3`. Prozeduraler Rückfall: detailliert → einfach → Fernform (≈20–40 Dreiecke) |
+| Busch (Modell) | 26 | `.lod2` (~950 Dreiecke, mit Schatten) → `.lod3` (~200, ohne Schattenwurf) |
 | Figuren | Bildschirmhöhe 80 / 28 / 12 px (unter 3 px weg) | **Nahmodell**, flüssig → **Spielmodell** (lod1), 24 Bilder/s ohne Mischung → Spielmodell, 8 Bilder/s → starr. Wechsel Nah ↔ Spiel mit 0,35 s Dither-Überblendung |
-| Felsen, Büsche | 62 | mit Schatten → ohne Schattenwurf (gleiche Geometrie) |
+| Felsen (prozedurale Büsche) | 62 | mit Schatten → ohne Schattenwurf (gleiche Geometrie) |
 | Kleine Deko (Gras, Blumen, Kiesel) | ab 66 weg | schrumpft vorher im Shader in den Boden (kein Aufploppen); ein Chunk fällt weg, sobald er ganz hinter dem Ende des Schrumpfens liegt |
 
 Faktor je Grafikstufe: hoch 1, mittel 0,8, niedrig 0,55 (Figuren, Bäume, Felsen und Büsche mindestens 0,8).
@@ -38,6 +40,58 @@ und in ein InstancedMesh je Stufe kopiert (wenige Zeichenaufrufe, egal wie viele
 
 **Messen:** `?debug=1` zeigt Bilder/s, Zeichenaufrufe, Dreiecke und die Anzahl je Gruppe und Stufe.
 Im Code: `window.__kronland.renderer.lodStats()`.
+
+## Bäume und Büsche
+
+Eigene Modelle aus der Gebäude-Pipeline (Konzept → Meshy, `assets-src/buildings/<name>/`), Tabelle und
+Auswahl-Logik in `src/render/treeModels.js`, Geometrie und Material in `src/render/nature.js`
+(`treeModelVariants`, `bushModelVariant`):
+
+| Art | Modell | Winter | Höhe im Spiel (Kacheln, ×0,78–1,22) |
+|---|---|---|---|
+| Eiche (Laub) | `tree_oak` | `tree_oak_winter` (kahl, Kreuz) | 3,4 |
+| Buche (Laub) | `tree_beech` | `tree_beech_winter` (kahl, Kreuz) | 3,8 |
+| Birke (Laub, jeder 5.) | `tree_birch` (Kreuz) | `tree_birch_winter` (kahl, Kreuz) | 3,0 |
+| Fichte (Nadel) | `tree_spruce` | `tree_spruce_winter` (verschneit) | 4,4 |
+| Kiefer (Nadel) | `tree_pine` | `tree_pine_winter` (verschneit) | 4,8 |
+| Busch (Deko) | `bush` | `bush_winter` (fehlt sie: Schnee aus dem Shader) | 0,95 |
+
+Maßstab: Wohnhaus Stufe 1/2/3 ist auf 3×3 Kacheln 3,1 / 4,0 / 5,9 hoch (Modellbox nach `fittedModel`); Laubbäume
+etwa so hoch wie das zweistöckige Wohnhaus, Nadelbäume höher. Die Modelle werden beim Laden auf den Boden gestellt,
+mittig ausgerichtet und auf diese Höhe gebracht (`fitNatureGeometry`, Maß vom Original, damit alle Stufen
+deckungsgleich sind).
+
+- **Art je Baum**: Die Simulation kennt Bäume nur als Kachel. Die Darstellung wählt die Art aus Höhe über dem
+  Wasser (Nadelanteil 10 % im Tal bis 100 % hoch oben) und einem Hash aus Kennung und Kachel (`treeHash`,
+  `pickTreeVariant`) – derselbe Baum hat immer dieselbe Art; Drehung, Größe (0,78–1,22) und Farbton aus demselben
+  Hash. Gefällte Bäume hinterlassen an derselben Stelle einen Stumpf (bei Modellbäumen 1,8× größer).
+- **Kreuz für flache Modelle**: Kahle Winter-Laubbäume und die Sommerbirke sind fast flach; Original und eine um 90°
+  gedrehte Kopie werden zu einer Geometrie zusammengeführt (`crossGeometry`) – von allen Seiten voll, ein
+  Zeichenaufruf, doppelte Dreiecke.
+- **Detailstufen**: `.lod2` (vorhanden) und `.lod3` (Fernform, `node scripts/build-lods.mjs <datei> --ratios 0.1
+  --errors 0.6 --out <name>.lod3.glb`). Nur Original, `.lod2` und `.lod3` werden geladen (Textur und
+  Normalen-Textur 1024 stecken im Original).
+- **Material**: Textur und Normalen-Textur des Modells, weich schattiert, beidseitig; Wind über `natureMaterial`
+  (Krone wiegt ab der Biegehöhe `bend`, der Stamm darunter steht fest), Farbton je Instanz.
+- **Winter**: `applyWeather` → `setNatureSeason` tauscht je Chunk-Gruppe nur Geometrie und Material der
+  Stufen (`applySeason`); Instanz-Matrizen und Farben bleiben, keine Arbeit pro Bild. Die Winterfassungen werden
+  beim ersten Winter nachgeladen (`loadNatureModels`, ~4 MB); bis dahin – oder ohne Datei (z. B. `bush_winter`) –
+  trägt die Sommerfassung die Schneekappe des Shaders. Die Winterfassungen selbst haben Schnee im Modell (Shader-Schnee
+  aus) und eine nur schwache Farbvariation (kein gelb getönter Schnee).
+- **Leistung** (Karte Seed 42, 611 Bäume, Burg im Blick, Dreiecke samt Schattenpass, Zoom 28): hoch Desktop
+  ~1,4 Mio. (vorher ~0,33 Mio.), niedrig Handy ~48 000 (vorher ~27 000), niedrig Desktop ~140 000 (vorher ~36 000) – vor allem die Bäume der mittleren
+  Stufe. Download: Sommerfassungen (Original, `.lod2`, `.lod3`) 3,8 MB beim Start, Winterfassungen 3,4 MB beim
+  ersten Winter.
+- **Rückfall**: Fehlt ein Sommermodell (`?no-models`, Ladefehler), zeichnet das Spiel die prozeduralen Bäume
+  und Büsche wie früher.
+
+
+**Verteilung der Arten** (`treeSpecies` in `src/render/treeModels.js`, nur Darstellung): gleiche Arten stehen in
+Beständen (glattes Rauschen, etwa 7 Kacheln), nur ~12 % tanzen aus der Reihe; der Nadelanteil steigt mit der Höhe;
+Waldtyp der Welt (`forestType`): normal Laub- und Mischwald, Nadelwald erst im Gebirge; in kalten Welten (≥ 40 % Winter im
+Wetterzyklus) oder mit `forest: 'conifer'` in der Mission überwiegend Nadelwald (`'leafy'`: fast nur Laub);
+Kiefern (kahler Stamm, Krone oben) nur im dichten Wald (≥ 8 Nachbarbäume im Umkreis von 2 Kacheln), sonst Fichten;
+einzeln stehende Bäume sind meist Eichen, an Waldrändern Birken.
 
 ## Detailstufen erzeugen
 
@@ -95,8 +149,7 @@ nicht geladen werden, nimmt das Spiel die prozedurale Figur (`procedural`), eben
 der Einheiten-ID. Das wirkt zufällig, bleibt aber über Laden und Wiederholung gleich. Es betrifft nur die
 Darstellung, die Simulation kennt keine Varianten. Jeder Eintrag darf Rollenfelder überschreiben (`include`,
 `tint`, `clips` …). Fehlt das Modell einer Variante, wird die nächste verfügbare genommen. Helden sind
-feste Rollen (`hero.nelia` …); bis die eigenen Heldenfiguren fertig sind, stehen dort Platzhalter aus dem
-KayKit-Paket (Konzeptbögen in `assets-src/characters/<hero>/`, siehe [STIL.md](STIL.md)).
+feste Rollen (`hero.nelia` …) mit eigenen Figuren (Konzeptbögen in `assets-src/characters/<hero>/`, siehe [STIL.md](STIL.md)).
 
 **Masken-Textur:** Statt Zellen oder Rechtecken kann eine Bilddatei die Spielerfarbe (Rotkanal) und die
 Tönung (Grünkanal) festlegen. Der Shader liest sie je Bildpunkt (`uMaskMap`). Die Pipeline erzeugt sie aus
@@ -119,7 +172,7 @@ einen Punkt zusammengezogen. Kein Shader-Zweig, keine zusätzlichen Zeichenaufru
 | `serf` | Leibeigener |
 | `worker` | Arbeiter (Kittelfarbe je Beruf über `tint`) |
 | `soldier.<line>` / `soldier.<line>.leader` | `sword`, `spear`, `bow`, `lightCav`, `heavyCav`, `cannon` |
-| `hero.<id>` | `nelia`, `orrin`, `taran`, `malvor` (Platzhalter) |
+| `hero.<id>` | `nelia`, `orrin`, `taran`, `malvor` |
 | Gesprächsfigur | Rolle aus `look` der Mission (`serf`, `worker` …) |
 | `bandit`, `bandit.bow` | Räuber (neutraler Missionsspieler) |
 | `mount.horse`, `crew` | Reittier, Kanonenmannschaft (über `attach`) |
@@ -308,3 +361,58 @@ Arbeitsbewegungen: Holzhacken und Spitzhacke als Text-Bewegung, Hämmern aus der
   Ohne Transparenz und ohne Sortierung, kein sichtbares Umschalten.
 - Schatten wirft nur Stufe 0; auf der niedrigen Grafikstufe gibt es stattdessen weiche Blob-Schatten.
 - Ohne echte GPU (Software-Rasterizer) nutzt das Spiel die prozeduralen Figuren (wenige Dreiecke).
+
+## Gebäude aus den Symbolen (`scripts/asset-gen/building.mjs`)
+
+Vorlagen: das Gebäudesymbol aus dem Atlas (`public/icons/symbols.webp`, z. B. `b-residence`) für den Entwurf und
+`assets-src/buildings/style-house.webp` für den Stil (polierte, handgemalte Spielgrafik – nicht Knete, nicht Pastell).
+Bildmodell: Seedream 5.0 Flash über `/api/v1/images` (0,02 $ je Bild).
+
+```bash
+node scripts/asset-gen/building.mjs concept wohnhaus   # Konzept → assets-src/buildings/house/concept.png (Freigabe)
+node scripts/asset-gen/building.mjs concept wohnhaus --out x [--model …]   # Variante zum Vergleich, pick wohnhaus x übernimmt
+node scripts/asset-gen/building.mjs model wohnhaus     # Meshy 7.1, ein Bild → 3D mit PBR (~30 Credits, ~4 min)
+node scripts/asset-gen/building.mjs build wohnhaus     # → public/models/buildings/wohnhaus_<farbe>.glb + .lod1/.lod2
+```
+
+- `assets-src/buildings/<id>/spec.json`: `icon` (Atlasname) oder `from` (Ordner der Vorstufe), `file` (Dateiname im
+  Spiel), `level` (1–3), `polycount`, `describe` (kurz, englisch, ohne Gebäudenamen – sonst malt das Modell Schrift).
+- **Alle Stufen in einem Bild** (`set burg,castle2_old,castle3_old`): gleiche Bauweise und gleicher Maßstab, Vorlagen Symbol,
+  Stilbild und das fertige Wohnhaus; das Bild (`set-vN.png`) wird in Inhaltsspalten zerlegt (Beschriftungen unter den
+  Gebäuden fallen weg) und je Stufe als `concept.png` abgelegt. Stufen im Prompt nach Lage benennen („left building“),
+  nicht „Level 1“ – sonst schreibt das Modell Beschriftungen ins Bild.
+- **Ausbaumuster** (`SET_PATTERN`, für alle Gebäude gleich): gleiche Grundfläche, gleiche Terrakotta-Ziegel, je Stufe
+  ein Geschoss mehr und wertiger – Stufe 1 Holz und Putz, Stufe 2 Steinsockelgeschoss mit Läden und Laternen, Stufe 3
+  überwiegend behauener Stein, geschnitzte Balken, kleine goldene Spitzen.
+- **Hof-Muster** (`spec.layout: "yard"`, `spec.footprint` aus den Spieldaten): Stufe 1 belegt nur etwa die Hälfte des
+  Grundstücks, daneben ein Hof mit passenden Dingen (Kirchhof mit Glocke, Pferde am Stall, Zielscheiben am
+  Schießplatz); Stufe 2 drei Viertel, Stufe 3 alles. So wird der Ausbau auch von oben deutlich. Grundstücksboden
+  ebenerdig (festgetretene Erde), keine erhöhte Platte. `cut a,b,c set-vN.png` schneidet einen gewählten Satz erneut aus.
+- **Einheitliche Dächer:** `build` färbt Blau (Schiefer aus den Symbolen; Blau ist Spielerfarbe) zu Terrakotta
+  (`blueToTerracotta`, abschaltbar mit `spec.keepBlue`). `spec.rotate` dreht ein Modell um die Hochachse, falls Meshy
+  den Eingang nicht nach vorn legt (vorher mit `render.mjs <raw.glb>` prüfen: Ansicht 1 = vorn).
+  Das Spiel skaliert jedes Modell auf seine Grundfläche; die Höhe ergibt sich nur aus den Proportionen des Konzepts –
+  deshalb Geschosse benennen, keine Zahlen. Einzelstufen (`concept`) nutzen `LEVEL_RULES` und `from` (Vorstufe).
+- Feste Regeln im Prompt: freigestellt, kein Boden und keine Bodenplatte, kein Rauch, keine Schrift, nur eine Tür,
+  ein Wimpel in Magenta (Teamfarbe).
+- Teamfarbe: `build` färbt den Wimpel je Spielerfarbe um (Blau, Rot, Grün, Ocker) und schreibt vier Dateien.
+  Lücken zwischen den UV-Inseln werden gefüllt.
+- Einbinden: `BUILDING_ASSETS` in `src/render/assets.js` (Typ → Datei je Stufe) und `OWN_BUILDING_MODELS` (eigene
+  Modelle stehen ohne den grauen Steinsockel, den das Spiel unter KayKit-Gebäude legt).
+- Prüfen: `node scripts/asset-gen/ingame.mjs <ordner> --build residence --levels 3` stellt Stufe 1–3 nebeneinander.
+- Alle Konzeptbilder samt Vorgängerfassungen bleiben in `assets-src/buildings/<id>/` (Artwork-Ablage).
+- **Zwei Ansichten:** `back <id>` erzeugt eine Rückansicht (`concept-back.png`); `model` schickt dann beide Bilder an
+  `multi-image-to-3d` (gleicher Preis, echte Rückseite). Meshy dreht solche Modelle um 90°, `build` gleicht das aus.
+  Passt die Rückansicht nicht zur Vorderansicht (anderes Seitenverhältnis), nur aus der Vorderansicht bauen.
+- **Ohne Wimpel** (`spec.banner: false`): Ruinen und neutrale Objekte. **Ohne Symbol** (kein `spec.icon`): Bild 1 bleibt
+  leer, die Beschreibung trägt allein (Brücke, Lagerfeuer).
+- **Einpassen im Spiel:** je Achse auf die Grundfläche (`OWN_BUILDING_FILL` vergrößert einzelne Modelle),
+  Gruben versenkt mit dunkler Öffnung
+  (`OWN_BUILDING_PIT`: Anteil unter der Bodenscheibe; darunter eine schwarze Fläche: geschlossene Hülle der Bodenscheibe, das Modell liegt 3 cm darüber).
+- **Baustelle und Trümmer** (Gerüst, Bauphasen stage_A–C, `destroyed` aus dem KayKit-Paket): gemalte Bretter und
+  Mauerwerk triplanar darübergelegt (`src/render/painted.js`, Texturen `planks`/`masonry` aus `ground.mjs`); bläuliche
+  Steine werden warm grau. Vergleich mit `?nature=off`, auf Stufe „niedrig“ aus.
+- **Sonderfälle:** Brücke (`bridge`) als ganzes Modell, nur der Mittelteil wird gestreckt (`bridgeAssetModel`);
+  Ruinen je Typ (`RUIN_ASSETS`: `village_ruin`, `house_ruin`, sonst Trümmer); Siedlungsplätze (nur dort darf ein
+  Dorfzentrum stehen) zeigen die Dorfzentrum-Ruine – wie im Vorbild ein verlassenes Dorfzentrum zum Wiederaufbau; Lagerfeuer (`campfire`) mit Flammen als
+  Partikel. Alle werden bei Bedarf nachgeladen.

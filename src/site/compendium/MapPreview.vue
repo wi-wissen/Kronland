@@ -51,9 +51,10 @@
 import { generateMap, MAP_SIZES } from '../../sim/mapgen.js';
 import { WATER, CLIFF } from '../../sim/map.js';
 import { LABELS } from './texts.js';
+import { PLAYER_COLOR_CSS } from '../../render/playerColors.js';
 
 const RES = { clay: '#c46a3a', stone: '#a8a8a0', iron: '#5b6f80', sulfur: '#e3d24a', gold: '#e8b04a' };
-const PLAYER = ['#3b6fbf', '#c03a3f', '#46a052', '#d79a2c'];
+const PLAYER = PLAYER_COLOR_CSS; // default colours (wiki without colour choice)
 
 export default {
   name: 'MapPreview',

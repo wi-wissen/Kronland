@@ -9,7 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "assets": "echo Aufruf: scripts/build-assets.sh <KayKit-Medieval-Hexagon-Pack-1.0> <KayKit-Character-Pack-Adventures-1.0> \\&\\& node scripts/trim-animations.mjs public/models/characters/*.glb"
+    "assets": "echo Aufruf: scripts/build-assets.sh <KayKit-Medieval-Hexagon-Pack-1.0>"
   },
   "author": "Julian Dorn",
   "license": "UNLICENSED",

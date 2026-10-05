@@ -1,8 +1,10 @@
 <template>
   <!-- Top bar as three free-standing plates with a gap to the edge: resources left, crest with payday in the middle,
        coin buttons right. Each plate is only as wide as its content; wraps when space is short instead of overlapping. -->
-  <header ref="bar" class="topbar" :class="{ tight }" data-testid="topbar">
-    <div ref="res" class="tb-res frame" role="group" :aria-label="$t('top.resources')">
+  <header ref="bar" class="topbar" :class="{ tight: mode === 'tight', terse }" data-testid="topbar">
+    <!-- Large amounts in short form ("50k", exact value in the tooltip); if space still does not suffice, the
+         bar becomes two-row (two) before the crest needs a row of its own -->
+    <div ref="res" class="tb-res frame" :class="{ two: mode === 'two' }" role="group" :aria-label="$t('top.resources')" data-testid="res-bar">
       <span
         v-for="r in resources"
         :key="r"
@@ -12,12 +14,12 @@
         tabindex="0"
       >
         <Icon :name="r" />
-        <b class="num" :data-testid="'res-' + r">{{ ui.res[r] }}</b>
+        <b class="num" :data-testid="'res-' + r" :data-value="ui.res[r]">{{ amount(ui.res[r]) }}</b>
       </span>
     </div>
 
     <div ref="crest" class="tb-crest">
-      <div class="tb-plate tb-plate-l frame">
+      <div ref="plateL" class="tb-plate tb-plate-l frame">
         <span v-tip="popTip" class="tb-item tb-pop" tabindex="0" data-testid="pop">
           <Icon name="population" />
           <span class="tb-col">
@@ -42,12 +44,12 @@
         <Icon name="payday" />
         <b v-if="soon" class="tb-soon num" data-testid="payday-soon">{{ ui.paydayIn }}<small>s</small></b>
       </span>
-      <div class="tb-plate tb-plate-r frame">
+      <div ref="plateR" class="tb-plate tb-plate-r frame">
         <span v-tip="weatherTip" class="tb-item" tabindex="0" data-testid="weather">
           <Ring :frac="ui.weather.frac" :color="weatherColor" class="tb-wx"><Icon :name="'weather-' + ui.weather.state" /></Ring>
-          <b class="tb-wxname tb-hide-m">{{ $name.weather(ui.weather.state) }}</b>
+          <b ref="wxname" class="tb-wxname tb-hide-m">{{ $name.weather(ui.weather.state) }}</b>
         </span>
-        <span v-if="ui.faith" v-tip="faithTip" class="tb-item tb-hide-m" tabindex="0">
+        <span v-if="ui.faith" v-tip="faithTip" class="tb-item tb-hide-m" tabindex="0" data-testid="faith">
           <Icon name="faith" />
           <b class="num">{{ ui.faith }}</b>
         </span>
@@ -139,6 +141,7 @@
 import { RESOURCES } from '../sim/data/resources.js';
 import Ring from './Ring.vue';
 import { settings, set as setSetting } from './settings.js';
+import { shortAmount, topbarMode } from './hud/hudLayout.js';
 
 /** From this many seconds before payday the number appears in the medallion */
 export const PAYDAY_SOON = 10;
@@ -154,7 +157,7 @@ export default {
     need: { type: Object, default: null },
   },
   emits: ['speed', 'pause', 'menu'],
-  data() { return { resources: RESOURCES, speeds: SPEEDS, speedOpen: false, soundOpen: false, flash: false, tight: false, cfg: settings }; },
+  data() { return { resources: RESOURCES, speeds: SPEEDS, speedOpen: false, soundOpen: false, flash: false, mode: 'one', terse: false, cfg: settings }; },
   computed: {
     popPct() { return this.ui.pop[1] ? Math.min(100, (100 * this.ui.pop[0]) / this.ui.pop[1]) : 0; },
     popClass() { return this.popPct >= 100 ? 'bad' : this.popPct >= 85 ? 'warn' : 'good'; },
@@ -202,7 +205,7 @@ export default {
     document.addEventListener('pointerdown', this.onDown, true);
     // If the crest does not fit exactly in the middle (side plates too wide), it gets its own row
     this.ro = new ResizeObserver(() => this.measure());
-    for (const el of [this.$refs.bar, this.$refs.res, this.$refs.crest, this.$refs.sys]) this.ro.observe(el);
+    for (const el of [this.$refs.bar, this.$refs.res, this.$refs.crest, this.$refs.sys, ...this.$refs.res.children]) this.ro.observe(el);
     window.addEventListener('keydown', this.onKey, true);
   },
   beforeUnmount() {
@@ -215,10 +218,35 @@ export default {
     measure() {
       const { bar, res, crest, sys } = this.$refs;
       if (!bar || !res || !crest || !sys) return;
-      const gap = parseFloat(getComputedStyle(bar).columnGap) || 0;
-      const need = 2 * Math.max(res.offsetWidth, sys.offsetWidth) + crest.offsetWidth + 2 * gap;
-      this.tight = need > bar.clientWidth;
+      const rs = getComputedStyle(res);
+      this.mode = topbarMode({
+        widths: [...res.children].map((el) => el.offsetWidth),
+        gap: parseFloat(rs.columnGap) || 0,
+        pad: (parseFloat(rs.paddingLeft) || 0) + (parseFloat(rs.paddingRight) || 0) + (parseFloat(rs.borderLeftWidth) || 0) + (parseFloat(rs.borderRightWidth) || 0),
+        sys: sys.offsetWidth,
+        crest: crest.offsetWidth,
+        barGap: parseFloat(getComputedStyle(bar).columnGap) || 0,
+        width: bar.clientWidth,
+      });
+      // Season name only as long as it fits in the row (otherwise only the icon remains)
+      if (this.mode === 'tight') this.terse = false;
+      else {
+        const gap = parseFloat(getComputedStyle(bar).columnGap) || 0;
+        const { plateL, plateR, wxname } = this.$refs;
+        const natural = (el) => {
+          const cs = getComputedStyle(el), kids = [...el.children].filter((k) => k.offsetWidth);
+          return parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + kids.reduce((a, k) => a + k.offsetWidth, 0) + (parseFloat(cs.columnGap) || 0) * Math.max(0, kids.length - 1);
+        };
+        if (wxname?.offsetWidth) this.wxW = wxname.offsetWidth + (parseFloat(getComputedStyle(wxname.parentElement).columnGap) || 0);
+        if (plateL && plateR) {
+          const l = natural(plateL), r = natural(plateR) - (this.terse ? 0 : this.wxW ?? 0);
+          const middle = crest.offsetWidth - 2 * Math.max(plateL.offsetWidth, plateR.offsetWidth);
+          this.terse = 2 * Math.max(res.offsetWidth, sys.offsetWidth) + middle + 2 * Math.max(l, r + (this.wxW ?? 0)) + 2 * gap > bar.clientWidth;
+        }
+      }
     },
+    /** Resource amount for the bar (shortened from 10 000) */
+    amount(n) { return shortAmount(n, { dec: this.$t('num.dec'), k: this.$t('num.k'), m: this.$t('num.m') }); },
     setCfg(k, v) { setSetting(k, v); },
     pickSpeed(s) { this.speedOpen = false; this.$emit('speed', s); },
     resTip(r) {
@@ -248,6 +276,9 @@ export default {
 
 .tb-res { display: flex; gap: 0.125rem; padding: 0.3125rem 0.625rem; min-height: 2.75rem; align-items: center; }
 .tb-resitem b { min-width: 2.2ch; }
+/* Two-row: three columns, entries keep their width (otherwise the measurement fluctuates) */
+.game:not(.compact) .tb-res.two { display: grid; grid-template-columns: repeat(3, auto); justify-items: start; row-gap: 0; padding-block: 0.125rem; }
+.game:not(.compact) .tb-res.two .tb-resitem { padding-block: 0.0625rem; }
 .tb-resitem.short b { color: var(--bad); }
 
 /* Crest: two plates, between them the payday medallion */
@@ -302,7 +333,8 @@ button.tb-mute .ico { width: 1.25rem; height: 1.25rem; }
 .tb-vol.dim { opacity: 0.45; }
 button.coin.tb-muted { color: var(--bad); }
 
-.narrow .tb-hide-m { display: none !important; }
+/* Season name and faith omitted only on phones; otherwise the right plate is as wide as the left one anyway */
+.compact .tb-hide-m, .topbar.terse .tb-wxname { display: none !important; }
 /* Somewhat narrower: condense plates so the crest still stays exactly centred */
 .narrow .topbar { column-gap: 0.75rem; }
 .narrow .tb-res { padding-inline: 0.5rem; }
@@ -318,20 +350,23 @@ button.coin.tb-muted { color: var(--bad); }
 .mid .tb-sys { gap: 0.5rem; }
 /* Phone and narrow windows: resources across the full width, below them crest on the left and buttons on the right */
 .compact .topbar { left: calc(var(--hud-gap) + var(--safe-l)); right: calc(var(--hud-gap) + var(--safe-r)); gap: 0.375rem 0; }
-.compact .tb-res { flex: 1 1 100%; justify-content: space-between; padding: 0.125rem 0.375rem; min-height: 2.25rem; }
+.compact .tb-res { flex: 1 1 100%; flex-wrap: wrap; justify-content: space-between; padding: 0.125rem 0.375rem; min-height: 2.25rem; }
 .compact .tb-resitem { gap: 0.1875rem; padding: 0.1875rem 0.0625rem; }
 .compact .tb-resitem > .ico { width: 1.125rem; height: 1.125rem; }
 .compact .tb-item b { font-size: var(--fs-sm); }
-.compact .tb-crest { margin: 0; }
-.compact .tb-plate { min-height: 2.25rem; gap: 0.375rem; padding: 0 0.5rem; }
-.compact .tb-plate-l { padding-right: 2.125rem; }
-.compact .tb-plate-r { padding-left: 2.125rem; }
+/* Crest not mirror-symmetric (that costs the width of the buttons on phones): columns by content, so crest and
+   coin buttons fit in one row; only when that is not enough do the buttons slip below */
+.compact .tb-crest { margin: 0; grid-template-columns: auto auto auto; }
+.compact .tb-plate { min-height: 2.25rem; gap: 0.25rem; padding: 0 0.375rem; }
+.compact .tb-plate .tb-item { padding-inline: 0.1875rem; }
+.compact .tb-plate-l { padding-right: 1.625rem; }
+.compact .tb-plate-r { padding-left: 1.625rem; }
 .compact .tb-pop .meter { display: none; }
-.compact .tb-medal { width: 3.5rem; height: 3.5rem; margin: 0 -1.625rem; }
+.compact .tb-medal { width: 3.25rem; height: 3.25rem; margin: 0 -1.5rem; }
 .compact .tb-medal > .ico { width: 1.75rem; height: 1.75rem; }
 .compact .tb-wx { width: 1.75rem; height: 1.75rem; }
-.compact .tb-sys { margin-left: auto; gap: 0.375rem; }
-.compact .tb-sys .coin { width: 2.5rem; height: 2.5rem; min-width: 2.5rem; min-height: 2.5rem; }
+.compact .tb-sys { margin-left: auto; gap: 0.25rem; }
+.compact .tb-sys .coin { width: 2.375rem; height: 2.375rem; min-width: 2.375rem; min-height: 2.375rem; }
 .compact .tb-speed { display: none !important; }
 @media (max-width: 380px) {
   .tb-item b small { display: none; }
@@ -340,7 +375,7 @@ button.coin.tb-muted { color: var(--bad); }
 /* Landscape phone: everything in one row, very flat */
 @media (max-height: 480px) and (orientation: landscape) {
   .compact .topbar { flex-wrap: nowrap; }
-  .compact .tb-res { flex: 0 1 auto; justify-content: flex-start; overflow: hidden; }
+  .compact .tb-res { flex: 0 1 auto; flex-wrap: nowrap; justify-content: flex-start; overflow: hidden; }
   .compact .tb-crest { flex: none; margin: 0; }
   .compact .tb-medal { width: 3rem; height: 3rem; margin: 0 -1.375rem; }
   .compact .tb-medal > .ico { width: 1.5rem; height: 1.5rem; }

@@ -58,5 +58,8 @@ Nicht umgesetzt: Sumpf-Klimazone und Nebelvolk, Söldnerlager (die Kampagne hat 
   ihre Wasserkacheln, zerstört werden sie wieder Wasser, wer darauf steht, ertrinkt.
 - Computergegner: baut nach Kaserne und drei Hauptleuten eine Brücke Richtung Gegner sowie Brunnen und Denkmal
   (`EXTRAS` in `src/ai/AiPlayer.js`).
-- Modelle: Brunnen aus dem KayKit-Paket (`well`), Brücke und Denkmal prozedural.
+- Modelle: Brunnen, Denkmal und Brücke eigene Meshy-Modelle (`fountain`, `statue`, `bridge`). Die Brücke ist ein
+  ganzes Modell mit zwei Widerlagern; `bridgeAssetModel` (src/render/models.js) streckt nur den gleichförmigen
+  Mittelteil auf die Länge der Brückenstelle (2–9 Kacheln), die Enden bleiben unverzerrt. Bis es geladen ist,
+  steht die prozedurale Brücke.
 - Tests: `tests/sim/bridges.test.js`, E2E `e2e/bridges.spec.js`.

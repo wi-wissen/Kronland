@@ -9,7 +9,7 @@ export const STYLE = [
   'same character, A-pose (arms angled down ~40°, hands open), feet flat, standing straight.',
   'Stylized 3D-render look (warm, soft, hand-painted textures), stocky proportions (large head and hands, short legs,',
   'about 4 heads tall), clear readable silhouette from a high top-down game camera.',
-  'Plain uniform light warm-grey background, no shadows on the ground, no props in the hands, no text, no frame.',
+  'Plain uniform light warm-grey background, no shadows on the ground, no props in the hands unless the description names a weapon or tool held in the hand, no text, no frame.',
   `All team-color areas (scarf, cap or headband, banners) are painted in ${MARKER} but keep their material structure,`,
   'folds, knit pattern and soft shading (do not paint them as a flat color fill); magenta appears nowhere else.',
   'Clothing in linen, brown, leather and grey tones – no green clothing (it would blend into the grass).',
@@ -20,6 +20,7 @@ export const FEMALE = [
   'Turn this male character into a female counterpart: same profession, same clothing pieces, colors and materials,',
   'same marker-colored areas, same art style, proportions and A-pose, same four views and background.',
   'Change face, hair and body shape to a woman; no beard.',
+  'Keep every held tool, weapon or object EXACTLY as in the male sheet (same hand, same position away from the body), keep stoles, sashes and capes.',
 ].join(' ');
 
 /**

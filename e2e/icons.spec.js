@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
+import { quick } from './quick.js';
 
 // Colourful icons from the AI atlas (public/icons/symbols.webp, docs/SYMBOLE.md):
 // resources and build menu show atlas crops, control icons stay vector masks.
@@ -32,7 +33,7 @@ test('Icons come from the atlas', async ({ page }, info) => {
   await expect(page.locator('.ico.glyph').first()).toBeVisible();
 
   // Build menu: building icons from the atlas
-  await page.getByTestId('quick-all').click();
+  await quick(page, 'all');
   await expect(page.getByTestId('build-residence')).toBeVisible(SLOW);
   await expect(page.getByTestId('build-residence').locator('.ico.atlas[data-icon="b-residence"]')).toHaveCount(1);
   await page.waitForTimeout(500);

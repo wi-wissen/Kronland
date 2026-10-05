@@ -198,6 +198,8 @@ export default {
 .hcard.down .hc-portrait { filter: grayscale(1) brightness(0.7); }
 .hc-portrait { flex: none; width: 3.5rem; height: 3.5rem; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 50% 35%, #fbf1d6, #c9a66b); box-shadow: inset 0 0 0 2px var(--gold-400), 0 0 0 2px var(--wood-950), 0 2px 6px rgba(0, 0, 0, 0.5); }
 .hc-portrait .ico { width: 2.75rem; height: 2.75rem; }
+/* Painted portrait fills the circle inside the gold ring */
+.hc-portrait .ico.portrait { width: calc(100% - 4px); height: calc(100% - 4px); border-radius: 50%; }
 .hc-info { display: flex; flex-direction: column; gap: 0.125rem; min-width: 5.5rem; flex: 1; }
 .hc-info b { font-family: var(--display); color: var(--gold-200); font-size: var(--fs-lg); line-height: 1; }
 .hc-info small { color: var(--ink-muted); font-size: var(--fs-xs); }
@@ -236,7 +238,8 @@ export default {
 .gc-stars .ico { width: 0.75rem; height: 0.75rem; }
 .ap-hint { margin: 0; color: var(--ink-dim); font-size: var(--fs-xs); }
 @media (max-width: 760px), (max-height: 480px) and (orientation: landscape) {
-  .ap-acts { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  /* Wrap instead of swiping sideways: the heroes' abilities otherwise lay invisible off to the right */
+  .ap-acts { flex-wrap: wrap; }
   .hc-portrait { width: 3rem; height: 3rem; }
   .ap-leaders { grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); }
   .lc-troop { display: none; }

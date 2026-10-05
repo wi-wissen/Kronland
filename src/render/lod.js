@@ -33,6 +33,8 @@ export const LOD_PROFILES = {
   scatterSmall: { thresholds: [], cull: 66 },
   // Rocks and bushes: from 62 tiles (effective distance) without shadow casting (same geometry)
   scatterLarge: { thresholds: [62], cull: Infinity, minBias: 0.8 },
+  // Bush model (~950 triangles near, ~200 far): far also without shadow casting
+  bush: { thresholds: [26], cull: Infinity, minBias: 0.8 },
   effect: { thresholds: [], cull: 120 },
 };
 

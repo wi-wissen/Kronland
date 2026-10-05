@@ -60,7 +60,7 @@
         </div>
       </div>
 
-      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog()" @line="engine.dialogFocus($event)" @focus="engine.focusHint($event)" @tribute="engine.payTribute($event)" />
+      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" :compact="compact" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog()" @line="engine.dialogFocus($event)" @focus="engine.focusHint($event)" @tribute="engine.payTribute($event)" />
       <MissionResult
         v-if="ui.mission?.result"
         :result="ui.mission.result"
@@ -114,7 +114,7 @@ import AdventureMenu from './script/AdventureMenu.vue';
 import { recordWin, loadProgress } from './mission/progress.js';
 import { getMission } from '../sim/missions/registry.js';
 import { setMenuMusic } from '../audio/index.js';
-import { settings } from './settings.js';
+import { settings, applyPlayerColor } from './settings.js';
 import { clock } from './plugin.js';
 import { getStore, autosaveDue, AUTO_ID, SaveError } from '../save/index.js';
 import { defaultSaveName } from '../save/format.js';
@@ -268,6 +268,7 @@ export default {
       this.progress = 0;
       this.tipNo = 1 + Math.floor(Math.random() * 6);
       const players = opts.load ? opts.load.players.length : opts.players;
+      applyPlayerColor(); // set the player colour before the models are loaded (colour variants per player)
       if (!opts.noAssets) await loadAssets(players, (d, t) => { this.progress = Math.round((d / t) * 100); });
       this.progress = 100;
       await this.$nextTick();
@@ -287,7 +288,8 @@ export default {
       if (!def) return;
       this.recorded = false;
       this.record = false;
-      this.origin = def.scenario ? 'adventures' : 'campaign';
+      // Showcase is in the coding adventure menu: go back there
+      this.origin = def.scenario || def.showcase ? 'adventures' : 'campaign';
       const players = def.players.filter((p) => p.kind !== 'bandits').length + (def.players.some((p) => p.kind === 'bandits') ? 1 : 0);
       this.boot({ mission: { id, seed: extra.seed }, players, noAssets: extra.noAssets });
     },

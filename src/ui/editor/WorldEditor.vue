@@ -185,6 +185,7 @@ import { SCENARIOS } from '../../sim/missions/scenarios/index.js';
 import { RESOURCES } from '../../sim/data/resources.js';
 import { HERO_IDS } from '../../sim/data/units.js';
 import { loadAssets } from '../../render/assets.js';
+import { applyPlayerColor } from '../settings.js';
 import { scriptErrorText } from '../../i18n/index.js';
 
 const DRAFT = 'kronland-editor-draft';
@@ -249,6 +250,7 @@ export default {
     this.layout = () => { this.compact = window.innerWidth < 900 || window.innerHeight < 560; };
     this.layout();
     window.addEventListener('resize', this.layout);
+    applyPlayerColor();
     try { await loadAssets(Math.max(1, this.realPlayers.length), () => {}); } catch { /* placeholder models */ }
     this.view = markRaw(new EditorView(this.$refs.canvas, this.plainScenario(), {
       onUi: (ui) => { this.ui = ui; },

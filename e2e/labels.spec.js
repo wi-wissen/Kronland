@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
+import { quick, openQuick } from './quick.js';
 
 // Mobile comprehensibility (issue #7): long press shows the tooltip without triggering the action,
 // labels under the icons, setting "Beschriftungen anzeigen".
@@ -26,7 +27,7 @@ async function boot(page) {
 }
 
 async function openBuildMenu(page) {
-  await page.getByTestId('quick-all').click();
+  await quick(page, 'all');
   await expect(page.getByTestId('build-residence')).toBeVisible(SLOW);
 }
 
@@ -81,6 +82,7 @@ test('Long press on the command and top bar triggers nothing', async ({ page, is
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'false');
   // Quick access "Alle": tooltip instead of selection
   await page.mouse.click(5, 300);
+  await openQuick(page);
   await longPress(page, page.getByTestId('quick-all'), isMobile);
   await expect(page.getByTestId('tooltip')).toContainText('Leibeigenen');
   await expect(page.getByTestId('build-residence')).toHaveCount(0);
@@ -106,9 +108,11 @@ test('Labels: on by default on mobile, can be switched off in the settings', asy
   // Mobile: quick access carries visible names; build menu is always labelled
   await page.getByTestId('settings-done').click();
   await page.getByTestId('resume').click();
+  await openQuick(page);
   const label = page.getByTestId('quick-all').locator('.cb-qlbl');
   await expect(label).toBeVisible();
   await expect(label).toHaveText('Alle');
+  await expect(page.getByTestId('minimap-toggle').locator('.cb-qlbl')).toHaveText('Karte');
   await openBuildMenu(page);
   await expect(page.getByTestId('build-residence').locator('.bm-name')).toBeVisible();
   // Switching off hides them
@@ -118,7 +122,8 @@ test('Labels: on by default on mobile, can be switched off in the settings', asy
   await expect(sw).toHaveAttribute('aria-checked', 'false');
   await page.getByTestId('settings-done').click();
   await page.getByTestId('resume').click();
-  await expect(label).toBeHidden();
+  // The map button is always there on mobile: its name disappears
+  await expect(page.getByTestId('minimap-toggle').locator('.cb-qlbl')).toBeHidden();
   await expect(page.getByTestId('build-residence').locator('.bm-name')).toBeVisible();
   expect(errors).toEqual([]);
 });

@@ -1,10 +1,49 @@
-// Nature and markers: trees (leafy, birch, conifer, KayKit pines), tree stumps, decoration scatter
+// Nature and markers: trees (own models, otherwise procedural: broadleaf, birch, conifer), tree stumps, decoration scatter
 // (grass tufts, flowers, bushes, pebbles, rocks), resource deposits, shaft and settlement-spot markers.
 // All low-poly and flat-shaded like the KayKit buildings. Origin = ground, 1 unit = 1 tile.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { instancedParts } from './assets.js';
+import { getQuality } from './quality.js';
+import { natureDetailTexture } from './naturetex.js';
+import { TREE_MODELS, BUSH_MODEL, TREE_LOD_FILES, BUSH_LOD_FILES, seasonLevels } from './treeModels.js';
+
+/**
+ * Texture per nature kind (bush also uses the broadleaf trees' texture): packed channels (R, G), repetitions per tile, strength per channel, mask and colour accent.
+ * mask 'tree': channel R on green faces (crown), G on brown/light faces with red > green (trunk, branches);
+ * 'all': channel R everywhere (rock). tint: colour shift per unit of texture (highlights warmer, shadows cooler).
+ */
+export const NATURE_DETAIL = {
+  leafy: { spec: [{ kind: 'leaves' }, { kind: 'bark', rep: 3 }], scale: 0.8, k: [0.95, 0.8], mask: 'tree', tint: [0.10, 0.05, -0.10] },
+  conifer: { spec: [{ kind: 'needles' }, { kind: 'bark', rep: 2 }], scale: 0.65, k: [0.95, 0.8], mask: 'tree', tint: [0.06, 0.06, -0.06] },
+  bush: { spec: [{ kind: 'leaves' }, { kind: 'bark', rep: 3 }], scale: 0.95, k: [0.9, 0], mask: 'tree', tint: [0.10, 0.05, -0.10] },
+  rock: { spec: [{ kind: 'boulder' }], scale: 1.0, k: [0.75, 0], mask: 'all', tint: [0.03, 0.02, -0.03] },
+  kayRock: { spec: [{ kind: 'boulder' }], scale: 0.9, k: [0.7, 0], mask: 'all', tint: [0.03, 0.02, -0.03] },
+  // resource piles and stone ring of the shafts: small objects, hence finer and stronger rock texture
+  ore: { spec: [{ kind: 'boulder' }], scale: 2.4, k: [1.15, 0], mask: 'all', tint: [0.06, 0.03, -0.06] },
+  // boards and beams (headframe, sign): fine grain
+  timber: { spec: [{ kind: 'bark', rep: 2 }], scale: 1.5, k: [1.0, 0], mask: 'all', tint: [0.08, 0.04, -0.06] },
+  // wood (tree stumps, root stock): bark everywhere
+  wood: { spec: [{ kind: 'bark', rep: 3 }], scale: 0.8, k: [0.8, 0], mask: 'all', tint: [0.08, 0.04, -0.06] },
+};
+
+/** Texture switched off? (?nature=off for comparison, level "low" for performance reasons) */
+export function natureDetailOff() {
+  if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('nature') === 'off') return true;
+  return getQuality().tier === 'low';
+}
+
+/**
+ * Painted texture for a nature kind (option `detail` of natureMaterial), or null (switched off, image missing).
+ * @param {keyof typeof NATURE_DETAIL} name
+ */
+export function natureDetail(name) {
+  const d = NATURE_DETAIL[name];
+  if (!d || typeof document === 'undefined' || natureDetailOff()) return null;
+  const tex = natureDetailTexture(d.spec, getQuality().anisotropy);
+  return tex ? { ...d, tex } : null;
+}
 
 /** Deterministic rendering random. */
 export function rng(seed) {
@@ -170,30 +209,46 @@ function stumpGeo() {
  * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
  */
 export function natureMaterial(shared, opts = {}) {
-  const { wind = 0.05, vertexColors = true, map = null, snowCap = true, upNormal = false, fade = null } = opts;
-  const m = new THREE.MeshStandardMaterial({ vertexColors, map, roughness: 0.88, metalness: 0, flatShading: true });
-  // Wind and snow cap as uniforms: all nature materials share a few shader programs
-  const uWind = { value: wind }, uSnowCap = { value: snowCap ? 1 : 0 };
+  const {
+    wind = 0.05, vertexColors = true, map = null, snowCap = true, upNormal = false, fade = null, detail = null,
+    normalMap = null, normalScale = null, flat = true, bend = 0.45, tintMix = null,
+  } = opts;
+  const m = new THREE.MeshStandardMaterial({ vertexColors, map, roughness: 0.88, metalness: 0, flatShading: flat });
+  if (normalMap) { m.normalMap = normalMap; if (normalScale) m.normalScale.copy(normalScale); }
+  // Wind, snow cap, bend height and colour variation as uniforms: all nature materials share a few shader programs
+  const uWind = { value: wind }, uSnowCap = { value: snowCap ? 1 : 0 }, uBend = { value: bend }, uTintMix = { value: tintMix ?? 1 };
   m.userData.uWind = uWind;
+  m.userData.uSnowCap = uSnowCap;
+  m.userData.uTintMix = uTintMix;
   m.onBeforeCompile = (s) => {
     s.uniforms.uTime = shared.uTime;
     s.uniforms.uSnow = shared.uSnow;
     s.uniforms.uWind = uWind;
     s.uniforms.uSnowCap = uSnowCap;
+    s.uniforms.uBend = uBend;
+    if (tintMix !== null) s.uniforms.uTintMix = uTintMix;
     if (fade) s.uniforms.uFade = fade;
+    if (detail) {
+      s.uniforms.uDetail = { value: detail.tex };
+      s.uniforms.uDetailS = { value: detail.scale };
+      s.uniforms.uDetailK = { value: new THREE.Vector2(...detail.k) };
+      s.uniforms.uDetailTint = { value: new THREE.Vector3(...detail.tint) };
+    }
     s.vertexShader = s.vertexShader
       .replace('#include <common>', `#include <common>
 uniform float uTime;
 uniform float uWind;
+uniform float uBend;
 ${fade ? 'uniform vec2 uFade;' : ''}
-varying float vUp;`)
+varying float vUp;
+${detail ? 'varying vec3 vWPos; varying vec3 vWN;' : ''}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
 #ifdef USE_INSTANCING
 ${fade ? `// shrink into the ground with distance (instead of suddenly disappearing)
 transformed *= 1.0 - smoothstep(uFade.x, uFade.y, distance((modelMatrix * instanceMatrix[3]).xyz, cameraPosition));` : ''}
 vec2 ip = vec2(instanceMatrix[3].x, instanceMatrix[3].z);
 float sway = sin(uTime * 1.4 + ip.x * 0.6 + ip.y * 0.45) + sin(uTime * 2.3 + ip.x * 1.3) * 0.35;
-float bend = max(0.0, position.y - 0.45);
+float bend = max(0.0, position.y - uBend);
 transformed.x += sway * uWind * bend;
 transformed.z += sway * uWind * 0.6 * bend;
 #endif`)
@@ -202,19 +257,48 @@ transformed.z += sway * uWind * 0.6 * bend;
 vUp = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal).y;
 #else
 vUp = normalize(mat3(modelMatrix) * objectNormal).y;
-#endif`);
+#endif`)
+      .replace('#include <project_vertex>', `#include <project_vertex>
+${detail ? `#ifdef USE_INSTANCING
+vWPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+vWN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);
+#else
+vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+vWN = normalize(mat3(modelMatrix) * objectNormal);
+#endif` : ''}`);
     s.fragmentShader = s.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform float uSnow;
 uniform float uSnowCap;
-varying float vUp;`)
-      .replace('#include <color_fragment>', `#include <color_fragment>
+${tintMix !== null ? 'uniform float uTintMix;' : ''}
+varying float vUp;
+${detail ? `uniform sampler2D uDetail; uniform float uDetailS; uniform vec2 uDetailK; uniform vec3 uDetailTint;
+varying vec3 vWPos; varying vec3 vWN;` : ''}`)
+      .replace('#include <color_fragment>', `${tintMix !== null
+    // colour variation per instance attenuable (winter: no yellow-tinted snow)
+    ? `#if defined( USE_COLOR_ALPHA )
+diffuseColor *= vColor;
+#elif defined( USE_COLOR )
+diffuseColor.rgb *= mix(vec3(1.0), vColor.rgb, uTintMix);
+#endif`
+    : '#include <color_fragment>'}
+${detail ? `// painted texture from all sides (triplanar, 3 lookups): channels normalised around 0.5 (naturetex.js), so
+// on average neither brighter nor darker; only brightness and a slight colour accent, the hue stays that of the model
+{ vec3 bw = pow(abs(vWN), vec3(4.0)); bw /= (bw.x + bw.y + bw.z);
+  vec2 t = texture2D(uDetail, vWPos.zy * uDetailS).rg * bw.x + texture2D(uDetail, vWPos.xz * uDetailS).rg * bw.y + texture2D(uDetail, vWPos.xy * uDetailS).rg * bw.z;
+  t = t * 2.0 - 1.0;
+  ${detail.mask === 'tree'
+    // trunk and branches: red over green (brown, birch whitish); the crown is always greener than red
+    ? 'float bark = smoothstep(0.004, 0.03, diffuseColor.r - diffuseColor.g); float d = mix(t.x * uDetailK.x, t.y * uDetailK.y, bark);'
+    : 'float d = t.x * uDetailK.x;'}
+  // values count as in sRGB (painted): convert to linear colour space
+  diffuseColor.rgb *= pow(max(1.0 + d, 0.2), 2.2) * max(vec3(0.0), 1.0 + d * uDetailTint); }` : ''}
 diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.96, 1.0), uSnow * uSnowCap * smoothstep(0.25, 0.7, vUp));`);
     // blades: visible on both sides, but always lit like the ground (do not flip the back side)
     if (upNormal) s.fragmentShader = s.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
 normal = normalize(vNormal);`);
   };
-  m.customProgramCacheKey = () => 'kr-nature' + (upNormal ? '-up' : '') + (fade ? '-fade' : '');
+  m.customProgramCacheKey = () => 'kr-nature' + (upNormal ? '-up' : '') + (fade ? '-fade' : '') + (detail ? `-d${detail.mask}` : '') + (tintMix !== null ? '-tm' : '');
   return m;
 }
 
@@ -224,40 +308,32 @@ normal = normalize(vNormal);`);
  * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
  */
 export function treeVariants(detail, shared) {
-  const mat = natureMaterial(shared, { wind: 0.045 });
+  const mat = natureMaterial(shared, { wind: 0.045, detail: natureDetail('leafy') });
+  const matC = natureMaterial(shared, { wind: 0.045, detail: natureDetail('conifer') });
   const v = [
     { kind: 'leafy', geometry: leafyTree(detail, 11, {}), material: mat, scale: 1.25 },
     { kind: 'leafy', geometry: leafyTree(detail, 23, { crownR: 0.56, trunkH: 0.55, dark: 0x3a6424, light: 0xa3c853 }), material: mat, scale: 1.2 },
     { kind: 'birch', geometry: leafyTree(detail, 37, { crownR: 0.4, trunkH: 0.8, trunk: 0xe6e1d4, dark: 0x5a8a2c, light: 0xc8dc6a, slim: 0.75 }), material: mat, scale: 1.2 },
-    { kind: 'conifer', geometry: conifer(detail, 41, {}), material: mat, scale: 1.15 },
-    { kind: 'conifer', geometry: conifer(detail, 53, { h: 2.2, r0: 0.44, tiers: detail ? 5 : 3, dark: 0x1a3f2a, light: 0x3f7a48 }), material: mat, scale: 1.15 },
+    { kind: 'conifer', geometry: conifer(detail, 41, {}), material: matC, scale: 1.15 },
+    { kind: 'conifer', geometry: conifer(detail, 53, { h: 2.2, r0: 0.44, tiers: detail ? 5 : 3, dark: 0x1a3f2a, light: 0x3f7a48 }), material: matC, scale: 1.15 },
   ];
-  // KayKit pines as additional conifers (if loaded); stretch the crown a bit so the trunk is visible
-  if (detail) {
-    for (const name of ['nature/tree_single_A', 'nature/tree_single_B']) {
-      const parts = instancedParts(name);
-      if (!parts) continue;
-      const geo = mergeGeometries(parts.map((p) => {
-        const g = p.geometry.clone();
-        for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
-        g.translate(0, 0.1, 0);
-        return g;
-      }));
-      if (!geo) continue;
-      v.push({ kind: 'conifer', geometry: geo, material: natureMaterial(shared, { wind: 0.04, vertexColors: false, map: parts[0].material.map }), scale: 1.55 });
-    }
-  }
   for (const t of v) { t.geometry.computeBoundingSphere(); }
   return v;
 }
 
 /**
- * Tree variants with LOD levels: levels[0] nearest, levels[n] farthest.
- * High/medium tier: [detailed, simple, far]; low tier: [simple, far].
+ * Tree variants with LOD levels: levels[0] nearest, levels[n] farthest. With loaded tree models
+ * (treeModels.js) their LOD levels, otherwise the procedural trees: high/medium level [detailed, simple,
+ * far], low level [simple, far].
  * @param {boolean} detail
  * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
+ * @param {{ models?: boolean }} [opts] models: false forces the procedural trees
  */
-export function treeLodVariants(detail, shared) {
+export function treeLodVariants(detail, shared, opts = {}) {
+  if (opts.models !== false) {
+    const m = treeModelVariants(detail, shared);
+    if (m) return m;
+  }
   const near = treeVariants(detail, shared);
   const simple = detail ? treeVariants(false, shared) : null;
   const P = [
@@ -267,15 +343,153 @@ export function treeLodVariants(detail, shared) {
   ];
   return near.map((v, i) => {
     const p = P[i];
-    if (!p) return { ...v, levels: [v.geometry] }; // KayKit pines: already very simple
     const far = p[0] === 'conifer' ? farConifer(p[1], p[2]) : farLeafy(p[1], p[2]);
     far.computeBoundingSphere();
-    return { ...v, levels: simple ? [v.geometry, simple[i].geometry, far] : [v.geometry, far] };
+    return { ...v, levels: simple ? [v.geometry, simple[i].geometry, far] : [v.geometry, far], winter: null };
   });
 }
 
+// ---------- Own tree and bush models ----------
+
+const modelFile = (name, k) => `buildings/${name}${k ? `.lod${k}` : ''}`;
+
+/** Keep only position, normal and UV (parts mergeable, there are no vertex colours of the models). */
+function bareParts(parts) {
+  const indexed = parts.every((p) => p.geometry.index);
+  return mergeGeometries(parts.map((p) => {
+    const g = indexed || !p.geometry.index ? p.geometry.clone() : p.geometry.toNonIndexed();
+    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
+    return g;
+  }));
+}
+
+/**
+ * Stand model geometry on the ground, centre it and bring it to a height; flat models as a cross.
+ * Scale and centre come from the original (ref), so that all LOD levels coincide.
+ * @param {THREE.BufferGeometry} g (is modified) @param {THREE.Box3} ref outline of the original
+ * @param {number} height target height @param {boolean} [cross]
+ */
+export function fitNatureGeometry(g, ref, height, cross = false) {
+  const c = ref.getCenter(new THREE.Vector3());
+  const s = height / Math.max(1e-6, ref.max.y - ref.min.y);
+  g.translate(-c.x, -ref.min.y, -c.z);
+  g.scale(s, s, s);
+  const out = cross ? crossGeometry(g) : g;
+  out.computeBoundingBox();
+  out.computeBoundingSphere();
+  return out;
+}
+
+/**
+ * Cheap game trick for flat models (bare winter trees, birch): original and a copy rotated by 90° around the
+ * vertical axis into one geometry – full from every side, one draw call.
+ * @param {THREE.BufferGeometry} g
+ */
+export function crossGeometry(g) {
+  const b = g.clone();
+  b.rotateY(Math.PI / 2);
+  const out = mergeGeometries([g, b]);
+  g.dispose(); b.dispose();
+  return out;
+}
+
+const refBoxes = new Map();
+/** Outline of the original (model space, from the parts). */
+function modelBox(name) {
+  if (refBoxes.has(name)) return refBoxes.get(name);
+  const parts = instancedParts(modelFile(name, 0));
+  if (!parts) return null;
+  const box = new THREE.Box3();
+  for (const p of parts) { p.geometry.computeBoundingBox(); box.union(p.geometry.boundingBox); p.geometry.dispose(); }
+  refBoxes.set(name, box);
+  return box;
+}
+
+/**
+ * LOD levels of a model as finished geometries (per entry in files, 0 = original) and the material of the
+ * original, or null if the original is not loaded. Missing levels: next coarser available.
+ * @param {{name: string, cross?: boolean}} model @param {number} height @param {number[]} files
+ */
+export function natureModelLevels(model, height, files) {
+  const ref = modelBox(model.name);
+  const base = ref && instancedParts(modelFile(model.name, 0));
+  if (!base) return null;
+  const material = base[0].material;
+  for (const p of base) p.geometry.dispose();
+  const geos = files.map((k) => {
+    const parts = instancedParts(modelFile(model.name, k));
+    if (!parts) return null;
+    const g = fitNatureGeometry(bareParts(parts), ref, height, !!model.cross);
+    for (const p of parts) p.geometry.dispose();
+    return g;
+  });
+  const levels = seasonLevels(geos);
+  return levels && { levels, material };
+}
+
+/**
+ * Material of a tree or bush model: texture and normals of the model, softly shaded, wind from the
+ * bend height. snowCap: snow from the shader (only if the winter version is missing; otherwise the snow is in the model).
+ */
+function natureModelMaterial(shared, src, opts) {
+  const m = natureMaterial(shared, {
+    vertexColors: false, map: src.map ?? null, normalMap: src.normalMap ?? null, normalScale: src.normalScale ?? null,
+    flat: false, wind: opts.wind, bend: opts.bend, snowCap: opts.snowCap, tintMix: opts.tintMix ?? 1,
+  });
+  m.side = THREE.DoubleSide;
+  return m;
+}
+
+/**
+ * Tree variants from the own models (summer) including winter version, or null if a summer model is missing.
+ * winter() only builds the winter levels when they are needed (models are reloaded on demand).
+ * @param {boolean} detail @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
+ */
+export function treeModelVariants(detail, shared) {
+  const files = detail ? TREE_LOD_FILES.detail : TREE_LOD_FILES.simple;
+  const out = [];
+  for (const t of TREE_MODELS) {
+    const m = natureModelLevels(t, t.height, files);
+    if (!m) return null;
+    // summer: shader snow cap on – only applies while the winter version is still loading or missing
+    const material = natureModelMaterial(shared, m.material, { wind: 0.03, bend: t.bend, snowCap: true });
+    out.push({
+      kind: t.kind, model: t.name, geometry: m.levels[0], levels: m.levels, material, scale: 1,
+      winter: seasonVariant(t, files, shared, 0.03),
+    });
+  }
+  return out;
+}
+
+/** Winter version of a kind (lazy): {levels, material} or null while/if the model is missing. */
+function seasonVariant(t, files, shared, wind) {
+  let made = null;
+  return () => {
+    if (made) return made;
+    const m = natureModelLevels(t.winter, t.height, files);
+    if (!m) return null;
+    // snow is in the model; colour variation only weak (otherwise yellow-tinted snow with autumn dabs)
+    made = { levels: m.levels, material: natureModelMaterial(shared, m.material, { wind, bend: t.bend, snowCap: false, tintMix: 0.3 }) };
+    return made;
+  };
+}
+
+/**
+ * Bush from the own model (summer, winter lazy) for the decoration scatter, or null.
+ * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
+ */
+export function bushModelVariant(shared) {
+  const m = natureModelLevels(BUSH_MODEL, BUSH_MODEL.height, BUSH_LOD_FILES);
+  if (!m) return null;
+  return {
+    levels: m.levels,
+    material: natureModelMaterial(shared, m.material, { wind: 0.02, bend: BUSH_MODEL.bend, snowCap: true }),
+    winter: seasonVariant(BUSH_MODEL, BUSH_LOD_FILES, shared, 0.02),
+  };
+}
+
 export function stumpVariant(shared) {
-  return { geometry: stumpGeo(), material: natureMaterial(shared, { wind: 0, snowCap: true }) };
+  return { geometry: stumpGeo(), material: natureMaterial(shared, { wind: 0, snowCap: true, detail: natureDetail('wood') }) };
 }
 
 // ---------- Decoration scatter ----------
@@ -371,18 +585,21 @@ function rockGeo(seed, size = 1) {
 }
 
 /**
- * Scatter kinds. Each: { name, geometry, material, winter: visible in winter }
+ * Scatter kinds. Each: { name, geometry, material, winter: visible in winter }; the bush model additionally with
+ * levels (LOD levels) and season() (winter version).
  * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
+ * @param {{ models?: boolean }} [opts] models: false = procedural bushes
  */
-export function scatterKinds(shared) {
+export function scatterKinds(shared, opts = {}) {
   // distance at which small decoration is faded out (set by the renderer per graphics level and field of view)
   const fade = (shared.uFade ??= { value: new THREE.Vector2(45, 60) });
   const soft = natureMaterial(shared, { wind: 0.12, snowCap: false, upNormal: true, fade });
   soft.flatShading = false;
   soft.side = THREE.DoubleSide;
-  const plant = natureMaterial(shared, { wind: 0.03 });
-  const stone = natureMaterial(shared, { wind: 0 });
-  const stoneSmall = natureMaterial(shared, { wind: 0, fade });
+  const plant = natureMaterial(shared, { wind: 0.03, detail: natureDetail('bush') });
+  const rockDetail = natureDetail('rock');
+  const stone = natureMaterial(shared, { wind: 0, detail: rockDetail });
+  const stoneSmall = natureMaterial(shared, { wind: 0, fade, detail: rockDetail });
   const kinds = {
     grass: { small: true, geometry: grassTuft(3, [0x406a26, 0x8cbc4a]), material: soft, winter: false },
     grassDry: { small: true, geometry: grassTuft(5, [0x6a7a34, 0xc2c070]), material: soft, winter: false },
@@ -397,8 +614,9 @@ export function scatterKinds(shared) {
     rockB: { geometry: rockGeo(29, 1.4), material: stone, winter: true },
     reeds: { small: true, geometry: reedsGeo(31), material: soft, winter: false },
   };
-  // KayKit models in addition (if loaded): rocks, rock peaks, water lilies
-  const kay = (name, key, winter, snowCap = true) => {
+  // KayKit models in addition (if loaded): rocks, rock peaks
+  const kayRock = natureDetail('kayRock');
+  const kay = (name, key, winter, snowCap = true, detail = null) => {
     const parts = instancedParts(name);
     if (!parts) return;
     const g = mergeGeometries(parts.map((p) => {
@@ -406,11 +624,16 @@ export function scatterKinds(shared) {
       for (const k of Object.keys(c.attributes)) if (!['position', 'normal', 'uv'].includes(k)) c.deleteAttribute(k);
       return c;
     }));
-    if (g) kinds[key] = { geometry: g, material: natureMaterial(shared, { wind: 0, vertexColors: false, map: parts[0].material.map, snowCap }), winter };
+    if (g) kinds[key] = { geometry: g, material: natureMaterial(shared, { wind: 0, vertexColors: false, map: parts[0].material.map, snowCap, detail }), winter };
   };
-  for (const n of ['A', 'B', 'C', 'D', 'E']) kay(`nature/rock_single_${n}`, 'kk' + n, true);
-  for (const n of ['A', 'B', 'C']) kay(`nature/mountain_${n}`, 'mt' + n, true);
-  for (const n of ['A', 'B']) kay(`nature/waterlily_${n}`, 'lily' + n, false, false);
+  for (const n of ['A', 'B', 'C', 'D', 'E']) kay(`nature/rock_single_${n}`, 'kk' + n, true, true, kayRock);
+  for (const n of ['A', 'B', 'C']) kay(`nature/mountain_${n}`, 'mt' + n, true, true, kayRock);
+  // own bush model instead of the procedural bushes (LOD levels and winter version, see bushModelVariant)
+  const bush = opts.models === false ? null : bushModelVariant(shared);
+  if (bush) {
+    kinds.bush = { geometry: bush.levels[0], levels: bush.levels, material: bush.material, winter: true, season: bush.winter, model: true };
+    delete kinds.bushB;
+  }
   return kinds;
 }
 
@@ -447,8 +670,9 @@ function mmat(key, opts) {
   if (!markerMats.has(key)) markerMats.set(key, natureMaterial(shared0, { wind: 0, ...opts }));
   return markerMats.get(key);
 }
-function vmesh(geo, key = 'v') {
-  const m = new THREE.Mesh(geo, mmat(key, {}));
+/** Mesh with vertex colours; detail: nature texture (e.g. 'rock' for piles and stone ring, 'wood' for wood). */
+function vmesh(geo, detail = null) {
+  const m = new THREE.Mesh(geo, mmat(detail ?? 'v', detail ? { detail: natureDetail(detail) } : {}));
   m.castShadow = true; m.receiveShadow = true;
   return m;
 }
@@ -488,43 +712,56 @@ function woodPile(seed) {
   return m;
 }
 
-/** Resource deposit: flat mound with chunks in the resource colour (wood: logs). */
+/**
+ * Resource deposit (wood: logs, see woodPile): flat earth mound with chunks in the resource colour, scree at the edge and veins/crystals.
+ * Chunks with more faces and painted rock texture ('ore'), so that they look like rock even up close.
+ */
 export function depositModel(res, seed = 1) {
   if (res === 'wood') return woodPile(seed);
   const d = DEPOSIT[res] ?? DEPOSIT.stone;
   const r = rng(seed * 31 + res.length);
   const parts = [];
-  const mound = new THREE.IcosahedronGeometry(0.45, 1);
-  jitter(mound, 0.12, seed);
-  mound.scale(1, 0.32, 1);
+  const mound = new THREE.IcosahedronGeometry(0.5, 2);
+  jitter(mound, 0.1, seed);
+  mound.scale(1, 0.3, 1);
   mound.translate(0, 0.02, 0);
   parts.push(crownPaint(mound, d.base, d.chunks[0], -0.1, 0.18, seed));
-  const n = 7;
+  const n = 9;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + r() * 0.6;
-    const dd = i === 0 ? 0 : 0.18 + r() * 0.22;
-    const rr = (i === 0 ? 0.2 : 0.09 + r() * 0.08);
+    const dd = i === 0 ? 0 : 0.16 + r() * 0.24;
+    const rr = (i === 0 ? 0.21 : 0.08 + r() * 0.09);
     let g;
     if (res === 'sulfur' && i % 2 === 1) {
       g = new THREE.OctahedronGeometry(rr * 0.8, 0); g.scale(0.6, 1.6, 0.6);
       g.rotateZ((r() - 0.5) * 0.6);
     } else if (res === 'clay') {
-      g = new THREE.BoxGeometry(rr * 1.6, rr * 0.8, rr * 1.1); g.rotateY(r() * 3); g.rotateX((r() - 0.5) * 0.4);
+      g = new THREE.BoxGeometry(rr * 1.6, rr * 0.8, rr * 1.1, 2, 1, 2); jitter(g, rr * 0.12, seed + i);
+      g.rotateY(r() * 3); g.rotateX((r() - 0.5) * 0.4);
     } else {
-      g = new THREE.DodecahedronGeometry(rr, 0); jitter(g, rr * 0.3, seed + i);
+      g = new THREE.IcosahedronGeometry(rr, 1); jitter(g, rr * 0.38, seed + i);
+      g.scale(1, 0.75 + r() * 0.2, 1); g.rotateY(r() * 3);
     }
     g.translate(Math.cos(a) * dd, 0.1 + rr * 0.6 + (i === 0 ? 0.08 : 0), Math.sin(a) * dd);
-    parts.push(solid(g, d.chunks[i % d.chunks.length], 0.1, i + seed));
+    parts.push(solid(g, d.chunks[i % d.chunks.length], 0.12, i + seed));
+  }
+  // scree at the foot of the mound
+  for (let i = 0; i < 12; i++) {
+    const a = r() * Math.PI * 2, dd = 0.42 + r() * 0.16, rr = 0.03 + r() * 0.035;
+    const g = new THREE.DodecahedronGeometry(rr, 0); jitter(g, rr * 0.4, seed + 40 + i);
+    g.scale(1, 0.6, 1);
+    g.translate(Math.cos(a) * dd, rr * 0.3, Math.sin(a) * dd);
+    parts.push(solid(g, i % 3 ? d.chunks[(i + 1) % d.chunks.length] : d.base, 0.1, i + 7));
   }
   // small accents (veins, crystals)
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     const g = new THREE.TetrahedronGeometry(0.05 + r() * 0.03, 0);
     const a = r() * Math.PI * 2, dd = 0.1 + r() * 0.3;
     g.translate(Math.cos(a) * dd, 0.16 + r() * 0.12, Math.sin(a) * dd);
     parts.push(solid(g, d.accent, 0.05, i));
   }
   const g = new THREE.Group();
-  g.add(vmesh(mergeGeometries(parts), 'v'));
+  g.add(vmesh(mergeGeometries(parts.map((p) => p.index ? p.toNonIndexed() : p)), 'ore'));
   if (res === 'iron' || res === 'sulfur') {
     // glitter: metallic or glowing splinters
     const sp = [];
@@ -553,16 +790,16 @@ function plank(w, h, d, hex, x, y, z) {
 /** Shaft: stone ring, dark pit, wooden headframe and resource chunks. */
 export function shaftMarker(res) {
   const g = new THREE.Group();
-  const parts = [];
+  const parts = [], stones = [];
   const r = rng(res.length * 17 + 5);
   // stone ring
   for (let i = 0; i < 11; i++) {
     const a = (i / 11) * Math.PI * 2;
-    const s = new THREE.DodecahedronGeometry(0.15 + r() * 0.05, 0);
-    jitter(s, 0.06, i);
+    const s = new THREE.IcosahedronGeometry(0.15 + r() * 0.05, 1);
+    jitter(s, 0.07, i);
     s.scale(1, 0.7, 1);
     s.translate(Math.cos(a) * 0.68, 0.08, Math.sin(a) * 0.68);
-    parts.push(solid(s, 0x8f8a80, 0.12, i));
+    stones.push(solid(s, 0x8f8a80, 0.12, i));
   }
   // headframe
   const wood = 0x6b4a2e;
@@ -584,7 +821,7 @@ export function shaftMarker(res) {
   for (let i = 0; i < 6; i++) {
     const s = new THREE.DodecahedronGeometry(0.08 + r() * 0.06, 0);
     s.translate(0.85 + r() * 0.35, 0.06, 0.55 + r() * 0.35);
-    parts.push(solid(s, d.chunks[i % d.chunks.length], 0.1, i));
+    stones.push(solid(s, d.chunks[i % d.chunks.length], 0.1, i));
   }
   // sign
   parts.push(plank(0.05, 0.6, 0.05, wood, -0.95, 0, 0.75));
@@ -592,7 +829,9 @@ export function shaftMarker(res) {
   const badge = new THREE.CircleGeometry(0.07, 8);
   badge.translate(-0.95, 0.53, 0.805);
   parts.push(solid(badge, d.chunks[0], 0));
-  g.add(vmesh(mergeGeometries(parts.map((p) => p.index ? p.toNonIndexed() : p))));
+  const flat = (list) => mergeGeometries(list.map((p) => p.index ? p.toNonIndexed() : p));
+  g.add(vmesh(flat(stones), 'ore'));
+  g.add(vmesh(flat(parts), 'timber'));
   // pit: dark funnel instead of a flat disc, two boards above it
   const pit = new THREE.CylinderGeometry(0.6, 0.18, 0.5, 14, 1, true);
   pit.translate(0, -0.2, 0);
@@ -601,7 +840,7 @@ export function shaftMarker(res) {
   const floor = new THREE.Mesh(new THREE.CircleGeometry(0.2, 10).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x120d09, roughness: 1 }));
   floor.position.y = -0.44; g.add(floor);
   const boards = mergeGeometries([plank(1.2, 0.04, 0.16, 0x7a5634, 0, 0.05, -0.18), plank(1.2, 0.04, 0.16, 0x6b4a2e, 0, 0.05, 0.22)]);
-  const bm = vmesh(boards); bm.rotation.y = 0.3; g.add(bm);
+  const bm = vmesh(boards, 'timber'); bm.rotation.y = 0.3; g.add(bm);
   return g;
 }
 

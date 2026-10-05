@@ -11,7 +11,7 @@ describe('resolveRole', () => {
   const all = () => true;
   it('finds roles directly', () => {
     const r = resolveRole(manifest, 'soldier.sword', all);
-    expect(r.model).toBe('Knight');
+    expect(r.model).toBe('Swordsman');
   });
   it('falls back from specific to more general keys', () => {
     const m = { roles: { soldier: { model: 'A' }, 'soldier.bow': { model: 'B' } } };
@@ -19,9 +19,10 @@ describe('resolveRole', () => {
     expect(resolveRole(m, 'soldier.spear.leader', all).model).toBe('A');
   });
   it('follows "fallback" references', () => {
-    const r = resolveRole(manifest, 'soldier.heavyCav.leader', all);
-    expect(r.key).toBe('soldier.heavyCav');
-    expect(r.model).toBe('Knight');
+    const m = { roles: { a: { model: 'A' }, 'a.leader': { fallback: 'a' } } };
+    const r = resolveRole(m, 'a.leader', all);
+    expect(r.key).toBe('a');
+    expect(r.model).toBe('A');
   });
   it('uses the procedural figure when the model is missing', () => {
     const r = resolveRole(manifest, 'soldier.bow', () => false);
@@ -64,10 +65,12 @@ describe('Manifest', () => {
   });
   it('collects used models (also part donors) and their clip names', () => {
     const used = usedModels(manifest);
-    expect(used).toEqual(expect.arrayContaining(['Rogue_Hooded', 'Rogue', 'Knight', 'Barbarian', 'Mage']));
-    const clips = clipNamesFor(manifest, 'Knight');
+    expect(used).toEqual(expect.arrayContaining(['Swordsman', 'SwordsmanF', 'Spearman', 'ArcherF', 'Gunner', 'Farmer', 'Nelia', 'LightRider']));
+    // role override of clips counts too (own mini manifest)
+    const m = { models: { K: { clips: { idle: 'Idle', walk: 'Walking_A' } } }, roles: { s: { model: 'K', clips: { attack: 'Stab' } } } };
+    const clips = clipNamesFor(m, 'K');
     expect(clips).toContain('Walking_A');
-    expect(clips).toContain('2H_Melee_Attack_Stab'); // role override (spear)
+    expect(clips).toContain('Stab');
   });
   it('file names of the LOD levels', () => {
     expect(modelFiles('Knight', { lods: 2 })).toEqual(['Knight.glb', 'Knight.lod1.glb', 'Knight.lod2.glb']);
@@ -118,5 +121,15 @@ describe('uvInMask / animStep / procedural', () => {
     expect(PROCEDURAL_DEFAULT('soldier.bow.leader')).toBe('bow');
     expect(PROCEDURAL_DEFAULT('hero.orrin')).toBe('hero:orrin');
     expect(PROCEDURAL_DEFAULT('serf')).toBe('serf');
+  });
+});
+
+import { startModels } from '../../src/render/characters.js';
+describe('Loading figures on demand', () => {
+  it('only loads the serf models at start', () => {
+    const start = startModels(manifest);
+    expect(start).toEqual(expect.arrayContaining(['Serf', 'SerfF']));
+    expect(start).not.toContain('Spearman');
+    expect(start).not.toContain('Swordsman');
   });
 });

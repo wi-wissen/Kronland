@@ -63,7 +63,7 @@ export default {
   'menu.roll': 'Würfeln',
   'menu.start': 'Neues Spiel starten',
   'menu.settings': 'Einstellungen',
-  'menu.credits': '3D-Modelle: KayKit von Kay Lousberg (CC0) · Symbole und Oberfläche: eigene Arbeit',
+  'menu.credits': 'Gebäude, Figuren, Symbole und Bilder: eigene Arbeit (selbst generiert) · Natur und Baustellen teils KayKit von Kay Lousberg (CC0)',
   'menu.language': 'Sprache',
   // Website (namespace site.*)
   'site.links': 'Website',
@@ -84,6 +84,10 @@ export default {
   'loading.tip6': 'Ein Klick auf eine Meldung mit Ortsangabe springt dorthin.',
 
   // ---------- Top bar ----------
+  // Short forms of large amounts in the resource bar (50k)
+  'num.dec': ',',
+  'num.k': 'k',
+  'num.m': 'M',
   'top.resources': 'Rohstoffe',
   'top.refined': 'Veredelt',
   'top.raw': 'Roh (noch zu verarbeiten)',
@@ -132,7 +136,7 @@ export default {
   'quick.group': 'Gruppe {n}',
   'quick.groupTip': 'Klick wählt die Gruppe, zweiter Klick holt sie ins Bild',
   'quick.minimap': 'Karte',
-  'quick.minimapTip': 'Minikarte ein- oder ausblenden',
+  'quick.minimapTip': 'Minikarte und Schnellzugriff öffnen oder schließen',
 
   // ---------- Minimap ----------
   'minimap.title': 'Minikarte',
@@ -367,6 +371,13 @@ export default {
   // ---------- Settings ----------
   'set.title': 'Einstellungen',
   'set.language': 'Sprache',
+  'set.playerColor': 'Spielerfarbe',
+  'set.playerColorNote': 'Deine Farbe für Gebäude, Figuren und Minikarte. Wer sonst diese Farbe hätte, bekommt deine bisherige.',
+  'set.playerColorNoteGame': 'Gilt ab dem nächsten Spielstart (oder Laden eines Spielstands).',
+  'set.color.blue': 'Blau',
+  'set.color.red': 'Rot',
+  'set.color.green': 'Grün',
+  'set.color.ochre': 'Ocker',
   'set.lang.de': 'Deutsch',
   'set.lang.en': 'English',
   'set.graphics': 'Grafik',
@@ -428,6 +439,8 @@ export default {
   'mission.campaign': 'Kampagne',
   'mission.campaignSub': 'Krone aus Eis – sechs Kapitel',
   'mission.back': 'Zurück',
+  'adv.showcase': 'Schaukasten',
+  'adv.showcaseSub': 'Alle Gebäude, Figuren und Kartenobjekte auf einer Karte ansehen',
   'mission.start': 'Mission starten',
   'mission.locked': 'Erst die vorige Mission gewinnen',
   'mission.best': 'Bestzeit {t}',

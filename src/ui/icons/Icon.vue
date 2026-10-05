@@ -1,14 +1,15 @@
 <template>
-  <!-- Control icons as a mask in the text colour (currentColor), coloured icons from the atlas,
+  <!-- Hero portraits as an image, control icons as a mask in the text colour (currentColor), coloured icons from the atlas,
        while it is not loaded (or missing) as a drawn SVG. -->
-  <span v-if="isGlyph" class="ico glyph" :style="{ '--mask': `url(&quot;${src}&quot;)` }" aria-hidden="true"></span>
+  <img v-if="portrait" class="ico" :class="{ portrait: round }" :src="portrait" alt="" aria-hidden="true" draggable="false">
+  <span v-else-if="isGlyph" class="ico glyph" :style="{ '--mask': `url(&quot;${src}&quot;)` }" aria-hidden="true"></span>
   <span v-else-if="atlasStyle" class="ico atlas" :data-icon="name" :style="atlasStyle" aria-hidden="true"></span>
   <img v-else class="ico" :src="src" alt="" aria-hidden="true" draggable="false">
 </template>
 
 <script>
 import { reactive } from 'vue';
-import { ICONS, GLYPHS } from './index.js';
+import { ICONS, GLYPHS, PORTRAITS, IMAGE_ICONS } from './index.js';
 import { ATLAS, ATLAS_INDEX } from './atlas.js';
 import { siteUrl } from '../../paths.js';
 
@@ -97,6 +98,8 @@ export default {
   name: 'Icon',
   props: { name: { type: String, required: true } },
   computed: {
+    portrait() { const p = PORTRAITS[this.name] ?? IMAGE_ICONS[this.name]; return p ? siteUrl(p) : null; },
+    round() { return !!PORTRAITS[this.name]; },
     isGlyph() { return GLYPHS.has(this.name); },
     atlasStyle() { return atlasStyle(this.name); },
     src() { return iconUrl(this.name); },
@@ -106,6 +109,7 @@ export default {
 
 <style>
 img.ico { object-fit: contain; -webkit-user-drag: none; }
+img.ico.portrait { object-fit: cover; border-radius: 18%; }
 .ico.atlas { background-repeat: no-repeat; }
 .ico.glyph {
   background-color: currentColor;

@@ -108,6 +108,9 @@ export default {
 .sc-portrait { position: relative; z-index: 1; flex: none; width: var(--portrait, 7.25rem); height: var(--portrait, 7.25rem); border-radius: 50%; padding: 0.375rem; background: var(--brass); box-shadow: 0 0 0 2px var(--wood-950), 0 8px 18px rgba(0, 0, 0, 0.55); }
 .sc-pic { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--tile-bg); box-shadow: inset 0 0 0 2px var(--wood-950), inset 0 -0.3125rem 0 var(--owner, var(--royal)); }
 .sc-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Ring and owner colour also above the painted portrait (the image would otherwise cover the inner shadows) */
+.sc-pic { position: relative; }
+.sc-pic::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: inherit; pointer-events: none; }
 .sc-pic .ico { width: 64%; height: 64%; }
 .sc-badge { position: absolute; bottom: -0.3125rem; left: 50%; transform: translateX(-50%); padding: 0 0.5rem; border-radius: 0.625rem; background: var(--wood-850); color: var(--gold-200); font: 800 var(--fs-xs)/1.25rem var(--body); box-shadow: 0 0 0 2px var(--gold-600), 0 0 0 3px var(--wood-950); white-space: nowrap; }
 button.coin.sc-close { position: absolute; top: -0.25rem; right: -0.25rem; width: 1.875rem; height: 1.875rem; min-width: 1.875rem; min-height: 1.875rem; }

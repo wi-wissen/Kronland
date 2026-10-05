@@ -110,7 +110,7 @@ export default {
 
   npcs: {
     miner: {
-      at: 'town', owner: 'eisenhain', look: 'worker', hero: 'nelia', speaker: 'miner',
+      at: 'town', owner: 'eisenhain', look: 'worker.miner', hero: 'nelia', speaker: 'miner',
       wrongHero: t('Die Prinzessin soll selbst kommen.', 'The princess should come herself.'),
       onTalk: [
         say('miner', 'Wir haben sie im tiefsten Stollen gefunden. Sie gehört zu euch.', 'We found it in the deepest gallery. It belongs with you.'),

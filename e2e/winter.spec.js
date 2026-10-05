@@ -58,3 +58,35 @@ test('Ice in winter stands still and is blue instead of white', async ({ page },
   await page.screenshot({ path: `test-results/ice-winter-${info.project.name}.png`, timeout: 90_000 });
   expect(errors).toEqual([]);
 });
+
+test('Trees in winter: deciduous bare, conifers snowy - swap without rebuild', async ({ page }, info) => {
+  test.setTimeout(180_000);
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(playUrl('?seed=42&fog=off'));
+  await page.waitForFunction(() => !!window.__kronland?.renderer?.treeGroups);
+  const state = () => page.evaluate(() => {
+    const r = window.__kronland.renderer;
+    return r.treeGroups.map((g) => ({
+      model: g.userData.summer?.model ?? null,
+      winter: !!g.userData.summer && g.meshes[0].material !== g.userData.summer.material,
+      chunks: g.chunks.length,
+    }));
+  });
+  const summer = await state();
+  // own models loaded (five kinds), at first summer
+  expect(summer.map((s) => s.model)).toEqual(['tree_oak', 'tree_beech', 'tree_birch', 'tree_spruce', 'tree_pine']);
+  expect(summer.every((s) => !s.winter)).toBe(true);
+  const groups = await page.evaluate(() => window.__kronland.renderer.treeGroups);
+  await page.evaluate(() => window.__kronland.renderer.applyWeather('winter'));
+  // Winter versions are loaded later at the first winter
+  await page.waitForFunction(() => window.__kronland.renderer.treeGroups.every((g) => g.meshes[0].material !== g.userData.summer.material), null, { timeout: 90_000 });
+  const winter = await state();
+  expect(winter.map((s) => s.chunks)).toEqual(summer.map((s) => s.chunks)); // same chunk groups, only swapped
+  expect(await page.evaluate((n) => window.__kronland.renderer.treeGroups.length === n, groups.length)).toBe(true);
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `test-results/trees-winter-${info.project.name}.png`, timeout: 90_000 });
+  await page.evaluate(() => window.__kronland.renderer.applyWeather('summer'));
+  expect((await state()).every((s) => !s.winter)).toBe(true);
+  expect(errors).toEqual([]);
+});

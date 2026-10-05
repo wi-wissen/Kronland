@@ -93,6 +93,7 @@ docs/         Spielregeln und Architektur
 | `terrain.js` `updateArea()` | übernimmt geänderte Sim-Höhen: Ecken, Catmull-Rom-Raster, Normalen, Texturgewichte im Bereich; `setPad/clearPad` legen die Rand-Ecken lebender Gebäude exakt auf ihre Ebene. `Renderer.reshapeGround()` setzt Bäume, Deko, Stümpfe, Haufen und Markierungen nach; `terrainChanged` im Nebel wird erst bei Sicht übernommen |
 | `fog.js` | Nebel des Krieges: Datentextur (1 Texel je Kachel, R sichtbar, G erkundet, weichgezeichnet und überblendet), Shader-Zusatz `patchFog()` für alle Weltmaterialien |
 | `models.js`, `assets.js` | prozedurale Modelle und das Laden der GLB-Modelle |
+| `playerColors.js` | Spielerfarben: einzige Abbildung Spieler → Farbe (siehe unten) |
 | `devHook` | Haken des Entwicklermodus (`src/dev/`, [ENTWICKLERMODUS.md](ENTWICKLERMODUS.md)): vor/nach dem Zeichnen, sonst `null` |
 
 Pro Bild: Kamera → Sichtprüfung (Frustum) → Entities abgleichen → Detailstufen wählen → Instanzdaten
@@ -106,6 +107,15 @@ im Unerkundeten verwirft der Vertex-Shader. Neue Weltobjekte mit `patchFogTree(o
 (`fowUniforms`) sind modulweit, damit gemeinsam zwischengespeicherte Materialien keinen alten Renderer festhalten.
 Kosten: ein Texturzugriff und zwei Rauschwerte je Pixel; die Textur (≤ 160×160) wird nur hochgeladen, solange
 sie überblendet.
+
+Spielerfarben (`playerColors.js`, ohne Three.js): Alles, was eine Spielerfarbe zeigt – Teamflächen der Figuren
+(`playerHex`), prozedurale Modelle und Teamfarben-Shader (`teamMaterial`, zwischengespeichert je Farbe), Farbfassungen
+der KayKit-Gebäude (`ASSET_COLORS[playerColorIndex(p)]`), Minikarte, Auswahlkarte und Spielstand-Vorschau
+(`playerColor` = `playerCss`) – fragt hier. Standard: Spieler 0–3 Blau, Rot, Grün, Ocker. Der Mensch wählt seine
+Farbe unter Einstellungen → „Spielerfarbe“ (`playerColor` 0–3 in `kronland-settings`); wer sonst diese Farbe hätte,
+tauscht mit ihm. Spieler ab Nummer 4 (Räuber, Dörfer) bekommen reihum die drei übrigen Farben, nie die des
+Menschen. Übernommen wird beim Spielstart (`applyPlayerColor()` in App vor `loadAssets`, Engine, Welteditor);
+die Simulation kennt nur Spielernummern, der State-Hash bleibt gleich.
 
 Grafikstufe im laufenden Spiel: `setQuality()` meldet `kronland-quality`, die Engine ruft
 `Renderer.applyQuality()` (Pixeldichte, Schatten, Deko-Dichte, Detailstufen sofort; Kantenglättung, Texturen,
@@ -148,7 +158,7 @@ Texturen) und den Kontext frei. Neue modulweite three.js-Ressourcen dort mit auf
 - Nebel des Krieges in der Engine: `canSee(e)`, `tileVisible`, `tileExplored`, `fogLifted()` (Nebel aus, Spielende,
   ausgeschieden); `selectable()` liefert für Unsichtbares `null`; `minimapFog()` liefert die Nebel-Ebene der Minikarte.
 - Einstellungen: `src/ui/settings.js` (`get`, `set`, `onChange`, Fenster-Ereignis `kronland-settings`;
-  Lautstärken `master`/`music`/`effects`, `uiScale`, `edgeScroll`, `hints`, Sprache, Grafikstufe).
+  Lautstärken `master`/`music`/`effects`, `uiScale`, `edgeScroll`, `hints`, `playerColor`, Sprache, Grafikstufe).
 - Erweiterungen im Gebäudepanel: `registerBuildingSection((engine, building) => ({ id, title, actions }))`
   aus `src/game/Engine.js`; Aktionen schicken ihren `cmd` als normalen Befehl. Neue Gebäude im Baumenü:
   `BUILD_MENU` + `BUILD_CATEGORY` (Gruppen `home`, `raw`, `refine`, `military`, `admin`, alle gleichzeitig sichtbar).
@@ -163,14 +173,19 @@ Texturen) und den Kontext frei. Neue modulweite three.js-Ressourcen dort mit auf
   `pointer: coarse`) setzt `.show-labels` auf `.game` und blendet zusätzlich Namen unter dem Schnellzugriff ein.
 - Spieloberfläche (HUD): `TopBar.vue` (drei freistehende Schilder mit Abstand zum Rand – nichts dockt am Bildrand an: Rohstoffe, Wappen mit Zahltag-Medaillon,
   Münzknöpfe; Raster mit gleich breiten Seitenspalten, damit das Wappen genau mittig sitzt – passt das nicht,
-  misst `TopBar.measure()` und setzt `.tight`: das Wappen bekommt eine eigene, mittige zweite Reihe), `hud/CommandBar.vue` als Raster `Karte | Tafel | Porträt` (`minmax(max-content, 1fr) auto
+  misst `TopBar.measure()`: zuerst fällt der Jahreszeitname weg (`.terse`), reicht das nicht, setzt es `.tight` und das Wappen bekommt eine eigene, mittige zweite Reihe mit Namen), `hud/CommandBar.vue` als Raster `Karte | Tafel | Porträt` (`minmax(max-content, 1fr) auto
   minmax(max-content, 1fr)` – die Tafel bekommt den Rest und bricht um, nichts überlappt), `hud/SelectionCard.vue`
   (Porträt im Messingrahmen, gemalte Porträts unter `public/portraits/`), `hud/BuildMenu.vue` (Gruppen ohne Reiter,
   schmal als wischbare Reihe mit Sprungmarken). Breitenstufen setzt `App.vue` als Klassen auf `.game`
   (Breite geteilt durch Oberflächengröße): `narrow` < 1500 px (Porträt ohne Schild, Kennzahlen in der Tafel,
   drei Kachelreihen), `mid` < 1100 px (kleinere Karte, Baumenü als Reihe), `compact` < 760 px oder Höhe < 560 px
-  (Handy: Tafel als Schublade, Karte als Knopf). Unten links eine Kartentafel (`.cb-map.frame`): Schnellzugriff als
-  Spalte eckiger Knöpfe, rechts die eckige Minikarte (`MAP_CORNER`); Helden (rund) und Steuergruppen darüber. Reine Hilfen (Minikarten-Geometrie, Gruppen, Trennstellen)
+  (Handy: Tafel als Schublade; unten rechts nur der Kartenknopf `minimap-toggle`, der `.cb-pop` mit Minikarte und
+  Schnellzugriff aufklappt – Schnellzugriff klappt sie wieder zu; der Tutorial-Leuchtrahmen findet ihn über
+  `data-hint-for`; Ziele als Knopf, Liste bildschirmfüllend per Teleport an `<body>`). Unten links eine Kartentafel (`.cb-map.frame`): Schnellzugriff als
+  Spalte eckiger Knöpfe, rechts die eckige Minikarte (`MAP_CORNER`); Helden (rund) und Steuergruppen darüber.
+  Kopfleiste: `shortAmount()` kürzt Rohstoffe ab 10 000 (Kürzel `num.*` in i18n), `topbarMode()` wählt einzeilig,
+  zweizeilig (`.tb-res.two`) oder Wappen in eigener Zeile (`tight`). Gemalte Porträts (`img.ico.portrait`) füllen
+  runde Rahmen innerhalb des Rings (`border-radius: 50%`). Reine Hilfen (Minikarten-Geometrie, Gruppen, Trennstellen, Kopfleiste)
   in `hud/hudLayout.js`. Schnellzugriff-Daten aus der Engine: `ui.idleSerfs`, `ui.heroes` (`quickInfo()`),
   `ui.groups`, `ui.group`, Aktionen `selectHero(id)`, `selectAllArmy()`, `assignGroup(n)`, `selectGroup(n)`.
 - Steuergruppen: `src/game/groups.js` (`ControlGroups`) – reiner Oberflächenzustand des Spielers, kein
@@ -179,7 +194,9 @@ Texturen) und den Kontext frei. Neue modulweite three.js-Ressourcen dort mit auf
 - Bildschirmfotos zur Gestaltungsprüfung: `python3 scripts/ui-screens.py http://localhost:4211`
   (Ergebnis in `review/`, nicht im Repository). Bilder für Startseite/Handbuch: `scripts/site-screens.py`.
 - Dateien aus `public/` (Modelle, Ton) nie mit festen Pfaden laden, sondern über `siteUrl()` aus `src/paths.js` –
-  das Spiel liegt unter `play/`, die Dateien in der Wurzel.
+  das Spiel liegt unter `play/`, die Dateien in der Wurzel. In CSS geht das über Variablen: `src/ui/art.js` setzt
+  `--art-title`/`--art-loading` (gemalte Menükulissen `public/art/*.webp`), die `.backdrop` in `StartMenu.vue`
+  über einen abdunkelnden Verlauf legt; die alten Verläufe bleiben als Rückfall darunter.
 - Spielsysteme im HUD (`src/ui/hud/systems/`): Gebäude-Technologien, Marktplatz, Wetterturm/-kraftwerk,
   Reparatur/Brand. Daten liefert `src/game/buildingUi.js` (nur IDs, Zahlen und `err.*`-Codes, z. B.
   `selection.techs`, `selection.market`, `selection.weather`, `selection.repair`); Hauptleute mit
@@ -307,7 +324,7 @@ Prüfung im Editor, ohne Build-Schritt.
 | Zur Burg | H | Knopf „Burg“ |
 | Held finden | Porträt über der Karte | Porträt |
 | Alle Truppen | Knopf „Truppen“ | Knopf „Truppen“ |
-| Minikarte | Klick/Ziehen | Tippen (Knopf „Karte“ blendet ein) |
+| Minikarte | Klick/Ziehen | Tippen (Kartenknopf unten rechts klappt Minikarte und Schnellzugriff auf) |
 | Figuren über die Minikarte schicken | Rechtsklick auf die Minikarte (Strg: Angriffsbewegung) | Tippen auf die Minikarte, solange Figuren ausgewählt sind |
 | Menü | Esc | Knopf |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |

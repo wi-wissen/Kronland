@@ -8,6 +8,8 @@
 //       female variant from the male sheet (same clothing, same style)
 //   node scripts/asset-gen/concept.mjs far <id> --from <id of the detail sheet>
 //       simplified far concept for the game model (hair as a block, large colour areas, simple face)
+//   --aspect 21:9 --size 2K  wide, high-resolution sheet format (Gemini; GPT ignores it and delivers 1024²).
+//            Goal: figure ≥ 600 px tall, eye distance ≥ 35 px – otherwise the face gets flat in 3D.
 //   --guide  appends the detailed style reference (assets-src/characters/style-reference-prompt.md) to the prompt
 //            (heroes: `new nelia --ref serf,serf_f --guide --model openai/gpt-5.4-image-2 "…"`)
 //
@@ -21,13 +23,15 @@ import { STYLE, FEMALE, FAR } from './style.mjs';
 
 reexecWithProxy();
 
-const DEFAULT_MODEL = 'google/gemini-3-pro-image';
+const DEFAULT_MODEL = 'openai/gpt-5.4-image-2'; // like icons and buildings (ChatGPT image model)
 
 const sheetOf = (id) => ['sheet.png', 'sheet.webp', 'sheet.jpg'].map((f) => path.join(SRC_DIR, id, f)).find((f) => fs.existsSync(f));
 
 async function generate(model, text, images) {
   const res = await openrouter({
     model, modalities: ['image', 'text'],
+    // Wide sheet format and high resolution: more pixels for the face (only Gemini honours this, GPT delivers square)
+    ...(aspect || size ? { image_config: { ...(aspect ? { aspect_ratio: aspect } : {}), ...(size ? { image_size: size } : {}) } } : {}),
     messages: [{ role: 'user', content: [...images.map((f) => ({ type: 'image_url', image_url: { url: dataUri(f) } })), { type: 'text', text }] }],
   });
   const url = res.choices?.[0]?.message?.images?.[0]?.image_url?.url;
@@ -61,6 +65,8 @@ const opt = (n) => { const i = args.indexOf(n); if (i < 0) return undefined; con
 const model = opt('--model') ?? DEFAULT_MODEL;
 const from = opt('--from');
 const ref = opt('--ref');
+const aspect = opt('--aspect'); // e.g. 21:9 – four views side by side, large figure
+const size = opt('--size'); // e.g. 2K
 const guideAt = args.indexOf('--guide');
 if (guideAt >= 0) args.splice(guideAt, 1);
 const GUIDE = guideAt >= 0 ? '\n\n' + fs.readFileSync(path.join(SRC_DIR, 'style-reference-prompt.md'), 'utf8') : '';
@@ -88,11 +94,12 @@ try {
     log(id, { kind: 'far', model, prompt: FAR, source: `${from}/${path.basename(src)}`, cost });
     console.log(out, cost ? `(${cost.toFixed(3)} $)` : '');
   } else if (cmd === 'new') {
-    const refs = (ref ?? '').split(',').filter(Boolean).map(sheetOf).filter(Boolean);
+    // Do not silently skip a missing template (serf_f_c has no sheet of its own – use serf_f instead)
+    const refs = (ref ?? '').split(',').filter(Boolean).map((r) => sheetOf(r) ?? (() => { throw new Error(`Template ${r} has no sheet.*`); })());
     const prompt = `Use the attached character sheets only as STYLE reference (rendering, proportions, palette, marker color usage). Create a NEW character: ${text}\n${STYLE}${GUIDE}`;
     const { buf, cost } = await generate(model, prompt, refs);
     const out = store(id, buf);
-    log(id, { kind: 'new', model, prompt, refs: ref, cost });
+    log(id, { kind: 'new', model, prompt, refs: ref, aspect, size, cost });
     console.log(out, cost ? `(${cost.toFixed(3)} $)` : '');
   } else {
     console.error('Usage: concept.mjs edit|new|female|far <id> …');

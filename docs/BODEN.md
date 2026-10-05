@@ -54,6 +54,46 @@ damit kein gleichmäßiger Doppelbelichtungs-Streifen entsteht.
 
 Der erste Satz hat 0,18 $ gekostet (12 Kandidaten).
 
+## Naturtexturen (Bäume, Büsche, Felsen)
+
+Die prozeduralen Bäume, Büsche und Felsbrocken (`src/render/nature.js`) bekommen gemalte Struktur, ohne ein
+Dreieck mehr: vier eigene nahtlose Texturen, triplanar auf die Formen gelegt.
+
+![Nahaufnahme alt/neu](../assets-src/previews/nature-textures-closeup.jpg)
+
+Weitere Vergleiche (Desktop und Handy, nah/mittel/Spielhöhe): `assets-src/previews/natur-texturen-*.jpg`.
+
+| Art | Datei | Liegt auf | Wiederholung |
+|---|---|---|---|
+| Laub (`leaves`) | `public/textures/nature/leaves-512.webp` | Kronen der Laubbäume und Birken, Büsche | 0,8 je Kachel (≈ 5 Blattbüschel je Krone), Büsche 0,95 |
+| Nadeln (`needles`) | `needles-512.webp` | Nadelbäume (auch KayKit-Kiefern) | 0,65 |
+| Rinde (`bark`) | `bark-512.webp` | Stämme und Äste (Birke: helle Rinde mit dunklen Rissen) | 3× bzw. 2× feiner als die Krone |
+| Fels (`boulder`) | `boulder-512.webp` | Felsbrocken, Kiesel, KayKit-Felsen (schwächer, sie haben eine eigene Textur) | 1,0 bzw. 0,9 |
+
+Erzeugt mit derselben Pipeline (`ground.mjs` kennt die Naturarten, eigener Stil `NATURE_STYLE`: Seitenansicht,
+grobe gemalte Formen mit Licht und Schatten statt Rauschen):
+
+```bash
+node scripts/asset-gen/ground.mjs gen nature --n 2          # je Art 2 Kandidaten (Seedream 5.0 Flash)
+node scripts/asset-gen/ground.mjs sheet nature              # → assets-src/nature/candidates.webp
+node scripts/asset-gen/ground.mjs use leaves 1-seedream-5-0-flash.webp   # → public/textures/nature/
+```
+
+Kandidaten, Prompts und Kosten: `assets-src/nature/` (`nature.json`). 10 Bilder, 0,18 $ (Nadeln brauchten einen
+zweiten Anlauf: der erste Prompt ergab kleine ganze Tannen). Gewählt: Laub 1, Nadeln 3, Rinde 1, Fels 1.
+
+**Im Spiel** (`src/render/naturetex.js`, Shader in `natureMaterial`):
+- Nur die Hell-Dunkel-Struktur zählt. Je Art wird die Helligkeit auf Mittelwert 0,5 und gleiche Streuung
+  normiert (`normalizedLuminance`) – die Kronen werden im Mittel weder heller noch dunkler, der Farbton und die
+  Farbvielfalt bleiben die der Vertexfarben. Dazu ein kleiner Farbakzent: Lichter etwas wärmer, Schatten kühler.
+- Zwei Arten teilen sich eine Textur (R = Krone/Fels, G = Rinde, `packChannels`): 3 Texturzugriffe je Pixel
+  (triplanar) für Krone und Stamm zusammen. Welcher Kanal gilt, entscheidet die Vertexfarbe: Rot über Grün
+  ist Stamm (braun, Birke weißlich), sonst Krone.
+- Geladen vor dem Spielstart wie die Bodentexturen, immer die 512er-Fassung (≈ 0,3 MB; die 1024er bleiben als
+  Vorlage). Fehlt ein Bild, bleibt das Objekt ohne Struktur.
+- Stufe „niedrig“ (Handy): aus – nichts geladen, Shader ohne Struktur. Vergleich im Spiel: `?nature=off`.
+- Offline: Cache `textures` (beim ersten Laden, wie die Bodentexturen).
+
 ## Ideen für später
 
 - Gras-Büschel und Blumen (3D) in den Farben der neuen Texturen, unten in Bodenfarbe (wachsen aus dem Boden heraus).

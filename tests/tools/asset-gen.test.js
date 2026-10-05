@@ -182,3 +182,29 @@ describe('Far model onto the near skeleton', () => {
     expect(w.weights[0]).toBeCloseTo(1, 5);
   });
 });
+
+import { blueToTerracotta } from '../../scripts/asset-gen/building.mjs';
+describe('Buildings: blue to terracotta', () => {
+  it('turns blue into brick red, leaves magenta, red and grey', () => {
+    const px = Buffer.from([60, 80, 160, 255, 0, 255, 180, 70, 50, 120, 120, 120]);
+    blueToTerracotta(px);
+    const [r, g, b] = px.subarray(0, 3);
+    expect(r).toBeGreaterThan(g);
+    expect(g).toBeGreaterThan(b);
+    expect([...px.subarray(3)]).toEqual([255, 0, 255, 180, 70, 50, 120, 120, 120]);
+  });
+});
+
+import { bindCylinder } from '../../scripts/asset-gen/rigid.mjs';
+describe('Weapon rigid to the hand', () => {
+  it('only binds vertices in the cylinder hand → tip', () => {
+    // blade along x (0.1 … 1), plus a point next to the blade and one in the fist
+    const pos = [0.5, 0, 0, 0.98, 0.02, 0, 0.5, 0.3, 0, 0.02, 0, 0];
+    const joints = [3, 4, 0, 0, 3, 5, 0, 0, 3, 4, 0, 0, 3, 4, 0, 0];
+    const weights = [0.5, 0.5, 0, 0, 0.6, 0.4, 0, 0, 0.5, 0.5, 0, 0, 0.5, 0.5, 0, 0];
+    expect(bindCylinder(pos, joints, weights, [0, 0, 0], [1, 0, 0], 0.05, 7, 0.08)).toBe(2);
+    expect(joints.slice(0, 8)).toEqual([7, 0, 0, 0, 7, 0, 0, 0]);
+    expect(weights.slice(0, 4)).toEqual([1, 0, 0, 0]);
+    expect(joints.slice(8)).toEqual([3, 4, 0, 0, 3, 4, 0, 0]);
+  });
+});

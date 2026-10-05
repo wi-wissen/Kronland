@@ -15,6 +15,7 @@
 //  6. meshopt compression.
 // The manifest entry (models.<model>) is printed by the script for pasting in.
 
+import { applyRigid, removeCylinder } from './rigid.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -657,6 +658,9 @@ async function buildFar(doc, farDir) {
  */
 async function keepColorsModel(dir, spec, model, rigged, hasProps, out, lods) {
   const doc = await io.read(rigged);
+  const rigid = applyRigid(doc, spec.rigid);
+  if (rigid.length) console.log(`Bound rigidly: ${rigid.join(', ')}`);
+  if (spec.remove) console.log(`Removed: ${removeCylinder(doc, spec.remove)} triangles`);
   const clips = await importClips(doc, dir, spec);
   await keepTexture(doc, spec, spec.textureSize ?? 2048, hasProps);
   const kb = await finish(doc, model, out('.glb'));
@@ -664,7 +668,9 @@ async function keepColorsModel(dir, spec, model, rigged, hasProps, out, lods) {
   if (lods && spec.far) {
     const game = await io.read(rigged);
     dropAnimations(game);
+    applyRigid(game, spec.rigid); // the far model takes over the weights of the near model
     const n = await buildFar(game, path.join(SRC_DIR, spec.far));
+    removeCylinder(game, spec.remove);
     await keepTexture(game, spec, spec.farTextureSize ?? 1024, hasProps);
     const kb1 = await finish(game, model, out('.lod1.glb'));
     console.log(`${model}.lod1.glb: game model from ${spec.far}, ${n} vertices, ${kb1} KB`);

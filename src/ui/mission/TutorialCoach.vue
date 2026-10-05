@@ -1,7 +1,7 @@
 <template>
   <section class="coach frame" data-testid="tutorial-coach">
     <div class="co-top">
-      <span class="co-avatar" aria-hidden="true">O</span>
+      <span class="co-avatar" aria-hidden="true"><img :src="avatar" alt="" draggable="false"></span>
       <span class="co-step num" data-testid="tutorial-step">{{ $t('mission.step', { n: step.index + 1, total: step.total }) }}</span>
       <span class="co-dots" aria-hidden="true"><i v-for="n in step.total" :key="n" :class="{ on: n <= step.index + 1 }"></i></span>
     </div>
@@ -18,6 +18,9 @@
 </template>
 
 <script>
+import { PORTRAITS } from '../icons/index.js';
+import { siteUrl } from '../../paths.js';
+
 export default {
   name: 'TutorialCoach',
   props: {
@@ -28,6 +31,8 @@ export default {
   emits: ['next', 'skip'],
   data() { return { box: null }; },
   computed: {
+    /** Orrin guides through the tutorial (tutorial.js) */
+    avatar() { return siteUrl(PORTRAITS['hero-orrin']); },
     boxStyle() {
       if (!this.box) return {};
       const b = this.box;
@@ -46,7 +51,8 @@ export default {
       const ids = this.step.hint?.ui ?? [];
       let found = null;
       for (const id of ids) {
-        for (const el of document.querySelectorAll(`[data-testid="${id}"]`)) {
+        // data-hint-for: a button that first unfolds the target (phone: map button for the quick access)
+        for (const el of document.querySelectorAll(`[data-testid="${id}"], [data-hint-for~="${id}"]`)) {
           const r = el.getBoundingClientRect();
           if (r.width > 0 && r.height > 0 && el.offsetParent !== null) { found = r; break; }
         }
@@ -68,8 +74,9 @@ export default {
 .co-avatar {
   flex: none; width: 1.75rem; height: 1.75rem; border-radius: 50%; display: grid; place-items: center;
   font-family: var(--display); font-weight: 700; color: #3a1f06; font-size: var(--fs-md);
-  background: radial-gradient(circle at 35% 30%, #f2d48e, #c9a35a 70%); box-shadow: 0 0 0 2px var(--wood-950);
+  background: radial-gradient(circle at 35% 30%, #f2d48e, #c9a35a 70%); box-shadow: 0 0 0 2px var(--wood-950); overflow: hidden;
 }
+.co-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .co-step { color: var(--ink-muted); font-size: var(--fs-xs); font-weight: 700; flex: 1; }
 .co-dots { display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end; max-width: 9rem; }
 .co-dots i { width: 0.375rem; height: 0.375rem; border-radius: 50%; background: rgba(246, 236, 212, 0.18); }

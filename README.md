@@ -56,6 +56,10 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Orte, Missionen programmieren,
   Welt aus Code erzeugen, als JSON speichern, testspielen) und eigene Szenario-Dateien.
   Direktstart: `play/?mission=adv1` … `adv5`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
+- **Schaukasten** (`play/?mission=showcase`, oder Startmenü → Programmier-Abenteuer → „Schaukasten“): eine Karte
+  ohne Nebel und ohne Gegner, auf der jedes Gebäude in jeder Ausbaustufe, Baustellen, Ruinen, Brücke, Rohstoffe,
+  Arbeiter jedes Berufs, alle Truppen, die vier Helden, Räuber und ein Lagerfeuer stehen – zum Prüfen der Modelle.
+  Details: [Missionen](docs/MISSIONEN.md#showcase).
 - **Freies Spiel**: Im Startmenü Gegnerzahl (1–3), Stärke, Held (Nelia, Orrin, Taran oder Malvor), Nebel des Krieges an/aus und Karte wählen.
 - Direktstart per Adresse: `play/?seed=42&ai=hard&players=3&hero=orrin` (ohne Nebel: `&fog=off`)
 - **Brücken und Zierden** nach Vorbild der Siedler-5-Erweiterungen, fest im Spiel: Brücken an Brückenstellen über
@@ -70,7 +74,10 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   Ferne in den Boden und wird dann gar nicht mehr gezeichnet), Figuren sind instanziert und GPU-animiert. Figuren haben zwei Darstellungen:
   ein detailliertes Nahmodell beim Heranzoomen und ein flach gefärbtes, gut lesbares Spielmodell, umgeschaltet
   nach ihrer Bildschirmhöhe mit kurzer Überblendung – Details in [Modelle](docs/MODELLE.md). Der Boden ist gemalt
-  (sechs nahtlose Texturen aus der Bild-KI, [Bodentexturen](docs/BODEN.md)), mit Rückfall auf im Code gemalte Texturen.
+  (sechs nahtlose Texturen aus der Bild-KI, [Bodentexturen](docs/BODEN.md)), mit Rückfall auf im Code gemalte Texturen;
+  Bäume und Büsche sind eigene Modelle (Eiche, Buche, Birke, Fichte, Kiefer, Busch), die im Winter gegen kahle bzw.
+  verschneite Fassungen getauscht werden; Felsen, Stümpfe, Rohstoffhaufen und Schächte tragen gemalte Fels- und
+  Rindenstruktur (triplanar, ohne mehr Polygone).
 - Kamera wie ein Kartenprogramm: Ziehen (mittlere Maustaste, ein Finger) greift den Boden, Mausrad und
   Zwei-Finger-Zoom zoomen zum Zeiger bzw. zur Fingermitte, nichts gleitet oder wippt nach.
 - Nahzoom bis dicht an Figuren und Gebäude; ganz nah wird der Blick flacher, Figuren und Gebäude bleiben in
@@ -91,6 +98,7 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   Gespeichert wird der vollständige Simulationszustand (inkl. eingeebnetem Gelände), nicht der Entwicklermodus.
   Format, Prüfung und Migration: [Architektur → Spielstände](docs/ARCHITEKTUR.md#spielstände-srcsave).
 - **Ton**: eigene Musik (Lyria 3: fünf Aufbaustücke, eigene Wintermusik, zwei Kampfthemen, Menü, Sieg/Niederlage) mit Pausen zwischen den Friedensstücken, echte Arbeitsgeräusche (Kenney, CC0), räumliche Effekte, vertonte Dialoge – [docs/AUDIO.md](docs/AUDIO.md).
+- Spielerfarbe wählbar (Blau, Rot, Grün, Ocker) unter Einstellungen; wer sonst diese Farbe hätte, bekommt die bisherige des Spielers (gilt ab dem nächsten Spielstart, auch in Missionen).
 - Sprache Deutsch/Englisch, Grafikstufe, Lautstärken, Pausen zwischen Musikstücken, Häufigkeit der Sprüche der Figuren, Oberflächengröße, Randscrollen, Beschriftungen, „Dialoge vorlesen“ und „Kamera bei Dialogen“ (fährt nah an die sprechende Figur) im Menü „Einstellungen“ (Startmenü und Spielmenü).
 - **Spieloberfläche** aus freistehenden Schildern mit Abstand zum Bildrand, jedes nur so breit wie sein Inhalt – die Mitte gehört
   der Karte: oben Rohstoffe, Wappen genau in der Bildschirmmitte mit Zahltag-Medaillon (Sekunden erst kurz vorher, ein Lichtimpuls am
@@ -100,7 +108,10 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   „Als Gruppe merken“),
   Befehlstafel nur bei Auswahl und Porträt der Auswahl. Das Baumenü zeigt alle Gruppen ohne Reiter.
   Nichts überlappt: bei weniger Breite brechen Leisten um, Karte und Kacheln werden kleiner, am Handy wird die
-  Tafel zur Schublade.
+  Tafel zur Schublade. Große Rohstoffmengen erscheinen ab 10 000 gekürzt („50k“, genauer Wert im Tooltip); reicht der
+  Platz trotzdem nicht, wird die Rohstoffleiste zweizeilig, das Wappen bleibt in der Zeile. Am Handy: unten rechts nur
+  ein Kartenknopf, der Minikarte und Schnellzugriff als kleine Tafel aufklappt; Helden als Reihe darüber; die Ziele
+  als kleiner Knopf oben links, der sie bildschirmfüllend zeigt („Ziel zeigen“ springt hin und schließt die Ansicht).
 - **Lagerfeuer zeigen Wohnungsnot**: Arbeiter ohne Bett oder Essplatz entzünden nahe ihrer Werkstatt ein Lagerfeuer
   (auch auf der Minikarte), das wieder ausgeht, sobald dort alle untergebracht sind ([Spielregeln §4](docs/SPIELREGELN.md#4-arbeiter-motivation-steuern)).
 - Jedes Symbol ist erklärt: Maus darüber (Desktop) oder **lang drücken** (Handy) zeigt Name, Kosten und Erklärung,
@@ -130,16 +141,17 @@ node scripts/troop-duels.js 6   # Anzahl Seeds je Duell
 
 ## Modelle neu erzeugen
 
-Die verwendeten Modelle liegen fertig in `public/models/`. Zum Neuerzeugen die beiden KayKit-Pakete
-von GitHub holen (`KayKit-Game-Assets/KayKit-Medieval-Hexagon-Pack-1.0`,
-`KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0`) und dann:
+Die verwendeten Modelle liegen fertig in `public/models/`. Von KayKit kommen nur noch Baugerüst, Bauphasen,
+Trümmer, Felsen und Felsgipfel; zum Neuerzeugen das Paket `KayKit-Game-Assets/KayKit-Medieval-Hexagon-Pack-1.0`
+von GitHub holen und dann:
 
 ```bash
-scripts/build-assets.sh <Pfad Hexagon-Paket> <Pfad Figuren-Paket>
+scripts/build-assets.sh <Pfad Hexagon-Paket>
 ```
 
-Das Skript optimiert die Modelle, kürzt die Figuren-Animationen auf die im Manifest genannten Clips
-(`scripts/trim-animations.mjs`) und erzeugt die Detailstufen `*.lod1.glb`, `*.lod2.glb` (`scripts/build-lods.mjs`).
+Das Skript optimiert die Modelle und erzeugt die Detailstufen `*.lod1.glb`, `*.lod2.glb` (`scripts/build-lods.mjs`).
+Bäume und Büsche sind eigene Meshy-Modelle (`public/models/buildings/tree_*.glb`, `busch*.glb`, mit Winterfassung,
+siehe [docs/MODELLE.md](docs/MODELLE.md#bäume-und-büsche)).
 Zuordnung Gebäudetyp → Modell: `src/render/assets.js`; Figuren: `public/models/characters/manifest.json`.
 Eigene Figuren erzeugen (Konzeptbild → Meshy → Nachbearbeitung, `scripts/asset-gen/`) und einbauen:
 [docs/MODELLE.md](docs/MODELLE.md), Stilregeln und Prompts: [docs/STIL.md](docs/STIL.md).
@@ -158,9 +170,10 @@ Die bunten Symbole (Rohstoffe, Gebäude, Einheiten …) stammen aus einem Sprite
 - [Architektur](docs/ARCHITEKTUR.md)
 - [Missionen schreiben](docs/MISSIONEN.md)
 - [Modelle, Figuren, Detailstufen](docs/MODELLE.md)
+- [Erkenntnisse aus der Asset-Erzeugung (Bildmodelle, Meshy, Werkzeuge)](docs/ASSET-ERKENNTNISSE.md)
 - [Figurenstil und Prompts (Pipeline)](docs/STIL.md)
 - [Symbole aus dem Bildmodell (Atlas, Prompts, Neuerzeugung)](docs/SYMBOLE.md)
-- [Bodentexturen aus der Bild-KI (Erzeugen, Nahtlos, Farbabgleich)](docs/BODEN.md)
+- [Boden- und Naturtexturen aus der Bild-KI (Erzeugen, Nahtlos, Farbabgleich)](docs/BODEN.md)
 - [Stilreferenz für Figuren und Symbole](docs/STILREFERENZ.md)
 - [Ton: Effekte, Musik, Stimmen, eigene Audiodateien](docs/AUDIO.md)
 - [Entwicklermodus: was man zeigen kann, Unterrichtsideen](docs/ENTWICKLERMODUS.md)

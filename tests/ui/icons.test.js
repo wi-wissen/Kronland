@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
-import { ICONS, GLYPHS } from '../../src/ui/icons/index.js';
+import { ICONS, GLYPHS, PORTRAITS, IMAGE_ICONS } from '../../src/ui/icons/index.js';
 import { ATLAS, ATLAS_INDEX } from '../../src/ui/icons/atlas.js';
 
 describe('Icon atlas', () => {
@@ -14,6 +14,14 @@ describe('Icon atlas', () => {
     expect(new Set(idx).size).toBe(idx.length);
     expect(Math.max(...idx)).toBeLessThan(ATLAS.cols * ATLAS.rows);
     for (const g of GLYPHS) expect(ATLAS_INDEX[g]).toBeUndefined();
+  });
+
+  it('single images complement the atlas: all abilities painted, files are ready', () => {
+    const painted = (n) => ATLAS_INDEX[n] !== undefined || !!IMAGE_ICONS[n] || !!PORTRAITS[n];
+    // as of 10/2026 every coloured icon is painted; new ones may appear as SVG until the next sheet
+    for (const n of colored.filter((n) => n.startsWith('ab-') || n.startsWith('hero-'))) expect(painted(n), n).toBe(true);
+    for (const n of Object.keys(IMAGE_ICONS)) { expect(colored).toContain(n); expect(ATLAS_INDEX[n], n).toBeUndefined(); }
+    for (const f of Object.values(IMAGE_ICONS)) expect(fs.existsSync('public/' + f), f).toBe(true);
   });
 
   // the sheet template lives in assets-src/ (local only, not in Git)

@@ -2,6 +2,7 @@
 // width × height × 4). Pure functions without three.js – testable and independent of rendering.
 // All functions only read the state.
 
+import { playerHex } from '../render/playerColors.js';
 import { WATER, OCCUPIED, RESERVED, CLIFF, BRIDGE } from '../sim/map.js';
 import { BALANCE } from '../sim/data/balance.js';
 import { sightOf } from '../sim/systems/vision.js';
@@ -33,7 +34,8 @@ export const COLORS = {
 export const LOD_COLORS = [0x3ddc5a, 0xf2d43a, 0xf0503c, 0xb45af0];
 
 /** Player colours for territories (like the game figures). */
-const TEAM_RGB = [[47, 93, 158], [168, 50, 58], [61, 138, 74], [192, 138, 42]];
+/** Player colour as RGB (mapping with colour choice in render/playerColors.js). */
+const teamRgb = (o) => { const h = playerHex(o); return [(h >> 16) & 255, (h >> 8) & 255, h & 255]; };
 
 const put = (out, k, c) => { const o = k * 4; out[o] = c[0]; out[o + 1] = c[1]; out[o + 2] = c[2]; out[o + 3] = c[3]; };
 
@@ -201,7 +203,7 @@ export function territoryLayer(sim, out = new Uint8Array(sim.map.width * sim.map
     const k = y * W + x, o = owner[k];
     if (o < 0) continue;
     const edge = (x > 0 && owner[k - 1] !== o) || (x < W - 1 && owner[k + 1] !== o) || (y > 0 && owner[k - W] !== o) || (y < H - 1 && owner[k + W] !== o);
-    const c = TEAM_RGB[o % 4];
+    const c = teamRgb(o);
     put(out, k, [c[0], c[1], c[2], edge ? 230 : 95]);
   }
   return { data: out, owner };

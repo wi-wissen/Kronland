@@ -17,6 +17,25 @@
     </section>
 
     <section class="st-sec">
+      <h4 class="h-label"><Icon name="banner" />{{ $t('set.playerColor') }}</h4>
+      <div class="st-colors" role="radiogroup" :aria-label="$t('set.playerColor')">
+        <button
+          v-for="(c, i) in colorIds"
+          :key="c"
+          role="radio"
+          class="st-color"
+          :aria-checked="s.playerColor === i"
+          :aria-label="$t('set.color.' + c)"
+          :class="{ active: s.playerColor === i }"
+          :style="{ '--swatch': colorCss[i] }"
+          :data-testid="'player-color-' + c"
+          @click="set('playerColor', i)"
+        ><span class="st-swatch"></span><span>{{ $t('set.color.' + c) }}</span></button>
+      </div>
+      <p class="st-note">{{ $t(inGame ? 'set.playerColorNoteGame' : 'set.playerColorNote') }}</p>
+    </section>
+
+    <section class="st-sec">
       <h4 class="h-label"><Icon name="display" />{{ $t('set.graphics') }}</h4>
       <div class="seg" role="radiogroup" :aria-label="$t('set.quality')">
         <button
@@ -133,12 +152,13 @@
 import { settings, set, DEFAULTS, MUSIC_PAUSE_OPTIONS, BARK_OPTIONS } from './settings.js';
 import { LANGS } from '../i18n/index.js';
 import { devState, setDevMode } from '../dev/state.js';
+import { PLAYER_COLOR_IDS, PLAYER_COLOR_CSS } from '../render/playerColors.js';
 
 export default {
   name: 'SettingsPanel',
   props: { inGame: Boolean },
   emits: ['close', 'quality'],
-  data() { return { s: settings, langs: LANGS, qualities: ['auto', 'low', 'medium', 'high'], pauses: MUSIC_PAUSE_OPTIONS, barkModes: BARK_OPTIONS, preview: null, dev: devState }; },
+  data() { return { s: settings, langs: LANGS, qualities: ['auto', 'low', 'medium', 'high'], pauses: MUSIC_PAUSE_OPTIONS, barkModes: BARK_OPTIONS, preview: null, dev: devState, colorIds: PLAYER_COLOR_IDS, colorCss: PLAYER_COLOR_CSS }; },
   methods: {
     set(k, v) { set(k, v); if (k === 'uiScale') this.preview = null; },
     setQuality(q) { set('quality', q); this.$emit('quality', q); },
@@ -158,10 +178,16 @@ export default {
 .st-sl-label .ico { width: 1.125rem; height: 1.125rem; color: var(--gold-300); }
 .st-sub { margin-top: 0.25rem; }
 .st-slider b { text-align: right; font-weight: 700; color: var(--gold-200); }
+.st-colors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.375rem; }
+.st-color { display: flex; align-items: center; justify-content: center; gap: 0.4375rem; min-height: var(--touch); padding: 0.25rem 0.5rem; }
+.st-swatch { flex: none; width: 1.125rem; height: 1.125rem; border-radius: 50%; background: var(--swatch); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35); }
+.st-color.active { box-shadow: inset 0 0 0 2px var(--gold-300); color: var(--gold-100); }
+.st-color.active .st-swatch { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--gold-200); }
 .st-foot { display: flex; justify-content: space-between; gap: 0.5rem; padding-top: 0.25rem; }
 .st-foot .primary { min-width: 8rem; min-height: var(--touch); }
 @media (max-width: 480px) {
   .st-slider { grid-template-columns: 1fr 2.75rem; }
   .st-slider input { grid-column: 1 / -1; grid-row: 2; }
+  .st-colors { grid-template-columns: repeat(2, 1fr); }
 }
 </style>

@@ -2,9 +2,15 @@
 
 ## 3D-Modelle
 
-- **KayKit Medieval Hexagon Pack 1.0** und **KayKit Character Pack: Adventurers 1.0**
-  von Kay Lousberg, [www.kaylousberg.com](https://www.kaylousberg.com) – Lizenz CC0.
-  Lizenztexte liegen unter `public/models/`. Erzeugt mit `scripts/build-assets.sh`.
+- **KayKit Medieval Hexagon Pack 1.0** von Kay Lousberg, [www.kaylousberg.com](https://www.kaylousberg.com) –
+  Lizenz CC0. Genutzt nur noch für Baugerüst, Bauphasen (`stage_A`–`C`), Trümmer, Felsen (`rock_single_*`) und
+  Felsgipfel (`mountain_*`). Lizenztext unter `public/models/`. Erzeugt mit `scripts/build-assets.sh`.
+
+- **Bäume und Busch** (Eiche, Buche, Birke, Fichte, Kiefer, Busch, je mit Winterfassung;
+  `public/models/buildings/tree_*.glb`, `busch*.glb`): Konzeptbilder mit OpenRouter-Bildmodellen
+  (`bytedance-seed/seedream-5-0-flash`) im Stil der eigenen Gebäude, 3D-Modell mit [Meshy](https://www.meshy.ai)
+  (Bild → 3D), Detailstufen mit `scripts/build-lods.mjs`. Eigene Erzeugnisse des Projekts; Prompts,
+  Task-IDs und Konzepte unter `assets-src/buildings/<name>/`.
 
 - **Selbst generierte Figuren** (Leibeigener, Leibeigene, weitere folgen): Konzeptbilder mit ChatGPT bzw.
   OpenRouter-Bildmodellen (Google Gemini 3 Pro Image) erstellt und bearbeitet, 3D-Modell, Rig und Animationen
@@ -33,6 +39,13 @@ Gras, Wiese, Erde, Sand, Fels und Schnee (`public/textures/ground/`) haben die B
 angeglichen mit eigenen Skripten (`scripts/asset-gen/ground.mjs`). Prompts, Modelle, Kosten und alle Kandidaten:
 `assets-src/ground/`, Ablauf in [docs/BODEN.md](docs/BODEN.md).
 
+## Naturtexturen
+
+Laub, Nadeln, Rinde und Felsbrocken (`public/textures/nature/`, Struktur auf Bäumen, Büschen und Felsen) hat das
+Bildmodell `bytedance-seed/seedream-5-0-flash` (über OpenRouter) für dieses Projekt erzeugt, nahtlos gemacht mit
+denselben Skripten. Prompts, Kosten und Kandidaten: `assets-src/nature/`, Ablauf in
+[docs/BODEN.md](docs/BODEN.md#naturtexturen-bäume-büsche-felsen).
+
 ## Symbole
 
 Die bunten Symbole (`public/icons/symbols.webp`) hat das Bildmodell `openai/gpt-5.4-image-2` (über
@@ -41,10 +54,26 @@ erstellten Figurenbögen (`assets-src/icons/stil-*.webp`). Ablauf und Prompts: [
 Favicon und App-Icons (`public/favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) sind die
 Krone aus diesem Bogen, freigestellt von `scripts/icons/favicon.py`.
 
+Die Fähigkeitssymbole Weitblick, Bestechen und Einschüchtern (`public/icons/ab-farsight.webp`, `ab-bribe.webp`,
+`ab-intimidate.webp`) hat `google/gemini-3-pro-image-preview` (über OpenRouter) mit dem Symbolbogen als
+Stilvorlage für dieses Projekt erzeugt; freigestellt mit `scripts/art/finish.mjs`. Prompt, Modell, Kosten und
+Rohbilder: `assets-src/art/symbole/`.
+
+## Titelbild und Ladebild
+
+`public/art/title.webp` (Kulisse von Start-, Kampagnen- und Abenteuermenü und Welteditor) und `public/art/loading.webp`
+(Ladebildschirm) hat `google/gemini-3-pro-image-preview` (über OpenRouter) für dieses Projekt erzeugt; Stilvorlagen
+waren eigene Gebäudekonzepte (`assets-src/buildings/`) und ein Heldenporträt. Prompts, Modell, Kosten und Rohbilder:
+`assets-src/art/titel/`, `assets-src/art/laden/`; Skripte `scripts/art/`.
+
 ## Porträts
 
 - `public/portraits/serf.webp` und `worker.webp`: Ausschnitte aus den eigenen Figurenbögen
   (`assets-src/icons/style-1.webp`, `style-2.webp`); die Platzhalter-Spielerfarbe ist auf Spieler-Blau umgefärbt.
+- `public/portraits/sp-herald.webp` (Herold in den Missionsdialogen): von `google/gemini-3-pro-image-preview`
+  (über OpenRouter) mit drei vorhandenen Porträts und einem Figurenbogen als Stilvorlage erzeugt; Prompt, Kosten
+  und Rohbilder in `assets-src/art/herold/`. Die übrigen Sprecher- und Heldenporträts schneidet `scripts/portraits.py`
+  aus den eigenen Konzeptbögen.
 
 ## Vorbild
 

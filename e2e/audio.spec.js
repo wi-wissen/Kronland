@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
+import { quick } from './quick.js';
 
 // Sound system: unlock on first click, menu and game music, ambience, settings, UI sounds.
 // The test cannot listen; it checks state and that nothing throws (sound analysis: scripts/audio-check.py).
@@ -36,7 +37,7 @@ test('In game: build music, ambience, spatial sounds, events', async ({ page }) 
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(playUrl('?seed=42&no-models'));
   await page.waitForFunction(() => !!window.__kronland);
-  await page.getByTestId('quick-hq').click();
+  await quick(page, 'hq');
   await page.waitForFunction(() => window.__kronlandAudio.ctx?.state === 'running' && window.__kronlandAudio.ambient.active);
   const st = await page.evaluate(() => {
     const a = window.__kronlandAudio, l = a.listener;
@@ -174,7 +175,7 @@ test('Bundled music: build as file, winter, music pauses setting', async ({ page
   // In game: build music from files, on winter a soft switch to the winter theme
   await page.goto(playUrl('?seed=42&no-models'));
   await page.waitForFunction(() => !!window.__kronland);
-  await page.getByTestId('quick-hq').click();
+  await quick(page, 'hq');
   await page.waitForFunction(() => window.__kronlandAudio.music.track?.kind === 'file', null, { timeout: 90_000 });
   const m = await page.evaluate(() => {
     const a = window.__kronlandAudio;

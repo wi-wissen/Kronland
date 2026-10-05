@@ -163,10 +163,15 @@ export default {
 </script>
 
 <style>
-/* Shared background of the menus: evening sky over hills, drawn with gradients */
+/* Shared background of the menus: painted title image (public/art/title.webp, loading screen loading.webp; addresses
+   set by src/ui/art.js as --art-title/--art-loading), above it a darkening gradient for legibility.
+   Below it as a fallback (image still loading or missing) the evening sky over hills made of gradients. */
 .backdrop {
+  --backdrop-art: var(--art-title, none);
   position: fixed; inset: 0; overflow-y: auto; padding: max(1rem, var(--safe-t)) 1rem max(1rem, var(--safe-b));
   background:
+    linear-gradient(180deg, rgba(14, 10, 6, 0.5) 0%, rgba(14, 10, 6, 0.18) 30%, rgba(14, 10, 6, 0.32) 60%, rgba(14, 10, 6, 0.62) 100%),
+    var(--backdrop-art) center 40% / cover no-repeat,
     radial-gradient(ellipse 60% 40% at 72% 18%, rgba(255, 214, 140, 0.55), transparent 70%),
     radial-gradient(ellipse 120% 60% at 30% 118%, #2f4a2a 0 40%, transparent 41%),
     radial-gradient(ellipse 90% 50% at 90% 120%, #3b5a33 0 45%, transparent 46%),
@@ -178,6 +183,7 @@ export default {
   background: radial-gradient(ellipse at center, transparent 45%, rgba(10, 6, 3, 0.55));
 }
 .backdrop > * { position: relative; z-index: 1; }
+.backdrop.loading { --backdrop-art: var(--art-loading, var(--art-title, none)); }
 .sm-wrap { max-width: 60rem; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 1.25rem; }
 .sm-brand { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.125rem; }
 .sm-crown { width: 3.25rem !important; height: 3.25rem !important; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5)); }
@@ -215,6 +221,7 @@ export default {
 .sm-heroimg { width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 50% 35%, #fbf1d6, #c9a66b); box-shadow: inset 0 0 0 2px rgba(90, 60, 20, 0.5); }
 .sm-hero.active .sm-heroimg { box-shadow: inset 0 0 0 2px var(--gold-300), 0 0 10px rgba(243, 200, 94, 0.5); }
 .sm-heroimg .ico { width: 2.375rem; height: 2.375rem; }
+.sm-heroimg .ico.portrait { width: calc(100% - 4px); height: calc(100% - 4px); border-radius: 50%; }
 .sm-hint { color: var(--ink-muted); font-size: var(--fs-sm); }
 .sm-seed { display: flex; gap: 0.375rem; }
 .sm-seed input { flex: 1; }
