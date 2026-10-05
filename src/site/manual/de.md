@@ -72,16 +72,18 @@ Im Spiel zeigt **Menü → Steuerung** dieselbe Übersicht. Die **Größe der Ob
 - **Zahltag:** das runde Medaillon in der Mitte füllt sich bis zur nächsten Steuereinnahme. Die Sekunden erscheinen
   erst kurz vorher; am Zahltag selbst leuchtet es einmal auf. Der Hinweis nennt erwartete Steuern und Sold.
 - **Wetter:** der Ring zeigt, wie viel der Jahreszeit vorbei ist; die genaue Zeit steht im Hinweis.
-- **Pause und Geschwindigkeit:** der Tempo-Knopf klappt die Stufen 1×, 2× und 4× aus; ganz rechts das **Menü**.
+- **Pause, Geschwindigkeit und Ton:** der Tempo-Knopf klappt die Stufen 1×, 2× und 4× aus; der Ton-Knopf schaltet
+  stumm und stellt Musik, Effekte und Gesamtlautstärke ein; ganz rechts das **Menü**.
 
 ### Befehlsleiste, Minikarte und Kontextpanel
 
 ![Befehlsleiste mit Schnellzugriff, Minikarte und Baumenü](site/hud-commandbar.webp)
 
-- **Schnellzugriff** am Rand der runden Minikarte: *Burg* springt zur Burg, *Untätige* wählt Leibeigene ohne Arbeit
+- **Schnellzugriff** als eckige Knöpfe links neben der Minikarte (Namen im Tooltip): *Burg* springt zur Burg, *Untätige* wählt Leibeigene ohne Arbeit
   (die Zahl daran sagt, wie viele es sind), *Alle* wählt alle Leibeigenen, *Truppen* alle Soldaten und Helden.
-- **Helden und Steuergruppen** über der Karte: Ein Klick auf ein Heldenporträt wählt den Helden und holt ihn ins
-  Bild. Mit Umschalt+1 bis 9 merkst du dir eine Auswahl als Gruppe; die Zahltaste oder das Gruppenschild wählt
+- **Helden und Steuergruppen** über der Karte: Die Heldenporträts stehen übereinander; ein Klick wählt den Helden
+  und holt ihn ins Bild. Ist ein Held bewusstlos, wird sein Porträt grau, ein Ring füllt sich bis zum Aufwachen
+  und darunter steht die Restzeit – solange Feinde in der Nähe sind, steht dort „bewusstlos“. Mit Umschalt+1 bis 9 merkst du dir eine Auswahl als Gruppe; die Zahltaste oder das Gruppenschild wählt
   sie wieder, zweimal kurz hintereinander holt sie ins Bild.
 - **Minikarte:** zeigt Gelände, Gebäude und Truppen. Klicken oder Ziehen bewegt die Kamera.
 - **Befehlstafel:** erscheint, sobald du etwas auswählst. Bei Leibeigenen zeigt sie das **Baumenü** mit allen

@@ -275,8 +275,13 @@ export function constructionStage(stage, w, d) {
   return fittedModel(n, w, d, 0.92);
 }
 
-/** Ruin of a destroyed building. */
-export function ruinModel(w, d) {
+/** Own ruin models per building type (`public/models/buildings/<name>.glb`). */
+const RUIN_ASSETS = { villageCenter: 'villagecenter_ruin', residence: 'residence_ruin' };
+
+/** Ruin of a destroyed building (own ruin of the type, otherwise the generic one). @param {string} [type] */
+export function ruinModel(w, d, type) {
+  const own = RUIN_ASSETS[type] && fittedModel(`buildings/${RUIN_ASSETS[type]}`, w, d, 0.95);
+  if (own) return own;
   const g = fittedModel('buildings/destroyed', w, d, 0.95);
   if (g) return g;
   const r = new THREE.Group();
@@ -366,7 +371,7 @@ export const PROF_COLORS = {
   mason: 0x8a8a92, smith: 0x4a4a52, alchemist: 0x7a4a8a, treasurer: 0x9a7a2a, priest: 0xe6e0d0, trader: 0x3a7a7a,
 };
 
-/** Campfire at the village centre. */
+/** Campfire (workers without bed or dining spot, bandit camp). */
 export function campfireModel() {
   const g = new THREE.Group();
   for (let i = 0; i < 5; i++) {

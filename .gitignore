@@ -10,3 +10,6 @@ review/
 
 # Rohdateien der Asset-Pipeline: nur lokal beim Maintainer, nicht in Git
 assets-src/
+# Zwischenstände der Sprachausgabe
+public/audio/voice/**/*.wav
+public/audio/voice/**/*.src.mp3

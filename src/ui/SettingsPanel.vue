@@ -34,6 +34,9 @@
 
     <section class="st-sec">
       <h4 class="h-label"><Icon name="sound" />{{ $t('set.sound') }}</h4>
+      <button class="switch" role="switch" :aria-checked="s.muted" data-testid="muted" @click="set('muted', !s.muted)">
+        <span class="st-sl-label"><Icon name="mute" />{{ $t('set.muted') }}</span><span class="track"></span>
+      </button>
       <label v-for="k in ['master', 'music', 'effects']" :key="k" class="st-slider">
         <span class="st-sl-label"><Icon :name="k === 'master' ? 'sound' : k" />{{ $t('set.' + k) }}</span>
         <input
@@ -46,6 +49,31 @@
         >
         <b class="num">{{ Math.round(s[k] * 100) }}</b>
       </label>
+      <span class="st-sl-label st-sub"><Icon name="time" />{{ $t('set.musicPause') }}</span>
+      <div class="seg" role="radiogroup" :aria-label="$t('set.musicPause')">
+        <button
+          v-for="p in pauses"
+          :key="p"
+          role="radio"
+          :aria-checked="s.musicPause === p"
+          :class="{ active: s.musicPause === p }"
+          :data-testid="'music-pause-' + p"
+          @click="set('musicPause', p)"
+        >{{ $t('set.pause.' + p) }}</button>
+      </div>
+      <p class="st-note">{{ $t('set.musicPauseNote') }}</p>
+      <span class="st-sl-label st-sub"><Icon name="scroll" />{{ $t('set.barks') }}</span>
+      <div class="seg" role="radiogroup" :aria-label="$t('set.barks')">
+        <button
+          v-for="b in barkModes"
+          :key="b"
+          role="radio"
+          :aria-checked="s.barks === b"
+          :class="{ active: s.barks === b }"
+          :data-testid="'barks-' + b"
+          @click="set('barks', b)"
+        >{{ $t('set.barks.' + b) }}</button>
+      </div>
     </section>
 
     <section class="st-sec">
@@ -77,6 +105,10 @@
         <span class="st-sl-label"><Icon name="scroll" />{{ $t('set.speech') }}</span><span class="track"></span>
       </button>
       <p class="st-note">{{ $t('set.speechNote') }}</p>
+      <button class="switch" role="switch" :aria-checked="s.dialogCamera" data-testid="dialog-camera" @click="set('dialogCamera', !s.dialogCamera)">
+        <span class="st-sl-label"><Icon name="target" />{{ $t('set.dialogCamera') }}</span><span class="track"></span>
+      </button>
+      <p class="st-note">{{ $t('set.dialogCameraNote') }}</p>
       <button class="switch" role="switch" :aria-checked="dev.on" data-testid="dev-mode" @click="toggleDev">
         <span class="st-sl-label"><Icon name="display" />{{ $t('dev.toggle') }}</span><span class="track"></span>
       </button>
@@ -98,7 +130,7 @@
 </template>
 
 <script>
-import { settings, set, DEFAULTS } from './settings.js';
+import { settings, set, DEFAULTS, MUSIC_PAUSE_OPTIONS, BARK_OPTIONS } from './settings.js';
 import { LANGS } from '../i18n/index.js';
 import { devState, setDevMode } from '../dev/state.js';
 
@@ -106,7 +138,7 @@ export default {
   name: 'SettingsPanel',
   props: { inGame: Boolean },
   emits: ['close', 'quality'],
-  data() { return { s: settings, langs: LANGS, qualities: ['auto', 'low', 'medium', 'high'], preview: null, dev: devState }; },
+  data() { return { s: settings, langs: LANGS, qualities: ['auto', 'low', 'medium', 'high'], pauses: MUSIC_PAUSE_OPTIONS, barkModes: BARK_OPTIONS, preview: null, dev: devState }; },
   methods: {
     set(k, v) { set(k, v); if (k === 'uiScale') this.preview = null; },
     setQuality(q) { set('quality', q); this.$emit('quality', q); },
@@ -124,6 +156,7 @@ export default {
 .st-slider { display: grid; grid-template-columns: minmax(8rem, 11rem) 1fr 3rem; align-items: center; gap: 0.625rem; }
 .st-sl-label { display: inline-flex; align-items: center; gap: 0.4375rem; color: var(--ink); font-size: var(--fs-md); }
 .st-sl-label .ico { width: 1.125rem; height: 1.125rem; color: var(--gold-300); }
+.st-sub { margin-top: 0.25rem; }
 .st-slider b { text-align: right; font-weight: 700; color: var(--gold-200); }
 .st-foot { display: flex; justify-content: space-between; gap: 0.5rem; padding-top: 0.25rem; }
 .st-foot .primary { min-width: 8rem; min-height: var(--touch); }

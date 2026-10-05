@@ -52,10 +52,9 @@ export class Terrain {
     this.computeCorners(0, 0, W, H);
     this.buildGrid();
     this.uniforms = {
-      uSnow: { value: 0 }, uWet: { value: 0 }, uTrample: { value: null },
+      uSnow: { value: 0 }, uWet: { value: 0 },
       uMapSize: { value: new THREE.Vector2(W, H) }, uWaterY: { value: this.waterY },
     };
-    this.buildTrample();
     this.mesh = this.buildMesh();
   }
 
@@ -292,43 +291,6 @@ export class Terrain {
     this.geometry.attributes.splatB.needsUpdate = true;
   }
 
-  // ---------- Trampled ground around buildings ----------
-
-  buildTrample() {
-    const { W, H } = this;
-    const data = new Uint8Array(W * H * 4);
-    const t = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
-    t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter;
-    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-    t.needsUpdate = true;
-    this.trampleTex = t;
-    this.uniforms.uTrample.value = t;
-  }
-
-  /**
-   * Recompute trampled areas.
-   * @param {{x:number,y:number,w:number,h:number}[]} rects building footprints
-   */
-  setTrampled(rects) {
-    const { W, H } = this;
-    const f = new Float32Array(W * H);
-    for (const r of rects) {
-      const pad = 2;
-      for (let y = r.y - pad; y < r.y + r.h + pad; y++) for (let x = r.x - pad; x < r.x + r.w + pad; x++) {
-        if (x < 0 || y < 0 || x >= W || y >= H) continue;
-        const dx = Math.max(r.x - x, 0, x - (r.x + r.w - 1)), dy = Math.max(r.y - y, 0, y - (r.y + r.h - 1));
-        const d = Math.max(dx, dy);
-        const n = vnoise(x * 0.7, y * 0.7, 21);
-        const v = d === 0 ? 1 : d === 1 ? 0.75 + n * 0.25 : 0.25 + n * 0.35;
-        // forecourt towards +z (entrance) a bit stronger
-        f[y * W + x] = Math.max(f[y * W + x], y >= r.y + r.h ? Math.min(1, v + 0.15) : v);
-      }
-    }
-    const d = this.trampleTex.image.data;
-    for (let k = 0; k < W * H; k++) d[k * 4] = Math.round(f[k] * 255);
-    this.trampleTex.needsUpdate = true;
-  }
-
   // ---------- Height changes from the simulation ----------
 
   /** Remember a building surface: its edge corners lie exactly on the plane. Returns true if new. */
@@ -442,7 +404,7 @@ vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
 vWNrm = normalize(mat3(modelMatrix) * objectNormal);`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
-uniform sampler2D tGrass, tMeadow, tDirt, tSand, tRock, tSnow, tMacro, uTrample;
+uniform sampler2D tGrass, tMeadow, tDirt, tSand, tRock, tSnow, tMacro;
 uniform float uRep, uRockRep, uSnow, uWet, uWaterY;
 uniform vec2 uMapSize;
 varying vec4 vSplatA;
@@ -499,15 +461,11 @@ vec3 cRock = texture2D(tRock, vWPos.zy * uRockRep).rgb * bw.x
            + texture2D(tRock, vWPos.xz * uRockRep).rgb * bw.y
            + texture2D(tRock, vWPos.xy * uRockRep).rgb * bw.z;
 #endif
-// Trampled ground around buildings
-float trample = texture2D(uTrample, vWPos.xz / uMapSize).r;
-float inside = step(0.0, vWPos.x) * step(0.0, vWPos.z) * step(vWPos.x, uMapSize.x) * step(vWPos.z, uMapSize.y);
-trample *= inside;
-// Weights: grass is the rest
-float wMeadow = vSplatA.x, wDirt = max(vSplatA.y, trample * 0.95), wSand = vSplatA.z, wRock = vSplatA.w;
+// Weights: grass is the rest (buildings do not change the ground colour)
+float wMeadow = vSplatA.x, wDirt = vSplatA.y, wSand = vSplatA.z, wRock = vSplatA.w;
 // Winter: snow on flat ground, rock on steep slopes and cliffs stays visible, paths shimmer through
 float flatness = 1.0 - smoothstep(0.18, 0.42, 1.0 - normalize(vWNrm).y);
-float wSnow = max(vSplatB.x, uSnow * flatness * (1.0 - wRock * 0.55) * (1.0 - trample * 0.45) * smoothstep(0.0, 0.1, vWPos.y - uWaterY));
+float wSnow = max(vSplatB.x, uSnow * flatness * (1.0 - wRock * 0.55) * smoothstep(0.0, 0.1, vWPos.y - uWaterY));
 float wGrass = max(0.0, 1.0 - wMeadow - wDirt - wSand - wRock);
 wMeadow *= (1.0 - wDirt) * (1.0 - wSand) * (1.0 - wRock);
 // Height-based blending: bright texture spots win first (sharp, natural transitions)
@@ -554,6 +512,5 @@ normal = kPerturb(-vViewPosition, normal, vec2(dFdx(kH), dFdy(kH)) * 1.4, faceDi
   dispose() {
     this.geometry.dispose();
     this.mesh.material.dispose();
-    this.trampleTex.dispose();
   }
 }

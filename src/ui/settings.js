@@ -22,14 +22,21 @@ const QUALITY_KEY = 'kronland.quality';
  * @property {boolean} hints show help texts in the panels
  * @property {boolean} labels short labels under the icons (build, command and quick bar)
  * @property {boolean} speech read dialogues aloud (MP3 of the scenario or the browser's speech synthesis)
+ * @property {boolean} dialogCamera during dialogues the camera moves close to the speaking figure
  * @property {boolean} autosave save automatically (save slot "Autosave")
+ * @property {boolean} muted sound off (all sounds, music and voices)
+ * @property {'off'|'short'|'normal'|'long'} musicPause pause between two peaceful music pieces
+ * @property {'off'|'rare'|'often'} barks how often figures say something when selected and on commands
  */
 
 /** Touch device without a fine pointer (phone, tablet): labels are on by default there. */
 const coarse = () => { try { return globalThis.matchMedia?.('(pointer: coarse)').matches ?? false; } catch { return false; } };
 
 /** @type {Omit<Settings, 'lang'|'quality'>} */
-export const DEFAULTS = { master: 0.8, music: 0.6, effects: 0.8, uiScale: 1, edgeScroll: true, hints: true, labels: coarse(), speech: true, autosave: true };
+export const DEFAULTS = { master: 0.8, music: 0.6, effects: 0.8, uiScale: 1, edgeScroll: true, hints: true, labels: coarse(), speech: true, dialogCamera: true, autosave: true, muted: false, musicPause: 'normal', barks: 'rare' };
+
+export const MUSIC_PAUSE_OPTIONS = ['off', 'short', 'normal', 'long'];
+export const BARK_OPTIONS = ['off', 'rare', 'often'];
 
 const LIMITS = { master: [0, 1], music: [0, 1], effects: [0, 1], uiScale: [0.9, 1.3] };
 
@@ -55,7 +62,9 @@ function sanitize(key, value) {
     const [lo, hi] = LIMITS[key];
     return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n * 100) / 100)) : DEFAULTS[key];
   }
-  if (key === 'edgeScroll' || key === 'hints' || key === 'labels' || key === 'speech' || key === 'autosave') return !!value;
+  if (key === 'musicPause') return MUSIC_PAUSE_OPTIONS.includes(value) ? value : DEFAULTS.musicPause;
+  if (key === 'barks') return BARK_OPTIONS.includes(value) ? value : DEFAULTS.barks;
+  if (key === 'edgeScroll' || key === 'hints' || key === 'labels' || key === 'speech' || key === 'dialogCamera' || key === 'autosave' || key === 'muted') return !!value;
   return value;
 }
 

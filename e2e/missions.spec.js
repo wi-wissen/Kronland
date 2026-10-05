@@ -83,15 +83,16 @@ test('Open the campaign, start mission 1, see objectives and dialogue', async ({
   const obj = page.getByTestId('objectives');
   await expect(obj).toBeVisible();
   // On mobile the list is collapsed at first
-  if (!(await page.getByTestId('objective-homes').isVisible())) await page.getByTestId('objectives-toggle').click();
-  await expect(page.getByTestId('objective-homes')).toContainText('Wohnhäuser');
-  await expect(page.getByTestId('objective-homes')).toContainText('0/2', SLOW);
+  // First objective: Nelia to the stranger on the village square (Orrin); the build objectives follow bit by bit
+  if (!(await page.getByTestId('objective-meet').isVisible())) await page.getByTestId('objectives-toggle').click();
+  await expect(page.getByTestId('objective-meet')).toContainText('Fremden');
+  await expect(page.getByTestId('objective-homes')).toHaveCount(0);
   // The dialogue fades out after a few seconds; under load it may already be gone.
   // Hence check the mission state (speaker of the first message) and, if still visible, the display.
   await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.messages.map((m) => m.speaker).join(',')), SLOW).toMatch(/nelia/i);
   const speaker = page.getByTestId('dialog-speaker');
   if (await speaker.isVisible()) await expect(speaker).toContainText('Nelia');
-  await expect(page.getByTestId('res-gold')).toHaveText('500');
+  await expect(page.getByTestId('res-gold')).toHaveText('400');
   expect(errors).toEqual([]);
 });
 
@@ -141,11 +142,17 @@ test('Conversation figure: Orrin talks to the village elder, the neighbouring vi
   const errors = await fresh(page);
   await page.goto(playUrl('?mission=c1&no-models'));
   await page.waitForFunction(() => window.__kronland?.sim.mission?.state.id === 'c1');
-  // Nelia is already almost at the old root (the walk is not the subject here), then Orrin goes by
-  // command, like a right click, to the village elder
+  // Nelia already stands with Orrin on the village square, then almost at the old root (the walking is not
+  // the subject here); afterwards Orrin goes to the village elder by command, as with a right click
   await page.evaluate(() => {
     const e = window.__kronland, st = e.sim.mission.state, n = e.sim.entities.get(st.refs.nelia);
-    n.px = st.refs.oldRoot.x * 1000 + 500; n.py = st.refs.oldRoot.y * 1000 + 1500;
+    const o = e.sim.entities.get(st.npcs.stranger.entity);
+    n.px = o.px + 1000; n.py = o.py; n.path = [];
+  });
+  await page.waitForFunction(() => window.__kronland.sim.mission.state.flags.orrin, null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    const e = window.__kronland, st = e.sim.mission.state, n = e.sim.entities.get(st.refs.nelia);
+    n.px = st.refs.oldRoot.x * 1000 + 500; n.py = st.refs.oldRoot.y * 1000 + 1500; n.path = [];
   });
   await page.waitForFunction(() => window.__kronland.sim.mission.state.npcs.elder, null, { timeout: 60_000 });
   await page.evaluate(() => {
@@ -155,8 +162,10 @@ test('Conversation figure: Orrin talks to the village elder, the neighbouring vi
     o.px = npc.px + 6000; o.py = npc.py;
     e.issue({ type: 'order', units: [st.refs.orrin], order: 'move', x: Math.floor(npc.px / 1000), y: Math.floor(npc.py / 1000) + 1 });
   });
-  await expect(page.getByTestId('dialog-speaker')).toBeVisible(SLOW);
   await page.waitForFunction(() => window.__kronland.sim.mission.state.npcs.elder.state === 'talked', null, { timeout: 120_000 });
+  // The conversation is in the notices (the display itself changes quickly depending on speed)
+  expect(await page.evaluate(() => window.__kronland.sim.mission.state.messages.some((m) => m.speaker === 'elder'))).toBe(true);
+  await expect(page.getByTestId('dialog').first()).toBeVisible(SLOW);
   const rel = await page.evaluate(() => { const s = window.__kronland.sim; return s.relation(0, s.mission.playerOf('neighbors')); });
   expect(rel).toBe('allied');
   expect(errors).toEqual([]);

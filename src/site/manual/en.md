@@ -72,15 +72,18 @@ under **Settings**.
 - **Payday:** the round medallion in the middle fills up until the next tax income. The seconds only appear
   shortly before; on payday itself it lights up once. The hint shows expected taxes and wages.
 - **Weather:** the ring shows how much of the season has passed; the exact time is in the hint.
-- **Pause and speed:** the speed button opens the choices 1×, 2× and 4×; the **menu** on the far right.
+- **Pause, speed and sound:** the speed button opens the choices 1×, 2× and 4×; the sound button mutes and sets
+  music, effects and overall volume; the **menu** on the far right.
 
 ### Command bar, minimap and context panel
 
 ![Command bar with quick access, minimap and build menu](site/hud-commandbar.webp)
 
-- **Quick access** on the rim of the round minimap: *Castle* jumps to your castle, *Idle* selects serfs without work
+- **Quick access** as square buttons left of the minimap (names in the tooltip): *Castle* jumps to your castle, *Idle* selects serfs without work
   (the number on it says how many), *All* selects all serfs, *Troops* all soldiers and heroes.
-- **Heroes and control groups** above the map: clicking a hero portrait selects the hero and brings them into view.
+- **Heroes and control groups** above the map: hero portraits are stacked; clicking one selects the hero and
+  brings them into view. An unconscious hero turns grey, a ring fills up until they wake and the remaining time
+  is shown below – while enemies are near it says “unconscious”.
   Shift+1 to 9 saves a selection as a group; the number key or the group plate selects it again, twice in a row
   brings it into view.
 - **Minimap:** shows terrain, buildings and troops. Click or drag to move the camera.

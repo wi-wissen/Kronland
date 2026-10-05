@@ -51,6 +51,7 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
 - Laufbefehle fächern auf: Jede Figur bekommt eine eigene Zielkachel um den Klickpunkt (Leibeigene
   1 Kachel Abstand, Truppen und Helden 3 Kacheln, damit die Soldaten dahinter Platz haben).
 - Beim Platzieren eines Gebäudes mit ausgewählten Leibeigenen fangen diese sofort an zu bauen.
+- Über jeder Baustelle (auch beim Ausbau) zeigt ein blauer Balken den Baufortschritt.
 - „Zu den Waffen“: werden zu Miliz (Angriff 9, Rüstung 1), rückverwandelbar.
 
 ## 4. Arbeiter, Motivation, Steuern
@@ -59,6 +60,14 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
   Bevölkerungslimit es zulässt. Nicht steuerbar.
 - Zyklus: arbeiten → Ausdauer sinkt → essen (Bauernhof) → schlafen (Wohnhaus) → weiter.
   Ohne Platz: Lagerfeuer, deutlich langsamer. Haus + Hof machen ca. 7× schneller.
+- **Lagerfeuer entstehen nur bei Bedarf**: Braucht ein Arbeiter ohne Bett oder Essplatz Rast, nimmt er das
+  nächste eigene Lagerfeuer bis 12 Kacheln um seinen Arbeitsplatz. Gibt es keins, wird auf einer freien Kachel
+  3–10 Kacheln um den Arbeitsplatz eins entzündet (mit einer Kachel Luft zu Gebäuden, Bäumen, Wasser und
+  reservierten Plätzen, im selben Gebiet). Alle 5 s prüft die Simulation, ob es noch gebraucht wird; haben alle
+  Arbeiter in der Nähe Bett und Essplatz und rastet niemand mehr dort, geht es aus. Überbautes Feuer erlischt.
+  So zeigen Lagerfeuer (auch als orange Punkte auf der Minikarte), wo Wohnhäuser oder Bauernhöfe fehlen;
+  beim ersten Feuer kommt eine Meldung (höchstens einmal je Minute). Findet sich kein Platz, rasten sie wie
+  früher an Dorfzentrum oder Burg. Burg und Dorfzentrum haben kein festes Lagerfeuer mehr.
 - Wohnhaus 6/9/12 Betten, Bauernhof 8/10/12 Essplätze (Stufe 1/2/3).
 - Umsetzung (Werte in `src/sim/data/professions.js`): Ausdauer max. 2000 (neue Arbeiter 600),
   ein Arbeitsgang kostet 100. Essen +200, Schlafen +400 – jeweils × Motivationswirkung; Lagerfeuer

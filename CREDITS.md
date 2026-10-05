@@ -19,6 +19,13 @@
 Alle übrigen Modelle (Figuren der Soldaten als Rückfall, einige Gebäude) sind prozedural im Code
 erzeugt (`src/render/models.js`).
 
+## Stimmen
+
+Alle Stimmen (Missionsdialoge, Sprüche der Figuren) sind für dieses Projekt erzeugt: Stimme aus einer
+Beschreibung und Klonen mit ByteDance Seed Audio 1.0 (über OpenRouter), Hörprüfung mit Google Gemini 3.8 Flash.
+Vorlagen, Beschreibungen und unbearbeitete Aufnahmen unter `assets-src/voices/`, Ablauf in
+[docs/AUDIO.md](docs/AUDIO.md#stimmen). Eigene Erzeugnisse des Projekts, keine echten Sprecher.
+
 ## Bodentexturen
 
 Gras, Wiese, Erde, Sand, Fels und Schnee (`public/textures/ground/`) haben die Bildmodelle `openai/gpt-image-2` und
@@ -47,6 +54,20 @@ Namen, Texte, Helden und Grafiken sind eigene. Zahlenwerte stammen aus der Commu
 
 ## Ton
 
-- Alle Klangeffekte und die Musik werden im Spiel prozedural erzeugt (Web Audio API); eigene
-  Komposition, keine fremden Aufnahmen. Später ergänzte Audiodateien unter `public/audio/` siehe
-  [docs/AUDIO.md](docs/AUDIO.md) – deren Herkunft und Lizenz bitte hier eintragen.
+- Umgebung und die meisten Klangeffekte werden im Spiel prozedural erzeugt (Web Audio API); eigene
+  Komposition, ebenso die generative Rückfall-Musik.
+- Einige Effekte (Axt, Spitzhacke, Hammer, Klingen, Pfeiltreffer, Münzen) unter
+  `public/audio/sfx/` stammen aus **Kenney – RPG Audio** (https://kenney.nl/assets/rpg-audio) und
+  **Kenney – Impact Sounds** (https://kenney.nl/assets/impact-sounds), Kenney Vleugels / www.kenney.nl,
+  Lizenz **CC0 1.0** (http://creativecommons.org/publicdomain/zero/1.0/). Geschnitten, in der Tonhöhe
+  variiert und als MP3 umgewandelt mit `scripts/asset-gen/sfx-cc0.mjs`; Zuordnung in
+  [docs/AUDIO.md](docs/AUDIO.md#effekt-aufnahmen-cc0).
+- Der Amboss (`public/audio/sfx/anvil-*.mp3`) stammt von Freesound: „Hammer and anvil“ von **Duasun**
+  (https://freesound.org/people/Duasun/sounds/321889/) und „Anvil – Lokomo 125 kg – Hammer on 6mm steel 1 time“
+  von **ldezem** (https://freesound.org/people/ldezem/sounds/386129/), beide **CC0 1.0**; einzelne Schläge
+  geschnitten mit `scripts/asset-gen/sfx-cc0.mjs`.
+- Die Musik unter `public/audio/music/` ist für dieses Projekt mit **Google Lyria 3 Pro** (über OpenRouter)
+  erzeugt, vorgeprüft mit Google Gemini 3.8 Flash und mit `scripts/asset-gen/music.mjs` geschnitten und in der
+  Lautheit angeglichen (Prompts und Auswahl im Skript, Ablauf in [docs/AUDIO.md](docs/AUDIO.md#musik-lyria-3)).
+  Eigene Erzeugnisse des Projekts; die Dateien tragen das unhörbare SynthID-Wasserzeichen von Google.
+- Weitere Audiodateien unter `public/audio/` bitte hier mit Herkunft und Lizenz eintragen.

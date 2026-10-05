@@ -259,7 +259,7 @@ export class HealthBars {
     g.setAttribute('position', quad.attributes.position);
     g.setAttribute('uv', quad.attributes.uv);
     this.aPos = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4).setUsage(THREE.DynamicDrawUsage); // xyz + fill
-    this.aSize = new THREE.InstancedBufferAttribute(new Float32Array(max * 2), 2).setUsage(THREE.DynamicDrawUsage); // width, height px
+    this.aSize = new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage); // width, height px, kind (0 health, 1 construction progress)
     g.setAttribute('iPos', this.aPos); g.setAttribute('iSize', this.aSize);
     g.instanceCount = 0;
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
@@ -267,11 +267,11 @@ export class HealthBars {
     const mat = new THREE.ShaderMaterial({
       uniforms: this.uniforms, transparent: true, depthTest: false, depthWrite: false,
       vertexShader: /* glsl */`
-attribute vec4 iPos; attribute vec2 iSize;
+attribute vec4 iPos; attribute vec3 iSize;
 uniform vec2 uViewport; uniform float uPixelRatio;
-varying vec2 vUv; varying float vFrac; varying vec2 vPx;
+varying vec2 vUv; varying float vFrac; varying vec2 vPx; varying float vKind;
 void main() {
-  vUv = uv; vFrac = iPos.w; vPx = iSize * uPixelRatio;
+  vUv = uv; vFrac = iPos.w; vPx = iSize.xy * uPixelRatio; vKind = iSize.z;
   vec4 c = projectionMatrix * modelViewMatrix * vec4(iPos.xyz, 1.0);
   // snap to whole pixels: sharp edges
   vec2 ndc = c.xy / c.w;
@@ -281,7 +281,7 @@ void main() {
   gl_Position = c;
 }`,
       fragmentShader: /* glsl */`
-varying vec2 vUv; varying float vFrac; varying vec2 vPx;
+varying vec2 vUv; varying float vFrac; varying vec2 vPx; varying float vKind;
 void main() {
   vec2 p = vUv * vPx;
   float border = 1.0;
@@ -290,7 +290,8 @@ void main() {
   if (edge) col = vec3(0.06, 0.05, 0.04);
   else {
     float x = (p.x - border) / (vPx.x - 2.0 * border);
-    vec3 full = vFrac > 0.5 ? vec3(0.36, 0.82, 0.38) : vFrac > 0.25 ? vec3(0.95, 0.7, 0.2) : vec3(0.92, 0.3, 0.26);
+    // construction progress uniformly blue, health by state green/yellow/red
+    vec3 full = vKind > 0.5 ? vec3(0.4, 0.68, 0.96) : vFrac > 0.5 ? vec3(0.36, 0.82, 0.38) : vFrac > 0.25 ? vec3(0.95, 0.7, 0.2) : vec3(0.92, 0.3, 0.26);
     float shade = 0.82 + 0.18 * step(0.5, vUv.y);
     col = x <= vFrac ? full * shade : vec3(0.16, 0.14, 0.12);
   }
@@ -308,12 +309,12 @@ void main() {
     this.n = 0;
   }
   begin() { this.n = 0; }
-  /** @param {number} x @param {number} y @param {number} z @param {number} frac 0…1 @param {number} [w] Breite px */
-  add(x, y, z, frac, w = 34, h = 6) {
+  /** @param {number} x @param {number} y @param {number} z @param {number} frac 0…1 @param {number} [w] width px @param {number} [h] height px @param {number} [kind] 0 health, 1 construction progress */
+  add(x, y, z, frac, w = 34, h = 6, kind = 0) {
     if (this.n >= this.max) return;
     const i = this.n++;
     this.aPos.setXYZW(i, x, y, z, Math.max(0, Math.min(1, frac)));
-    this.aSize.setXY(i, w, h);
+    this.aSize.setXYZ(i, w, h, kind);
   }
   end(viewport, pixelRatio) {
     this.uniforms.uViewport.value.set(viewport.w * pixelRatio, viewport.h * pixelRatio);

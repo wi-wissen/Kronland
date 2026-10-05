@@ -62,6 +62,11 @@
       </div>
     </div>
 
+    <!-- What the abilities and the control group do: always visible, not only in the tooltip -->
+    <ul v-if="explain.length" class="ap-explain" data-testid="army-explain">
+      <li v-for="x in explain" :key="x.key"><Icon :name="x.icon" /><span><b>{{ x.name }}</b> {{ x.text }}</span></li>
+    </ul>
+
     <div class="ap-body">
       <article v-for="h in sel.heroes" :key="h.id" class="hcard inset" :class="{ down: h.down }" :data-testid="'hero-' + h.hero">
         <span class="hc-portrait"><Icon :name="'hero-' + h.hero" /></span>
@@ -148,6 +153,20 @@ export default {
   },
   beforeUnmount() { window.removeEventListener('keydown', this.onKey); },
   computed: {
+    /** Short explanations: abilities of all selected heroes and the control group */
+    explain() {
+      const out = [];
+      for (const h of this.sel.heroes ?? []) {
+        for (const a of h.abilities) out.push({ key: h.id + a.id, icon: 'ab-' + a.id, name: this.$name.ability(a.id), text: this.$t('adesc.' + a.id) });
+      }
+      const g = this.group;
+      if (g && (g.current || g.next)) {
+        const n = g.current || g.next;
+        const k = g.current ? 'army.groupExplainIs' : 'army.groupExplainNew';
+        out.push({ key: 'group', icon: 'banner', name: this.$t('army.groupIs', { n }), text: this.$t(k + (this.touch ? 'Touch' : ''), { n }) });
+      }
+      return out;
+    },
     /** Most experienced first, at most 8 cards (more do not fit sensibly in the bar) */
     shownLeaders() { return [...(this.sel.leaders ?? [])].sort((a, b) => b.xp - a.xp).slice(0, 8); },
     /** Group overview only if not all captains appear as a card */
@@ -170,6 +189,10 @@ export default {
 
 <style>
 .apanel { display: flex; flex-direction: column; gap: 0.5rem; }
+.ap-explain { list-style: none; margin: 0; padding: 0.375rem 0.5rem; display: flex; flex-direction: column; gap: 0.25rem; border-radius: var(--r-md); background: var(--inset-bg); box-shadow: var(--inset-edge); font-size: var(--fs-sm); color: var(--ink-muted); }
+.ap-explain li { display: flex; align-items: flex-start; gap: 0.375rem; line-height: 1.3; }
+.ap-explain .ico { width: 1.125rem; height: 1.125rem; flex: none; }
+.ap-explain b { color: var(--gold-200); margin-right: 0.25rem; }
 .ap-body { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch; }
 .hcard { display: flex; align-items: center; gap: 0.625rem; padding: 0.4375rem 0.5rem; flex: 1 1 20rem; }
 .hcard.down .hc-portrait { filter: grayscale(1) brightness(0.7); }

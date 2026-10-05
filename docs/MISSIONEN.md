@@ -52,6 +52,9 @@ export default {
   ],
   tributes: { … },        // Angebote, die der Spieler bezahlen kann (siehe unten)
   npcs: { … },            // Gesprächsfiguren (siehe unten)
+  landmarks: [{ at: 'vcRuin', model: 'ruin', building: 'villageCenter' }],
+  // Wahrzeichen, nur Darstellung: Grundmauern eines Gebäudes (linke obere Ecke auf at; eigenes Ruinenmodell des Typs,
+  // sonst die allgemeine Ruine; verschwinden, sobald dort gebaut wird)
   setup(ctx) { … },       // Karte nachbearbeiten (siehe unten)
   start: [ …Aktionen ],   // direkt nach dem Aufbau
   objectives: [ … ],
@@ -128,7 +131,13 @@ Insel, die seine Leibeigenen nicht erreichen), bekommen `fixed = true`.
 ## Ziele
 
 Gemeinsame Felder: `id`, `type`, `text`, `primary` (Hauptziel), `hidden` (erst durch `reveal`
-sichtbar), `player` (Standard: Mensch), `onDone` / `onFail` (Aktionen), `showProgress: false`.
+sichtbar), `player` (Standard: Mensch), `onDone` / `onFail` (Aktionen), `showProgress: false`,
+`hint` (`{ area }` oder `{ entity }`: Ort des Ziels).
+
+**Zielorte:** Ein offenes Ziel mit Ort – `reach` immer (sein `area`), andere über `hint` – bekommt auf der Karte
+Ring und Pfeil (wie Tutorial-Hinweise; das erste solche Ziel, Hauptziele zuerst) und im Zielpanel einen Knopf,
+der die Kamera hinfährt. Damit Spieler wissen, wo „der alte Baum am Waldrand“ ist; ein Wahrzeichen (`landmarks`)
+zeigt dort zusätzlich etwas Passendes.
 
 | `type` | Felder | erfüllt, wenn … |
 |---|---|---|
@@ -236,6 +245,8 @@ npcs: {
 },
 ```
 
+`look` ist eine Rolle des Figuren-Manifests (`serf`, `worker`, auch ein Held wie `hero.orrin`, der sich nach dem
+Gespräch per `remove` + `hero` anschließt – Mission 1). `speaker` lenkt die Dialogkamera auf die Figur.
 Aufstellen mit `{ type: 'npc', id }`; Bezug und Zustand unter `refs[id]` bzw. `state.npcs[id]`. Die Figur
 ist ein eigenes Entity (`kind: 'npc'`), kämpft nicht und kann nicht angegriffen werden.
 
@@ -262,7 +273,19 @@ ist ein eigenes Entity (`kind: 'npc'`), kämpft nicht und kann nicht angegriffen
 
 `Engine.uiState().mission` liefert `{ objectives, tutorial, messages, tributes, camera, result }`.
 Komponenten in `src/ui/mission/`: `CampaignMenu`, `MissionHud` (Coach, Ziele, Angebote, Dialog),
-`MissionResult`. Feste Oberflächentexte stehen unter `mission.*` in `src/i18n/de.js`/`en.js`.
+`MissionResult`.
+
+**Dialoge** (`DialogBox.vue`): eine Mitteilung nach der anderen. Weiter geht es erst, wenn die Anzeigezeit um ist
+(Skript: so lange, wie die Simulation wartet; sonst Lesezeit, mit Aufnahme mindestens 2,5 s) **und** die Aufnahme
+zu Ende gesprochen ist (plus 0,45 s Pause) – so fällt kein Sprecher dem anderen ins Wort. ✕ beendet den Satz,
+„Gespräch überspringen“ alle wartenden Sätze. Vor dem ersten Satz
+wartet der Dialog auf den Index der Aufnahmen. Solange eine Stimme spricht, sinken Musik (auf 22 %) und Umgebung
+(55 %) und kommen danach weich zurück (`AudioEngine.duck`).
+**Dialogkamera** (`Engine.dialogFocus`, Einstellung „Kamera bei Dialogen“): Spricht eine sichtbare Figur (Held
+oder Gesprächsfigur), fährt die Kamera in 1,1 s auf Abstand 8 an sie heran (Nahansicht mit flachem Blick); nach
+dem letzten Satz fährt sie zurück. Bewegt der Spieler die Kamera selbst, bleibt sie dort.
+
+Feste Oberflächentexte stehen unter `mission.*` in `src/i18n/de.js`/`en.js`.
 Tutorial-Hinweise (`hint.ui`) zeigen auf `data-testid`s, z. B. `quick-all`, `build-residence`,
 `build-toggle`, `buy-serf`, `tech-education`, `payday`, `upgrade`, `recruit-full-sword`, `ability-courage`;
 zeigt ein Hinweis auf ein Gebäude, wechselt das Baumenü in dessen Kategorie. Kampagnenfortschritt (freigeschaltet, Bestzeit) liegt in

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseManifest, resolvePath, lookup, pickFile, allFiles, emptyManifest } from '../../src/audio/manifest.js';
 import { VoiceLimiter } from '../../src/audio/voices.js';
-import { distanceGain, audibleRadius, screenPan, spatialize, zoomGain } from '../../src/audio/spatial.js';
+import { distanceGain, audibleRadius, viewRadius, screenPan, spatialize, zoomGain } from '../../src/audio/spatial.js';
 import { composeSection, composeJingle, degreeToMidi, varyMelody, THEMES, barLength, RANGES } from '../../src/audio/composer.js';
 import { normalizeSettings, applySettingsDetail, loadAudioSettings, saveAudioSettings, AUDIO_DEFAULTS, AUDIO_SETTINGS_KEY } from '../../src/audio/settings.js';
 import { karplusStrong, midiToFreq } from '../../src/audio/karplus.js';
@@ -105,8 +105,19 @@ describe('Spatial mixing', () => {
   it('zoomed further out: larger audible range, but quieter', () => {
     expect(audibleRadius(70)).toBeGreaterThan(audibleRadius(10));
     expect(zoomGain(70)).toBeLessThan(zoomGain(10));
-    expect(distanceGain(30, 70)).toBeGreaterThan(0);
-    expect(distanceGain(30, 10)).toBe(0);
+    expect(distanceGain(20, 70)).toBeGreaterThan(0);
+    expect(distanceGain(20, 10)).toBe(0);
+  });
+
+  it('audible range clearly smaller than the visible area: units at the screen edge stay silent', () => {
+    for (const dist of [15, 30, 50, 75]) {
+      expect(audibleRadius(dist)).toBeLessThan(viewRadius(dist) * 0.6);
+      // fully audible in the inner quarter, clearly quieter at half the radius
+      expect(distanceGain(audibleRadius(dist) / 2, dist)).toBeLessThan(0.5 * zoomGain(dist));
+    }
+    // medium zoom: a unit 20 tiles from the screen centre is not audible
+    expect(distanceGain(20, 30)).toBe(0);
+    expect(zoomGain(75)).toBeLessThan(0.4);
   });
 
   it('panning follows the camera screen right axis', () => {
@@ -260,6 +271,9 @@ describe('Settings', () => {
     expect(applySettingsDetail(cur, { key: 'audio.sfx', value: 0.3 }).sfx).toBe(0.3);
     expect(applySettingsDetail(cur, { key: 'muted', value: true }).muted).toBe(true);
     expect(applySettingsDetail(cur, { master: 0.1 }).master).toBe(0.1);
+    // The game settings call the effects bus "effects"
+    expect(applySettingsDetail(cur, { key: 'effects', value: 0.25 }).sfx).toBe(0.25);
+    expect(normalizeSettings({ effects: 40 }).sfx).toBe(0.4);
     expect(applySettingsDetail(cur, { key: 'quality', value: 'high' })).toBeNull();
     expect(applySettingsDetail(cur, { quality: 'high' })).toBeNull();
   });

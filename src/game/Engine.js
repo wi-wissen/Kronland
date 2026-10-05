@@ -18,8 +18,10 @@ import { resetSpeech, stopSpeech } from '../audio/speech.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
 import { getQuality } from '../render/quality.js';
+import { get as setting } from '../ui/settings.js';
 import { Input } from './Input.js';
 import { ControlGroups } from './groups.js';
+import { COMBAT } from '../sim/data/combat.js';
 import { buildingSystemsUi } from './buildingUi.js';
 import { isDamaged } from '../sim/systems/damage.js';
 import { hasForecast, forecast } from '../sim/systems/weather.js';
@@ -28,6 +30,9 @@ import { GameAudio } from '../audio/GameAudio.js';
 import { canSee, isExplored, isVisible, knownBuildings, fogEnabled } from '../sim/systems/vision.js';
 import { Vector3 } from 'three';
 import { padPreview } from '../sim/systems/terrain.js';
+
+/** Dialogue camera: distance close to the figure, duration of the move, pause before the return move (ms) */
+const DIALOG_DIST = 8, DIALOG_FLY_MS = 1100, DIALOG_BACK_MS = 1200;
 
 /** Build preview yellow ("will be levelled") if a tile deviates from the plane by more than this many cm. */
 export const LEVEL_NOTICE = 40;
@@ -130,8 +135,10 @@ export class Engine {
     try { this.audio = new GameAudio(this); } catch { this.audio = null; }
     /** Developer mode (src/dev/DevTools.js), only loaded when switched on */
     this.dev = null;
-    /** Running camera move of a script: { fx, fz, tx, tz, t0, ms } */
+    /** Running camera move (script, dialogue camera): { fx, fz, tx, tz, fd?, td?, t0, ms } */
     this.camFly = null;
+    /** Dialogue camera: camera before the dialogue { x, z, dist, taken } (taken: player took over) */
+    this.dialogCam = null;
     /** Halt of the mission script in the debugger has paused the game */
     this.debugHalt = false;
     resetSpeech();
@@ -171,6 +178,7 @@ export class Engine {
     window.removeEventListener('kronland-quality', this.onQuality);
     this.input.dispose();
     this.audio?.dispose();
+    clearTimeout(this.dialogCamBack);
     stopSpeech();
     // release WebGL resources: the canvas is reused for the next game
     try { this.renderer.dispose(); } catch { /* disposal must never prevent ending */ }
@@ -194,6 +202,7 @@ export class Engine {
       selected: this.selected,
       ghost: this.placing?.hasPos ? this.placing : null,
       hint: this.missionView.hint,
+      landmarks: this.missionView.landmarks ?? null,
       revealAll: this.fogLifted(),
     });
     this.dev?.frame(dt);
@@ -234,7 +243,10 @@ export class Engine {
   tileExplored(x, y) { return this.fogLifted() || isExplored(this.sim, this.player, Math.floor(x), Math.floor(y)); }
 
   /** Queue a command of the human player. */
-  issue(cmd) { this.queue.push({ ...cmd, player: this.player }); }
+  issue(cmd) {
+    this.queue.push({ ...cmd, player: this.player });
+    try { this.audio?.onCommand(cmd); } catch { /* audio is a side issue */ }
+  }
 
   /**
    * Notice into the message stream. Texts are i18n keys with parameters; parameters like
@@ -314,6 +326,11 @@ export class Engine {
         // at most every 15 s per resource, otherwise every serf reports individually
         (this.noNodesToast ??= {})[ev.res] = performance.now() + 15000;
         this.toast('toast.noMoreNodes', { res: ev.res }, { icon: 'idle', tone: 'warn', pos: this.entityPos(sim.entities.get(ev.unit)), ttl: 6000 });
+      }
+      if (ev.type === 'campLit' && ev.player === me && !(this.campToast > performance.now())) {
+        // at most every 60 s: fires go on and off depending on who currently has a bed
+        this.campToast = performance.now() + 60000;
+        this.toast('toast.campLit', null, { icon: 'b-residence', tone: 'warn', pos: { x: ev.x + 0.5, y: ev.y + 0.5 }, ttl: 7000 });
       }
       if (ev.type === 'nodeDepleted' && ev.res !== 'wood') this.toast('toast.nodeDepleted', { res: ev.res }, { icon: ev.res, ttl: 3500 });
     }
@@ -541,7 +558,12 @@ export class Engine {
       else if (e.kind === 'hero') {
         const h = HEROES[e.hero];
         const ready = !e.down && Object.keys(h.abilities).some((a) => (e.ready[a] ?? 0) <= sim.tick);
-        heroes.push({ id: e.id, hero: e.hero, hp: e.hp, maxHp: h.hp, down: !!e.down, ready, selected: this.selected.has(e.id) });
+        // Unconscious: recovers after heroReviveTicks without enemies nearby (counter stands still while enemies are near)
+        const left = e.down ? Math.max(0, COMBAT.heroReviveTicks - (e.downTimer ?? 0)) : 0;
+        heroes.push({
+          id: e.id, hero: e.hero, hp: e.hp, maxHp: h.hp, down: !!e.down, ready, selected: this.selected.has(e.id),
+          reviveIn: Math.ceil(left / 10), reviveFrac: e.down ? 1 - left / COMBAT.heroReviveTicks : 0, threatened: !!e.down && !(e.downTimer > 0),
+        });
       }
     }
     const sel = this.ownUnitIds();
@@ -598,6 +620,30 @@ export class Engine {
     if (m.walkable(tx, ty)) { this.issue({ type: 'move', units, x: tx, y: ty }); return true; }
     return false;
   }
+
+  /**
+   * Command to a tile without a screen target (minimap): squads walk or attack in passing,
+   * serfs walk there. Returns the target tile if a command was given, otherwise null.
+   */
+  commandTile(tx, ty, attackMove = false) {
+    const m = this.sim.map;
+    attackMove = attackMove || this.attackMode;
+    this.attackMode = false;
+    // Minimap is imprecise: on water or rock take the nearest walkable tile
+    const t = nearestWalkable(m, tx, ty, 6);
+    if (!t) { this.emitUi(); return null; }
+    tx = t.x; ty = t.y;
+    let done = false;
+    const army = this.ownArmyIds();
+    if (army.length) { this.issue({ type: 'order', units: army, order: attackMove ? 'attackMove' : 'move', x: tx, y: ty }); done = true; }
+    const serfs = this.ownSerfIds();
+    if (serfs.length) { this.issue({ type: 'move', units: serfs, x: tx, y: ty }); done = true; }
+    this.emitUi();
+    return done ? t : null;
+  }
+
+  /** Are own figures selected that accept walk commands? */
+  hasOrderable() { return this.ownArmyIds().length > 0 || this.ownSerfIds().length > 0; }
 
   armyCommandAt(units, cx, cy, attackMove) {
     const hit = this.selectable(this.renderer.pickEntity(cx, cy));
@@ -831,7 +877,7 @@ export class Engine {
    *   view: Array<{x:number,y:number}>|null, hint: {x:number,y:number}|null }}
    */
   minimapDynamic() {
-    const sim = this.sim, buildings = [], units = [];
+    const sim = this.sim, buildings = [], units = [], camps = [];
     const fog = !this.fogLifted();
     const seeAll = !fog;
     for (const e of sim.entities.values()) {
@@ -842,6 +888,9 @@ export class Engine {
         if (seeAll || this.canSee(e)) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: true });
       } else if (e.kind === 'unit' || e.kind === 'worker' && !e.inside) {
         if (seeAll || this.canSee(e)) units.push({ x: e.px / UNIT, y: e.py / UNIT, owner: e.owner, big: false });
+      } else if (e.kind === 'camp' && e.owner === this.player) {
+        // own campfires: houses or farms are missing here
+        camps.push({ x: e.x + 0.5, y: e.y + 0.5 });
       }
     }
     if (fog) {
@@ -856,7 +905,7 @@ export class Engine {
     const h = this.missionView.hint;
     const hint = h?.entity ? { x: h.entity.x, y: h.entity.y } : h?.area ? { x: h.area.x, y: h.area.y } : null;
     return {
-      w: sim.map.width, h: sim.map.height, me: this.player, buildings, units,
+      w: sim.map.width, h: sim.map.height, me: this.player, buildings, units, camps,
       shafts: sim.shafts.filter((s) => this.tileExplored(s.x + 1, s.y + 1)).map((s) => ({ x: s.x + 1.5, y: s.y + 1.5, res: s.res })),
       view: this.cameraFootprint(), hint,
     };
@@ -973,18 +1022,74 @@ export class Engine {
     if (this.sim.mission?.script) this.issue({ type: 'script', action: 'skipDialog' });
   }
 
-  /** Weiche Kamerafahrt (Skript: camera.fly_to). */
+  /** Smooth camera move (script: camera.fly_to; dialogue camera also with distance). */
   flyCamera(now) {
     const f = this.camFly;
     if (!f) return;
     const rig = this.renderer.rig;
-    // Player moved the camera themselves: abort the move
-    if (f.last && (Math.abs(rig.target.x - f.last.x) > 0.05 || Math.abs(rig.target.z - f.last.z) > 0.05)) { this.camFly = null; return; }
+    // player moved or zoomed the camera themselves: abort the move (the dialogue camera then does not return)
+    if (f.last && (Math.abs(rig.target.x - f.last.x) > 0.05 || Math.abs(rig.target.z - f.last.z) > 0.05 || Math.abs(rig.dist - f.last.dist) > 0.05)) {
+      this.camFly = null;
+      if (this.dialogCam) this.dialogCam.taken = true;
+      return;
+    }
     const t = Math.min(1, (now - f.t0) / f.ms);
     const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+    if (f.td !== undefined) { rig.dist = f.fd + (f.td - f.fd) * e; rig.clamp(); }
     rig.lookAt(f.fx + (f.tx - f.fx) * e, f.fz + (f.tz - f.fz) * e);
-    f.last = { x: rig.target.x, z: rig.target.z };
+    f.last = { x: rig.target.x, z: rig.target.z, dist: rig.dist };
     if (t >= 1) this.camFly = null;
+  }
+
+  /**
+   * Dialogue camera: if a figure speaks that can be seen (hero, conversation figure), the camera moves close to it;
+   * when the dialogue is over, back to the old spot. If the player moves the camera themselves, it stays
+   * where they put it. Pure rendering (setting "Kamera bei Dialogen").
+   * @param {{ speaker?: string|null }|null} msg the currently shown message (null: no dialogue any more)
+   */
+  dialogFocus(msg) {
+    clearTimeout(this.dialogCamBack);
+    if (!this.renderer || !setting('dialogCamera')) return;
+    const rig = this.renderer.rig;
+    const pos = msg?.speaker ? this.speakerPos(msg.speaker) : null;
+    if (pos) {
+      if (!this.dialogCam || this.dialogCam.taken) this.dialogCam = { x: rig.target.x, z: rig.target.z, dist: rig.dist, taken: false };
+      // already close (same speaker, conversation partner next door): do not approach again
+      if (Math.hypot(rig.target.x - pos.x, rig.target.z - pos.z) < 1.5 && Math.abs(rig.dist - DIALOG_DIST) < 0.5) return;
+      this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: pos.x, tz: pos.z, fd: rig.dist, td: Math.min(rig.dist, DIALOG_DIST), t0: performance.now(), ms: DIALOG_FLY_MS };
+      return;
+    }
+    // no (visible) speaker any more: back after a short pause – if the next sentence follows right away, it stays
+    const back = this.dialogCam;
+    if (!back) return;
+    this.dialogCamBack = setTimeout(() => {
+      this.dialogCam = null;
+      if (back.taken || this.camFly) return;
+      this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: back.x, tz: back.z, fd: rig.dist, td: back.dist, t0: performance.now(), ms: DIALOG_FLY_MS };
+    }, msg ? 0 : DIALOG_BACK_MS);
+  }
+
+  /** Target panel: camera to the location of a target (hint { entity } | { area }). */
+  focusHint(hint) {
+    const p = hint?.entity ?? hint?.area;
+    if (!p) return;
+    this.camFly = null;
+    // Portrait (phone): target and dialogue windows are at the top, place the target in the lower free third
+    const vp = this.renderer.viewport;
+    if (vp && vp.h > vp.w) { this.pendingFocus = null; this.renderer.rig.lookAtScreen(p.x, p.y, vp.h * 0.7, vp.h); } else this.focusPoint(p.x, p.y);
+    this.emitUi();
+  }
+
+  /** Location of a speaking figure if it can be seen: hero with this name (own first) or conversation figure. */
+  speakerPos(speaker) {
+    const npcs = this.sim.mission?.def?.npcs ?? {};
+    let best = null;
+    for (const e of this.sim.entities.values()) {
+      const match = (e.kind === 'hero' && e.hero === speaker) || (e.kind === 'npc' && (npcs[e.npc]?.speaker ?? e.npc) === speaker);
+      if (!match || !this.canSee(e)) continue;
+      if (!best || (e.owner === this.player && best.owner !== this.player)) best = e;
+    }
+    return best ? { x: best.px / UNIT, z: best.py / UNIT } : null;
   }
 
   /**
@@ -1021,13 +1126,29 @@ export class Engine {
       const ok = check === 'camera' ? moved : check === 'selectSerfs' ? this.ownSerfIds().length > 0 : false;
       if (ok) { mv.checks[step.id] = true; this.issue({ type: 'mission', action: 'ui', check }); }
     }
-    mv.hint = ui.tutorial?.hint && (ui.tutorial.hint.entity || ui.tutorial.hint.area) ? ui.tutorial.hint : null;
+    // Marker: hint of the tutorial, otherwise the first open objective with a location (main objectives first)
+    const has = (h) => !!(h && (h.entity || h.area));
+    const goal = [...ui.objectives].sort((a, b) => Number(b.primary) - Number(a.primary)).find((o) => has(o.hint));
+    mv.hint = has(ui.tutorial?.hint) ? ui.tutorial.hint : goal?.hint ?? null;
+    mv.landmarks = ui.landmarks;
     return ui;
   }
 
   // ---------- UI ----------
 
-  emitUi() { this.onUi(this.uiState()); }
+  emitUi() {
+    this.noticeSelection();
+    this.onUi(this.uiState());
+  }
+
+  /** Newly selected figures speak up (bark, see GameAudio.bark). */
+  noticeSelection() {
+    const prev = this.prevSelected ?? new Set();
+    let fresh = false;
+    for (const id of this.selected) if (!prev.has(id)) { fresh = true; break; }
+    this.prevSelected = new Set(this.selected);
+    if (fresh) try { this.audio?.onSelect(this.selected); } catch { /* audio is a side issue */ }
+  }
 
   /**
    * Reactive excerpt for Vue. Contains only IDs, numbers and reason codes – names and texts arise
@@ -1183,4 +1304,21 @@ export class Engine {
       camera: { x: this.renderer.rig.target.x, y: this.renderer.rig.target.z },
     };
   }
+}
+
+/**
+ * Nearest walkable tile around (x, y) in growing rings up to `radius`, otherwise null.
+ * @param {{ inBounds(x:number,y:number):boolean, walkable(x:number,y:number):boolean }} m
+ */
+export function nearestWalkable(m, x, y, radius) {
+  for (let r = 0; r <= radius; r++) {
+    let best = null, bd = Infinity;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const nx = x + dx, ny = y + dy, d = dx * dx + dy * dy;
+      if (d < bd && m.inBounds(nx, ny) && m.walkable(nx, ny)) { best = { x: nx, y: ny }; bd = d; }
+    }
+    if (best) return best;
+  }
+  return null;
 }

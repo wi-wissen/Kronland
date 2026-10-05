@@ -74,7 +74,7 @@
           aria-haspopup="menu"
           :aria-expanded="speedOpen"
           data-testid="speed"
-          @click="speedOpen = !speedOpen"
+          @click="speedOpen = !speedOpen; soundOpen = false"
         >{{ ui.speed }}×</button>
         <div v-if="speedOpen" class="tb-speedmenu frame" role="menu" :aria-label="$t('top.speedTitle')">
           <button
@@ -87,6 +87,41 @@
             :data-testid="'speed-' + s"
             @click="pickSpeed(s)"
           >{{ s }}×<small>{{ $t('top.speedName.' + s) }}</small></button>
+        </div>
+      </div>
+      <!-- Sound: button unfolds mute switch and volumes -->
+      <div ref="soundBox" class="tb-speedbox">
+        <button
+          v-tip="soundOpen ? null : { title: $t('top.sound'), text: $t('top.soundTip') }"
+          class="coin"
+          :class="{ on: soundOpen, 'tb-muted': cfg.muted }"
+          :aria-label="$t('top.sound')"
+          aria-haspopup="dialog"
+          :aria-expanded="soundOpen"
+          data-testid="sound"
+          @click="soundOpen = !soundOpen; speedOpen = false"
+        ><Icon :name="cfg.muted ? 'mute' : 'sound'" /></button>
+        <div v-if="soundOpen" class="tb-soundmenu frame" role="dialog" :aria-label="$t('top.sound')" data-testid="sound-menu">
+          <button
+            class="tb-mute"
+            role="switch"
+            :aria-checked="cfg.muted"
+            :class="{ active: cfg.muted }"
+            data-testid="sound-mute"
+            @click="setCfg('muted', !cfg.muted)"
+          ><Icon :name="cfg.muted ? 'mute' : 'sound'" /><span>{{ cfg.muted ? $t('top.soundOff') : $t('top.soundOn') }}</span></button>
+          <label v-for="k in ['music', 'effects', 'master']" :key="k" class="tb-vol" :class="{ dim: cfg.muted }">
+            <span><Icon :name="k === 'master' ? 'sound' : k" />{{ $t(k === 'master' ? 'top.soundMaster' : 'set.' + k) }}</span>
+            <input
+              type="range" min="0" max="100" step="5"
+              :value="Math.round(cfg[k] * 100)"
+              :style="{ '--fill': Math.round(cfg[k] * 100) + '%' }"
+              :aria-label="$t('set.' + k)"
+              :data-testid="'sound-' + k"
+              @input="setCfg(k, $event.target.value / 100)"
+            >
+            <b class="num">{{ Math.round(cfg[k] * 100) }}</b>
+          </label>
         </div>
       </div>
       <button
@@ -103,6 +138,7 @@
 <script>
 import { RESOURCES } from '../sim/data/resources.js';
 import Ring from './Ring.vue';
+import { settings, set as setSetting } from './settings.js';
 
 /** From this many seconds before payday the number appears in the medallion */
 export const PAYDAY_SOON = 10;
@@ -118,7 +154,7 @@ export default {
     need: { type: Object, default: null },
   },
   emits: ['speed', 'pause', 'menu'],
-  data() { return { resources: RESOURCES, speeds: SPEEDS, speedOpen: false, flash: false, tight: false }; },
+  data() { return { resources: RESOURCES, speeds: SPEEDS, speedOpen: false, soundOpen: false, flash: false, tight: false, cfg: settings }; },
   computed: {
     popPct() { return this.ui.pop[1] ? Math.min(100, (100 * this.ui.pop[0]) / this.ui.pop[1]) : 0; },
     popClass() { return this.popPct >= 100 ? 'bad' : this.popPct >= 85 ? 'warn' : 'good'; },
@@ -158,8 +194,11 @@ export default {
   },
   mounted() {
     // Speed menu closes on a click outside and with Esc
-    this.onDown = (e) => { if (this.speedOpen && !this.$refs.speedBox?.contains(e.target)) this.speedOpen = false; };
-    this.onKey = (e) => { if (e.key === 'Escape' && this.speedOpen) { e.stopPropagation(); this.speedOpen = false; } };
+    this.onDown = (e) => {
+      if (this.speedOpen && !this.$refs.speedBox?.contains(e.target)) this.speedOpen = false;
+      if (this.soundOpen && !this.$refs.soundBox?.contains(e.target)) this.soundOpen = false;
+    };
+    this.onKey = (e) => { if (e.key === 'Escape' && (this.speedOpen || this.soundOpen)) { e.stopPropagation(); this.speedOpen = this.soundOpen = false; } };
     document.addEventListener('pointerdown', this.onDown, true);
     // If the crest does not fit exactly in the middle (side plates too wide), it gets its own row
     this.ro = new ResizeObserver(() => this.measure());
@@ -180,6 +219,7 @@ export default {
       const need = 2 * Math.max(res.offsetWidth, sys.offsetWidth) + crest.offsetWidth + 2 * gap;
       this.tight = need > bar.clientWidth;
     },
+    setCfg(k, v) { setSetting(k, v); },
     pickSpeed(s) { this.speedOpen = false; this.$emit('speed', s); },
     resTip(r) {
       return {
@@ -193,7 +233,8 @@ export default {
 
 <style>
 .topbar {
-  position: fixed; z-index: 4; pointer-events: none;
+  /* above the lower row (4), so unfolded menus do not lie behind it */
+  position: fixed; z-index: 6; pointer-events: none;
   top: calc(var(--hud-gap) + var(--safe-t)); left: calc(var(--hud-gap) * 2 + var(--safe-l)); right: calc(var(--hud-gap) * 2 + var(--safe-r));
   display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.5rem 1rem;
 }
@@ -251,6 +292,15 @@ button.tb-speed { font-weight: 800; font-size: 1.125rem; letter-spacing: -0.02em
 button.tb-speedopt { display: flex; align-items: baseline; gap: 0.5rem; justify-content: flex-start; min-height: 2.5rem; padding: 0.25rem 0.75rem; font-size: 1.125rem; font-weight: 800; background: transparent; border-color: transparent; box-shadow: none; }
 button.tb-speedopt small { font-size: var(--fs-xs); font-weight: 500; color: var(--ink-muted); white-space: nowrap; }
 button.tb-speedopt.active { color: var(--gold-100); background: linear-gradient(180deg, rgba(243, 200, 94, 0.28), rgba(196, 141, 42, 0.12)); box-shadow: inset 0 0 0 1px var(--gold-500); }
+.tb-soundmenu { position: absolute; top: calc(100% + 0.5rem); right: 0; z-index: 8; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.625rem 0.75rem; width: 16rem; }
+button.tb-mute { display: flex; align-items: center; gap: 0.5rem; justify-content: center; min-height: var(--touch); font-weight: 700; }
+button.tb-mute .ico { width: 1.25rem; height: 1.25rem; }
+.tb-vol { display: grid; grid-template-columns: 5rem 1fr 2rem; align-items: center; gap: 0.5rem; font-size: var(--fs-sm); }
+.tb-vol span { display: inline-flex; align-items: center; gap: 0.3125rem; color: var(--ink-muted); white-space: nowrap; }
+.tb-vol span .ico { width: 1rem; height: 1rem; }
+.tb-vol b { text-align: right; }
+.tb-vol.dim { opacity: 0.45; }
+button.coin.tb-muted { color: var(--bad); }
 
 .narrow .tb-hide-m { display: none !important; }
 /* Somewhat narrower: condense plates so the crest still stays exactly centred */

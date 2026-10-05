@@ -213,3 +213,105 @@ test('Rejected commands show translated reasons', async ({ page }) => {
   await expect(page.getByTestId('toasts')).toContainText('Nicht genug Taler', SLOW);
   expect(errors).toEqual([]);
 });
+
+test('Minimap: right click or tap sends selected figures there', async ({ page, isMobile }) => {
+  const errors = await fresh(page);
+  await bootGame(page);
+  if (!(await page.getByTestId('minimap-canvas').isVisible())) await page.getByTestId('minimap-toggle').click();
+  const canvas = page.getByTestId('minimap-canvas');
+  await expect(canvas).toBeVisible();
+  await page.waitForTimeout(500);
+  const serf = await page.evaluate(() => {
+    const e = window.__kronland;
+    const u = [...e.sim.entities.values()].find((x) => x.kind === 'unit' && x.owner === e.player && !x.militia);
+    e.selected.clear(); e.selected.add(u.id); e.emitUi();
+    window.__mmCmds = [];
+    const issue = e.issue.bind(e);
+    e.issue = (cmd) => { window.__mmCmds.push(cmd); issue(cmd); };
+    return u.id;
+  });
+  const before = await page.evaluate(() => ({ ...window.__kronland.renderer.rig.target }));
+  const box = await canvas.boundingBox();
+  const pos = { x: box.width * 0.5, y: box.height * 0.5 };
+  if (isMobile) await canvas.tap({ position: pos });
+  else await canvas.click({ position: pos, button: 'right' });
+  const cmds = await page.evaluate(() => window.__mmCmds);
+  const size = await page.evaluate(() => window.__kronland.sim.map.width);
+  expect(cmds.length).toBe(1);
+  expect(cmds[0].type).toBe('move');
+  expect(cmds[0].units).toEqual([serf]);
+  expect(Math.abs(cmds[0].x - size / 2)).toBeLessThan(size * 0.12);
+  // Camera stays, feedback is at the target
+  const after = await page.evaluate(() => ({ ...window.__kronland.renderer.rig.target }));
+  expect(Math.hypot(after.x - before.x, after.z - before.z)).toBeLessThan(0.5);
+  await expect(canvas).toHaveAttribute('data-order', `${cmds[0].x},${cmds[0].y}`);
+  if (!isMobile) await page.screenshot({ path: 'test-results/minimap-order-desktop.png' });
+  else await page.screenshot({ path: 'test-results/minimap-order-mobile.png' });
+  expect(errors).toEqual([]);
+});
+
+test('Construction site shows a progress bar', async ({ page }) => {
+  const errors = await fresh(page);
+  await bootGame(page);
+  const site = await page.evaluate(() => {
+    const e = window.__kronland, sim = e.sim;
+    const hq = sim.findBuilding(e.player, 'headquarters');
+    const serfs = [...sim.entities.values()].filter((x) => x.kind === 'unit' && x.owner === e.player).map((x) => x.id);
+    for (let r = 4; r < 16; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const x = hq.x + dx, y = hq.y + dy;
+      if (sim.checkPlacement(e.player, 'residence', x, y) === null) {
+        e.issue({ type: 'placeBuilding', building: 'residence', x, y, units: serfs });
+        e.focusPoint(x + 1, y + 1);
+        return { x, y };
+      }
+    }
+    return null;
+  });
+  expect(site).not.toBeNull();
+  // Bar of kind 1 (construction progress) is drawn and grows
+  const progressBar = () => page.evaluate(() => {
+    const b = window.__kronland.renderer.bars;
+    for (let i = 0; i < b.n; i++) if (b.aSize.getZ(i) === 1) return b.aPos.getW(i);
+    return -1;
+  });
+  await expect.poll(progressBar, SLOW).toBeGreaterThanOrEqual(0);
+  await expect.poll(progressBar, { timeout: 60_000 }).toBeGreaterThan(0.05);
+  await page.screenshot({ path: `test-results/build-beams-${test.info().project.name}.png` });
+  expect(errors).toEqual([]);
+});
+
+test('Campfire appears where houses are missing and goes out with house and farm', async ({ page }) => {
+  const errors = await fresh(page);
+  await bootGame(page);
+  await page.evaluate(() => {
+    const e = window.__kronland, sim = e.sim, hq = sim.findBuilding(e.player, 'headquarters');
+    const pl = sim.players[e.player];
+    pl.raw.stone = 100000;
+    // Place a stonemason hut without research (only for the test)
+    pl.techs.add('gears');
+    const p = sim.findPlacement(e.player, 'stonemason', hq.x + 2, hq.y + 2, 30);
+    sim.createBuilding(e.player, 'stonemason', p.x, p.y, true);
+    e.focusPoint(p.x + 1, p.y + 1);
+    e.setSpeed(4);
+  });
+  const camp = () => page.evaluate(() => {
+    const e = window.__kronland;
+    const f = [...e.sim.entities.values()].find((x) => x.kind === 'camp' && x.owner === e.player);
+    return f ? { id: f.id, drawn: !!e.renderer.camps?.get(f.id), mm: e.minimapDynamic().camps.length } : null;
+  });
+  await expect.poll(camp, { timeout: 60_000 }).not.toBeNull();
+  await expect.poll(async () => (await camp())?.drawn, SLOW).toBe(true);
+  expect((await camp()).mm).toBe(1);
+  await expect(page.getByTestId('toast').filter({ hasText: 'Lagerfeuer' })).toBeVisible(SLOW);
+  await page.evaluate(() => { const e = window.__kronland; e.focusPoint(...(() => { const f = [...e.sim.entities.values()].find((x) => x.kind === 'camp'); return [f.x + 0.5, f.y + 0.5]; })()); });
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `test-results/campfire-${test.info().project.name}.png` });
+  // House and farm: fire goes out and disappears from the rendering
+  await page.evaluate(() => {
+    const e = window.__kronland, sim = e.sim, hq = sim.findBuilding(e.player, 'headquarters');
+    for (const t of ['residence', 'farm']) { const p = sim.findPlacement(e.player, t, hq.x + 2, hq.y + 2, 30); sim.createBuilding(e.player, t, p.x, p.y, true); }
+  });
+  await expect.poll(camp, { timeout: 60_000 }).toBeNull();
+  expect(await page.evaluate(() => window.__kronland.renderer.camps?.size ?? 0)).toBe(0);
+  expect(errors).toEqual([]);
+});

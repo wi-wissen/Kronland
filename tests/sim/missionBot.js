@@ -117,6 +117,13 @@ export const STRATEGIES = {
       bot.useHero = false;
       const nelia = bot.heroNamed('nelia'), orrin = bot.heroNamed('orrin');
       const st = bot.m.state;
+      // first talk to Orrin on the village square, then to the old tree
+      const seat = bot.npcAt('stranger');
+      if (bot.objective('meet')?.status === 'active' && nelia && seat) {
+        // construction sites on the way stop Nelia: stopped but not there yet → send again
+        if (nelia.order?.type === 'idle' && d2(tile(nelia), seat) > 2 * 2) bot.cmd({ type: 'order', units: [nelia.id], order: 'move', x: seat.x, y: seat.y });
+        else bot.moveUnits([nelia.id], seat, 'move', 'meet');
+      }
       if (bot.objective('root')?.status === 'active' && nelia) bot.moveUnits([nelia.id], st.refs.oldRoot, 'move', 'root');
       const col = bot.m.idsOf('collectors').map((id) => bot.sim.entities.get(id)).find(Boolean);
       if (col) bot.moveUnits([nelia, orrin].filter(Boolean).map((h) => h.id), tile(col), 'attackMove', 'collectors');
@@ -610,8 +617,11 @@ export class MissionBot {
     for (const b of this.sites) {
       if (!b.id || b.builders.length >= 4) continue;
       if (this.isDangerous(api.centerOf(b)) || this.enemies.some((e) => d2(tile(e), api.centerOf(b)) < 7 * 7)) continue;
-      const ids = this.idleSerfs().sort((u, v) => d2(tile(u), api.centerOf(b)) - d2(tile(v), api.centerOf(b)) || u.id - v.id)
-        .slice(0, 4 - b.builders.length).map((u) => u.id);
+      // idle ones first; if a construction site is completely empty, also pull away gatherers (piles otherwise hold them forever)
+      let pool = this.idleSerfs();
+      if (!pool.length && !b.builders.length) pool = this.serfList.filter((u) => !u.militia && u.job?.kind === 'gather' && !this.reserved?.has(u.id));
+      const ids = pool.sort((u, v) => d2(tile(u), api.centerOf(b)) - d2(tile(v), api.centerOf(b)) || u.id - v.id)
+        .slice(0, Math.min(2, 4 - b.builders.length) + (this.idleSerfs().length ? 2 : 0)).map((u) => u.id);
       if (!ids.length) break;
       this.cmd({ type: 'assignWork', units: ids, target: b.id });
       ids.forEach((id) => this.reserved.add(id));

@@ -1,1 +1,109 @@
-{ "version": 1, "music": {}, "sfx": {}, "ambient": {} }
+{
+  "version": 1,
+  "music": {
+    "build": {
+      "files": [
+        "music/build-morning.mp3",
+        "music/build-market.mp3",
+        "music/build-expanse.mp3",
+        "music/build-fields.mp3",
+        "music/build-evening.mp3"
+      ],
+      "gain": 1
+    },
+    "winter": {
+      "files": [
+        "music/winter-snow.mp3",
+        "music/winter-frost.mp3"
+      ],
+      "gain": 1
+    },
+    "battle": {
+      "files": [
+        "music/battle-storm.mp3",
+        "music/battle-shieldwall.mp3"
+      ],
+      "gain": 1
+    },
+    "menu": {
+      "files": [
+        "music/menu.mp3"
+      ],
+      "gain": 1
+    },
+    "victory": {
+      "files": [
+        "music/victory.mp3"
+      ],
+      "gain": 1
+    },
+    "defeat": {
+      "files": [
+        "music/defeat.mp3"
+      ],
+      "gain": 1
+    }
+  },
+  "sfx": {
+    "chop": {
+      "files": [
+        "sfx/chop-1.mp3",
+        "sfx/chop-2.mp3",
+        "sfx/chop-3.mp3"
+      ],
+      "gain": 1.15
+    },
+    "pickaxe": {
+      "files": [
+        "sfx/pickaxe-1.mp3",
+        "sfx/pickaxe-2.mp3",
+        "sfx/pickaxe-3.mp3",
+        "sfx/pickaxe-4.mp3"
+      ],
+      "gain": 0.95
+    },
+    "hammer": {
+      "files": [
+        "sfx/hammer-1.mp3",
+        "sfx/hammer-2.mp3",
+        "sfx/hammer-3.mp3"
+      ],
+      "gain": 1.4
+    },
+    "anvil": {
+      "files": [
+        "sfx/anvil-1.mp3",
+        "sfx/anvil-2.mp3",
+        "sfx/anvil-3.mp3",
+        "sfx/anvil-4.mp3",
+        "sfx/anvil-5.mp3"
+      ],
+      "gain": 0.5
+    },
+    "clash": {
+      "files": [
+        "sfx/clash-1.mp3",
+        "sfx/clash-2.mp3",
+        "sfx/clash-3.mp3",
+        "sfx/clash-4.mp3"
+      ],
+      "gain": 0.6
+    },
+    "arrowHit": {
+      "files": [
+        "sfx/arrowHit-1.mp3",
+        "sfx/arrowHit-2.mp3",
+        "sfx/arrowHit-3.mp3"
+      ],
+      "gain": 1
+    },
+    "coin": {
+      "files": [
+        "sfx/coin-1.mp3",
+        "sfx/coin-2.mp3"
+      ],
+      "gain": 0.5
+    }
+  },
+  "ambient": {}
+}

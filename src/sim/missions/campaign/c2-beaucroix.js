@@ -27,7 +27,7 @@ export default {
   defeatText: t('Euer Lager ist gefallen.', 'Your camp has fallen.'),
   defeatTexts: { hq: t('Euer Lager ist gefallen. Beaucroix bleibt in Malvors Hand.', 'Your camp has fallen. Beaucroix stays in Malvor’s hands.') },
   next: 'c3',
-  weatherCycle: [['winter', 24000], ['summer', 6000]],
+  weatherCycle: [['winter', 360000]], // Malvor's winter: only ends with the weather works (mission 3)
   players: [
     {
       kind: 'human', heroes: ['nelia', 'orrin'], serfs: 10, techs: ['conscription', 'education', 'trade'],

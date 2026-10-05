@@ -1,5 +1,5 @@
 <template>
-  <!-- Round minimap in the brass ring; north up -->
+  <!-- Minimap square like the map, rounded corners in the brass frame; north up -->
   <div v-tip="{ title: $t('minimap.title'), text: $t('minimap.hint') + ' – ' + (touch ? $t('minimap.tipTouch') : $t('minimap.tip')) }" class="minimap" data-testid="minimap">
     <div class="mm-frame">
       <canvas
@@ -8,6 +8,7 @@
         data-testid="minimap-canvas"
         role="img"
         :aria-label="$t('minimap.title')"
+        :data-order="orderAt"
         @pointerdown="down"
         @pointermove="move"
         @pointerup="up"
@@ -21,10 +22,12 @@
 
 <script>
 import { playerColor } from '../plugin.js';
-import { fitRound, toTile } from './hudLayout.js';
+import { fitMap, toTile, MAP_CORNER } from './hudLayout.js';
 
 /** Draw cadence: terrain rarely (cached in the engine), units and field of view about 4× per second. */
 const DYN_MS = 250;
+/** Duration of the target feedback after a move command. */
+const PING_MS = 900;
 const RES_DOT = { clay: '#e08a55', stone: '#d8d2c8', iron: '#9fb4c6', sulfur: '#f2dc3c' };
 
 export default {
@@ -34,6 +37,7 @@ export default {
     engine: { type: Object, required: true },
     touch: Boolean,
   },
+  data: () => ({ orderAt: null }),
   mounted() {
     this.terrainCanvas = document.createElement('canvas');
     this.fogCanvas = document.createElement('canvas');
@@ -42,7 +46,9 @@ export default {
     this.resize();
     const loop = (now) => {
       this.raf = requestAnimationFrame(loop);
-      if (now - (this.last ?? 0) < DYN_MS) return;
+      // draw smoothly during the target feedback
+      const pinging = this.ping && now - this.ping.at < PING_MS;
+      if (!pinging && now - (this.last ?? 0) < DYN_MS) return;
       this.last = now;
       this.draw();
     };
@@ -86,13 +92,13 @@ export default {
       const t = this.terrain();
       const d = this.engine.minimapDynamic();
       const W = cv.width, H = cv.height;
-      this.map = fitRound(Math.min(W, H), d.w, d.h);
+      this.map = fitMap(Math.min(W, H), d.w, d.h);
       const { s, ox, oy } = this.map;
       ctx.imageSmoothingEnabled = true;
       ctx.clearRect(0, 0, W, H);
-      // Clip to a circle; area outside the map in sea colour
+      // Clip with rounded corners; area outside the map in sea or fog colour
       ctx.save();
-      ctx.beginPath(); ctx.arc(W / 2, H / 2, Math.min(W, H) / 2, 0, Math.PI * 2); ctx.clip();
+      ctx.beginPath(); ctx.roundRect(0, 0, W, H, Math.min(W, H) * MAP_CORNER); ctx.clip();
       ctx.fillStyle = this.engine.minimapFog?.() ? '#0b0907' : '#1e3a52'; ctx.fillRect(0, 0, W, H);
       ctx.drawImage(this.terrainCanvas, ox, oy, d.w * s, d.h * s);
       // Fog of war: smoothly enlarged (image smoothing) so the edges are not jagged
@@ -122,12 +128,25 @@ export default {
         ctx.beginPath(); ctx.arc(ox + u.x * s, oy + u.y * s, r, 0, Math.PI * 2); ctx.fill();
         if (u.big) { ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, s * 0.25); ctx.stroke(); }
       }
+      // Campfire: orange embers with dark edge
+      for (const c of d.camps ?? []) {
+        ctx.fillStyle = '#ff9a2e'; ctx.strokeStyle = 'rgba(30,12,4,.9)'; ctx.lineWidth = Math.max(1, s * 0.3);
+        ctx.beginPath(); ctx.arc(ox + c.x * s, oy + c.y * s, Math.max(2, s * 0.9), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
       // Tutorial hint
       if (d.hint) {
         const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 180);
         ctx.strokeStyle = `rgba(255,207,74,${0.6 + 0.4 * pulse})`;
         ctx.lineWidth = Math.max(2, s * 0.6);
         ctx.beginPath(); ctx.arc(ox + d.hint.x * s, oy + d.hint.y * s, Math.max(5, s * (3 + 2 * pulse)), 0, Math.PI * 2); ctx.stroke();
+      }
+      // Target of the last move command
+      const pingAge = this.ping ? performance.now() - this.ping.at : Infinity;
+      if (pingAge < PING_MS) {
+        const k = pingAge / PING_MS;
+        ctx.strokeStyle = `rgba(255,244,207,${1 - k})`;
+        ctx.lineWidth = Math.max(2, s * 0.6);
+        ctx.beginPath(); ctx.arc(ox + this.ping.x * s, oy + this.ping.y * s, Math.max(3, s * (1.5 + 5 * k)), 0, Math.PI * 2); ctx.stroke();
       }
       // Camera field of view
       if (d.view) {
@@ -154,10 +173,27 @@ export default {
       return toTile(m, (e.clientX - r.left) * dpr, (e.clientY - r.top) * dpr);
     },
     down(e) {
+      // Right click, attack mode or tapping with selected figures: send them there
+      const touch = e.pointerType === 'touch';
+      if (e.button === 2 || (e.button === 0 && (this.engine.attackMode || (touch && this.engine.hasOrderable())))) {
+        this.order(e);
+        return;
+      }
       if (e.button > 0) return;
-      this.dragging = e.pointerType !== 'touch';
+      this.dragging = !touch;
       this.$refs.cv.setPointerCapture?.(e.pointerId);
       this.jump(e);
+    },
+    order(e) {
+      const p = this.toTile(e);
+      if (!p) return;
+      const tx = Math.min(this.map.w - 1, Math.floor(p.x)), ty = Math.min(this.map.h - 1, Math.floor(p.y));
+      const t = this.engine.commandTile(tx, ty, e.ctrlKey);
+      if (!t) return;
+      // short ring at the target spot as feedback
+      this.ping = { x: t.x + 0.5, y: t.y + 0.5, at: performance.now() };
+      this.orderAt = `${t.x},${t.y}`;
+      this.last = 0;
     },
     move(e) { if (this.dragging) this.jump(e); },
     up() { this.dragging = false; },
@@ -172,9 +208,9 @@ export default {
 </script>
 
 <style>
-.minimap { position: relative; border-radius: 50%; padding: 0.4375rem; background: var(--brass); box-shadow: 0 0 0 2px var(--wood-950), 0 8px 18px rgba(0, 0, 0, 0.55); }
-.mm-frame { position: relative; width: 100%; height: 100%; border-radius: 50%; background: #0b0907; box-shadow: inset 0 0 0 2px var(--wood-950); }
-.mm-canvas { display: block; width: 100%; height: 100%; border-radius: 50%; cursor: crosshair; touch-action: none; }
+.minimap { position: relative; border-radius: var(--r-lg); padding: 0.375rem; background: var(--brass); box-shadow: 0 0 0 2px var(--wood-950), 0 8px 18px rgba(0, 0, 0, 0.55); }
+.mm-frame { position: relative; width: 100%; height: 100%; border-radius: calc(var(--r-lg) - 0.25rem); background: #0b0907; box-shadow: inset 0 0 0 2px var(--wood-950); }
+.mm-canvas { display: block; width: 100%; height: 100%; border-radius: calc(var(--r-lg) - 0.25rem); cursor: crosshair; touch-action: none; }
 .mm-north {
   position: absolute; top: -0.875rem; left: 50%; transform: translateX(-50%); width: 1.125rem; height: 1.125rem; border-radius: 50%;
   display: grid; place-items: center; font: 700 0.6875rem/1 var(--display); font-style: normal; color: var(--wood-950);

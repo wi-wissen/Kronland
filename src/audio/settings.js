@@ -7,15 +7,22 @@
 export const AUDIO_SETTINGS_KEY = 'kronland-audio';
 export const SETTINGS_EVENT = 'kronland-settings';
 
-/** @typedef {{ master: number, music: number, sfx: number, ambient: number, ui: number, muted: boolean }} AudioSettings */
+/** @typedef {'off'|'short'|'normal'|'long'} MusicPause */
+/** @typedef {'off'|'rare'|'often'} BarkMode */
+/** @typedef {{ master: number, music: number, sfx: number, ambient: number, ui: number, muted: boolean, musicPause: MusicPause, barks: BarkMode }} AudioSettings */
 
 /** @type {AudioSettings} */
-export const AUDIO_DEFAULTS = Object.freeze({ master: 0.8, music: 0.6, sfx: 0.8, ambient: 0.7, ui: 0.7, muted: false });
+export const AUDIO_DEFAULTS = Object.freeze({ master: 0.8, music: 0.6, sfx: 0.8, ambient: 0.7, ui: 0.7, muted: false, musicPause: 'normal', barks: 'rare' });
+
+const BARK_MODES = ['off', 'rare', 'often'];
+
+/** Silence between two peace pieces (build, winter) in seconds [min, max]; only ambience in between. */
+export const MUSIC_PAUSES = Object.freeze({ off: [2, 4], short: [20, 45], normal: [60, 120], long: [150, 300] });
 
 export const VOLUME_KEYS = /** @type {const} */ (['master', 'music', 'sfx', 'ambient', 'ui']);
 
 /** German labels for a settings UI (player-visible). */
-export const AUDIO_LABELS = { master: 'Gesamt', music: 'Musik', sfx: 'Effekte', ambient: 'Umgebung', ui: 'Oberfläche', muted: 'Stumm' };
+export const AUDIO_LABELS = { master: 'Gesamt', music: 'Musik', sfx: 'Effekte', ambient: 'Umgebung', ui: 'Oberfläche', muted: 'Stumm', musicPause: 'Musikpausen', barks: 'Sprüche der Figuren' };
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
@@ -32,8 +39,13 @@ export function normalizeSettings(raw, base = AUDIO_DEFAULTS) {
     const v = Number(raw[k]);
     if (raw[k] !== undefined && raw[k] !== null && Number.isFinite(v)) out[k] = clamp01(v > 1 ? v / 100 : v);
   }
+  // The game settings call the effects bus "effects"
+  const fx = Number(raw.effects);
+  if (raw.sfx === undefined && raw.effects !== undefined && raw.effects !== null && Number.isFinite(fx)) out.sfx = clamp01(fx > 1 ? fx / 100 : fx);
   if (typeof raw.muted === 'boolean') out.muted = raw.muted;
   else if (typeof raw.mute === 'boolean') out.muted = raw.mute;
+  if (typeof raw.musicPause === 'string' && raw.musicPause in MUSIC_PAUSES) out.musicPause = raw.musicPause;
+  if (BARK_MODES.includes(raw.barks)) out.barks = raw.barks;
   return out;
 }
 
@@ -48,12 +60,15 @@ export function applySettingsDetail(current, detail) {
   if (!detail || typeof detail !== 'object') return null;
   if (detail.audio && typeof detail.audio === 'object') return normalizeSettings(detail.audio, current);
   if (typeof detail.key === 'string') {
-    const k = detail.key.replace(/^audio[.:/]/, '');
+    let k = detail.key.replace(/^audio[.:/]/, '');
+    if (k === 'effects') k = 'sfx';
     if (k === 'muted' || k === 'mute') return normalizeSettings({ muted: !!detail.value }, current);
+    if (k === 'musicPause') return normalizeSettings({ musicPause: detail.value }, current);
+    if (k === 'barks') return normalizeSettings({ barks: detail.value }, current);
     if (VOLUME_KEYS.includes(/** @type {any} */ (k))) return normalizeSettings({ [k]: detail.value }, current);
     return null;
   }
-  const touches = [...VOLUME_KEYS, 'muted', 'mute'].some((k) => k in detail);
+  const touches = [...VOLUME_KEYS, 'effects', 'muted', 'mute', 'musicPause', 'barks'].some((k) => k in detail);
   return touches ? normalizeSettings(detail, current) : null;
 }
 

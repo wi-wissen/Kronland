@@ -6,6 +6,7 @@ import { PROFESSIONS, WORKER as W, professionFor, motivationEffect } from '../da
 import { researchPoints, TECHS } from '../data/technologies.js';
 import { moveAlong, pathTo, isAdjacent } from './movement.js';
 import { tileCenter, toTile } from '../fixed.js';
+import { WATER, OCCUPIED, RESERVED, CLIFF, BRIDGE } from '../map.js';
 import { techBonus, boosted } from './techs.js';
 import { addWeatherEnergy } from './weather.js';
 
@@ -147,9 +148,97 @@ function walkTo(sim, w, b, intent) {
   w.state = 'walk';
 }
 
+// ---------- Campfire ----------
+
+/**
+ * @typedef {Object} Camp Campfire for workers without a bed or eating place; created on demand and
+ * disappears as soon as nobody needs it any more.
+ * @property {number} id @property {'camp'} kind @property {number} owner
+ * @property {number} x @property {number} y @property {1} w @property {1} h
+ */
+
+const CAMP_BLOCK = WATER | OCCUPIED | RESERVED | CLIFF | BRIDGE;
+
+/** Free tile for a campfire: walkable, nothing on it, with air to buildings and trees. */
+function campSpotFree(sim, x, y) {
+  const m = sim.map;
+  for (let j = y - 1; j <= y + 1; j++) for (let i = x - 1; i <= x + 1; i++) {
+    if (!m.inBounds(i, j)) return false;
+    const k = m.idx(i, j);
+    if (m.flags[k] & CAMP_BLOCK || m.owner[k]) return false;
+  }
+  return m.walkable(x, y);
+}
+
+/** First free tile in growing rings around the workplace, in the same region as its entrance. */
+function findCampSpot(sim, wp) {
+  const m = sim.map, c = center(wp);
+  const access = m.ring(wp.x, wp.y, wp.w, wp.h);
+  if (!access.length) return null;
+  const region = m.regionAt(access[0]);
+  for (let r = W.campMinDist; r <= W.campMaxDist; r++) {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const x = c.x + dx, y = c.y + dy;
+      if (!campSpotFree(sim, x, y) || m.regionAt(m.idx(x, y)) !== region) continue;
+      if (campsOf(sim, wp.owner).some((f) => Math.abs(f.x - x) <= 2 && Math.abs(f.y - y) <= 2)) continue;
+      return { x, y };
+    }
+  }
+  return null;
+}
+
+export function campsOf(sim, owner) {
+  const out = [];
+  for (const e of sim.entities.values()) if (e.kind === 'camp' && e.owner === owner) out.push(e);
+  return out;
+}
+
+/** Campfire for a worker: the nearest one within reach of their workplace, otherwise a new one. */
 function campOf(sim, w) {
   const wp = sim.entities.get(w.workplace);
-  return nearestDone(sim, w.owner, ['villageCenter', 'headquarters'], wp ? center(wp) : { x: toTile(w.px), y: toTile(w.py) });
+  if (!wp) return null;
+  const from = center(wp), r2 = W.campRadius * W.campRadius;
+  let best = null, bd = Infinity;
+  for (const f of campsOf(sim, w.owner)) {
+    const d = d2(f, from);
+    if (d <= r2 && d < bd) { bd = d; best = f; }
+  }
+  if (best) return best;
+  const spot = findCampSpot(sim, wp);
+  if (spot) {
+    /** @type {Camp} */
+    const f = { id: sim.nextId++, kind: 'camp', owner: w.owner, x: spot.x, y: spot.y, w: 1, h: 1 };
+    sim.entities.set(f.id, f);
+    sim.events.push({ type: 'campLit', player: w.owner, camp: f.id, x: f.x, y: f.y });
+    return f;
+  }
+  // no spot free: rest at the village centre or castle as before
+  return nearestDone(sim, w.owner, ['villageCenter', 'headquarters'], from);
+}
+
+/** Remove campfires that nobody needs any more (everyone nearby has a bed and eating place) or that are built over. */
+export function updateCamps(sim) {
+  if (sim.tick % W.campCheckTicks !== 0) return;
+  const r2 = W.campRadius * W.campRadius;
+  for (const f of [...sim.entities.values()]) {
+    if (f.kind !== 'camp') continue;
+    const k = sim.map.idx(f.x, f.y);
+    let needed = !(sim.map.flags[k] & (WATER | OCCUPIED)) && !sim.map.owner[k];
+    if (needed) {
+      needed = false;
+      for (const w of sim.entities.values()) {
+        if (w.kind !== 'worker' || w.owner !== f.owner) continue;
+        if (w.target === f.id && (w.state === 'walk' || w.state === 'camping')) { needed = true; break; }
+        const wp = sim.entities.get(w.workplace);
+        if ((!w.home || !w.farm) && wp && d2(f, center(wp)) <= r2) { needed = true; break; }
+      }
+    }
+    if (!needed) {
+      sim.entities.delete(f.id);
+      sim.events.push({ type: 'campOut', player: f.owner, camp: f.id });
+    }
+  }
 }
 
 const motivationFactor = (w) => motivationEffect(w.motivation);

@@ -253,11 +253,13 @@
       "variants": [
         {
           "model": "Serf",
-          "weight": 1
+          "weight": 1,
+          "voice": "serf"
         },
         {
           "model": "SerfF",
-          "weight": 1
+          "weight": 1,
+          "voice": "serfF"
         }
       ],
       "procedural": "serf"
@@ -281,7 +283,8 @@
     },
     "soldier.sword": {
       "model": "Knight",
-      "procedural": "sword"
+      "procedural": "sword",
+      "voice": "sword"
     },
     "soldier.sword.leader": {
       "model": "Knight",
@@ -292,7 +295,8 @@
         "Knight_Cape"
       ],
       "scale": 1.08,
-      "procedural": "sword:leader"
+      "procedural": "sword:leader",
+      "voice": "sword"
     },
     "soldier.spear": {
       "model": "Knight",
@@ -305,7 +309,8 @@
         "idle": "2H_Melee_Idle",
         "attack": "2H_Melee_Attack_Stab"
       },
-      "procedural": "spear"
+      "procedural": "spear",
+      "voice": "sword"
     },
     "soldier.spear.leader": {
       "model": "Knight",
@@ -319,7 +324,8 @@
         "attack": "2H_Melee_Attack_Stab"
       },
       "scale": 1.08,
-      "procedural": "spear:leader"
+      "procedural": "spear:leader",
+      "voice": "sword"
     },
     "soldier.bow": {
       "model": "Rogue",
@@ -343,7 +349,8 @@
         ]
       },
       "tint": null,
-      "procedural": "bow"
+      "procedural": "bow",
+      "voice": "soldierF"
     },
     "soldier.bow.leader": {
       "model": "Rogue",
@@ -369,7 +376,8 @@
       },
       "tint": null,
       "scale": 1.08,
-      "procedural": "bow:leader"
+      "procedural": "bow:leader",
+      "voice": "soldierF"
     },
     "soldier.heavyCav": {
       "model": "Knight",
@@ -396,11 +404,13 @@
           "scale": 1.75
         }
       ],
-      "procedural": "heavyCav"
+      "procedural": "heavyCav",
+      "voice": "sword"
     },
     "soldier.heavyCav.leader": {
       "fallback": "soldier.heavyCav",
-      "procedural": "heavyCav:leader"
+      "procedural": "heavyCav:leader",
+      "voice": "sword"
     },
     "soldier.lightCav": {
       "model": "Rogue",
@@ -441,11 +451,13 @@
           "scale": 1.7
         }
       ],
-      "procedural": "lightCav"
+      "procedural": "lightCav",
+      "voice": "soldierF"
     },
     "soldier.lightCav.leader": {
       "fallback": "soldier.lightCav",
-      "procedural": "lightCav:leader"
+      "procedural": "lightCav:leader",
+      "voice": "soldierF"
     },
     "soldier.cannon": {
       "procedural": "cannon",
@@ -472,10 +484,12 @@
             "attack": "idle"
           }
         }
-      ]
+      ],
+      "voice": "cannon"
     },
     "soldier.cannon.leader": {
-      "fallback": "soldier.cannon"
+      "fallback": "soldier.cannon",
+      "voice": "cannon"
     },
     "mount.horse": {
       "procedural": "horse"

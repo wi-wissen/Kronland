@@ -39,6 +39,8 @@ export const BUILDING_LODS = 2;
 
 const NEUTRAL = [
   'buildings/scaffolding', 'buildings/stage_A', 'buildings/stage_B', 'buildings/stage_C', 'buildings/destroyed',
+  // Own ruins per building type (if missing, the generic ruin applies)
+  'buildings/villagecenter_ruin', 'buildings/residence_ruin',
   'nature/tree_single_A', 'nature/tree_single_B',
   'nature/rock_single_A', 'nature/rock_single_B', 'nature/rock_single_C', 'nature/rock_single_D', 'nature/rock_single_E',
   'nature/mountain_A', 'nature/mountain_B', 'nature/mountain_C',

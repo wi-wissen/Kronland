@@ -16,6 +16,7 @@
             <em class="num">{{ o.time ? clock(o.progress[1] - o.progress[0]) : o.progress[0] + '/' + o.progress[1] }}</em>
           </span>
         </span>
+        <button v-if="o.hint && (o.hint.entity || o.hint.area)" class="icon-btn ghost op-go" :aria-label="$t('mission.showGoal')" :title="$t('mission.showGoal')" :data-testid="'objective-go-' + o.id" @click="go(o)"><Icon name="target" /></button>
       </li>
     </ul>
   </aside>
@@ -28,6 +29,7 @@ export default {
     objectives: { type: Array, required: true },
     lang: { type: String, default: 'de' },
   },
+  emits: ['focus'],
   data() {
     // Auf kleinen Bildschirmen anfangs eingeklappt
     return { open: typeof window === 'undefined' || (window.innerWidth > 640 && window.innerHeight > 480) };
@@ -47,6 +49,11 @@ export default {
   },
   methods: {
     toggle() { this.open = !this.open; },
+    /** Camera to the objective; on small screens collapse the panel so the spot is clear. */
+    go(o) {
+      this.$emit('focus', o.hint);
+      if (typeof window !== 'undefined' && (window.innerWidth <= 640 || window.innerHeight <= 480)) this.open = false;
+    },
     clock(s) { return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; },
   },
 };
@@ -73,5 +80,7 @@ export default {
 .op-text { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; flex: 1; }
 .op-prog { display: flex; align-items: center; gap: 0.375rem; }
 .op-prog .meter { flex: 1; }
+.op-go { flex: none; width: var(--touch); height: var(--touch); margin: -0.5rem -0.5rem -0.5rem 0; color: var(--gold-200); }
+.op-go .ico { width: 1.125rem; height: 1.125rem; }
 .op-prog em { font-style: normal; font-size: var(--fs-xs); color: var(--gold-200); font-weight: 700; }
 </style>

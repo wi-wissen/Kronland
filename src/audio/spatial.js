@@ -1,22 +1,29 @@
 // Spatial mix (pure maths, no Web Audio): volume by distance to the camera target
 // and zoom level, stereo pan by screen side. Units: tiles.
+//
+// You hear what happens around the screen centre – not everything that is visible: the hearing range grows with
+// zoom only slowly (at medium zoom about a third of the screen width), figures at the screen edge stay silent.
+// Zoomed far out, everything gets quieter. See docs/AUDIO.md#räumlicher-klang.
 
 /** @typedef {{ x: number, z: number, dist: number, yaw: number }} Listener */
 
-/** Hearing range in tiles: zoomed further out = larger visible area = larger hearing range. */
-export function audibleRadius(dist) { return 10 + dist * 0.8; }
+/** Hearing range in tiles for individual sounds (work, combat, events). */
+export function audibleRadius(dist) { return 6 + dist * 0.3; }
 
-/** Overall attenuation by zoom: full when close, quieter far out (you are "above the clouds"). */
-export function zoomGain(dist) { return Math.max(0.4, Math.min(1, 1 - (dist - 20) / 100)); }
+/** Approximate half of the visible area in tiles (battle music, battle noise, nearby water). */
+export function viewRadius(dist) { return 10 + dist * 0.8; }
+
+/** Overall attenuation by zoom: full up to distance 15, far out only a good third. */
+export function zoomGain(dist) { return Math.max(0.35, Math.min(1, 1 - (dist - 15) / 92)); }
 
 /**
  * Volume 0…1 for a source at distance d (tiles) with camera distance dist.
- * Full within a third of the hearing range, then falling off smoothly (quadratically) to 0 at the edge.
+ * Full in the inner quarter of the hearing range, then soft (quadratic) down to 0 at the edge.
  */
 export function distanceGain(d, dist) {
   const R = audibleRadius(dist);
   if (d >= R) return 0;
-  const inner = R / 3;
+  const inner = R / 4;
   const t = d <= inner ? 0 : (d - inner) / (R - inner);
   return (1 - t) * (1 - t) * zoomGain(dist);
 }

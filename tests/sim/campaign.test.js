@@ -8,6 +8,15 @@ import { getMission } from '../../src/sim/missions/registry.js';
 
 const CASES = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'].flatMap((id) => [[id, getMission(id).seed], [id, 7]]);
 
+describe('Campaign: weather', () => {
+  it('Malvor\'s winter: missions 1 to 3 do not switch to summer or rain on their own', () => {
+    for (const id of ['c1', 'c2', 'c3']) {
+      const cycle = getMission(id).weatherCycle;
+      expect(cycle.every(([w]) => w === 'winter'), id).toBe(true);
+    }
+  });
+});
+
 describe('Campaign with bot', () => {
   it.each(CASES)('%s is winnable on map %i within the time limit', (id, seed) => {
     const { report } = playMission(id, seed);

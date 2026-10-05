@@ -87,8 +87,8 @@ docs/         Spielregeln und Architektur
 | `grid.js` | Kachelraster (`Renderer.setGrid`): Linien folgen dem Boden, jede fünfte kräftig; `overviewDist` für die Übersicht kleiner Karten |
 | `lod.js` | Detailstufen nach Abstand/Sichtfeld bzw. Bildschirmhöhe mit Hysterese, Chunk-Raster mit Sichtprüfung für Instanzen |
 | `characters.js` | Figuren aus `manifest.json`, gebackene Animationen, GPU-Skinning, instanziert |
-| `effects.js` | Partikel (Staub, Rauch, Feuer, Spuren), Lebensbalken und Auswahlmarkierungen |
-| `terrain.js`, `water.js`, `environment.js`, `nature.js` | Gelände, Wasser, Himmel/Licht, Bäume und Deko |
+| `effects.js` | Partikel (Staub, Rauch, Feuer, Spuren), Lebens- und Baufortschrittsbalken, Auswahlmarkierungen |
+| `terrain.js`, `water.js`, `environment.js`, `nature.js` | Gelände, Wasser, Himmel/Licht, Bäume und Deko. Wasser im Winter: Eis ohne Bewegung (keine Wellen, kein Funkeln), klar blau nach Tiefe mit Schollen-Bruchlinien, Reif und Bläschen – deutlich dunkler als Schnee, damit man sieht, wo das Eis endet |
 | `textures.js` | Bodentexturen: gemalte Bilddateien (vor dem Start geladen, [BODEN.md](BODEN.md)), sonst im Code gemalt |
 | `terrain.js` `updateArea()` | übernimmt geänderte Sim-Höhen: Ecken, Catmull-Rom-Raster, Normalen, Texturgewichte im Bereich; `setPad/clearPad` legen die Rand-Ecken lebender Gebäude exakt auf ihre Ebene. `Renderer.reshapeGround()` setzt Bäume, Deko, Stümpfe, Haufen und Markierungen nach; `terrainChanged` im Nebel wird erst bei Sicht übernommen |
 | `fog.js` | Nebel des Krieges: Datentextur (1 Texel je Kachel, R sichtbar, G erkundet, weichgezeichnet und überblendet), Shader-Zusatz `patchFog()` für alle Weltmaterialien |
@@ -169,7 +169,8 @@ Texturen) und den Kontext frei. Neue modulweite three.js-Ressourcen dort mit auf
   schmal als wischbare Reihe mit Sprungmarken). Breitenstufen setzt `App.vue` als Klassen auf `.game`
   (Breite geteilt durch Oberflächengröße): `narrow` < 1500 px (Porträt ohne Schild, Kennzahlen in der Tafel,
   drei Kachelreihen), `mid` < 1100 px (kleinere Karte, Baumenü als Reihe), `compact` < 760 px oder Höhe < 560 px
-  (Handy: Tafel als Schublade, Karte als Knopf). Reine Hilfen (Minikarten-Geometrie, Gruppen, Trennstellen)
+  (Handy: Tafel als Schublade, Karte als Knopf). Unten links eine Kartentafel (`.cb-map.frame`): Schnellzugriff als
+  Spalte eckiger Knöpfe, rechts die eckige Minikarte (`MAP_CORNER`); Helden (rund) und Steuergruppen darüber. Reine Hilfen (Minikarten-Geometrie, Gruppen, Trennstellen)
   in `hud/hudLayout.js`. Schnellzugriff-Daten aus der Engine: `ui.idleSerfs`, `ui.heroes` (`quickInfo()`),
   `ui.groups`, `ui.group`, Aktionen `selectHero(id)`, `selectAllArmy()`, `assignGroup(n)`, `selectGroup(n)`.
 - Steuergruppen: `src/game/groups.js` (`ControlGroups`) – reiner Oberflächenzustand des Spielers, kein
@@ -307,6 +308,7 @@ Prüfung im Editor, ohne Build-Schritt.
 | Held finden | Porträt über der Karte | Porträt |
 | Alle Truppen | Knopf „Truppen“ | Knopf „Truppen“ |
 | Minikarte | Klick/Ziehen | Tippen (Knopf „Karte“ blendet ein) |
+| Figuren über die Minikarte schicken | Rechtsklick auf die Minikarte (Strg: Angriffsbewegung) | Tippen auf die Minikarte, solange Figuren ausgewählt sind |
 | Menü | Esc | Knopf |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
 

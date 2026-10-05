@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { fitRound, toTile, groupBuildOptions, missing, softHyphens, selectionIcon, selectionPortrait, MAP_FILL } from '../../src/ui/hud/hudLayout.js';
+import { fitMap, toTile, groupBuildOptions, missing, softHyphens, selectionIcon, selectionPortrait, MAP_FILL } from '../../src/ui/hud/hudLayout.js';
 
-describe('Runde Minikarte', () => {
+describe('Minimap', () => {
   it('fits the map in the centre and converts pixels back to tiles', () => {
-    const m = fitRound(200, 128, 128);
+    const m = fitMap(200, 128, 128);
     expect(m.s * 128).toBeCloseTo(200 * MAP_FILL);
     expect(m.ox).toBeCloseTo(m.oy);
     expect(toTile(m, 100, 100)).toEqual({ x: 64, y: 64 });
@@ -13,7 +13,7 @@ describe('Runde Minikarte', () => {
   });
 
   it('aligns non-square maps to the longer edge', () => {
-    const m = fitRound(100, 200, 100);
+    const m = fitMap(100, 200, 100);
     expect(m.s * 200).toBeCloseTo(100 * MAP_FILL);
     expect(m.oy).toBeGreaterThan(m.ox);
   });

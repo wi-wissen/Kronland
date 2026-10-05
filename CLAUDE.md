@@ -17,7 +17,10 @@ E2E_PORT=4310 npx playwright test e2e/<spec>.js   # E2E, Desktop + Handy (Pixel 
 node scripts/ai-match.js 1 60 hard easy           # KI gegen KI
 node scripts/campaign-matrix.js                   # alle Missionen auf mehreren Seeds
 node scripts/asset-gen/model.mjs all <id>         # Figur per Meshy (siehe docs/MODELLE.md, docs/STIL.md)
+node scripts/asset-gen/music.mjs gen|rate|process  # Musik per Lyria 3 (siehe docs/AUDIO.md#musik-lyria-3)
+node scripts/asset-gen/sfx-cc0.mjs                # CC0-Effekte (Kenney, Freesound) schneiden (docs/AUDIO.md)
 ```
+In der Cloud-Umgebung nimmt Node-`fetch` den Proxy (und damit die injizierten API-Schlüssel für OpenRouter/Meshy) nur mit `NODE_USE_ENV_PROXY=1`; `curl` geht direkt.
 E2E läuft headless über SwiftShader (Software-WebGL) und ist langsam (passt die Playwright-Version nicht zum vorinstallierten Browser: `PW_CHROMIUM=/opt/pw-browsers/chromium`): großzügige Timeouts, nur betroffene Specs laufen lassen, eigenen Port wählen, wenn mehrere Sitzungen parallel testen.
 
 ## Feste Regeln

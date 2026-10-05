@@ -90,16 +90,19 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   (`kronland-<name>-<datum>.json`, wahlweise kompakt) – per Dateiauswahl (auch Handy) oder Ziehen & Ablegen.
   Gespeichert wird der vollständige Simulationszustand (inkl. eingeebnetem Gelände), nicht der Entwicklermodus.
   Format, Prüfung und Migration: [Architektur → Spielstände](docs/ARCHITEKTUR.md#spielstände-srcsave).
-- Sprache Deutsch/Englisch, Grafikstufe, Lautstärken, Oberflächengröße, Randscrollen, Beschriftungen und „Dialoge vorlesen“ im Menü „Einstellungen“ (Startmenü und Spielmenü).
+- **Ton**: eigene Musik (Lyria 3: fünf Aufbaustücke, eigene Wintermusik, zwei Kampfthemen, Menü, Sieg/Niederlage) mit Pausen zwischen den Friedensstücken, echte Arbeitsgeräusche (Kenney, CC0), räumliche Effekte, vertonte Dialoge – [docs/AUDIO.md](docs/AUDIO.md).
+- Sprache Deutsch/Englisch, Grafikstufe, Lautstärken, Pausen zwischen Musikstücken, Häufigkeit der Sprüche der Figuren, Oberflächengröße, Randscrollen, Beschriftungen, „Dialoge vorlesen“ und „Kamera bei Dialogen“ (fährt nah an die sprechende Figur) im Menü „Einstellungen“ (Startmenü und Spielmenü).
 - **Spieloberfläche** aus freistehenden Schildern mit Abstand zum Bildrand, jedes nur so breit wie sein Inhalt – die Mitte gehört
   der Karte: oben Rohstoffe, Wappen genau in der Bildschirmmitte mit Zahltag-Medaillon (Sekunden erst kurz vorher, ein Lichtimpuls am
-  Zahltag) und Münzknöpfe für Pause, Tempo (Ausklappmenü 1× · 2× · 4×) und Menü; unten runde Minikarte mit Schnellzugriff (Burg, Untätige mit Zahl,
-  Alle Leibeigenen, Truppen), darüber die Heldenporträts (Klick wählt den Helden und holt ihn ins Bild) und die
+  Zahltag) und Münzknöpfe für Pause, Tempo (Ausklappmenü 1× · 2× · 4×), Ton (stumm, Musik, Effekte, Gesamt) und Menü; unten links die Kartentafel: eckige Minikarte (Rechtsklick bzw. Tippen mit Auswahl schickt die Figuren dorthin), links daneben der Schnellzugriff
+  als eckige Knöpfe ohne Namen (Burg, Untätige mit Zahl, Alle Leibeigenen, Truppen), darüber die Heldenporträts übereinander (Klick wählt den Helden und holt ihn ins Bild; bewusstlos: grau mit Restzeit bis zum Aufwachen) und die
   **Steuergruppen** (Umschalt+1–9 merkt die Auswahl, 1–9 ruft sie ab, zweimal holt sie ins Bild; am Handy über
   „Als Gruppe merken“),
   Befehlstafel nur bei Auswahl und Porträt der Auswahl. Das Baumenü zeigt alle Gruppen ohne Reiter.
   Nichts überlappt: bei weniger Breite brechen Leisten um, Karte und Kacheln werden kleiner, am Handy wird die
   Tafel zur Schublade.
+- **Lagerfeuer zeigen Wohnungsnot**: Arbeiter ohne Bett oder Essplatz entzünden nahe ihrer Werkstatt ein Lagerfeuer
+  (auch auf der Minikarte), das wieder ausgeht, sobald dort alle untergebracht sind ([Spielregeln §4](docs/SPIELREGELN.md#4-arbeiter-motivation-steuern)).
 - Jedes Symbol ist erklärt: Maus darüber (Desktop) oder **lang drücken** (Handy) zeigt Name, Kosten und Erklärung,
   ohne die Aktion auszulösen. Was nur bei einer Auswahl erscheint (Baumenü, Befehle von Gebäuden und Truppen),
   ist immer beschriftet; „Beschriftungen anzeigen“ (am Handy standardmäßig an) setzt zusätzlich Namen unter
@@ -159,7 +162,7 @@ Die bunten Symbole (Rohstoffe, Gebäude, Einheiten …) stammen aus einem Sprite
 - [Symbole aus dem Bildmodell (Atlas, Prompts, Neuerzeugung)](docs/SYMBOLE.md)
 - [Bodentexturen aus der Bild-KI (Erzeugen, Nahtlos, Farbabgleich)](docs/BODEN.md)
 - [Stilreferenz für Figuren und Symbole](docs/STILREFERENZ.md)
-- [Ton: Effekte, Musik, eigene Audiodateien](docs/AUDIO.md)
+- [Ton: Effekte, Musik, Stimmen, eigene Audiodateien](docs/AUDIO.md)
 - [Entwicklermodus: was man zeigen kann, Unterrichtsideen](docs/ENTWICKLERMODUS.md)
 - [QA-Bericht: Befunde, Fuzz-/Dauertests, Leistung](docs/QA-BERICHT.md)
 - [Website: Seiten, Handbuch und Kompendium erweitern](docs/WEBSITE.md)

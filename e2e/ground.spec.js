@@ -43,3 +43,45 @@ test('without image files: ground is painted in code as before', async ({ page }
   await expect(page.getByTestId('res-gold')).toHaveText('500');
   expect(errors).toEqual([]);
 });
+
+test('Buildings leave the ground as it was (no forced bare earth)', async ({ page }, info) => {
+  test.setTimeout(120_000);
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(playUrl('?seed=42&fog=off'));
+  await page.waitForFunction(() => !!window.__kronland?.renderer?.terrain);
+  // finished house next to the castle, camera on it
+  const b = await page.evaluate(() => {
+    const e = window.__kronland, s = e.sim, p = s.players[0], hq = s.findBuilding(0, 'headquarters');
+    const keep = { ...p.stock };
+    for (const r of Object.keys(p.stock)) p.stock[r] += 10000;
+    const pos = s.findPlacement(0, 'residence', hq.x - 8, hq.y + 2, 30);
+    p.stock = keep;
+    const b = s.createBuilding(0, 'residence', pos.x, pos.y, true);
+    e.renderer.rig.lookAt(b.x + b.w / 2, b.y + b.h / 2); e.renderer.rig.dist = 14; e.renderer.rig.update(0);
+    return { x: b.x, y: b.y, w: b.w, h: b.h };
+  });
+  await page.waitForTimeout(1500);
+  // Bottom colour next to each side (formerly trampled earth lay there)
+  const cols = await page.evaluate((b) => new Promise((res) => requestAnimationFrame(() => {
+    const r = window.__kronland.renderer, gl = r.renderer.domElement;
+    r.rig.update(0);
+    r.renderer.render(r.scene, r.camera);
+    const c = document.createElement('canvas'); c.width = c.height = 5;
+    const ctx = c.getContext('2d');
+    const k = gl.width / gl.getBoundingClientRect().width;
+    const pts = [[b.x - 1, b.y + b.h / 2], [b.x + b.w + 1, b.y + b.h / 2], [b.x + b.w / 2, b.y - 1], [b.x + b.w / 2, b.y + b.h + 1]];
+    res(pts.map(([x, z]) => {
+      const p = r.project(x, r.terrain.heightAt(x, z), z);
+      ctx.drawImage(gl, p.x * k - 2, p.y * k - 2, 5, 5, 0, 0, 5, 5);
+      const d = ctx.getImageData(0, 0, 5, 5).data, m = [0, 0, 0];
+      for (let i = 0; i < d.length; i += 4) { m[0] += d[i]; m[1] += d[i + 1]; m[2] += d[i + 2]; }
+      return m.map((v) => Math.round(v / 25));
+    }));
+  })), b);
+  // green instead of brown: at least three of the four sides (one can naturally be earth or rock)
+  const green = cols.filter(([r, g]) => g > r + 10).length;
+  expect(green, JSON.stringify(cols)).toBeGreaterThanOrEqual(3);
+  await page.screenshot({ path: `test-results/buildings-ground-${info.project.name}.png` });
+  expect(errors).toEqual([]);
+});

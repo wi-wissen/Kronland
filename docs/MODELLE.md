@@ -155,7 +155,8 @@ npx gltf-transform optimize mittel.glb public/models/characters/Farmer.glb --com
 ## Eigene Figuren erzeugen (Pipeline `scripts/asset-gen/`)
 
 Ablauf: Konzeptbogen → Ansichten → Meshy (Mehransichten → 3D, Auto-Rig, Animationen) → Nachbearbeitung →
-Manifest. Alles je Figur unter `assets-src/characters/<id>/`:
+Manifest. Alles je Figur unter `assets-src/characters/<id>/`. Stimmen der Figuren entstehen nach demselben
+Muster (Ausgangsquelle unter `assets-src/voices/<rolle>/`), siehe [AUDIO.md](AUDIO.md#stimmen):
 
 | Datei | Inhalt |
 |---|---|

@@ -50,8 +50,8 @@ test('Game start: minimap black except the start region, enemy castle invisible'
       const cv = document.querySelector('[data-testid=minimap-canvas]');
       const ctx = cv.getContext('2d');
       const e = window.__kronland, hq = e.sim.findBuilding(0, 'headquarters'), ehq = e.sim.findBuilding(1, 'headquarters');
-      // Round minimap: map fills 86 % of the diameter (MAP_FILL in src/ui/hud/hudLayout.js)
-      const W = e.sim.map.width, s = (Math.min(cv.width, cv.height) * 0.86) / W, ox = (cv.width - W * s) / 2, oy = (cv.height - W * s) / 2;
+      // Minimap: the map fills the area completely (MAP_FILL = 1 in src/ui/hud/hudLayout.js)
+      const W = e.sim.map.width, s = Math.min(cv.width, cv.height) / W, ox = (cv.width - W * s) / 2, oy = (cv.height - W * s) / 2;
       const at = (x, y) => [...ctx.getImageData(Math.round(ox + x * s), Math.round(oy + y * s), 1, 1).data];
       return { mine: at(hq.x - 6, hq.y + 2), theirs: at(ehq.x + 2, ehq.y + 9) };
     });

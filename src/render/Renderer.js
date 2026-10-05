@@ -85,7 +85,7 @@ export class Renderer {
     this.scatter = [];
     /** @type {Map<number, THREE.Group>} */
     this.buildings = new Map();
-    /** Building surfaces for which the ground is trampled/levelled */
+    /** Building surfaces for which the ground is levelled */
     this.padIds = new Set();
     /** @type {Map<number, THREE.Group>} */
     this.units = new Map();
@@ -571,23 +571,23 @@ export class Renderer {
     }
   }
 
-  /** Adapt trampled ground and building surfaces (exactly flat edge corners) to the current buildings. */
+  /**
+   * Adjust building surfaces (exactly flat edge corners) to the current buildings. The ground colour stays as it was:
+   * some buildings bring their own base, the others stand on meadow, sand or snow.
+   */
   syncGround() {
     const ids = this.buildings;
     let changed = ids.size !== this.padIds.size;
     if (!changed) for (const id of ids.keys()) if (!this.padIds.has(id)) { changed = true; break; }
     if (!changed) return;
-    const rects = [];
     for (const id of this.padIds) if (!ids.has(id)) { const r = this.terrain.pads.get(id); if (r) this.reshapeGround(r, () => this.terrain.clearPad(id)); }
     for (const [id, g] of ids) {
       // rectangle from the rendering (also last seen buildings in the fog that no longer exist)
       const e = g.userData.rect;
       if (!e || g.userData.noPad) continue;
-      rects.push(e);
       if (!this.padIds.has(id)) { this.reshapeGround(e, () => this.terrain.setPad(id, e.x, e.y, e.w, e.h)); this.hideScatter(e.x, e.y, e.w, e.h); }
     }
     this.padIds = new Set(ids.keys());
-    this.terrain.setTrampled(rects);
   }
 
   /**
@@ -707,7 +707,7 @@ export class Renderer {
       // a ruin from the simulation (kind 'ruin') takes precedence
       const simRuin = [...this.sim.entities.values()].some((r) => r.kind === 'ruin' && r.x === e.x && r.y === e.y);
       if (!simRuin) {
-        const r = ruinModel(e.w - 0.6, e.h - 0.6);
+        const r = ruinModel(e.w - 0.6, e.h - 0.6, e.type);
         r.position.set(cx, y, cz);
         r.rotation.y = (ev.building % 4) * (Math.PI / 2);
         r.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; } });
@@ -780,6 +780,10 @@ export class Renderer {
         if (e.kind === 'unit' || e.kind === 'worker' || e.kind === 'npc') this.syncUnit(e, alpha, prev.get(e.id), dt);
         if (e.kind === 'npc' && e.talk) talkers.push(e);
         else this.syncFighter(e, alpha, prev.get(e.id));
+      } else if (e.kind === 'camp') {
+        // campfires (workers without bed or dining spot): foreign ones only in sight
+        if (fogOn && !mine(e.owner) && !fog.visibleAt(e.x + 0.5, e.y + 0.5)) continue;
+        seen.add(e.id); this.syncCamp(e, dt);
       } else if (e.kind === 'ruin') {
         if (fogOn && !fog.rectVisible(e.x, e.y, e.w ?? 3, e.h ?? 3)) continue;
         seen.add(e.id); this.syncRuin(e);
@@ -806,6 +810,7 @@ export class Renderer {
     for (const [id, g] of this.buildings) if (!seen.has(id)) { this.scene.remove(g); this.buildings.delete(id); this.buildProgress.delete(id); }
     for (const [id, g] of this.units) if (!seen.has(id)) { this.scene.remove(g); this.units.delete(id); }
     for (const [id, g] of this.simRuins ?? []) if (!seen.has(id)) { this.scene.remove(g); this.simRuins.delete(id); }
+    for (const [id, g] of this.camps ?? []) if (!seen.has(id)) { this.scene.remove(g); this.camps.delete(id); }
     // clean up per-unit markers (occasionally is enough)
     if ((this.frameNo = (this.frameNo ?? 0) + 1) % 120 === 0) {
       for (const m of [this.unitYaw, this.hitAt, this.shotAt]) if (m) for (const id of m.keys()) if (!seen.has(id)) m.delete(id);
@@ -824,6 +829,7 @@ export class Renderer {
     this.syncGhost(view.ghost);
     (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, dt);
     (this.npcMarks ??= new NpcMarks(this.scene, this.terrain)).update(talkers, dt);
+    this.syncLandmarks(view.landmarks, fog, sim.map);
 
     this.syncTerrain();
     this.syncGround();
@@ -963,9 +969,6 @@ export class Renderer {
       g.position.set(e.x + e.w / 2, e.type === 'bridge' ? this.bridgeDeckY(e) : this.footY(e.x, e.y, e.w, e.h), e.y + e.h / 2);
       // bridge: do not level the terrain below
       if (e.type === 'bridge') g.userData.noPad = true;
-      if (e.type === 'villageCenter' || e.type === 'headquarters') {
-        const fire = campfireModel(); fire.position.set(-e.w / 2 - 0.2, 0, e.h / 2 + 0.6); g.add(fire);
-      }
       // height of the house (for smoke, fire, health bars, camera)
       const body = g.getObjectByName('body');
       g.userData.body = body;
@@ -1007,6 +1010,8 @@ export class Renderer {
       this.buildProgress.set(e.id, e.progress);
     }
     if (!near) return;
+    // construction site and upgrade: progress bar above the scaffolding
+    if (!e.done && e.work) this.bars.add(g.position.x, g.position.y + (g.userData.height ?? 2.5) + 0.45, g.position.z, p, 64, 8, 1);
     // damage: below 50 % smoke, below 25 % (or e.burning) fire
     const maxHp = BUILDINGS[e.type]?.levels[e.level]?.hp ?? e.hp;
     const frac = e.done ? e.hp / maxHp : 1;
@@ -1043,12 +1048,59 @@ export class Renderer {
     return this.terrain.rectHeight(x, y, w, h);
   }
 
+  /** Campfire from the simulation: flickering flame, plus some smoke. */
+  syncCamp(e, dt) {
+    const m = (this.camps ??= new Map());
+    let g = m.get(e.id);
+    if (!g) {
+      g = campfireModel();
+      g.scale.setScalar(2);
+      g.position.set(e.x + 0.5, this.terrain.heightAt(e.x + 0.5, e.y + 0.5), e.y + 0.5);
+      patchFogTree(g);
+      this.scene.add(g);
+      m.set(e.id, g);
+    }
+    const flame = g.getObjectByName('flame');
+    if (flame) flame.scale.y = 0.8 + Math.sin(this.time * 12 + e.id) * 0.25;
+    if (Math.random() < dt * 3 * this.fx.density && sphereVisible(this.frustum, g.position.x, g.position.y, g.position.z, 1)) {
+      this.fx.smokePuff(g.position.x, g.position.y + 0.55, g.position.z, 0, 0.2);
+    }
+  }
+
   /** Ruin from the simulation (if present). */
+  /**
+   * Landmark of the mission (rendering only): foundations of a building (`ruin` with `building`, top left corner
+   * at `at`; disappear as soon as something is built there).
+   * Visible as soon as the place is explored.
+   * @param {Array<{model:string, building?:string|null, at:{x:number,y:number}}>|null} list
+   */
+  syncLandmarks(list, fog, map) {
+    const key = list?.length ? list.map((l) => `${l.model}@${l.at.x},${l.at.y}`).join(';') : '';
+    if (key !== this.landmarkKey) {
+      for (const g of this.landmarks ?? []) this.scene.remove(g.mesh);
+      this.landmarks = [];
+      this.landmarkKey = key;
+      for (const l of list ?? []) {
+        if (l.model !== 'ruin' || !BUILDINGS[l.building]) continue;
+        const { w, h } = BUILDINGS[l.building];
+        const mesh = ruinModel(w - 0.6, h - 0.6, l.building);
+        patchFogTree(mesh);
+        const x = l.at.x + w / 2, z = l.at.y + h / 2;
+        mesh.position.set(x, this.footY(l.at.x, l.at.y, w, h), z);
+        const foot = { x: l.at.x + (w >> 1), y: l.at.y + (h >> 1) };
+        this.scene.add(mesh);
+        this.landmarks.push({ mesh, x, z, foot });
+      }
+    }
+    // foundations disappear as soon as something stands there (construction site or building)
+    for (const l of this.landmarks) l.mesh.visible = fog.exploredAt(l.x, l.z) && !map.owner[map.idx(l.foot.x, l.foot.y)];
+  }
+
   syncRuin(e) {
     const m = (this.simRuins ??= new Map());
     if (m.has(e.id)) return;
     const w = e.w ?? 3, h = e.h ?? 3;
-    const g = ruinModel(w - 0.6, h - 0.6);
+    const g = ruinModel(w - 0.6, h - 0.6, e.type);
     g.position.set(e.x + w / 2, this.footY(e.x, e.y, w, h), e.y + h / 2);
     patchFogTree(g);
     this.scene.add(g);

@@ -15,6 +15,7 @@
 // Pure helper functions (role resolution, clip fallback, frame computation, masks) are testable without WebGL.
 
 import * as THREE from 'three';
+import { pickVariant } from './variants.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LodState, sphereVisible, lodSettings, screenHeightPx, pixelMetric } from './lod.js';
 
@@ -93,29 +94,7 @@ export function variantRole(role, pick, available = () => true) {
   return { ...role, ...v, weight: undefined };
 }
 
-/**
- * Choose a variant for a unit: weighted, stable via the unit ID (looks random, but stays the same
- * across loading and replays). Rendering only – the simulation knows no variants.
- * @param {{weight?: number}[]} variants @param {number} id
- * @returns {number} index
- */
-export function pickVariant(variants, id) {
-  if (!variants?.length) return 0;
-  let total = 0;
-  for (const v of variants) total += Math.max(0, v.weight ?? 1);
-  if (!(total > 0)) return 0;
-  // Integer hash (murmur3 finalizer), independent of the phase offset of the animations
-  let h = (id | 0) ^ 0x9e3779b9;
-  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  h = (h ^ (h >>> 16)) >>> 0;
-  let x = (h / 4294967296) * total;
-  for (let i = 0; i < variants.length; i++) {
-    x -= Math.max(0, variants[i].weight ?? 1);
-    if (x < 0) return i;
-  }
-  return variants.length - 1;
-}
+export { pickVariant };
 
 /** Variants list of the role that a key resolves to (or null). */
 export function roleVariants(manifest, key) {
@@ -192,7 +171,9 @@ export function animStep(level) {
 /** @type {{ manifest: any, models: Map<string, {gltf: any, lods: any[]}> }} */
 const store = { manifest: null, models: new Map() };
 
+/** Figure manifest (or null while it is not loaded) – e.g. for the voice matching the look. */
 export const characterManifest = () => store.manifest;
+
 /** Loaded figure models (for Renderer.dispose). */
 export const sharedCharacterRoots = () => [...store.models.values()].flatMap((m) => [m.gltf?.scene, ...m.lods.map((l) => l?.scene)]).filter(Boolean);
 export const characterModelLoaded = (name) => store.models.has(name);

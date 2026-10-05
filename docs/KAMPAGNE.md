@@ -59,7 +59,7 @@ nah am Original.
 
 | # | Karte | Akt | Wetter | Zacke | Helden | Ziele (Hauptziele, Nebenziel) |
 |---|---|---|---|---|---|---|
-| 1 | Lindgrund | Winter | Winter | 1 | Nelia, Orrin | Nelia zur alten Wurzel (Fund, Orrins Lüge), 2 Wohnhäuser, 2 Höfe, 6 Arbeiter, Eintreiber vertreiben; *Orrin gewinnt das Nachbardorf* |
+| 1 | Lindgrund | Winter | Winter | 1 | Nelia, ab Dorfplatz Orrin | Einführung im verlassenen Dorf: Orrin treffen, Nelia zum alten Baum am Waldrand (Fund unter der Wurzel, Orrins Lüge), Balken holen, Dorfzentrum wieder aufbauen, 2 Wohnhäuser, 2 Höfe, 6 Arbeiter, Eintreiber vertreiben; *Orrin gewinnt das Nachbardorf* |
 | 2 | Beaucroix | Winter | Winter | 2 | Nelia, Orrin | 3 Höfe, Marktplatz, ein Tausch, Zacke freikaufen **oder** Räuberlager stürmen; *Lehmschuld liefern → Rabatt* |
 | 3 | Das Wetterwerk | Winter | Winter → Sommer | – | Nelia, Orrin + Trupp | ohne Burg ins Tal: Tor (stark bewacht) **oder** zugefrorener Fluss durch die Schlucht (kleiner Posten, besiegen oder mit Orrin bestechen); Wetterwerk auf der Insel zerstören, danach in 60 s auf festen Talboden; Baupläne in den Ruinen; *Gefangene befreien* |
 | 4 | Eisenhain | Krieg | wechselnd | 3 | Nelia, Orrin | Belagerung brechen (Taran zieht sich geschlagen zurück), Eisen- und Schwefelgrube, Bergmeister; Söldner **oder** Leibeigene; *4 eigene Truppen* |
@@ -67,6 +67,32 @@ nah am Original.
 | 6 | Der Thronsee | Wissen | Sommer, Winter per Wetterkraftwerk | 5 | Nelia, Orrin, Taran | Wetterkraftwerk (selbst forschen **oder** Wissen kaufen), See zufrieren lassen, Inselschloss erobern; Malvors eigenes Kraftwerk taut den See, sobald wir auf dem Eis stehen; *sein Kraftwerk vom Ufer aus zerstören, Turm, 8 Truppen* |
 
 Jede Karte hat ein Ziel ohne Kampf (Aufbau, Handel, Versorgung, Forschung oder Gespräch).
+
+## Mission 1: Lindgrund (Einführung)
+
+Die erste Mission erklärt die Grundlagen selbst – gesprochen, ohne eigenen Erzähler: **Orrin** ist der Mentor
+(ein Händler, der viele Dörfer gesehen hat), er erklärt jeweils das Warum und kurz das Wie. Jedes Gespräch lässt
+sich überspringen (einzelner Satz: ✕, ganzes Gespräch: „Gespräch überspringen“).
+
+Nelia ist aus Malvors Kornlager davongelaufen und kommt in ihr **verlassenes Heimatdorf**: Die Burg steht leer,
+vom Dorfzentrum sind nur Grundmauern übrig (Platzhalter-Ruine, bis ein eigenes Modell da ist), zwei Häuser sind
+eingestürzt; ihre Balken liegen als **Holzhaufen** daneben (Rohstoffhaufen wie im Vorbild – die Ruinen selbst
+sind Kulisse und lassen sich nicht abbauen). Keine Leibeigenen, kein Arbeiter.
+
+| Schritt | Ziel | Lernt man |
+|---|---|---|
+| 1 | Nelia zum Fremden auf dem Dorfplatz (Orrin, Ausrufezeichen; schließt sich als Held an) | Held auswählen, laufen, Gesprächsfiguren |
+| 2 | Nelia zum alten Baum am Waldrand: Zacke, Orrins Lüge, das Gerücht bringt 3 Leibeigene zurück | Zielorte (Ring, Knopf im Zielpanel) |
+| 3 | Leibeigene an die Balken bei den Trümmern | Leibeigene auswählen, Rohstoffe abbauen |
+| 4 | Dorfzentrum auf den alten Grundmauern | Baumenü, Siedlungsplatz; ohne Dorfzentrum kommen keine Arbeiter |
+| 5 | 2 Wohnhäuser | Arbeiter brauchen Betten (sonst Lagerfeuer) |
+| 6 | 2 Höfe | … und Essen; Höfe bringen die ersten Arbeiter |
+| 7 | 6 Arbeiter (Lehmmine) | Arbeiter kommen von selbst, wenn es Arbeit gibt |
+| – | erster Zahltag mit Arbeitern | Steuern, Leibeigene in der Burg kaufen |
+| 8 | Eintreiber vertreiben (kommen erst, wenn die Höfe stehen; spätestens nach 25 min) | „Zu den Waffen!“, Kampf, Heldin |
+
+Aufgedeckte Ziele, die schon erfüllt sind (wer vorausbaut), sind sofort erledigt. Das eigenständige Tutorial
+bleibt unverändert als Übungsmission.
 
 ## Mission 3: Das Wetterwerk
 
@@ -112,6 +138,7 @@ dem Eis zum Tauen verleiten und den See wieder einfrieren, sobald das eigene Kra
 | | Desktop | Handy |
 |---|---|---|
 | Heldenwahl | ![Startmenü](images/campaign/start-heroes-desktop.webp) | ![Startmenü Handy](images/campaign/start-heroes-phone.webp) |
+| Mission 1: verlassener Dorfplatz, Orrin ruft (Desktop); sein Gespräch mit „Gespräch überspringen“ (Handy) | ![Mission 1 Dorfplatz](images/campaign/c1-square-desktop.webp) | ![Mission 1 Dorfplatz Handy](images/campaign/c1-square-phone.webp) |
 | Mission 1: Dorfälteste mit Ausrufezeichen | ![Mission 1](images/campaign/c1-elder-desktop.webp) | ![Mission 1 Handy](images/campaign/c1-elder-phone.webp) |
 | Mission 4: Angebote (Söldner oder Leibeigene) | ![Mission 4](images/campaign/c4-offers-desktop.webp) | ![Mission 4 Handy](images/campaign/c4-offers-phone.webp) |
 | Mission 3: Bergkamm mit Schlucht (zugefrorener Fluss) | ![Mission 3](images/campaign/c3-gorge-desktop.webp) | ![Mission 3 Handy](images/campaign/c3-gorge-phone.webp) |

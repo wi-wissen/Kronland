@@ -269,3 +269,45 @@ describe('Motivation and house/farm (comparison refiner analysis)', () => {
     expect(noneMotivated).toBe(none);
   });
 });
+
+describe('Campfire', () => {
+  const camps = (sim, owner = 0) => [...sim.entities.values()].filter((e) => e.kind === 'camp' && e.owner === owner);
+
+  it('without a house a campfire appears near the workplace, with house and farm it disappears', () => {
+    const sim = newSim();
+    sim.players[0].raw.stone = 100000;
+    const wp = quickBuild(sim, 'stonemason');
+    expect(camps(sim)).toEqual([]);
+    runUntil(sim, () => camps(sim).length > 0, 4000);
+    const [f] = camps(sim);
+    expect(f).toBeDefined();
+    const cx = wp.x + (wp.w >> 1), cy = wp.y + (wp.h >> 1);
+    expect(Math.max(Math.abs(f.x - cx), Math.abs(f.y - cy))).toBeLessThanOrEqual(WORKER.campMaxDist);
+    // it lies free: nothing on it, walkable
+    expect(sim.map.owner[sim.map.idx(f.x, f.y)]).toBe(0);
+    expect(sim.map.walkable(f.x, f.y)).toBe(true);
+    // workers rest there
+    runUntil(sim, () => workersOfPlayer(sim).some((w) => w.state === 'camping' && w.target === f.id), 3000);
+    expect(workersOfPlayer(sim).some((w) => w.target === f.id)).toBe(true);
+    // build house and farm: fire goes out
+    quickBuild(sim, 'residence'); quickBuild(sim, 'farm');
+    runUntil(sim, () => camps(sim).length === 0, 3000);
+    expect(camps(sim)).toEqual([]);
+  });
+
+  it('with house and farm from the start none appears', () => {
+    const sim = newSim();
+    sim.players[0].raw.stone = 100000;
+    quickBuild(sim, 'residence'); quickBuild(sim, 'farm');
+    quickBuild(sim, 'stonemason');
+    for (let i = 0; i < 30; i++) { sim.run(100); expect(camps(sim)).toEqual([]); }
+  });
+
+  it('several workers nearby share one fire', () => {
+    const sim = newSim();
+    sim.players[0].raw.stone = 100000;
+    quickBuild(sim, 'stonemason'); quickBuild(sim, 'stonemason');
+    sim.run(3000);
+    expect(camps(sim).length).toBe(1);
+  });
+});

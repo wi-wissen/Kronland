@@ -2,7 +2,7 @@
 // that decay over time. From them follow the volume of the battle ambience and – with
 // hysteresis so the music does not flutter – the switch between build and combat theme.
 
-import { audibleRadius } from './spatial.js';
+import { viewRadius } from './spatial.js';
 
 export class BattleMeter {
   constructor({ halfLife = 4, enter = 0.45, exit = 0.12, hold = 12 } = {}) {
@@ -34,7 +34,7 @@ export class BattleMeter {
 
   /** Intensity 0…1 from the listener's view (only fights within ~1.5 × visible area count). */
   intensity(l) {
-    const R = audibleRadius(l.dist) * 1.5;
+    const R = viewRadius(l.dist) * 1.5;
     let sum = 0;
     for (const s of this.spots) {
       const d = Math.hypot(s.x - l.x, s.z - l.z);

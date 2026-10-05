@@ -107,4 +107,83 @@ test('Files from the manifest replace synthetic sounds and music', async ({ page
   expect(r.files).toEqual(['../audio/sfx/coin.wav']);
   expect(errors).toEqual([]);
 });
+
+test('Bundled effect recordings (Kenney, CC0) are loaded and decoded', async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(playUrl());
+  await page.waitForFunction(() => !!window.__kronlandAudio);
+  await page.mouse.click(5, 5);
+  await page.waitForFunction(() => Object.keys(window.__kronlandAudio.manifest.sfx).length > 0);
+  const total = await page.evaluate(() => Object.values(window.__kronlandAudio.manifest.sfx).reduce((n, e) => n + e.files.length, 0));
+  await page.waitForFunction((n) => window.__kronlandAudio.sfxFiles.size === n, total, { timeout: 60_000 });
+  const r = await page.evaluate(() => {
+    const a = window.__kronlandAudio, out = {};
+    for (const name of Object.keys(a.manifest.sfx)) { a.voices.reset(); out[name] = a.play(name) && a.lastFile.has(name); }
+    return out;
+  });
+  expect(Object.values(r).every(Boolean), JSON.stringify(r)).toBe(true);
+  expect(errors).toEqual([]);
+});
+});
+
+test('Voices: mission dialogue with recording, serf bark on selecting', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = [], voice = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('request', (r) => { const m = r.url().match(/audio\/voice\/(de|en)\/([a-zA-Z]+)-[0-9a-f]{8}\.mp3/); if (m) voice.push(m[2]); });
+  await page.goto(playUrl('?mission=c1&no-models'));
+  await page.waitForFunction(() => window.__kronland?.sim.mission?.state.id === 'c1');
+  await page.mouse.click(5, 5);
+  await page.waitForFunction(() => window.__kronlandAudio.ctx?.state === 'running');
+  // A mission dialogue is running (Orrin or Nelia): its recording is loaded
+  await expect.poll(() => voice.some((v) => v === 'orrin' || v === 'nelia'), { timeout: 30_000 }).toBe(true);
+  // Mission 1 starts without serfs: add three for the test (as after the find at the old tree)
+  await page.evaluate(() => { for (let i = 0; i < 3; i++) window.__kronland.sim.spawnSerf(0); });
+  // Barks to "Often" (default "Rarely" mostly stays silent)
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('kronland-settings', { detail: { key: 'barks', value: 'often' } })));
+  expect(await page.evaluate(() => window.__kronlandAudio.settings.barks)).toBe('often');
+  // Select serfs as soon as no dialogue is speaking any more (barks stay silent meanwhile): a bark is loaded
+  await expect.poll(async () => {
+    await page.evaluate(() => { const e = window.__kronland; e.clearSelection(); if (e.audio.barks) e.audio.barks.busyUntil = -Infinity; e.selectAllSerfs(); });
+    return voice.some((v) => v === 'serf' || v === 'serfF');
+  }, { timeout: 60_000, intervals: [1000] }).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('Bundled music: build as file, winter, music pauses setting', async ({ page }, info) => {
+  test.setTimeout(150_000);
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(playUrl());
+  await page.waitForFunction(() => !!window.__kronlandAudio);
+  // Setting in the start menu: pauses between music tracks
+  await page.getByTestId('menu-settings').click();
+  await page.getByTestId('music-pause-long').click();
+  await page.getByTestId('barks-off').click();
+  expect(await page.evaluate(() => window.__kronlandAudio.settings.barks)).toBe('off');
+  await page.getByTestId('barks-rare').click();
+  await expect(page.getByTestId('music-pause-long')).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('music-pause-long').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('settings-music-pauses.png') });
+  expect(await page.evaluate(() => window.__kronlandAudio.settings.musicPause)).toBe('long');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kronland-audio')).musicPause)).toBe('long');
+  await page.getByTestId('settings-done').click();
+
+  // In game: build music from files, on winter a soft switch to the winter theme
+  await page.goto(playUrl('?seed=42&no-models'));
+  await page.waitForFunction(() => !!window.__kronland);
+  await page.getByTestId('quick-hq').click();
+  await page.waitForFunction(() => window.__kronlandAudio.music.track?.kind === 'file', null, { timeout: 90_000 });
+  const m = await page.evaluate(() => {
+    const a = window.__kronlandAudio;
+    return { theme: a.music.track.theme, loop: a.music.track.src.loop, build: a.manifest.music.build.files.length, winter: a.manifest.music.winter.files.length, pause: a.music.pauseGap() };
+  });
+  expect(m).toMatchObject({ theme: 'build', loop: false, build: 5, winter: 2 });
+  expect(m.pause).toBeGreaterThanOrEqual(150);
+  await page.evaluate(() => { const e = window.__kronland; e.audio.onEvents([{ type: 'weather', state: 'winter' }], e.prev); });
+  await page.waitForFunction(() => window.__kronlandAudio.music.want === 'winter' && window.__kronlandAudio.music.track?.theme === 'winter');
+  expect(await page.evaluate(() => window.__kronlandAudio.music.track.kind)).toBe('file');
+  expect(errors).toEqual([]);
 });

@@ -1,41 +1,47 @@
 <template>
-  <!-- Bottom row as a grid: round minimap on the left with quick access at its edge, command board in the middle
+  <!-- Bottom row as a grid: left map panel (quick access and square minimap), middle command panel
        (only as wide as needed, only with a selection), right portrait. The grid prevents any overlap:
        the panel gets the rest of the width and wraps its content. -->
   <div ref="bar" class="cmdbar" :class="{ compact, narrow, collapsed }">
-    <div class="cb-map" :class="{ open: mapOpen }">
+    <div class="cb-map" :class="{ open: mapOpen, frame: !compact }">
       <!-- Heroes and control groups: always visible. Hero: click selects it and brings it into view.
            Group: click selects it, second click brings it into view (keys 1–9). -->
       <div v-if="ui.heroes?.length || ui.groups?.length" class="cb-units" role="toolbar" :aria-label="$t('quick.heroes')">
-        <button
-          v-for="h in ui.heroes"
-          :key="h.id"
-          v-tip="{ title: $name.hero(h.hero), text: h.down ? $t('army.heroDown') : $t('quick.heroTip'), lines: [[$t('bld.hp'), h.hp + '/' + h.maxHp]] }"
-          class="cb-hero"
-          :class="{ down: h.down, sel: h.selected }"
-          :aria-label="$name.hero(h.hero)"
-          :data-testid="'quick-hero-' + h.hero"
-          @click="$emit('hero', h.id)"
-        >
-          <span class="cb-pic"><Icon :name="'hero-' + h.hero" /></span>
-          <span class="cb-hp"><i :style="{ width: (100 * h.hp) / Math.max(1, h.maxHp) + '%' }"></i></span>
-          <i v-if="h.ready" class="cb-ready" aria-hidden="true"></i>
-        </button>
-        <i v-if="ui.heroes?.length && ui.groups?.length" class="cb-sep" aria-hidden="true"></i>
-        <button
-          v-for="g in ui.groups"
-          :key="'g' + g.n"
-          v-tip="{ title: $t('quick.group', { n: g.n }), text: $t('quick.groupTip'), key: ui.touch ? null : String(g.n) }"
-          class="cb-group"
-          :class="{ sel: g.selected }"
-          :aria-label="$t('quick.group', { n: g.n })"
-          :data-testid="'group-' + g.n"
-          @click="$emit('group', g.n)"
-        >
-          <Icon :name="g.icon" />
-          <span class="cb-gnum num">{{ g.n }}</span>
-          <span v-if="g.count > 1" class="cb-gcount num">×{{ g.count }}</span>
-        </button>
+        <!-- Heroes stacked -->
+        <div v-if="ui.heroes?.length" class="cb-herocol">
+          <button
+            v-for="h in ui.heroes"
+            :key="h.id"
+            v-tip="heroTip(h)"
+            class="cb-hero"
+            :class="{ down: h.down, sel: h.selected }"
+            :style="h.down ? { '--rv': Math.round(h.reviveFrac * 100) } : null"
+            :aria-label="$name.hero(h.hero) + (h.down ? ' – ' + $t('army.heroDown') : '')"
+            :data-testid="'quick-hero-' + h.hero"
+            @click="$emit('hero', h.id)"
+          >
+            <span class="cb-pic"><Icon :name="'hero-' + h.hero" /></span>
+            <span v-if="!h.down" class="cb-hp"><i :style="{ width: (100 * h.hp) / Math.max(1, h.maxHp) + '%' }"></i></span>
+            <span v-else class="cb-downlbl" data-testid="hero-down">{{ h.threatened ? $t('army.heroDown') : h.reviveIn + ' s' }}</span>
+            <i v-if="h.ready" class="cb-ready" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div v-if="ui.groups?.length" class="cb-groups">
+          <button
+            v-for="g in ui.groups"
+            :key="'g' + g.n"
+            v-tip="{ title: $t('quick.group', { n: g.n }), text: $t('quick.groupTip'), key: ui.touch ? null : String(g.n) }"
+            class="cb-group"
+            :class="{ sel: g.selected }"
+            :aria-label="$t('quick.group', { n: g.n })"
+            :data-testid="'group-' + g.n"
+            @click="$emit('group', g.n)"
+          >
+            <Icon :name="g.icon" />
+            <span class="cb-gnum num">{{ g.n }}</span>
+            <span v-if="g.count > 1" class="cb-gcount num">×{{ g.count }}</span>
+          </button>
+        </div>
       </div>
       <Minimap v-if="!compact || mapOpen" :engine="engine" :touch="ui.touch" class="cb-disc" />
       <div class="cb-quick" role="toolbar" :aria-label="$t('quick.title')">
@@ -218,6 +224,11 @@ export default {
   },
   beforeUnmount() { this.ro?.disconnect(); this.mo?.disconnect(); window.removeEventListener('keydown', this.onKey); },
   methods: {
+    heroTip(h) {
+      const text = !h.down ? this.$t('quick.heroTip')
+        : h.threatened ? this.$t('quick.heroDownThreat') : this.$t('quick.heroDownTip', { s: h.reviveIn });
+      return { title: this.$name.hero(h.hero) + (h.down ? ' · ' + this.$t('army.heroDown') : ''), text, lines: h.down ? null : [[this.$t('bld.hp'), h.hp + '/' + h.maxHp]] };
+    },
     reportHeight() {
       // Covered height at the bottom (highest element of the row) for camera, mission column and notices
       let top = window.innerHeight;
@@ -239,16 +250,20 @@ export default {
 }
 .cmdbar > * { pointer-events: auto; }
 
-/* Round minimap; quick access as coins on the right map edge (angle via cos/sin) */
-.cb-map { grid-column: 1; justify-self: start; position: relative; margin-bottom: calc(var(--hud-gap) * 2 + var(--safe-b)); --d: 12rem; width: calc(var(--d) + 3rem); height: var(--d); pointer-events: none; }
-.cb-map > * { pointer-events: auto; }
-.cmdbar .cb-disc { position: absolute; left: 0; top: 0; width: var(--d); height: var(--d); }
-.cb-quick { display: contents; }
-.cb-q { position: absolute !important; --r: calc(var(--d) / 2 + 1.5rem); left: calc(var(--d) / 2 + var(--r) * cos(var(--a)) - 1.375rem); top: calc(var(--d) / 2 + var(--r) * sin(var(--a)) - 1.375rem); }
-.cb-q1 { --a: -72deg; } .cb-q2 { --a: -36deg; } .cb-q3 { --a: 0deg; } .cb-q4 { --a: 36deg; }
-/* Heroes and control groups above the map: higher than the topmost coin, as wide as the map column,
-   with many entries further rows go upwards */
-.cb-units { position: absolute; left: 0; bottom: calc(100% + 3rem); width: calc(var(--d) + 3rem); display: flex; flex-wrap: wrap-reverse; align-items: flex-end; gap: 0.75rem 0.625rem; }
+/* Map panel: quick access as square buttons without names on the left, square minimap on the right, both on one
+   shared wooden panel like command panel and portrait */
+.cb-map {
+  grid-column: 1; justify-self: start; position: relative; margin-bottom: calc(var(--hud-gap) * 2 + var(--safe-b)); --d: 12rem;
+  display: grid; grid-template-columns: auto var(--d); align-items: center; gap: 0.5rem; padding: 0.5rem;
+}
+.cmdbar .cb-disc { grid-column: 2; grid-row: 1; width: var(--d); height: var(--d); }
+.cb-quick { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 0.375rem; }
+button.coin.cb-q { border-radius: 0.5rem; box-shadow: inset 0 0 0 1px rgba(225, 168, 58, 0.55), 0 2px 0 var(--wood-950); }
+button.coin.cb-q.on { box-shadow: inset 0 0 0 1px var(--gold-300), 0 2px 0 var(--wood-950), 0 0 12px rgba(243, 200, 94, 0.55); }
+/* Heroes and control groups above the map panel, with many entries further rows upward */
+.cb-units { position: absolute; left: 0; bottom: calc(100% + 1.25rem); width: 100%; display: flex; align-items: flex-end; gap: 0.875rem; }
+.cb-herocol { display: flex; flex-direction: column; gap: 1rem; flex: none; }
+.cb-groups { display: flex; flex-wrap: wrap-reverse; gap: 0.75rem 0.625rem; align-items: flex-end; min-width: 0; }
 button.cb-hero {
   position: relative; width: 3.25rem; height: 3.25rem; min-height: 0; padding: 0.25rem; border: 0; border-radius: 50%;
   background: var(--brass); box-shadow: 0 0 0 2px var(--wood-950), 0 4px 10px rgba(0, 0, 0, 0.5);
@@ -256,11 +271,13 @@ button.cb-hero {
 .cb-pic { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center; background: var(--tile-bg); box-shadow: inset 0 0 0 2px var(--wood-950); }
 .cb-pic .ico { width: 85%; height: 85%; }
 button.cb-hero.sel { box-shadow: 0 0 0 2px var(--gold-100), 0 0 12px rgba(243, 200, 94, 0.8); }
-button.cb-hero.down .ico { filter: grayscale(1) brightness(0.7); }
+/* Unconscious: grey, red border, ring fills green until waking up; remaining time instead of health bar */
+button.cb-hero.down { background: conic-gradient(var(--good) calc(var(--rv, 0) * 1%), var(--bad) 0); }
+button.cb-hero.down .ico { filter: grayscale(1) brightness(0.65); }
+.cb-downlbl { position: absolute; left: 50%; bottom: -0.625rem; transform: translateX(-50%); padding: 0 0.375rem; border-radius: 0.5rem; background: var(--bad-deep); color: #ffe9df; font: 800 0.625rem/1rem var(--body); white-space: nowrap; box-shadow: 0 0 0 1.5px var(--wood-950); }
 .cb-hp { position: absolute; left: 0.25rem; right: 0.25rem; bottom: -0.4375rem; height: 0.3125rem; border-radius: 1rem; background: rgba(10, 6, 3, 0.8); box-shadow: 0 0 0 1px var(--wood-950); overflow: hidden; }
 .cb-hp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #b5ec92, #4f9a35); }
 .cb-ready { position: absolute; top: -0.125rem; right: -0.125rem; width: 0.625rem; height: 0.625rem; border-radius: 50%; background: var(--gold-300); box-shadow: 0 0 0 2px var(--wood-950), 0 0 6px var(--gold-300); }
-.cb-sep { width: 1px; height: 2.75rem; background: rgba(225, 168, 58, 0.45); }
 button.cb-group {
   position: relative; width: 3rem; height: 3rem; min-height: 0; padding: 0; border: 0; border-radius: var(--r-md); display: grid; place-items: center;
   background: var(--tile-bg); box-shadow: 0 0 0 2px var(--gold-600), 0 0 0 3px var(--wood-950), 0 4px 10px rgba(0, 0, 0, 0.45);
@@ -314,17 +331,19 @@ button.cb-group.sel { box-shadow: 0 0 0 2px var(--gold-100), 0 0 0 3px var(--woo
 /* Strip above the board: heroes on the left (row), quick access on the right (column) */
 .cmdbar.compact .cb-map {
   position: absolute; left: calc(var(--hud-gap) + var(--safe-l)); right: calc(var(--hud-gap) + var(--safe-r)); bottom: calc(100% + 0.75rem); margin: 0;
-  width: auto; height: auto; justify-self: stretch; display: flex; flex-wrap: wrap-reverse; align-items: flex-end; justify-content: space-between; gap: 0.625rem;
+  width: auto; height: auto; padding: 0; justify-self: stretch; display: flex; flex-wrap: wrap-reverse; align-items: flex-end; justify-content: space-between; gap: 0.625rem;
 }
-.cmdbar.compact .cb-quick { display: flex; gap: 0.5rem; margin-left: auto; }
+.cmdbar.compact .cb-quick { flex-direction: row; gap: 0.5rem; margin-left: auto; }
+/* Without a panel the buttons stand free above the playing field: strong brass border */
+.cmdbar.compact button.coin.cb-q { box-shadow: 0 0 0 2px var(--gold-600), 0 0 0 3px var(--wood-950), inset 0 0 0 1px rgba(255, 225, 170, 0.25), 0 4px 10px rgba(0, 0, 0, 0.45); }
+.cmdbar.compact button.coin.cb-q.on { box-shadow: 0 0 0 2px var(--gold-300), 0 0 0 3px var(--wood-950), 0 0 14px rgba(243, 200, 94, 0.55); }
 .cmdbar.compact .cb-units { position: static; width: auto; flex: 0 1 auto; min-width: 0; }
 .cmdbar.compact .cb-hero { width: 2.75rem; height: 2.75rem; }
 .cmdbar.compact .cb-group { width: 2.625rem; height: 2.625rem; }
-.cmdbar.compact .cb-q { position: relative !important; left: auto; top: auto; }
-.cmdbar.compact .cb-disc { left: auto; top: auto; right: 0; bottom: calc(100% + 0.75rem); width: min(12rem, 50vw, 40vh); height: min(12rem, 50vw, 40vh); }
+.cmdbar.compact .cb-disc { position: absolute; left: auto; top: auto; right: 0; bottom: calc(100% + 0.75rem); width: min(12rem, 50vw, 40vh); height: min(12rem, 50vw, 40vh); }
 .cmdbar.compact .context { min-width: 0; margin: 0 calc(var(--hud-gap) + var(--safe-r)) calc(var(--hud-gap) + var(--safe-b)) calc(var(--hud-gap) + var(--safe-l)); max-height: min(50dvh, 26rem); padding: 0.375rem 0.625rem 0.625rem; }
 .cmdbar.compact.collapsed .context { padding-bottom: 0.375rem; }
-/* Code button of the coding adventures: golden coin so it stands out among the quick-access buttons */
+/* Code button of the coding adventures: golden button so it stands out among the quick accesses */
 .cb-code { color: var(--gold-100); background: radial-gradient(circle at 50% 35%, #8a6a2c, #4a3415 75%); }
 .cb-code-ico { font: 800 0.9375rem/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: -0.06em; }
 .cb-code-run { position: absolute; top: -0.125rem; right: -0.125rem; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 2px var(--wood-950), 0 0 6px var(--good); }
@@ -337,8 +356,7 @@ button.cb-group.sel { box-shadow: 0 0 0 2px var(--gold-100), 0 0 0 3px var(--woo
 /* Phone landscape: quick access at the top right below the header bar, board leaves room on the right */
 @media (max-height: 480px) and (orientation: landscape) {
   .cmdbar.compact .cb-map { position: fixed; top: calc(var(--top-total, 3rem) + var(--hud-gap)); bottom: auto; left: auto; flex-direction: column; flex-wrap: nowrap; align-items: flex-end; }
-  .cmdbar.compact .cb-units, .cmdbar.compact .cb-quick { flex-direction: column; flex-wrap: nowrap; }
-  .cmdbar.compact .cb-sep { width: 2.5rem; height: 1px; }
+  .cmdbar.compact .cb-units, .cmdbar.compact .cb-quick, .cmdbar.compact .cb-groups { flex-direction: column; flex-wrap: nowrap; }
   .cmdbar.compact .cb-disc { right: calc(100% + 0.5rem); top: 0; bottom: auto; }
   .cmdbar.compact .context { max-height: calc(100dvh - var(--top-total, 3rem) - var(--hud-gap) * 3 - var(--safe-b)); margin-right: calc(4.25rem + var(--safe-r)); }
   .cmdbar.compact .cb-quick { gap: 0.375rem; }

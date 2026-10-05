@@ -13,7 +13,7 @@ import { Hasher } from './hash.js';
 import { updateSerf, clearJob, assignJob, assignGather } from './systems/serfs.js';
 import { unstickAll, nearestWalkable, formationTiles } from './systems/movement.js';
 import { updatePayday } from './systems/payday.js';
-import { updateSpawning, updateWorker, removeWorker, workersOf, maxMotivation } from './systems/workers.js';
+import { updateSpawning, updateWorker, removeWorker, workersOf, maxMotivation, updateCamps } from './systems/workers.js';
 import { updateMilitary, setMilitia, useAbility, slotOffset } from './systems/military.js';
 import { UNITS, LINES, unitOf, fullCost, LINE_UPGRADE_COST, HEROES, HERO_IDS } from './data/units.js';
 import { WEATHER_CYCLE, WEATHER_EFFECTS } from './data/weather.js';
@@ -902,6 +902,7 @@ export class Sim {
       if (e.kind === 'unit' && !e.militia) updateSerf(this, e);
       else if (e.kind === 'worker') updateWorker(this, e);
     }
+    updateCamps(this);
     updateMilitary(this);
     updateBuildingResearch(this);
     updateMarket(this);
@@ -951,6 +952,7 @@ export class Sim {
         h.str(e.type).int(e.x).int(e.y).int(e.progress).int(e.done ? 1 : 0).int(e.level).int(e.hp).int(e.burning ? 1 : 0);
         h.int(e.research ? e.research.progress : -1).int(e.trade ? e.trade.progress : -1);
       } else if (e.kind === 'ruin') h.int(e.x).int(e.y).int(e.until);
+      else if (e.kind === 'camp') h.int(e.x).int(e.y);
       else h.int(e.x).int(e.y).int(e.amount);
     }
     // Terrain heights (change through levelling when building)

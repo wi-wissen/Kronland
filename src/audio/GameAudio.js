@@ -5,8 +5,15 @@
 // - keeps listener (camera), combat intensity, water proximity, music theme and ambience up to date.
 
 import { getAudio } from './AudioEngine.js';
-import { audibleRadius, zoomGain } from './spatial.js';
+import { audibleRadius, viewRadius, zoomGain } from './spatial.js';
 import { BattleMeter } from './battle.js';
+import { BarkGate, barkRole } from './barks.js';
+import { voiceFile } from './voiceLines.js';
+import { speaking } from './speech.js';
+import { pickVariant } from '../render/variants.js';
+import { characterManifest } from '../render/characters.js';
+import { UNITS } from '../sim/data/units.js';
+import { currentLang } from '../i18n/index.js';
 
 const UNIT = 1000;
 const WATER = 1;
@@ -20,8 +27,14 @@ export const WORKSHOP_SOUND = {
 /** Hero ability → sound. */
 export const ABILITY_SOUND = { shieldBash: 'whirl', courage: 'might', salve: 'heal', caltrops: 'trap', fieldGun: 'turret', intimidate: 'might', bribe: 'heal', farsight: 'might' };
 
+/** Voice per bark role while the figure manifest is missing */
+const DEFAULT_VOICE = { sword: 'sword', spear: 'sword', bow: 'soldierF', cavalry: 'sword', cannon: 'cannon' };
+
 /** Unit kinds that make a sound when they fall. */
 const MORTAL = new Set(['soldier', 'leader', 'unit', 'worker', 'hero']);
+
+/** Music theme from combat mode and weather: in winter its own peace theme. */
+export const musicTheme = (mode, weather) => (mode === 'build' && weather === 'winter' ? 'winter' : mode);
 
 export class GameAudio {
   /** @param {import('../game/Engine.js').Engine} engine */
@@ -32,9 +45,9 @@ export class GameAudio {
     this.sceneTimer = 0;
     this.waterLevel = 0;
     this.lastWaterProbe = null;
-    this.audio.music.setTheme('build');
     this.audio.setAmbient(true);
     this.audio.ambient.setWeather(engine.sim.weather?.state ?? 'summer');
+    this.audio.music.setTheme(musicTheme('build', this.audio.ambient.weather));
     this.ended = false;
   }
 
@@ -165,36 +178,42 @@ export class GameAudio {
     this.audio.music.jingle(result);
   }
 
-  /** After every tick: derive work sounds from the state (only within hearing range). */
+  /**
+   * After every tick: derive work sounds from the state (only within hearing range). The strikes of a tick
+   * are played in order of closeness to the screen centre: once the voice count per sound kind is used up,
+   * the far ones stay silent, not the near ones.
+   */
   onTick() {
     const l = this.audio.listener;
     const a = this.audio;
     if (!l || !a.ctx || a.ctx.state !== 'running') return;
     const sim = this.engine.sim, tick = sim.tick;
     const R = audibleRadius(l.dist), R2 = R * R;
+    /** @type {{ snd: string, x: number, z: number, gain: number, d2: number }[]} */
+    const hits = [];
+    const add = (snd, x, z, gain) => {
+      const dx = x - l.x, dz = z - l.z, d2 = dx * dx + dz * dz;
+      if (d2 <= R2 && !this.hidden({ x, z })) hits.push({ snd, x, z, gain, d2 });
+    };
     for (const e of sim.entities.values()) {
       if (e.kind === 'unit') {
         const job = e.job;
         if (!job || e.path?.length) continue;
-        const x = e.px / UNIT, z = e.py / UNIT;
-        const dx = x - l.x, dz = z - l.z;
-        if (dx * dx + dz * dz > R2 || this.hidden({ x, z })) continue;
         if (job.kind === 'gather') {
           // one strike every 10 ticks (1 s), offset per serf
-          if (e.timer > 0 && (e.timer + e.id) % 10 === 0) a.play(job.res === 'wood' ? 'chop' : 'pickaxe', { x, z, gain: 0.7 });
+          if (e.timer > 0 && (e.timer + e.id) % 10 === 0) add(job.res === 'wood' ? 'chop' : 'pickaxe', e.px / UNIT, e.py / UNIT, 0.7);
         } else if (job.kind === 'build' && (tick + e.id * 3) % 7 === 0) {
           const site = sim.entities.get(job.target);
-          if (site && !site.done) a.play('hammer', { x, z, gain: 0.6 });
+          if (site && !site.done) add('hammer', e.px / UNIT, e.py / UNIT, 0.6);
         }
       } else if (e.kind === 'worker' && e.state === 'working' && (tick + e.id * 7) % 23 === 0) {
         const wp = sim.entities.get(e.workplace);
         const snd = wp && WORKSHOP_SOUND[wp.type];
-        if (!snd) continue;
-        const x = wp.x + wp.w / 2, z = wp.y + wp.h / 2;
-        const dx = x - l.x, dz = z - l.z;
-        if (dx * dx + dz * dz <= R2 && !this.hidden({ x, z })) a.play(snd, { x, z, gain: 0.5 });
+        if (snd) add(snd, wp.x + wp.w / 2, wp.y + wp.h / 2, 0.5);
       }
     }
+    hits.sort((p, q) => p.d2 - q.d2);
+    for (const h of hits) a.play(h.snd, { x: h.x, z: h.z, gain: h.gain });
   }
 
   /** Per frame: listener, combat intensity, music theme, ambience. */
@@ -203,17 +222,82 @@ export class GameAudio {
     if (!rig) return;
     const l = { x: rig.target.x, z: rig.target.z, dist: rig.dist, yaw: rig.yaw };
     this.audio.listener = l;
+    // while a dialogue speaks, music and ambience step back
+    const talk = speaking();
+    if (talk !== !!this.audio.ducked) this.audio.duck(talk);
     this.battle.decay(dt);
     this.sceneTimer -= dt;
     if (this.sceneTimer > 0) return;
     this.sceneTimer = 0.25;
     const intensity = this.battle.intensity(l);
     if (!this.ended) {
-      const theme = this.battle.theme(intensity, performance.now() / 1000);
-      this.audio.music.setTheme(theme);
+      const mode = this.battle.theme(intensity, performance.now() / 1000);
+      this.audio.music.setTheme(musicTheme(mode, this.audio.ambient.weather));
     }
     this.audio.ambient.setScene(this.waterNear(l), intensity, zoomGain(l.dist));
     this.audio.ambient.tick();
+  }
+
+  // ---------- Barks (voiced) ----------
+
+  /** Voice of a figure to match its look: variant or role in the figure manifest (field voice). */
+  voiceOf(e, textRole) {
+    const roles = characterManifest()?.roles ?? {};
+    if (e.kind === 'hero') return e.hero;
+    if (e.kind === 'unit') {
+      const v = roles.serf?.variants;
+      return v?.length ? v[pickVariant(v, e.id)].voice ?? 'serf' : 'serf';
+    }
+    const line = UNITS[e.def]?.line;
+    return roles[`soldier.${line}.leader`]?.voice ?? roles[`soldier.${line}`]?.voice ?? DEFAULT_VOICE[textRole] ?? 'sword';
+  }
+
+  /**
+   * Play a short bark of the figure (selection or command) – only sometimes (setting "Sprüche der Figuren",
+   * BARK_RULES), never over a running bark, then quiet; while a dialogue is read aloud, the
+   * figures stay silent.
+   * @param {any} e @param {'select'|'move'|'build'|'gather'|'attack'} event
+   */
+  bark(e, event) {
+    if (!e || e.owner !== this.player) return;
+    const now = performance.now() / 1000;
+    const gate = (this.barks ??= new BarkGate());
+    const nth = gate.touch(e.id, now);
+    const role = barkRole(e, UNITS[e.def]?.line, (u) => this.voiceOf(u));
+    if (!role) return;
+    const mode = this.audio.settings?.barks ?? 'rare';
+    const l = gate.choose({ mode, role, event, hero: e.kind === 'hero', nth, now, rnd: this.audio.rnd, busy: speaking() });
+    const lang = currentLang();
+    const url = l && voiceFile(this.voiceOf(e, role), lang, l[lang] ?? l.de);
+    if (!url) return;
+    gate.spoke(now, 4, mode); // provisional until the recording length is known
+    this.audio.playFile(url, { gain: 0.9 }).then((dur) => gate.spoke(now, dur || 0, mode));
+  }
+
+  /** Speaker of a selection: hero before captain before serf. */
+  speakerOf(ids) {
+    const sim = this.engine.sim;
+    let best = null, rank = 0;
+    for (const id of ids) {
+      const e = sim.entities.get(id);
+      const r = !e || e.owner !== this.player ? 0 : e.kind === 'hero' ? 3 : e.kind === 'leader' ? 2 : e.kind === 'unit' ? 1 : 0;
+      if (r > rank) { rank = r; best = e; }
+    }
+    return best;
+  }
+
+  /** Selection changed (Engine). */
+  onSelect(ids) { this.bark(this.speakerOf(ids), 'select'); }
+
+  /** Player command (Engine.issue): matching bark of the command recipients. */
+  onCommand(cmd) {
+    const ids = cmd.units ?? (cmd.unit ? [cmd.unit] : []);
+    if (!ids.length) return;
+    let event = 'move';
+    if (cmd.type === 'order' && (cmd.order === 'attack' || cmd.order === 'attackMove')) event = 'attack';
+    else if (cmd.type === 'placeBuilding') event = 'build';
+    else if (cmd.type === 'assignWork') event = this.engine.sim.entities.get(cmd.target)?.kind === 'building' ? 'build' : 'gather';
+    this.bark(this.speakerOf(ids), event);
   }
 
   /** Share of water tiles around the camera target (sampled coarsely, only recomputed on movement). */
@@ -222,7 +306,7 @@ export class GameAudio {
     const key = `${Math.round(l.x / 2)},${Math.round(l.z / 2)},${Math.round(l.dist / 8)}`;
     if (key === this.lastWaterProbe) return this.waterLevel;
     this.lastWaterProbe = key;
-    const r = Math.min(16, audibleRadius(l.dist) * 0.5);
+    const r = Math.min(16, viewRadius(l.dist) * 0.5);
     let n = 0, w = 0;
     for (let dz = -r; dz <= r; dz += 2) for (let dx = -r; dx <= r; dx += 2) {
       const x = Math.floor(l.x + dx), y = Math.floor(l.z + dz);

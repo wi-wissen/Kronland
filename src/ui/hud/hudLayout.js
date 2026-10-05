@@ -1,14 +1,17 @@
 // Pure helper functions for the game UI (without DOM, tested with Vitest).
 
-/** Share of the diameter taken up by the longer map edge in the round minimap.
- *  Slightly more than the inscribed square (0.707): only the outermost corners (mostly water) lie under the frame. */
-export const MAP_FILL = 0.86;
+/** Share of the side length taken up by the longer map edge in the minimap. The minimap is square
+ *  like the map (only slightly rounded corners), so the map fills it completely – nothing lies under the frame. */
+export const MAP_FILL = 1;
+
+/** Corner radius of the minimap as a share of the side length (matches --r-lg of the panels). */
+export const MAP_CORNER = 0.06;
 
 /**
- * Fit the map (w × h tiles) centred into a round area of diameter d (pixels).
+ * Fit the map (w × h tiles) centred into a square area with side length d (pixels).
  * @returns {{ s: number, ox: number, oy: number, w: number, h: number }} scale and offset
  */
-export function fitRound(d, w, h, fill = MAP_FILL) {
+export function fitMap(d, w, h, fill = MAP_FILL) {
   const s = (d * fill) / Math.max(1, w, h);
   return { s, ox: (d - w * s) / 2, oy: (d - h * s) / 2, w, h };
 }

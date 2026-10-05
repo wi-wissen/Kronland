@@ -7,7 +7,7 @@ import { AiPlayer } from '../../src/ai/AiPlayer.js';
 import { tr } from '../../src/i18n/tr.js';
 import * as api from '../../src/sim/missions/setupApi.js';
 import { act, build, own, hero, objective, stepId, until, idle, P } from './missionBot.js';
-import { playTutorial, playMission1 } from './playthroughs.js';
+import { playTutorial, playMission1, meetOrrin } from './playthroughs.js';
 
 /** Small test mission directly from a definition (without registry). */
 function testSim(def, seed = 42) {
@@ -324,6 +324,23 @@ describe('Tutorial', () => {
   });
 });
 
+describe('Target places', () => {
+  it('mission 1: the old tree is marked as the goal place as long as the goal is open', () => {
+    const sim = createMissionSim('c1');
+    // first Orrin on the village square: his goal points to him
+    expect(sim.mission.uiState(sim).objectives.find((o) => o.id === 'meet').hint.entity).toMatchObject({ x: expect.any(Number) });
+    meetOrrin(sim);
+    const root = () => sim.mission.uiState(sim).objectives.find((o) => o.id === 'root');
+    expect(root().hint.area).toMatchObject({ x: expect.any(Number), y: expect.any(Number), r: 2 });
+    // send Nelia there: goal fulfilled, no marker any more
+    const a = root().hint.area;
+    const nelia = [...sim.entities.values()].find((e) => e.kind === 'hero' && e.hero === 'nelia');
+    act(sim, { type: 'order', units: [nelia.id], order: 'move', x: Math.floor(a.x), y: Math.floor(a.y) });
+    until(sim, () => root().status === 'done', 3000);
+    expect(root().hint).toBeNull();
+  });
+});
+
 describe('Campaign', () => {
   it('has at least 5 missions with briefing, victory/defeat text and chaining', () => {
     expect(CAMPAIGN.length).toBeGreaterThanOrEqual(5);
@@ -368,6 +385,7 @@ describe('Campaign', () => {
     const st = sim.mission.state;
     const nb = sim.mission.playerOf('neighbors');
     expect(sim.relation(0, nb)).toBe('neutral');
+    meetOrrin(sim);
     // root reached → conversation figure stands
     const r = st.refs.oldRoot;
     const nelia = sim.entities.get(st.refs.nelia);

@@ -78,7 +78,7 @@ export default defineConfig({
           { urlPattern: /\/textures\/.*\.webp$/, handler: 'CacheFirst', options: { cacheName: 'textures', expiration: { maxEntries: 30 } } },
           // Sound: manifest always fresh, audio files from the cache after the first load (see docs/AUDIO.md)
           { urlPattern: /\/audio\/manifest\.json$/, handler: 'NetworkFirst', options: { cacheName: 'sound-manifest' } },
-          { urlPattern: /\/audio\/.*\.(ogg|mp3|m4a|wav|webm|opus)$/, handler: 'CacheFirst', options: { cacheName: 'audio', expiration: { maxEntries: 300 } } },
+          { urlPattern: /\/audio\/.*\.(ogg|mp3|m4a|wav|webm|opus)$/, handler: 'CacheFirst', options: { cacheName: 'audio', expiration: { maxEntries: 600 } } },
           // Website images (screenshots) only on demand
           { urlPattern: /\/site\/.*\.(webp|jpg|png)$/, handler: 'CacheFirst', options: { cacheName: 'site-images', expiration: { maxEntries: 60 } } },
           { urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/, handler: 'CacheFirst', options: { cacheName: 'fonts', expiration: { maxEntries: 20 } } },

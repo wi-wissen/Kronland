@@ -462,8 +462,35 @@ const DEPOSIT = {
   sulfur: { base: 0x77705a, chunks: [0xe8cf3a, 0xd8c33a, 0xf2e266], accent: 0xfff27a },
 };
 
-/** Resource deposit: flat mound with chunks in the resource colour. */
+/** Wood pile in the style of the other resource piles: flat mound of bark and shavings, with stacked logs on top. */
+function woodPile(seed) {
+  const r = rng(seed * 17 + 3);
+  const parts = [];
+  const mound = new THREE.IcosahedronGeometry(0.45, 1);
+  jitter(mound, 0.1, seed);
+  mound.scale(1, 0.22, 1);
+  mound.translate(0, 0.01, 0);
+  parts.push(crownPaint(mound, 0x5a4330, 0x7a5a3c, -0.1, 0.12, seed));
+  // two layers of short logs, crosswise
+  for (let i = 0; i < 7; i++) {
+    const layer = i < 4 ? 0 : 1, k = layer ? i - 4 : i;
+    const len = 0.5 + r() * 0.2, rad = 0.06 + r() * 0.02;
+    const log = new THREE.CylinderGeometry(rad, rad, len, 6);
+    log.rotateZ(Math.PI / 2);
+    const off = (k - (layer ? 1 : 1.5)) * rad * 2.1;
+    log.translate(0, 0.08 + layer * rad * 1.8 + rad, off);
+    if (layer) log.rotateY(Math.PI / 2 + (r() - 0.5) * 0.3);
+    else log.rotateY((r() - 0.5) * 0.2);
+    parts.push(solid(log, k % 2 ? 0x7a5634 : 0x654428, 0.1, seed + i));
+  }
+  const m = new THREE.Mesh(mergeGeometries(parts), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+
+/** Resource deposit: flat mound with chunks in the resource colour (wood: logs). */
 export function depositModel(res, seed = 1) {
+  if (res === 'wood') return woodPile(seed);
   const d = DEPOSIT[res] ?? DEPOSIT.stone;
   const r = rng(seed * 31 + res.length);
   const parts = [];

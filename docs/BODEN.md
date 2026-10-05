@@ -15,6 +15,7 @@ Fehlt eine Datei, malt das Spiel die Art wie früher im Code (`src/render/textur
 | Mischen | Gelände-Shader in `src/render/terrain.js` wie bisher: Gewichte je Ecke, helle Stellen setzen sich durch, Fels an Klippen von drei Seiten projiziert, großräumige Farbvariation |
 | Kachelung | eine Textur deckt 6 Kacheln ab (Fels 9); ab Stufe „mittel“ zweimal gegeneinander gedreht abgetastet gegen sichtbare Wiederholung |
 | Rückfall | ohne Datei (oder offline ohne Cache) die im Code gemalte Textur; `texture.userData.painted` zeigt, woher sie kommt |
+| Gebäude | ändern die Bodenfarbe nicht: Der Bauplatz wird nur eingeebnet, der Untergrund bleibt, wie er war (Wiese, Sand, Schnee). Gebäude mit eigener Bodenplatte bringen sie im Modell mit. Gras und Blumen auf und direkt neben der Grundfläche werden ausgeblendet |
 | Offline | nicht vorab im Cache der PWA (je Gerät nur eine Größe), sondern beim ersten Laden (`textures`) |
 
 ## Neue Texturen erzeugen

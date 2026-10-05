@@ -1,10 +1,34 @@
-// Music: per theme (menu, build, battle) plays either files from the manifest or the generative
+// Music: per theme (menu, build, winter, battle) plays either files from the manifest or the generative
 // music from composer.js. Theme changes cross-fade; victory/defeat as a short signal melody.
+// Between two peace pieces (build, winter) there is a pause (setting musicPause) in which only the
+// ambience is heard. Switches between build and winter wait for the running piece to finish.
 // The notes are scheduled with a small lookahead so playback stays cleanly in time.
 
 import { composeSection, composeJingle, THEMES } from './composer.js';
 import { scheduleNotes } from './synth.js';
 import { pickFile, lookup } from './manifest.js';
+import { MUSIC_PAUSES } from './settings.js';
+
+/** All music names in the manifest. */
+export const MUSIC_THEMES = /** @type {const} */ (['menu', 'build', 'winter', 'battle', 'victory', 'defeat']);
+/** Peace themes: pauses between the pieces, gentle switching among each other. */
+export const PEACE_THEMES = new Set(['build', 'winter']);
+
+/**
+ * Theme that is actually played: winter without its own files sounds like build
+ * (the generative music has no winter theme).
+ * @param {import('./manifest.js').Manifest} manifest @param {string} theme
+ */
+export function resolveTheme(manifest, theme) {
+  if (theme === 'winter' && !lookup(manifest, 'music', 'winter')) return 'build';
+  return theme;
+}
+
+/** Pause length in seconds for a setting and a random number 0…1. */
+export function pauseSeconds(setting, r) {
+  const [a, b] = MUSIC_PAUSES[setting] ?? MUSIC_PAUSES.normal;
+  return a + (b - a) * r;
+}
 
 const LOOKAHEAD = 1.2;   // seconds scheduled in advance
 const INTERVAL = 200;    // ms between scheduling passes
@@ -53,7 +77,7 @@ class SynthTrack {
       // section finished: next section; after a whole pass a short breather
       this.section++;
       const th = THEMES[this.theme];
-      const gap = this.section % th.form.length === 0 ? 3 + this.music.rnd() * 3 : 0;
+      const gap = this.section % th.form.length !== 0 ? 0 : PEACE_THEMES.has(this.theme) ? this.music.pauseGap() : 3 + this.music.rnd() * 3;
       this.music.sections[this.theme] = this.section;
       this.loadSection(end + gap);
     }
@@ -72,12 +96,13 @@ class SynthTrack {
 }
 
 /** File track: plays the files of a manifest entry one after another (without immediate repetition). */
-class FileTrack {
+export class FileTrack {
   constructor(music, theme, entry, firstBuffer, firstFile) {
     this.music = music;
     this.kind = 'file';
     this.theme = theme;
     this.entry = entry;
+    this.peace = PEACE_THEMES.has(theme);
     const ctx = music.eng.ctx;
     this.fader = ctx.createGain();
     this.fader.gain.value = 0;
@@ -91,19 +116,43 @@ class FileTrack {
     const ctx = this.music.eng.ctx;
     const s = ctx.createBufferSource();
     s.buffer = buffer;
-    s.loop = this.entry.files.length === 1 && this.entry.loop !== false;
+    // never loop peace pieces directly: a pause follows every piece
+    s.loop = this.entry.files.length === 1 && this.entry.loop !== false && !this.peace;
+    this.level.gain.setValueAtTime(this.entry.gain ?? 1, Math.max(ctx.currentTime, at - 0.01));
     s.connect(this.level);
     s.start(at);
     this.src = s;
+    this.startsAt = at;
     this.last = file;
-    s.onended = () => { if (!this.stopped && !s.loop) this.playNext(); };
+    s.onended = () => { if (!this.stopped && !s.loop && this.src === s) this.playNext(this.peace ? this.music.pauseGap() : 1.5); };
   }
 
-  async playNext() {
+  /** Next piece after gap seconds (audio time, pauses along with a hidden tab). */
+  async playNext(gap, at = null) {
     const file = pickFile(this.entry, this.music.rnd, this.last);
+    const req = (this.req = (this.req ?? 0) + 1);
+    this.pendingGap = gap;
     const buf = await this.music.eng.loadBuffer(file);
-    if (this.stopped) return;
-    if (buf) this.playBuffer(buf, file, this.music.eng.ctx.currentTime + 1.5);
+    if (this.stopped || req !== this.req) return;
+    this.pendingGap = null;
+    if (buf) this.playBuffer(buf, file, Math.max(at ?? 0, this.music.eng.ctx.currentTime + gap));
+  }
+
+  /**
+   * Switch to another peace theme without aborting the running piece:
+   * the next piece comes from the new theme; if a pause is on, the scheduled piece is replaced.
+   */
+  retarget(theme, entry) {
+    this.theme = theme;
+    this.entry = entry;
+    this.last = null;
+    const ctx = this.music.eng.ctx;
+    if (this.src && this.startsAt > ctx.currentTime + 0.05) {
+      const at = this.startsAt, old = this.src;
+      this.src = null;
+      try { old.stop(); } catch { /* */ }
+      this.playNext(0, at);
+    } else if (this.pendingGap != null) this.playNext(this.pendingGap);
   }
 
   update() {}
@@ -137,7 +186,10 @@ export class Music {
     this.timer = null;
   }
 
-  /** Choose theme: 'menu' | 'build' | 'battle' | null (silence). */
+  /** Random pause length between peace pieces according to the setting. */
+  pauseGap() { return pauseSeconds(this.eng.settings?.musicPause, this.rnd()); }
+
+  /** Choose theme: 'menu' | 'build' | 'winter' | 'battle' | null (silence). */
   setTheme(theme) {
     if (theme === this.want && (this.track || !this.eng.ctx)) return;
     this.want = theme;
@@ -148,18 +200,23 @@ export class Music {
   onReady() { if (this.want && !this.track) this.startWanted(); }
 
   startWanted() {
-    const eng = this.eng, ctx = eng.ctx, theme = this.want;
+    const eng = this.eng;
+    const theme = this.want ? resolveTheme(eng.manifest, this.want) : null;
     if (this.track?.theme === theme) return;
+    const entry = theme ? lookup(eng.manifest, 'music', theme) : null;
+    if (entry && this.track?.kind === 'file' && this.track.peace && PEACE_THEMES.has(theme)) {
+      this.track.retarget(theme, entry);
+      return;
+    }
     this.track?.stop();
     this.track = null;
     if (!theme) return;
-    const entry = lookup(eng.manifest, 'music', theme);
     if (entry) {
       // load file; until then (or if it is missing) play generatively
       this.startSynth(theme);
       const file = pickFile(entry, this.rnd);
       eng.loadBuffer(file).then((buf) => {
-        if (!buf || this.want !== theme || !eng.ctx) return;
+        if (!buf || !this.want || resolveTheme(eng.manifest, this.want) !== theme || !eng.ctx) return;
         this.track?.stop();
         this.track = new FileTrack(this, theme, entry, buf, file);
         this.track.fade(1, FADE_IN / 4);

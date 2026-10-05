@@ -60,7 +60,7 @@
         </div>
       </div>
 
-      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog()" @tribute="engine.payTribute($event)" />
+      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog()" @line="engine.dialogFocus($event)" @focus="engine.focusHint($event)" @tribute="engine.payTribute($event)" />
       <MissionResult
         v-if="ui.mission?.result"
         :result="ui.mission.result"

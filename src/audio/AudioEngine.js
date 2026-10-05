@@ -12,6 +12,9 @@ import { SFX } from './sfx.js';
 import { createReverb } from './synth.js';
 import { mulberry32 } from './rng.js';
 import { Music } from './music.js';
+
+/** Level of music and ambience while a voice speaks (1 = unchanged) */
+const DUCK = { music: 0.22, ambient: 0.55 };
 import { Ambient } from './ambient.js';
 
 const hasWindow = typeof window !== 'undefined';
@@ -114,9 +117,11 @@ export class AudioEngine {
     const master = ctx.createGain();
     master.connect(limiter);
     this.buses.master = master;
+    // Music and ambience run through their own ducking, which lowers them during spoken dialogues
+    this.ducks = {};
     for (const k of ['music', 'sfx', 'ambient', 'ui']) {
       const g = ctx.createGain();
-      g.connect(master);
+      if (DUCK[k] !== undefined) { const d = ctx.createGain(); d.connect(master); g.connect(d); this.ducks[k] = d; } else g.connect(master);
       this.buses[k] = g;
     }
     // Reverb: music (own reverb into the music bus) and a quiet shared room for effects
@@ -154,6 +159,17 @@ export class AudioEngine {
     const m = this.settings.muted ? 0 : sliderToGain(this.settings.master);
     this.buses.master.gain.setTargetAtTime(m, t, tau);
     for (const k of ['music', 'sfx', 'ambient', 'ui']) this.buses[k].gain.setTargetAtTime(sliderToGain(this.settings[k]), t, tau);
+  }
+
+  /**
+   * Lower music and ambience while a voice speaks (down fast, back up slowly).
+   * @param {boolean} on
+   */
+  duck(on) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    this.ducked = on;
+    for (const [k, d] of Object.entries(this.ducks)) d.gain.setTargetAtTime(on ? DUCK[k] : 1, ctx.currentTime, on ? 0.12 : 0.6);
   }
 
   /** @param {'master'|'music'|'sfx'|'ambient'|'ui'} key */
@@ -265,6 +281,27 @@ export class AudioEngine {
     }
     setTimeout(() => g.disconnect(), (t - now + dur + 1) * 1000);
     return true;
+  }
+
+  /**
+   * Play a file once (e.g. a voiced bark), through a bus with its volume and mute.
+   * @param {string} url @param {{ gain?: number, bus?: string }} [o]
+   * @returns {Promise<number>} length in seconds, 0 if not played
+   */
+  async playFile(url, o = {}) {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running' || this.settings.muted) return 0;
+    const buf = await this.loadBuffer(url);
+    if (!buf || ctx.state !== 'running') return 0;
+    const g = ctx.createGain();
+    g.gain.value = o.gain ?? 1;
+    g.connect(this.buses[o.bus ?? 'sfx']);
+    const s = ctx.createBufferSource();
+    s.buffer = buf;
+    s.connect(g);
+    s.start();
+    s.onended = () => g.disconnect();
+    return buf.duration;
   }
 
   /** Ambience on/off (GameAudio). */

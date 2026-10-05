@@ -861,6 +861,8 @@ export class MissionRuntime {
           id: o.id, text: d.text, primary: !!d.primary, status: o.status,
           progress: d.showProgress === false || !o.progress || o.progress[1] <= 1 ? null : o.progress,
           time: d.type === 'survive',
+          // Where to? Goals of type reach show their area, others an own hint (hint: { area } | { entity })
+          hint: o.status === 'active' ? this.resolveHint(sim, d.hint ?? (d.type === 'reach' ? { area: d.area } : null)) : null,
         };
       });
     let tutorial = null;
@@ -880,6 +882,8 @@ export class MissionRuntime {
         return { id, text: d.text, cost: d.cost, affordable: sim.canPay(st.human, d.cost) };
       }),
       dialogSkip: st.dialogSkip ?? 0,
+      // Landmark (rendering only): { at, model } → location and model, e.g. the foundations of the village centre in mission 1
+      landmarks: (def.landmarks ?? []).map((l) => ({ model: l.model, building: l.building ?? null, at: this.pointOf(sim, l.at) })).filter((l) => l.at),
       camera: st.camera,
       script: this.script ? this.script.uiState() : null,
       result: st.result ? {

@@ -3,9 +3,9 @@
        Height ends above the command bar (--bottom-h), width leaves room on the right for quick access/minimap. -->
   <div class="mhud" data-testid="mission-hud">
     <TutorialCoach v-if="mission.tutorial" :step="mission.tutorial" :touch="touch" :lang="lang" @next="$emit('next')" @skip="$emit('skip')" />
-    <ObjectivePanel v-if="mission.objectives.length" :objectives="mission.objectives" :lang="lang" />
+    <ObjectivePanel v-if="mission.objectives.length" :objectives="mission.objectives" :lang="lang" @focus="$emit('focus', $event)" />
     <TributePanel v-if="mission.tributes?.length" :tributes="mission.tributes" :lang="lang" @pay="$emit('tribute', $event)" />
-    <DialogBox :messages="mission.messages" :lang="lang" :speed="speed" :scripted="!!mission.script" @skip="$emit('skipDialog')" />
+    <DialogBox :messages="mission.messages" :lang="lang" :speed="speed" :scripted="!!mission.script" @skip="$emit('skipDialog')" @line="$emit('line', $event)" />
   </div>
 </template>
 
@@ -24,7 +24,7 @@ export default {
     lang: { type: String, default: 'de' },
     speed: { type: Number, default: 1 },
   },
-  emits: ['next', 'skip', 'skipDialog', 'tribute'],
+  emits: ['next', 'skip', 'skipDialog', 'tribute', 'line', 'focus'],
 };
 </script>
 
