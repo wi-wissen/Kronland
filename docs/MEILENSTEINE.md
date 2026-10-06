@@ -10,7 +10,7 @@ dann `node scripts/milestones.mjs` (prüft die Reihenfolge, berechnet geänderte
 und schreibt diese Datei neu). `tests/site/blog.test.js` prüft Reihenfolge, Artikel und – sobald `commit`
 gesetzt ist – die Zuordnung zu `main`.
 
-Stand: 15 Meilensteine, 3.10.2026 11:51 bis 6.10.2026 19:12.
+Stand: 16 Meilensteine, 3.10.2026 11:51 bis 6.10.2026 21:56.
 
 | # | Meilenstein | Beginn | Ende | Commit |
 |---|---|---|---|---|
@@ -29,6 +29,7 @@ Stand: 15 Meilensteine, 3.10.2026 11:51 bis 6.10.2026 19:12.
 | 13 | Eigene Grafik statt KayKit | 5.10.2026 22:41 | 5.10.2026 22:54 | [`3bad1ca`](https://github.com/wi-wissen/Kronland/commit/3bad1caf44ae286ba43397242791861be6cdaa11) |
 | 14 | Laden, Caching und Figuren-Feinschliff | 6.10.2026 00:19 | 6.10.2026 09:11 | [`e7077d1`](https://github.com/wi-wissen/Kronland/commit/e7077d168d59e312c5d2c2659d15be70834a4b87) |
 | 15 | Feinschliff: Gewimmel, Nahkampf, Reittier | 6.10.2026 18:50 | 6.10.2026 19:12 | [`1161901`](https://github.com/wi-wissen/Kronland/commit/116190143aa5bdc9b5d4f7d0e1d98335362c692c) |
+| 16 | Feinschliff II: Meldungen, Kreisplätze, Ton, Blog | 6.10.2026 20:31 | 6.10.2026 21:56 | [`0020d92`](https://github.com/wi-wissen/Kronland/commit/0020d9261f02433477a0861e8a856d585b1a440f) |
 
 ## 1. Simulationskern
 
@@ -149,3 +150,11 @@ Alle Spieldateien bekommen einen Inhalts-Hash und werden nur bei Bedarf geladen;
 Testfälle im Quelltext: Vitest 769 (+52), Playwright 118 (+6) · Blog: `blog/polish/`
 
 Die Belastungsprobe „Gewimmel“ mit rund 2 500 Figuren deckt Hänger auf; die Spielschleife wird robust, der Autosave billig. Nahkämpfer umzingeln ihr Ziel, Gebäude zeigen in der Ferne keine Farbstreifen mehr, Nelia wird neu gestaltet und das Meshy-Pferd trägt seine Reiter mit selbst geschriebenen Gangarten.
+
+## 16. Feinschliff II: Meldungen, Kreisplätze, Ton, Blog
+
+6.10.2026 20:31–21:56 (Arbeit ab 6.10.2026 19:53) · 144 Dateien, +5830 / −421 Zeilen · Commit [`0020d92`](https://github.com/wi-wissen/Kronland/commit/0020d9261f02433477a0861e8a856d585b1a440f)
+
+Testfälle im Quelltext: Vitest 832 (+63), Playwright 132 (+14) · Blog: `blog/polish-2/`
+
+Neun Aufgaben in einer Abendrunde: Meldungen bekommen Kategorien mit Vorrang, Bündelung und Dauerwarnungen bei Angriff und Brand; Rastende, Wartende und Holzfäller stehen auf Kreisplätzen um ihr Ziel. Weibliche Figuren heißen und sprechen weiblich, Warnrufe erklingen auch für Soldaten, die Kampfmusik endet nach dem Kampf, der Schaukasten klingelt nicht mehr dauernd. Klicks ins Leere wählen keine Figur außerhalb des Bildes, Karten lassen sich per Link teilen, und dieser Blog erzählt die Entstehung je Meilenstein.
