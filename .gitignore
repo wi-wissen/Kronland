@@ -8,8 +8,14 @@ playwright-report/
 review/
 .shots/
 
-# Rohdateien der Asset-Pipeline: nur lokal beim Maintainer, nicht in Git
+# Rohdateien der Asset-Pipeline: nur lokal beim Maintainer, nicht in Git (docs/ROHDATEIEN.md)
 assets-src/
 # Zwischenstände der Sprachausgabe
 public/audio/voice/**/*.wav
 public/audio/voice/**/*.src.mp3
+
+# lokale Hilfsdateien
+scripts/_tmp/
+.claude/worktrees/
+# Teil-Archive der Rohdateien zum Sichern/Hochladen (node scripts/assets-src.mjs pack, docs/ROHDATEIEN.md)
+assets-src-archive/

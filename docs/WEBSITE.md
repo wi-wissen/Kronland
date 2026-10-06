@@ -48,6 +48,10 @@ mit `autoUpdate` beim nächsten Laden erneuert. URL-Parameter zählen beim Abgle
 (`ignoreURLParametersMatching`), damit `play/?seed=42&dev=1` auch offline startet. Website-Bilder (`site/`)
 werden erst bei Bedarf gecacht.
 
+Alle Dateien aus `public/` (Modelle, Texturen, Ton, Bilder) bekommen im Build einen Inhalts-Hash im Namen und
+werden nach dem ersten Laden nie wieder angefragt; eine geänderte Datei lädt als einzige neu. Ablauf, Cache-
+Strategie und gemessene Datenmengen: [PERFORMANCE.md](PERFORMANCE.md).
+
 ## Handbuch erweitern
 
 Text: `src/site/manual/de.md` und `en.md`. Jedes Kapitel beginnt mit `## Titel {#id}` – **dieselbe ID in

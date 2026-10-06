@@ -117,8 +117,8 @@ function areaOf(boxes) {
   return { x: (x0 + x1) >> 1, y: (y0 + y1) >> 1, r: Math.max(3, Math.max(x1 - x0, y1 - y0) >> 1) };
 }
 
-/** Create a worker directly (like systems/workers.js on move-in). */
-function addWorker(sim, wp, at, o = {}) {
+/** Create a worker directly (like systems/workers.js on moving in); also for the stress test (stress.js). */
+export function addWorker(sim, wp, at, o = {}) {
   const w = {
     id: sim.nextId++, kind: 'worker', prof: professionFor(wp.type), owner: wp.owner,
     px: tileCenter(at.x), py: tileCenter(at.y), path: [],
@@ -161,7 +161,8 @@ function bridgeSites(ctx, R, from) {
 
 export default {
   id: SHOWCASE_ID,
-  showcase: true,
+  special: true,
+  icon: 'castle', // icon in the special maps menu
   seed: 1,
   size: 128,
   fog: false,
@@ -239,7 +240,7 @@ export default {
     const troopBoxes = [];
     for (const id of Object.keys(UNITS)) {
       const p = F.take(3, 3, 2);
-      if (!p) { ctx.warn(`No room for squad ${id}`); continue; }
+      if (!p) { ctx.warn(`No space for squad ${id}`); continue; }
       sim.spawnLeader(P, id, p.x + 1, p.y);
       troopBoxes.push({ ...p, w: 3, h: 3 });
     }
@@ -253,7 +254,7 @@ export default {
       for (const type of row) {
         const def = BUILDINGS[type], n = def.levels.length;
         const p = F.take(n * (def.w + 1) - 1, def.h, 2);
-        if (!p) { ctx.warn(`No room for ${type}`); continue; }
+        if (!p) { ctx.warn(`No space for ${type}`); continue; }
         shown[type] = [];
         for (let lv = 0; lv < n; lv++) {
           const x = p.x + lv * (def.w + 1);
@@ -295,7 +296,7 @@ export default {
     const siteBoxes = [];
     for (const [type, pct] of SITES) {
       const def = BUILDINGS[type], p = F.take(def.w, def.h, 2);
-      if (!p) { ctx.warn(`No room for construction site ${type}`); continue; }
+      if (!p) { ctx.warn(`No space for construction site ${type}`); continue; }
       site(sim, P, type, p, pct);
       siteBoxes.push({ ...p, w: def.w, h: def.h });
     }
@@ -308,14 +309,14 @@ export default {
         b.work = secondsToTicks(next.buildTime) * BALANCE.serf.maxBuildersPerSite;
         b.progress = Math.trunc((b.work * pct) / 100);
         siteBoxes.push({ ...p, w: def.w, h: def.h });
-      } else ctx.warn('No room for the upgrade');
+      } else ctx.warn('No space for the upgrade');
     }
     field('siteArea', siteBoxes);
     const ruinBoxes = [];
     for (const [type, level] of RUINS) {
       const def = BUILDINGS[type], p = F.take(def.w, def.h, 2);
       const r = p && api.addRuin(sim, type, { x: p.x + (def.w >> 1), y: p.y + (def.h >> 1) }, { level, radius: 1 });
-      if (!r) { ctx.warn(`No room for ruin ${type}`); continue; }
+      if (!r) { ctx.warn(`No space for ruin ${type}`); continue; }
       ruinBoxes.push(r);
     }
     field('ruinArea', ruinBoxes);
@@ -326,7 +327,7 @@ export default {
     const rival = {};
     for (const type of ['headquarters', 'villageCenter', 'sawmill', 'brickworks', 'barracks', 'tower']) {
       const def = BUILDINGS[type], p = F.take(def.w, def.h, 3);
-      if (!p) { ctx.warn(`No room for ${type} (player 2)`); continue; }
+      if (!p) { ctx.warn(`No space for ${type} (player 2)`); continue; }
       if (def.placement === 'settlement') { sim.spots.push({ x: p.x, y: p.y }); m.reserve(p.x, p.y, def.w, def.h); }
       rival[type] = sim.createBuilding(P2, type, p.x, p.y, true);
       rivalBoxes.push({ ...p, w: def.w, h: def.h });
@@ -348,19 +349,19 @@ export default {
     const resBoxes = [];
     for (const res of ['clay', 'stone', 'iron', 'sulfur']) {
       const p = F.take(3, 3, 2);
-      if (!p) { ctx.warn(`No room for shaft ${res}`); continue; }
+      if (!p) { ctx.warn(`No space for shaft ${res}`); continue; }
       sim.shafts.push({ x: p.x, y: p.y, res }); m.reserve(p.x, p.y, 3, 3);
       resBoxes.push({ ...p, w: 3, h: 3 });
     }
     for (let i = 0; i < 2; i++) {
       const p = F.take(4, 4, 2);
-      if (!p) { ctx.warn('No room for settlement spot'); continue; }
+      if (!p) { ctx.warn('No space for settlement spot'); continue; }
       sim.spots.push({ x: p.x, y: p.y }); m.reserve(p.x, p.y, 4, 4);
       resBoxes.push({ ...p, w: 4, h: 4 });
     }
     for (const res of RESOURCES) {
       const p = F.take(1, 1, 2);
-      if (p && sim.addNode('pile', p.x, p.y, res, BALANCE.pile.amount)) { m.reserve(p.x, p.y, 1, 1); resBoxes.push(p); } else ctx.warn(`No room for pile ${res}`);
+      if (p && sim.addNode('pile', p.x, p.y, res, BALANCE.pile.amount)) { m.reserve(p.x, p.y, 1, 1); resBoxes.push(p); } else ctx.warn(`No space for pile ${res}`);
     }
     field('resourceArea', resBoxes);
     const fp = F.take(12, 7, 2);
@@ -371,7 +372,7 @@ export default {
       const serfs = [...sim.entities.values()].filter((e) => e.kind === 'unit' && e.owner === P).slice(0, 2);
       const tree = [...sim.entities.values()].find((e) => e.kind === 'tree' && e.x === fp.x && e.y === fp.y);
       if (tree && serfs.length) sim.applyCommand({ type: 'assignWork', player: P, units: serfs.map((u) => u.id), target: tree.id });
-    } else ctx.warn('No room for the forest');
+    } else ctx.warn('No space for the forest');
 
     // ---------- Outside the area: bridge, bandit camp, rocks ----------
     const sites = bridgeSites(ctx, R, home);
@@ -396,7 +397,7 @@ export default {
       if (api.findOpen(sim, p.x, p.y, { maxR: 10, clear: 3, from: home })) { camp = ctx.camp('robbers', p, [{ def: 'sword1', count: 1, soldiers: 4 }, { def: 'bow1', count: 1, soldiers: 4 }], { r: 5, maxR: 10, from: home }); }
       if (camp) break;
     }
-    if (!camp) ctx.warn('No room for the bandit camp');
+    if (!camp) ctx.warn('No space for the bandit camp');
 
     // Rocks: nearest steep slope outside the area
     let rock = null;

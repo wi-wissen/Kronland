@@ -26,6 +26,10 @@
             <span class="sm-seal sm-code" aria-hidden="true">&lt;/&gt;</span>
             <span><b>{{ $t('menu.adventures') }}</b><small>{{ $t('menu.adventuresSub') }}</small></span>
           </button>
+          <button class="sm-mode" data-testid="menu-special" @click="$emit('special')">
+            <span class="sm-seal"><Icon name="map" /></span>
+            <span><b>{{ $t('menu.special') }}</b><small>{{ $t('menu.specialSub') }}</small></span>
+          </button>
           <div class="sm-tools">
             <button class="sm-tool" data-testid="menu-saves" @click="savesOpen = true"><Icon name="load" />{{ $t('menu.saves') }}</button>
             <button class="sm-tool" data-testid="menu-settings" @click="settingsOpen = true"><Icon name="settings" />{{ $t('menu.settings') }}</button>
@@ -124,7 +128,7 @@ export default {
     /** Latest save game (entry from src/save/store.js) for "Continue" */
     latest: { type: Object, default: null },
   },
-  emits: ['start', 'load', 'tutorial', 'campaign', 'saves-changed', 'adventures'],
+  emits: ['start', 'load', 'tutorial', 'campaign', 'saves-changed', 'adventures', 'special'],
   data() {
     return {
       opponents: 1, difficulty: 'normal', hero: 'nelia', heroes: HERO_IDS,

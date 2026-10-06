@@ -9,9 +9,10 @@ import { loadCharacterManifest, loadCharacterModels, characterFileCount } from '
 import { loadGroundImages, GROUND_IMAGE_KINDS } from './textures.js';
 import { loadNatureImages, NATURE_IMAGE_KINDS } from './naturetex.js';
 import { getQuality } from './quality.js';
-import { siteUrl } from '../paths.js';
+import { siteUrl, assetUrl } from '../paths.js';
 import { playerColorIndex } from './playerColors.js';
 import { SUMMER_NATURE_MODELS, NATURE_MODEL_LODS } from './treeModels.js';
+import { pitShape, pitRect, pitTexture, hangerBeam } from './pit.js';
 
 /** Colour versions of the models in palette order (player → colour: playerColorIndex in playerColors.js). */
 export const ASSET_COLORS = ['blue', 'red', 'green', 'yellow'];
@@ -66,15 +67,18 @@ export const isOwnBuildingModel = (asset) => !!asset && OWN_BUILDING_MODELS.has(
 export const OWN_BUILDING_FILL = { farm2: 1.3, farm3: 1.3, chapel2: 0.8, chapel3: 1.08 };
 /**
  * Pits: ground = fraction of the model height below the ground disc – so far the model is sunk. The terrain
- * hides the sunken shaft; so a black surface (closed hull of the
- * points near the ground) lies below the ground disc: the opening turns black, nothing sticks out beyond the model.
+ * hides the sunken shaft; therefore a "foil" lies below the ground disc: the opening of the model, rasterised
+ * from above (src/render/pit.js), softly bordered and painted (earth in the colour `rim` → black in the middle). It never
+ * goes beyond the rim wall. If the rasterisation finds no hole, the old black hull (`shrink`) applies.
+ * gallows: two posts and a crossbeam below a freely hanging bucket (hangerBeam in pit.js).
  */
 export const OWN_BUILDING_PIT = {
-  clay_mine: { ground: 0.23, shrink: 0.68 }, // open earth wall: surface shrinks further inward
-  iron_mine: { ground: 0.35 },
-  sulfur_mine: { ground: 0.075 },
+  // Clay: reddish earth; flat patch of earth with gallows in the model (newly generated, front view only)
+  clay_mine: { ground: 0.28, shrink: 0.68, rim: [118, 66, 40] },
+  iron_mine: { ground: 0.35, rim: [86, 62, 46] },
+  sulfur_mine: { ground: 0.075, rim: [104, 76, 48] },
 };
-/** @param {string|null} asset @returns {{ground: number, shrink?: number}|null} */
+/** @param {string|null} asset @returns {{ground: number, shrink?: number, rim?: number[], gallows?: boolean}|null} */
 export const ownBuildingPit = (asset) => (asset ? OWN_BUILDING_PIT[bareName(asset)] ?? null : null);
 /** @param {string|null} asset */
 export const ownBuildingFill = (asset) => (asset ? OWN_BUILDING_FILL[bareName(asset)] ?? 1 : 1);
@@ -138,14 +142,14 @@ export async function loadAssets(players, onProgress = () => {}, baseUrl = siteU
     // painted ground textures at the size of the graphics level (phone: small version)
     ground ? loadGroundImages(siteUrl('textures/ground/'), getQuality().textureSize, tick) : null,
     nature ? loadNatureImages(siteUrl('textures/nature/'), tick) : null,
-    ...names.map((n) => loader.loadAsync(`${base}${n}${ext}`)
+    ...names.map((n) => loader.loadAsync(assetUrl(`${base}${n}${ext}`))
       .then((g) => {
         g.scene.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
         cache.set(n, { scene: g.scene, animations: g.animations });
       })
       .catch(() => {})
       .finally(tick)),
-    manifest ? loadCharacterModels((url) => loader.loadAsync(url.replace(/\.glb$/, ext)), base, tick) : null,
+    manifest ? loadCharacterModels((url) => loader.loadAsync(assetUrl(url.replace(/\.glb$/, ext))), base, tick) : null,
   ]);
   return cache.size;
 }
@@ -172,16 +176,29 @@ export function fittedModel(name, w, d, fill = 0.9, fitTo = name, pit = null) {
   const g = new THREE.Group();
   g.add(obj);
   if (pit) {
-    // black surface below the ground disc: closed hull of the points near the ground (also fills a real
-    // hole in the model), never larger than the model; the model sits PIT_LIFT above it, the surface in between
+    // foil below the ground disc: opening of the model (painted, soft edge), otherwise closed hull in black;
+    // never larger than the model. The model lies PIT_LIFT above it, the surface in between.
     obj.position.y += PIT_LIFT;
-    const hull = pitHull(fitTo, box, size, pit.ground, pit.shrink ?? PIT_SHRINK);
-    if (hull.length >= 3) {
-      const shape = new THREE.Shape(hull.map(([x, z]) => new THREE.Vector2((x - c.x) * s, -(z - c.z) * s)));
-      const floor = new THREE.Mesh(new THREE.ShapeGeometry(shape), pitMaterial());
+    const toShape = (pts) => new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2((x - c.x) * s, -(z - c.z) * s)));
+    const open = pitOpening(fitTo, box, size, pit);
+    const parts = open
+      ? open.loops.map((l) => ({ geo: new THREE.ShapeGeometry(toShape(l)), mat: open.material }))
+      : [pitHull(fitTo, box, size, pit.ground, pit.shrink ?? PIT_SHRINK)].filter((h) => h.length >= 3)
+        .map((h) => ({ geo: new THREE.ShapeGeometry(toShape(h)), mat: pitMaterial() }));
+    if (pit.gallows && open?.beam) obj.add(gallows(open.beam, box.min.y + pit.ground * size.y - 0.02 * size.y));
+    for (const { geo, mat } of parts) {
+      if (open) {
+        // texture coordinates from the position in the model (rectangle around the opening)
+        const pos = geo.attributes.position, uv = geo.attributes.uv, r = open.rect;
+        for (let k = 0; k < pos.count; k++) {
+          uv.setXY(k, (pos.getX(k) / s + c.x - r.minX) / (r.maxX - r.minX), (-pos.getY(k) / s + c.z - r.minZ) / (r.maxZ - r.minZ));
+        }
+      }
+      const floor = new THREE.Mesh(geo, mat);
       floor.rotation.x = -Math.PI / 2;
       floor.position.y = PIT_LIFT / 2;
       floor.userData.noTeam = true;
+      floor.renderOrder = -1;
       g.add(floor);
     }
   }
@@ -189,6 +206,59 @@ export function fittedModel(name, w, d, fill = 0.9, fitTo = name, pit = null) {
 }
 
 const PIT_LIFT = 0.03, PIT_SHRINK = 0.85;
+const openings = new Map();
+/**
+ * Opening of a pit (contours in model space, painted texture) – computed once per model; null = no hole found.
+ * @returns {{loops: number[][][], rect: {minX: number, maxX: number, minZ: number, maxZ: number}, material: THREE.Material}|null}
+ */
+function pitOpening(name, box, size, pit) {
+  if (openings.has(name)) return openings.get(name);
+  let out = null;
+  try {
+    const root = cache.get(name).scene, v = new THREE.Vector3(), tris = [];
+    root.updateMatrixWorld(true);
+    root.traverse((m) => {
+      if (!m.isMesh) return;
+      const pos = m.geometry.attributes.position, idx = m.geometry.index, count = idx ? idx.count : pos.count;
+      for (let k = 0; k < count; k++) {
+        v.fromBufferAttribute(pos, idx ? idx.getX(k) : k).applyMatrix4(m.matrixWorld);
+        tris.push(v.x, v.y, v.z);
+      }
+    });
+    const bounds = { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z };
+    const shape = pitShape(tris, bounds, box.min.y + pit.ground * size.y, size.y);
+    if (shape) {
+      const rect = pitRect(shape), n = 128;
+      const tex = new THREE.DataTexture(pitTexture(shape, rect, pit.rim ?? [96, 66, 44], n), n, n);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.magFilter = tex.minFilter = THREE.LinearFilter;
+      tex.needsUpdate = true;
+      const material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+      out = { loops: shape.loops, rect, material, beam: pit.gallows ? hangerBeam(tris, shape.loops, box.min.y + pit.ground * size.y, size.y) : null };
+    }
+  } catch {
+    out = null; // fallback: hull
+  }
+  openings.set(name, out);
+  return out;
+}
+/** Wooden gallows (model space): two posts from y0 to above the beam, crossbeam through the hanging block. */
+let woodMat = null;
+function gallows({ x0, x1, z, y, r }, y0) {
+  woodMat ??= new THREE.MeshStandardMaterial({ color: 0x8a5d38, roughness: 0.85 });
+  const g = new THREE.Group(), h = y + 1.6 * r - y0;
+  for (const x of [x0, x1]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.9, r * 1.05, h, 8), woodMat);
+    post.position.set(x, y0 + h / 2, z);
+    g.add(post);
+  }
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.85, r * 0.85, x1 - x0 + 3.2 * r, 8), woodMat);
+  beam.rotation.z = Math.PI / 2;
+  beam.position.set((x0 + x1) / 2, y, z);
+  g.add(beam);
+  g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.userData.noTeam = true; } });
+  return g;
+}
 const hulls = new Map();
 /** Convex hull (x, z in model space) of the points up to just above the ground disc of a pit (cached). */
 function pitHull(name, box, size, ground, shrink) {
@@ -222,7 +292,7 @@ export function convexHull(p) {
   return lower.slice(0, -1).concat(upper.slice(0, -1));
 }
 
-/** Black for the pit opening (shared). */
+/** Black for the pit opening (fallback, shared). */
 let pitMat = null;
 const pitMaterial = () => (pitMat ??= new THREE.MeshBasicMaterial({ color: 0x050403, side: THREE.DoubleSide }));
 
@@ -268,7 +338,7 @@ const pending = new Set();
 function requestAsset(n) {
   if (!lazy || pending.has(n) || cache.has(n)) return;
   pending.add(n);
-  const load = (name) => lazy.loader.loadAsync(`${base}${name}${lazy.ext}`).then((g) => {
+  const load = (name) => lazy.loader.loadAsync(assetUrl(`${base}${name}${lazy.ext}`)).then((g) => {
     g.scene.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
     cache.set(name, { scene: g.scene, animations: g.animations });
   });
@@ -304,7 +374,7 @@ const natureModelFiles = (name) => [`buildings/${name}`, ...NATURE_MODEL_LODS.ma
 export async function loadNatureModels(models) {
   if (!lazy) return 0;
   const files = models.flatMap(natureModelFiles).filter((n) => !cache.has(n));
-  await Promise.all(files.map((n) => lazy.loader.loadAsync(`${base}${n}${lazy.ext}`).then((g) => {
+  await Promise.all(files.map((n) => lazy.loader.loadAsync(assetUrl(`${base}${n}${lazy.ext}`)).then((g) => {
     g.scene.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
     cache.set(n, { scene: g.scene, animations: g.animations });
   }).catch(() => {})));

@@ -6,6 +6,7 @@
 import { get } from '../ui/settings.js';
 import { tr } from '../i18n/index.js';
 import { loadVoiceIndex, voiceFile, speakerVoice } from './voiceLines.js';
+import { assetUrl } from '../paths.js';
 
 /** Female speakers get a slightly higher voice if the browser has only one voice. */
 const HIGH = new Set(['nelia', 'elder', 'villager', 'scholar']);
@@ -51,7 +52,7 @@ export function speak(msg, lang, opts = {}) {
     ?? (msg.speaker ? voiceFile(speakerVoice(msg.speaker), lang, tr(msg.text, lang)) : null);
   if (file && typeof Audio !== 'undefined') {
     try {
-      const a = new Audio(file);
+      const a = new Audio(assetUrl(file));
       audio = a;
       a.volume = volume;
       const end = once(opts.onEnd);

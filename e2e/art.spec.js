@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { playUrl } from './paths.js';
+import { playUrl, hashed } from './paths.js';
 
 // Painted images from scripts/art/ (docs/SYMBOLE.md, "single images"): menu backdrop, loading image,
 // Ability icons and herald portrait.
@@ -22,13 +22,13 @@ test('Start menu and loading screen show the painted backdrop', async ({ page },
   await page.addInitScript(() => localStorage.setItem('kronland-lang', 'de'));
   // Slow down models so the loading screen stays up long enough
   await page.route('**/models/**', async (route) => { await new Promise((r) => setTimeout(r, 1500)); await route.continue(); });
-  const titel = page.waitForResponse((r) => r.url().includes('art/title.webp'), SLOW);
+  const title = page.waitForResponse((r) => hashed('art/title.webp').test(r.url()), SLOW);
   await page.goto(playUrl());
   expect((await title).ok()).toBe(true);
   const menu = page.getByTestId('start-menu');
   await expect(menu).toBeVisible(SLOW);
   const bg = await menu.evaluate((el) => getComputedStyle(el).backgroundImage);
-  expect(bg).toContain('art/title.webp');
+  expect(bg).toMatch(hashed('art/title.webp'));
   expect(bg).toContain('linear-gradient'); // darkening gradient and fallback gradients remain
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${SHOTS}/art-title-${info.project.name}.png` });
@@ -36,8 +36,10 @@ test('Start menu and loading screen show the painted backdrop', async ({ page },
   await menu.getByRole('button', { name: /Neues Spiel starten/ }).click();
   const loading = page.getByTestId('loading');
   await expect(loading).toBeVisible(SLOW);
-  expect(await loading.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain('art/loading.webp');
-  expect(await loads(page, '../art/loading.webp')).toBe(true);
+  const lbg = await loading.evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(lbg).toMatch(hashed('art/loading.webp'));
+  // load exactly the address from the CSS (with content hash in the build)
+  expect(await loads(page, /url\("([^"]*loading[^"]*)"\)/.exec(lbg)[1])).toBe(true);
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${SHOTS}/art-loading-${info.project.name}.png` });
   expect(errors).toEqual([]);
@@ -57,7 +59,7 @@ test('Abilities and herald are painted', async ({ page }, info) => {
   await page.locator('[data-testid^=quick-hero-]').first().click();
   const img = page.getByTestId('ability-farsight').locator('img.ico');
   await expect(img).toBeVisible(SLOW);
-  expect(await img.getAttribute('src')).toContain('icons/ab-farsight.webp');
+  expect(await img.getAttribute('src')).toMatch(hashed('icons/ab-farsight.webp'));
   await expect.poll(() => img.evaluate((el) => el.complete && el.naturalWidth), SLOW).toBe(128);
   await page.screenshot({ path: `${SHOTS}/art-abilities-${info.project.name}.png` });
 
@@ -73,7 +75,7 @@ test('Abilities and herald are painted', async ({ page }, info) => {
   const dlg = page.getByTestId('dialog').filter({ has: page.getByTestId('dialog-speaker').getByText('Herold', { exact: true }) });
   await expect(dlg).toHaveCount(1, SLOW);
   const pic = dlg.locator('.dlg-seal img');
-  await expect(pic).toHaveAttribute('src', /portraits\/sp-herald\.webp$/);
+  await expect(pic).toHaveAttribute('src', hashed('portraits/sp-herald.webp', '$'));
   await expect.poll(() => pic.evaluate((el) => el.complete && el.naturalWidth), SLOW).toBe(256);
   await page.screenshot({ path: `${SHOTS}/art-herald-${info.project.name}.png` });
   expect(errors).toEqual([]);

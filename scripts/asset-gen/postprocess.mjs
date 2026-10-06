@@ -31,6 +31,7 @@ import { paletteize, rgbToLab, labToRgb } from './palette.mjs';
 import { rasterTriangles, fillGutters } from './texraster.mjs';
 import { triangleInfo, headRegions, meanLab, shiftBeard, triangleAdjacency, growMarker } from './regions.mjs';
 import { fitTo, transferWeights } from './farmesh.mjs';
+import { convert as animsToGame, readGlb } from './anims-to-game.mjs';
 
 const LOOP_FADE = 0.3; // s: seam cross-fade
 const ONE_SHOT = new Set(['die']);
@@ -583,7 +584,7 @@ function smoothAll(doc) {
   }
 }
 
-/** Remove animations (LOD files carry none; the game takes the clips of the original). */
+/** Remove animations (when building the game model; afterwards anims-to-game.mjs moves the near model's clips in). */
 function dropAnimations(doc) {
   for (const a of doc.getRoot().listAnimations()) {
     for (const smp of a.listSamplers()) { smp.getInput()?.dispose(); smp.getOutput()?.dispose(); smp.dispose(); }
@@ -674,6 +675,8 @@ async function keepColorsModel(dir, spec, model, rigged, hasProps, out, lods) {
     await keepTexture(game, spec, spec.farTextureSize ?? 1024, hasProps);
     const kb1 = await finish(game, model, out('.lod1.glb'));
     console.log(`${model}.lod1.glb: game model from ${spec.far}, ${n} vertices, ${kb1} KB`);
+    // animations into the game model: the game loads the near model only on demand (docs/MODELLE.md)
+    console.log(await animsToGame(model, path.dirname(out('.glb'))));
   }
   const entry = {
     lods: lods && spec.far ? 1 : 0, height: spec.height ?? 0.95, teamMarker: true,
@@ -708,11 +711,14 @@ export async function postprocess(id, opts = {}) {
 
   // Level 0: near model (skipped with opts.gameOnly – quick colour variants of the game model)
   if (opts.gameOnly) {
+    // clips live in the previous game model (the near model no longer carries any): save beforehand, take over afterwards
+    const old = fs.existsSync(out('.lod1.glb')) ? await readGlb(out('.lod1.glb')) : null;
     const game = await io.read(rigged);
     dropAnimations(game);
     await buildFar(game, path.join(SRC_DIR, spec.far));
     await flatColors(game, spec, hasProps);
     await finish(game, model, out('.lod1.glb'));
+    console.log(await animsToGame(model, outDir, old?.getRoot().listAnimations().length ? { animsFrom: old } : {}));
     return null;
   }
   if (spec.keepColors) return keepColorsModel(dir, spec, model, rigged, hasProps, out, lods);
@@ -739,6 +745,8 @@ export async function postprocess(id, opts = {}) {
     }
     const kb1 = (fs.statSync(out('.lod1.glb')).size / 1024).toFixed(0);
     console.log(`${model}.lod1.glb: game model${spec.far ? ` from ${spec.far}` : ''}${n ? `, ${n} vertices` : ''}, ${kb1} KB, team area ${(share1 * 100).toFixed(1)} % of the triangles`);
+    // animations into the game model: the game loads the near model only on demand (docs/MODELLE.md)
+    console.log(await animsToGame(model, outDir));
   }
   const entry = {
     lods: lods ? 1 : 0, height: spec.height ?? 0.95, mask: lods ? [masks[0], null] : masks[0],

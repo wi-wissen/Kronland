@@ -37,6 +37,9 @@ export default {
   'menu.tutorialSub': 'First steps with Orrin',
   'menu.adventures': 'Coding Adventures',
   'menu.adventuresSub': 'Learn Python, build worlds',
+  'menu.special': 'Special maps',
+  'menu.specialSub': 'Showcase, stress test – ready-made single maps',
+  'menu.specialPlaces': 'Places on the map',
   'menu.campaign': 'Campaign',
   'menu.campaignSub': 'Crown of Ice',
   'menu.freePlay': 'Free play',
@@ -248,6 +251,7 @@ export default {
   'bld.statArmor': 'Armour',
   'bld.statRange': 'Range',
   'bld.foreign': 'Foreign building',
+  'bld.foreignHint': 'Foreign building – its inner workings stay hidden.',
 
   // Troops
   'army.title': 'Troops',
@@ -277,6 +281,8 @@ export default {
   'army.hint': 'Right-click: move or attack · Ctrl+right-click: attack-move',
   'army.hintTouch': 'Tap the ground to move, tap enemies to attack.',
   'army.militia': 'Militia',
+  'army.disarm': 'Back to work',
+  'army.disarmTip': 'The selected militia lay down their weapons and work as serfs again.',
   'army.serfs': '{n} serfs',
   'army.heroDown': 'unconscious',
   'army.ready': 'ready',
@@ -286,6 +292,8 @@ export default {
   // Foreign
   'foreign.enemy': 'Enemy',
   'foreign.ally': 'Ally',
+  'foreign.neutral': 'Neutral',
+  'foreign.nature': 'Belongs to no one',
   'foreign.bandits': 'Bandits',
   'foreign.unit': 'Unit',
   'foreign.serf': 'Serf',
@@ -438,8 +446,6 @@ export default {
   'mission.campaign': 'Campaign',
   'mission.campaignSub': 'Crown of Ice – six chapters',
   'mission.back': 'Back',
-  'adv.showcase': 'Showcase',
-  'adv.showcaseSub': 'See every building, figure and map object on one map',
   'mission.start': 'Start mission',
   'mission.locked': 'Win the previous mission first',
   'mission.best': 'Best time {t}',
@@ -759,6 +765,7 @@ export default {
   'err.weatherCooldown': 'The weather was changed only recently',
   'err.noRepairNeeded': 'Building is undamaged',
   'err.repairFull': 'Enough serfs are already repairing',
+  'err.siteFull': 'No room left at the construction site',
 
   // ---------- Game systems: building technologies (smithy, sawmill, alchemist, …) ----------
   'tech.leatherMail': 'Leather Mail',

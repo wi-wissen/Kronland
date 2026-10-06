@@ -140,6 +140,8 @@ export default {
   background: rgba(255, 225, 170, 0.08); border: 1px solid rgba(255, 225, 170, 0.25); border-radius: 1rem; color: var(--gold-200);
 }
 .dlg-close { flex: none; width: 2.25rem !important; min-width: 2.25rem !important; min-height: 2.25rem; }
+/* A fading-out sentence is no longer operable (otherwise briefly two "Skip" buttons when the sentence changes) */
+.dlg-leave-active { pointer-events: none; }
 .dlg-enter-active { transition: opacity 0.25s, transform 0.25s; }
 .dlg-enter-from { opacity: 0; transform: translateX(-12px); }
 @media (max-width: 640px), (max-height: 480px) and (orientation: landscape) {

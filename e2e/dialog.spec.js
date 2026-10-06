@@ -98,12 +98,15 @@ test('Mission 1: Orrin joins on the village square, the conversation can be skip
   await page.waitForFunction(() => window.__kronland.sim.mission.state.flags.orrin, null, { timeout: 60_000 });
   // Orrin is now a hero; his conversation (several lines) can be skipped with one button
   await expect(page.getByRole('toolbar', { name: 'Helden' }).getByRole('button')).toHaveCount(2);
-  await expect(page.getByTestId('dialog-skip-all')).toBeVisible({ timeout: 20_000 });
+  // When the line changes the old dialogue still fades out - take only the active one
+  const skip = page.locator('[data-testid=dialog]:not(.dlg-leave-active) [data-testid=dialog-skip-all]');
+  await expect(skip).toBeVisible({ timeout: 20_000 });
   await page.screenshot({ path: info.outputPath('orrin-talk.png') });
-  await page.getByTestId('dialog-skip-all').click();
+  await skip.click();
   await expect(page.getByTestId('dialog')).toHaveCount(0, { timeout: 5000 });
   expect(await page.evaluate(() => window.__voiceLog.at(-1).ev)).toBe('pause');
-  // Next target: the old tree
+  // Next objective: the old tree (on mobile the objective list is behind the "Ziele" button)
+  if (info.project.name === 'mobile') await page.getByTestId('objectives-toggle').click();
   await expect(page.getByTestId('objective-root')).toBeVisible();
   expect(errors).toEqual([]);
 });

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
 
 // Showcase: all buildings, figures and map objects on one map, without fog. Start via the URL and
-// via the "Coding adventure" menu; screenshots of the areas (desktop 1440×900 and mobile) under
+// via the "Sonderkarten" menu; screenshots of the areas (desktop 1440×900 and mobile) under
 // test-results/showcase/.
 
 // Software graphics (SwiftShader) with many models: wait generously
@@ -87,14 +87,15 @@ test('Showcase via URL: no fog, everything drawn, areas reachable via signposts'
   expect(errors).toEqual([]);
 });
 
-test('Start the showcase from the "Coding adventure" menu', async ({ page }) => {
+test('Start the showcase from the "Sonderkarten" menu', async ({ page }) => {
   const errors = await fresh(page);
   await page.goto(playUrl('?quality=low'));
-  await page.getByTestId('menu-adventures').click();
-  const btn = page.getByTestId('open-showcase');
+  await page.getByTestId('menu-special').click();
+  const btn = page.getByTestId('special-showcase');
   await expect(btn).toBeVisible();
   await expect(btn).toContainText('Schaukasten');
   await btn.click();
+  await page.getByTestId('special-start').click();
   await running(page);
   expect(await page.evaluate(() => window.__kronland.sim.mission.state.id)).toBe('showcase');
   expect(errors).toEqual([]);

@@ -25,6 +25,7 @@ const stops = opt('--stops', 'closest:3,close:6,medium:12,game:28,far:50,farthes
 const focus = opt('--focus', 'tree');
 const buildType = opt('--build'); // building test: place finished buildings of this type next to the castle (3× blue, 1× red)
 const buildLevels = Number(opt('--levels', 3));
+const lineup = args.includes('--lineup') && (args.splice(args.indexOf('--lineup'), 1), true); // size comparison: hero, serfs, captain side by side at the village centre
 const army = opt('--army'); // character test: captain with a squad of this unit (e.g. sword1) in blue and red next to the castle // blue in level 1 … levels (upgrade levels side by side)
 const hpPercent = opt('--hp'); // building test: hit points of the levels in percent, e.g. 40,20 (smoke, fire)
 const query = opt('--query', ''); // further URL parameters, e.g. nature=off
@@ -162,6 +163,31 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
       return { x: x + 1.5, y: y + 1.5, yaw: 0.7 };
     }, army);
   }
+  if (lineup) {
+    info.army = await page.evaluate((LINE_YAW) => {
+      const e = window.__kronland, s = e.sim, U = 1000;
+      const hq = s.findBuilding(0, 'headquarters');
+      const p = s.findPlacement(0, 'university', hq.x + hq.w + 2, hq.y + hq.h + 3, 25);
+      const vc = s.createBuilding(0, 'villageCenter', p.x, p.y, true);
+      if (![...s.entities.values()].some((x) => x.kind === 'hero' && x.owner === 0)) s.spawnHero(0, 'nelia');
+      s.spawnLeader(0, 'sword1', vc.x, vc.y + vc.h + 3, 0);
+      e.stepOnce();
+      const hero = [...s.entities.values()].find((x) => x.kind === 'hero' && x.owner === 0);
+      const serfs = [...s.entities.values()].filter((x) => x.kind === 'unit' && x.owner === 0).slice(0, 2);
+      const leader = [...s.entities.values()].filter((x) => x.kind === 'leader' && x.owner === 0).pop();
+      // in a row across the viewing direction (same distance to the camera, sizes directly comparable)
+      const ox = vc.x + 2, oy = vc.y + vc.h + 1.2, dx = Math.cos(LINE_YAW), dy = -Math.sin(LINE_YAW);
+      // trees between camera and row removed (otherwise they hide the figures)
+      for (const t of [...s.entities.values()]) if (t.kind === 'tree' && Math.hypot(t.x + 0.5 - ox, t.y + 0.5 - oy) < 9) s.entities.delete(t.id);
+      e.renderer.natureDirty = true;
+      [hero, ...serfs, leader].filter(Boolean).forEach((u, i) => {
+        const k = (i - 1.5) * 0.85;
+        u.px = Math.round((ox + dx * k) * U); u.py = Math.round((oy + dy * k) * U); u.path = null; u.target = null; u.state = 'idle';
+      });
+      e.paused = true;
+      return { x: ox, y: oy, yaw: LINE_YAW };
+    }, Number(opt('--line-yaw', 0.7)));
+  }
   if (weather) {
     await page.evaluate((w) => window.__kronland.renderer.applyWeather(w), weather);
     // winter versions of the trees are loaded on the first winter; ambient light a few frames later
@@ -171,7 +197,7 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
   // own building models are loaded later
   if (buildType || army) await page.waitForTimeout(8000);
   meta[`view-${name}`] = info;
-  const at = army ? info.army : buildType ? info.build : focus === 'site' ? info.site : info.tree;
+  const at = army || lineup ? info.army : buildType ? info.build : focus === 'site' ? info.site : info.tree;
   for (const s of stops) {
     await page.evaluate(({ at, dist, pitch, yaw }) => {
       const r = window.__kronland.renderer.rig;
@@ -194,6 +220,17 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
     const file = `${s.name}-${name}.png`;
     await page.screenshot({ path: path.join(out, file) , timeout: 180000 });
     meta[file] = { ...(await page.evaluate(MEASURE)), dist: s.dist, scale: ctx.deviceScaleFactor ?? 1 };
+    if (lineup) meta[file].variants = await page.evaluate(() => {
+      const c = window.__kronland.renderer.chars, o = {};
+      return import('/src/render/characters.js').then(({ posedBounds }) => {
+        for (const [k, v] of c.variants) if (v && !v.procedural) {
+          const f = (fr) => { const b = posedBounds(v.levels[0], v.bake, fr); return [+b.min.y.toFixed(3), +b.max.y.toFixed(3)]; };
+          const idle = v.clip('idle'), walk = v.clip('walk');
+          o[k] = { scale: +v.scale.toFixed(3), f0: f(0), idle: f(idle.start), walk: f(walk.start), idleKey: idle.key, walkDur: walk.duration, natWalk: v.groundSpeed('walk'), natCarry: v.groundSpeed('carry'), natRun: v.groundSpeed('run') };
+        }
+        return o;
+      });
+    });
   }
   console.log(name, errors.length ? 'Errors: ' + errors.join(' | ') : 'ok');
   await page.close();

@@ -88,7 +88,8 @@ def main():
                  ("ambient", "ambient-rain", ["rain", 14, {}]),
                  ("ambient", "ambient-winter", ["winter", 14, {}]),
                  ("ambient", "ambient-water", ["summer", 10, {"water": 1}]),
-                 ("ambient", "ambient-battle", ["summer", 10, {"battle": 1}])]
+                 ("ambient", "ambient-battle", ["summer", 10, {"battle": 1}]),
+                 ("ambient", "ambient-wind", ["summer", 10, {"forest": 0, "dist": 75}])]
         for kind, label, args in jobs:
             res = page.evaluate("([k, a]) => window.renderJob(k, a)", [kind, args])
             x = decode(res)

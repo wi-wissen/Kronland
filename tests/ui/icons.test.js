@@ -24,7 +24,7 @@ describe('Icon atlas', () => {
     for (const f of Object.values(IMAGE_ICONS)) expect(fs.existsSync('public/' + f), f).toBe(true);
   });
 
-  // the sheet template lives in assets-src/ (local only, not in Git)
+  // the sheet template lives in assets-src/ (local only, docs/ROHDATEIEN.md)
   it.skipIf(!fs.existsSync('assets-src/icons/layout.json'))('matches the sheet template and the file is ready', () => {
     const layout = JSON.parse(fs.readFileSync('assets-src/icons/layout.json', 'utf8'));
     // cells 'free-*' are on the sheet but no longer used (old hero images)

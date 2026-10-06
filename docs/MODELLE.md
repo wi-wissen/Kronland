@@ -70,7 +70,7 @@ deckungsgleich sind).
   Zeichenaufruf, doppelte Dreiecke.
 - **Detailstufen**: `.lod2` (vorhanden) und `.lod3` (Fernform, `node scripts/build-lods.mjs <datei> --ratios 0.1
   --errors 0.6 --out <name>.lod3.glb`). Nur Original, `.lod2` und `.lod3` werden geladen (Textur und
-  Normalen-Textur 1024 stecken im Original).
+  Normalen-Textur 1024 stecken im Original); ein `.lod1` erzeugt `build-lods.mjs` mit, es wird nicht ausgeliefert (löschen).
 - **Material**: Textur und Normalen-Textur des Modells, weich schattiert, beidseitig; Wind über `natureMaterial`
   (Krone wiegt ab der Biegehöhe `bend`, der Stamm darunter steht fest), Farbton je Instanz.
 - **Winter**: `applyWeather` → `setNatureSeason` tauscht je Chunk-Gruppe nur Geometrie und Material der
@@ -138,7 +138,7 @@ nicht geladen werden, nimmt das Spiel die prozedurale Figur (`procedural`), eben
   "roles": {
     "serf":                 { "variants": [{ "model": "Farmer", "weight": 1 }, { "model": "FarmerF", "weight": 1 }],
                               "procedural": "serf" },
-    "soldier.sword.leader": { "fallback": "soldier.sword", "scale": 1.08 },
+    "soldier.sword.leader": { "fallback": "soldier.sword" },
     "soldier.heavyCav":     { "model": "Ritter", "seat": 0.86, "clipAlias": { "walk": "ride", "idle": "ride" },
                               "attach": [{ "role": "mount.horse", "offset": [0, 0, 0.06], "scale": 1.75 }] }
   }
@@ -187,7 +187,7 @@ einen Punkt zusammengezogen. Kein Shader-Zweig, keine zusätzlichen Zeichenaufru
 |---|---|
 | Dateiformat | glTF 2.0 binär (`.glb`), eine Figur je Datei, ein Skelett (`skin`) |
 | Achsen | Y nach oben, Figur schaut nach **+Z**, steht mit den Füßen auf y = 0 (Ursprung zwischen den Füßen) |
-| Einheiten | Meter; die Größe wird über `height` im Manifest angepasst (Leibeigener ≈ 0,9–1,0 Kachel) |
+| Einheiten | Meter; die Größe wird über `height` im Manifest angepasst. **Alle Figuren gleich hoch (0,81 Kachel)** – auch Helden und Hauptleute (kein Rollen-`scale`); gemessen wird das erste Bild von `idle` ohne Werkzeuge (`props`); die Grundhaltung (Bild 0) ist bei Helden und Soldaten gebückt und machte sie früher ~20 % zu groß. Lauftempo: siehe „Lauftempo“ unten |
 | Skelett | ≤ 64 Knochen (Humanoid, z. B. Mixamo-/Tripo-Rig), max. 4 Gewichte je Ecke; alle Teile am **selben** Skelett |
 | Waffen, Hüte | als eigene Netze an Knochen gehängt (Kind eines Hand-/Kopf-Knochens) oder mitgeskinnt; Namen eindeutig, im Manifest unter `include` |
 | Animationen | in derselben GLB, Namen frei (Zuordnung im Manifest). Schleifen (Idle, Walk, Run, Arbeit) nahtlos, 0,6–2 s; Death einmalig |
@@ -245,7 +245,19 @@ Skelett und denselben Animationen:
 | wann | Figur über ~80 px hoch (Zoom „nah“, auch am Handy) | mittlerer Zoom und weiter (Standardzoom: ~25 px) |
 | Netz | Meshy 7.1 mit PBR, ~11 000 Dreiecke | dasselbe Modell per Meshy-Remesh auf ~2 000 Dreiecke, ohne eigenes Rig (Gewichte vom Nahmodell) |
 | Aussehen | Textur 2048 + Normal-Map, Farben wie von Meshy | Textur 1024 + Normal-Map, gleiche Farben |
-| Datei | `<Modell>.glb` | `<Modell>.lod1.glb` |
+| Datei | `<Modell>.glb` (ohne Animationen) | `<Modell>.lod1.glb` (mit Skelett, Werkzeugen und **allen Animationen**) |
+| geladen | erst, wenn eine Figur die Nahstufe bräuchte (heranzoomen, Dialogkamera) | sobald die Rolle auftaucht |
+
+**Nahmodell bei Bedarf.** Das Spiel backt die Knochen-Textur aus der Datei mit den Animationen – das ist das
+Spielmodell (~0,8 MB statt 0,6 MB + 2,4 MB). Das Nahmodell (2048er-Textur, ~2,2 MB) fordert `requestNearModel`
+an, sobald eine Figur dieses Modells die Stufe 0 erreicht; bis dahin zeigt sie auch nah das Spielmodell. Kommt
+die Datei an, baut `variantStale` die Darstellung mit beiden Stufen neu (gleiche Knochen-Textur, gleiche Größe –
+Maß ist immer das Modell mit den Animationen). Ältere Figuren mit Animationen nur im Nahmodell laden es wie
+früher gleich mit. Umstellung bestehender Dateien: `node scripts/asset-gen/anims-to-game.mjs [Modell …]`
+(postprocess.mjs ruft es für neue Figuren selbst auf). Dabei rückt das Skript bei animierten Werkzeug-Knoten die
+Entquantisierung in einen Kindknoten (`<Teil>_netz`), sonst überschriebe die Animation sie und das Werkzeug säße
+falsch in der Hand. Prüfung: `tests/render/characterBake.test.js` vergleicht für jede Figur die gebackene Pose
+des Nahmodells mit dem CPU-Skinning von three.js (Körper exakt, Werkzeuge auch im Spielmodell an derselben Stelle).
 
 Teamfläche: Magenta in der Textur (Manifest `teamMarker: true`), der Shader färbt sie beim Zeichnen in die
 Spielerfarbe (`charMarker`, gleiche Regel wie `markerWeight`). Die Lücken zwischen den UV-Inseln sind vollständig
@@ -343,7 +355,9 @@ Arbeitsbewegungen: Holzhacken und Spitzhacke als Text-Bewegung, Hämmern aus der
 2. Im Manifest unter `models` eintragen (Clips, Größe, Teamfarbe) und die Rolle(n) unter `roles` darauf zeigen lassen.
 3. `node scripts/trim-animations.mjs public/models/characters/Farmer.glb` – entfernt Clips, die das Manifest nicht nennt.
 4. `node scripts/build-lods.mjs public/models/characters/Farmer.glb` – erzeugt `Bauer.lod1…3.glb`; `"lods": 3` im Manifest.
-5. Prüfen: `npx vitest run tests/render` (Manifest gültig?), Spiel mit `?debug=1&quality=high` öffnen.
+5. `node scripts/asset-gen/anims-to-game.mjs Farmer` – Animationen ins Spielmodell, damit das Nahmodell erst bei
+   Bedarf geladen wird.
+6. Prüfen: `npx vitest run tests/render` (Manifest gültig, Posen stimmen?), Spiel mit `?debug=1&quality=high` öffnen.
 
 ## Technik der Figuren
 
@@ -407,8 +421,16 @@ node scripts/asset-gen/building.mjs build wohnhaus     # → public/models/build
 - **Ohne Wimpel** (`spec.banner: false`): Ruinen und neutrale Objekte. **Ohne Symbol** (kein `spec.icon`): Bild 1 bleibt
   leer, die Beschreibung trägt allein (Brücke, Lagerfeuer).
 - **Einpassen im Spiel:** je Achse auf die Grundfläche (`OWN_BUILDING_FILL` vergrößert einzelne Modelle),
-  Gruben versenkt mit dunkler Öffnung
-  (`OWN_BUILDING_PIT`: Anteil unter der Bodenscheibe; darunter eine schwarze Fläche: geschlossene Hülle der Bodenscheibe, das Modell liegt 3 cm darüber).
+  Gruben versenkt mit dunkler Öffnung (`OWN_BUILDING_PIT`: `ground` = Anteil unter der Bodenscheibe, das Modell liegt
+  3 cm über dem Gelände). Darunter liegt eine „Folie“ (`src/render/pit.js`, einmal je Modell gerechnet): Draufsicht
+  gerastert (höchste Fläche je Zelle bis knapp über der Bodenscheibe), tiefe Zellen ohne Verbindung nach außen
+  (Flood-Fill, Lücken im Wall bis 2 Zellen überbrückt) = Loch; Inseln (Eimer) gefüllt, zugebaute Stücke (Hütte,
+  Kohlenhaufen) verworfen; weichgezeichnete Kontur per Marching Squares, nicht konvex, nie über den Randwall hinaus.
+  Gemalte Textur: Erde in der Farbe `rim` am Rand (weich ausgeblendet) → Schwarz in der Mitte (Abstand zum Rand),
+  Erdklumpen als Rauschen. Kein Loch gefunden → alte schwarze Hülle (`shrink`).
+  `gallows`: stellt zwei Holzpfosten mit Querbalken unter einen frei schwebenden Eimerklotz (`hangerBeam`) – Notbehelf,
+  falls Meshy die Stützen verliert. Derzeit ungenutzt: `clay_mine` ist neu erzeugt (nur Vorderansicht; mit Rückansicht
+  hatte Meshy den Galgen verloren und den Boden zum Erdklotz gemacht, alte Fassung in `assets-src/buildings/clay_mine/old-v1/`).
 - **Baustelle und Trümmer** (Gerüst, Bauphasen stage_A–C, `destroyed` aus dem KayKit-Paket): gemalte Bretter und
   Mauerwerk triplanar darübergelegt (`src/render/painted.js`, Texturen `planks`/`masonry` aus `ground.mjs`); bläuliche
   Steine werden warm grau. Vergleich mit `?nature=off`, auf Stufe „niedrig“ aus.
@@ -416,3 +438,13 @@ node scripts/asset-gen/building.mjs build wohnhaus     # → public/models/build
   Ruinen je Typ (`RUIN_ASSETS`: `village_ruin`, `house_ruin`, sonst Trümmer); Siedlungsplätze (nur dort darf ein
   Dorfzentrum stehen) zeigen die Dorfzentrum-Ruine – wie im Vorbild ein verlassenes Dorfzentrum zum Wiederaufbau; Lagerfeuer (`campfire`) mit Flammen als
   Partikel. Alle werden bei Bedarf nachgeladen.
+
+## Lauftempo
+
+Die Beine laufen mit der Bodengeschwindigkeit mit (`strideSpeed`/`strideRate` in `src/render/characters.js`):
+Beim Laden wird je Lauf-Clip (`walk`, `run`, `carry`) gemessen, wie schnell der Standfuß relativ zum Körper nach
+hinten gleitet (Median über alle Bildpaare). Abspieltempo = tatsächliche Geschwindigkeit (Weg je Takt × Spieltempo)
+/ diese natürliche Geschwindigkeit, geglättet und ohne Phasensprung. Die Meshy-Lauf-Clips gehen mit kurzen
+Schritten fast auf der Stelle (~0,3 Kacheln/s); volles Schritthalten wäre ×7, darum ist das Tempo auf 0,6–2,2
+begrenzt. Ein Clip mit echter Schrittlänge (Meshy „Walking“ ohne „in place“-Dämpfung) bräuchte keine Grenze.
+

@@ -23,7 +23,7 @@ npm run build   # Produktionsbuild nach dist/ (statische Website, alle Pfade rel
 | `manual/` | Handbuch DE/EN mit Inhaltsverzeichnis, Suche, Druckansicht (Markdown in `src/site/manual/`) |
 | `compendium/` | Kompendium: alle Werte und Formeln mit Seitenleiste, Suche, Deep-Links – alle Tabellen aus `src/sim/data/` erzeugt, neue Inhalte erscheinen automatisch |
 
-Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](docs/WEBSITE.md).
+Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](docs/WEBSITE.md). Laden und Caching (Inhalts-Hash, Datenmengen): [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Stand
 
@@ -56,10 +56,12 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Orte, Missionen programmieren,
   Welt aus Code erzeugen, als JSON speichern, testspielen) und eigene Szenario-Dateien.
   Direktstart: `play/?mission=adv1` … `adv5`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
-- **Schaukasten** (`play/?mission=showcase`, oder Startmenü → Programmier-Abenteuer → „Schaukasten“): eine Karte
-  ohne Nebel und ohne Gegner, auf der jedes Gebäude in jeder Ausbaustufe, Baustellen, Ruinen, Brücke, Rohstoffe,
-  Arbeiter jedes Berufs, alle Truppen, die vier Helden, Räuber und ein Lagerfeuer stehen – zum Prüfen der Modelle.
-  Details: [Missionen](docs/MISSIONEN.md#showcase).
+- **Sonderkarten** (Startmenü → „Sonderkarten“): fertige Einzelkarten ohne Sieg und Niederlage, ohne Nebel.
+  - **Schaukasten** (`play/?mission=showcase`): jedes Gebäude in jeder Ausbaustufe, Baustellen, Ruinen, Brücke,
+    Rohstoffe, Arbeiter jedes Berufs, alle Truppen, die vier Helden, Räuber und ein Lagerfeuer – zum Prüfen der Modelle.
+  - **Gewimmel** (`play/?mission=bustle`): Belastungsprobe mit vier ausgebauten Städten (~180 Gebäude), über
+    tausend Figuren und zwei Schlachten mit ständigem Nachschub – zum Prüfen der Darstellung unter Last.
+  Details: [Missionen](docs/MISSIONEN.md#sonderkarten).
 - **Freies Spiel**: Im Startmenü Gegnerzahl (1–3), Stärke, Held (Nelia, Orrin, Taran oder Malvor), Nebel des Krieges an/aus und Karte wählen.
 - Direktstart per Adresse: `play/?seed=42&ai=hard&players=3&hero=orrin` (ohne Nebel: `&fog=off`)
 - **Brücken und Zierden** nach Vorbild der Siedler-5-Erweiterungen, fest im Spiel: Brücken an Brückenstellen über
@@ -112,6 +114,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   Platz trotzdem nicht, wird die Rohstoffleiste zweizeilig, das Wappen bleibt in der Zeile. Am Handy: unten rechts nur
   ein Kartenknopf, der Minikarte und Schnellzugriff als kleine Tafel aufklappt; Helden als Reihe darüber; die Ziele
   als kleiner Knopf oben links, der sie bildschirmfüllend zeigt („Ziel zeigen“ springt hin und schließt die Ansicht).
+- **Angriffswarnung**: Sturmglocke, Hilferuf der Getroffenen (vertont) und roter Puls an der Stelle auf der Minikarte
+  (am Handy pulsiert der Kartenknopf), auch bei Fernangriffen; fremde Figuren und Gebäude nennen ihre Diplomatie (Feind,
+  neutral, verbündet). Angegriffene Leibeigene fliehen; gewählte Leibeigene greifen einen angeklickten Gegner an (wie beim Holzhacken).
 - **Lagerfeuer zeigen Wohnungsnot**: Arbeiter ohne Bett oder Essplatz entzünden nahe ihrer Werkstatt ein Lagerfeuer
   (auch auf der Minikarte), das wieder ausgeht, sobald dort alle untergebracht sind ([Spielregeln §4](docs/SPIELREGELN.md#4-arbeiter-motivation-steuern)).
 - Jedes Symbol ist erklärt: Maus darüber (Desktop) oder **lang drücken** (Handy) zeigt Name, Kosten und Erklärung,
@@ -179,4 +184,6 @@ Die bunten Symbole (Rohstoffe, Gebäude, Einheiten …) stammen aus einem Sprite
 - [Entwicklermodus: was man zeigen kann, Unterrichtsideen](docs/ENTWICKLERMODUS.md)
 - [QA-Bericht: Befunde, Fuzz-/Dauertests, Leistung](docs/QA-BERICHT.md)
 - [Website: Seiten, Handbuch und Kompendium erweitern](docs/WEBSITE.md)
+- [Laden, Caching und Datenmengen (Inhalts-Hash, Service-Worker, Ladebericht)](docs/PERFORMANCE.md)
+- [Rohdateien der Asset-Pipeline außerhalb von Git](docs/ROHDATEIEN.md)
 - [Lizenzen und Danksagung](CREDITS.md)

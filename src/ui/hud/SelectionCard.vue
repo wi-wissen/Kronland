@@ -5,7 +5,8 @@
     <div v-if="!narrow" class="sc-plaque frame">
       <div class="sc-title">
         <b>{{ title }}</b>
-        <small>{{ subtitle }}</small>
+        <small v-if="subtitle">{{ subtitle }}</small>
+        <RelationTag v-if="sel.kind === 'building' && !sel.own" :relation="sel.relation" :owner="sel.owner" />
       </div>
       <SelectionStats v-if="sel.kind === 'building'" :sel="sel" />
       <template v-else-if="sel.kind === 'serfs'">
@@ -22,7 +23,7 @@
         <span><Icon name="soldiers" />{{ $t('army.soldiers', { n: sel.soldiers }) }}</span>
         <span v-if="sel.heroes.length"><Icon name="crown" />{{ $t('card.heroes', { n: sel.heroes.length }) }}</span>
       </div>
-      <p v-else class="sc-hint">{{ relation }}</p>
+      <p v-else-if="sel.kind === 'foreign'" class="sc-hint"><RelationTag :relation="sel.relation" :owner="sel.owner" /></p>
     </div>
     <div class="sc-portrait" :style="ownerStyle">
       <span class="sc-pic">
@@ -37,13 +38,14 @@
 
 <script>
 import SelectionStats from './SelectionStats.vue';
+import RelationTag from './RelationTag.vue';
 import { playerColor } from '../plugin.js';
-import { selectionIcon, selectionPortrait } from './hudLayout.js';
+import { selectionIcon, selectionPortrait, foreignName } from './hudLayout.js';
 import { siteRoot } from '../../paths.js';
 
 export default {
   name: 'SelectionCard',
-  components: { SelectionStats },
+  components: { SelectionStats, RelationTag },
   props: {
     ui: { type: Object, required: true },
     touch: Boolean,
@@ -68,7 +70,7 @@ export default {
       if (s.kind === 'building') return this.$name.building(s.type, s.levelIndex);
       if (s.kind === 'serfs') return s.count === 1 ? this.$t('serfs.one') : this.$t('serfs.count', { n: s.count });
       if (s.kind === 'army') return s.heroes.length === 1 && !s.groups.length ? this.$name.hero(s.heroes[0].hero) : this.$t('army.title');
-      if (s.kind === 'foreign') return s.entity === 'ruin' ? this.$t('sys.ruin') + (s.type ? ' · ' + this.$name.building(s.type, s.level ?? 0) : '') : s.hero ? this.$name.hero(s.hero) : s.unit ? this.$name.unit(s.unit) : this.$t('foreign.' + (s.entity === 'unit' ? 'serf' : s.entity in { worker: 1, hero: 1, soldier: 1 } ? s.entity : 'unit'));
+      if (s.kind === 'foreign') return foreignName(s, this.$t, this.$name);
       return '';
     },
     subtitle() {
@@ -76,13 +78,7 @@ export default {
       if (s.kind === 'building') return this.$t('common.levelOf', { n: s.level, max: s.maxLevel }) + (s.profession ? ' · ' + this.$name.prof(s.profession) : '');
       if (s.kind === 'serfs') return this.$t('serfs.idle', { n: s.idle });
       if (s.kind === 'army') return s.heroes.length === 1 && !s.groups.length ? this.$name.heroTitle(s.heroes[0].hero) : this.$t('army.soldiers', { n: s.soldiers });
-      if (s.kind === 'foreign') return this.relation;
       return '';
-    },
-    relation() {
-      const o = this.sel?.owner;
-      if (o === undefined || o < 0) return '';
-      return this.$t('foreign.enemy') + ' · ' + this.$t('common.player', { n: o + 1 });
     },
     ownerStyle() {
       const o = this.sel?.kind === 'foreign' || this.sel?.kind === 'building' ? this.sel.owner : 0;

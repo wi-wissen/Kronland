@@ -4,6 +4,8 @@
 // code blocks (```), **bold**, *italic*, `code`, [link](target), [[key]] → <kbd>, placeholders {{name}} from `vars`, \* escaped.
 // Relative image and link targets are resolved against the website root (`base`), anchors (#…) stay.
 
+import { assetPath } from '../paths.js';
+
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
 export const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ESC[c]);
 
@@ -16,6 +18,8 @@ export function slugify(s) {
 }
 
 const isAbs = (u) => /^([a-z]+:|#|\/)/i.test(u);
+/** Image relative to the root → URL (hashed file in the build, see src/paths.js). */
+const imgSrc = (src, base) => (isAbs(src) ? src : base + assetPath(src));
 
 function inline(s, opt) {
   const base = opt.base ?? '';
@@ -25,7 +29,7 @@ function inline(s, opt) {
   // Escaped characters (\*, \_, \[ …) stay literal
   s = s.replace(/\\([\\`*_[\]{}#|])/g, (m, c) => { out.push(escapeHtml(c)); return `\u0000${out.length - 1}\u0000`; });
   s = escapeHtml(s);
-  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, src) => `<img src="${isAbs(src) ? src : base + src}" alt="${alt}" loading="lazy" decoding="async">`);
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, src) => `<img src="${imgSrc(src, base)}" alt="${alt}" loading="lazy" decoding="async">`);
   s = s.replace(/\[\[([^\]]+)\]\]/g, '<kbd>$1</kbd>');
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, text, href) => {
     const ext = /^https?:/i.test(href);
@@ -61,10 +65,10 @@ export function renderMarkdown(src, opt = {}) {
     para = [];
     const img = /^!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(p);
     if (img) {
-      const src = isAbs(img[2]) ? img[2] : (opt.base ?? '') + img[2];
+      const src = imgSrc(img[2], opt.base ?? '');
       // smaller version for narrow screens (opt.small returns its path or null)
       const small = opt.small?.(img[2]);
-      const set = small ? ` srcset="${isAbs(small) ? small : (opt.base ?? '') + small} 720w, ${src} 1440w" sizes="(max-width: 760px) 100vw, 50rem"` : '';
+      const set = small ? ` srcset="${imgSrc(small, opt.base ?? '')} 720w, ${src} 1440w" sizes="(max-width: 760px) 100vw, 50rem"` : '';
       html.push(`<figure><img src="${src}"${set} alt="${escapeHtml(img[1])}" loading="lazy" decoding="async"><figcaption>${inline(img[1], opt)}</figcaption></figure>`);
     } else html.push(`<p>${inline(p, opt)}</p>`);
   };

@@ -306,7 +306,7 @@ describe('Battle intensity and ambience', () => {
   });
 
   it('ambient layers per weather', () => {
-    expect(ambientTargets('summer')).toMatchObject({ summer: 0.75, rain: 0, winter: 0 });
+    expect(ambientTargets('summer', 0, 0, 1, { forest: 1 })).toMatchObject({ summer: 0.6, rain: 0, winter: 0, wind: 0 });
     expect(ambientTargets('rain').rain).toBeGreaterThan(0);
     expect(ambientTargets('winter', 1).water).toBe(0);
     expect(ambientTargets('summer', 1, 1, 0.5).battle).toBeCloseTo(0.4);

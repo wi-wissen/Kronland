@@ -41,18 +41,36 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
 
 - Kosten 50 Taler, gekauft in der Burg, belegen 1 Bevölkerungsplatz.
 - 200 LP, Angriff 5, Rüstung 0. Kein Haus, kein Hof, keine Steuern, keine Motivation.
-- Aufgaben (vom Spieler befohlen): bauen (max. 4 je Baustelle), reparieren, Holz fällen,
+- Aufgaben (vom Spieler befohlen): bauen (max. 4 je Baustelle, so viele Plätze frei sind), reparieren, Holz fällen,
   Haufen abbauen. Nach getaner Arbeit suchen sie im Umkreis gleichartige Arbeit **(A)**
   (auch nach einer Reparatur: nächstes beschädigtes eigenes Gebäude).
 - Abbau verteilt sich: höchstens 1 Leibeigener je Baum und 4 je Rohstoffhaufen **(A)**. Schickt man
   mehrere zu einem Baum, gehen die übrigen zu freien Bäumen in der Nähe (Umkreis 12 Kacheln, nur
   erreichbare). Ist dort nichts mehr frei, teilen sie sich einen Baum; ist gar nichts mehr da, bleiben sie
   untätig und es erscheint die Meldung „Kein Holz mehr in der Nähe“.
+- **Feste Plätze – nie zwei auf einer Kachel**: Wer baut, repariert, Holz fällt oder einen Haufen abbaut,
+  belegt eine eigene freie Kachel direkt an der Grundfläche bzw. am Baum/Haufen (die nächste zu ihm,
+  im selben Gebiet). Sind rundum alle Kacheln belegt (auch von Leibeigenen an Nachbarbäumen oder
+  Nachbarbaustellen, von wartenden Arbeitern), ist das Ziel voll: Eine Baustelle nimmt dann keinen
+  weiteren Leibeigenen an (Meldung „An der Baustelle ist kein Platz mehr frei“, `err.siteFull`), beim
+  Abbau weichen die übrigen auf den nächsten Baum/Haufen mit freiem Platz aus. Die Obergrenze von 4 je
+  Baustelle bleibt; frei werdende Plätze (Abzug, Tod, Abbruch, Miliz) werden sofort wieder vergeben.
+  Umsetzung: `src/sim/systems/spots.js`; der Platz steht an der Figur (`spot`, gespeichert und im
+  Zustands-Hash), die belegten Plätze werden daraus abgeleitet. KI und Missions-Bots schicken nur so
+  viele Leibeigene, wie Plätze frei sind (`siteRoom`). Im Kampf und bei Laufbefehlen gilt das nicht
+  (dort fächern Formationen bzw. Zielkacheln auf).
 - Laufbefehle fächern auf: Jede Figur bekommt eine eigene Zielkachel um den Klickpunkt (Leibeigene
   1 Kachel Abstand, Truppen und Helden 3 Kacheln, damit die Soldaten dahinter Platz haben).
 - Beim Platzieren eines Gebäudes mit ausgewählten Leibeigenen fangen diese sofort an zu bauen.
 - Über jeder Baustelle (auch beim Ausbau) zeigt ein blauer Balken den Baufortschritt.
-- „Zu den Waffen“: werden zu Miliz (Angriff 9, Rüstung 1), rückverwandelbar.
+- Angreifen wie Holzhacken (Vorbild): Leibeigene wählen, dann Gegner statt Baum anklicken (Rechtsklick bzw.
+  Tippen) – sie greifen mit bloßen Fäusten an (Angriff 5, Arbeitsauftrag `fight`), bis er fällt; Gebäude nicht.
+  Wer kämpft, flieht nicht.
+- „Zu den Waffen“ in der Burg: alle Leibeigenen werden Miliz (Angriff 9, Rüstung 1), rückverwandelbar
+  („Entwarnung“ in der Burg oder „An die Arbeit“ bei gewählter Miliz).
+- Angegriffen wehren sich Leibeigene nicht von selbst (wie im Vorbild): Sie **fliehen** 6 s lang (`fleeTicks`) zur
+  Burg – oder vom Angreifer weg (`fleeTiles` = 8 Kacheln), wenn der näher an der Burg steht – und arbeiten danach
+  an ihrer Aufgabe weiter. Miliz flieht nicht.
 
 ## 4. Arbeiter, Motivation, Steuern
 
@@ -68,6 +86,11 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
   So zeigen Lagerfeuer (auch als orange Punkte auf der Minikarte), wo Wohnhäuser oder Bauernhöfe fehlen;
   beim ersten Feuer kommt eine Meldung (höchstens einmal je Minute). Findet sich kein Platz, rasten sie wie
   früher an Dorfzentrum oder Burg. Burg und Dorfzentrum haben kein festes Lagerfeuer mehr.
+- **Plätze am Lagerfeuer**: Rastende sitzen im Kreis auf den 8 Kacheln um das Feuer, jeder auf seiner
+  eigenen. Ist der Kreis voll, nimmt der Nächste ein anderes Feuer in Reichweite mit freiem Platz oder
+  entzündet ein weiteres (mind. 3 Kacheln vom nächsten Feuer, die Kreise überschneiden sich nicht).
+  Ebenso bekommen Arbeiter, die draußen vor ihrem Arbeitsplatz warten (Ausbau, keine Rohware), eine
+  eigene Kachel daneben. Nur wenn wirklich alles belegt ist, stellen sie sich wie früher irgendwo dazu.
 - Wohnhaus 6/9/12 Betten, Bauernhof 8/10/12 Essplätze (Stufe 1/2/3).
 - Umsetzung (Werte in `src/sim/data/professions.js`): Ausdauer max. 2000 (neue Arbeiter 600),
   ein Arbeitsgang kostet 100. Essen +200, Schlafen +400 – jeweils × Motivationswirkung; Lagerfeuer
@@ -265,6 +288,9 @@ sind kumulativ (Stufentexte aus dem Handbuch, Zahlen **(A)**):
 - Diplomatie (Missionen): zwischen zwei Spielern *feindlich*, *neutral* oder *verbündet*. Standard aus den Teams;
   Neutrale greifen einander nicht an, teilen aber keine Sicht. Dörfer sind Spielerplätze ohne Burg und anfangs
   neutral (wie im Vorbild).
+- Fremde Auswahl: Die Tafel nennt die Diplomatie mit farbigem Punkt (rot Feind, gold neutral, grün verbündet;
+  Räuber heißen Räuber, Dörfer mit Namen). Fremde, nicht verbündete Gebäude zeigen nur Name, Stufe und
+  Lebenspunkte – Arbeiter, Betten, Essplätze und Stimmung bleiben verborgen.
 - Rekrutieren: volle Einheit oder nur Hauptmann; Soldaten nachkaufen am Militärgebäude.
 - Aufwerten einer Truppengattung (Stufe 2: passender Veredler, Stufe 3: ausgebautes
   Militärgebäude, Stufe 4: zusätzlich Festung) wertet auch bestehende Truppen auf.

@@ -7,7 +7,7 @@ import { loadAudioSettings, saveAudioSettings, broadcastAudioSettings, normalize
 import { VoiceLimiter } from './voices.js';
 import { spatialize } from './spatial.js';
 import { parseManifest, emptyManifest, lookup, pickFile, MANIFEST_URL } from './manifest.js';
-import { siteUrl } from '../paths.js';
+import { siteUrl, assetUrl } from '../paths.js';
 import { SFX } from './sfx.js';
 import { createReverb } from './synth.js';
 import { mulberry32 } from './rng.js';
@@ -184,7 +184,7 @@ export class AudioEngine {
   async loadManifest() {
     if (typeof fetch === 'undefined') return;
     try {
-      const res = await fetch(siteUrl(MANIFEST_URL), { cache: 'no-cache' });
+      const res = await fetch(siteUrl(MANIFEST_URL));
       if (!res.ok) return;
       const type = res.headers.get('content-type') ?? '';
       if (type.includes('html')) return;
@@ -205,7 +205,7 @@ export class AudioEngine {
     if (!this.ctx || typeof fetch === 'undefined') return Promise.resolve(null);
     let p = this.buffers.get(url);
     if (!p) {
-      p = fetch(url)
+      p = fetch(assetUrl(url))
         .then((r) => (r.ok && !(r.headers.get('content-type') ?? '').includes('html') ? r.arrayBuffer() : null))
         .then((ab) => (ab ? new Promise((res) => { this.ctx.decodeAudioData(ab, res, () => res(null)); }) : null))
         .catch(() => null);

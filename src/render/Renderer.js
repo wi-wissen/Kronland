@@ -16,7 +16,7 @@ import { CharacterSystem, sharedCharacterRoots } from './characters.js';
 import { Effects, HealthBars, GroundMarks, sharedPuffTexture } from './effects.js';
 import { CameraRig, nearFactor } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
-import { UNIT } from '../sim/fixed.js';
+import { UNIT, TICKS_PER_SECOND } from '../sim/fixed.js';
 import { WATER, CLIFF, OCCUPIED, RESERVED, BRIDGE } from '../sim/map.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -801,6 +801,7 @@ export class Renderer {
     this.bars.begin();
     this.marks.begin();
     this.selectedIds = view.selected;
+    this.gameSpeed = view.speed ?? 1;
     const seen = new Set();
     // fog of war: game end or eliminated player sees everything
     const fog = this.fog;
@@ -1192,6 +1193,12 @@ export class Renderer {
     return `soldier.${line}${e.kind === 'leader' ? '.leader' : ''}`;
   }
 
+  /** Ground speed in tiles per real-time second (for the walking pace of the legs); 0 when standing. */
+  groundSpeed(e, prev) {
+    if (!prev) return 0;
+    return (Math.hypot(e.px - prev.px, e.py - prev.py) / UNIT) * TICKS_PER_SECOND * (this.gameSpeed ?? 1);
+  }
+
   syncUnit(e, alpha, prev, dt) {
     const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
     const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
@@ -1204,7 +1211,12 @@ export class Renderer {
     let visible = true;
     if (e.kind === 'worker') {
       visible = !e.inside;
-      if (e.state === 'camping') clip = 'sit';
+      if (e.state === 'camping') {
+        clip = 'sit';
+        // turn towards the fire (resting workers sit in a circle)
+        const f = this.sim.entities.get(e.target);
+        if (f) yaw = Math.atan2(f.x + (f.w ?? 1) / 2 - x, f.y + (f.h ?? 1) / 2 - z);
+      }
     } else {
       const working = !moving && e.job && e.path.length === 0;
       if (working) {
@@ -1218,7 +1230,7 @@ export class Renderer {
     }
     st.set(e.id, yaw);
     const tint = e.kind === 'worker' ? PROF_COLORS[e.prof] ?? null : null;
-    this.chars.set(e.id, this.roleOf(e), { x, y: this.groundY(x, z), z, yaw, clip, team: playerHex(e.owner), tint, visible, speed: 1 });
+    this.chars.set(e.id, this.roleOf(e), { x, y: this.groundY(x, z), z, yaw, clip, team: playerHex(e.owner), tint, visible, speed: 1, ground: this.groundSpeed(e, prev) });
   }
 
   /** Captains, soldiers, heroes, traps and siege weapons. */
@@ -1272,7 +1284,7 @@ export class Renderer {
     const ranged = line === 'bow' || line === 'lightCav';
     const clip = e.down ? 'die' : attacking ? (ranged ? 'shoot' : 'attack') : moving ? (line === 'lightCav' || line === 'heavyCav' ? 'run' : 'walk') : 'idle';
     const role = this.roleOf(e);
-    const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: playerHex(e.owner), speed: line === 'cannon' ? 0.6 : 1 });
+    const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: playerHex(e.owner), speed: line === 'cannon' ? 0.6 : 1, ground: this.groundSpeed(e, prev) });
     // hoof dust
     if (moving && (line === 'lightCav' || line === 'heavyCav') && this.fx.chance(0.22) && rec.lod.level >= 0 && rec.lod.level <= 1) this.fx.hoofDust(x, y, z);
     // health bars: captains (squad as a whole) and heroes
@@ -1286,7 +1298,7 @@ export class Renderer {
       frac = Math.max(0, cur / total);
     } else frac = Math.max(0, e.hp / HEROES[e.hero].hp);
     const sel = this.selectedIds?.has(e.id);
-    if (frac < 0.999 || sel || e.kind === 'hero') this.bars.add(x, y + (e.kind === 'hero' ? 1.55 : 1.3) + (rec.variant?.seat ?? 0), z, frac, e.kind === 'hero' ? 40 : 32, 6);
+    if (frac < 0.999 || sel || e.kind === 'hero') this.bars.add(x, y + (e.kind === 'hero' ? 1.38 : 1.3) + (rec.variant?.seat ?? 0), z, frac, e.kind === 'hero' ? 40 : 32, 6);
   }
 
   addProjectile(ev) {

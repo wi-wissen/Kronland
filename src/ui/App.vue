@@ -1,6 +1,7 @@
 <template>
-  <StartMenu v-if="screen === 'menu'" :latest="latest" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" @adventures="screen = 'adventures'" />
+  <StartMenu v-if="screen === 'menu'" :latest="latest" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" @adventures="screen = 'adventures'" @special="screen = 'special'" />
   <CampaignMenu v-else-if="screen === 'campaign'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @tutorial="startMission('tutorial')" />
+  <SpecialMapsMenu v-else-if="screen === 'special'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" />
   <AdventureMenu v-else-if="screen === 'adventures'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @editor="openEditor()" @open="startScenario($event)" />
   <WorldEditor v-else-if="screen === 'editor'" :initial="editorScenario" :touch="touchDevice" @back="closeEditor" @play="startScenario($event, 'editor')" @change="editorScenario = $event" />
 
@@ -108,11 +109,12 @@ import StartMenu from './StartMenu.vue';
 import GameMenu from './GameMenu.vue';
 import Tooltip from './Tooltip.vue';
 import CampaignMenu from './mission/CampaignMenu.vue';
+import SpecialMapsMenu from './mission/SpecialMapsMenu.vue';
 import MissionHud from './mission/MissionHud.vue';
 import MissionResult from './mission/MissionResult.vue';
 import AdventureMenu from './script/AdventureMenu.vue';
 import { recordWin, loadProgress } from './mission/progress.js';
-import { getMission } from '../sim/missions/registry.js';
+import { getMission, SPECIAL_MAPS } from '../sim/missions/registry.js';
 import { setMenuMusic } from '../audio/index.js';
 import { settings, applyPlayerColor } from './settings.js';
 import { clock } from './plugin.js';
@@ -132,7 +134,7 @@ const NARROW = 1500;
 export default {
   name: 'App',
   components: {
-    TopBar, CommandBar, ToastFeed, StartMenu, GameMenu, Tooltip, CampaignMenu, MissionHud, MissionResult, AdventureMenu,
+    TopBar, CommandBar, ToastFeed, StartMenu, GameMenu, Tooltip, CampaignMenu, SpecialMapsMenu, MissionHud, MissionResult, AdventureMenu,
     // Code panel and world editor: loaded only on demand
     ScriptPanel: defineAsyncComponent(() => import('./script/ScriptPanel.vue')),
     WorldEditor: defineAsyncComponent(() => import('./editor/WorldEditor.vue')),
@@ -184,7 +186,7 @@ export default {
   watch: {
     'dev.on'(on) { this.engine?.setDevMode(on); },
     // Menu music on start and campaign screens (plays after the first click; in-game GameAudio takes over)
-    screen: { immediate: true, handler(s) { if (s === 'menu' || s === 'campaign' || s === 'adventures' || s === 'editor') setMenuMusic(true); else if (s === 'loading') setMenuMusic(false); } },
+    screen: { immediate: true, handler(s) { if (['menu', 'campaign', 'adventures', 'special', 'editor'].includes(s)) setMenuMusic(true); else if (s === 'loading') setMenuMusic(false); } },
     // Autosave every 5 game minutes (setting "Save automatically")
     'ui.tick'(tick) {
       if (tick !== undefined && settings.autosave && autosaveDue(tick, this.lastAutoTick ?? tick)) this.autosave();
@@ -288,8 +290,8 @@ export default {
       if (!def) return;
       this.recorded = false;
       this.record = false;
-      // Showcase is in the coding adventure menu: go back there
-      this.origin = def.scenario || def.showcase ? 'adventures' : 'campaign';
+      // Special maps (showcase, stress test) have their own menu: return there
+      this.origin = SPECIAL_MAPS.includes(def) ? 'special' : def.scenario ? 'adventures' : 'campaign';
       const players = def.players.filter((p) => p.kind !== 'bandits').length + (def.players.some((p) => p.kind === 'bandits') ? 1 : 0);
       this.boot({ mission: { id, seed: extra.seed }, players, noAssets: extra.noAssets });
     },
@@ -313,7 +315,7 @@ export default {
     },
     closeEditor() { this.screen = 'adventures'; },
     toCampaign() {
-      const back = this.origin === 'editor' ? 'editor' : this.origin === 'adventures' ? 'adventures' : 'campaign';
+      const back = ['editor', 'adventures', 'special'].includes(this.origin) ? this.origin : 'campaign';
       this.quit();
       this.screen = back;
     },
@@ -405,6 +407,7 @@ export default {
       else if (a.kind === 'recruit') e.recruit(a.id, a.line, a.full);
       else if (a.kind === 'upgradeLine') e.upgradeLine(a.line);
       else if (a.kind === 'militia') e.militia(a.on);
+      else if (a.kind === 'arm') e.armSelected(a.on);
       else if (a.kind === 'researchBuilding') e.researchBuilding(a.id, a.tech);
       else if (a.kind === 'trade') e.trade(a.id, a.give, a.take, a.amount);
       else if (a.kind === 'changeWeather') e.changeWeather(a.id, a.state);

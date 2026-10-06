@@ -17,7 +17,8 @@ das Spiel statt der Synthese. Fehlt eine Datei oder lässt sie sich nicht dekodi
 | `karplus.js` | Saitensynthese als reine Funktion (Puffer je Tonhöhe, zwischengespeichert) |
 | `composer.js` | Generative Musik: komponierte Melodien + Variation, deterministisch je Seed/Abschnitt |
 | `music.js` | Spielt Themen (Datei oder generativ), Überblendung, Sieg/Niederlage-Melodie |
-| `ambient.js` | Umgebungsschichten (Sommer, Regen, Winter, Wasser, Schlacht) mit Überblendung |
+| `ambient.js` | Umgebungsschichten (Laub, Regen, Winter, Wasser, Schlacht, Wind) mit Überblendung, seltene Vogelrufe |
+| `workbeat.js` | Arbeitsschläge im Takt der Animation, gemeinsames Tor gegen Salven (reine Funktionen) |
 | `spatial.js` | Abstandsdämpfung und Stereo-Panorama (reine Mathematik) |
 | `voices.js` | Stimmenbegrenzung je Klangart, Abklingzeit, globale Obergrenze mit Vorrang |
 | `battle.js` | Kampfintensität in Kameranähe, Themenwechsel mit Hysterese |
@@ -126,9 +127,10 @@ Direktzugriff: `getAudio().setVolume('sfx', 0.5)`, `getAudio().toggleMute()`.
 
 | Name | Wann |
 |---|---|
-| `summer` | Sommerwetter: Wind in Blättern, Vögel |
+| `summer` | Sommer, nur bei Wald nahe der Bildmitte: Laubrascheln (Datei darf Vögel enthalten, dann keine synthetischen) |
 | `rain` | Regenwetter |
 | `winter` | Winter: kalter Wind |
+| `wind` | Wind in der Höhe bzw. im Gebirge: nur weit herausgezoomt oder bei vielen Steilhängen im Bild |
 | `water` | Kamera nahe an Fluss/See (nicht im Winter) |
 | `battle` | ferner Schlachtenlärm, Lautstärke folgt der Kampfintensität |
 
@@ -136,9 +138,9 @@ Direktzugriff: `getAudio().setVolume('sfx', 0.5)`, `getAudio().toggleMute()`.
 
 | Name | Auslöser | Art |
 |---|---|---|
-| `chop` | Leibeigener fällt Holz (abgeleitet, ~1 Schlag/s) | räumlich |
-| `pickaxe` | Abbau an Stein-/Lehm-/Eisen-/Schwefelhaufen; Bergmann im Schacht | räumlich |
-| `hammer` | Leibeigener baut; Ziegelbrenner | räumlich |
+| `chop` | Leibeigener fällt Holz (ein Schlag je Axt-Animation, siehe [Arbeitsgeräusche](#arbeitsgeräusche)) | räumlich |
+| `pickaxe` | Abbau an Stein-/Lehm-/Eisen-/Schwefelhaufen (je Spitzhacken-Animation); Bergmann im Schacht | räumlich |
+| `hammer` | Leibeigener baut (je Hammer-Animation); Ziegelbrenner | räumlich |
 | `anvil` | Schmied arbeitet | räumlich |
 | `saw` | Sägewerker arbeitet | räumlich |
 | `chisel` | Steinmetz arbeitet | räumlich |
@@ -335,6 +337,10 @@ liest der Browser den Dialog vor (Einstellung „Dialoge vorlesen“), Sprüche 
 - **Dialoge** (`src/audio/speech.js`): Zum Sprecher und Text der Mitteilung wird die Aufnahme gesucht; sonst
   Sprachausgabe des Browsers. Der nächste Satz wartet, bis die Aufnahme zu Ende ist (`speak(…, { onEnd })`).
   Solange eine Stimme spricht, treten Musik (22 %) und Umgebung (55 %) zurück (`AudioEngine.duck`).
+- **Warnrufe** (`GameAudio.alarm`, aus `Engine.attackToast`): Wird Eigenes angegriffen, läutet die Sturmglocke
+  (`alarm` in `sfx.js`) und die getroffene Figur ruft (Anlass `alarm` in `barks.js`; bei Gebäuden und Arbeitern ein
+  Leibeigener). Unabhängig von der Einstellung „Sprüche der Figuren“, höchstens alle 20 s (`ALARM_REST`), nie über
+  einen Dialog oder Spruch.
 - **Sprüche** (`GameAudio.bark`, Regeln in `BarkGate`/`BARK_RULES`, `src/audio/barks.js`): beim Auswählen
   (Held vor Hauptmann vor Leibeigenem) und bei Befehlen (Laufen, Angreifen, Bauen, Abbauen) – aber **meist
   bleibt es still**, sonst nervt das beim Herumschicken. Einstellung „Sprüche der Figuren“:
@@ -354,6 +360,43 @@ liest der Browser den Dialog vor (Einstellung „Dialoge vorlesen“), Sprüche 
   Lautstärke über den Effekt-Regler. (Früher sperrte eine feste Pause von 1,8 s – kürzer als viele Aufnahmen
   mit bis zu 2,7 s Sprache –, daher überlagerten sich Sprüche; jede Auswahl sprach.)
 
+## Arbeitsgeräusche
+
+Arbeitsgeräusche der Leibeigenen folgen der **Animation** (`src/audio/workbeat.js`, `GameAudio.workFrame`):
+
+- `onTick` merkt sich die arbeitenden Leibeigenen in Hörweite (nicht im Nebel). Pro Bild fragt `workFrame` bei der
+  Darstellung den Takt der Figur ab (`CharacterSystem.beat(id)`: gezeigter Clip, Zeit im Clip, Zykluslänge,
+  tatsächlich gespielte Animation) und spielt **genau einen Schlag je Zyklus**, wenn das Werkzeug aufschlägt.
+- Stelle des Aufschlags (`STRIKE_PHASE`, gemessen an der Höhe der rechten Hand in den Clips der Leibeigenen):
+  `hammer` 1,62 s von 1,87 s, `chop` 1,17 s von 2,53 s, `mine` 0,93 s von 2,53 s; prozedurale Figuren
+  (`work`, 0,9 s) in der Mitte. Ohne Darstellung (Tests) gilt ein fester Rückfalltakt (`STRIKE_PERIOD`).
+- **Gemeinsames Tor** (`StrikeGate`): je Klangart höchstens ein Schlag je `STRIKE_GAP` (Hammer 0,42 s, Axt und
+  Spitzhacke 0,45 s, Amboss 0,6 s, Säge 0,9 s, Meißel 0,4 s, Kessel 1,2 s), verschiedene Arten mindestens 0,12 s
+  versetzt, 0–60 ms Zufallsverzögerung, Lautstärke ±13 % gestreut. Die Schläge eines Bildes kommen nach Nähe zur
+  Bildmitte dran; ein deutlich lauterer (näherer) Schlag darf schon nach dem halben Abstand. Entfernte sind über
+  die [räumliche Mischung](#räumlicher-klang) leiser.
+- Werkstätten (Arbeiter im Gebäude, ohne sichtbare Animation) schlagen weiter je Arbeiter alle 2,3 s Spielzeit,
+  ebenfalls durch das Tor. Pausiert das Spiel, schweigt die Arbeit.
+
+Vorher (gemessen über 60 s, 3 Leibeigene mit aufeinanderfolgenden Nummern an einer Baustelle): 257 Hammerschläge,
+Abstand 0,1–0,4 s – drei Schläge kurz hintereinander, alle 0,7 s, unabhängig von der Animation (1,87 s je Schlag).
+Ein einzelner Leibeigener schlug 86-mal statt 32-mal je Minute. Nachher: 32/min für einen, 64/min für drei,
+höchstens 97/min für viele, nie zwei Hammerschläge unter 0,42 s.
+
+## Umgebung: ruhig, nur mit Anlass
+
+- **Vögel** (`Ambient.birds`): nur im Sommer, wenn Wald nahe der Bildmitte steht (Bäume im Umkreis von 10 Kacheln,
+  ab 10 % von „dicht“) und die Kamera nicht weit draußen ist (Abstand < 45). Ein einzelner kurzer Ruf, danach
+  20–60 s Ruhe, bei wenig Wald bis 2,5× länger, Handy 1,5×; nie zweimal dieselbe Rufart hintereinander; leise
+  (höchstens 0,022, etwa −5 dB gegenüber vorher) und etwas tiefer, mit weniger Tönen. Kommt die Kamera an einen
+  Wald, vergehen erst 6–16 s. Eine Tageszeit gibt es im Spiel nicht.
+  Vorher: ein Ruf alle 3–10 s, in 40 % mit zweitem Ruf (≈ 13 Rufe je Minute), immer im Sommer, überall.
+- **Wind** (`windTarget`): vorher lag im Sommer immer ein tiefes Rauschen („Wind in den Blättern“, Pegel 0,75) –
+  ohne sichtbaren Anlass. Jetzt eigene Schicht `wind`, nur weit herausgezoomt (ab Kameraabstand 50, voll bei 75)
+  oder bei vielen Steilhängen im Bild (Gebirge, ab 15 % der Kacheln), höchstens 0,3, ein- und ausgeblendet über
+  etwa 6 s. Im Winter heult die Winterschicht (jetzt 0,5 statt 0,8). Im Sommer bleibt nur leises Laubrascheln
+  bei Wald.
+
 ## Räumlicher Klang
 
 Man hört, was **um die Bildmitte** passiert, nicht alles, was zu sehen ist (`src/audio/spatial.js`):
@@ -365,9 +408,9 @@ Man hört, was **um die Bildmitte** passiert, nicht alles, was zu sehen ist (`sr
 - **Zoom**: bis Kameraabstand 15 voll, weiter draußen leiser bis auf 35 % – von oben hört man die Arbeit nur
   noch gedämpft.
 - **Panorama** nach Bildschirmseite (Kameradrehung berücksichtigt).
-- **Viele gleiche Quellen** (mehrere Holzfäller): Je Klangart laufen höchstens 3 Stimmen mit kurzer Abklingzeit
-  (`voices.js`). Die Schläge eines Takts werden nach Nähe zur Bildmitte abgespielt, so bekommt der nächste
-  Holzfäller den Platz, die fernen fallen weg.
+- **Viele gleiche Quellen** (mehrere Holzfäller, Bauleute): siehe [Arbeitsgeräusche](#arbeitsgeräusche) – je
+  Klangart höchstens ein Schlag je ~0,4 s, nahe vor fernen. Dahinter begrenzt `voices.js` je Klangart auf
+  2 Stimmen mit 0,3 s Abklingzeit.
 - **Nebel des Krieges**: dort Verborgenes ist stumm. Wichtige eigene Ereignisse außerhalb der Hörweite
   (z. B. Gebäude fertig) kommen leise ohne Raum.
 - **Großflächiges** richtet sich nach dem sichtbaren Ausschnitt, nicht nach der Hörweite: Kampfmusik und
@@ -399,7 +442,8 @@ noch zu hören, mehrere klangen wie ein Wald voller Äxte.
 ## Prüfen
 
 ```bash
-npx vitest run tests/audio            # reine Teile: Manifest, Stimmen, Räumlichkeit, Komponist, Stimmung
+npx vitest run tests/audio            # reine Teile: Manifest, Stimmen, Räumlichkeit, Komponist, Stimmung,
+                                      # Arbeitstakt und Ruhe (tests/audio/quiet.test.js)
 E2E_PORT=4212 npx playwright test e2e/audio.spec.js
 npx vite --port 4290 &                # dann:
 python3 scripts/audio-check.py        # rendert alles offline, prüft Pegel/Übersteuerung/Dauer/Spektrum

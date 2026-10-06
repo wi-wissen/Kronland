@@ -20,6 +20,7 @@ import { UNITS, unitOf, fullCost, LINE_UPGRADE_COST, HEROES } from '../../src/si
 import { BUILDING_TECHS } from '../../src/sim/data/buildingTechs.js';
 import { workerSlots, averageMotivation } from '../../src/sim/systems/workers.js';
 import { isDamaged } from '../../src/sim/systems/damage.js';
+import { siteRoom } from '../../src/sim/systems/serfs.js';
 import { checkBuildingResearch } from '../../src/sim/systems/techs.js';
 import { checkWeatherChange } from '../../src/sim/systems/weather.js';
 import { checkTrade, tradeCost } from '../../src/sim/systems/market.js';
@@ -601,7 +602,9 @@ export class MissionBot {
         .filter((u) => !this.reserved.has(u.id))
         .sort((u, v) => d2(tile(u), c) - d2(tile(v), c) || u.id - v.id)
         .slice(0, (b.burning ? 4 : 2) - b.builders.length).map((u) => u.id);
-      if (!ids.length) return;
+      const room = ids.length ? siteRoom(this.sim, b, this.sim.entities.get(ids[0])) : 0;
+      ids.length = Math.min(ids.length, room);
+      if (!ids.length) continue;
       this.cmd({ type: 'assignWork', units: ids, target: b.id });
       ids.forEach((id) => this.reserved.add(id));
     }
@@ -620,17 +623,26 @@ export class MissionBot {
       // idle ones first; if a construction site is completely empty, also pull away gatherers (piles otherwise hold them forever)
       let pool = this.idleSerfs();
       if (!pool.length && !b.builders.length) pool = this.serfList.filter((u) => !u.militia && u.job?.kind === 'gather' && !this.reserved?.has(u.id));
-      const ids = pool.sort((u, v) => d2(tile(u), api.centerOf(b)) - d2(tile(v), api.centerOf(b)) || u.id - v.id)
-        .slice(0, Math.min(2, 4 - b.builders.length) + (this.idleSerfs().length ? 2 : 0)).map((u) => u.id);
+      pool.sort((u, v) => d2(tile(u), api.centerOf(b)) - d2(tile(v), api.centerOf(b)) || u.id - v.id);
+      // do not send more than there are free spots around
+      const room = pool.length ? siteRoom(this.sim, b, pool[0]) : 0;
+      if (pool.length && !room) continue;
+      const ids = pool.slice(0, Math.min(room, Math.min(2, 4 - b.builders.length) + (this.idleSerfs().length ? 2 : 0))).map((u) => u.id);
       if (!ids.length) break;
       this.cmd({ type: 'assignWork', units: ids, target: b.id });
       ids.forEach((id) => this.reserved.add(id));
     }
-    // Pull back serfs at trees that stand too close to enemies
-    const idle = this.idleSerfs();
+    // recall serfs at trees that stand too close to enemies (otherwise the follow-up work
+    // after a felled tree easily lands on a tree in the middle of the siege ring)
+    const nodes = this.safeNodes();
+    const recall = this.serfList.filter((u) => {
+      if (u.militia || u.job?.kind !== 'gather' || this.reserved?.has(u.id)) return false;
+      const t = this.sim.entities.get(u.job.target);
+      return t && (this.isDangerous(t, 3) || this.enemies.some((f) => d2(tile(f), t) < 8 * 8));
+    });
+    const idle = this.idleSerfs().concat(recall);
     if (!idle.length) return;
     const needs = ['stone', 'iron', 'clay', 'sulfur'].filter((r) => this.avail(r) < 400 && !this.has(`${r}Mine`));
-    const nodes = this.safeNodes();
     idle.forEach((u, i) => {
       const res = needs.length && i % 3 === 2 ? needs[(i / 3 | 0) % needs.length] : 'wood';
       const list = nodes[res]?.length ? nodes[res] : nodes.wood;

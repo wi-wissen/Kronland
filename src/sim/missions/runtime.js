@@ -24,7 +24,7 @@ import { WEATHER_EFFECTS } from '../data/weather.js';
 
 const T = TICKS_PER_SECOND;
 const MAX_MESSAGES = 30;
-const BANDIT_TEAM = 99;
+export const BANDIT_TEAM = 99;
 const VILLAGE_TEAM = 100;
 
 /** Kinds of goals that "hold" instead of "reach": they are fulfilled as long as they do not fail. */

@@ -28,4 +28,5 @@ export const REASONS = {
   weatherCooldown: 'err.weatherCooldown',
   noRepairNeeded: 'err.noRepairNeeded',
   repairFull: 'err.repairFull',
+  siteFull: 'err.siteFull',
 };

@@ -9,6 +9,7 @@ import { tileCenter, toTile } from '../fixed.js';
 import { WATER, OCCUPIED, RESERVED, CLIFF, BRIDGE } from '../map.js';
 import { techBonus, boosted } from './techs.js';
 import { addWeatherEnergy } from './weather.js';
+import { takenSpots, pickSpot, freeSpots } from './spots.js';
 
 /**
  * @typedef {Object} Worker
@@ -31,6 +32,7 @@ import { addWeatherEnergy } from './weather.js';
  * @property {boolean} resting
  * @property {boolean} ate
  * @property {boolean} inside inside the building (invisible)
+ * @property {number} [spot] own spot (tile) when waiting or resting outside, -1 = none
  */
 
 // ---------- Helpers ----------
@@ -137,13 +139,21 @@ export function updateSpawning(sim) {
 
 // ---------- Ablauf ----------
 
+/** Intents in which the worker stays outside and therefore needs an own spot. */
+const OUTSIDE = new Set(['wait', 'campEat', 'campSleep']);
+
 function walkTo(sim, w, b, intent) {
   w.inside = false;
   w.intent = intent;
   w.target = b.id;
-  if (isAdjacent(w, b)) { w.path = []; arrive(sim, w); return; }
-  const p = pathTo(sim, w, sim.map.ring(b.x, b.y, b.w, b.h));
-  if (!p) { w.state = 'waiting'; w.timer = 20; return; }
+  const m = sim.map, ring = m.ring(b.x, b.y, b.w, b.h);
+  // Whoever waits or rests outside gets an own tile around the target; if all are taken,
+  // they stand somewhere nearby as before.
+  w.spot = OUTSIDE.has(intent) ? pickSpot(sim, w, ring) : -1;
+  const here = m.idx(toTile(w.px), toTile(w.py));
+  if (w.spot >= 0 ? here === w.spot : isAdjacent(w, b)) { w.path = []; arrive(sim, w); return; }
+  const p = pathTo(sim, w, w.spot >= 0 ? [w.spot] : ring);
+  if (!p) { w.state = 'waiting'; w.timer = 20; w.spot = -1; return; }
   w.path = p;
   w.state = 'walk';
 }
@@ -194,15 +204,22 @@ export function campsOf(sim, owner) {
   return out;
 }
 
-/** Campfire for a worker: the nearest one within reach of their workplace, otherwise a new one. */
+/**
+ * Campfire for a worker: the nearest one within reach of their workplace with a free spot in the
+ * circle around it (or their own), otherwise a new one.
+ */
 function campOf(sim, w) {
   const wp = sim.entities.get(w.workplace);
   if (!wp) return null;
   const from = center(wp), r2 = W.campRadius * W.campRadius;
+  const taken = takenSpots(sim, w.id);
   let best = null, bd = Infinity;
   for (const f of campsOf(sim, w.owner)) {
     const d = d2(f, from);
-    if (d <= r2 && d < bd) { bd = d; best = f; }
+    if (d > r2 || d >= bd) continue;
+    const seats = sim.map.ring(f.x, f.y, 1, 1);
+    if (!seats.includes(w.spot) && !freeSpots(sim.map, seats, taken).length) continue; // Kreis voll
+    bd = d; best = f;
   }
   if (best) return best;
   const spot = findCampSpot(sim, wp);

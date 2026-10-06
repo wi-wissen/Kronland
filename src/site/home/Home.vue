@@ -119,6 +119,7 @@
 
 <script>
 import SiteLayout from '../SiteLayout.vue';
+import { siteUrl } from '../../paths.js';
 import { BUILDINGS } from '../../sim/data/buildings.js';
 import { UNITS, HEROES } from '../../sim/data/units.js';
 import { TECHS } from '../../sim/data/technologies.js';
@@ -163,7 +164,7 @@ export default {
     };
   },
   methods: {
-    img(name) { return `${this.$siteRoot}site/${name}.webp`; },
+    img(name) { return siteUrl(`site/${name}.webp`); },
     open(i) { this.current = i; this.$refs.box.showModal?.(); },
     close() { this.$refs.box.close?.(); },
     step(d) { this.current = (this.current + d + this.shots.length) % this.shots.length; },

@@ -4,6 +4,8 @@ export const BALANCE = {
   serf: {
     cost: { gold: 50 },
     hp: 200, attack: 5, armor: 0,
+    fleeTicks: 60,           // attacked: flee this long, then return to work (A; model: serfs flee)
+    fleeTiles: 8,            // escape distance away from the attacker if the castle is no refuge (A)
     speed: 200,              // milli-tiles per tick = 2 tiles/s (A)
     maxBuildersPerSite: 4,
     chopTicks: 40,           // one chop cycle of wood (A)

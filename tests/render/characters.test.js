@@ -133,3 +133,26 @@ describe('Loading figures on demand', () => {
     expect(start).not.toContain('Swordsman');
   });
 });
+
+import { firstFiles, levelMaskFiles } from '../../src/render/characters.js';
+describe('Near model only on demand', () => {
+  it('first loads only the game model and its masks', () => {
+    expect(firstFiles('Farmer', { lods: 1 })).toEqual({ models: ['Farmer.lod1.glb'], masks: [] });
+    // mask only for the near level: comes with the near model
+    expect(firstFiles('Farmer', { lods: 1, mask: ['Farmer.mask.png', null] })).toEqual({ models: ['Farmer.lod1.glb'], masks: [] });
+    // one mask for all levels: comes along right away
+    expect(firstFiles('Farmer', { lods: 2, mask: 'm.png' })).toEqual({ models: ['Farmer.lod1.glb', 'Farmer.lod2.glb'], masks: ['m.png'] });
+    // without LOD levels there is only the original
+    expect(firstFiles('X', { mask: 'x.png' })).toEqual({ models: ['X.glb'], masks: ['x.png'] });
+  });
+
+  it('masks per level range', () => {
+    const def = { mask: ['near.png', 'game.png'] };
+    expect(levelMaskFiles(def, 0, 0)).toEqual(['near.png']);
+    expect(levelMaskFiles(def, 1, 3)).toEqual(['game.png']);
+  });
+
+  it('all shipped figures have a game model (otherwise the game immediately loads the near model)', () => {
+    for (const [name, def] of Object.entries(manifest.models)) expect(def.lods ?? 0, name).toBeGreaterThanOrEqual(1);
+  });
+});

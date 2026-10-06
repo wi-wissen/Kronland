@@ -10,9 +10,10 @@ import { SPEAKERS } from '../../src/sim/missions/speakers.js';
 import { mulberry32 } from '../../src/audio/rng.js';
 import { similarity, spokenText } from '../../scripts/asset-gen/voice.mjs';
 
-/** JSON from assets-src/ (local only, not in Git) or null if it is missing. */
+/** JSON from assets-src/ (local only, see docs/ROHDATEIEN.md) or null if it is missing. */
 const readSrc = (p) => { const u = new URL(`../../assets-src/${p}`, import.meta.url); return fs.existsSync(u) ? JSON.parse(fs.readFileSync(u, 'utf8')) : null; };
 const cast = readSrc('voices/cast.json');
+const archive = readSrc('ARCHIVE.json');
 const manifest = JSON.parse(fs.readFileSync(new URL('../../public/models/characters/manifest.json', import.meta.url), 'utf8'));
 
 describe('Barks', () => {
@@ -123,12 +124,13 @@ describe('Voiced lines', () => {
     setVoiceIndex(null);
   });
 
-  it.skipIf(!cast)('every mission speaker has a chosen voice with a template', () => {
+  it.skipIf(!cast || !archive)('every mission speaker has a chosen voice with a template', () => {
     for (const id of Object.keys(SPEAKERS)) {
       const v = speakerVoice(id);
       expect(cast.roles[v], id).toBeTruthy();
       expect(cast.roles[v].pick, id).not.toBeUndefined();
-      expect(fs.existsSync(new URL(`../../assets-src/voices/${v}/voice.wav`, import.meta.url)), v).toBe(true);
+      // template is a raw file outside Git (assets-src/ARCHIVE.json, docs/ROHDATEIEN.md)
+      expect(archive.files[`voices/${v}/voice.wav`], v).toBeTruthy();
     }
   });
 

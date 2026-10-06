@@ -9,7 +9,7 @@ import { TECHS, researchPoints } from '../sim/data/technologies.js';
 import { BLESSINGS, WORKER, professionFor } from '../sim/data/professions.js';
 import { averageMotivation, workerSlots, maxMotivation } from '../sim/systems/workers.js';
 import { UNITS, LINES, HEROES, HERO_IDS, unitOf, fullCost, LINE_UPGRADE_COST } from '../sim/data/units.js';
-import { targetable } from '../sim/systems/military.js';
+import { targetable, isEnemy } from '../sim/systems/military.js';
 import { countWorkers, countLeaders, taxIncome } from '../sim/systems/payday.js';
 import { AiPlayer } from '../ai/AiPlayer.js';
 import { saveGame, loadGame } from '../sim/serialize.js';
@@ -23,6 +23,8 @@ import { Input } from './Input.js';
 import { ControlGroups } from './groups.js';
 import { COMBAT } from '../sim/data/combat.js';
 import { buildingSystemsUi } from './buildingUi.js';
+import { relationOf, showsInterior } from './relation.js';
+import { noteAlert, activeAlerts } from './alerts.js';
 import { isDamaged } from '../sim/systems/damage.js';
 import { hasForecast, forecast } from '../sim/systems/weather.js';
 import { starsOf, EXPERIENCE } from '../sim/data/experience.js';
@@ -74,6 +76,8 @@ export const registerBuildingSection = (fn) => { BUILDING_SECTIONS.push(fn); };
 
 /** Mindestabstand (ms) zwischen zwei Angriffsmeldungen in derselben Gegend */
 const ATTACK_TOAST_MS = 15000;
+/** Figures that attack serfs on command (not buildings) */
+const FIGHT_TARGETS = new Set(['unit', 'worker', 'leader', 'soldier', 'hero']);
 
 export class Engine {
   /**
@@ -205,6 +209,7 @@ export class Engine {
       hint: this.missionView.hint,
       landmarks: this.missionView.landmarks ?? null,
       revealAll: this.fogLifted(),
+      speed: this.paused ? 0 : this.speed,
     });
     this.dev?.frame(dt);
     this.audio?.frame(dt);
@@ -288,7 +293,8 @@ export class Engine {
       if (ev.type === 'victory' || (ev.type === 'defeated' && ev.player === me)) this.emitUi();
       if (ev.type === 'missionWon' || ev.type === 'missionLost') { this.paused = true; this.emitUi(); }
       if (ev.type === 'dialog' || ev.type === 'tutorialStep' || ev.type === 'objective') this.emitUi();
-      if (ev.type === 'hit') this.attackToast(ev);
+      // melee and ranged combat (arrows, bolts, bullets) report alike
+      if (ev.type === 'hit' || (ev.type === 'shot' && ev.target)) this.attackToast(ev);
       if (ev.type === 'weatherChanged' && ev.player !== me) this.toast('toast.weatherChangedEnemy', { weather: ev.state }, { icon: `weather-${ev.state}`, tone: 'warn' });
       if (ev.type === 'payday' && ev.player === me) this.lastPayday = { income: ev.income, wages: ev.wages, tick: sim.tick };
       if (ev.type === 'bridgeBuilt' && ev.player === me) this.toast('toast.bridgeBuilt', null, { icon: 'b-bridge', tone: 'good', pos: { x: ev.x + ev.w / 2, y: ev.y + ev.h / 2 } });
@@ -349,6 +355,8 @@ export class Engine {
     const pos = this.entityPos(t);
     if (!pos) return;
     const now = performance.now();
+    // Minimap: red pulse at the spot as long as hits keep coming there
+    this.alerts = noteAlert(this.alerts, pos, now);
     this.attackSeen ??= [];
     this.attackSeen = this.attackSeen.filter((s) => now - s.at < ATTACK_TOAST_MS);
     if (this.attackSeen.some((s) => Math.hypot(s.x - pos.x, s.y - pos.y) < 18)) return;
@@ -357,6 +365,7 @@ export class Engine {
       : t.kind === 'worker' || t.kind === 'unit' ? { key: 'toast.attackSettlers', params: null }
         : { key: 'toast.attackTroops', params: null };
     this.toast(what.key, what.params, { icon: 'attack', tone: 'bad', pos, ttl: 7000 });
+    try { this.audio?.alarm(t); } catch { /* audio is a side issue */ }
   }
 
   /**
@@ -568,7 +577,7 @@ export class Engine {
       }
     }
     const sel = this.ownUnitIds();
-    return { idleSerfs: idle, heroes, groups: this.groupsInfo(), group: { current: this.groups.find(sel), next: this.groups.nextFree() } };
+    return { idleSerfs: idle, heroes, groups: this.groupsInfo(), group: { current: this.groups.find(sel), next: this.groups.nextFree() }, alarm: activeAlerts(this.alerts, performance.now()).length > 0 };
   }
 
   focusSelection() {
@@ -599,6 +608,11 @@ export class Engine {
     const hit = id ? this.sim.entities.get(id) : null;
     if (hit?.kind === 'building') {
       if (hit.owner === this.player && (!hit.done || isDamaged(this.sim, hit))) { this.issue({ type: 'assignWork', units, target: hit.id }); return true; }
+    }
+    // Enemy instead of tree: the serfs attack it (as in the model, with bare fists)
+    if (hit && FIGHT_TARGETS.has(hit.kind) && isEnemy(this.sim, this.player, hit.owner) && targetable(this.sim, hit)) {
+      this.issue({ type: 'assignWork', units, target: hit.id });
+      return true;
     }
     const g = this.renderer.pickGround(cx, cy);
     if (!g) return false;
@@ -682,6 +696,11 @@ export class Engine {
   recruit(building, line, full) { this.issue({ type: 'recruit', building, line, full }); }
   upgradeLine(line) { this.issue({ type: 'upgradeLine', line }); }
   militia(on) { this.issue({ type: 'militia', on }); }
+  /** "To arms" for the selected serfs or "Back to work" for the selected militia. */
+  armSelected(on) {
+    const units = [...this.selected].filter((id) => { const e = this.sim.entities.get(id); return e?.kind === 'unit' && e.owner === this.player && !!e.militia !== on; });
+    if (units.length) this.issue({ type: 'militia', on, units });
+  }
 
   /** Tap on touch devices: select, give a command or choose a building spot. */
   tap(cx, cy) {
@@ -909,6 +928,8 @@ export class Engine {
       w: sim.map.width, h: sim.map.height, me: this.player, buildings, units, camps,
       shafts: sim.shafts.filter((s) => this.tileExplored(s.x + 1, s.y + 1)).map((s) => ({ x: s.x + 1.5, y: s.y + 1.5, res: s.res })),
       view: this.cameraFootprint(), hint,
+      // Attacks on own things: place and age in ms (pulses red until ALERT_MS without a hit have passed)
+      alerts: activeAlerts(this.alerts, performance.now()).map((a) => ({ x: a.x, y: a.y, age: performance.now() - a.last })),
     };
   }
 
@@ -1217,6 +1238,9 @@ export class Engine {
         const def = BUILDINGS[e.type];
         const lvl = def.levels[e.level];
         const own = e.owner === this.player;
+        const relation = relationOf(sim, this.player, e.owner);
+        // Foreign (non-allied) buildings: only name, level and hit points – as in the model no insides
+        const inside = showsInterior(relation);
         const next = def.levels[e.level + 1];
         const prof = workerSlots(e) ? professionFor(e.type) : null;
         let motivation = null;
@@ -1228,11 +1252,11 @@ export class Engine {
         selection = {
           kind: 'building', id: e.id, type: e.type, levelIndex: e.level, level: e.level + 1, maxLevel: def.levels.length, done: e.done,
           owner: e.owner, progress: e.work ? Math.floor((e.progress / e.work) * 100) : 100, hp: e.hp, maxHp: lvl.hp,
-          own, builders: e.builders.length, profession: prof, motivation,
-          beds: lvl.beds ? [e.residents.length, lvl.beds] : null,
-          seats: lvl.seats ? [e.eaters.length, lvl.seats] : null,
-          population: lvl.population ?? null,
-          workers: workerSlots(e) ? [e.workers.length, workerSlots(e)] : null,
+          own, relation, builders: e.builders.length, profession: prof, motivation: inside ? motivation : null,
+          beds: inside && lvl.beds ? [e.residents.length, lvl.beds] : null,
+          seats: inside && lvl.seats ? [e.eaters.length, lvl.seats] : null,
+          population: inside ? lvl.population ?? null : null,
+          workers: inside && workerSlots(e) ? [e.workers.length, workerSlots(e)] : null,
           overtime: e.overtime,
           upgrade: own && next ? { level: e.level + 1, cost: Object.entries(next.cost), reason: sim.checkUpgrade(this.player, e) } : null,
           canDemolish: own && e.type !== 'headquarters' && e.type !== 'banditCamp',
@@ -1256,7 +1280,7 @@ export class Engine {
         };
       } else if (e) {
         const kind = e.kind === 'leader' ? 'leader' : e.kind;
-        selection = { kind: 'foreign', entity: kind, owner: e.owner ?? -1, unit: e.def ?? null, hero: e.hero ?? null, prof: e.prof ?? null, type: e.kind === 'ruin' ? e.type : null, level: e.kind === 'ruin' ? e.level : null };
+        selection = { kind: 'foreign', entity: kind, owner: e.owner ?? -1, relation: relationOf(sim, this.player, e.owner ?? -1), unit: e.def ?? null, hero: e.hero ?? null, prof: e.prof ?? null, type: e.kind === 'ruin' ? e.type : null, level: e.kind === 'ruin' ? e.level : null };
       }
     }
     const buildOptions = serfs.length ? BUILD_MENU.filter((type) => BUILDINGS[type]).map((type) => {

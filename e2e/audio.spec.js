@@ -51,6 +51,17 @@ test('In game: build music, ambience, spatial sounds, events', async ({ page }) 
   });
   expect(st).toEqual({ theme: 'build', listener: true, near: true, far: false, ui: true });
 
+  // Calm: work beat from the rendering, wind only quiet and with a reason, birds rare
+  const calm = await page.evaluate(() => {
+    const e = window.__kronland, a = window.__kronlandAudio;
+    const serf = [...e.sim.entities.values()].find((u) => u.kind === 'unit' && u.owner === e.player);
+    const b = serf && e.renderer.chars.beat(serf.id);
+    return { beat: !!b && b.period > 0 && typeof b.anim === 'string', wind: a.ambient.layers.wind?.level, birds: a.ambient.birdCount ?? 0 };
+  });
+  expect(calm.beat).toBe(true);
+  expect(calm.wind).toBeLessThanOrEqual(0.3);
+  expect(calm.birds).toBeLessThanOrEqual(1);
+
   // Simulation events (weather, payday, errors) and combat near the camera
   await page.evaluate(() => {
     const e = window.__kronland, l = window.__kronlandAudio.listener;
@@ -84,7 +95,8 @@ test.describe('Audio files', () => {
 test('Files from the manifest replace synthetic sounds and music', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.route('**/audio/manifest.json', (r) => r.fulfill({
+  // Manifest in the build with content hash (audio/manifest.<hash>.json)
+  await page.route(/\/audio\/manifest(\.[0-9a-f]{10})?\.json$/, (r) => r.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({ version: 1, sfx: { coin: ['sfx/coin.wav', 'sfx/missing.wav'] }, music: { menu: { files: ['music/menu.wav'], gain: 0.5 } } }),
   }));
@@ -133,7 +145,7 @@ test('Voices: mission dialogue with recording, serf bark on selecting', async ({
   test.setTimeout(120_000);
   const errors = [], voice = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('request', (r) => { const m = r.url().match(/audio\/voice\/(de|en)\/([a-zA-Z]+)-[0-9a-f]{8}\.mp3/); if (m) voice.push(m[2]); });
+  page.on('request', (r) => { const m = r.url().match(/audio\/voice\/(de|en)\/([a-zA-Z]+)-[0-9a-f]{8}(\.[0-9a-f]{10})?\.mp3/); if (m) voice.push(m[2]); });
   await page.goto(playUrl('?mission=c1&no-models'));
   await page.waitForFunction(() => window.__kronland?.sim.mission?.state.id === 'c1');
   await page.mouse.click(5, 5);

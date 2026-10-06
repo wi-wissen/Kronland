@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { pickVariant } from './variants.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LodState, sphereVisible, lodSettings, screenHeightPx, pixelMetric } from './lod.js';
+import { assetUrl } from '../paths.js';
 
 // ---------- Pure logic ----------
 
@@ -101,6 +102,8 @@ export { pickVariant };
 export function variantStale(v) {
   if (!v) return false;
   if (v.pendingModel && store.models.has(v.pendingModel)) return true;
+  // near model has arrived: rebuild with both levels
+  if (v.nearPending && store.models.get(v.nearPending)?.gltf) return true;
   if (v.pendingCheck?.()) return true;
   return (v.attach ?? []).some((a) => variantStale(a.variant));
 }
@@ -197,7 +200,7 @@ export const characterModel = (name) => store.models.get(name) ?? null;
  */
 export async function loadCharacterManifest(base) {
   try {
-    const r = await fetch(`${base}characters/manifest.json`);
+    const r = await fetch(assetUrl(`${base}characters/manifest.json`));
     if (!r.ok) return null;
     store.manifest = await r.json();
   } catch { store.manifest = null; }
@@ -245,22 +248,54 @@ export function startModels(m) {
   return usedModels({ ...m, roles });
 }
 
+/** Masks that the levels from `from` need (near mask only with the near model). */
+export function levelMaskFiles(def, from, to) {
+  const out = new Set();
+  for (let l = from; l <= to; l++) { const f = maskFileFor(def, l); if (f) out.add(f); }
+  return [...out];
+}
+
+/** Files needed on the first load of a figure: game model(s) and their masks; without levels the original. */
+export function firstFiles(name, def) {
+  const files = modelFiles(name, def);
+  if (files.length < 2) return { models: files, masks: maskFiles(def) };
+  return { models: files.slice(1), masks: levelMaskFiles(def, 1, files.length - 1) };
+}
+
+/**
+ * Load a figure. First only the game model (lod1, carries skeleton and animations); the large near model (level 0,
+ * 2048 texture) only when a figure is close enough for it (requestNearModel). Older files without animations
+ * in the game model: then the near model right away (it supplies the animations).
+ */
 async function loadModel(name, tick = () => {}) {
   const m = store.manifest, def = m?.models?.[name];
   const { load, base } = store.lazy ?? {};
   if (!def || !load) return;
   const files = modelFiles(name, def);
-  const mf = maskFiles(def);
+  const first = firstFiles(name, def);
   const [res, maskList] = await Promise.all([
-    Promise.all(files.map((f) => load(`${base}characters/${f}`).catch(() => null).finally(tick))),
-    Promise.all(mf.map((f) => loadMaskTexture(`${base}characters/${f}`).finally(tick))),
+    Promise.all(first.models.map((f) => load(`${base}characters/${f}`).catch(() => null).finally(tick))),
+    Promise.all(first.masks.map((f) => loadMaskTexture(assetUrl(`${base}characters/${f}`)).finally(tick))),
   ]);
-  if (!res[0]) return;
-  const masks = new Map(mf.map((f, i) => [f, maskList[i]]));
+  const masks = new Map(first.masks.map((f, i) => [f, maskList[i]]));
+  let near = files.length < 2 ? res[0] : null;
   // do not shift LOD levels if a file is missing: gap → previous level
-  const lods = [];
-  for (const g of res.slice(1)) if (g) lods.push(g);
-  store.models.set(name, { gltf: res[0], lods, masks, mask: masks.get(maskFileFor(def, 0)) ?? null });
+  const lods = files.length < 2 ? [] : res.filter(Boolean);
+  let anim = [near, ...lods].find((g) => g?.animations?.length) ?? null;
+  if (!anim && files.length >= 2) {
+    near = await load(`${base}characters/${files[0]}`).catch(() => null);
+    await addNearMasks(def, masks);
+    anim = near;
+  }
+  if (!anim) return;
+  store.models.set(name, { gltf: near, lods, anim, masks, mask: masks.get(maskFileFor(def, 0)) ?? null });
+}
+
+async function addNearMasks(def, masks) {
+  const { base } = store.lazy;
+  const want = levelMaskFiles(def, 0, 0).filter((f) => !masks.has(f));
+  const list = await Promise.all(want.map((f) => loadMaskTexture(assetUrl(`${base}characters/${f}`))));
+  want.forEach((f, i) => masks.set(f, list[i]));
 }
 
 /**
@@ -272,7 +307,7 @@ async function loadModel(name, tick = () => {}) {
 export async function loadCharacterModels(load, base, tick = () => {}) {
   const m = store.manifest;
   if (!m) return;
-  store.lazy = { load, base, pending: new Set() };
+  store.lazy = { load, base, pending: new Set(), near: new Set() };
   await Promise.all(startModels(m).map((name) => loadModel(name, tick)));
 }
 
@@ -284,12 +319,28 @@ export function requestCharacterModel(name) {
   loadModel(name).finally(() => l.pending.delete(name));
 }
 
+/**
+ * Reload the near model of a loaded figure (once) as soon as a figure would need the near level. Until then
+ * the figure shows the game model even up close; afterwards variantStale rebuilds the rendering with both levels.
+ */
+export function requestNearModel(name) {
+  const l = store.lazy, e = store.models.get(name), def = store.manifest?.models?.[name];
+  if (!l || !e || e.gltf || l.near.has(name) || !def) return;
+  l.near.add(name);
+  Promise.all([l.load(`${l.base}characters/${modelFiles(name, def)[0]}`), addNearMasks(def, e.masks)])
+    .then(([g]) => { if (g) { e.mask = e.masks.get(maskFileFor(def, 0)) ?? null; e.gltf = g; } })
+    .catch(() => {}); // without a near model the game model stays (no second attempt)
+}
+
 /** Number of files that loadCharacterModels loads at start (for progress). */
 export function characterFileCount() {
   const m = store.manifest;
   if (!m) return 0;
   let n = 0;
-  for (const name of startModels(m)) if (m.models?.[name]) n += modelFiles(name, m.models[name]).length + maskFiles(m.models[name]).length;
+  for (const name of startModels(m)) {
+    const def = m.models?.[name];
+    if (def) { const f = firstFiles(name, def); n += f.models.length + f.masks.length; }
+  }
   return n;
 }
 
@@ -357,7 +408,7 @@ function boneTexture(rows, boneCount) {
  * Bake the animations of a GLB model.
  * @returns {{ texture: THREE.DataTexture, clips: Record<string,{start:number,frames:number,duration:number}>, bones: THREE.Bone[], boneIndex: Map<string,number>, boneInverses: THREE.Matrix4[], fps: number }}
  */
-function bakeGltfAnimations(gltf, clipNames, fps, props = []) {
+export function bakeGltfAnimations(gltf, clipNames, fps, props = []) {
   const scene = gltf.scene;
   let skinned = null;
   scene.traverse((o) => { if (!skinned && o.isSkinnedMesh) skinned = o; });
@@ -454,7 +505,7 @@ function maskWeight(mask, partName, matName, u, v, grid, maskImg) {
  * @param {[number,number]} grid
  * @param {{team?: any, tint?: any}} maskImgs
  */
-function mergeCharacterGeometry(scene, bake, role, grid, maskImgs = {}, donors = new Map()) {
+export function mergeCharacterGeometry(scene, bake, role, grid, maskImgs = {}, donors = new Map()) {
   const parts = [];
   const include = role.include ?? [];
   const exclude = role.exclude ?? [];
@@ -573,11 +624,14 @@ function mergeCharacterGeometry(scene, bake, role, grid, maskImgs = {}, donors =
 /** Bounds of a figure geometry in a baked frame (CPU, only on build). */
 export function posedBounds(geo, bake, frame) {
   const tex = bake.texture.image, W = tex.width, d = tex.data;
+  // tools (own bones '@prop:…') do not count towards body height
+  const props = new Set([...(bake.boneIndex?.entries() ?? [])].filter(([k]) => k.startsWith('@prop:')).map(([, v]) => v));
   const pos = geo.attributes.position, bi = geo.attributes.aBoneIdx, bw = geo.attributes.aBoneW;
   const box = new THREE.Box3();
   const v = new THREE.Vector3(), acc = new THREE.Vector3(), m = new THREE.Matrix4();
   const step = Math.max(1, Math.floor(pos.count / 600));
   for (let i = 0; i < pos.count; i += step) {
+    if (props.size && props.has(bi.getComponent(i, 0))) continue;
     acc.set(0, 0, 0);
     for (let c = 0; c < 4; c++) {
       const w = bw.getComponent(i, c);
@@ -589,6 +643,56 @@ export function posedBounds(geo, bake, frame) {
     box.expandByPoint(acc);
   }
   return box;
+}
+
+/**
+ * Natural ground speed of a walk clip (model units per second, without scaling): the stance foot
+ * (lowest points) slides backwards relative to the body at walking speed. Measured as the median of the
+ * foot speed over all frame pairs (foot changes are outliers). Tools do not count.
+ * null if nothing can be measured (clip in place or similar).
+ * @param {THREE.BufferGeometry} geo @param {any} bake @param {{start:number, frames:number, duration:number}} clip
+ */
+export function strideSpeed(geo, bake, clip) {
+  if (!clip || clip.frames < 4 || !clip.duration) return null;
+  const tex = bake.texture.image, W = tex.width, d = tex.data;
+  const props = new Set([...(bake.boneIndex?.entries() ?? [])].filter(([k]) => k.startsWith('@prop:')).map(([, v]) => v));
+  const pos = geo.attributes.position, bi = geo.attributes.aBoneIdx, bw = geo.attributes.aBoneW;
+  const step = Math.max(1, Math.floor(pos.count / 1500));
+  const v = new THREE.Vector3(), acc = new THREE.Vector3(), m = new THREE.Matrix4();
+  const feet = [];
+  for (let f = 0; f < clip.frames; f++) {
+    const pts = [];
+    let minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < pos.count; i += step) {
+      if (props.size && props.has(bi.getComponent(i, 0))) continue;
+      acc.set(0, 0, 0);
+      for (let c = 0; c < 4; c++) {
+        const w = bw.getComponent(i, c);
+        if (!w) continue;
+        m.fromArray(d, ((clip.start + f) * W + bi.getComponent(i, c) * 4) * 4);
+        v.fromBufferAttribute(pos, i).applyMatrix4(m);
+        acc.addScaledVector(v, w);
+      }
+      pts.push(acc.x, acc.y, acc.z);
+      if (acc.y < minY) minY = acc.y;
+      if (acc.y > maxY) maxY = acc.y;
+    }
+    // sole: points in the lowest strip (3 % of the height)
+    const lim = minY + (maxY - minY) * 0.03;
+    let sx = 0, sz = 0, n = 0;
+    for (let k = 0; k < pts.length; k += 3) if (pts[k + 1] <= lim) { sx += pts[k]; sz += pts[k + 2]; n++; }
+    feet.push(n ? [sx / n, sz / n] : null);
+  }
+  const dt = clip.duration / clip.frames;
+  const vel = [];
+  for (let f = 0; f < feet.length; f++) {
+    const p = feet[f], q = feet[(f + 1) % feet.length];
+    if (p && q) vel.push(Math.hypot(q[0] - p[0], q[1] - p[1]) / dt);
+  }
+  if (vel.length < 4) return null;
+  vel.sort((x, y) => x - y);
+  const med = vel[vel.length >> 1];
+  return med > 1e-4 ? med : null;
 }
 
 /** Is an object visible together with all its ancestors? */
@@ -629,7 +733,7 @@ function maskReference(geo, pix, channel) {
 function limitTexture(map, max, loaded, slot = 'smallMap') {
   const img = map?.image;
   if (!img || typeof document === 'undefined' || !(img.width > max || img.height > max)) return map;
-  if (loaded[slot]?.max === max) return loaded[slot].tex;
+  if (loaded[slot]?.max === max && loaded[slot].src === map) return loaded[slot].tex; // per source: game model first, near model later
   const k = max / Math.max(img.width, img.height);
   const c = document.createElement('canvas');
   c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
@@ -637,7 +741,7 @@ function limitTexture(map, max, loaded, slot = 'smallMap') {
   const tex = new THREE.CanvasTexture(c);
   tex.flipY = map.flipY; tex.colorSpace = map.colorSpace; tex.wrapS = map.wrapS; tex.wrapT = map.wrapT;
   tex.anisotropy = map.anisotropy;
-  loaded[slot] = { max, tex };
+  loaded[slot] = { max, src: map, tex };
   return tex;
 }
 
@@ -1029,6 +1133,31 @@ class Variant {
     }
     return c;
   }
+  /** Natural ground speed (tiles/s) of a walk clip at pace 1; null = not measurable. */
+  groundSpeed(key) {
+    this.strideCache ??= new Map();
+    if (!this.strideCache.has(key)) {
+      const c = this.clip(key);
+      const raw = this.procedural || !MOVE_CLIPS.has(c.key) ? null : strideSpeed(this.levels[0], this.bake, c);
+      this.strideCache.set(key, raw ? raw * this.scale : null);
+    }
+    return this.strideCache.get(key);
+  }
+}
+
+/** Clips whose legs should match the ground speed */
+const MOVE_CLIPS = new Set(['walk', 'run', 'carry']);
+/** Limits for the walking pace: the Meshy walk clips go almost on the spot with short steps – fully
+ * keeping up (≈ ×7) would look like fidgeting, hence at most ×2.2 (≈ 3 steps/s). */
+export const STRIDE_RATE_MIN = 0.6, STRIDE_RATE_MAX = 2.2;
+
+/**
+ * Playback pace of a walk clip so that the feet do not slide: ground speed / natural clip speed.
+ * @param {number|null} natural tiles/s at pace 1 @param {number} ground tiles/s @param {number} [fallback]
+ */
+export function strideRate(natural, ground, fallback = 1) {
+  if (!natural || !(ground > 0)) return fallback;
+  return Math.min(STRIDE_RATE_MAX, Math.max(STRIDE_RATE_MIN, ground / natural));
 }
 
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
@@ -1141,7 +1270,8 @@ export class CharacterSystem {
     const fps = manifest.fps ?? FPS_DEFAULT;
     let bake = this.modelBakes.get(model);
     if (!bake) {
-      bake = bakeGltfAnimations(loaded.gltf, clipNamesFor(manifest, model), fps, propClipNames(def.props, def.clips));
+      // bone texture from the file with the animations (game model; older files: near model)
+      bake = bakeGltfAnimations(loaded.anim ?? loaded.gltf, clipNamesFor(manifest, model), fps, propClipNames(def.props, def.clips));
       if (!bake) return null;
       this.modelBakes.set(model, bake);
     }
@@ -1151,24 +1281,30 @@ export class CharacterSystem {
     const include = [...(role.include ?? def.include ?? []), ...Object.keys(def.props ?? {})];
     const r = { include, exclude: role.exclude ?? def.exclude, team, tint };
     let map = null;
-    loaded.gltf.scene.traverse((o) => { if (!map && o.isMesh && o.material?.map) map = o.material.map; });
+    (loaded.gltf ?? loaded.lods[0])?.scene.traverse((o) => { if (!map && o.isMesh && o.material?.map) map = o.material.map; });
     map = limitTexture(map, this.quality.characterTexture ?? 2048, loaded);
     const pix = imagePixels(map?.image);
-    const scenes = [loaded.gltf.scene, ...loaded.lods.map((l) => l.scene)];
-    const built = scenes.map((sc, lvl) => {
+    // levels with their real number (0 = near model). If the near model is still missing, the game model shows all levels.
+    const scenes = [...(loaded.gltf ? [[loaded.gltf.scene, 0]] : []), ...loaded.lods.map((l, i) => [l.scene, i + 1])];
+    const built = scenes.map(([sc, lvl]) => {
       // donor parts in the matching LOD level
       const donors = new Map();
       for (const inc of r.include) {
         if (!inc.includes(':')) continue;
         const dm = store.models.get(inc.split(':')[0]);
-        if (dm) donors.set(inc.split(':')[0], (lvl > 0 ? dm.lods[Math.min(lvl, dm.lods.length) - 1]?.scene : null) ?? dm.gltf.scene);
+        if (dm) donors.set(inc.split(':')[0], (lvl > 0 ? dm.lods[Math.min(lvl, dm.lods.length) - 1]?.scene : null) ?? dm.gltf?.scene ?? dm.lods[0]?.scene);
       }
       return { geo: mergeCharacterGeometry(sc, bake, r, grid, {}, donors), sc, lvl };
     }).filter((x) => x.geo);
     if (!built.length) return null;
     const levels = built.map((x) => x.geo);
-    // Height from the rest pose (baked frame 0): scale the figure so that it is def.height tiles tall
-    const bb = posedBounds(levels[0], bake, 0);
+    const names = { ...(def.clips ?? {}), ...(role.clips ?? {}) };
+    // Height from the rest posture (first frame of idle, otherwise frame 0): scale the figure so that it is def.height tiles
+    // tall. The base posture (frame 0) is hunched in some models – they would be too large. The measure is always
+    // the model with the animations – so the size does not change when the near model arrives later.
+    const idle = bake.clips[names.idle];
+    const animScene = (loaded.anim ?? loaded.gltf).scene;
+    const bb = posedBounds((built.find((x) => x.sc === animScene) ?? built[0]).geo, bake, idle ? idle.start : 0);
     const height = def.height ?? 1;
     const scale = (def.scale ?? height / Math.max(0.01, bb.max.y - Math.max(0, bb.min.y))) * (role.scale ?? 1);
     // Material per LOD level: far and middle levels may have their own texture (e.g. flat palette colours)
@@ -1212,13 +1348,14 @@ export class CharacterSystem {
       return mat;
     };
     const materials = built.map((x) => materialFor(x.sc, x.lvl, x.geo));
-    const names = { ...(def.clips ?? {}), ...(role.clips ?? {}) };
     const v = new Variant(roleKey, levels, bake, materials[0], characterDepthMaterial(bake.texture), names, {
       yaw: def.yaw, scale, alias: role.clipAlias, worldHeight: (def.height ?? 1) * (role.scale ?? 1),
     });
     v.materials = materials;
     v.tintColor = tint?.color ? new THREE.Color(tint.color) : null;
     v.model = model;
+    // near model still missing: request as soon as a figure would need the near level (render)
+    v.nearPending = loaded.gltf ? null : model;
     return v;
   }
 
@@ -1298,9 +1435,18 @@ export class CharacterSystem {
     r.team = s.team;
     r.tint = s.tint ?? null;
     r.visible = s.visible !== false;
-    r.speed = s.speed ?? 1;
     r.seen = this.frameNo;
     if (r.clip !== s.clip) this.switchClip(r, s.clip);
+    // Walking pace: coupled to the ground speed (s.ground, tiles/s) to the clip's step length, smoothed
+    // and phase-continuous (the legs do not jump when the pace changes)
+    let rate = s.speed ?? 1;
+    if (s.ground > 0 && r.variant && MOVE_CLIPS.has(r.clip)) rate = strideRate(r.variant.groundSpeed(r.clip), s.ground, rate);
+    if (MOVE_CLIPS.has(r.clip)) {
+      const old = r.speed ?? rate;
+      const next = old + (rate - old) * 0.25;
+      if (old > 0 && next > 0 && Math.abs(next - old) > 1e-6) r.clipT0 = this.time - ((this.time - r.clipT0) * old) / next;
+      r.speed = next;
+    } else r.speed = rate;
     return r;
   }
 
@@ -1332,6 +1478,20 @@ export class CharacterSystem {
   begin(time) { this.time = time; this.frameNo = (this.frameNo ?? 0) + 1; }
 
   /**
+   * Work beat of a figure for the sound (read only): shown clip, seconds since clip start, cycle length and
+   * key of the animation actually played (e.g. build → hammer, procedural → work). null without figure/clip.
+   * @param {number} id
+   * @returns {{ clip: string, t: number, period: number, anim: string } | null}
+   */
+  beat(id) {
+    const r = this.records.get(id);
+    if (!r || r.dying || !r.clip || !r.variant) return null;
+    const cur = r.variant.clip(r.clip);
+    if (!cur?.duration) return null;
+    return { clip: r.clip, t: this.time - r.clipT0, period: cur.duration, anim: r.variant.procedural ? r.variant.names[cur.key] ?? cur.key : cur.key };
+  }
+
+  /**
    * Write instance data.
    * @param {THREE.PerspectiveCamera} camera @param {THREE.Frustum} frustum
    * @param {import('./lod.js').LodCounter} [counter]
@@ -1360,6 +1520,7 @@ export class CharacterSystem {
       const lvl = r.lod.update(pixelMetric(px), this.lodSettings);
       if (lvl < 0) { st.culled++; r.meshLvl = -1; continue; }
       st.levels[lvl]++; st.drawn++;
+      if (lvl === 0) { if (v.nearPending) requestNearModel(v.nearPending); for (const a of v.attach) if (a.variant.nearPending) requestNearModel(a.variant.nearPending); }
       counter?.add('character', lvl);
       // mesh switch (near ↔ game model): briefly draw both, cross-faded by dither
       const tr = lodTransition(r, Math.min(lvl, v.levels.length - 1), time);
@@ -1394,7 +1555,7 @@ export class CharacterSystem {
           const step = animStep(rl);
           const key = a ? (a.alias[r.clip] ?? r.clip) : r.clip;
           const cur = v.clip(key);
-          let t = (time - r.clipT0) * (cur.key === 'walk' || cur.key === 'run' ? r.speed : 1);
+          let t = (time - r.clipT0) * (MOVE_CLIPS.has(cur.key) || MOVE_CLIPS.has(r.clip) ? r.speed : 1);
           if (step === Infinity) t = cur.loop ? 0 : cur.duration;
           else if (step > 0) t = Math.floor(t / step + 1e-4) * step;
           let [fa, fb, w] = clipFrames(cur, t, v.bake.fps, cur.loop);

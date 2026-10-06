@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { playUrl } from './paths.js';
+import { playUrl, hashed } from './paths.js';
 import { quick } from './quick.js';
 
 // Colourful icons from the AI atlas (public/icons/symbols.webp, docs/SYMBOLE.md):
@@ -20,14 +20,14 @@ test('Icons come from the atlas', async ({ page }, info) => {
   const gold = page.locator('.ico.atlas[data-icon="gold"]').first();
   await expect(gold).toBeVisible(SLOW);
   const bg = await gold.evaluate((el) => getComputedStyle(el).backgroundImage);
-  expect(bg).toContain('icons/symbols.webp');
+  expect(bg).toMatch(hashed('icons/symbols.webp'));
   // Atlas actually loaded
-  const ok = await page.evaluate(() => new Promise((res) => {
+  const ok = await page.evaluate((src) => new Promise((res) => {
     const img = new Image();
     img.onload = () => res(img.naturalWidth > 0);
     img.onerror = () => res(false);
-    img.src = '../icons/symbols.webp'; // the game lives under play/
-  }));
+    img.src = src; // address from the CSS (relative to play/, with content hash in the build)
+  }), /url\("([^"]*symbols[^"]*)"\)/.exec(bg)[1]);
   expect(ok).toBe(true);
   // Control icon (menu) stays a mask in text colour
   await expect(page.locator('.ico.glyph').first()).toBeVisible();

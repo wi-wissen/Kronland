@@ -5,7 +5,7 @@
   "models": {
     "Serf": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -33,7 +33,7 @@
     },
     "SerfF": {
       "lods": 1,
-      "height": 0.92,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -61,7 +61,7 @@
     },
     "Swordsman": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -74,7 +74,7 @@
     },
     "SwordsmanF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -87,7 +87,7 @@
     },
     "Spearman": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -100,7 +100,7 @@
     },
     "SpearmanF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -113,7 +113,7 @@
     },
     "Archer": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -126,7 +126,7 @@
     },
     "ArcherF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -139,7 +139,7 @@
     },
     "Gunner": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -152,7 +152,7 @@
     },
     "GunnerF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -165,7 +165,7 @@
     },
     "Bandit": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -178,7 +178,7 @@
     },
     "BanditArcher": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -191,7 +191,7 @@
     },
     "BanditArcherF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -204,7 +204,7 @@
     },
     "BanditF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -217,7 +217,7 @@
     },
     "Malvor": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -230,7 +230,7 @@
     },
     "Nelia": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -243,7 +243,7 @@
     },
     "Orrin": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -256,7 +256,7 @@
     },
     "HeavyRider": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -270,7 +270,7 @@
     },
     "HeavyRiderF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -284,7 +284,7 @@
     },
     "LightRider": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -298,7 +298,7 @@
     },
     "LightRiderF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -311,7 +311,7 @@
     },
     "Taran": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "attack": "attack",
@@ -324,7 +324,7 @@
     },
     "Alchemist": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -338,7 +338,7 @@
     },
     "AlchemistF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -352,7 +352,7 @@
     },
     "Brickmaker": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -366,7 +366,7 @@
     },
     "BrickmakerF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -380,7 +380,7 @@
     },
     "Farmer": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -394,7 +394,7 @@
     },
     "FarmerF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -408,7 +408,7 @@
     },
     "Mason": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -422,7 +422,7 @@
     },
     "MasonF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -436,7 +436,7 @@
     },
     "Miner": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -450,7 +450,7 @@
     },
     "MinerF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -464,7 +464,7 @@
     },
     "Priest": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -478,7 +478,7 @@
     },
     "PriestF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -492,7 +492,7 @@
     },
     "Sawyer": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -506,7 +506,7 @@
     },
     "SawyerF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -520,7 +520,7 @@
     },
     "Scholar": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -534,7 +534,7 @@
     },
     "ScholarF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -548,7 +548,7 @@
     },
     "Smith": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -562,7 +562,7 @@
     },
     "SmithF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -576,7 +576,7 @@
     },
     "Trader": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -590,7 +590,7 @@
     },
     "TraderF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -604,7 +604,7 @@
     },
     "Treasurer": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -618,7 +618,7 @@
     },
     "TreasurerF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -632,7 +632,7 @@
     },
     "Weatherman": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -646,7 +646,7 @@
     },
     "WeathermanF": {
       "lods": 1,
-      "height": 0.95,
+      "height": 0.81,
       "teamMarker": true,
       "clips": {
         "carry": "carry",
@@ -721,7 +721,6 @@
     },
     "soldier.sword.leader": {
       "model": "Swordsman",
-      "scale": 1.08,
       "procedural": "sword:leader",
       "voice": "sword"
     },
@@ -741,7 +740,6 @@
     },
     "soldier.spear.leader": {
       "model": "Spearman",
-      "scale": 1.08,
       "procedural": "spear:leader",
       "voice": "sword"
     },
@@ -761,7 +759,6 @@
     },
     "soldier.bow.leader": {
       "model": "Archer",
-      "scale": 1.08,
       "procedural": "bow:leader",
       "voice": "sword"
     },
@@ -798,7 +795,6 @@
     },
     "soldier.heavyCav.leader": {
       "model": "HeavyRider",
-      "scale": 1.08,
       "seat": 0.86,
       "clipAlias": {
         "walk": "ride",
@@ -852,7 +848,6 @@
     },
     "soldier.lightCav.leader": {
       "model": "LightRider",
-      "scale": 1.08,
       "seat": 0.82,
       "clipAlias": {
         "walk": "ride",
@@ -936,22 +931,18 @@
     },
     "hero.nelia": {
       "model": "Nelia",
-      "scale": 1.12,
       "procedural": "hero:nelia"
     },
     "hero.orrin": {
       "model": "Orrin",
-      "scale": 1.12,
       "procedural": "hero:orrin"
     },
     "hero.taran": {
       "model": "Taran",
-      "scale": 1.12,
       "procedural": "hero:taran"
     },
     "hero.malvor": {
       "model": "Malvor",
-      "scale": 1.12,
       "procedural": "hero:malvor"
     },
     "worker.farmer": {

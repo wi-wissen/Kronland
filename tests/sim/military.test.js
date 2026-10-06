@@ -5,6 +5,7 @@ import { UNITS, fullCost } from '../../src/sim/data/units.js';
 import { WATER } from '../../src/sim/map.js';
 import { BALANCE } from '../../src/sim/data/balance.js';
 import * as api from '../../src/sim/missions/setupApi.js';
+import { applyDamage } from '../../src/sim/systems/military.js';
 
 /** Free tile near the map centre with room to the right. */
 function openField(sim) {
@@ -226,6 +227,59 @@ describe('Militia and weather', () => {
     expect(serfsOf(sim).every((u) => u.militia)).toBe(true);
     sim.step([{ type: 'militia', player: 0, on: false }]);
     expect(serfsOf(sim).every((u) => !u.militia)).toBe(true);
+  });
+
+  it('"To arms" only for the selected serfs', () => {
+    const sim = newSim();
+    const [a, b] = serfsOf(sim);
+    sim.step([{ type: 'militia', player: 0, on: true, units: [a.id] }]);
+    expect(a.militia).toBe(true);
+    expect(b.militia).toBeFalsy();
+    sim.step([{ type: 'militia', player: 0, on: false, units: [a.id] }]);
+    expect(a.militia).toBe(false);
+  });
+
+  it('serfs attack an opponent like a tree (work order), strike and do not flee while doing so', () => {
+    const sim = newSim();
+    const [a, b] = serfsOf(sim);
+    const foe = [...sim.entities.values()].find((e) => e.kind === 'unit' && e.owner === 1);
+    // place the opponent next to the own serfs so that the way is short
+    foe.px = a.px + 3000; foe.py = a.py; foe.job = null; foe.path = []; foe.goal = undefined;
+    const hp0 = foe.hp;
+    sim.step([{ type: 'assignWork', player: 0, units: [a.id, b.id], target: foe.id }]);
+    expect(a.job).toEqual({ kind: 'fight', target: foe.id });
+    sim.run(60);
+    expect(sim.entities.has(foe.id) ? foe.hp : 0).toBeLessThan(hp0);
+    expect(a.fleeUntil).toBeUndefined();
+    // own or non-hostile figures are no target
+    expect(sim.step([{ type: 'assignWork', player: 0, units: [a.id], target: b.id }]).some((e) => e.type === 'rejected')).toBe(true);
+    sim.setDiplomacy(0, 1, 'neutral');
+    if (sim.entities.has(foe.id)) expect(sim.step([{ type: 'assignWork', player: 0, units: [a.id], target: foe.id }]).some((e) => e.type === 'rejected')).toBe(true);
+  });
+
+  it('attacked serfs flee and work again afterwards; militia does not flee', () => {
+    const sim = newSim();
+    const u = serfsOf(sim)[0];
+    const hq = hqOf(sim, 0);
+    // far from the castle, attacker between castle and serf → away from the attacker
+    const foe = sim.spawnLeader(1, 'sword1', Math.floor(u.px / 1000) + 1, Math.floor(u.py / 1000), 0);
+    const job = u.job;
+    const d0 = Math.hypot(u.px - foe.px, u.py - foe.py);
+    applyDamage(sim, u, 5, foe);
+    expect(u.fleeUntil).toBe(sim.tick + BALANCE.serf.fleeTicks);
+    foe.order = { type: 'hold' }; foe.hp = 1e6;
+    sim.entities.delete(foe.id);
+    sim.run(30);
+    expect(Math.hypot(u.px - foe.px, u.py - foe.py)).toBeGreaterThan(d0 + 2000);
+    sim.run(BALANCE.serf.fleeTicks);
+    expect(u.fleeUntil).toBeUndefined();
+    expect(u.job).toBe(job);
+    expect(hq).toBeTruthy();
+    // militia fights back instead of fleeing
+    const m = serfsOf(sim)[1];
+    sim.step([{ type: 'militia', player: 0, on: true, units: [m.id] }]);
+    applyDamage(sim, m, 5, foe);
+    expect(m.fleeUntil).toBeUndefined();
   });
 
   it('in winter water freezes, on thaw whoever stands on it drowns', () => {

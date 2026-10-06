@@ -196,7 +196,7 @@
       </div>
     </section>
 
-    <p v-if="!sel.own" class="bp-note"><Icon name="info" />{{ $t('bld.foreign') }}</p>
+    <p v-if="!sel.own" class="bp-note" data-testid="foreign-building"><RelationTag :relation="sel.relation" :owner="sel.owner" /><span v-if="sel.relation?.rel !== 'allied'" class="muted">{{ $t('bld.foreignHint') }}</span></p>
     <p v-else-if="hints && !hasContent" class="bp-note"><Icon name="info" />{{ $t('bdesc.' + sel.type) }}</p>
   </div>
 </template>
@@ -209,11 +209,12 @@ import BuildingTechs from './systems/BuildingTechs.vue';
 import MarketPanel from './systems/MarketPanel.vue';
 import WeatherPanel from './systems/WeatherPanel.vue';
 import RepairState from './systems/RepairState.vue';
+import RelationTag from './RelationTag.vue';
 import { has } from '../../i18n/index.js';
 
 export default {
   name: 'BuildingPanel',
-  components: { CostList, ResearchGrid, SelectionStats, BuildingTechs, MarketPanel, WeatherPanel, RepairState },
+  components: { CostList, ResearchGrid, SelectionStats, BuildingTechs, MarketPanel, WeatherPanel, RepairState, RelationTag },
   props: {
     sel: { type: Object, required: true },
     have: { type: Object, required: true },
@@ -263,7 +264,7 @@ export default {
 .bp-buy .costs { color: #3b2406; }
 .bp-tax { max-width: 34rem; }
 .bp-tax > button { font-size: var(--fs-sm); }
-.bp-note { margin: 0; display: flex; align-items: center; gap: 0.375rem; color: var(--ink-muted); font-size: var(--fs-sm); }
+.bp-note { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; color: var(--ink-muted); font-size: var(--fs-sm); }
 .bp-note .ico { width: 1rem; height: 1rem; }
 .bp-gridwrap { padding-bottom: 2px; }
 .bp-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 0.5rem; }

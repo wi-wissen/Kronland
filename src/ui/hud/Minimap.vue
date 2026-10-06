@@ -23,6 +23,7 @@
 <script>
 import { playerColor } from '../plugin.js';
 import { fitMap, toTile, MAP_CORNER } from './hudLayout.js';
+import { ALERT_MS } from '../../game/alerts.js';
 
 /** Draw cadence: terrain rarely (cached in the engine), units and field of view about 4× per second. */
 const DYN_MS = 250;
@@ -139,6 +140,23 @@ export default {
         ctx.strokeStyle = `rgba(255,207,74,${0.6 + 0.4 * pulse})`;
         ctx.lineWidth = Math.max(2, s * 0.6);
         ctx.beginPath(); ctx.arc(ox + d.hint.x * s, oy + d.hint.y * s, Math.max(5, s * (3 + 2 * pulse)), 0, Math.PI * 2); ctx.stroke();
+      }
+      // Attacks on own things: red dot with waves running outward; paler towards the end
+      if (d.alerts?.length) {
+        const now = performance.now();
+        for (const a of d.alerts) {
+          const fade = Math.max(0, 1 - a.age / ALERT_MS);
+          const x = ox + a.x * s, y = oy + a.y * s;
+          for (let k = 0; k < 2; k++) {
+            const w = ((now / 900) + k / 2) % 1;
+            ctx.strokeStyle = `rgba(255,60,35,${(1 - w) * (0.5 + 0.5 * fade)})`;
+            ctx.lineWidth = Math.max(3, s * 1.1);
+            ctx.beginPath(); ctx.arc(x, y, Math.max(6, s * 2.5) + Math.max(20, s * 13) * w, 0, Math.PI * 2); ctx.stroke();
+          }
+          // bright core with red edge – stands out from red player colours
+          ctx.fillStyle = `rgba(255,244,207,${0.6 + 0.4 * fade})`; ctx.strokeStyle = `rgba(230,40,20,${0.6 + 0.4 * fade})`; ctx.lineWidth = Math.max(2.5, s);
+          ctx.beginPath(); ctx.arc(x, y, Math.max(4.5, s * 2), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
       }
       // Target of the last move command
       const pingAge = this.ping ? performance.now() - this.ping.at : Infinity;

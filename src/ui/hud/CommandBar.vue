@@ -74,7 +74,8 @@
           <button
             v-tip="{ title: $t('quick.minimap'), text: $t('quick.minimapTip'), key: 'M' }"
             class="coin cb-q cb-maptoggle"
-            :class="{ on: mapOpen }"
+            :class="{ on: mapOpen, alarm: ui.alarm && !mapOpen }"
+            :data-alarm="ui.alarm ? '1' : null"
             :aria-expanded="mapOpen"
             :aria-label="$t('quick.minimap')"
             :data-hint-for="mapOpen ? null : 'quick-hq quick-idle quick-all quick-army'"
@@ -161,7 +162,7 @@
         />
 
         <p v-else-if="sel?.kind === 'foreign' && sel.entity === 'ruin'" class="cx-empty"><Icon name="fire" />{{ $t('sys.ruin') }}</p>
-        <p v-else-if="sel?.kind === 'foreign'" class="cx-empty"><Icon name="info" />{{ $t('foreign.enemy') }} · {{ $t('common.player', { n: sel.owner + 1 }) }}</p>
+        <p v-else-if="sel?.kind === 'foreign'" class="cx-empty"><RelationTag v-if="sel.relation?.rel !== 'nature'" :relation="sel.relation" :owner="sel.owner" /><template v-else><Icon name="info" />{{ $t('foreign.nature') }}</template></p>
       </div>
     </section>
 
@@ -175,12 +176,13 @@ import BuildMenu from './BuildMenu.vue';
 import BuildingPanel from './BuildingPanel.vue';
 import ArmyPanel from './ArmyPanel.vue';
 import SelectionCard from './SelectionCard.vue';
-import { selectionIcon, selectionPortrait } from './hudLayout.js';
+import RelationTag from './RelationTag.vue';
+import { selectionIcon, selectionPortrait, foreignName } from './hudLayout.js';
 import { siteRoot } from '../../paths.js';
 
 export default {
   name: 'CommandBar',
-  components: { Minimap, BuildMenu, BuildingPanel, ArmyPanel, SelectionCard },
+  components: { Minimap, BuildMenu, BuildingPanel, ArmyPanel, SelectionCard, RelationTag },
   props: {
     ui: { type: Object, required: true },
     engine: { type: Object, required: true },
@@ -209,7 +211,7 @@ export default {
       if (s.kind === 'army') return s.heroes.length === 1 && !s.groups.length ? this.$name.hero(s.heroes[0].hero) : this.$t('army.title');
       if (s.kind === 'building') return this.$name.building(s.type, s.levelIndex);
       if (s.kind === 'foreign' && s.entity === 'ruin') return this.$t('sys.ruin');
-      return this.$t('foreign.enemy');
+      return foreignName(s, this.$t, this.$name);
     },
     headSub() {
       const s = this.sel;
@@ -390,6 +392,9 @@ button.cb-group.sel { box-shadow: 0 0 0 2px var(--gold-100), 0 0 0 3px var(--woo
 .cmdbar.compact .cb-group { width: 2.625rem; height: 2.625rem; }
 .cmdbar.compact .context { min-width: 0; margin: 0 calc(var(--hud-gap) + var(--safe-r)) calc(var(--hud-gap) + var(--safe-b)) calc(var(--hud-gap) + var(--safe-l)); max-height: min(50dvh, 26rem); padding: 0.375rem 0.625rem 0.625rem; }
 .cmdbar.compact.collapsed .context { padding-bottom: 0.375rem; }
+/* Attack while the map is closed: map button pulses red */
+.cmdbar button.coin.cb-q.alarm { animation: cb-alarm 0.9s ease-in-out infinite alternate; }
+@keyframes cb-alarm { from { box-shadow: 0 0 0 2px var(--bad), 0 0 0 3px var(--wood-950), 0 0 4px rgba(255, 70, 45, 0.4); } to { box-shadow: 0 0 0 2px var(--bad), 0 0 0 3px var(--wood-950), 0 0 16px rgba(255, 70, 45, 0.95); } }
 /* Code button of the coding adventures: golden button so it stands out among the quick accesses */
 .cb-code { color: var(--gold-100); background: radial-gradient(circle at 50% 35%, #8a6a2c, #4a3415 75%); }
 .cb-code-ico { font: 800 0.9375rem/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: -0.06em; }

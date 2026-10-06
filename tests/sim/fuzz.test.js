@@ -27,12 +27,14 @@ describe('Fuzz: random command sequences', () => {
 
   for (const m of allMissions()) {
     it(`Mission ${m.id}: random commands, saving/loading, invariants`, () => {
-      const c = { seed: 3, mission: m.id, ticks: 3000, rich: false };
+      // heavy maps (stress test) shorter, otherwise the run exceeds the time limit
+      const ticks = m.heavy ? 800 : 3000;
+      const c = { seed: 3, mission: m.id, ticks, rich: false };
       const a = fuzzRun(c);
       expect(a.problems).toEqual([]);
-      const first = fuzzRun({ ...c, ticks: 1500, replay: a.log });
+      const first = fuzzRun({ ...c, ticks: ticks / 2, replay: a.log });
       const loaded = loadGame(JSON.parse(JSON.stringify(saveGame(first.sim))));
-      const rest = fuzzRun({ ...c, sim: loaded, from: 1500, replay: a.log });
+      const rest = fuzzRun({ ...c, sim: loaded, from: ticks / 2, replay: a.log });
       expect(rest.problems).toEqual([]);
       expect(JSON.parse(JSON.stringify(saveGame(loaded)))).toEqual(JSON.parse(JSON.stringify(saveGame(a.sim))));
     }, 120_000);

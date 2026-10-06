@@ -106,6 +106,10 @@ conditions. If something is locked, the reason is shown.
 Messages appear on the right: finished buildings, attacks, completed research, payday. Clicking a message
 with a location jumps there.
 
+**Attacks** are announced three ways: the alarm bell rings, those hit call for help (a serf for buildings,
+otherwise the figure itself), and the spot pulses **red** on the minimap while fighting goes on there. On phones
+the map button pulses instead.
+
 ## Building your settlement {#settlement}
 
 ### Serfs
@@ -115,7 +119,10 @@ Serfs are your all-rounders. You buy them at the **castle** for {{serfCost}} tha
 - **build** (up to {{maxBuilders}} per site – more helpers, faster construction),
 - **fell trees** and **mine resource piles** (clay, stone, iron, sulfur),
 - **repair** damaged buildings,
-- take up pitchforks as militia with **“To arms!”** (castle) when danger looms.
+- **attack** just like chopping wood: select serfs and click or tap an **enemy** instead of a tree – they go at it
+  with their bare fists.
+- all take up pitchforks as militia with **“To arms!”** (castle) in an emergency.
+- **flee** when attacked unarmed, and go back to their work afterwards.
 
 After finishing a job they look for similar work nearby. Serfs need neither housing nor food and pay no taxes.
 
@@ -340,6 +347,8 @@ In many chapters you lead **several heroes** (Nelia, Orrin, later Taran). Figure
 want to talk – send the right hero over. **Offers** lists tributes: paying buys a shard free or hires mercenaries,
 for example. Two offers for the same thing are a choice – once you pay, the other one disappears. **Villages** can
 be allied, neutral or hostile; deliveries win them back.
+Click a foreign figure or building to see where it stands: a **red** dot means enemy, **gold** neutral, **green**
+allied. Foreign buildings only show their level and hit points.
 
 ## Free game and settings {#free-play}
 
@@ -352,6 +361,11 @@ In a **free game** you choose:
 - **Map:** a map number – each number always creates the same world; “Roll” picks a random one.
 
 Whoever destroys all enemy castles wins.
+
+**Special maps** in the main menu are ready-made single maps without victory or defeat: the **Showcase** (every
+building and every figure once, without fog) and the **Bustle** (four full towns, more than a thousand figures,
+two endless battles – to try how smoothly the game runs on your device). The objectives list takes you to each
+place with “Show objective”.
 
 **Settings** (main menu and game menu) contain language (German/English), graphics quality (Automatic, Low,
 Medium, High), volumes for music and effects, interface size, edge scrolling and help texts.

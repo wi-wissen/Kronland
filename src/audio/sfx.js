@@ -22,7 +22,7 @@ const STONE_TINK = [[1, 0.5, 1], [2.76, 0.28, 0.5], [5.4, 0.12, 0.3]];
 export const SFX = {
   // ---------- Work ----------
   chop: {
-    dur: 0.35, max: 3, cooldown: 0.09, priority: 1,
+    dur: 0.35, max: 2, cooldown: 0.3, priority: 1,
     play(ctx, out, t, r) {
       const p = vary(r, 0.08);
       // dull axe stroke in wood: tone impulse + wood resonance + short crack
@@ -33,7 +33,7 @@ export const SFX = {
     },
   },
   pickaxe: {
-    dur: 0.5, max: 3, cooldown: 0.09, priority: 1,
+    dur: 0.5, max: 2, cooldown: 0.3, priority: 1,
     play(ctx, out, t, r) {
       const p = vary(r, 0.07);
       noise(ctx, out, t, { filter: 'highpass', freq: 2500, q: 0.8, dur: 0.02, gain: 0.3 });
@@ -44,7 +44,7 @@ export const SFX = {
     },
   },
   hammer: {
-    dur: 0.3, max: 3, cooldown: 0.08, priority: 1,
+    dur: 0.3, max: 2, cooldown: 0.3, priority: 1,
     play(ctx, out, t, r) {
       const p = vary(r, 0.1);
       // wooden mallet on beam: soft knock with wood resonance
@@ -72,7 +72,7 @@ export const SFX = {
     },
   },
   chisel: {
-    dur: 0.25, max: 2, cooldown: 0.12, priority: 1,
+    dur: 0.25, max: 2, cooldown: 0.3, priority: 1,
     play(ctx, out, t, r) {
       const p = vary(r, 0.08);
       bell(ctx, out, t, 2600 * p, 0.12, 0.1, STONE_TINK);
@@ -372,6 +372,14 @@ export const SFX = {
       tone(ctx, lp, t + 0.12, { type: 'square', freq: 233, dur: 0.18, gain: 0.12, attack: 0.008 });
     },
   },
+  alarm: {
+    dur: 1.6, max: 1, cooldown: 3, priority: 4, bus: 'ui',
+    play(ctx, out, t) {
+      // alarm bell: three quick, deep strikes – clearly different from the bright notice bell
+      const P = [[1, 0.5, 1], [2.32, 0.3, 0.7], [3.17, 0.18, 0.5], [4.3, 0.1, 0.35]];
+      for (let i = 0; i < 3; i++) bell(ctx, out, t + i * 0.26, 392, 0.9, 0.15, P);
+    },
+  },
   notify: {
     dur: 1.2, max: 1, cooldown: 0.5, priority: 3, bus: 'ui',
     play(ctx, out, t) {
@@ -388,10 +396,10 @@ export const SFX = {
   },
 };
 
-/** Bird call (ambience): short trills with frequency jumps, kind 0…2. */
+/** Bird call (ambience): short call with frequency jumps, kind 0…2 – deliberately not too high and only a few notes. */
 export function birdCall(ctx, out, t, r, kind = 0, gain = 0.06) {
-  const base = [2900, 3600, 2300][kind] * (1 + (r() - 0.5) * 0.1);
-  const notes = kind === 0 ? 3 + Math.floor(r() * 3) : kind === 1 ? 2 : 4 + Math.floor(r() * 4);
+  const base = [2600, 3100, 2200][kind] * (1 + (r() - 0.5) * 0.1);
+  const notes = kind === 0 ? 2 + Math.floor(r() * 3) : kind === 1 ? 2 : 3 + Math.floor(r() * 3);
   let tt = t;
   for (let i = 0; i < notes; i++) {
     const osc = ctx.createOscillator();

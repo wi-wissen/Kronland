@@ -6,6 +6,7 @@ import { buildingArmor } from '../data/buildings.js';
 import { moveAlong, pathTo, canStep, goalsAt, nearestWalkable } from './movement.js';
 import { idiv, isqrt, toTile, tileCenter, UNIT } from '../fixed.js';
 import { removeWorker } from './workers.js';
+import { startFlee } from './serfs.js';
 import { techBonus, boosted, buildingMaxHp } from './techs.js';
 import { EXPERIENCE as XP, starsOf } from '../data/experience.js';
 import { BALANCE } from '../data/balance.js';
@@ -197,7 +198,11 @@ export function applyDamage(sim, target, dmg, attacker) {
     if (s) target = s;
   }
   target.hp -= dmg;
-  if (target.hp > 0) return;
+  if (target.hp > 0) {
+    // Serfs (no militia) do not fight back on their own: they flee and continue working afterwards
+    if (target.kind === 'unit' && !target.militia && target.job?.kind !== 'fight' && attacker && attacker.owner !== target.owner && target.fleeUntil === undefined) startFlee(sim, target, attacker);
+    return;
+  }
   kill(sim, target, attacker);
 }
 
@@ -238,12 +243,15 @@ function attack(sim, e, st, t) {
     const a = posOf(e), b = posOf(t);
     const line = UNITS[e.def]?.line;
     const kind = e.kind === 'building' || e.kind === 'turret' ? 'bolt' : line === 'cannon' ? 'ball' : 'arrow';
-    sim.events.push({ type: 'shot', from: a, to: b, owner: e.owner, kind });
+    sim.events.push({ type: 'shot', from: a, to: b, owner: e.owner, kind, by: e.id, target: t.id });
   } else {
     sim.events.push({ type: 'hit', by: e.id, target: t.id });
   }
   applyDamage(sim, t, dmg, e);
 }
+
+/** One hit from e on t with the combat values of e (serfs attacking an opponent). */
+export function strike(sim, e, t) { attack(sim, e, combatStats(sim, e), t); }
 
 /** Experience point for a hit; reports new stars. */
 function gainXp(sim, L) {
@@ -649,11 +657,13 @@ export function updateMilitary(sim) {
   }
 }
 
-/** Switch the militia on or off. */
-export function setMilitia(sim, owner, on) {
+/** Switch militia on or off: all serfs of the player or only those with the IDs `ids` ("To arms"). */
+export function setMilitia(sim, owner, on, ids = null) {
   const hq = sim.findBuilding(owner, 'headquarters');
+  const only = ids ? new Set(ids) : null;
   for (const e of sim.entities.values()) {
-    if (e.kind !== 'unit' || e.owner !== owner) continue;
+    if (e.kind !== 'unit' || e.owner !== owner || (only && !only.has(e.id))) continue;
+    delete e.fleeUntil; delete e.fleeGoal;
     if (on && !e.militia) {
       const site = e.job?.kind === 'build' || e.job?.kind === 'repair' ? sim.entities.get(e.job.target) : null;
       if (site) site.builders = site.builders.filter((id) => id !== e.id);

@@ -418,7 +418,7 @@ export class Sim {
       case 'upgradeLine': return this.cmdUpgradeLine(cmd);
       case 'order': return this.cmdOrder(cmd);
       case 'ability': return this.cmdAbility(cmd);
-      case 'militia': setMilitia(this, cmd.player, !!cmd.on); return true;
+      case 'militia': setMilitia(this, cmd.player, !!cmd.on, Array.isArray(cmd.units) ? cmd.units : null); return true;
       case 'trade': return this.cmdTrade(cmd);
       case 'changeWeather': return this.cmdChangeWeather(cmd);
       // Mission: e.g. confirm or skip a tutorial step (hook 2 of 3)
@@ -541,7 +541,11 @@ export class Sim {
     let ok = 0;
     if (t.kind === 'tree' || t.kind === 'pile') ok = assignGather(this, serfs, t);
     else for (const u of serfs) if (assignJob(this, u, t)) ok++;
-    if (!ok) return this.reject(cmd, 'err.noWork');
+    if (!ok) {
+      // Own construction site without a free spot all around (or already fully staffed)
+      if (t.kind === 'building' && t.owner === cmd.player && !t.done) return this.reject(cmd, REASONS.siteFull);
+      return this.reject(cmd, 'err.noWork');
+    }
     return true;
   }
 
@@ -944,9 +948,10 @@ export class Sim {
     for (const e of this.entities.values()) {
       h.int(e.id).str(e.kind).int(e.owner ?? -1);
       if (e.fearUntil !== undefined) h.int(e.fearUntil);
-      if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp);
+      if (e.fleeUntil !== undefined) h.int(e.fleeUntil).int(e.fleeGoal);
+      if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp).int(e.spot ?? -1);
       else if (e.kind === 'leader') h.int(e.px).int(e.py).int(e.hp).int(e.targetId).int(e.cooldown).int(e.xp ?? 0);
-      else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state);
+      else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state).int(e.spot ?? -1);
       else if (e.px !== undefined) h.int(e.px).int(e.py).int(e.hp ?? 0).int(e.targetId ?? 0).int(e.cooldown ?? 0).int(e.face ?? -1);
       else if (e.kind === 'building') {
         h.str(e.type).int(e.x).int(e.y).int(e.progress).int(e.done ? 1 : 0).int(e.level).int(e.hp).int(e.burning ? 1 : 0);

@@ -30,7 +30,6 @@
           <div class="adv-own frame">
             <h3 class="h-title">{{ $t('adv.own') }}</h3>
             <button class="adv-own-btn" data-testid="open-editor" @click="$emit('editor')"><Icon name="map" /><span><b>{{ $t('adv.editor') }}</b><small>{{ $t('adv.editorSub') }}</small></span></button>
-            <button class="adv-own-btn" data-testid="open-showcase" @click="$emit('start', showcaseId)"><Icon name="castle" /><span><b>{{ $t('adv.showcase') }}</b><small>{{ $t('adv.showcaseSub') }}</small></span></button>
             <label class="adv-own-btn" data-testid="open-file">
               <Icon name="load" /><span><b>{{ $t('adv.load') }}</b><small>{{ $t('adv.loadSub') }}</small></span>
               <input type="file" accept=".json,application/json" class="adv-file" data-testid="scenario-file" @change="loadFile">
@@ -61,7 +60,6 @@
 import { ADVENTURES, SCRIPT_MISSIONS } from '../../sim/missions/scenarios/index.js';
 import { validateScenario } from '../../sim/scripting/scenario.js';
 import { loadProgress } from '../mission/progress.js';
-import { SHOWCASE_ID } from '../../sim/missions/showcase.js';
 
 export default {
   name: 'AdventureMenu',
@@ -70,7 +68,7 @@ export default {
   data() {
     const progress = loadProgress();
     const open = ADVENTURES.find((a) => !progress.done[a.id]) ?? ADVENTURES[0];
-    return { progress, selectedId: open.id, fileError: '', showcaseId: SHOWCASE_ID };
+    return { progress, selectedId: open.id, fileError: '' };
   },
   computed: {
     adventures() { return ADVENTURES.map((a, i) => ({ ...a, n: i + 1, won: !!this.progress.done[a.id] })); },

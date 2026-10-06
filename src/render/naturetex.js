@@ -6,6 +6,7 @@
 // If the files are missing (or level "low"), there is no texture – as before.
 
 import * as THREE from 'three';
+import { assetUrl } from '../paths.js';
 
 /** Nature kinds with a painted image file. */
 export const NATURE_IMAGE_KINDS = ['leaves', 'needles', 'bark', 'boulder', 'planks', 'masonry'];
@@ -26,7 +27,7 @@ export async function loadNatureImages(baseUrl, onDone = () => {}) {
   await Promise.all(NATURE_IMAGE_KINDS.map(async (kind) => {
     try {
       if (!images.has(kind)) {
-        const r = await fetch(`${baseUrl}${kind}-512.webp`);
+        const r = await fetch(assetUrl(`${baseUrl}${kind}-512.webp`));
         if (!r.ok) throw new Error(`${r.status}`);
         images.set(kind, await createImageBitmap(await r.blob()));
       }

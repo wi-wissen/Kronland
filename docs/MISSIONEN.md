@@ -26,14 +26,20 @@ wird beim Laden über die ID aus `registry.js` geholt.
 
 Direktstart zum Ausprobieren: `play/?mission=c3` (optional `&seed=7`, `&no-models`).
 
-## Schaukasten
+## Sonderkarten
+
+Einzelne fertige Karten außerhalb der Kampagne, im Startmenü unter **Sonderkarten**
+(`src/ui/mission/SpecialMapsMenu.vue`). Die Liste ist `SPECIAL_MAPS` in `src/sim/missions/registry.js`: neue
+Karte als Missionsdatei anlegen, dort eintragen – sie erscheint mit Titel, Zusammenfassung, Briefing und den
+Nebenzielen als „Orte auf der Karte“. Nach Sieg/Ende führt „Zurück“ wieder ins Sonderkarten-Menü.
+
+### Schaukasten
 
 `src/sim/missions/showcase.js` (ID `showcase`) ist keine Kampagnenmission, sondern eine Ausstellungskarte:
 Zufallskarte 128×128 (Seed 1), um die Burg wird ein Rechteck eingeebnet, darauf steht alles, was das Spiel
 zeichnen kann. Kein Nebel (`fog: false`), alle Parteien neutral, keine Hauptziele (kein Sieg), `noDefeat`.
 
-- Laden: `play/?mission=showcase` (gern mit `&quality=high`) oder Startmenü → **Programmier-Abenteuer** →
-  „Schaukasten“.
+- Laden: `play/?mission=showcase` (gern mit `&quality=high`) oder Startmenü → **Sonderkarten** → „Schaukasten“.
 - Finden: Die Ziele-Liste ist ein Wegweiser – jedes Feld ist ein Nebenziel mit „Ziel zeigen“ (Kamerasprung).
 - Felder (von oben nach unten): Helden, Feldgeschütz, Fußangeln, zwei Gesprächsfiguren · jede Truppe (alle Linien
   und Stufen) mit Hauptmann · Gebäude in allen Ausbaustufen (je Typ links Stufe 1) · Arbeiter jedes Berufs (stehen
@@ -45,6 +51,26 @@ zeichnen kann. Kein Nebel (`fog: false`), alle Parteien neutral, keine Hauptziel
 - Test: `tests/sim/showcase.test.js` (Vollständigkeit, Frieden, Determinismus), `e2e/showcase.spec.js`
   (Bildschirmfotos aller Felder nach `test-results/showcase/`).
 
+
+### Gewimmel (Belastungsprobe)
+
+`src/sim/missions/stress.js` (ID `bustle`): Karte 160×160 (Seed 11), vier Spieler (Mensch + drei KI „schwer“),
+kein Nebel, `noDefeat`, kein Sieg. Zweck: Darstellung und Simulation unter Last prüfen.
+
+- Laden: `play/?mission=bustle` oder Startmenü → **Sonderkarten** → „Gewimmel“. Messen mit F3/`?dev=1`
+  (Bilder/s, Zeichenaufrufe, Dreiecke, Figuren je Stufe).
+- Aufbau (`setup`): je Spieler eine Stadt aus `TOWN` (Wohnhäuser und Höfe in Stufe 3, alle Werkstätten,
+  Militärgebäude, Türme, Zierden, vier Schächte) mit allen Arbeitsplätzen besetzt, 50 Leibeigene im Wald, ein
+  Heer vor der Burg (`HOME_ARMY`). Nahe der Kartenmitte zwei Schlachtfelder (`BATTLES`: Spieler 1 gegen 2 im
+  Norden, 3 gegen 4 im Süden) auf offenem Land ohne Wasser und Steilhang (`findBattlefield`, die Mitte selbst kann
+  ein Berg sein), mit je zwei Wellen (`WAVE`) pro Seite im Angriffsmarsch.
+- Nachschub: Auslöser `waves` alle 40 s eine neue Welle je Seite, solange der Spieler unter 60 Truppen hat.
+- Größenordnung: zu Beginn ~180 Gebäude und ~1 150 Figuren, nach vier Spielminuten ~1 600 (KI rekrutiert dazu);
+  die Simulation braucht dann ~16 ms je Takt (Budget 100 ms).
+- Ziele-Liste: Wegweiser zu beiden Schlachten und den vier Städten („Ziel zeigen“).
+- `heavy: true`: rechenintensive Karte – der Dauertest `tests/sim/fuzz.test.js` läuft hier 800 statt 3000 Takte.
+- Test: `tests/sim/stress.test.js` (Mindestzahlen, Nachschub, Determinismus), `e2e/special-maps.spec.js`
+  (Menü, Bildschirmfotos Schlacht/Stadt/Überblick und Zeichenaufrufe nach `test-results/special-maps/`).
 ## Aufbau einer Missionsdatei
 
 ```js

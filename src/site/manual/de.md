@@ -105,6 +105,10 @@ Hinweis Kosten und Bedingungen. Ist etwas gesperrt, steht dort der Grund.
 Rechts erscheinen Meldungen: fertige Gebäude, Angriffe, abgeschlossene Forschung, Zahltag. Ein Klick auf
 eine Meldung mit Ortsangabe springt dorthin.
 
+**Angriffe** meldet das Spiel dreifach: Die Sturmglocke läutet, die Getroffenen rufen um Hilfe (bei Gebäuden ein
+Leibeigener, sonst die Figur selbst), und auf der Minikarte pulsiert die Stelle **rot**, solange dort gekämpft
+wird. Am Handy pulsiert dann der Kartenknopf.
+
 ## Siedlung aufbauen {#settlement}
 
 ### Leibeigene
@@ -114,7 +118,10 @@ Leibeigene sind deine Allrounder. Du kaufst sie in der **Burg** für {{serfCost}
 - **bauen** Gebäude (bis zu {{maxBuilders}} je Baustelle – mehr Helfer, schnellerer Bau),
 - **fällen Bäume** und **bauen Rohstoffhaufen ab** (Lehm, Stein, Eisen, Schwefel),
 - **reparieren** beschädigte Gebäude,
-- greifen bei Gefahr mit **„Zu den Waffen!“** (Burg) als Miliz zu Mistgabeln.
+- **greifen an** wie beim Holzhacken: Leibeigene wählen und statt eines Baums einen **Gegner** anklicken bzw.
+  antippen – sie gehen mit bloßen Fäusten auf ihn los.
+- greifen in der Not mit **„Zu den Waffen!“** (Burg) alle als Miliz zu Mistgabeln.
+- **fliehen**, wenn sie unbewaffnet angegriffen werden, und machen danach mit ihrer Arbeit weiter.
 
 Nach getaner Arbeit suchen sie sich in der Nähe gleichartige Arbeit. Leibeigene brauchen weder Haus noch
 Essen und zahlen keine Steuern.
@@ -342,6 +349,8 @@ In vielen Kapiteln führst du **mehrere Helden** (Nelia, Orrin, später Taran). 
 wollen reden – schick den richtigen Helden hin. Unter **Angebote** stehen Tribute: Wer bezahlt, kauft zum Beispiel
 eine Zacke frei oder heuert Söldner an. Zwei Angebote derselben Sache sind eine Wahl – nach dem Bezahlen
 verschwindet das andere. **Dörfer** können verbündet, neutral oder feindlich sein; Lieferungen gewinnen sie zurück.
+Wer zu wem steht, zeigt ein Klick auf eine fremde Figur oder ein fremdes Gebäude: ein **roter** Punkt heißt Feind,
+ein **goldener** neutral, ein **grüner** verbündet. Bei fremden Gebäuden siehst du nur Stufe und Lebenspunkte.
 
 ## Freies Spiel und Einstellungen {#free-play}
 
@@ -354,6 +363,11 @@ Im **Freien Spiel** wählst du:
 - **Karte:** eine Kartennummer – jede Nummer erzeugt immer dieselbe Welt; „Würfeln“ wählt eine zufällige.
 
 Gewonnen hat, wer alle gegnerischen Burgen zerstört.
+
+Unter **Sonderkarten** im Startmenü liegen fertige Einzelkarten ohne Sieg und Niederlage: der **Schaukasten**
+(jedes Gebäude und jede Figur einmal, ohne Nebel) und das **Gewimmel** (vier volle Städte, über tausend Figuren,
+zwei Dauerschlachten – zum Ausprobieren, wie flüssig das Spiel auf deinem Gerät läuft). Die Ziele-Liste führt
+mit „Ziel zeigen“ zu den einzelnen Orten.
 
 Unter **Einstellungen** (Startmenü und Spielmenü) findest du Sprache (Deutsch/Englisch), Grafikstufe
 (Automatisch, Niedrig, Mittel, Hoch), Lautstärken für Musik und Effekte, Größe der Oberfläche, Randscrollen

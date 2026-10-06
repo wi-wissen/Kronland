@@ -4,7 +4,7 @@ Der Boden besteht aus sechs gemalten, nahtlos kachelbaren Texturen: Gras, Wiese,
 Sie entstehen per Bild-KI, sind auf die Farbwelt des Spiels angeglichen und liegen als Bilddateien vor.
 Fehlt eine Datei, malt das Spiel die Art wie früher im Code (`src/render/textures.js`).
 
-![Vorher/nachher in Spielhöhe](../assets-src/ground/previews/desktop-d28.webp)
+![Vorher/nachher in Spielhöhe](images/ground-desktop-d28.webp)
 
 ## Im Spiel
 
@@ -59,7 +59,7 @@ Der erste Satz hat 0,18 $ gekostet (12 Kandidaten).
 Die prozeduralen Bäume, Büsche und Felsbrocken (`src/render/nature.js`) bekommen gemalte Struktur, ohne ein
 Dreieck mehr: vier eigene nahtlose Texturen, triplanar auf die Formen gelegt.
 
-![Nahaufnahme alt/neu](../assets-src/previews/nature-textures-closeup.jpg)
+![Nahaufnahme alt/neu](images/nature-textures-closeup.jpg)
 
 Weitere Vergleiche (Desktop und Handy, nah/mittel/Spielhöhe): `assets-src/previews/natur-texturen-*.jpg`.
 

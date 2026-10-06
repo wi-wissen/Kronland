@@ -62,7 +62,10 @@ for (const f of files) {
     o.traverse((m) => { if (hide.includes(m.name)) m.visible = false; });
     if (q.get('team')) await applyTeam(o, f.replace(/\.glb$/, '.mask.png'), new THREE.Color('#' + q.get('team')));
     let tris = 0; o.traverse((m) => { if (m.isMesh) tris += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
-    const clip = q.get('clip') ? g.animations.find((a) => a.name === q.get('clip')) : null;
+    // Clips are in the game model (<model>.lod1.glb); fetch them from there for the near model
+    let anims = g.animations;
+    if (q.get('clip') && !anims.length && !/\.lod\d\.glb$/.test(f)) anims = (await L.loadAsync(f.replace(/\.glb$/, '.lod1.glb')).catch(() => ({ animations: [] }))).animations;
+    const clip = q.get('clip') ? anims.find((a) => a.name === q.get('clip')) : null;
     let mx = null;
     if (clip) { mx = new THREE.AnimationMixer(o); mx.clipAction(clip).play(); mx.setTime(clip.duration * Number(q.get('t') || 0)); }
     o.updateMatrixWorld(true);

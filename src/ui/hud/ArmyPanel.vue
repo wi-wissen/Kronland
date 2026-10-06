@@ -20,6 +20,14 @@
           </button>
         </div>
       </div>
+      <div v-if="sel.militia" class="act-group">
+        <h4>{{ $t('army.militia') }}</h4>
+        <div>
+          <button v-tip="{ title: $t('army.disarm'), text: $t('army.disarmTip') }" class="act" data-testid="militia-off" @click="act({ kind: 'arm', on: false })">
+            <Icon name="serf" /><span class="act-lbl">{{ $t('army.disarm') }}</span>
+          </button>
+        </div>
+      </div>
       <div v-if="sel.refill" class="act-group">
         <h4>{{ $t('army.troops') }}</h4>
         <div>

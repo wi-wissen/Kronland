@@ -31,5 +31,5 @@ Stand: alle Gebäudetypen und Figuren haben eigene Modelle; KayKit liefert nur n
 
 - Gebäude und Figuren werden bei Bedarf nachgeladen; Bewegungsdateien sind auf reine Bewegungsdaten gekürzt.
 - **Rohdateien:** `assets-src/` (auch die Meshy-Rohmodelle `raw*.glb`, `rigged*.glb`, `remeshed.glb`) liegt nur lokal
-  beim Maintainer und gehört nicht ins Repository.
+  beim Maintainer und gehört nicht ins Repository; Sicherung siehe [ROHDATEIEN.md](ROHDATEIEN.md).
 - KayKit-Gebäude in Spielerfarben entfernt (7 MB); KayKit bleibt für Baustelle, Trümmer und Natur.

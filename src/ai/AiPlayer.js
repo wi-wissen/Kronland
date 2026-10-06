@@ -21,6 +21,7 @@ import { BUILDING_TECHS } from '../sim/data/buildingTechs.js';
 import { checkBuildingResearch } from '../sim/systems/techs.js';
 import { checkTrade, tradeCost } from '../sim/systems/market.js';
 import { isDamaged } from '../sim/systems/damage.js';
+import { siteRoom } from '../sim/systems/serfs.js';
 import { MARKET } from '../sim/data/market.js';
 import { WATER, OCCUPIED, CLIFF, BRIDGE } from '../sim/map.js';
 import { canSee, knownBuildings } from '../sim/systems/vision.js';
@@ -350,7 +351,8 @@ export class AiPlayer {
       const serfs = this.serfs.filter((u) => !u.militia && !this.reserved?.has(u.id) && u.job?.kind !== 'build' && u.job?.kind !== 'repair')
         .sort((u, v) => Math.hypot(u.px / UNIT - cx, u.py / UNIT - cy) - Math.hypot(v.px / UNIT - cx, v.py / UNIT - cy) || u.id - v.id)
         .slice(0, (b.burning ? 3 : 2) - b.builders.length);
-      if (!serfs.length) return;
+      serfs.length = Math.min(serfs.length, serfs.length ? siteRoom(sim, b, serfs[0]) : 0);
+      if (!serfs.length) continue;
       this.issue({ type: 'assignWork', units: serfs.map((u) => u.id), target: b.id });
       this.reserved = new Set([...(this.reserved ?? []), ...serfs.map((u) => u.id)]);
     }
@@ -509,7 +511,9 @@ export class AiPlayer {
         if (b.level === 0 && b.type !== 'headquarters') this.issue({ type: 'demolish', building: b.id });
         continue;
       }
-      const idle = this.idleSerfs().slice(0, 4 - b.builders.length);
+      // Only as many as there are free spots around (every serf needs its own tile)
+      const pool = this.idleSerfs();
+      const idle = pool.slice(0, pool.length ? siteRoom(sim, b, pool[0]) : 0);
       if (idle.length) {
         this.issue({ type: 'assignWork', units: idle.map((u) => u.id), target: b.id });
         idle.forEach((u) => this.reserved.add(u.id));

@@ -70,7 +70,7 @@ async function renderJingle(name) {
 }
 
 /** Ambience: real Ambient class with a stub of the engine, single events via tick(now). */
-async function renderAmbient(weather, secs = 12, { water = 0, battle = 0 } = {}) {
+async function renderAmbient(weather, secs = 12, { water = 0, battle = 0, forest = 1, dist = 28, cliff = 0 } = {}) {
   const ctx = new OfflineAudioContext(2, Math.ceil(secs * RATE), RATE);
   const amb = ctx.createGain(); amb.connect(ctx.destination);
   const eng = {
@@ -82,6 +82,9 @@ async function renderAmbient(weather, secs = 12, { water = 0, battle = 0 } = {})
   const a = new Ambient(/** @type {any} */ (eng));
   a.weather = weather;
   a.water = water; a.battle = battle;
+  a.forest = forest; a.dist = dist; a.cliff = cliff;
+  // Bird calls are rare in the game (20–60 s); schedule the first one early for listening
+  a.nextBird = 0.5;
   a.start();
   for (let t = 0; t < secs - 1; t += 0.2) a.tick(t);
   return ctx.startRendering();

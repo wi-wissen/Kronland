@@ -18,7 +18,7 @@ test('Ground from painted image files, at game height and up close', async ({ pa
   // Software WebGL of the tests = "low" level: the 512 versions
   expect(failed).toEqual([]);
   expect(loaded.length).toBe(6);
-  expect(loaded.every((f) => f.endsWith('-512.webp'))).toBe(true);
+  expect(loaded.every((f) => /-512(\.[0-9a-f]{10})?\.webp$/.test(f))).toBe(true);
   expect(Object.values(await painted(page)).every(Boolean)).toBe(true);
   await page.evaluate(() => {
     const e = window.__kronland, hq = e.sim.findBuilding(0, 'headquarters');

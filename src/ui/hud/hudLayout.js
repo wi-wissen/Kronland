@@ -1,5 +1,6 @@
 // Pure helper functions for the game UI (without DOM, tested with Vitest).
 import { PORTRAITS } from '../icons/index.js';
+import { assetPath } from '../../paths.js';
 
 /** Share of the side length taken up by the longer map edge in the minimap. The minimap is square
  *  like the map (only slightly rounded corners), so the map fills it completely – nothing lies under the frame. */
@@ -65,9 +66,9 @@ export function selectionIcon(s) {
 export function selectionPortrait(s, base = '/') {
   if (!s) return null;
   const hero = s.kind === 'army' && s.heroes.length && !s.groups.length ? s.heroes[0].hero : s.kind === 'foreign' ? s.hero : null;
-  if (hero && PORTRAITS[`hero-${hero}`]) return base + PORTRAITS[`hero-${hero}`];
-  if (s.kind === 'serfs') return base + 'portraits/serf.webp';
-  if (s.kind === 'foreign' && s.owner === 0 && s.entity === 'worker') return base + 'portraits/worker.webp';
+  if (hero && PORTRAITS[`hero-${hero}`]) return base + assetPath(PORTRAITS[`hero-${hero}`]);
+  if (s.kind === 'serfs') return base + assetPath('portraits/serf.webp');
+  if (s.kind === 'foreign' && s.owner === 0 && s.entity === 'worker') return base + assetPath('portraits/worker.webp');
   return null;
 }
 
@@ -140,4 +141,26 @@ export function topbarMode({ widths, gap, pad, sys, crest, barGap, width }) {
   if (fits(resBarWidth(widths, gap, pad, 1))) return 'one';
   if (fits(resBarWidth(widths, gap, pad, 2))) return 'two';
   return 'tight';
+}
+
+/**
+ * Text key of the diplomacy of a foreign selection (relationOf from src/game/relation.js), null for own
+ * and nature. Bandits are called bandits, regardless of the diplomatic standing.
+ * @param {{ rel: string, bandits?: boolean }|null|undefined} r
+ */
+export function relationKey(r) {
+  if (!r) return null;
+  if (r.bandits) return 'foreign.bandits';
+  return { allied: 'foreign.ally', neutral: 'foreign.neutral', hostile: 'foreign.enemy' }[r.rel] ?? null;
+}
+
+/**
+ * Display name of a foreign selection (hero, unit, serf …); t/name are $t and $name of the UI.
+ * @param {any} s selection kind 'foreign'
+ */
+export function foreignName(s, t, name) {
+  if (s.entity === 'ruin') return t('sys.ruin') + (s.type ? ' · ' + name.building(s.type, s.level ?? 0) : '');
+  if (s.hero) return name.hero(s.hero);
+  if (s.unit) return name.unit(s.unit);
+  return t('foreign.' + (s.entity === 'unit' ? 'serf' : s.entity in { worker: 1, hero: 1, soldier: 1 } ? s.entity : 'unit'));
 }

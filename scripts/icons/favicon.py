@@ -103,5 +103,5 @@ def main():
 
 if __name__ == '__main__':
     if not SRC.exists():
-        sys.exit(f'Missing {SRC.relative_to(ROOT)}: the raw files of the asset pipeline (assets-src/) are not part of the repository, they are kept locally by the maintainer.')
+        sys.exit(f'Missing {SRC.relative_to(ROOT)}: the raw files of the asset pipeline (assets-src/) are not part of the repository, they are kept locally by the maintainer. See docs/ROHDATEIEN.md.')
     main()

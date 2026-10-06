@@ -11,7 +11,7 @@
 //       overview: each candidate tiled 2×2 (seams visible) → assets-src/ground/candidates.webp
 //   node scripts/asset-gen/ground.mjs gen nature --n 2     (nature kinds: leaves, needles, bark, boulder, planks, masonry)
 //   node scripts/asset-gen/ground.mjs sheet nature         → assets-src/nature/candidates.webp
-//   node scripts/asset-gen/ground.mjs use bark 1-seedream-5-0-flash.webp → public/textures/nature/bark.webp
+//   node scripts/asset-gen/ground.mjs use bark 1-seedream-5-0-flash.webp → public/textures/nature/bark-512.webp
 //
 // Prompts, model and cost per image: assets-src/ground/ground.json. Workflow and style: docs/BODEN.md.
 // All models run via OpenRouter's image API (/api/v1/images), also GPT-Image (cheaper there
@@ -22,7 +22,9 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { reexecWithProxy, ROOT } from './lib.mjs';
 import { makeSeamless, shiftMean } from './groundtex.mjs';
+import { requireAssetsSrc } from '../require-assets-src.mjs';
 
+requireAssetsSrc();
 reexecWithProxy();
 
 /** Folder per set: ground or nature (nature kinds are in NATURE_KINDS). */
@@ -165,12 +167,14 @@ async function use(kind, file, crop, keepColors) {
   const px = makeSeamless(target ? shiftMean(data, target) : data, info.width, info.height, 3);
   const img = sharp(Buffer.from(px), { raw: { width: info.width, height: info.height, channels: 3 } });
   fs.mkdirSync(OUT, { recursive: true });
-  await img.clone().webp({ quality: 86 }).toFile(path.join(OUT, `${kind}.webp`));
+  // the game loads nature textures only at 512 (naturetex.js): the large version stays as a raw file in assets-src/
+  const big = set === 'nature' ? path.join(SRC, kind, `${kind}-1024.webp`) : path.join(OUT, `${kind}.webp`);
+  await img.clone().webp({ quality: 86 }).toFile(big);
   await img.clone().resize(512, 512, { kernel: 'lanczos3' }).webp({ quality: 86 }).toFile(path.join(OUT, `${kind}-512.webp`));
   const log = readLog(set);
   log.used = { ...(log.used ?? {}), [kind]: { file: path.relative(SRC, src), crop, target } };
   writeLog(set, log);
-  console.log(`${kind}: ${path.relative(ROOT, src)} → ${path.relative(ROOT, OUT)}/${kind}.webp, ${kind}-512.webp`);
+  console.log(`${kind}: ${path.relative(ROOT, src)} → ${path.relative(ROOT, big)}, ${path.relative(ROOT, OUT)}/${kind}-512.webp`);
 }
 
 /** Overview: each candidate made seamless and tiled 2×2, with label. */

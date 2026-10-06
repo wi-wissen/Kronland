@@ -3,6 +3,7 @@
 // Each texture covers TEX_REPEAT world units; size per graphics level.
 
 import * as THREE from 'three';
+import { assetUrl } from '../paths.js';
 
 /** World units that one texture tile covers (grass, meadow, earth, sand, snow). */
 export const TEX_REPEAT = 6;
@@ -299,7 +300,7 @@ export async function loadGroundImages(baseUrl, size, onDone = () => {}) {
     const name = groundImageName(kind, size);
     try {
       if (!images.has(name)) {
-        const r = await fetch(`${baseUrl}${name}.webp`);
+        const r = await fetch(assetUrl(`${baseUrl}${name}.webp`));
         if (!r.ok) throw new Error(`${r.status}`);
         images.set(name, await createImageBitmap(await r.blob()));
       }

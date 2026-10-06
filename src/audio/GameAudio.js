@@ -1,13 +1,15 @@
 // GameAudio: bridge between Engine (simulation + camera) and AudioEngine.
 // - translates simulation events (sim.events) into sounds,
 // - derives work sounds from the state (serfs chopping/building, workers in workshops),
-//   only near the camera and throttled – the simulation stays untouched,
+//   only near the camera, in time with the animation and distributed through a shared gate (workbeat.js) –
+//   the simulation stays untouched,
 // - keeps listener (camera), combat intensity, water proximity, music theme and ambience up to date.
 
 import { getAudio } from './AudioEngine.js';
-import { audibleRadius, viewRadius, zoomGain } from './spatial.js';
+import { audibleRadius, viewRadius, zoomGain, spatialize } from './spatial.js';
+import { StrikeGate, strikeIn, strikePhase, CLIP_SOUND, STRIKE_PERIOD } from './workbeat.js';
 import { BattleMeter } from './battle.js';
-import { BarkGate, barkRole } from './barks.js';
+import { BarkGate, barkRole, alarmRole, chooseBark, BARKS, ALARM_REST } from './barks.js';
 import { voiceFile } from './voiceLines.js';
 import { speaking } from './speech.js';
 import { pickVariant } from '../render/variants.js';
@@ -16,7 +18,13 @@ import { UNITS } from '../sim/data/units.js';
 import { currentLang } from '../i18n/index.js';
 
 const UNIT = 1000;
-const WATER = 1;
+const WATER = 1, CLIFF = 8;
+
+/** Phase offset of a figure (like CharacterSystem), as a fallback without figure data. */
+const idPhase = (id) => ((id * 2654435761) >>> 0) / 4294967296;
+
+/** Work clip of a serf from its job (like Renderer.syncUnit). */
+export function workClip(targetKind) { return targetKind === 'building' ? 'build' : targetKind === 'tree' ? 'chop' : 'mine'; }
 
 /** Workshop → work sound of the workers inside. */
 export const WORKSHOP_SOUND = {
@@ -45,6 +53,12 @@ export class GameAudio {
     this.sceneTimer = 0;
     this.waterLevel = 0;
     this.lastWaterProbe = null;
+    this.land = { water: 0, cliff: 0, forest: 0 };
+    this.gate = new StrikeGate(this.audio.rnd);
+    /** working serfs within hearing range (from onTick), strikes in time with their animation (frame) */
+    this.working = [];
+    /** @type {Map<number, { clip: string, t: number }>} */
+    this.beats = new Map();
     this.audio.setAmbient(true);
     this.audio.ambient.setWeather(engine.sim.weather?.state ?? 'summer');
     this.audio.music.setTheme(musicTheme('build', this.audio.ambient.weather));
@@ -179,41 +193,79 @@ export class GameAudio {
   }
 
   /**
-   * After every tick: derive work sounds from the state (only within hearing range). The strikes of a tick
-   * are played in order of closeness to the screen centre: once the voice count per sound kind is used up,
-   * the far ones stay silent, not the near ones.
+   * After every tick: remember working serfs within hearing range (their strikes follow in frame() the beat of the
+   * animation) and derive workshop sounds. Everything goes through the shared gate (StrikeGate): per sound kind
+   * at most one strike per ~0.4 s, near strikes take priority over far ones.
    */
   onTick() {
     const l = this.audio.listener;
     const a = this.audio;
-    if (!l || !a.ctx || a.ctx.state !== 'running') return;
+    if (!l || !a.ctx || a.ctx.state !== 'running') { this.working = []; return; }
     const sim = this.engine.sim, tick = sim.tick;
     const R = audibleRadius(l.dist), R2 = R * R;
+    const near = (x, z) => { const dx = x - l.x, dz = z - l.z, d2 = dx * dx + dz * dz; return d2 <= R2 && !this.hidden({ x, z }) ? d2 : -1; };
     /** @type {{ snd: string, x: number, z: number, gain: number, d2: number }[]} */
     const hits = [];
-    const add = (snd, x, z, gain) => {
-      const dx = x - l.x, dz = z - l.z, d2 = dx * dx + dz * dz;
-      if (d2 <= R2 && !this.hidden({ x, z })) hits.push({ snd, x, z, gain, d2 });
-    };
+    const working = [];
     for (const e of sim.entities.values()) {
       if (e.kind === 'unit') {
         const job = e.job;
         if (!job || e.path?.length) continue;
-        if (job.kind === 'gather') {
-          // one strike every 10 ticks (1 s), offset per serf
-          if (e.timer > 0 && (e.timer + e.id) % 10 === 0) add(job.res === 'wood' ? 'chop' : 'pickaxe', e.px / UNIT, e.py / UNIT, 0.7);
-        } else if (job.kind === 'build' && (tick + e.id * 3) % 7 === 0) {
-          const site = sim.entities.get(job.target);
-          if (site && !site.done) add('hammer', e.px / UNIT, e.py / UNIT, 0.6);
-        }
+        const x = e.px / UNIT, z = e.py / UNIT, d2 = near(x, z);
+        if (d2 < 0) continue;
+        const t = sim.entities.get(job.target);
+        if (t) working.push({ id: e.id, x, z, d2, clip: workClip(t.kind) });
       } else if (e.kind === 'worker' && e.state === 'working' && (tick + e.id * 7) % 23 === 0) {
         const wp = sim.entities.get(e.workplace);
         const snd = wp && WORKSHOP_SOUND[wp.type];
-        if (snd) add(snd, wp.x + wp.w / 2, wp.y + wp.h / 2, 0.5);
+        if (!snd) continue;
+        const x = wp.x + wp.w / 2, z = wp.y + wp.h / 2, d2 = near(x, z);
+        if (d2 >= 0) hits.push({ snd, x, z, gain: 0.5, d2 });
       }
     }
+    this.working = working;
     hits.sort((p, q) => p.d2 - q.d2);
-    for (const h of hits) a.play(h.snd, { x: h.x, z: h.z, gain: h.gain });
+    for (const h of hits) this.strike(h.snd, h.x, h.z, h.gain);
+  }
+
+  /** Send a work strike through the gate and, if allowed, play it (slightly delayed, volume spread). */
+  strike(snd, x, z, gain) {
+    const a = this.audio, l = a.listener;
+    if (!l || !a.ctx) return false;
+    const s = spatialize(x, z, l);
+    if (!s) return false;
+    const ok = this.gate.admit(snd, a.ctx.currentTime, gain * s.gain);
+    return !!ok && a.play(snd, { x, z, gain: gain * ok.gain, delay: ok.delay });
+  }
+
+  /**
+   * Per frame: strikes of working serfs exactly when their tool hits in the animation
+   * (one strike per cycle; beat from CharacterSystem.beat, without rendering a fixed fallback beat).
+   */
+  workFrame() {
+    const a = this.audio;
+    if (!a.ctx || a.ctx.state !== 'running' || this.engine.paused) { this.beats.clear(); return; }
+    const chars = this.engine.renderer?.chars;
+    const now = a.ctx.currentTime;
+    const next = new Map();
+    /** @type {{ snd: string, x: number, z: number, d2: number }[]} */
+    const due = [];
+    for (const w of this.working) {
+      let b = chars?.beat ? chars.beat(w.id) : null;
+      if (!b) {
+        if (chars?.beat) continue; // figure not in view
+        const period = STRIKE_PERIOD[w.clip];
+        b = { clip: w.clip, t: now + idPhase(w.id) * period, period, anim: 'work' };
+      }
+      const snd = CLIP_SOUND[b.clip];
+      if (!snd) continue;
+      const prev = this.beats.get(w.id);
+      next.set(w.id, { clip: b.clip, t: b.t });
+      if (prev && prev.clip === b.clip && b.t > prev.t && strikeIn(prev.t, b.t, b.period, strikePhase(b.anim))) due.push({ snd, x: w.x, z: w.z, d2: w.d2 });
+    }
+    this.beats = next;
+    due.sort((p, q) => p.d2 - q.d2);
+    for (const h of due) this.strike(h.snd, h.x, h.z, h.snd === 'hammer' ? 0.6 : 0.7);
   }
 
   /** Per frame: listener, combat intensity, music theme, ambience. */
@@ -222,6 +274,7 @@ export class GameAudio {
     if (!rig) return;
     const l = { x: rig.target.x, z: rig.target.z, dist: rig.dist, yaw: rig.yaw };
     this.audio.listener = l;
+    this.workFrame();
     // while a dialogue speaks, music and ambience step back
     const talk = speaking();
     if (talk !== !!this.audio.ducked) this.audio.duck(talk);
@@ -234,7 +287,8 @@ export class GameAudio {
       const mode = this.battle.theme(intensity, performance.now() / 1000);
       this.audio.music.setTheme(musicTheme(mode, this.audio.ambient.weather));
     }
-    this.audio.ambient.setScene(this.waterNear(l), intensity, zoomGain(l.dist));
+    const land = this.landscape(l);
+    this.audio.ambient.setScene(land.water, intensity, zoomGain(l.dist), { forest: land.forest, cliff: land.cliff, dist: l.dist });
     this.audio.ambient.tick();
   }
 
@@ -274,6 +328,35 @@ export class GameAudio {
     this.audio.playFile(url, { gain: 0.9 }).then((dur) => gate.spoke(now, dur || 0, mode));
   }
 
+  /**
+   * Something of the player's own is attacked (Engine.attackToast, already throttled per region): alarm bell and an alarm call
+   * of the hit figure (for buildings and workers a serf calls). Independent of the setting
+   * "Sprüche der Figuren" – it is a notice –, but at most every ALARM_REST seconds and never over a
+   * running dialogue or bark.
+   * @param {any} target own object hit
+   */
+  alarm(target) {
+    if (!target) return;
+    const now = performance.now() / 1000;
+    if (now < (this.alarmUntil ?? -Infinity)) return;
+    this.alarmUntil = now + ALARM_REST;
+    this.audio.play('alarm');
+    const gate = (this.barks ??= new BarkGate());
+    if (speaking() || now < gate.busyUntil) return;
+    const role = alarmRole(target, UNITS[target.def]?.line, (u) => this.voiceOf(u));
+    const line = role && chooseBark(BARKS[role], 'alarm', this.audio.rnd, false, gate.lastLine.get(role + ':alarm'));
+    if (!line) return;
+    gate.lastLine.set(role + ':alarm', line);
+    const lang = currentLang();
+    const voice = target.kind === 'building' || target.kind === 'worker' ? 'serf' : this.voiceOf(target, role);
+    const url = voiceFile(voice, lang, line[lang] ?? line.de);
+    if (!url) return;
+    const mode = this.audio.settings?.barks ?? 'rare';
+    gate.spoke(now, 4, mode);
+    // shortly after the bell, so both stay understandable
+    setTimeout(() => this.audio.playFile(url, { gain: 1 }).then((dur) => gate.spoke(now, (dur || 0) + 0.8, mode)), 800);
+  }
+
   /** Speaker of a selection: hero before captain before serf. */
   speakerOf(ids) {
     const sim = this.engine.sim;
@@ -296,28 +379,48 @@ export class GameAudio {
     let event = 'move';
     if (cmd.type === 'order' && (cmd.order === 'attack' || cmd.order === 'attackMove')) event = 'attack';
     else if (cmd.type === 'placeBuilding') event = 'build';
-    else if (cmd.type === 'assignWork') event = this.engine.sim.entities.get(cmd.target)?.kind === 'building' ? 'build' : 'gather';
+    else if (cmd.type === 'assignWork') {
+      const t = this.engine.sim.entities.get(cmd.target);
+      event = t?.kind === 'building' ? 'build' : t?.kind === 'tree' || t?.kind === 'pile' ? 'gather' : 'attack';
+    }
     this.bark(this.speakerOf(ids), event);
   }
 
-  /** Share of water tiles around the camera target (sampled coarsely, only recomputed on movement). */
-  waterNear(l) {
-    const m = this.engine.sim.map;
+  /**
+   * Landscape around the camera target (coarsely sampled, only re-sampled on movement): water share (brook/lake),
+   * steep-slope share (mountains → wind) and forest (trees near the screen centre → foliage, birds). Each 0…1.
+   */
+  landscape(l) {
+    const sim = this.engine.sim, m = sim.map;
     const key = `${Math.round(l.x / 2)},${Math.round(l.z / 2)},${Math.round(l.dist / 8)}`;
-    if (key === this.lastWaterProbe) return this.waterLevel;
+    if (key === this.lastWaterProbe) return this.land;
     this.lastWaterProbe = key;
     const r = Math.min(16, viewRadius(l.dist) * 0.5);
-    let n = 0, w = 0;
+    let n = 0, w = 0, c = 0;
     for (let dz = -r; dz <= r; dz += 2) for (let dx = -r; dx <= r; dx += 2) {
       const x = Math.floor(l.x + dx), y = Math.floor(l.z + dz);
       if (!m.inBounds(x, y)) continue;
       n++;
-      if (m.flags[m.idx(x, y)] & WATER) w++;
+      const f = m.flags[m.idx(x, y)];
+      if (f & WATER) w++;
+      if (f & CLIFF) c++;
+    }
+    // Forest: trees within 10 tiles around the screen centre; 12 % tree tiles = dense forest
+    const fr = 10;
+    let trees = 0;
+    for (const e of sim.entities.values()) {
+      if (e.kind !== 'tree') continue;
+      const dx = e.x + 0.5 - l.x, dz = e.y + 0.5 - l.z;
+      if (dx * dx + dz * dz <= fr * fr) trees++;
     }
     // even little water in view is audible: 15 % water area = full volume
     this.waterLevel = n ? Math.min(1, (w / n) / 0.15) : 0;
-    return this.waterLevel;
+    this.land = { water: this.waterLevel, cliff: n ? c / n : 0, forest: Math.min(1, trees / (Math.PI * fr * fr * 0.12)) };
+    return this.land;
   }
+
+  /** Share of water around the camera target 0…1 (see landscape). */
+  waterNear(l) { return this.landscape(l).water; }
 
   dispose() {
     this.audio.setAmbient(false);

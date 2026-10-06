@@ -3,7 +3,7 @@
 // wink, never refusal. Roles and voices: assets-src/voices/cast.json.
 //
 // Occasions: select (selected), move (sent off), build (construction site), gather (harvest resource),
-// attack (attack), grumble (alternative to move/build/gather when the same figure gets
+// attack (attack), alarm (alarm call when the figure or the settlement is attacked), grumble (alternative to move/build/gather when the same figure gets
 // several commands in quick succession).
 //
 // How often anything is spoken is governed by BARK_RULES (setting "Sprüche der Figuren"): mostly it stays silent,
@@ -15,6 +15,8 @@ const t = (de, en) => ({ de, en });
 
 export const BARKS = {
   serf: {
+    attack: [t('Na warte!', 'Just you wait!'), t('Dir zeig ich’s!', 'I’ll show you!')],
+    alarm: [t('Hilfe! Wir werden angegriffen!', 'Help! We are under attack!'), t('Feinde im Dorf!', 'Enemies in the village!')],
     select: [t('Ja, Herr?', 'Yes, my lord?'), t('Was gibt’s?', 'What is it?'), t('Hm?', 'Hm?'), t('Zur Stelle.', 'At your service.')],
     move: [t('Ich geh ja schon.', 'I’m going, I’m going.'), t('Na gut.', 'Very well.'), t('Wird gemacht.', 'It shall be done.'), t('Bin unterwegs.', 'On my way.')],
     build: [t('Dann bau ich halt.', 'Building it is, then.'), t('Hammer und Nägel her.', 'Fetch the hammer and nails.'), t('Steht bald.', 'It’ll stand soon.')],
@@ -22,6 +24,8 @@ export const BARKS = {
     grumble: [t('Immer ich …', 'Always me …'), t('Und wer bestellt mein Feld?', 'And who tends my field?'), t('Ja, ja, ja.', 'Aye, aye, aye.')],
   },
   serfF: {
+    attack: [t('Pass bloß auf!', 'You watch yourself!'), t('Na komm schon!', 'Come on, then!')],
+    alarm: [t('Hilfe! Man greift uns an!', 'Help! They are attacking us!'), t('Feinde! Schnell, Hilfe!', 'Enemies! Quick, help!')],
     select: [t('Ja, Herr?', 'Yes, my lord?'), t('Ich hör.', 'I’m listening.'), t('Was soll’s sein?', 'What shall it be?')],
     move: [t('Bin schon weg.', 'Already gone.'), t('Na schön.', 'Very well.'), t('Wird erledigt.', 'It shall be done.')],
     build: [t('Dann eben bauen.', 'Building, then.'), t('Mach ich.', 'I’ll see to it.')],
@@ -29,41 +33,49 @@ export const BARKS = {
     grumble: [t('Schon wieder?', 'Again?'), t('Als hätt ich sonst nichts zu tun.', 'As if I’d naught else to do.'), t('Hmpf.', 'Hmph.')],
   },
   sword: {
+    alarm: [t('Feindkontakt!', 'Enemy contact!'), t('Wir werden angegriffen!', 'We are under attack!')],
     select: [t('Schwerter bereit.', 'Swords ready.'), t('Euer Befehl?', 'Your command?')],
     move: [t('Zu Befehl!', 'At once!'), t('Wir rücken vor.', 'We advance.'), t('Mir nach!', 'Follow me!')],
     attack: [t('Drauf!', 'At them!'), t('Schilde hoch, vorwärts!', 'Shields up, forward!'), t('Für die Krone!', 'For the crown!')],
   },
   spear: {
+    alarm: [t('Wir werden angegriffen!', 'We are under attack!')],
     select: [t('Speere bereit.', 'Spears ready.'), t('Wir halten stand.', 'We stand fast.')],
     move: [t('Jawohl.', 'Aye.'), t('In Reihe, marsch!', 'Form ranks, march!')],
     attack: [t('Speere vor!', 'Spears forward!'), t('Haltet die Reihe!', 'Hold the line!')],
   },
   bow: {
+    alarm: [t('Wir werden angegriffen!', 'We are under attack!')],
     select: [t('Bogen gespannt.', 'Bows strung.'), t('Wir haben ein Auge drauf.', 'We’re watching.')],
     move: [t('Neue Stellung.', 'New position.'), t('Wir ziehen weiter.', 'Moving on.')],
     attack: [t('Pfeile los!', 'Loose!'), t('Zielt gut!', 'Aim true!'), t('Schießt!', 'Shoot!')],
   },
   cavalry: {
+    alarm: [t('Wir werden angegriffen!', 'We are under attack!')],
     select: [t('Pferde gesattelt.', 'Horses saddled.'), t('Reiter bereit.', 'Riders ready.')],
     move: [t('Aufsitzen!', 'Mount up!'), t('Im Galopp!', 'At the gallop!')],
     attack: [t('Angriff!', 'Charge!'), t('Reitet sie nieder!', 'Ride them down!')],
   },
   cannon: {
+    alarm: [t('Wir werden angegriffen!', 'We are under attack!')],
     select: [t('Das Pulver ist trocken.', 'The powder’s dry.'), t('Geschütz bereit.', 'Gun ready.')],
     move: [t('Zieht, Leute, zieht!', 'Heave, lads, heave!'), t('Das Ding ist schwer …', 'This beast is heavy …')],
     attack: [t('Feuer!', 'Fire!'), t('Ohren zu!', 'Cover your ears!')],
   },
   nelia: {
+    alarm: [t('Ich werde angegriffen!', 'I am under attack!')],
     select: [t('Ich bin hier.', 'I’m here.'), t('Was nun?', 'What now?')],
     move: [t('Hier entlang!', 'This way!'), t('Ich geh voran.', 'I’ll lead.')],
     attack: [t('Jetzt oder nie!', 'Now or never!'), t('Für die Leute daheim!', 'For our folk at home!')],
   },
   orrin: {
+    alarm: [t('Hilfe, man will mir ans Leder!', 'Help, they are after my hide!')],
     select: [t('Meine Prinzessin?', 'My princess?'), t('Ein gutes Geschäft in Sicht?', 'A good bargain in sight?')],
     move: [t('Bei allen Märkten, meine Füße!', 'By all the markets, my feet!'), t('Wenn’s denn sein muss.', 'If it must be.')],
     attack: [t('Ich bin Händler, kein Krieger!', 'I’m a merchant, not a warrior!'), t('Das kostet extra!', 'That costs extra!')],
   },
   taran: {
+    alarm: [t('Angriff! Ich halte sie auf!', 'Attack! I will hold them off!')],
     select: [t('Hauptmann Taran.', 'Captain Taran.'), t('Sprecht.', 'Speak.')],
     move: [t('Vorwärts.', 'Forward.'), t('Ich übernehme das.', 'I’ll see to it.')],
     attack: [t('Formation halten!', 'Hold formation!'), t('Zeigt, was ihr könnt!', 'Show them your mettle!')],
@@ -154,9 +166,22 @@ export function barkRole(e, line, serfVoice) {
  */
 export function chooseBark(set, event, rnd, again = false, last = undefined) {
   if (!set) return null;
-  let list = set[event] ?? (event === 'select' ? null : set.move) ?? null;
+  let list = set[event] ?? (event === 'select' || event === 'alarm' ? null : set.move) ?? null;
   if (again && set.grumble && event !== 'select' && rnd() < 0.5) list = set.grumble;
   if (!list?.length) return null;
   const pool = list.length > 1 && last ? list.filter((l) => l !== last) : list;
   return pool[Math.floor(rnd() * pool.length) % pool.length];
+}
+
+/** Minimum gap between two alarm calls (seconds), so a long fight does not call constantly */
+export const ALARM_REST = 20;
+
+/**
+ * Who calls when something of one's own is attacked: the hit figure itself (hero, squad, serf);
+ * for buildings and workers a serf calls for the village.
+ * @param {any} target @param {string|undefined} line squad type @param {(e:any) => string|null} [serfVoice]
+ */
+export function alarmRole(target, line, serfVoice) {
+  if (target.kind === 'building' || target.kind === 'worker') return 'serf';
+  return barkRole(target, line, serfVoice);
 }

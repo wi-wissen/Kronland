@@ -322,6 +322,7 @@ Prüfung im Editor, ohne Build-Schritt.
 | Steuergruppe merken | Umschalt+1–9 (Strg+1–9, wo der Browser es durchlässt) | Knopf „Als Gruppe merken“ |
 | Steuergruppe abrufen | 1–9, zweimal: Kamera hin | Gruppenschild über der Karte |
 | Zur Burg | H | Knopf „Burg“ |
+| Leibeigene greifen an | Rechtsklick auf einen Gegner (wie auf einen Baum) | Gegner antippen |
 | Held finden | Porträt über der Karte | Porträt |
 | Alle Truppen | Knopf „Truppen“ | Knopf „Truppen“ |
 | Minikarte | Klick/Ziehen | Tippen (Kartenknopf unten rechts klappt Minikarte und Schnellzugriff auf) |

@@ -1,0 +1,61 @@
+// Stress test "swarm" (src/sim/missions/stress.js) and special map list.
+
+import { describe, it, expect } from 'vitest';
+import { createMissionSim } from '../../src/sim/missions/runtime.js';
+import { getMission, SPECIAL_MAPS } from '../../src/sim/missions/registry.js';
+import { STRESS_ID, BATTLES, WAVE_SECONDS } from '../../src/sim/missions/stress.js';
+import { fogEnabled } from '../../src/sim/systems/vision.js';
+import { saveGame, loadGame } from '../../src/sim/serialize.js';
+import { ICONS } from '../../src/ui/icons/index.js';
+
+const count = (sim) => { const c = {}; for (const e of sim.entities.values()) c[e.kind] = (c[e.kind] ?? 0) + 1; return c; };
+const figures = (c) => (c.unit ?? 0) + (c.worker ?? 0) + (c.leader ?? 0) + (c.soldier ?? 0) + (c.hero ?? 0);
+
+describe('Special maps', () => {
+  it('are registered, bilingual and have a description', () => {
+    expect(SPECIAL_MAPS.map((m) => m.id)).toEqual(['showcase', STRESS_ID]);
+    for (const m of SPECIAL_MAPS) {
+      expect(getMission(m.id)).toBe(m);
+      for (const k of ['title', 'summary', 'briefing']) { expect(m[k].de, `${m.id}.${k}`).toBeTruthy(); expect(m[k].en, `${m.id}.${k}`).toBeTruthy(); }
+      expect(ICONS[m.icon], `${m.id}: Symbol ${m.icon}`).toBeTruthy();
+    }
+  });
+});
+
+describe('Swarm', () => {
+  const sim = createMissionSim(STRESS_ID);
+  const st = sim.mission.state;
+
+  it('sets itself up without warnings: without fog, many buildings and over a thousand figures', () => {
+    expect(st.warnings).toEqual([]);
+    expect(fogEnabled(sim)).toBe(false);
+    const c = count(sim);
+    expect(c.building).toBeGreaterThanOrEqual(150);
+    expect(figures(c)).toBeGreaterThanOrEqual(1000);
+    for (let p = 0; p < 4; p++) expect([...sim.entities.values()].filter((e) => e.kind === 'building' && e.owner === p).length, `player ${p}`).toBeGreaterThanOrEqual(35);
+    for (let i = 1; i <= BATTLES.length; i++) expect(st.refs[`battle${i}`]).toBeTruthy();
+  });
+
+  it('fights and gets reinforcements without the number of troops running away', () => {
+    const s = createMissionSim(STRESS_ID);
+    const before = figures(count(s));
+    s.run((WAVE_SECONDS + 5) * 10);
+    expect(s.mission.state.fireCount.waves).toBe(1);
+    const c = count(s);
+    // battles cost soldiers; waves and AI recruitment top up
+    expect(figures(c)).toBeGreaterThan(before * 0.7);
+    expect(figures(c)).toBeLessThan(before * 2);
+    expect(s.mission.state.result ?? null).toBeNull();
+  });
+
+  it('is deterministic and survives saving/loading', () => {
+    const a = createMissionSim(STRESS_ID), b = createMissionSim(STRESS_ID);
+    expect(a.hash()).toBe(b.hash());
+    a.run(200); b.run(200);
+    expect(a.hash()).toBe(b.hash());
+    const c = loadGame(JSON.parse(JSON.stringify(saveGame(a))));
+    expect(c.hash()).toBe(a.hash());
+    c.run(50); a.run(50);
+    expect(c.hash()).toBe(a.hash());
+  });
+});

@@ -38,6 +38,9 @@ export default {
   'menu.tutorialSub': 'Erste Schritte mit Orrin',
   'menu.adventures': 'Programmier-Abenteuer',
   'menu.adventuresSub': 'Python lernen, Welten bauen',
+  'menu.special': 'Sonderkarten',
+  'menu.specialSub': 'Schaukasten, Belastungsprobe – fertige Einzelkarten',
+  'menu.specialPlaces': 'Orte auf der Karte',
   'menu.campaign': 'Kampagne',
   'menu.campaignSub': 'Krone aus Eis',
   'menu.freePlay': 'Freies Spiel',
@@ -249,6 +252,7 @@ export default {
   'bld.statArmor': 'Rüstung',
   'bld.statRange': 'Reichweite',
   'bld.foreign': 'Fremdes Gebäude',
+  'bld.foreignHint': 'Fremdes Gebäude – Innenleben bleibt verborgen.',
 
   // Troops
   'army.title': 'Truppen',
@@ -278,6 +282,8 @@ export default {
   'army.hint': 'Rechtsklick: laufen bzw. angreifen · Strg+Rechtsklick: Angriffsbewegung',
   'army.hintTouch': 'Tippe auf den Boden zum Laufen, auf Feinde zum Angreifen.',
   'army.militia': 'Miliz',
+  'army.disarm': 'An die Arbeit',
+  'army.disarmTip': 'Die gewählte Miliz legt die Waffen nieder und arbeitet wieder als Leibeigene.',
   'army.serfs': '{n} Leibeigene',
   'army.heroDown': 'bewusstlos',
   'army.ready': 'bereit',
@@ -287,6 +293,8 @@ export default {
   // Foreign
   'foreign.enemy': 'Feind',
   'foreign.ally': 'Verbündeter',
+  'foreign.neutral': 'Neutral',
+  'foreign.nature': 'Gehört niemandem',
   'foreign.bandits': 'Räuber',
   'foreign.unit': 'Einheit',
   'foreign.serf': 'Leibeigener',
@@ -439,8 +447,6 @@ export default {
   'mission.campaign': 'Kampagne',
   'mission.campaignSub': 'Krone aus Eis – sechs Kapitel',
   'mission.back': 'Zurück',
-  'adv.showcase': 'Schaukasten',
-  'adv.showcaseSub': 'Alle Gebäude, Figuren und Kartenobjekte auf einer Karte ansehen',
   'mission.start': 'Mission starten',
   'mission.locked': 'Erst die vorige Mission gewinnen',
   'mission.best': 'Bestzeit {t}',
@@ -760,6 +766,7 @@ export default {
   'err.weatherCooldown': 'Das Wetter wurde gerade erst geändert',
   'err.noRepairNeeded': 'Gebäude ist unbeschädigt',
   'err.repairFull': 'Schon genug Leibeigene an der Reparatur',
+  'err.siteFull': 'An der Baustelle ist kein Platz mehr frei',
 
   // ---------- Game systems: building technologies (smithy, sawmill, alchemist, …) ----------
   'tech.leatherMail': 'Kettenlederrüstung',
