@@ -29,7 +29,7 @@
       >
         <div class="sv-thumb inset">
           <img v-if="e.thumb" :src="e.thumb" alt="" draggable="false">
-          <Icon v-else :name="e.mode === 'mission' ? 'banner' : 'map'" />
+          <Icon v-else :name="e.mode === 'mission' ? 'banner' : 'mode-special'" />
         </div>
         <div class="sv-info">
           <form v-if="renaming === e.id" class="sv-rename" @submit.prevent="applyRename(e)">

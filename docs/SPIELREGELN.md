@@ -305,6 +305,15 @@ sind kumulativ (Stufentexte aus dem Handbuch, Zahlen **(A)**):
     erreichbaren Kachel, von der aus das Ziel in Reichweite liegt, und schießen vom Ufer aus; Nahkämpfer
     geben das Ziel auf.
   - Ziel auf einem Gebäude oder im Wasser: die Truppe läuft zur nächsten begehbaren Kachel.
+- Umzingeln im Nahkampf **(A)**: Nahkämpfer (Reichweite bis 2 Kacheln: Schwert, Speer, schwere Reiter, Helden,
+  Miliz) nehmen in den letzten 3 Kacheln vor einer feindlichen Figur einen eigenen Platz im Ring um sie ein –
+  innen 8 Plätze (0,8 Kacheln), außen 12 (1,15 Kacheln), beide in Schlagweite. Bevorzugt der Platz in der
+  Richtung, aus der der Angreifer kommt; ist er vergeben, der nächste freie daneben. Sind die nahen Plätze voll,
+  geht er wie bisher bis in Schlagweite. Im Schlagabstand rückt er mit halbem Tempo geradeaus auf seinen Platz
+  nach (ohne Wegsuche), während er weiter zuschlägt. Belegung je Takt neu (Zähler je Ziel, keine Paarvergleiche),
+  Werte in `COMBAT.surround` (`src/sim/data/combat.js`). Fernkämpfer und Gebäudeziele unverändert.
+  Folge: Weil Angreifer nicht mehr auf einem Punkt stehen, bündeln Bogenschützen ihr Feuer seltener zufällig;
+  Bogen gegen Ritter (Stufe 3 gegen 1) gewinnt in 7 von 8 Duellen statt 8 von 8, alle anderen Paarungen gleich.
 - Bewegung: Figuren betreten nie Wasser (außer Eis im Winter), Felsen oder Gebäude und schneiden
   keine Ecken (diagonal nur, wenn beide Nachbarkacheln frei sind). Wer auf einer gesperrten Kachel
   steht (z. B. unter einem neuen Gebäude), geht sofort zur nächsten freien Kachel.

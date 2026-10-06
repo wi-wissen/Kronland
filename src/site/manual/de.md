@@ -26,6 +26,7 @@ Zu Beginn hast du eine **Burg**, {{startSerfs}} **Leibeigene**, einen Helden und
 | Aktion | Desktop |
 |---|---|
 | Auswählen | Linksklick, Rahmen ziehen; [[Shift]] fügt hinzu |
+| Alle sichtbaren derselben Art | Doppelklick auf eine eigene Figur ([[Shift]] / [[Strg]] fügt hinzu); alle Helden zählen als eine Art |
 | Befehl (laufen, bauen, abbauen, angreifen) | Rechtsklick |
 | Angriffsbewegung | [[Strg]] + Rechtsklick oder Knopf „Angreifen“ |
 | Kamera verschieben | [[W]] [[A]] [[S]] [[D]] oder Pfeiltasten, mittlere Maustaste ziehen, Bildschirmrand |
@@ -45,6 +46,7 @@ Zu Beginn hast du eine **Burg**, {{startSerfs}} **Leibeigene**, einen Helden und
 | Aktion | Touch |
 |---|---|
 | Auswählen | Tippen |
+| Alle sichtbaren derselben Art | Eigene Figur doppelt antippen |
 | Befehl | Mit Auswahl auf Boden, Baum, Baustelle oder Feind tippen |
 | Kamera verschieben | Mit einem Finger ziehen |
 | Kamera drehen | Mit zwei Fingern drehen |

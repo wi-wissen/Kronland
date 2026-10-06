@@ -3,15 +3,37 @@
 
 import { openBackend, LocalStorageBackend } from './backends.js';
 import { SaveStore, AUTO_ID } from './store.js';
-import { parseSaveText, stringifyDoc, exportFileName, SaveError, MAX_FILE_BYTES } from './format.js';
+import { parseSaveText, stringifyDoc, exportFileName, createSaveDoc, SaveError, MAX_FILE_BYTES } from './format.js';
 
 export { SaveError, AUTO_ID };
 
-/** Autosave every 5 game minutes (ticks of 100 ms) */
-export const AUTOSAVE_TICKS = 5 * 60 * 10;
+/** Autosave every 2 game minutes (ticks of 100 ms); even with a crowd only a few milliseconds (docs/PERFORMANCE.md) */
+export const AUTOSAVE_TICKS = 2 * 60 * 10;
+/** First autosave 30 game seconds after game start or load – a fresh restore point */
+export const AUTOSAVE_FIRST_TICKS = 30 * 10;
 
 /** Is an autosave due? */
 export const autosaveDue = (tick, lastTick) => tick - lastTick >= AUTOSAVE_TICKS;
+
+/** Initial value for autosaveDue at game start: the first autosave comes after AUTOSAVE_FIRST_TICKS. */
+export const autosaveStart = (tick) => tick - AUTOSAVE_TICKS + AUTOSAVE_FIRST_TICKS;
+
+/**
+ * Capture the save game immediately as compact JSON text (synchronous, still within the same tick). `state` may point to the
+ * running state (saveGame(…, { clone: false })): the text is the snapshot.
+ * @param {any} state @param {{ name: string, savedAt?: Date }} info
+ * @returns {{ text: string, meta: any }}
+ */
+export function snapshotText(state, info) {
+  const doc = createSaveDoc(state, info);
+  return { text: stringifyDoc(doc, { compact: true }), meta: doc.meta };
+}
+
+/** Wait briefly until the browser has air (between two frames), at most `timeout` ms. */
+export const whenIdle = (timeout = 1500) => new Promise((resolve) => {
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(() => resolve(), { timeout });
+  else setTimeout(resolve, 0);
+});
 
 let storePromise = null;
 

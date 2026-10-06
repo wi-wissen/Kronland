@@ -102,13 +102,29 @@ export class SaveStore {
     return this.serial(() => this.put(doc, { thumb }));
   }
 
-  async put(doc, { id, thumb }) {
+  /**
+   * Store the finished JSON text of an envelope (autosave: the text is created immediately in the tick without a deep copy,
+   * compression and storage run afterwards asynchronously).
+   * @param {string} text compact JSON text (stringifyDoc) @param {any} meta doc.meta
+   * @param {{ id?: string, thumb?: string|null }} opts
+   * @returns {Promise<SaveEntry>}
+   */
+  saveText(text, meta, { id, thumb = null }) {
+    return this.serial(() => this.putText(text, meta, { id, thumb }));
+  }
+
+  put(doc, { id, thumb }) {
+    return this.putText(stringifyDoc(doc, { compact: true }), { ...doc.meta, ...describeState(doc.state) }, { id, thumb });
+  }
+
+  async putText(text, meta, { id, thumb }) {
     const slotId = id ?? newId();
     // Compress before the transaction (IndexedDB transactions end as soon as something else is awaited)
-    const data = await encode(stringifyDoc(doc, { compact: true }));
+    const data = await encode(text);
     /** @type {SaveEntry} */
     const entry = {
-      id: slotId, name: doc.meta.name, savedAt: doc.meta.savedAt, ...describeState(doc.state),
+      id: slotId, name: meta.name, savedAt: meta.savedAt,
+      tick: meta.tick, mode: meta.mode, mission: meta.mission, seed: meta.seed, players: meta.players, fog: meta.fog,
       thumb: thumb ?? null, size: data.length, auto: slotId === AUTO_ID,
     };
     // Slot and list together: if the storage is full, both stay at the old state

@@ -59,6 +59,14 @@ Alle Konzeptbilder samt Vorgängerfassungen liegen in `assets-src/characters/<id
   same warm, soft, hand-painted stylized 3D look as the reference villagers (warm cream background), not a grey clay
   sculpt“. Waffen erscheinen teils doppelt (in beiden Händen): „exactly ONE …, the SAME … in the SAME right hand in all
   four views“.
+- **Held aus einer Vorlage bearbeiten statt neu erzeugen** (Nelia, Fassung 2): `new … --ref serf,serf_f` lieferte
+  eine klobige Heldin (breit, kurze Beine), obwohl die Vorlage zierlich ist. `edit nelia --from ../serf_f/sheet.png`
+  mit Gemini (21:9, 2K) behält Statur, Kopfgröße und Haltung der Leibeigenen exakt; geändert nur Haare (blonder Zopf),
+  Umhang in Magenta, Hose braun. Die Rückansicht vergaß den Umhang – zweiter `edit` nur für diese Ansicht.
+  Gemini malte den Umhang himbeerrot (Farbton ~322°): lokal per Farbtondrehung auf 300° nachgefärbt (Schattierung
+  bleibt, Schritt `recolor` in `concept.json`), statt neu zu erzeugen. Meshy übernahm den Umhang als Teil des Körpers
+  (schwingt mit dem Rig), verschob das Magenta aber Richtung **Violett** (285–300°) – der Shader ließ Teile lila.
+  `spec.markerHueMin: 275` dreht solche Bildpunkte beim Nachbearbeiten auf 305° (`violetToMarker`). Kosten: 0,28 $ Bild, 58 Credits.
 - Räuber haben keine Teamfarbe; `female` malt trotzdem Magenta (Stilbaustein) – danach per `edit` rotbraun färben.
 
 ## Meshy

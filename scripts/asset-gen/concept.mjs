@@ -1,7 +1,8 @@
 // Create or edit concept images via an OpenRouter image model.
 //
 //   node scripts/asset-gen/concept.mjs edit <id> "<change>" [--from sheet.webp] [--model …]
-//       edits the concept sheet (e.g. "cap in marker colour"), result: sheet.png (original → sheet-vN.*)
+//       edits the concept sheet (e.g. "cap in marker colour"), result: sheet.png (original → sheet-vN.*);
+//       --from ../serf_f/sheet.png takes the sheet of another character as the starting point (Nelia from the female serf)
 //   node scripts/asset-gen/concept.mjs new <id> "<description>" --ref <id>[,<id>] [--model …]
 //       new sheet in the style of the templates (their sheet.* as reference images), result: sheet.png
 //   node scripts/asset-gen/concept.mjs female <id> --from <male id>
@@ -20,7 +21,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { reexecWithProxy, openrouter, dataUri, SRC_DIR } from './lib.mjs';
 import { STYLE, FEMALE, FAR } from './style.mjs';
+import { requireAssetsSrc } from '../require-assets-src.mjs';
 
+requireAssetsSrc('characters');
 reexecWithProxy();
 
 const DEFAULT_MODEL = 'openai/gpt-5.4-image-2'; // like icons and buildings (ChatGPT image model)
@@ -78,7 +81,7 @@ try {
     const prompt = `Edit this character turnaround sheet. Change ONLY the following, keep everything else identical (pose, proportions, clothing, colors, style, layout of the four views, plain light background): ${text}`;
     const { buf, cost } = await generate(model, prompt, [src]);
     const out = store(id, buf);
-    log(id, { kind: 'edit', model, prompt, source: path.basename(src), cost });
+    log(id, { kind: 'edit', model, prompt, source: path.relative(SRC_DIR, src), aspect, size, cost });
     console.log(out, cost ? `(${cost.toFixed(3)} $)` : '');
   } else if (cmd === 'female') {
     const src = sheetOf(from);

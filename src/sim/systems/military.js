@@ -165,23 +165,39 @@ export function nearestEnemy(sim, e, radius, opts = { units: true, buildings: fa
   const p = posOf(e);
   const owner = e.owner;
   let best = null, bd = radius + 1, bestUnit = null, bdu = radius + 1;
-  const seen = new Set();
+  // Hottest path in the melee (swarm: >40 % of the computing time): cheap checks first, hostility per
+  // owner only once per call, duplicates only for buildings (only they lie in several cells), distance
+  // pre-filtered by square first. The result is the same as with the simple version (pure filters).
+  /** @type {Array<boolean|undefined>} */
+  const foe = [];
+  const seen = opts.buildings ? new Set() : null;
+  const far = (radius + 1) * (radius + 1);
   for (let cy = Math.floor((p.y - radius) / C); cy <= Math.floor((p.y + radius) / C); cy++) {
     for (let cx = Math.floor((p.x - radius) / C); cx <= Math.floor((p.x + radius) / C); cx++) {
       const list = sim.grid?.get(cy * 4096 + cx);
       if (!list) continue;
       for (const t of list) {
-        if (seen.has(t.id)) continue;
-        seen.add(t.id);
-        if (!isEnemy(sim, owner, t.owner) || !targetable(sim, t)) continue;
+        const o = t.owner;
+        let f = foe[o];
+        if (f === undefined) { f = isEnemy(sim, owner, o); if (o >= 0) foe[o] = f; }
+        if (!f) continue;
         const isB = t.kind === 'building' || t.kind === 'trap';
-        if (isB && !opts.buildings) continue;
-        // Nobody attacks bridges on their own (only on command or by explosive charge)
-        if (t.type === 'bridge') continue;
-        if (!isB && !opts.units) continue;
-        if (opts.fighters && !isCombatant(t)) continue;
+        if (isB) {
+          if (!opts.buildings) continue;
+          if (seen.has(t.id)) continue;
+          seen.add(t.id);
+          // Nobody attacks bridges on their own (only on command or by explosive charge)
+          if (t.type === 'bridge') continue;
+        } else {
+          if (!opts.units) continue;
+          if (opts.fighters && !isCombatant(t)) continue;
+          const q = posOf(t), dx = q.x - p.x, dy = q.y - p.y;
+          if (dx * dx + dy * dy >= far) continue; // surely outside (isqrt(d²) > radius)
+        }
         const d = distTo(e, t);
         if (d > radius) continue;
+        if (!(isB ? d < bd : d < bdu || d < bd)) continue;
+        if (!targetable(sim, t)) continue;
         if (!isB && d < bdu) { bdu = d; bestUnit = t; }
         if (d < bd) { bd = d; best = t; }
       }
@@ -333,20 +349,82 @@ function engage(sim, e, st, t) {
   if (e.targetId !== t.id) e.path = []; // new target: the old path leads elsewhere
   e.targetId = t.id;
   const d = distTo(e, t);
+  // Melee fighters close to a squad: take their own spot in the ring around the target (surrounding)
+  const slot = st.speed > 0 && st.range <= COMBAT.surroundMaxRange && d < 3 * UNIT && !isStructure(t) ? surroundSlot(sim, e, t) : null;
   if (d <= st.range) {
     e.path = [];
     if (e.cooldown <= 0) { attack(sim, e, st, t); e.cooldown = st.cooldown; }
+    // move onto the spot at striking distance – only straight ahead (the spot is in range, no pathfinding)
+    if (slot) slideTo(sim, e, slot, idiv(speedOf(sim, st.speed), 2));
     return;
   }
   if (st.speed <= 0) { e.targetId = 0; return; }
   if (t.kind !== 'building' && d < 3 * UNIT) {
-    const q = posOf(t);
+    const q = slot ?? posOf(t);
     stepToward(sim, e, q.x, q.y, speedOf(sim, st.speed));
     return;
   }
   if (!e.path.length || (sim.tick + e.id) % 15 === 0) e.path = pathTo(sim, e, goalTiles(sim, t)) ?? rangePath(sim, e, t, st.range) ?? [];
   if (!e.path.length) { e.targetId = 0; return; }
   moveAlong(sim, e, speedOf(sim, st.speed));
+}
+
+// ---------- Surrounding ----------
+
+/** 24 directions in a 15° grid as integer vectors (length 1000) – no floating-point angles in the sim. */
+const SIN15 = [0, 259, 500, 707, 866, 966, 1000];
+const DIR24 = Array.from({ length: 24 }, (_, k) => {
+  const s = (i) => { const j = ((i % 24) + 24) % 24; return j <= 6 ? SIN15[j] : j <= 12 ? SIN15[12 - j] : -s(j - 12); };
+  return { x: s(k + 6), y: s(k) };
+});
+
+/**
+ * Taken spots per target in this tick: target ID → bitmasks per ring. Cleared at the start of every military tick
+ * and refilled in fixed order (entities) – derived state, nothing to save.
+ */
+const claims = new Map();
+
+/**
+ * Spot of attacker `e` in the ring around `t` (milli-tiles) or null (all near spots taken). Prefers
+ * the spot in the direction `e` comes from; if it is already taken, the next free one beside it, then the
+ * outer ring. This way a spot once taken stays stable, and nobody runs across around the target.
+ */
+export function surroundSlot(sim, e, t) {
+  const q = posOf(t);
+  const dx = e.px - q.x, dy = e.py - q.y;
+  let mask = claims.get(t.id);
+  if (!mask) claims.set(t.id, (mask = COMBAT.surround.map(() => 0)));
+  for (let r = 0; r < COMBAT.surround.length; r++) {
+    const { radius, slots } = COMBAT.surround[r];
+    const step = 24 / slots, shift = r & 1; // outer ring offset by 15°
+    // Direction to the attacker: spot with the largest dot product
+    let best = 0, bd = -Infinity;
+    for (let k = 0; k < slots; k++) {
+      const v = DIR24[k * step + shift], dot = v.x * dx + v.y * dy;
+      if (dot > bd) { bd = dot; best = k; }
+    }
+    const reach = r === 0 ? 2 : 4;
+    for (let i = 0; i <= 2 * reach; i++) {
+      const k = (best + (i & 1 ? (i + 1) >> 1 : -(i >> 1)) + slots) % slots;
+      if (mask[r] & (1 << k)) continue;
+      const v = DIR24[k * step + shift];
+      const x = q.x + idiv(v.x * radius, 1000), y = q.y + idiv(v.y * radius, 1000);
+      if (!sim.map.walkable(toTile(x), toTile(y))) continue;
+      mask[r] |= 1 << k;
+      return { x, y };
+    }
+  }
+  return null;
+}
+
+/** A bit straight ahead towards a nearby point, if the step is allowed (no pathfinding). */
+function slideTo(sim, e, p, speed) {
+  const dx = p.x - e.px, dy = p.y - e.py;
+  const d = isqrt(dx * dx + dy * dy);
+  if (d < 80) return;
+  const s = Math.min(speed, d);
+  const nx = e.px + idiv(dx * s, d), ny = e.py + idiv(dy * s, d);
+  if (canStep(sim.map, e.px, e.py, nx, ny)) { e.px = nx; e.py = ny; }
 }
 
 /**
@@ -627,6 +705,7 @@ function explode(sim, obj) {
 
 export function updateMilitary(sim) {
   buildGrid(sim);
+  claims.clear();
   for (const e of [...sim.entities.values()]) {
     if (!sim.entities.has(e.id)) continue;
     switch (e.kind) {

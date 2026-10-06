@@ -54,9 +54,12 @@ docs/         Spielregeln und Architektur
 5. **Vue fasst keine Three-Objekte an.** Die Engine ist eine eigene Klasse; Vue bekommt nur
    einen kleinen reaktiven Ausschnitt (Rohstoffe, Auswahl), wenige Male pro Sekunde.
 6. **Wegsuche:** `findPath` prüft zuerst über `map.regionAt()` (zusammenhängende begehbare Gebiete), ob ein
-   Ziel überhaupt erreichbar ist. Die Gebiete werden lazy je `map.version` und Frost neu berechnet;
-   `occupy`/`release` erhöhen `map.version`. Wer `map.flags` direkt ändert (Missionsaufbau), muss danach
-   `map.version++` setzen.
+   Ziel überhaupt erreichbar ist. Die Gebiete werden lazy je `map.version` neu berechnet (zwei Zwischenspeicher:
+   ohne und mit Eis). Nach `occupy`/`release` (Bauen, Abriss, Baum gefällt) rechnet `updateRegions` nur die
+   berührten Gebiete neu (Freigabe neben genau einem Gebiet: `joinFreed` übernimmt dessen Nummer direkt); die Nummern sind kanonisch (kleinster Kachelindex des Gebiets + 1), also gleich, ob
+   ganz oder örtlich gerechnet wurde, und stabil für unberührte Gebiete (`tests/sim/regions.test.js`). Wer
+   `map.flags` direkt ändert (Missionsaufbau, Brücken, Editor), muss danach `map.version++` setzen – das erzwingt
+   eine vollständige Rechnung.
    `map.landRegionAt()` liefert dieselben Gebiete ohne Eis (für Planungen der KI, die den Winter überdauern).
 7. **Sicht** (`sim/systems/vision.js`, Werte `sim/data/vision.js`): je Team `explored`/`visible` (Uint8Array
    je Kachel) und `ghosts` (zuletzt gesehene feindliche Gebäude/Ruinen). Alle `VISION.updateTicks` Takte wird
@@ -94,10 +97,20 @@ docs/         Spielregeln und Architektur
 | `fog.js` | Nebel des Krieges: Datentextur (1 Texel je Kachel, R sichtbar, G erkundet, weichgezeichnet und überblendet), Shader-Zusatz `patchFog()` für alle Weltmaterialien |
 | `models.js`, `assets.js` | prozedurale Modelle und das Laden der GLB-Modelle |
 | `playerColors.js` | Spielerfarben: einzige Abbildung Spieler → Farbe (siehe unten) |
+| `jitter.js` | Darstellungs-Versatz: Figuren am selben Sim-Punkt werden je ID fest um bis zu 0,16 Kacheln versetzt gezeichnet (siehe unten) |
 | `devHook` | Haken des Entwicklermodus (`src/dev/`, [ENTWICKLERMODUS.md](ENTWICKLERMODUS.md)): vor/nach dem Zeichnen, sonst `null` |
 
 Pro Bild: Kamera → Sichtprüfung (Frustum) → Entities abgleichen → Detailstufen wählen → Instanzdaten
 schreiben → zeichnen. Die Simulation bleibt unberührt. Siehe [MODELLE.md](MODELLE.md).
+
+Darstellungs-Versatz (`jitter.js`, nur Renderer): Die Simulation trennt Figuren nicht (keine Kollision), zwei
+Leibeigene auf demselben Weg oder Soldaten im Gedränge stünden sonst genau übereinander. `Renderer.jitter()`
+verschiebt jede Figur um einen festen Versatz aus ihrer ID (Hash, Betrag 0,06–0,16 Kacheln). Ohne Versatz
+(genaue Lage): Helden (Zwischensequenzen, Skriptschritte), NPC, Fallen und Geschütze, Leibeigene bei der Arbeit
+(Auftrag, kein Weg mehr) und Arbeiter am Arbeitsplatz, im Haus und am Feuer. Der Wechsel wird weich überblendet
+(Gewicht 0…1 je Figur, `JITTER_FADE` je Sekunde). Auswahlringe, Lebensbalken, Picking (`pickEntity`),
+Rahmenauswahl (`Engine.selectBox`), Treffer-Funken und die Blickrichtung zum Ziel lesen die gezeichnete Lage
+(`chars.records`), damit alles zusammenpasst. Der State-Hash bleibt unberührt.
 
 Nebel des Krieges in der Darstellung: Der Renderer zeichnet aus Sicht von `opts.player`. Feindliche Figuren,
 Fallen, Geschosse, Treffer und Explosionen nur in sichtbaren Kacheln; feindliche Gebäude außerhalb der Sicht
@@ -235,11 +248,33 @@ localStorage).
 zeigt es nur den erkundeten Bereich (quadratischer Ausschnitt, `ui/saves/crop.js`).
 Importierte Dateien bekommen ihr Bild aus dem probeweise geladenen Zustand (`thumbFromState`, Sicht von Spieler 0).
 
-**Autosave.** Platz `auto` (fest), alle 5 Spielminuten (3000 Takte), beim Verlassen ins Hauptmenü und wenn
-die Seite verborgen wird (`visibilitychange`/`pagehide`). Einstellung `autosave` (an/aus) im Einstellungsmenü.
-Beendete Partien werden nicht mehr gesichert. „Weiterspielen“ im Startmenü lädt den neuesten Platz.
-Zustand und Vorschaubild werden synchron kopiert, das Schreiben läuft danach über die Warteschlange; derselbe
-Takt wird nicht doppelt gesichert (`visibilitychange` + `pagehide`).
+**Autosave.** Platz `auto` (fest): 30 Spielsekunden nach Start bzw. Laden (`AUTOSAVE_FIRST_TICKS`), danach alle
+2 Spielminuten (`AUTOSAVE_TICKS` = 1200 Takte), beim Verlassen ins Hauptmenü und wenn die Seite verborgen wird
+(`visibilitychange`/`pagehide`). Einstellung `autosave` (an/aus) im Einstellungsmenü. Beendete Partien und
+Partien nach einem Absturz (`engine.crash`) werden nicht mehr gesichert – der letzte gute Stand bleibt.
+„Weiterspielen“ im Startmenü lädt den neuesten Platz (mit Hinweis „Autosave“).
+Ablauf: der regelmäßige Autosave wartet auf eine Lücke zwischen zwei Bildern (`requestIdleCallback`), verwandelt
+den Zustand dann **ohne tiefe Kopie** sofort in Text (`saveGame(…, { clone: false })` + `snapshotText`, ein
+Schritt im selben Takt, daher konsistent) und zeichnet das Vorschaubild auf einer Zeichenfläche im Hauptspeicher.
+Kompression (`CompressionStream`) und Ablage laufen danach asynchron über die Warteschlange (`store.saveText`);
+derselbe Takt wird nicht doppelt gesichert (`visibilitychange` + `pagehide`). Messwerte: docs/PERFORMANCE.md.
+
+### Spielschleife und Fehler
+
+`Engine.start()` fordert den nächsten Frame an, **bevor** es rechnet und zeichnet – eine Ausnahme kann das Bild
+nicht mehr für immer anhalten. `src/game/loop.js`:
+
+- `runSteps()` rechnet die fälligen Takte eines Bildes mit Zeitbudget (45 ms, höchstens 8 Takte, mindestens
+  einer). Was danach aufgelaufen ist, wird verworfen (`engine.droppedTicks`): Ist die Simulation langsamer als die
+  Uhr, läuft das Spiel langsamer, statt mit immer mehr Nachholtakten je Bild in eine Todesspirale zu geraten.
+- `FaultGuard` fängt Fehler je Bereich ab (`sim`, `ai`, `render`, `audio`, `ui`, `dev`), protokolliert gedrosselt
+  und zählt Fehler in Folge. KI, Ton und Entwicklermodus geben nie auf (die Partie läuft weiter); die Simulation
+  nach 3 fehlgeschlagenen Takten in Folge, Darstellung und Oberfläche nach 30 Bildern. Dann hält die Engine das
+  Spiel an (`engine.crash`, `onCrash`) und die Oberfläche zeigt den Fehlerdialog: „Letzten Spielstand laden“
+  (neuester Platz, meist der Autosave), „Seite neu laden“ (setzt `sessionStorage['kronland-crash']`, das
+  Startmenü zeigt danach einen Hinweis auf „Weiterspielen“) oder „Zum Hauptmenü“.
+- Dauerläufe ohne Grafik: `node scripts/stress-run.js [mission] [minuten] [--build=S]` misst je Spielminute die
+  Rechenzeit pro Takt, Figuren, Gebietsrechnungen und die Kosten eines Spielstands.
 
 **Was (nicht) im Spielstand steht.** Alles, was die Simulation braucht – auch die durch Einebnung beim Bauen
 am Hang geänderten Geländehöhen (`map.heights`, stehen ohnehin im Zustands-Hash). Nicht gespeichert werden
@@ -309,6 +344,7 @@ Prüfung im Editor, ohne Build-Schritt.
 | | Desktop | Touch |
 |---|---|---|
 | Auswählen | Linksklick, Rahmen ziehen, Shift fügt hinzu | Tippen |
+| Alle sichtbaren derselben Art | Doppelklick auf eigene Figur (Umschalt/Strg: hinzufügen) | doppelt tippen |
 | Befehl (laufen, bauen, abbauen) | Rechtsklick | Tippen mit Auswahl |
 | Kamera verschieben | mittlere Taste ziehen (greift den Boden), WASD/Pfeile, Bildschirmrand | 1 Finger ziehen (greift den Boden) |
 | Kamera drehen | Q/E, Einfg/Entf, rechte Taste seitlich ziehen | 2 Finger umeinander drehen (ab 25 px Drehweg) |
@@ -329,6 +365,14 @@ Prüfung im Editor, ohne Build-Schritt.
 | Figuren über die Minikarte schicken | Rechtsklick auf die Minikarte (Strg: Angriffsbewegung) | Tippen auf die Minikarte, solange Figuren ausgewählt sind |
 | Menü | Esc | Knopf |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
+
+**Doppelklick/Doppeltippen** (bewusste Abweichung vom Vorbild, übliche RTS-Steuerung): Zwei Klicks bzw.
+Tipper binnen 400 ms und 24 px auf eine eigene Figur wählen alle eigenen Figuren derselben Art, deren Fußpunkt
+im sichtbaren Kartenausschnitt liegt (Bild ohne die von Leisten verdeckten Ränder oben/unten). Gleiche Art:
+Leibeigene, Miliz, Hauptleute mit demselben Einheitentyp (samt Trupp) – alle Helden gelten als eine Art, weil
+jeder Held einzigartig ist. Gegner, Gebäude und Figuren außerhalb des Bildes bleiben außen vor; ein
+Doppelklick auf etwas anderes wirkt wie zwei einfache Klicks. Reine Rechenfunktionen in
+`src/game/sameType.js`, die Auswahl bleibt Oberflächenzustand (kein Befehl an die Simulation).
 
 Die Kamera folgt der Hand direkt wie ein Kartenprogramm (Vorbild three.js `MapControls`, Gesten wie
 MapLibre), ohne Nachgleiten oder Nachwippen: Die Kameralage ist eine reine Funktion von Ziel, Drehung,

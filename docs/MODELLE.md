@@ -23,7 +23,7 @@ Stufe, auf Handy wie Desktop. Eine Hysterese von ±10–12 % verhindert Flackern
 
 | Gruppe | Grenzen (Kacheln, Stufe „hoch“) | Stufen |
 |---|---|---|
-| Gebäude | 38 / 72 | Original → lod1 (~50–70 %) → lod2 (~25–35 %) |
+| Gebäude | 38 / 72 | Original → lod1 (~50–80 %, Textur des Originals) → lod2 (~15–45 %, **Eckfarben statt Textur**, eigenständig). Ist das Original noch nicht geladen, die lod2 aber schon, steht sie für das ganze Gebäude (`assetState` = 1) |
 | Bäume | Bildschirmhöhe 80 / 40 px, gerechnet mit der halben Baumhöhe (`TREE_LOD_HEIGHT`: hoch 0,5, mittel 0,4, niedrig 0,3) – Modellbäume sind doppelt so hoch wie die früheren und wechseln so bei denselben Abständen (Desktop ~30 / 62 Kacheln), mittel/niedrig früher | Modell (~1000–2100 Dreiecke) → `.lod2` (~550–1400) → `.lod3` (~170–450, ohne Schattenwurf). Auf „niedrig“ fehlt das Original: `.lod2`, dann `.lod3`. Prozeduraler Rückfall: detailliert → einfach → Fernform (≈20–40 Dreiecke) |
 | Busch (Modell) | 26 | `.lod2` (~950 Dreiecke, mit Schatten) → `.lod3` (~200, ohne Schattenwurf) |
 | Figuren | Bildschirmhöhe 80 / 28 / 12 px (unter 3 px weg) | **Nahmodell**, flüssig → **Spielmodell** (lod1), 24 Bilder/s ohne Mischung → Spielmodell, 8 Bilder/s → starr. Wechsel Nah ↔ Spiel mit 0,35 s Dither-Überblendung |
@@ -105,7 +105,19 @@ Vereinfacht wird mit meshoptimizer (`simplifyWithAttributes`, Normalen und UV ge
 Paletten-Textur nicht verrutschen). Skinning bleibt erhalten. Die LOD-Dateien enthalten keine Animationen
 und keine Texturbilder – das Spiel nimmt Material und Clips vom Original. `scripts/build-assets.sh` ruft das
 Skript am Ende automatisch auf. Optionen: `--keep-textures` (Stufe behält eine eigene Textur),
-`--strict-seams` (UV-Nähte nicht verschieben, sonst Farbstreifen über Inselgrenzen), `--out pfad/x.lod{n}.glb`.
+`--strict-seams` (UV-Nähte nicht verschieben, sonst Farbstreifen über Inselgrenzen), `--bake` (letzte Stufe mit
+Eckfarben, siehe unten), `--out pfad/x.lod{n}.glb`. Gewicht der UV beim Vereinfachen: Gebäude 5, Figuren 2
+(`LOD_UV_WEIGHT` überschreibt).
+
+**Fernstufe der Gebäude (lod2, „bake“)**: Die Meshy-Gebäude haben einen Texturatlas mit Hunderten UV-Inseln. Bei
+starker Vereinfachung zog meshoptimizer („Permissive“) Kanten über die Inselgrenzen – Streifen in fremden Farben,
+besonders an Burg und Dächern, von oben am deutlichsten. Mit `--strict-seams` bleibt das Netz dagegen fast so groß
+wie das Original (Burg 12 082 → 7 009 Dreiecke). Darum backt das Skript die letzte Gebäudestufe (Standard
+`[0.12, 0.02, 'bake']`): Texturfarbe je Dreiecksecke (etwas zur Dreiecksmitte hin abgetastet, nie auf dem Inselrand,
+256er-Verkleinerung, linear), Ecken gleicher Lage und Normale verschmolzen (Nähte verschwinden, harte Kanten
+bleiben), dann nach Lage, Normale und Farbe vereinfacht. Die Datei hat `COLOR_0`, kein UV und keine Textur; das
+Spiel übernimmt dafür nicht das Material des Originals (`isBakedGeometry` in `assets.js`), die Teamfarbe
+(Magenta in den Eckfarben) wirkt trotzdem. Burg: 2 171 Dreiecke mit Streifen → 2 533 sauber, 57 → 53 KB.
 
 ## Figuren: das Manifest
 
@@ -139,8 +151,9 @@ nicht geladen werden, nimmt das Spiel die prozedurale Figur (`procedural`), eben
     "serf":                 { "variants": [{ "model": "Farmer", "weight": 1 }, { "model": "FarmerF", "weight": 1 }],
                               "procedural": "serf" },
     "soldier.sword.leader": { "fallback": "soldier.sword" },
-    "soldier.heavyCav":     { "model": "Ritter", "seat": 0.86, "clipAlias": { "walk": "ride", "idle": "ride" },
-                              "attach": [{ "role": "mount.horse", "offset": [0, 0, 0.06], "scale": 1.75 }] }
+    "soldier.heavyCav":     { "model": "Ritter", "seatOffset": -0.26, "clipAlias": { "walk": "ride", "idle": "ride" },
+                              "attach": [{ "role": "mount.horse", "offset": [0, 0, 0.1], "scale": 1.06 }] },
+    "mount.horse":          { "model": "Horse", "procedural": "horse", "procScale": 1.7 } // Reittier: Sattel im Modell (unten)
   }
 }
 ```
@@ -232,7 +245,7 @@ node scripts/asset-gen/model.mjs all <id>                      # Meshy: Modell, 
 node scripts/asset-gen/postprocess.mjs <id>                    # → public/models/characters/<Modell>.glb (+ Maske, LODs)
 node scripts/asset-gen/render.mjs out.png <glb> [--clip chop --ts 0,0.25,0.5 --team 2f6fd6 --hide Axe]
 node scripts/asset-gen/lineup.mjs out.png a.glb b.glb [--px 40]       # nur die Figuren, Spielgröße auf Gras und Erde
-node scripts/asset-gen/ingame.mjs [ordner]                     # Spiel-Screenshots Desktop + Handy
+node scripts/asset-gen/ingame.mjs [ordner] [--army lightCav1 --march]  # Spiel-Screenshots Desktop + Handy (Trupp, laufend)
 ```
 
 ### Zwei Darstellungen je Figur
@@ -295,7 +308,8 @@ Klinge in Schlagrichtung; einhändige (`aim` = eigene Hand, `hands: 0`) zeigen v
 Generierte Bewegungen kennen kein Werkzeug, eine feste Lage in der Hand sähe falsch aus.
 
 `spec.json` (Auszug): `model`, `polycount`, `textureSize`, `height`, `animations`, `props`, `far` (Ordner des
-Fernmodells), `beard`, `greenToBrown`, `flat` (Palette des Spielmodells). Das Fernmodell hat ein eigenes `spec.json` mit `"rig": false`.
+Fernmodells), `beard`, `greenToBrown`, `flat` (Palette des Spielmodells), `markerHueMin` (violett verschobene
+Teamfläche auf Magenta drehen, z. B. 275 – Nelia). Das Fernmodell hat ein eigenes `spec.json` mit `"rig": false`.
 
 ### Checkliste: erfolgreicher Durchlauf (Stand: Meshy 7.1)
 
@@ -438,6 +452,53 @@ node scripts/asset-gen/building.mjs build wohnhaus     # → public/models/build
   Ruinen je Typ (`RUIN_ASSETS`: `village_ruin`, `house_ruin`, sonst Trümmer); Siedlungsplätze (nur dort darf ein
   Dorfzentrum stehen) zeigen die Dorfzentrum-Ruine – wie im Vorbild ein verlassenes Dorfzentrum zum Wiederaufbau; Lagerfeuer (`campfire`) mit Flammen als
   Partikel. Alle werden bei Bedarf nachgeladen.
+
+## Pferd (Reittier)
+
+Alle Reiter (leichte und schwere Reiterei, Hauptleute) sitzen auf `Horse` (Rolle `mount.horse`, als `attach` der
+Reiter-Rollen). Modell aus der Figuren-Pipeline (Meshy 7.1, `assets-src/characters/horse/`), **Rig von Hand in der
+Meshy-Oberfläche** (die Schnittstelle riggt nur Menschengestalten), **Bewegungen selbst geschrieben**:
+
+```bash
+node scripts/asset-gen/horse.mjs                    # rigged.glb → Horse.glb (Nahmodell) + Horse.lod1.glb (Spielmodell, Clips)
+node scripts/asset-gen/horse.mjs --preview out.glb  # nur Rig + Clips (für render.mjs … --clip gallop --ts 0,0.25,0.5 --az 1.57)
+```
+
+- **Knochen** (`RIG` in `horse.mjs`): Meshy nennt sie `Bone_000`…`Bone_064`; zugeordnet nach Lage und Hierarchie –
+  Wurzel/Becken `Bone_000/001`, Rücken `Bone_010` (davor `009`, `008`), Schweif `Bone_007`→`002`, Hals `Bone_040/039/038`,
+  Kopf `Bone_037`, Ohren `Bone_062/064`; Beine (Schulter/Hüfte, Ellbogen/Knie, Vorderfußwurzel/Sprunggelenk, Fessel, Huf):
+  links vorn `033, 047, 046, 045, 044`, rechts vorn `035, 054, 053, 052, 051`, links hinten `022…018`, rechts hinten
+  `016…012` (+x ist die linke Seite des Pferds). Steigbügel, Zügel und kleine Nebenäste bleiben starr.
+- **Clips:** `idle` (4 s: Atmen, Kopf schaut umher, Schweif schlägt, Ohren zucken), `walk` (Viertakt-Schritt, 0,75 s,
+  1 Einheit/s), `gallop` (Dreitakt-Galopp mit Schwebephase, 0,5 s, 3,4 Einheiten/s; Manifest-Schlüssel `run`), `die`
+  (knickt ein, kippt zur Seite). Gangarten, Hufbahnen und Körperkurven in `scripts/asset-gen/gait.mjs`.
+- **Beine per IK:** Je Bild bekommt jeder Huf ein Ziel – in der Standphase gleitet er linear mit der Bodengeschwindigkeit
+  nach hinten (kein Rutschen), in der Schwungphase hebt er im Bogen ab. Ein kleiner Löser (gedämpfte kleinste
+  Quadrate in der Seitenebene) setzt Schulter/Hüfte und die Gelenke so, dass der Huf trifft und die Gelenke nah an
+  einer Wunschbeugung bleiben (Vorderfußwurzel klappt nach hinten, Sprunggelenk nach vorn, Fessel und Huf rollen ab).
+  Der Huf steht in der Standphase flach. Weil die Vorderbeine in Ruhe fast gestreckt sind, geht der Rumpf im Schritt und
+  Galopp etwas tiefer.
+- **Tempo:** `stride` im Manifest (Modelleinheiten/s je Clip-Schlüssel) ersetzt die Messung (`strideSpeed` wird bei
+  vier Hufen ungenau). Das Abspieltempo des Reiters und des Pferds richtet sich nach dem Pferd (`Variant.moveSpeed`).
+  Die Reiterei schreitet bis 1,3 Kacheln/s und galoppiert ab 1,7 (`cavalryGait`, dazwischen bleibt die Gangart).
+- **Sattel:** `saddle: { bone, at }` – Sattelpunkt in Modellkoordinaten am Rückenknochen. Daraus Sattelhöhe (Welt)
+  und je gebackenem Bild das Heben/Senken (`saddleTrack`); der Reiter folgt dem Rücken. Sitzhöhe des Reiters = Sattel
+  × Maßstab des Anhangs + `seatOffset` der Reiter-Rolle (−0,26: Gesäß im Sattel, Füße darunter). Größe: Pferd 1,1 Kacheln
+  bis zu den Ohren (schwere Reiterei ×1,06), Figuren 0,81.
+- **Angriff im Sattel:** Die Meshy-Angriffe der Reiter sind im Stehen aufgenommen (Hüfte dreht bis ~40°, Beine stehen) –
+  auf dem Pferd saßen Reiter damit quer. `node scripts/asset-gen/ride-clips.mjs` schreibt je Reiter-Figur den Clip
+  `rideAttack` (Oberkörper aus `attack`, Hüfte und Beine aus der Reitpose, Brustdrehung auf 30 % gedämpft); die
+  Reiter-Rollen nehmen ihn für `attack`/`shoot`, Jubeln wird zur Reitpose. Prüfung: Hüfte und Brust weichen in keinem
+  Sattel-Clip mehr als 25° vom Pferd ab (`mount.test.js`, `CharacterSystem.facing` im E2E).
+- **Teamfarbe:** Satteldecke in Magenta (`teamMarker`). Magenta-Sprenkel von Meshy außerhalb der Decke (Mähne,
+  Schweif, Hufe) übermalt `cleanMarker` (Bereich `CLOTH_BOX`), auch die Lücken zwischen den UV-Inseln.
+- **Dateien:** Nahmodell 11 400 Dreiecke, Textur und Normal-Map 2048 (~1,6 MB, erst beim Heranzoomen); Spielmodell
+  2 065 Dreiecke aus einem Meshy-Remesh des gerigten Modells (`assets-src/characters/horse_far/`, `model.mjs remesh
+  horse_far`, 5 Credits): eingepasst auf die Ruhelage des Rigs, Gewichte von den nächsten Rig-Ecken (`farmesh.mjs`),
+  eigene UV und Textur (1024), alle Clips (~0,6 MB). Ohne Remesh (`--no-remesh`) vereinfacht `horse.mjs` das
+  Nahmodell (feste UV-Nähte, ~5 500 Dreiecke). Rückfall bis zum Laden: prozedurales Pferd (`procScale` 1,7).
+- **Prüfen:** `tests/tools/gait.test.js` (Hufbahnen, Fußfolge, IK), `tests/render/mount.test.js` (Sattel, Tempo, Hufe der
+  Datei rutschen nicht), `e2e/cavalry.spec.js`; Spielfotos: `node scripts/asset-gen/ingame.mjs <ordner> --army lightCav1 --march`.
 
 ## Lauftempo
 

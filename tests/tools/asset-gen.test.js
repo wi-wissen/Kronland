@@ -1,6 +1,6 @@
 // Figure pipeline: marker colour, normal smoothing, tool geometry.
 import { describe, it, expect } from 'vitest';
-import { markerWeight, smoothNormals, isGreenish, toBrown } from '../../scripts/asset-gen/postprocess.mjs';
+import { markerWeight, smoothNormals, isGreenish, toBrown, violetToMarker } from '../../scripts/asset-gen/postprocess.mjs';
 import { rgbToLab } from '../../scripts/asset-gen/palette.mjs';
 import { buildTool, TOOLS } from '../../scripts/asset-gen/props.mjs';
 
@@ -63,6 +63,21 @@ describe('Tools', () => {
       expect(g.uv.length / 2).toBe(g.pos.length / 3);
       expect(g.pos.length / 9).toBeLessThan(200); // keep small
     }
+  });
+});
+
+describe('violetToMarker (Meshy violet → team area)', () => {
+  it('turns strong violet into the marker range, leaves skin, hair and leather', () => {
+    const px = [[190, 20, 230], [150, 10, 190], [230, 160, 125], [220, 180, 90], [120, 70, 40], [60, 60, 200], [100, 90, 110]];
+    const d = Buffer.from(px.flat());
+    violetToMarker(d, 275);
+    const out = [];
+    for (let i = 0; i < d.length; i += 3) out.push([d[i], d[i + 1], d[i + 2]]);
+    expect(markerWeight(...px[0])).toBeLessThan(0.5); // before: only partly team colour
+    expect(markerWeight(...out[0])).toBe(1);
+    expect(markerWeight(...out[1])).toBe(1);
+    expect(Math.max(...out[0])).toBe(230); // lightness stays
+    expect(out.slice(2)).toEqual(px.slice(2)); // skin, hair, leather, blue (240°), grey unchanged
   });
 });
 

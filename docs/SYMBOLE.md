@@ -3,7 +3,7 @@
 Die bunten Symbole (Rohstoffe, Gebäude, Einheiten, Helden, Fähigkeiten, Wetter, Status) kommen aus einem
 **Sprite-Atlas**, den ein Bildmodell in einem einzigen Durchgang gemalt hat. Die 34 einfarbigen
 Bediensymbole (Pause, Menü, Schließen …) bleiben Vektoren, weil sie die Textfarbe übernehmen. Wenige Symbole ohne
-Atlasfeld (Brunnen, Denkmal, Brücke, drei Heldenfähigkeiten) sind Einzelbilder, siehe [unten](#einzelbilder-fähigkeiten-herold-menükulissen).
+Atlasfeld (Brunnen, Denkmal, Brücke, drei Heldenfähigkeiten, zwei Menüsymbole) sind Einzelbilder, siehe [unten](#einzelbilder-fähigkeiten-herold-menükulissen).
 
 Diese Seite beschreibt, wie der Atlas entstanden ist und wie man ihn neu erzeugt, etwa für neue Symbole
 oder einen anderen Stil.
@@ -32,11 +32,13 @@ Referenzbilder mit Ausschnitt, alle Läufe mit Kosten, Auswahl fürs Spiel unter
 ```bash
 node scripts/art/generate.mjs symbols      # neues Rohbild (raw-N.webp), etwa 25 s, 0,14 $
 node scripts/art/finish.mjs symbols --preview /tmp/v.png
+node scripts/art/finish.mjs menu           # Menüsymbole (Sonderkarten, Programmier-Abenteuer)
 ```
 
 | Auftrag | Ergebnis | Einbindung |
 |---|---|---|
 | `symbols` | `public/icons/ab-farsight.webp`, `ab-bribe.webp`, `ab-intimidate.webp` (128 px, Alpha) | `IMAGE_ICONS` in `src/ui/icons/index.js` |
+| `menu` | `public/icons/mode-special.webp` (Sonderkarten), `mode-adventure.webp` (Programmier-Abenteuer), 128 px, Alpha | `IMAGE_ICONS`; Startmenü, Spielstände (freies Spiel ohne Vorschaubild) |
 | `herald` | `public/portraits/sp-herald.webp` (256 px, Cremegrund `#f1ece4`) | `SPEAKER_PORTRAITS` |
 | `title`, `loading` | `public/art/title.webp` (2560 px), `loading.webp` (1920 px), je < 400 KB | `src/ui/art.js` → `.backdrop` |
 
@@ -44,6 +46,13 @@ node scripts/art/finish.mjs symbols --preview /tmp/v.png
   Figurenbogen. `finish.mjs` wählt je Symbol Rohbild und Drittel (`finish`), stellt frei wie `slice.mjs`
   (Flut vom Rand, eingeschlossenes Weiß, „Farbe über Weiß“) und passt in 128 px ein. Gemini malt in einem Lauf mal
   plastischer, mal mit Konturen; darum stammen Fernrohr und Hand aus Lauf 2, das Horn aus Lauf 1.
+- **Menüsymbole** (`menu`, gleicher Ablauf, `"kind": "symbols"` in `job.json`): Landkarte mit Rollen, Fluss, Burg,
+  rotem Kreuz und Kompass für die Sonderkarten (statt des einfarbigen Kartensymbols, das auf dem Goldsiegel leer
+  wirkte); Schiefertafel mit Kreide-`</>` für das Programmier-Abenteuer (statt reinem Text). Ein Lauf (0,14 $); als
+  dritte Variante lag ein offenes Buch mit Pfeilen, Zahnrad und Feder bei, das bei 34 px zu unruhig ist. Die Karte
+  ragt über ihr Drittel, darum steht statt `slot` ein Ausschnitt `crop: [x, y, b, h]`. Für die Tafel gilt
+  `innerWhite: false`, sonst würde die Kreide als eingeschlossenes Weiß ausgestanzt; Kreidestück und Zahnrad vor der
+  Tafel liegen außerhalb des Ausschnitts.
 - **Herold:** Malvors Herold aus Mission 5 (Morvale). Neutrale Farben (Grau, Creme, Ocker), keine Spielerfarbe.
   Wichtig im Prompt: dieselbe Überzeichnung wie die Vorlagen (große Augen, Knollennase), sonst wird er zu realistisch.
 - **Kulissen:** Burg auf dem Hügel in der Bildmitte (bleibt beim hochkant zugeschnittenen Handy sichtbar), ruhiger

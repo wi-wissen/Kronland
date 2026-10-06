@@ -26,6 +26,7 @@ You begin with a **castle**, {{startSerfs}} **serfs**, a hero and a small stock:
 | Action | Desktop |
 |---|---|
 | Select | Left-click, drag a box; [[Shift]] adds |
+| All visible of one type | Double-click one of your units ([[Shift]] / [[Ctrl]] adds); all heroes count as one type |
 | Command (move, build, gather, attack) | Right-click |
 | Attack-move | [[Ctrl]] + right-click or the “Attack” button |
 | Pan camera | [[W]] [[A]] [[S]] [[D]] or arrow keys, drag with middle mouse button, screen edge |
@@ -45,6 +46,7 @@ You begin with a **castle**, {{startSerfs}} **serfs**, a hero and a small stock:
 | Action | Touch |
 |---|---|
 | Select | Tap |
+| All visible of one type | Double-tap one of your units |
 | Command | With a selection, tap the ground, a tree, a building site or an enemy |
 | Pan camera | Drag with one finger |
 | Rotate camera | Twist with two fingers |

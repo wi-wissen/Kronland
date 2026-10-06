@@ -226,15 +226,16 @@ export function regionColor(id) {
  */
 export function regionLayer(map, focus = 0, out = new Uint8Array(map.width * map.height * 4)) {
   const n = map.width * map.height;
-  let count = 0;
+  // Region numbers are canonical (smallest tile index + 1), so not consecutive: different ones count
+  const ids = new Set();
   for (let k = 0; k < n; k++) {
     const id = map.regionAt(k);
-    if (id > count) count = id;
+    if (id) ids.add(id);
     if (!id) { put(out, k, [0, 0, 0, 0]); continue; }
     const c = regionColor(id);
     put(out, k, [c[0], c[1], c[2], focus ? (id === focus ? 150 : 55) : 120]);
   }
-  return { data: out, count };
+  return { data: out, count: ids.size };
 }
 
 /**

@@ -8,6 +8,7 @@ import { loadGame } from '../../sim/serialize.js';
 import { exploredBox } from './crop.js';
 
 export const THUMB_SIZE = 96;
+const CPU = { willReadFrequently: true };
 
 
 /**
@@ -20,13 +21,15 @@ export function makeThumb(engine, size = THUMB_SIZE) {
     const t = engine.minimapTerrain();
     const src = document.createElement('canvas');
     src.width = t.w; src.height = t.h;
-    src.getContext('2d').putImageData(new ImageData(t.data, t.w, t.h), 0, 0);
+    // willReadFrequently: canvas in main memory. A GPU canvas reads toDataURL back from the graphics card
+    // and has to wait for all pending WebGL frames – on full maps (crowds) for seconds.
+    src.getContext('2d', CPU).putImageData(new ImageData(t.data, t.w, t.h), 0, 0);
     const f = engine.minimapFog?.();
     // With fog: zoom to the explored area (otherwise the image is almost entirely black)
     const crop = f ? exploredBox(f) : { x: 0, y: 0, s: t.w };
     const out = document.createElement('canvas');
     out.width = size; out.height = size;
-    const ctx = out.getContext('2d');
+    const ctx = out.getContext('2d', CPU);
     ctx.imageSmoothingEnabled = true;
     ctx.fillStyle = '#0a0b10';
     ctx.fillRect(0, 0, size, size);
@@ -34,7 +37,7 @@ export function makeThumb(engine, size = THUMB_SIZE) {
     if (f) {
       const fc = document.createElement('canvas');
       fc.width = f.w; fc.height = f.h;
-      fc.getContext('2d').putImageData(new ImageData(f.data, f.w, f.h), 0, 0);
+      fc.getContext('2d', CPU).putImageData(new ImageData(f.data, f.w, f.h), 0, 0);
       ctx.drawImage(fc, crop.x, crop.y, crop.s, crop.s, 0, 0, size, size);
     }
     const d = engine.minimapDynamic();

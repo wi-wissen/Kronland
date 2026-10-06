@@ -4,6 +4,7 @@
 //   node scripts/asset-gen/ingame.mjs [output-folder=review] [--stops closest:3,close:6,medium:12,game:28,far:50,farthest:75]
 //                                     [--root <other checkout>] [--focus tree|site] [--pitch 0.95] [--yaw 0.7] [--query nature=off]
 //                                     [--weather winter|rain] (switch the rendering's weather, wait for winter models)
+//                                     [--lineup [--heroes nelia,orrin,taran,malvor]] (size comparison, heroes next to serfs)
 //
 // Starts Vite (port 4391 or PREVIEW_PORT) with the checkout `--root` (default: this repo), a game with
 // ?quality=high (GLB characters even without a real GPU), sends serfs to the nearest tree and to a construction site,
@@ -26,6 +27,8 @@ const focus = opt('--focus', 'tree');
 const buildType = opt('--build'); // building test: place finished buildings of this type next to the castle (3× blue, 1× red)
 const buildLevels = Number(opt('--levels', 3));
 const lineup = args.includes('--lineup') && (args.splice(args.indexOf('--lineup'), 1), true); // size comparison: hero, serfs, captain side by side at the village centre
+const march = args.includes('--march') && (args.splice(args.indexOf('--march'), 1), true); // squads set off (walking/riding motion), camera follows the blue captain
+const heroes = opt('--heroes'); // lineup with several heroes, e.g. nelia,orrin,taran,malvor (hero comparison)
 const army = opt('--army'); // character test: captain with a squad of this unit (e.g. sword1) in blue and red next to the castle // blue in level 1 … levels (upgrade levels side by side)
 const hpPercent = opt('--hp'); // building test: hit points of the levels in percent, e.g. 40,20 (smoke, fire)
 const query = opt('--query', ''); // further URL parameters, e.g. nature=off
@@ -153,26 +156,37 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
     }, { type: buildType, levels: buildLevels, hp: hpPercent ? hpPercent.split(',').map(Number) : [], def: { w: BUILDINGS[buildType].w, h: BUILDINGS[buildType].h } });
   }
   if (army) {
-    info.army = await page.evaluate((defId) => {
+    info.army = await page.evaluate(({ defId, march }) => {
       const e = window.__kronland, s = e.sim;
       const hq = s.findBuilding(0, 'headquarters');
       const x = hq.x + hq.w + 3, y = hq.y + 1;
-      s.spawnLeader(0, defId, x, y);
+      const a = s.spawnLeader(0, defId, x, y);
       s.spawnLeader(1, defId, x + 3, y + 2);
       for (let k = 0; k < 5; k++) e.stepOnce();
+      if (march) {
+        // blue walks far away (on the move during all shots), red stays put
+        const goal = [[x + 30, y], [x - 30, y], [x, y + 30], [x, y - 30], [x + 20, y + 20], [x - 20, y - 20]]
+          .map(([gx, gy]) => [Math.max(2, Math.min(s.map.width - 3, gx)), Math.max(2, Math.min(s.map.height - 3, gy))])
+          .find(([gx, gy]) => s.map.walkable(gx, gy));
+        if (goal) e.issue({ type: 'order', order: 'move', units: [a.id], x: goal[0], y: goal[1] });
+        for (let k = 0; k < 20; k++) e.stepOnce();
+        e.paused = false; // simulation keeps running so the squad stays in motion
+        window.__marchLeader = a.id;
+      }
       return { x: x + 1.5, y: y + 1.5, yaw: 0.7 };
-    }, army);
+    }, { defId: army, march });
   }
   if (lineup) {
-    info.army = await page.evaluate((LINE_YAW) => {
+    info.army = await page.evaluate(({ LINE_YAW, heroes }) => {
       const e = window.__kronland, s = e.sim, U = 1000;
       const hq = s.findBuilding(0, 'headquarters');
       const p = s.findPlacement(0, 'university', hq.x + hq.w + 2, hq.y + hq.h + 3, 25);
       const vc = s.createBuilding(0, 'villageCenter', p.x, p.y, true);
-      if (![...s.entities.values()].some((x) => x.kind === 'hero' && x.owner === 0)) s.spawnHero(0, 'nelia');
+      const want = heroes ? heroes.split(',') : ['nelia'];
+      for (const id of want) if (![...s.entities.values()].some((x) => x.kind === 'hero' && x.owner === 0 && x.hero === id)) s.spawnHero(0, id);
       s.spawnLeader(0, 'sword1', vc.x, vc.y + vc.h + 3, 0);
       e.stepOnce();
-      const hero = [...s.entities.values()].find((x) => x.kind === 'hero' && x.owner === 0);
+      const heroList = want.map((id) => [...s.entities.values()].find((x) => x.kind === 'hero' && x.owner === 0 && x.hero === id));
       const serfs = [...s.entities.values()].filter((x) => x.kind === 'unit' && x.owner === 0).slice(0, 2);
       const leader = [...s.entities.values()].filter((x) => x.kind === 'leader' && x.owner === 0).pop();
       // in a row across the viewing direction (same distance to the camera, sizes directly comparable)
@@ -180,13 +194,16 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
       // trees between camera and row removed (otherwise they hide the figures)
       for (const t of [...s.entities.values()]) if (t.kind === 'tree' && Math.hypot(t.x + 0.5 - ox, t.y + 0.5 - oy) < 9) s.entities.delete(t.id);
       e.renderer.natureDirty = true;
-      [hero, ...serfs, leader].filter(Boolean).forEach((u, i) => {
-        const k = (i - 1.5) * 0.85;
+      // hide decoration bushes and rocks around the row (otherwise they hid figures at the edge)
+      e.renderer.hideScatter(Math.floor(ox) - 6, Math.floor(oy) - 6, 12, 12);
+      const row = [heroList[0], ...serfs, ...heroList.slice(1), leader].filter(Boolean);
+      row.forEach((u, i) => {
+        const k = (i - (row.length - 1) / 2) * 0.85;
         u.px = Math.round((ox + dx * k) * U); u.py = Math.round((oy + dy * k) * U); u.path = null; u.target = null; u.state = 'idle';
       });
       e.paused = true;
       return { x: ox, y: oy, yaw: LINE_YAW };
-    }, Number(opt('--line-yaw', 0.7)));
+    }, { LINE_YAW: Number(opt('--line-yaw', 0.7)), heroes });
   }
   if (weather) {
     await page.evaluate((w) => window.__kronland.renderer.applyWeather(w), weather);
@@ -201,6 +218,9 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
   for (const s of stops) {
     await page.evaluate(({ at, dist, pitch, yaw }) => {
       const r = window.__kronland.renderer.rig;
+      // marching squad: camera on the captain
+      const L = window.__marchLeader && window.__kronland.sim.entities.get(window.__marchLeader);
+      if (L) at = { ...at, x: L.px / 1000, y: L.py / 1000 };
       r.dist = dist; r.yaw = yaw ?? at.yaw;
       if (pitch !== null) r.pitch = pitch;
       r.lookAt(at.x, at.y); r.update(0);
@@ -218,7 +238,7 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
     await page.waitForFunction(() => [...window.__kronland.renderer.chars.records.values()].every((r) => r.lodFrom === undefined), null, { timeout: 60000 }).catch(() => {});
     await frames(1);
     const file = `${s.name}-${name}.png`;
-    await page.screenshot({ path: path.join(out, file) , timeout: 180000 });
+    await page.screenshot({ path: path.join(out, file), timeout: Number(process.env.SHOT_TIMEOUT || 180000) }); // longer under load (software graphics): SHOT_TIMEOUT=600000
     meta[file] = { ...(await page.evaluate(MEASURE)), dist: s.dist, scale: ctx.deviceScaleFactor ?? 1 };
     if (lineup) meta[file].variants = await page.evaluate(() => {
       const c = window.__kronland.renderer.chars, o = {};

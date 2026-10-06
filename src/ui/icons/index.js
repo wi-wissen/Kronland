@@ -167,6 +167,15 @@ const EMBLEM = {
     p('M8 6h15a3 3 0 0 1 3 3v16H11a3 3 0 0 1-3-3z', '#f3e3c0'), p('M5 6a3 3 0 0 1 6 0v3H5z', '#e2c99a'),
     ln('M13 12h9M13 16h9M13 20h6', '#9c7a4a', 1.4),
   ].join(''),
+  // Menu icons (painted as single images, scripts/art/ job "menu"); the SVG applies only until the image is loaded
+  'mode-special': [
+    p('M4 9l7-3 10 3 7-3v18l-7 3-10-3-7 3z', '#f3e3c0'), p('M6 18c2-3 4-3 5-6l2 2-3 6z', '#6fbf4a'),
+    ln('M14 8c-1 5 4 7 2 12s3 4 2 7', '#4d7bc0', 1.8), ln('M20.5 13l4 4M24.5 13l-4 4', '#c9503c', 2.2),
+  ].join(''),
+  'mode-adventure': [
+    r(4, 5, 24, 21, '#b07a43', 2), r(7, 8, 18, 15, '#3f5a52', 1),
+    ln('M12.5 12.5 9.5 15.5l3 3M19.5 12.5l3 3-3 3M17.5 11.5l-3 8', '#f3e3c0', 1.8), ln('M8 26l-2 3M24 26l2 3', '#7a4f28', 2),
+  ].join(''),
   objective: [
     c(16, 16, 12, '#f3e3c0'), c(16, 16, 8, '#c9503c'), c(16, 16, 4, '#f3e3c0'), `<circle cx="16" cy="16" r="1.6" fill="${O}"/>`,
   ].join(''),
@@ -517,11 +526,12 @@ export const PORTRAITS = {
 };
 /**
  * Painted icons without an atlas field: buildings (cut-out concept images, scripts/portraits.py) and
- * abilities (painted individually, scripts/art/, see docs/SYMBOLE.md).
+ * abilities and menu icons (painted individually, scripts/art/, see docs/SYMBOLE.md).
  */
 export const IMAGE_ICONS = {
   'b-fountain': 'icons/b-fountain.webp', 'b-statue': 'icons/b-statue.webp', 'b-bridge': 'icons/b-bridge.webp',
   'ab-farsight': 'icons/ab-farsight.webp', 'ab-bribe': 'icons/ab-bribe.webp', 'ab-intimidate': 'icons/ab-intimidate.webp',
+  'mode-special': 'icons/mode-special.webp', 'mode-adventure': 'icons/mode-adventure.webp',
 };
 const SPEAKER_PORTRAITS = new Set(['elder', 'villager', 'collector', 'merchant', 'bandit', 'miner', 'scholar', 'prisoner', 'herald']);
 /** Portrait of a figure speaking in missions (SPEAKERS key), or null (narrator, unknown). */

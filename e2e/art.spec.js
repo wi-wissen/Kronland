@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { playUrl, hashed } from './paths.js';
 
 // Painted images from scripts/art/ (docs/SYMBOLE.md, "single images"): menu backdrop, loading image,
-// Ability icons and herald portrait.
+// ability icons, menu icons and herald portrait.
 
 const SLOW = { timeout: 30_000 };
 // Where the screenshots go (ART_SHOTS=folder to collect them outside test-results)
@@ -30,6 +30,12 @@ test('Start menu and loading screen show the painted backdrop', async ({ page },
   const bg = await menu.evaluate((el) => getComputedStyle(el).backgroundImage);
   expect(bg).toMatch(hashed('art/title.webp'));
   expect(bg).toContain('linear-gradient'); // darkening gradient and fallback gradients remain
+  // Menu icons coding adventure and special maps: painted single images like tutorial and campaign
+  for (const [id, file] of [['menu-adventures', 'mode-adventure'], ['menu-special', 'mode-special']]) {
+    const ico = page.getByTestId(id).locator('.sm-seal img.ico');
+    await expect(ico).toHaveAttribute('src', hashed(`icons/${file}.webp`, '$'));
+    await expect.poll(() => ico.evaluate((el) => el.complete && el.naturalWidth), SLOW).toBe(128);
+  }
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${SHOTS}/art-title-${info.project.name}.png` });
 

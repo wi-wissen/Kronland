@@ -6,6 +6,9 @@ import { getMission, SPECIAL_MAPS } from '../../src/sim/missions/registry.js';
 import { STRESS_ID, BATTLES, WAVE_SECONDS } from '../../src/sim/missions/stress.js';
 import { fogEnabled } from '../../src/sim/systems/vision.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
+import { nearestEnemy, isEnemy, targetable, distTo } from '../../src/sim/systems/military.js';
+import { COMBAT } from '../../src/sim/data/combat.js';
+import { UNIT } from '../../src/sim/fixed.js';
 import { ICONS } from '../../src/ui/icons/index.js';
 
 const count = (sim) => { const c = {}; for (const e of sim.entities.values()) c[e.kind] = (c[e.kind] ?? 0) + 1; return c; };
@@ -57,5 +60,48 @@ describe('Swarm', () => {
     expect(c.hash()).toBe(a.hash());
     c.run(50); a.run(50);
     expect(c.hash()).toBe(a.hash());
+  });
+
+  it('fast enemy search yields the same targets as the simple version (mid-battle)', () => {
+    const s = createMissionSim(STRESS_ID);
+    s.run(300);
+    // earlier, simple version of nearestEnemy as the yardstick
+    const FIGHT = new Set(['leader', 'soldier', 'hero']);
+    const combatant = (t) => FIGHT.has(t.kind) || t.kind === 'turret' || (t.kind === 'unit' && !!t.militia);
+    const reference = (e, radius, opts) => {
+      const C = COMBAT.gridCell * UNIT, p = e.kind === 'building' ? { x: (e.x * 2 + e.w) * 500, y: (e.y * 2 + e.h) * 500 } : { x: e.px, y: e.py };
+      let best = null, bd = radius + 1, bestUnit = null, bdu = radius + 1;
+      const seen = new Set();
+      for (let cy = Math.floor((p.y - radius) / C); cy <= Math.floor((p.y + radius) / C); cy++) {
+        for (let cx = Math.floor((p.x - radius) / C); cx <= Math.floor((p.x + radius) / C); cx++) {
+          for (const t of s.grid.get(cy * 4096 + cx) ?? []) {
+            if (seen.has(t.id)) continue;
+            seen.add(t.id);
+            if (!isEnemy(s, e.owner, t.owner) || !targetable(s, t)) continue;
+            const isB = t.kind === 'building' || t.kind === 'trap';
+            if (isB && !opts.buildings) continue;
+            if (t.type === 'bridge') continue;
+            if (!isB && !opts.units) continue;
+            if (opts.fighters && !combatant(t)) continue;
+            const d = distTo(e, t);
+            if (d > radius) continue;
+            if (!isB && d < bdu) { bdu = d; bestUnit = t; }
+            if (d < bd) { bd = d; best = t; }
+          }
+        }
+      }
+      return bestUnit ?? best;
+    };
+    let found = 0, checked = 0;
+    for (const e of s.entities.values()) {
+      if (!['leader', 'soldier', 'hero'].includes(e.kind) && !(e.kind === 'building' && e.type === 'tower')) continue;
+      for (const [r, opts] of [[9 * UNIT, { units: true, buildings: false }], [9 * UNIT, { units: true, buildings: true }], [9 * UNIT, { units: true, buildings: false, fighters: true }], [3000, { units: true, buildings: false }]]) {
+        const a = nearestEnemy(s, e, r, opts), b = reference(e, r, opts);
+        expect(a?.id ?? 0).toBe(b?.id ?? 0);
+        checked++; if (a) found++;
+      }
+    }
+    expect(checked).toBeGreaterThan(1000);
+    expect(found).toBeGreaterThan(100);
   });
 });

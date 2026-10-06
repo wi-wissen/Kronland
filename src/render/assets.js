@@ -302,13 +302,18 @@ function boxOf(name) {
   return boxes.get(name);
 }
 
-/** Transfer the materials of the original to a LOD level (same mesh names, otherwise first material). */
+/**
+ * Transfer the materials of the original to a LOD level (same mesh names, otherwise first material).
+ * Levels with vertex colours instead of UV (far level of the buildings, scripts/build-lods.mjs) keep their own material.
+ */
 function shareMaterials(obj, src) {
   const byName = new Map();
   let first = null;
   src.traverse((m) => { if (m.isMesh) { byName.set(m.name, m.material); first ??= m.material; } });
-  obj.traverse((m) => { if (m.isMesh) m.material = byName.get(m.name) ?? first; });
+  obj.traverse((m) => { if (m.isMesh && !isBakedGeometry(m.geometry)) m.material = byName.get(m.name) ?? first; });
 }
+/** Mesh with vertex colours and without UV (standalone far level)? */
+export const isBakedGeometry = (g) => !!g?.attributes?.color && !g.attributes.uv;
 
 /** Existing LOD levels of a model (names), level 0 = original. */
 export function assetLods(name) {
@@ -317,13 +322,30 @@ export function assetLods(name) {
   return out;
 }
 
-/** Model name for a building, or null. */
+/** Can a loaded model be displayed without the original (only meshes with vertex colours, e.g. the far level)? */
+function standalone(name) {
+  const a = cache.get(name);
+  if (!a) return false;
+  if (a.standalone === undefined) {
+    let ok = true, any = false;
+    a.scene.traverse((m) => { if (m.isMesh) { any = true; ok &&= isBakedGeometry(m.geometry); } });
+    a.standalone = ok && any;
+  }
+  return a.standalone;
+}
+
+/**
+ * Model name for a building, or null. If the original of an own model is missing, it is reloaded; if the
+ * standalone far level is already there (it loads before the original), it stands in for the whole building until then.
+ */
 export function buildingAssetName(type, level, owner) {
   const own = OWN_BUILDING_ASSETS[type];
   if (own) {
     const n = `buildings/${own[Math.min(level, own.length - 1)]}`;
     if (cache.has(n)) return n;
     requestAsset(n);
+    const far = `${n}.lod${BUILDING_LODS}`;
+    if (standalone(far)) return far;
     // until the own model is there: KayKit version if available, otherwise procedural
   }
   const list = KAYKIT_BUILDING_ASSETS[type];
@@ -358,11 +380,18 @@ export function ownAsset(file) {
 }
 
 /** Is a model currently being reloaded? (The building reconciliation checks this in order to rebuild after loading.) */
-export const assetPending = (type, level) => {
-  if (type === 'bridge') return !!lazy && !cache.has(`buildings/${BRIDGE_ASSET}`);
+export const assetPending = (type, level) => assetState(type, level) < 2;
+/**
+ * Load state of a building's model: 2 = original there (or no own model), 1 = only the standalone
+ * far level (simplified shape instead of placeholder), 0 = nothing yet. The reconciliation rebuilds on every change.
+ */
+export function assetState(type, level) {
+  if (type === 'bridge') return lazy && !cache.has(`buildings/${BRIDGE_ASSET}`) ? 0 : 2;
   const own = OWN_BUILDING_ASSETS[type];
-  return !!own && !cache.has(`buildings/${own[Math.min(level, own.length - 1)]}`);
-};
+  if (!own) return 2;
+  const n = `buildings/${own[Math.min(level, own.length - 1)]}`;
+  return cache.has(n) ? 2 : standalone(`${n}.lod${BUILDING_LODS}`) ? 1 : 0;
+}
 
 /** Files of a tree or bush model: original and the used LOD levels. @param {string} name */
 const natureModelFiles = (name) => [`buildings/${name}`, ...NATURE_MODEL_LODS.map((k) => `buildings/${name}.lod${k}`)];

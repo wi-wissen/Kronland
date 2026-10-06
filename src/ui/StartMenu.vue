@@ -9,9 +9,10 @@
 
       <div class="sm-cols">
         <nav class="sm-modes">
+          <p v-if="recovered" class="sm-recovered parchment" role="status" data-testid="recovered-hint"><Icon name="warning" />{{ latest ? $t('crash.recovered') : $t('crash.recoveredNoSave') }}</p>
           <button v-if="latest" class="primary sm-continue" data-testid="continue" :disabled="busy" @click="continueLatest">
             <Icon name="load" />
-            <span class="sm-cont-txt"><b>{{ $t('menu.continueLatest') }}</b><small data-testid="continue-name">{{ latest.name }}</small></span>
+            <span class="sm-cont-txt"><b>{{ $t('menu.continueLatest') }}</b><small data-testid="continue-name">{{ latest.auto ? $t('saves.auto') + ' · ' : '' }}{{ latest.name }}</small></span>
           </button>
           <p v-if="error" class="sm-error" role="alert" data-testid="continue-error"><Icon name="warning" />{{ error }}</p>
           <button class="sm-mode" data-testid="menu-tutorial" @click="$emit('tutorial')">
@@ -23,11 +24,11 @@
             <span><b>{{ $t('menu.campaign') }}</b><small>{{ $t('menu.campaignSub') }}</small></span>
           </button>
           <button class="sm-mode" data-testid="menu-adventures" @click="$emit('adventures')">
-            <span class="sm-seal sm-code" aria-hidden="true">&lt;/&gt;</span>
+            <span class="sm-seal"><Icon name="mode-adventure" /></span>
             <span><b>{{ $t('menu.adventures') }}</b><small>{{ $t('menu.adventuresSub') }}</small></span>
           </button>
           <button class="sm-mode" data-testid="menu-special" @click="$emit('special')">
-            <span class="sm-seal"><Icon name="map" /></span>
+            <span class="sm-seal"><Icon name="mode-special" /></span>
             <span><b>{{ $t('menu.special') }}</b><small>{{ $t('menu.specialSub') }}</small></span>
           </button>
           <div class="sm-tools">
@@ -127,6 +128,8 @@ export default {
   props: {
     /** Latest save game (entry from src/save/store.js) for "Continue" */
     latest: { type: Object, default: null },
+    /** Page reloaded after a game error or game left after an error: notice about "Continue" */
+    recovered: { type: Boolean, default: false },
   },
   emits: ['start', 'load', 'tutorial', 'campaign', 'saves-changed', 'adventures', 'special'],
   data() {
@@ -201,6 +204,7 @@ export default {
 .sm-continue { display: flex; align-items: center; justify-content: center; gap: 0.625rem; min-height: 3.25rem; font-size: var(--fs-lg); }
 .sm-cont-txt { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; line-height: 1.15; }
 .sm-cont-txt small { font-size: var(--fs-xs); font-weight: 400; opacity: 0.85; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-recovered { margin: 0; display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.5rem 0.75rem; font-size: var(--fs-sm); line-height: 1.4; }
 .sm-error { margin: 0; display: flex; gap: 0.5rem; padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: rgba(80, 18, 14, 0.85); color: #ffd9d2; font-size: var(--fs-sm); }
 .sm-saves { width: min(40rem, 100%); }
 .sm-mode {
@@ -211,7 +215,6 @@ export default {
 .sm-mode small { color: var(--ink-muted); font-size: var(--fs-sm); }
 .sm-seal { flex: none; width: 3.25rem; height: 3.25rem; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 30%, #fbf1d6, #c9a66b); box-shadow: inset 0 0 0 2px var(--gold-500), 0 0 0 2px var(--wood-950), 0 3px 6px rgba(0, 0, 0, 0.5); }
 .sm-seal .ico { width: 2.125rem; height: 2.125rem; }
-.sm-code { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 800; font-size: 1.05rem; color: #5e3f0d; }
 .sm-tools { display: flex; gap: 0.5rem; align-items: stretch; flex-wrap: wrap; }
 .sm-tool { flex: 1 1 8rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: var(--touch); }
 .sm-lang { flex: none; width: 7rem; }

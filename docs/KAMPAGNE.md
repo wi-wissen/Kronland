@@ -39,8 +39,9 @@ nah am Original.
 - **Figuren:** Konzeptbögen in `assets-src/characters/<hero>/` (Prompts: `hero-prompts.json`, Stil:
   `style-reference-prompt.md`, Modell `openai/gpt-5.4-image-2`). Im Spiel eigene 3D-Figuren (`Nelia.glb` …,
   Rollen `hero.<id>` in `public/models/characters/manifest.json`); Porträts in `public/portraits/hero-<id>.webp`,
-  aus den Vorderansichten geschnitten (`scripts/portraits.py`). Nelia trägt
-  einen Kapuzenumhang in Spielerfarbe, damit sie sich von oben von den Leibeigenen abhebt.
+  aus den Vorderansichten geschnitten (`scripts/portraits.py`). Nelia ist aus dem Bogen der Leibeigenen
+  entstanden (gleiche zierliche Statur): blonder Zopf und ein knielanger Kapuzenumhang in Spielerfarbe, damit sie
+  sich von oben von den Leibeigenen abhebt.
 
 ## Story → Mechanik
 

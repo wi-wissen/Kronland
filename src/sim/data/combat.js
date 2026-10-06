@@ -31,4 +31,11 @@ export const COMBAT = {
   heroReviveTicks: 100, // 10 s without enemies nearby (source)
   heroReviveRadius: 8,
   gridCell: 8,          // tiles per cell of the search grid
+  // Surrounding in melee (A): attackers spread over spots around their target instead of a single point.
+  // Both rings lie within melee range (1300), so all spots hit.
+  surround: [
+    { radius: 800, slots: 8 },   // inner ring
+    { radius: 1150, slots: 12 }, // outer ring (also in range)
+  ],
+  surroundMaxRange: 2000, // only surround attackers with at most this range (melee, spear)
 };

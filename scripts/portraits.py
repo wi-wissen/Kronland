@@ -3,6 +3,7 @@
 without an atlas cell from the concept images.
 
   python3 scripts/portraits.py            # all from PORTRAITS → public/portraits/<name>.webp
+  python3 scripts/portraits.py hero-nelia # only the named ones (missing view-1.png: skipped)
 
 Source: assets-src/characters/<figure>/view-1.png (1024 px, plain background). The background
 becomes cream, magenta (placeholder for the team colour) gets the given hue.
@@ -99,10 +100,19 @@ def building_icon(folder, size=128):
 
 
 if __name__ == '__main__':
+    import sys
+    only = set(sys.argv[1:])  # e.g. hero-nelia: only these portraits/icons
     out = ROOT / 'public/portraits'
     for name, (figure, *tone) in PORTRAITS.items():
+        if only and name not in only:
+            continue
+        if not (ROOT / 'assets-src/characters' / figure / 'view-1.png').exists():
+            print(f'skipped: {name} ({figure}/view-1.png missing, run views.mjs {figure} first)')
+            continue
         portrait(figure, *tone).save(out / f'{name}.webp', quality=88)
         print(out / f'{name}.webp')
     for name, folder in BUILDING_ICONS.items():
+        if only and name not in only:
+            continue
         building_icon(folder).save(ROOT / 'public/icons' / f'{name}.webp', quality=90)
         print(ROOT / 'public/icons' / f'{name}.webp')

@@ -32,6 +32,7 @@ import { rasterTriangles, fillGutters } from './texraster.mjs';
 import { triangleInfo, headRegions, meanLab, shiftBeard, triangleAdjacency, growMarker } from './regions.mjs';
 import { fitTo, transferWeights } from './farmesh.mjs';
 import { convert as animsToGame, readGlb } from './anims-to-game.mjs';
+import { requireAssetsSrc } from '../require-assets-src.mjs';
 
 const LOOP_FADE = 0.3; // s: seam cross-fade
 const ONE_SHOT = new Set(['die']);
@@ -399,7 +400,7 @@ async function detailTexture(doc, spec, maskFile, hasProps) {
  * The team area stays magenta; the game recolours it when drawing (manifest `teamMarker`).
  * Metal/roughness and emissive textures are dropped (the game sets fixed values).
  */
-async function keepTexture(doc, spec, size, hasProps) {
+export async function keepTexture(doc, spec, size, hasProps) {
   const root = doc.getRoot();
   const buffer = root.listBuffers()[0];
   const mat = root.listMaterials()[0];
@@ -410,6 +411,7 @@ async function keepTexture(doc, spec, size, hasProps) {
   const baseTex = mat.getBaseColorTexture(), nrmTex = mat.getNormalTexture();
   const base = await decode(baseTex);
   const nrm = nrmTex ? await decode(nrmTex) : null;
+  if (spec.markerHueMin) violetToMarker(base, spec.markerHueMin);
   fillGutters(id, W, H, [{ data: base, ch: 3 }, ...(nrm ? [{ data: nrm, ch: 3 }] : [])], W);
   const strip = hasProps ? Math.max(8, Math.round(W / 64)) : 0;
   const H2 = H + strip;
@@ -438,6 +440,25 @@ async function keepTexture(doc, spec, size, hasProps) {
   baseTex.setImage(await jpg(b2)).setMimeType('image/jpeg');
   if (nrmTex) nrmTex.setImage(await jpg(n2)).setMimeType('image/jpeg');
   mat.setMetallicRoughnessTexture(null).setEmissiveTexture(null).setEmissiveFactor([0, 0, 0]).setOcclusionTexture(null);
+}
+
+/**
+ * Meshy sometimes shifts magenta towards violet (Nelia: hue 285°–300°). The shader only recognises the
+ * team area fully from 295° (`charMarker`), violet spots would then stay purple. spec.markerHueMin (e.g. 275):
+ * rotate vivid pixels with hue between markerHueMin and 300° to 305°; brightness and saturation stay.
+ * @param {Buffer} d raw RGB data (is modified)
+ * @param {number} min lower hue limit in degrees
+ */
+export function violetToMarker(d, min) {
+  for (let i = 0; i < d.length; i += 3) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), c = mx - mn;
+    if (mx < 45 || c / mx < 0.3 || mx !== b) continue; // violet: blue is the largest channel
+    const h = 240 + (60 * (r - g)) / c;
+    if (h < min || h >= 300) continue;
+    // hue 305° (red largest channel, blue in between): R = max, G = min, B = min + c * (360 - 305) / 60
+    d[i] = mx; d[i + 1] = mn; d[i + 2] = Math.round(mn + (c * 55) / 60);
+  }
 }
 
 /** Lab distance of two sRGB colours (0–255). */
@@ -572,7 +593,7 @@ async function flatColors(doc, spec, hasProps) {
   return marked / nt;
 }
 
-// ---------- Ablauf ----------
+// ---------- Procedure ----------
 
 /** Smooth normals (all meshes). */
 function smoothAll(doc) {
@@ -593,7 +614,7 @@ function dropAnimations(doc) {
   }
 }
 
-async function finish(doc, model, file) {
+export async function finish(doc, model, file) {
   for (const mat of doc.getRoot().listMaterials()) mat.setName(model).setMetallicFactor(0).setRoughnessFactor(0.85);
   await doc.transform(dedup(), prune({ keepLeaves: true, keepAttributes: true }), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
   await io.write(file, doc);
@@ -758,6 +779,7 @@ export async function postprocess(id, opts = {}) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  requireAssetsSrc('characters');
   const args = process.argv.slice(2);
   const opt = (n) => { const i = args.indexOf(n); return i < 0 ? undefined : args[i + 1]; };
   await postprocess(args[0], {

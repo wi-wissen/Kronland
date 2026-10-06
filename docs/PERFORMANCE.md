@@ -45,7 +45,7 @@ public/audio/manifest.json              →  dist/audio/manifest.4b1c…….json
 | Code, Seiten, CSS, Oberflächenbilder (Symbol-Atlas, Porträts, Menükulissen) | Vorab-Cache (~3,6 MB) | beim ersten Besuch, im Hintergrund |
 | Modelle, Figuren-Manifest | CacheFirst `models` | beim ersten Laden |
 | Boden- und Naturtexturen | CacheFirst `textures` | beim ersten Laden (nur die Größe der Grafikstufe) |
-| Musik, Effekte, Stimmen, Ton-Manifeste | CacheFirst `ton` | beim ersten Abspielen |
+| Musik, Effekte, Stimmen, Ton-Manifeste | CacheFirst `audio` | beim ersten Abspielen |
 | Website-Bilder | CacheFirst `site-images` | beim ersten Ansehen |
 
 CacheFirst heißt: liegt die Datei im Cache, fragt der Browser nie wieder beim Server nach. Das ist nur mit
@@ -85,7 +85,7 @@ Effekte 0,2 MB, je Musikstück ~2 MB, je Satz einer Stimme ~30 KB.
 | Freies Spiel, Handy „niedrig“ | **14,5 MB** | 19 MB | 2,1 MB | 0 |
 | Freies Spiel, 4 Spieler, Desktop „hoch“ | **19 MB** | 35 MB | 6,5 MB | 0 |
 | Kampagne Mission 1 | **25 MB** | 43 MB | 7,3 MB | 0 |
-| Schaukasten (fast alles einmal) | **116 MB** | 192 MB | 30,5 MB | 0 |
+| Schaukasten (fast alles einmal) | **116 MB** | 192 MB | 31,1 MB (Pferd +0,6) | 0 |
 | Gewimmel (Belastungsprobe) | **79 MB** | 164 MB | 34,8 MB | 0 |
 
 „vorher“: Messung vor dem Umbau der Figuren (Nahmodelle wurden mit jeder Rolle sofort geladen). Ein Nahmodell
@@ -120,9 +120,9 @@ Weitere Kandidaten: Animationen quantisieren (sie sind Float32, ~0,2–0,4 MB je
 
 ```bash
 npm run build
-node scripts/load-report.mjs                    # alle Szenarien (menue, spiel, handy, vier, c1, showcase, bustle)
-node scripts/load-report.mjs game phone        # nur diese
-node scripts/load-report.mjs game --list       # jede geladene Datei einzeln
+node scripts/load-report.mjs                    # alle Szenarien (menu, game, phone, four, c1, showcase, bustle)
+node scripts/load-report.mjs game phone         # nur diese
+node scripts/load-report.mjs game --list        # jede geladene Datei einzeln
 node scripts/load-report.mjs --json b.json      # Rohdaten speichern; --from-json b.json gibt die Tabellen neu aus
 ```
 
@@ -131,8 +131,49 @@ leer (1. Besuch), nach Installation des Service-Workers (2. Besuch) und noch ein
 Cache). Gezählt wird jede Antwort nach Art (Pfad). Passt die Playwright-Version nicht zum vorinstallierten
 Browser: `PW_CHROMIUM=/opt/pw-browsers/chromium`.
 
+### Fernstufe der Gebäude mit Eckfarben
+
+Seit die lod2 der Gebäude Eckfarben statt UV trägt (docs/MODELLE.md#detailstufen-erzeugen), sind die
+Detailstufen aller 66 eigenen Gebäudemodelle neu erzeugt: lod2 zusammen 6,00 → 6,15 MB, lod1 (UV stärker
+gewichtet, weniger Verschmieren) 13,5 → 15,0 MB. Je Gebäude im Spiel ~+20 KB bei lod1, lod2 etwa gleich
+(Burg: lod1 139 → 150 KB, lod2 57 → 53 KB). Geladen wird wie bisher (Original und Stufen bei Bedarf).
+
 ## Aufgeräumt
 
 Nie geladen und darum entfernt: `chapel3_old` (ersetzt durch `chapel3`), die `.lod1`-Stufen der Bäume und des
 Buschs (benutzt werden Original, `.lod2`, `.lod3`), die 1024er-Naturtexturen (geladen wird nur `-512`; die große
 Fassung schreibt `ground.mjs` jetzt nach `assets-src/nature/`). Zusammen ~3 MB.
+
+## Große Karten im laufenden Spiel (Gewimmel)
+
+Belastungsprobe „Gewimmel“ (`?mission=bustle`, ~2500 Entities, vier Computergegner, zwei Dauerschlachten).
+Messung ohne Grafik: `node scripts/stress-run.js bustle 20` (je Spielminute Takt Ø/max, Figuren, Gebiete,
+Spielstand); `--build=5` lässt den Spieler zusätzlich alle 5 s ein Gebäude setzen. Werte Node 22, Cloud-Rechner:
+
+| | vorher | nachher |
+|---|---|---|
+| Takt Ø nach 10 Spielminuten | 19,9 ms | ~7 ms |
+| Gesamtlauf 10 Spielminuten (allein auf dem Rechner) | 80 s | 29 s |
+| Anteil `nearestEnemy` an der Rechenzeit | 42 % | 16 % |
+| Gebietsrechnungen, KI-Dauerlauf 20 min (843×) | 468 ms | 129 ms |
+
+Zustands-Hashes nach jeder Spielminute (Gewimmel 10 min, KI-Dauerlauf 20 min) sind vorher und nachher gleich: Das
+Spiel verhält sich genau wie zuvor, es rechnet nur weniger.
+
+- **Feindsuche** (`nearestEnemy`, heißester Pfad im Getümmel): Feindschaft je Besitzer einmal je Aufruf, Doppelte
+  nur bei Gebäuden prüfen, Abstand quadratisch vorfiltern, `targetable` erst für mögliche Bestwerte. Gleiches
+  Ergebnis wie die einfache Fassung (Test in `tests/sim/stress.test.js`).
+- **Gebiete** (`map.regionAt`): nicht mehr die ganze Karte nach jedem Bauen/Abriss/Baumfällen. Freigaben, die an
+  genau ein Gebiet grenzen (Baum gefällt), bekommen dessen Nummer direkt (`joinFreed`); sonst werden nur die
+  berührten Gebiete neu geflutet (`updateRegions`). Zahlenschlüssel statt Text je Aufruf, Puffer wiederverwendet.
+  Eine vollständige Rechnung kostet auf 160×160 ~0,5–1 ms.
+- **Autosave**: Text ohne tiefe Kopie (vorher `structuredClone` + `JSON.stringify`, jetzt nur `JSON.stringify`),
+  ~0,7 MB Text, ~20 ms auf dem Hauptfaden im Browser (`engine.autosaveStats`), Kompression asynchron (~170 ms bis
+  zur fertigen Ablage). Das Vorschaubild entsteht auf einer Zeichenfläche im Hauptspeicher (`willReadFrequently`):
+  `toDataURL` auf einer GPU-Zeichenfläche wartete auf alle anstehenden WebGL-Bilder und hielt das Spiel im
+  Browserprofil sekundenlang an (64 % eines 35-s-Bildes unter Software-Grafik).
+- **Shader mitten im Spiel**: Modelle, die erst später auftauchen (Lagerfeuer, Baustellenphasen, Gerüst, Ruine),
+  werden beim Aufwärmen einmal mitgezeichnet; ein neu zu übersetzender Shader hielt sonst das Spiel an (im Profil
+  `getShaderInfoLog`, unter Software-Grafik bis 70 s, auf echten Grafikkarten Bruchteile einer Sekunde bis Sekunden).
+- **Spielschleife**: Zeitbudget je Bild und verworfener Rückstand statt Todesspirale, Fehler abgefangen
+  (docs/ARCHITEKTUR.md#spielschleife-und-fehler).

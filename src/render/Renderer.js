@@ -12,7 +12,7 @@ import {
   ChunkedInstances, LodCounter, LodState, ViewTracker, cameraFrustum, effectiveDistance, lodSettings, LOD_TIERS, sphereVisible, splitGridMesh,
   screenHeightPx, pixelMetric,
 } from './lod.js';
-import { CharacterSystem, sharedCharacterRoots } from './characters.js';
+import { CharacterSystem, sharedCharacterRoots, cavalryGait } from './characters.js';
 import { Effects, HealthBars, GroundMarks, sharedPuffTexture } from './effects.js';
 import { CameraRig, nearFactor } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
@@ -27,7 +27,7 @@ import {
 import { UNITS, HEROES, HERO_IDS } from '../sim/data/units.js';
 import { sharedModelMaterials } from './models.js';
 import { playerHex } from './playerColors.js';
-import { sharedAssetRoots, assetPending, hasAsset, ownAsset, loadNatureModels } from './assets.js';
+import { sharedAssetRoots, assetState, hasAsset, ownAsset, loadNatureModels } from './assets.js';
 import { pickTreeVariant, neighborCount, forestType, treeHash, applySeason, WINTER_NATURE_MODELS, MODEL_STUMP_SCALE, TREE_LOD_HEIGHT } from './treeModels.js';
 import { sharedMarkerMaterials } from './nature.js';
 import { sharedTerrainTextures } from './textures.js';
@@ -36,6 +36,9 @@ import { HintMarker, NpcMarks } from './hints.js';
 import { FogOfWar, patchFog, patchFogTree } from './fog.js';
 import { TileGrid, overviewDist } from './grid.js';
 import { knownBuildings } from '../sim/systems/vision.js';
+import { jitterOffset, jitterTarget, JITTER_FADE } from './jitter.js';
+import { COMBAT } from '../sim/data/combat.js';
+import { wrapAngle } from './angle.js';
 
 /** Player colour; figures without owner (conversation figures) in neutral brown. */
 /**
@@ -46,6 +49,8 @@ import { knownBuildings } from '../sim/systems/vision.js';
  */
 export const figureSync = (kind) => (kind === 'unit' || kind === 'worker' || kind === 'npc' ? 'unit' : 'fighter');
 /** Rotation per viewing direction from scripts (0 = north/−z, 1 = east/+x, 2 = south/+z, 3 = west). */
+/** No offset / intermediate value for jitter() (read immediately, never stored). */
+const NO_JITTER = Object.freeze({ dx: 0, dz: 0 }), JITTER_TMP = { dx: 0, dz: 0 };
 const FACE_YAW = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
@@ -195,8 +200,18 @@ export class Renderer {
       for (const lv of this.buildingLods?.values() ?? []) for (const m of lv) if (!m.visible) { hidden.push(m); m.visible = true; }
       for (const c of this.chunked) for (const m of c.meshes) if (!m.visible) { hidden.push(m); m.visible = true; }
       for (const m of [this.fx.smoke.mesh, this.fx.fire.mesh, this.fx.flames.mesh, this.bars.mesh, this.marks.mesh]) if (!m.visible) { hidden.push(m); m.visible = true; }
+      // Models that only appear in the middle of the game (campfire, construction site, scaffolding, ruin): draw once along,
+      // so that their shaders are compiled now and do not later stop the running game for seconds
+      // (measured on a crowd: new shader "campfire" in the middle of the game, see docs/PERFORMANCE.md)
+      const extras = new THREE.Group();
+      for (const make of [() => campfireModel(), () => scaffold(3, 3), () => constructionStage(0, 2.6, 2.6), () => constructionStage(1, 2.6, 2.6), () => constructionStage(2, 2.6, 2.6), () => ruinModel(3, 3, 'residence')]) {
+        try { const g = make(); if (g) { patchFogTree(g); extras.add(g); } } catch { /* model missing: then later */ }
+      }
+      extras.position.copy(this.rig.target ?? new THREE.Vector3());
+      this.scene.add(extras);
       this.scene.traverse((o) => { if (o.frustumCulled) { cull.push(o); o.frustumCulled = false; } });
       r.render(this.scene, this.camera);
+      this.scene.remove(extras);
       for (const o of cull) o.frustumCulled = true;
       for (const o of hidden) o.visible = false;
       this.chars.prewarm(false);
@@ -710,7 +725,8 @@ export class Renderer {
         (this.hitAt ??= new Map()).set(ev.by, this.time ?? 0);
         const t = this.sim.entities.get(ev.target);
         if (t?.px !== undefined && fog.visibleAt(t.px / UNIT, t.py / UNIT) && this.fx.chance(0.5)) {
-          const x = t.px / UNIT, z = t.py / UNIT;
+          const r = this.chars.records.get(t.id);
+          const x = r ? r.position.x : t.px / UNIT, z = r ? r.position.z : t.py / UNIT;
           this.fx.sparks(x, this.terrain.heightAt(x, z) + 0.55, z);
         }
       }
@@ -857,7 +873,7 @@ export class Renderer {
     for (const [id, g] of this.camps ?? []) if (!seen.has(id)) { this.scene.remove(g); this.camps.delete(id); }
     // clean up per-unit markers (occasionally is enough)
     if ((this.frameNo = (this.frameNo ?? 0) + 1) % 120 === 0) {
-      for (const m of [this.unitYaw, this.hitAt, this.shotAt]) if (m) for (const id of m.keys()) if (!seen.has(id)) m.delete(id);
+      for (const m of [this.unitYaw, this.hitAt, this.shotAt, this.jitterW]) if (m) for (const id of m.keys()) if (!seen.has(id)) m.delete(id);
     }
     this.chars.prune();
 
@@ -1001,7 +1017,7 @@ export class Renderer {
     // construction phase: foundation → walls → roof truss (KayKit), afterwards the finished house growing under the scaffolding
     const stage = !stages ? -1 : e.level > 0 ? 3 : p < 0.22 ? 0 : p < 0.45 ? 1 : p < 0.68 ? 2 : 3;
     // own models are reloaded: rebuild once after loading
-    const key = `${e.level}:${e.done}:${stage}:${assetPending(e.type, e.level) ? 0 : 1}`;
+    const key = `${e.level}:${e.done}:${stage}:${assetState(e.type, e.level)}`;
     if (!g || g.userData.key !== key) {
       const old = g;
       g = buildingModel(e.type, e.w, e.h, e.level, e.owner);
@@ -1193,6 +1209,23 @@ export class Renderer {
     return `soldier.${line}${e.kind === 'leader' ? '.leader' : ''}`;
   }
 
+  /**
+   * Rendering offset of a figure in tiles (see jitter.js): fixed per ID, faded in and out softly,
+   * where the exact position matters. Picking, selection rings and health bars read the drawn position along.
+   */
+  jitter(e, moving) {
+    const w = (this.jitterW ??= new Map());
+    const want = jitterTarget(e, moving);
+    let k = w.get(e.id);
+    if (k === undefined) k = want; // new figure: immediately at its spot
+    else if (k !== want) k = want > k ? Math.min(want, k + JITTER_FADE * (this.frameDt ?? 0)) : Math.max(want, k - JITTER_FADE * (this.frameDt ?? 0));
+    w.set(e.id, k);
+    if (k === 0) return NO_JITTER;
+    const o = jitterOffset(e.id);
+    JITTER_TMP.dx = o.dx * k; JITTER_TMP.dz = o.dz * k;
+    return JITTER_TMP;
+  }
+
   /** Ground speed in tiles per real-time second (for the walking pace of the legs); 0 when standing. */
   groundSpeed(e, prev) {
     if (!prev) return 0;
@@ -1202,8 +1235,9 @@ export class Renderer {
   syncUnit(e, alpha, prev, dt) {
     const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
     const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
-    const x = px / UNIT, z = py / UNIT;
     const moving = prev && (prev.px !== e.px || prev.py !== e.py);
+    const j = this.jitter(e, moving);
+    const x = px / UNIT + j.dx, z = py / UNIT + j.dz;
     const st = (this.unitYaw ??= new Map());
     let yaw = st.get(e.id) ?? 0;
     if (moving) yaw = Math.atan2(e.px - prev.px, e.py - prev.py);
@@ -1237,9 +1271,10 @@ export class Renderer {
   syncFighter(e, alpha, prev) {
     const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
     const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
-    const x = px / UNIT, z = py / UNIT;
-    const y = this.groundY(x, z);
     const moving = prev && (prev.px !== e.px || prev.py !== e.py);
+    const j = this.jitter(e, moving);
+    const x = px / UNIT + j.dx, z = py / UNIT + j.dz;
+    const y = this.groundY(x, z);
     const st = (this.unitYaw ??= new Map());
     let yaw = st.get(e.id) ?? 0;
     // script step (hero.step()): keep the facing direction instead of turning to the walking direction
@@ -1248,18 +1283,17 @@ export class Renderer {
     else if (e.face !== undefined && !e.targetId) {
       // facing direction from a script (hero.turn_left() …): turn there smoothly
       const want = FACE_YAW[e.face] ?? yaw;
-      let d = want - yaw;
-      while (d > Math.PI) d -= 2 * Math.PI;
-      while (d < -Math.PI) d += 2 * Math.PI;
-      yaw += d * Math.min(1, 0.25);
+      yaw += wrapAngle(want - yaw) * 0.25;
     } else if (e.targetId) {
       const t = this.sim.entities.get(e.targetId);
       if (t) {
-        const tx = t.kind === 'building' ? t.x + t.w / 2 : (t.px ?? t.x * UNIT) / UNIT, tz = t.kind === 'building' ? t.y + t.h / 2 : (t.py ?? t.y * UNIT) / UNIT;
+        const r = this.chars.records.get(t.id); // drawn position of the target (with offset)
+        const tx = t.kind === 'building' ? t.x + t.w / 2 : r ? r.position.x : (t.px ?? t.x * UNIT) / UNIT;
+        const tz = t.kind === 'building' ? t.y + t.h / 2 : r ? r.position.z : (t.py ?? t.y * UNIT) / UNIT;
         yaw = Math.atan2(tx - x, tz - z);
       }
     }
-    st.set(e.id, yaw);
+    st.set(e.id, Number.isFinite(yaw) ? yaw : 0);
     // traps, bombs, self-firing: small static objects (few)
     if (e.kind !== 'hero' && e.kind !== 'leader' && e.kind !== 'soldier') {
       let g = this.units.get(e.id);
@@ -1282,9 +1316,12 @@ export class Renderer {
     const attacking = (hit !== undefined && this.time - hit < 0.7) || (shotAt !== undefined && this.time - shotAt < 0.7);
     const line = e.kind === 'hero' ? null : UNITS[e.def]?.line;
     const ranged = line === 'bow' || line === 'lightCav';
-    const clip = e.down ? 'die' : attacking ? (ranged ? 'shoot' : 'attack') : moving ? (line === 'lightCav' || line === 'heavyCav' ? 'run' : 'walk') : 'idle';
+    const ground = this.groundSpeed(e, prev);
+    // cavalry: walk when advancing slowly, otherwise gallop (horse and legs in time with the ground speed)
+    const gait = line === 'lightCav' || line === 'heavyCav' ? cavalryGait(ground, this.chars.records.get(e.id)?.clip) : 'walk';
+    const clip = e.down ? 'die' : attacking ? (ranged ? 'shoot' : 'attack') : moving ? gait : 'idle';
     const role = this.roleOf(e);
-    const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: playerHex(e.owner), speed: line === 'cannon' ? 0.6 : 1, ground: this.groundSpeed(e, prev) });
+    const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: playerHex(e.owner), speed: line === 'cannon' ? 0.6 : 1, ground });
     // hoof dust
     if (moving && (line === 'lightCav' || line === 'heavyCav') && this.fx.chance(0.22) && rec.lod.level >= 0 && rec.lod.level <= 1) this.fx.hoofDust(x, y, z);
     // health bars: captains (squad as a whole) and heroes
@@ -1320,13 +1357,25 @@ export class Renderer {
     else if (ev.kind === 'bullet') this.fx.smokePuff(from.x, from.y + 0.35, from.z, 0.15, 0.18);
   }
 
-  /** Fighter at the firing position (for the shot animation). */
+  /**
+   * Fighter at the firing position (for the shot animation). Searches in the simulation's search grid (sim.grid, only
+   * read) instead of in all entities – in large battles there are hundreds of shots per second.
+   */
   nearestFighter(px, py, owner) {
     let best = 0, bd = 400 * 400;
-    for (const e of this.sim.entities.values()) {
-      if (e.owner !== owner || (e.kind !== 'leader' && e.kind !== 'soldier' && e.kind !== 'hero')) continue;
+    const check = (e) => {
+      if (e.owner !== owner || (e.kind !== 'leader' && e.kind !== 'soldier' && e.kind !== 'hero')) return;
       const d = (e.px - px) ** 2 + (e.py - py) ** 2;
       if (d < bd) { bd = d; best = e.id; }
+    };
+    const grid = this.sim.grid;
+    if (!grid) { for (const e of this.sim.entities.values()) check(e); return best; }
+    const C = COMBAT.gridCell * UNIT;
+    for (let cy = Math.floor((py - 400) / C); cy <= Math.floor((py + 400) / C); cy++) {
+      for (let cx = Math.floor((px - 400) / C); cx <= Math.floor((px + 400) / C); cx++) {
+        const list = grid.get(cy * 4096 + cx);
+        if (list) for (const e of list) check(e);
+      }
     }
     return best;
   }

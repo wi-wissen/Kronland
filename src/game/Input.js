@@ -2,16 +2,19 @@
 // The camera follows the hand directly as in a map application (model: three.js MapControls, gestures as
 // in MapLibre): the ground itself is dragged, zoom goes to the pointer, nothing glides on afterwards.
 //
-// Desktop:  left click = select, left drag = selection box, right click = command,
+// Desktop:  left click = select, double click on own figure = all visible of the same kind,
+//           left drag = selection box, right click = command,
 //           right drag = rotate (sideways) and tilt (up/down), middle button drag = grab
 //           the map, wheel = zoom to the mouse pointer (tilt follows), Shift+wheel = tilt,
 //           WASD/arrows = pan, Q/E or Ins/Del = rotate, R/F or Home/End = tilt.
-// Touch:    1 finger drag = grab the map, tap = select or command,
+// Touch:    1 finger drag = grab the map, tap = select or command, double tap on own
+//           figure = all visible of the same kind,
 //           2 fingers = zoom to the finger centre and pan, twist fingers = rotate (above a threshold),
 //           2 fingers parallel up/down = tilt.
 
 import { get as setting } from '../ui/settings.js';
 import { pinchMode, twistUnlocked, wrapAngle } from './gestures.js';
+import { isDoubleClick } from './sameType.js';
 
 const DRAG_PX = 8;
 /** Width of the edge strip (px) in which the mouse pushes the camera */
@@ -193,7 +196,9 @@ export class Input {
 
     if (p.type === 'touch') {
       if (this.pointers.size === 0) {
-        if (!moved && this.gesture?.kind !== 'pinch') this.engine.tap(e.clientX, e.clientY);
+        if (!moved && this.gesture?.kind !== 'pinch') {
+          if (!(this.doubleClick(e) && !this.engine.placing && this.engine.selectSameTypeAt(e.clientX, e.clientY, !!this.engine.multi))) this.engine.tap(e.clientX, e.clientY);
+        }
         this.gesture = null;
       } else if (this.gesture?.kind === 'pinch') {
         // one finger stays: continue dragging seamlessly with it
@@ -210,13 +215,23 @@ export class Input {
       } else if (!moved) {
         if (this.engine.placing) this.engine.confirmPlacement(e.shiftKey);
         else if (this.engine.attackMode) this.engine.commandAt(e.clientX, e.clientY, true);
-        else this.engine.selectAt(e.clientX, e.clientY, e.shiftKey);
+        else if (!(this.doubleClick(e) && this.engine.selectSameTypeAt(e.clientX, e.clientY, e.shiftKey || e.ctrlKey || e.metaKey))) {
+          this.engine.selectAt(e.clientX, e.clientY, e.shiftKey);
+        }
       }
     } else if (p.button === 2 && !moved) {
       if (this.engine.placing) this.engine.cancelPlacement();
       else this.engine.commandAt(e.clientX, e.clientY, e.ctrlKey);
     }
     this.gesture = null;
+  }
+
+  /** Remember click or tap; true if it is the second one of a double click. */
+  doubleClick(e) {
+    const cur = { x: e.clientX, y: e.clientY, at: performance.now() };
+    const twice = isDoubleClick(this.lastClick, cur);
+    this.lastClick = cur;
+    return twice;
   }
 
   wheel(e) {

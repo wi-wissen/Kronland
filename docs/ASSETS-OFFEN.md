@@ -13,8 +13,9 @@ Stand: alle Gebäudetypen und Figuren haben eigene Modelle; KayKit liefert nur n
 
 - **Händler:** mit Waage bricht das Rig in jeder Bewegung den Kopf weg (zweimal gerigged). Im Spiel jetzt die Fassung
   ohne Waage; die mit Waage liegt in `assets-src/characters/worker_trader/with-scales/`.
-- **Pferd:** Meshy riggt per Schnittstelle nur Menschengestalten – vorerst prozedurales Pferd; Nutzer versucht das
-  Riggen in der Meshy-Oberfläche. Für ein GLB-Reittier braucht das Spiel noch eine kleine Erweiterung.
+- **Pferd:** fertig – Rig von Hand in der Meshy-Oberfläche, Bewegungen selbst geschrieben (`scripts/asset-gen/horse.mjs`,
+  docs/MODELLE.md#pferd-reittier), Spielmodell per Meshy-Remesh (~2 000 Dreiecke). Offen: kein eigener Angriffs-Clip
+  (Pferd steht). `rigged.glb` ist Handarbeit und nur lokal – sichern.
 - **Geschützmannschaft:** Angriff ist noch der Schwerthieb – eigene Lade-Bewegung fehlt.
 - **Budget-Buch** (`assets-src/credits.json`) bucht abgelehnte Aufträge mit und steht zu hoch.
 

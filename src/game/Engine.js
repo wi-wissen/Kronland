@@ -21,6 +21,7 @@ import { getQuality } from '../render/quality.js';
 import { get as setting, applyPlayerColor } from '../ui/settings.js';
 import { Input } from './Input.js';
 import { ControlGroups } from './groups.js';
+import { visibleSameType } from './sameType.js';
 import { COMBAT } from '../sim/data/combat.js';
 import { buildingSystemsUi } from './buildingUi.js';
 import { relationOf, showsInterior } from './relation.js';
@@ -32,14 +33,13 @@ import { GameAudio } from '../audio/GameAudio.js';
 import { canSee, isExplored, isVisible, knownBuildings, fogEnabled } from '../sim/systems/vision.js';
 import { Vector3 } from 'three';
 import { padPreview } from '../sim/systems/terrain.js';
+import { TICK_MS, runSteps, FaultGuard } from './loop.js';
 
 /** Dialogue camera: distance close to the figure, duration of the move, pause before the return move (ms) */
 const DIALOG_DIST = 8, DIALOG_FLY_MS = 1100, DIALOG_BACK_MS = 1200;
 
 /** Build preview yellow ("will be levelled") if a tile deviates from the plane by more than this many cm. */
 export const LEVEL_NOTICE = 40;
-
-const TICK_MS = 100;
 
 /** Order in the build menu. Other modules may append types (category via BUILD_CATEGORY). */
 export const BUILD_MENU = [
@@ -106,6 +106,14 @@ export class Engine {
     applyPlayerColor(this.player); // player colour (pure rendering, no sim state)
     this.renderer = new Renderer(canvas, this.sim, { player: this.player });
     this.onUi = opts.onUi ?? (() => {});
+    /** Game halted after a permanent error (error dialogue) */
+    this.onCrash = opts.onCrash ?? (() => {});
+    /** Fault guard of the game loop (src/game/loop.js) */
+    this.faults = new FaultGuard();
+    /** @type {null | { area: string, message: string, stack: string, tick: number }} */
+    this.crash = null;
+    /** Dropped ticks (simulation slower than the clock) – for developer mode */
+    this.droppedTicks = 0;
     /** @type {Set<number>} */
     this.selected = new Set();
     /** Control groups 1–9 (UI only, no sim state) */
@@ -167,8 +175,9 @@ export class Engine {
     this.last = performance.now();
     const loop = (now) => {
       if (!this.running) return;
-      this.frame(now);
+      // request the next frame first: even an unexpected exception does not halt the picture forever
       this.raf = requestAnimationFrame(loop);
+      try { this.frame(now); } catch (err) { this.fault('ui', err); }
     };
     this.raf = requestAnimationFrame(loop);
   }
@@ -193,44 +202,69 @@ export class Engine {
     // never negative: the rAF timestamp can lie before the start time (long warm-up) – otherwise the game would stand still for seconds
     const dt = Math.max(0, Math.min(0.1, (now - this.last) / 1000));
     this.last = now;
+    if (this.crash) this.paused = true;
     if (!this.paused) this.acc += dt * 1000 * this.speed;
-    let steps = 0;
-    while (this.acc >= TICK_MS && steps < 8) {
-      this.stepOnce();
-      this.acc -= TICK_MS; steps++;
+    if (this.acc >= TICK_MS) {
+      // ticks with a time budget; if the simulation is too slow, the game runs slower (no snowballing)
+      const r = runSteps(this.acc, () => {
+        if (this.paused) return;
+        try { this.stepOnce(); this.faults.ok('sim'); } catch (err) { this.fault('sim', err); }
+      });
+      this.acc = this.paused ? 0 : r.acc;
+      this.droppedTicks += r.dropped;
     }
-    if (steps === 8) this.acc = 0;
-    this.input.edgeScroll(dt);
-    this.followFocus(now);
-    this.flyCamera(now);
-    this.renderer.frame(this.paused ? 1 : this.acc / TICK_MS, dt, this.prev, {
+    const g = this.faults;
+    g.run('ui', () => { this.input.edgeScroll(dt); this.followFocus(now); this.flyCamera(now); }, (f) => f && this.fault('ui'));
+    g.run('render', () => this.renderer.frame(this.paused ? 1 : this.acc / TICK_MS, dt, this.prev, {
       selected: this.selected,
       ghost: this.placing?.hasPos ? this.placing : null,
       hint: this.missionView.hint,
       landmarks: this.missionView.landmarks ?? null,
       revealAll: this.fogLifted(),
       speed: this.paused ? 0 : this.speed,
-    });
-    this.dev?.frame(dt);
-    this.audio?.frame(dt);
-    if (now - this.lastUi > 200) { this.lastUi = now; this.emitUi(); }
+    }), (f) => f && this.fault('render'));
+    if (this.dev) g.run('dev', () => this.dev?.frame(dt));
+    if (this.audio) g.run('audio', () => this.audio?.frame(dt));
+    if (now - this.lastUi > 200) { this.lastUi = now; g.run('ui', () => this.emitUi(), (f) => f && this.fault('ui')); }
+  }
+
+  /**
+   * Errors from the loop: log (FaultGuard) and, if an area fails permanently (simulation
+   * several ticks in a row, rendering many frames in a row), halt the game and show the error dialogue
+   * (onCrash; load a save game or reload the page). Without `err` the error has already been counted.
+   * @param {string} area @param {unknown} [err]
+   */
+  fault(area, err) {
+    if (err !== undefined && !this.faults.fail(area, err)) return;
+    if (!this.faults.fatal || this.crash) return;
+    this.crash = { ...this.faults.fatal, tick: this.sim.tick };
+    this.paused = true;
+    this.acc = 0;
+    try { this.onCrash(this.crash); } catch { /* the UI then simply does not show the dialogue */ }
   }
 
   stepOnce() {
     this.prev = new Map();
     for (const e of this.sim.entities.values()) if (e.px !== undefined) this.prev.set(e.id, { px: e.px, py: e.py });
     const t0 = this.dev ? performance.now() : 0;
-    // Eliminated AI opponents stop thinking
-    for (const ai of this.ais) if (!this.sim.players[ai.player]?.defeated) ai.update();
+    // Eliminated AI opponents stop thinking; an error in one AI does not halt the game
+    for (const ai of this.ais) {
+      if (this.sim.players[ai.player]?.defeated) continue;
+      try { ai.update(); } catch (err) { this.faults.fail('ai', err); }
+    }
     const t1 = this.dev ? performance.now() : 0;
     const events = this.sim.step(this.queue);
     if (this.dev) this.dev.afterTick(performance.now() - t1, t1 - t0);
     this.queue = [];
-    this.renderer.onEvents(events);
-    if (this.audio) { this.audio.onEvents(events, this.prev); this.audio.onTick(); }
-    this.eventToasts(events);
-    // Selection: deselect what has vanished and foreign things that vanish into the fog
-    for (const id of this.selected) if (!this.canSee(this.sim.entities.get(id))) this.selected.delete(id);
+    // Read-only consequences of the tick: count errors there, but do not abort the tick
+    const g = this.faults;
+    g.run('render', () => this.renderer.onEvents(events), (f) => f && this.fault('render'));
+    if (this.audio) g.run('audio', () => { this.audio.onEvents(events, this.prev); this.audio.onTick(); });
+    g.run('ui', () => {
+      this.eventToasts(events);
+      // Selection: deselect what has vanished and foreign things that vanish into the fog
+      for (const id of this.selected) if (!this.canSee(this.sim.entities.get(id))) this.selected.delete(id);
+    });
   }
 
   // ---------- Fog of war ----------
@@ -458,11 +492,36 @@ export class Engine {
     const [l, r] = [Math.min(x1, x2), Math.max(x1, x2)], [t, b] = [Math.min(y1, y2), Math.max(y1, y2)];
     for (const e of this.sim.entities.values()) {
       if (!(e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero') || e.owner !== this.player) continue;
-      const x = e.px / UNIT, z = e.py / UNIT;
+      // drawn position (with rendering offset), otherwise that of the simulation
+      const r = this.renderer.chars?.records.get(e.id);
+      const x = r ? r.position.x : e.px / UNIT, z = r ? r.position.z : e.py / UNIT;
       const s = this.renderer.project(x, this.renderer.terrain.heightAt(x, z) + 0.3, z);
       if (!s.behind && s.x >= l && s.x <= r && s.y >= t && s.y <= b) this.selected.add(e.id);
     }
     this.emitUi();
+  }
+
+  /**
+   * Double-click/double-tap: all own figures of the same kind as the one under (cx, cy) that are in the visible
+   * map area (without the edges covered by the UI). additive adds.
+   * @returns {boolean} false if no own figure is there (then the normal click applies)
+   */
+  selectSameTypeAt(cx, cy, additive = false) {
+    const ref = this.selectable(this.renderer.pickEntity(cx, cy));
+    if (!ref || ref.owner !== this.player) return false;
+    const r = this.canvas.getBoundingClientRect();
+    const { top, bottom } = this.hudInsets();
+    const rect = { left: r.left, right: r.right, top: r.top + top, bottom: r.bottom - bottom };
+    const ids = visibleSameType(this.sim.entities.values(), this.player, ref, (e) => {
+      const x = e.px / UNIT, z = e.py / UNIT;
+      return this.renderer.project(x, this.renderer.terrain.heightAt(x, z) + 0.3, z);
+    }, rect);
+    if (!ids.length) return false;
+    if (!additive) this.selected.clear();
+    for (const id of ids) this.selected.add(id);
+    this.attackMode = false;
+    this.emitUi();
+    return true;
   }
 
   selectIdleSerfs() {
@@ -751,9 +810,12 @@ export class Engine {
 
   setSpeed(s) { this.speed = s; this.paused = false; this.emitUi(); }
 
-  /** Save game as a JSON-capable object. */
-  save() {
-    return saveGame(this.sim, { ais: this.ais.map((a) => a.getState()), camera: { ...this.renderer.rig.target, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist, pitch: this.renderer.rig.pitch } });
+  /**
+   * Save game as a JSON-capable object.
+   * @param {{ clone?: boolean }} [opts] clone: false – without deep copy, convert to text immediately (saveGame)
+   */
+  save({ clone = true } = {}) {
+    return saveGame(this.sim, { ais: this.ais.map((a) => a.getState()), camera: { ...this.renderer.rig.target, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist, pitch: this.renderer.rig.pitch } }, { clone });
   }
   togglePause() { this.paused = !this.paused; this.emitUi(); }
 

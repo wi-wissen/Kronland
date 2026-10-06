@@ -1,6 +1,7 @@
 // Prepare raw images from scripts/art/generate.mjs for the game (selection is in assets-src/art/<job>/job.json → finish).
 //
 //   node scripts/art/finish.mjs symbols   cut out individual icons → public/icons/<name>.webp (128 px, alpha)
+//   node scripts/art/finish.mjs menu      likewise (every job with "kind": "symbols" in job.json)
 //   node scripts/art/finish.mjs herald    portrait on cream background #f1ece4 → public/portraits/sp-herald.webp (256 px)
 //   node scripts/art/finish.mjs title     backdrop for the start menu → public/art/title.webp (< 400 KB)
 //   node scripts/art/finish.mjs loading   backdrop for the loading screen → public/art/loading.webp (< 400 KB)
@@ -9,10 +10,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 import { ROOT } from '../asset-gen/lib.mjs';
+import { requireAssetsSrc } from '../require-assets-src.mjs';
 
 const [name] = process.argv.slice(2);
+requireAssetsSrc('art');
 const dir = path.join(ROOT, 'assets-src/art', name ?? '');
-if (!name || !fs.existsSync(path.join(dir, 'job.json'))) { console.error('Aufruf: finish.mjs <symbole|herold|titel|laden>'); process.exit(1); }
+if (!name || !fs.existsSync(path.join(dir, 'job.json'))) { console.error('Usage: finish.mjs <symbols|menu|herald|title|loading>'); process.exit(1); }
 const job = JSON.parse(fs.readFileSync(path.join(dir, 'job.json'), 'utf8'));
 const fin = job.finish;
 const rel = (f) => path.relative(ROOT, f);
@@ -53,9 +56,9 @@ function ring(bg, W, H, n) {
 
 /**
  * Cut out an icon on white (like scripts/icons/slice.mjs): flood white and grey shadows from the edges,
- * add larger pure-white enclosures, and in the background and 2 px fringe recompute "colour over white".
+ * add larger pure-white enclosures (can be switched off: `innerWhite: false`, e.g. for chalk on a board), and in the background and 2 px fringe recompute "colour over white".
  */
-function cutout(data, W, H) {
+function cutout(data, W, H, innerWhite = true) {
   const bg = flood(W, H, (i) => {
     const mn = Math.min(data[i], data[i + 1], data[i + 2]), mx = Math.max(data[i], data[i + 1], data[i + 2]);
     return mn > 185 && mx - mn < 20;
@@ -64,6 +67,7 @@ function cutout(data, W, H) {
   const pure = (k) => { const i = k * 3; const mn = Math.min(data[i], data[i + 1], data[i + 2]); return mn > 245 && Math.max(data[i], data[i + 1], data[i + 2]) - mn < 8; };
   const seen = new Uint8Array(W * H);
   for (let k0 = 0; k0 < W * H; k0++) {
+    if (!innerWhite) break;
     if (bg[k0] || seen[k0] || !pure(k0)) continue;
     const region = [k0], st = [k0];
     seen[k0] = 1;
@@ -89,16 +93,18 @@ function cutout(data, W, H) {
   return rgba;
 }
 
-if (name === 'symbols') {
-  // finish: { "<symbolname>": { "raw": "raw-1.webp", "slot": 0 } } – slot = Drittel des Bildes (0 links … 2 rechts)
+if (name === 'symbols' || job.kind === 'symbols') {
+  // finish: { "<symbolname>": { "raw": "raw-1.webp", "slot": 0 } } – slot = third of the image (0 left … 2 right);
+  // if an icon extends beyond its third, use a section "crop": [x, y, w, h] in raw image pixels instead of slot
   const CELL = 128, PAD = 4;
   const outs = [];
-  for (const [icon, { raw, slot }] of Object.entries(fin)) {
+  for (const [icon, { raw, slot, crop, innerWhite }] of Object.entries(fin)) {
     const src = sharp(path.join(dir, raw));
     const { width: W0, height: H } = await src.metadata();
     const w = Math.floor(W0 / 3);
-    const { data, info } = await sharp(path.join(dir, raw)).removeAlpha().extract({ left: slot * w, top: 0, width: w, height: H }).raw().toBuffer({ resolveWithObject: true });
-    const rgba = cutout(data, info.width, info.height);
+    const area = crop ? { left: crop[0], top: crop[1], width: crop[2], height: crop[3] } : { left: slot * w, top: 0, width: w, height: H };
+    const { data, info } = await sharp(path.join(dir, raw)).removeAlpha().extract(area).raw().toBuffer({ resolveWithObject: true });
+    const rgba = cutout(data, info.width, info.height, innerWhite !== false);
     // crop to opaque parts (dust below opacity 40 does not count)
     let x0 = info.width, y0 = info.height, x1 = 0, y1 = 0;
     for (let k = 0; k < info.width * info.height; k++) {

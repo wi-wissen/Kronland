@@ -80,10 +80,16 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   Bäume und Büsche sind eigene Modelle (Eiche, Buche, Birke, Fichte, Kiefer, Busch), die im Winter gegen kahle bzw.
   verschneite Fassungen getauscht werden; Felsen, Stümpfe, Rohstoffhaufen und Schächte tragen gemalte Fels- und
   Rindenstruktur (triplanar, ohne mehr Polygone).
+- **Nahkampf im Kreis**: Schwertkämpfer, Speerträger und Ritter umzingeln ihr Ziel auf eigenen Plätzen statt
+  auf einem Punkt zu stehen; Figuren am selben Fleck werden leicht versetzt gezeichnet
+  ([Spielregeln §8](docs/SPIELREGELN.md#8-militär), [Architektur](docs/ARCHITEKTUR.md#darstellung-srcrender)).
 - Kamera wie ein Kartenprogramm: Ziehen (mittlere Maustaste, ein Finger) greift den Boden, Mausrad und
   Zwei-Finger-Zoom zoomen zum Zeiger bzw. zur Fingermitte, nichts gleitet oder wippt nach.
 - Nahzoom bis dicht an Figuren und Gebäude; ganz nah wird der Blick flacher, Figuren und Gebäude bleiben in
   voller Detailstufe ([Architektur](docs/ARCHITEKTUR.md#steuerung)).
+- **Doppelklick bzw. Doppeltippen** auf eine eigene Figur wählt alle eigenen Figuren derselben Art im Bild
+  (Leibeigene, Miliz, Trupps eines Einheitentyps, Helden); Umschalt/Strg+Doppelklick fügt hinzu. Bewusste
+  Abweichung vom Vorbild, wie in gängigen Echtzeitstrategiespielen.
 - **Entwicklermodus** (auch für den Informatik-Unterricht): Drahtgitter und Detailstufen, A*-Wegsuche Schritt für Schritt,
   Raster-Overlays, Figurenzustände, „Statistik für Nerds“. Einschalten: Einstellungen, `?dev=1` (oder `?debug=1`),
   F3 bzw. Strg+Umschalt+D – siehe [Entwicklermodus](docs/ENTWICKLERMODUS.md).
@@ -94,8 +100,10 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   Regeln und Recherche: [Spielregeln §6a](docs/SPIELREGELN.md#6a-bauen-am-hang).
 - **Spielstände**: beliebig viele im Browser (IndexedDB, komprimiert) mit Vorschaubild, Datum, Spielzeit und Modus;
   speichern, überschreiben, umbenennen, löschen über Menü → „Spiel speichern“ bzw. „Gespeichertes Spiel laden“
-  und im Startmenü unter „Spielstände“. „Weiterspielen“ lädt den neuesten Stand. **Autosave** alle 5 Spielminuten
-  und beim Verlassen (abschaltbar unter Einstellungen). **Export/Import** als lesbare JSON-Datei
+  und im Startmenü unter „Spielstände“. „Weiterspielen“ lädt den neuesten Stand. **Autosave** 30 Spielsekunden nach dem Start, danach alle
+  2 Spielminuten und beim Verlassen (abschaltbar unter Einstellungen). **Fehlerdialog**: hält ein Fehler das Spiel
+  an, bietet ein Dialog „Letzten Spielstand laden“ oder „Seite neu laden“; danach weist das Startmenü auf
+  „Weiterspielen“ hin ([Architektur](docs/ARCHITEKTUR.md#spielschleife-und-fehler)). **Export/Import** als lesbare JSON-Datei
   (`kronland-<name>-<datum>.json`, wahlweise kompakt) – per Dateiauswahl (auch Handy) oder Ziehen & Ablegen.
   Gespeichert wird der vollständige Simulationszustand (inkl. eingeebnetem Gelände), nicht der Entwicklermodus.
   Format, Prüfung und Migration: [Architektur → Spielstände](docs/ARCHITEKTUR.md#spielstände-srcsave).
@@ -130,6 +138,7 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
 
 ```bash
 node scripts/ai-match.js 1 60 hard easy   # Seed, Minuten, Stärke Spieler 1 und 2
+node scripts/stress-run.js bustle 20       # Dauerlauf ohne Grafik: Takt-Zeiten, Figuren, Spielstand je Minute (--build=5: Spieler baut)
 ```
 
 Veredler-Leistung je Motivation und Haus/Hof nachmessen (Abgleich mit dem Vorbild, siehe [Spielregeln §4](docs/SPIELREGELN.md#4-arbeiter-motivation-steuern)):
@@ -162,6 +171,9 @@ Eigene Figuren erzeugen (Konzeptbild → Meshy → Nachbearbeitung, `scripts/ass
 [docs/MODELLE.md](docs/MODELLE.md), Stilregeln und Prompts: [docs/STIL.md](docs/STIL.md).
 Leibeigene erscheinen zufällig, aber stabil als Leibeigener oder Leibeigene (Teamfarbe an Mütze/Haarband und Schal),
 mit Axt, Hammer und Spitzhacke je nach Tätigkeit.
+Reiter sitzen auf einem eigenen Pferdemodell (Rig von Hand in Meshy, Bewegungen Stehen/Schritt/Galopp/Sterben selbst
+geschrieben: `node scripts/asset-gen/horse.mjs`, siehe [docs/MODELLE.md](docs/MODELLE.md#pferd-reittier)); die Hufe laufen im
+Tempo der Einheit, der Reiter hebt und senkt sich mit dem Rücken des Pferds.
 Ohne Modelle zeigt das Spiel prozedurale Platzhalter.
 
 Die bunten Symbole (Rohstoffe, Gebäude, Einheiten …) stammen aus einem Sprite-Atlas, den ein Bildmodell

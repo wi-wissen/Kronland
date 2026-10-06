@@ -6,7 +6,7 @@ import { saveGame } from '../../src/sim/serialize.js';
 import { SaveStore, AUTO_ID, LEGACY_KEY } from '../../src/save/store.js';
 import { MemoryBackend, LocalStorageBackend } from '../../src/save/backends.js';
 import { SaveError, createSaveDoc } from '../../src/save/format.js';
-import { autosaveDue, AUTOSAVE_TICKS } from '../../src/save/index.js';
+import { autosaveDue, autosaveStart, snapshotText, AUTOSAVE_TICKS, AUTOSAVE_FIRST_TICKS } from '../../src/save/index.js';
 
 const stateAt = (ticks, seed = 3) => { const s = new Sim({ seed }); for (let i = 0; i < ticks; i++) s.step(); return saveGame(s); };
 const s10 = stateAt(10), s20 = stateAt(20), s30 = stateAt(30);
@@ -83,7 +83,34 @@ describe('Save game slots', () => {
     expect(list[0]).toMatchObject({ id: AUTO_ID, auto: true, name: 'Auto 2', tick: 20 });
     expect(autosaveDue(AUTOSAVE_TICKS - 1, 0)).toBe(false);
     expect(autosaveDue(AUTOSAVE_TICKS + 100, 100)).toBe(true);
-    expect(AUTOSAVE_TICKS).toBe(3000); // 5 Spielminuten à 600 Takte
+    expect(AUTOSAVE_TICKS).toBe(1200); // 2 game minutes at 600 ticks
+  });
+
+  it('first autosave shortly after start or load, then at a fixed interval', () => {
+    for (const start of [0, 5000]) {
+      const base = autosaveStart(start);
+      expect(autosaveDue(start + AUTOSAVE_FIRST_TICKS - 1, base)).toBe(false);
+      expect(autosaveDue(start + AUTOSAVE_FIRST_TICKS, base)).toBe(true);
+      expect(AUTOSAVE_FIRST_TICKS).toBe(300); // 30 game seconds
+    }
+  });
+
+  it('autosave as text without a deep copy: same content, slot loads like a normal save game', async () => {
+    const sim = new Sim({ seed: 3 });
+    sim.run(40);
+    const savedAt = new Date('2026-10-03T10:00:00Z');
+    const snap = snapshotText(saveGame(sim, { ais: [] }, { clone: false }), { name: 'Auto', savedAt });
+    // same snapshot as with a copy
+    expect(snap.text).toBe(JSON.stringify(createSaveDoc(saveGame(sim, { ais: [] }), { name: 'Auto', savedAt })));
+    expect(snap.meta).toMatchObject({ name: 'Auto', tick: 40, mode: 'free', seed: 3, players: 2 });
+    // continuing afterwards no longer changes the text
+    sim.run(5);
+    const store = new SaveStore(new MemoryBackend());
+    const entry = await store.saveText(snap.text, snap.meta, { id: AUTO_ID, thumb: null });
+    expect(entry).toMatchObject({ id: AUTO_ID, auto: true, tick: 40, name: 'Auto', savedAt: savedAt.toISOString() });
+    const doc = await store.load(AUTO_ID);
+    expect(doc.state.tick).toBe(40);
+    expect((await store.latest()).id).toBe(AUTO_ID);
   });
 
   it('parallel save operations do not lose entries (queue)', async () => {

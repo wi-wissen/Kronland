@@ -7,7 +7,7 @@
 //   &zoom=head → show only the head (top 30 % of the figure)
 //   &px=40&bgs=6f9a3e,9a7650 → game size: each figure px tall, viewed obliquely from above as in the game, one row per background
 //   &team=2f6fd6 → tint with the player colour via <file>.mask.png (as in the game, on the CPU)
-//   &ts=0,0.25,0.5 → columns = points in time of the clip (view obliquely from the front) instead of view angles
+//   &ts=0,0.25,0.5 → columns = points in time of the clip (viewed obliquely from the front) instead of viewing angles; &az=1.57 → viewing angle (side)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -106,7 +106,7 @@ objs.forEach(({ o, b, mx, clip }, row) => {
   let c = b.getCenter(new THREE.Vector3()), h = b.getSize(new THREE.Vector3()).length() * (ts ? 1.25 : 1);
   if (q.get('zoom') === 'head') { const sz = b.getSize(new THREE.Vector3()); c = new THREE.Vector3(c.x, b.max.y - sz.y * 0.16, c.z); h = sz.y * 0.42; }
   for (let k = 0; k < views; k++) {
-    const a = ts ? 0.7 : (k / views) * Math.PI * 2;
+    const a = ts ? Number(q.get('az') || 0.7) : (k / views) * Math.PI * 2;
     if (ts && mx) { mx.setTime(clip.duration * ts[k]); o.updateMatrixWorld(true); }
     cam.position.set(c.x + Math.sin(a) * h * 1.9, c.y + h * 0.35, c.z + Math.cos(a) * h * 1.9);
     cam.lookAt(c);

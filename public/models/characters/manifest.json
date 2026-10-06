@@ -264,6 +264,7 @@
         "die": "die",
         "idle": "idle",
         "ride": "ride",
+        "rideAttack": "rideAttack",
         "run": "run",
         "walk": "walk"
       }
@@ -278,6 +279,7 @@
         "die": "die",
         "idle": "idle",
         "ride": "ride",
+        "rideAttack": "rideAttack",
         "run": "run",
         "walk": "walk"
       }
@@ -292,6 +294,7 @@
         "die": "die",
         "idle": "idle",
         "ride": "ride",
+        "rideAttack": "rideAttack",
         "run": "run",
         "walk": "walk"
       }
@@ -305,6 +308,7 @@
         "die": "die",
         "idle": "idle",
         "ride": "ride",
+        "rideAttack": "rideAttack",
         "run": "run",
         "walk": "walk"
       }
@@ -657,6 +661,29 @@
         "run": "run",
         "walk": "walk"
       }
+    },
+    "Horse": {
+      "lods": 1,
+      "height": 1.1,
+      "teamMarker": true,
+      "saddle": {
+        "bone": "Bone_010",
+        "at": [
+          0,
+          1.19,
+          -0.15
+        ]
+      },
+      "stride": {
+        "walk": 1,
+        "run": 3.4
+      },
+      "clips": {
+        "idle": "idle",
+        "walk": "walk",
+        "run": "gallop",
+        "die": "die"
+      }
     }
   },
   "roles": {
@@ -773,11 +800,14 @@
           "weight": 1
         }
       ],
-      "seat": 0.86,
+      "seatOffset": -0.26,
       "clipAlias": {
         "walk": "ride",
         "run": "ride",
-        "idle": "ride"
+        "idle": "ride",
+        "attack": "rideAttack",
+        "shoot": "rideAttack",
+        "cheer": "ride"
       },
       "attach": [
         {
@@ -785,9 +815,9 @@
           "offset": [
             0,
             0,
-            0.06
+            0.1
           ],
-          "scale": 1.75
+          "scale": 1.06
         }
       ],
       "procedural": "heavyCav",
@@ -795,11 +825,14 @@
     },
     "soldier.heavyCav.leader": {
       "model": "HeavyRider",
-      "seat": 0.86,
+      "seatOffset": -0.26,
       "clipAlias": {
         "walk": "ride",
         "run": "ride",
-        "idle": "ride"
+        "idle": "ride",
+        "attack": "rideAttack",
+        "shoot": "rideAttack",
+        "cheer": "ride"
       },
       "attach": [
         {
@@ -807,9 +840,9 @@
           "offset": [
             0,
             0,
-            0.06
+            0.1
           ],
-          "scale": 1.75
+          "scale": 1.06
         }
       ],
       "procedural": "heavyCav:leader",
@@ -826,11 +859,14 @@
           "weight": 1
         }
       ],
-      "seat": 0.82,
+      "seatOffset": -0.26,
       "clipAlias": {
         "walk": "ride",
         "run": "ride",
-        "idle": "ride"
+        "idle": "ride",
+        "attack": "rideAttack",
+        "shoot": "rideAttack",
+        "cheer": "ride"
       },
       "attach": [
         {
@@ -838,9 +874,9 @@
           "offset": [
             0,
             0,
-            0.06
+            0.1
           ],
-          "scale": 1.7
+          "scale": 1
         }
       ],
       "procedural": "lightCav",
@@ -848,11 +884,14 @@
     },
     "soldier.lightCav.leader": {
       "model": "LightRider",
-      "seat": 0.82,
+      "seatOffset": -0.26,
       "clipAlias": {
         "walk": "ride",
         "run": "ride",
-        "idle": "ride"
+        "idle": "ride",
+        "attack": "rideAttack",
+        "shoot": "rideAttack",
+        "cheer": "ride"
       },
       "attach": [
         {
@@ -860,9 +899,9 @@
           "offset": [
             0,
             0,
-            0.06
+            0.1
           ],
-          "scale": 1.7
+          "scale": 1
         }
       ],
       "procedural": "lightCav:leader",
@@ -901,7 +940,9 @@
       "voice": "cannon"
     },
     "mount.horse": {
-      "procedural": "horse"
+      "model": "Horse",
+      "procedural": "horse",
+      "procScale": 1.7
     },
     "bandit": {
       "variants": [

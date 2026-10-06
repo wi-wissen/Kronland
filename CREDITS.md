@@ -18,8 +18,13 @@
   Nachbearbeitung mit eigenen Skripten (`scripts/asset-gen/`). Eigene Erzeugnisse des Projekts.
   Herkunft je Figur – Konzeptbögen, Prompts (`concept.json`), Meshy-Task-IDs (`job.json`) und Vorschauen –
   unter `assets-src/characters/<id>/`. Werkzeuge (Axt, Hammer, Spitzhacke) prozedural (`scripts/asset-gen/props.mjs`).
+- **Pferd** (Reittier): Konzeptbogen mit OpenRouter (`google/gemini-3-pro-image`), 3D-Modell mit Meshy 7.1, Rig von Hand
+  in der Meshy-Oberfläche (Projektinhaber), Bewegungen (Stehen, Schritt, Galopp, Sterben) mit eigenem Skript
+  geschrieben (`scripts/asset-gen/horse.mjs`). Herkunft unter `assets-src/characters/horse/`. Eigenes Erzeugnis.
 - **Konzeptbögen der Helden** (Nelia, Orrin, Taran, Malvor): mit OpenRouter (`openai/gpt-5.4-image-2`) im Stil
   der Leibeigenen erzeugt, Prompts in `assets-src/characters/hero-prompts.json` und je Figur in `concept.json`.
+  Nelia (Fassung 2) per Bildbearbeitung (`google/gemini-3-pro-image`) aus dem Bogen der Leibeigenen
+  (`assets-src/characters/serf_f/sheet.png`, selbst erzeugt), Magenta lokal nachgefärbt.
   Eigene Erzeugnisse des Projekts; die 3D-Figuren folgen.
 
 Alle übrigen Modelle (Figuren der Soldaten als Rückfall, einige Gebäude) sind prozedural im Code
@@ -58,6 +63,10 @@ Die Fähigkeitssymbole Weitblick, Bestechen und Einschüchtern (`public/icons/ab
 `ab-intimidate.webp`) hat `google/gemini-3-pro-image-preview` (über OpenRouter) mit dem Symbolbogen als
 Stilvorlage für dieses Projekt erzeugt; freigestellt mit `scripts/art/finish.mjs`. Prompt, Modell, Kosten und
 Rohbilder: `assets-src/art/symbole/`.
+
+Die Menüsymbole Sonderkarten und Programmier-Abenteuer (`public/icons/mode-special.webp`, `mode-adventure.webp`) hat
+ebenfalls `google/gemini-3-pro-image-preview` (über OpenRouter) mit dem Symbolbogen als Stilvorlage für dieses Projekt
+erzeugt; freigestellt mit `scripts/art/finish.mjs`. Prompt, Modell, Kosten und Rohbild: `assets-src/art/menue/`.
 
 ## Titelbild und Ladebild
 

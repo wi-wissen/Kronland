@@ -55,7 +55,7 @@ describe('Manifest', () => {
   });
   it('models only name known clip keys and roles only known models', () => {
     for (const [name, def] of Object.entries(manifest.models)) {
-      for (const k of Object.keys(def.clips)) expect([...CLIP_KEYS, 'ride', 'block'], `${name}.${k}`).toContain(k);
+      for (const k of Object.keys(def.clips)) expect([...CLIP_KEYS, 'ride', 'rideAttack', 'block'], `${name}.${k}`).toContain(k);
     }
     for (const [k, r] of Object.entries(manifest.roles)) {
       if (r.model) expect(manifest.models[r.model], k).toBeTruthy();

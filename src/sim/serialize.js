@@ -25,9 +25,11 @@ const fromB64 = (b64, Type) => {
 export const SAVE_VERSION = 2;
 
 /** @param {Sim} sim @param {any} [extra] e.g. state of the AI opponents */
-export function saveGame(sim, extra = {}) {
-  // Deep copy: the save game shares no objects with the running simulation
-  return structuredClone({
+export function saveGame(sim, extra = {}, { clone = true } = {}) {
+  // Deep copy: the save game shares no objects with the running simulation. Without the copy (clone: false)
+  // the result points to the running state and must be turned into text immediately, within the same tick
+  // (autosave: on large maps saves half the time, see docs/PERFORMANCE.md).
+  const state = {
     version: SAVE_VERSION,
     seed: sim.seed,
     tick: sim.tick,
@@ -56,7 +58,8 @@ export function saveGame(sim, extra = {}) {
     // Fog of war: explored/visible tiles as bitfields, last seen buildings
     vision: saveVision(sim, toB64),
     extra,
-  });
+  };
+  return clone ? structuredClone(state) : state;
 }
 
 /** @returns {Sim} */

@@ -695,6 +695,24 @@ export function strideSpeed(geo, bake, clip) {
   return med > 1e-4 ? med : null;
 }
 
+/**
+ * Saddle of a mount per baked frame: height of the saddle point (`at`, model coordinates in frame 0 = rest pose,
+ * moved along by the bone `bone`) relative to frame 0 – the rider thus rises and falls like the animal's back.
+ * Computed as M_f · M_0⁻¹ · at: this way the dequantisation in the inverse bind matrices cancels out.
+ * @param {any} bake @param {{ bone: string, at: number[] }} def
+ * @returns {{ y0: number, dy: Float32Array } | null} y0 = saddle height in frame 0 (model units)
+ */
+export function saddleTrack(bake, def) {
+  const b = bake.boneIndex?.get(def?.bone);
+  if (b === undefined || !Array.isArray(def.at)) return null;
+  const tex = bake.texture.image, W = tex.width, d = tex.data, H = tex.height;
+  const inv0 = new THREE.Matrix4().fromArray(d, b * 4 * 4).invert();
+  const m = new THREE.Matrix4(), v = new THREE.Vector3();
+  const dy = new Float32Array(H);
+  for (let f = 0; f < H; f++) dy[f] = v.fromArray(def.at).applyMatrix4(inv0).applyMatrix4(m.fromArray(d, (f * W + b * 4) * 4)).y - def.at[1];
+  return { y0: def.at[1], dy };
+}
+
 /** Is an object visible together with all its ancestors? */
 function shown(o) { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; }
 
@@ -1096,7 +1114,7 @@ const PROCEDURAL_DURATIONS = { idle: 2, walk: 0.7, work: 0.9, attack: 0.8, sit: 
 // ---------- Runtime ----------
 
 /** Variant = (model or procedural kind) + parts + masks. One InstancedMesh per variant and level. */
-class Variant {
+export class Variant {
   /**
    * @param {string} key role key
    * @param {THREE.BufferGeometry[]} levels geometries per LOD level
@@ -1114,6 +1132,8 @@ class Variant {
     this.scale = opts.scale ?? 1;
     this.seat = opts.seat ?? 0;
     this.alias = opts.alias ?? {};
+    /** @type {Record<string, number>|null} natural ground speed per clip key (model units/s) */
+    this.stride = opts.stride ?? null;
     /** @type {{variant: Variant, offset: number[], scale: number, alias: Record<string,string>}[]} */
     this.attach = [];
     this.meshes = [];
@@ -1133,12 +1153,40 @@ class Variant {
     }
     return c;
   }
+  /** Mount under the figure (attachment with saddle) or null. */
+  get mount() { return this.attach.find((a) => a.variant.saddle) ?? null; }
+  /**
+   * Ground speed to which the walking pace is coupled: for riders that of the mount (in its clip and
+   * scale), otherwise their own.
+   */
+  moveSpeed(key) {
+    const m = this.mount;
+    if (!m) return this.groundSpeed(key);
+    const n = m.variant.groundSpeed(m.alias[key] ?? key);
+    return n ? n * m.scale : null;
+  }
+  /**
+   * Facing direction of the body (hip) in a baked frame relative to the rest pose (first frame of `idle`, for
+   * riders the riding pose), in radians around the vertical axis. 0 without a hip bone (procedural). Only for checks.
+   * @param {number} frame row of the bone texture @param {string} [bone] e.g. 'Spine' for the chest
+   */
+  bodyYaw(frame, bone = 'Hips') {
+    const b = this.bake.boneIndex?.get(bone);
+    const tex = this.bake.texture?.image;
+    if (b === undefined || !tex?.data) return 0;
+    const ref = this.clip('idle').start;
+    const m = new THREE.Matrix4().fromArray(tex.data, (frame * tex.width + b * 4) * 4)
+      .multiply(new THREE.Matrix4().fromArray(tex.data, (ref * tex.width + b * 4) * 4).invert());
+    const f = new THREE.Vector3(0, 0, 1).transformDirection(m);
+    return Math.atan2(f.x, f.z);
+  }
   /** Natural ground speed (tiles/s) of a walk clip at pace 1; null = not measurable. */
   groundSpeed(key) {
     this.strideCache ??= new Map();
     if (!this.strideCache.has(key)) {
       const c = this.clip(key);
-      const raw = this.procedural || !MOVE_CLIPS.has(c.key) ? null : strideSpeed(this.levels[0], this.bake, c);
+      // own value in the manifest (model units/s, e.g. horse: known from the gait) or measured
+      const raw = this.procedural || !MOVE_CLIPS.has(c.key) ? null : this.stride?.[c.key] ?? strideSpeed(this.levels[0], this.bake, c);
       this.strideCache.set(key, raw ? raw * this.scale : null);
     }
     return this.strideCache.get(key);
@@ -1150,6 +1198,19 @@ const MOVE_CLIPS = new Set(['walk', 'run', 'carry']);
 /** Limits for the walking pace: the Meshy walk clips go almost on the spot with short steps – fully
  * keeping up (≈ ×7) would look like fidgeting, hence at most ×2.2 (≈ 3 steps/s). */
 export const STRIDE_RATE_MIN = 0.6, STRIDE_RATE_MAX = 2.2;
+
+/** Cavalry: walk up to WALK_MAX tiles/s, gallop from RUN_MIN; in between the gait stays (no flicker). */
+export const CAV_WALK_MAX = 1.3, CAV_RUN_MIN = 1.7;
+
+/**
+ * Gait of a rider from the ground speed (rendering only): 'walk' or 'run' (gallop).
+ * @param {number} ground tiles/s @param {string|null|undefined} prev previous clip
+ */
+export function cavalryGait(ground, prev) {
+  if (ground >= CAV_RUN_MIN) return 'run';
+  if (ground <= CAV_WALK_MAX) return 'walk';
+  return prev === 'walk' ? 'walk' : 'run';
+}
 
 /**
  * Playback pace of a walk clip so that the feet do not slide: ground speed / natural clip speed.
@@ -1258,8 +1319,10 @@ export class CharacterSystem {
       if (av) v.attach.push({ key: av.key ?? null, variant: av, offset: a.offset ?? [0, 0, 0], scale: a.scale ?? 1, alias: a.clipAlias ?? {} });
     });
     // seat height on the mount
-    const mount = v.attach.find((a) => a.variant.saddle);
-    if (mount) v.seat = role.seat ?? mount.variant.saddle * mount.scale;
+    // Seat height on the mount: saddle of the animal (world, with the attachment's scale) + distance saddle → foot point
+    // of the rider (seatOffset, negative: the rider sits with the backside on the saddle, the feet hang lower)
+    const mount = v.mount;
+    if (mount) v.seat = role.seat ?? mount.variant.saddle * mount.scale + (role.seatOffset ?? 0);
     return v;
   }
 
@@ -1349,11 +1412,14 @@ export class CharacterSystem {
     };
     const materials = built.map((x) => materialFor(x.sc, x.lvl, x.geo));
     const v = new Variant(roleKey, levels, bake, materials[0], characterDepthMaterial(bake.texture), names, {
-      yaw: def.yaw, scale, alias: role.clipAlias, worldHeight: (def.height ?? 1) * (role.scale ?? 1),
+      yaw: def.yaw, scale, alias: role.clipAlias, worldHeight: (def.height ?? 1) * (role.scale ?? 1), stride: def.stride,
     });
     v.materials = materials;
     v.tintColor = tint?.color ? new THREE.Color(tint.color) : null;
     v.model = model;
+    // mount: saddle height and its rising/falling per frame (rider follows the back)
+    const track = def.saddle ? saddleTrack(bake, def.saddle) : null;
+    if (track) { v.saddle = track.y0 * scale; v.saddleDy = track.dy; }
     // near model still missing: request as soon as a figure would need the near level (render)
     v.nearPending = loaded.gltf ? null : model;
     return v;
@@ -1372,7 +1438,7 @@ export class CharacterSystem {
     });
     v.tintColor = role.tint?.color ? new THREE.Color(role.tint.color) : (p.tintDefault !== undefined ? new THREE.Color(p.tintDefault) : null);
     v.procedural = true;
-    v.saddle = p.saddle ?? 0;
+    v.saddle = (p.saddle ?? 0) * (role.procScale ?? 1);
     // own model is being reloaded (e.g. the cannon): then bake anew (set() swaps)
     if (p.pending) v.pendingCheck = p.pending;
     return v;
@@ -1440,7 +1506,7 @@ export class CharacterSystem {
     // Walking pace: coupled to the ground speed (s.ground, tiles/s) to the clip's step length, smoothed
     // and phase-continuous (the legs do not jump when the pace changes)
     let rate = s.speed ?? 1;
-    if (s.ground > 0 && r.variant && MOVE_CLIPS.has(r.clip)) rate = strideRate(r.variant.groundSpeed(r.clip), s.ground, rate);
+    if (s.ground > 0 && r.variant && MOVE_CLIPS.has(r.clip)) rate = strideRate(r.variant.moveSpeed(r.clip), s.ground, rate);
     if (MOVE_CLIPS.has(r.clip)) {
       const old = r.speed ?? rate;
       const next = old + (rate - old) * 0.25;
@@ -1553,13 +1619,15 @@ export class CharacterSystem {
           m.setMatrixAt(i, tmpM);
           // animation (throttled by distance)
           const step = animStep(rl);
-          const key = a ? (a.alias[r.clip] ?? r.clip) : r.clip;
-          const cur = v.clip(key);
-          let t = (time - r.clipT0) * (MOVE_CLIPS.has(cur.key) || MOVE_CLIPS.has(r.clip) ? r.speed : 1);
-          if (step === Infinity) t = cur.loop ? 0 : cur.duration;
-          else if (step > 0) t = Math.floor(t / step + 1e-4) * step;
-          let [fa, fb, w] = clipFrames(cur, t, v.bake.fps, cur.loop);
-          if (step > 0) w = 0;
+          let [fa, fb, w] = animFrames(v, r, a, step, time);
+          // rider: rises and falls with the back of the mount (same frame as the animal)
+          const mount = a ? null : host.mount;
+          if (mount?.variant.saddleDy) {
+            const mv = mount.variant, [ma, mb, mw] = animFrames(mv, r, mount, step, time);
+            tmpP.y += (mv.saddleDy[ma] * (1 - mw) + mv.saddleDy[mb] * mw) * mv.scale * mount.scale;
+            tmpM.compose(tmpP, tmpQ, tmpS);
+            m.setMatrixAt(i, tmpM);
+          }
           const fadeK = r.fadeT0 >= 0 ? (time - r.fadeT0) / 0.22 : 1;
           if (fadeK < 1 && step === 0 && r.prevClip) {
             // cross-fade: previous clip (frame A) → current (frame B)
@@ -1584,6 +1652,19 @@ export class CharacterSystem {
       }
     }
     if (this.blob) this.renderBlobs(buckets);
+  }
+
+  /**
+   * Facing directions of a figure and its mount in this frame (world, radians; rider including the hip rotation
+   * of the shown animation frame). Read only, for checks: rider and horse must face the same way.
+   * @param {number} id @returns {{ rider: number, horse: number|null, clip: string } | null}
+   */
+  facing(id) {
+    const r = this.records.get(id), v = r?.variant;
+    if (!v) return null;
+    const [fa] = animFrames(v, r, null, 0, this.time);
+    const m = v.mount;
+    return { rider: r.yaw + v.yaw + v.bodyYaw(fa), horse: m ? r.yaw + m.variant.yaw : null, clip: v.clip(r.clip).key };
   }
 
   /** Make all variants visible once (precompile shaders). */
@@ -1636,6 +1717,23 @@ export class CharacterSystem {
     for (const v of this.variants.values()) if (v) for (const m of v.meshes) if (m?.visible) meshes++;
     return { ...this.stats, meshes, variants: [...this.variants.values()].filter(Boolean).length };
   }
+}
+
+/**
+ * Animation frames of a figure or an attachment in this frame (without cross-fade between clips).
+ * @param {Variant} v rendering @param {any} r record of the unit @param {any} a attachment (or null)
+ * @param {number} step pacing (animStep) @param {number} time
+ * @returns {[number, number, number]}
+ */
+function animFrames(v, r, a, step, time) {
+  const key = a ? (a.alias[r.clip] ?? r.clip) : r.clip;
+  const cur = v.clip(key);
+  let t = (time - r.clipT0) * (MOVE_CLIPS.has(cur.key) || MOVE_CLIPS.has(r.clip) ? r.speed : 1);
+  if (step === Infinity) t = cur.loop ? 0 : cur.duration;
+  else if (step > 0) t = Math.floor(t / step + 1e-4) * step;
+  const f = clipFrames(cur, t, v.bake.fps, cur.loop);
+  if (step > 0) f[2] = 0;
+  return f;
 }
 
 /** Procedural kind from a role key if the manifest is missing. */

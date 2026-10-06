@@ -17,7 +17,9 @@ import { stripAnim } from './strip-anims.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { reexecWithProxy, meshy, meshyWait, meshyBalance, download, dataUri, loadJob, saveJob, spend, SRC_DIR } from './lib.mjs';
+import { requireAssetsSrc } from '../require-assets-src.mjs';
 
+requireAssetsSrc('characters');
 reexecWithProxy();
 
 const ANIM_FILE = path.join(SRC_DIR, 'animations.json');
@@ -58,7 +60,7 @@ async function generate(id) {
 async function remesh(id) {
   const spec = readSpec(id), job = loadJob(id), dir = path.join(SRC_DIR, id);
   // spec.remeshOf: far model as a reduced version of another model (texture stays, no concept of its own)
-  const source = spec.remeshOf ? loadJob(spec.remeshOf).model?.task : job.model?.task;
+  const source = spec.remeshTask ?? (spec.remeshOf ? loadJob(spec.remeshOf).model?.task : job.model?.task);
   if (spec.remeshInGeneration !== false && !spec.remeshOf) return;
   if (!source) throw new Error(`${spec.remeshOf ?? id}: run "generate" first`);
   if (!job.remesh?.task) {

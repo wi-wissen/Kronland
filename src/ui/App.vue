@@ -1,5 +1,5 @@
 <template>
-  <StartMenu v-if="screen === 'menu'" :latest="latest" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" @adventures="screen = 'adventures'" @special="screen = 'special'" />
+  <StartMenu v-if="screen === 'menu'" :latest="latest" :recovered="recovered" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" @adventures="screen = 'adventures'" @special="screen = 'special'" />
   <CampaignMenu v-else-if="screen === 'campaign'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @tutorial="startMission('tutorial')" />
   <SpecialMapsMenu v-else-if="screen === 'special'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" />
   <AdventureMenu v-else-if="screen === 'adventures'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @editor="openEditor()" @open="startScenario($event)" />
@@ -90,6 +90,22 @@
 
       <DevPanel v-if="dev.on" :engine="engine" :touch="!!ui.touch" />
 
+      <div v-if="crash" class="scrim crash-scrim" data-testid="crash-dialog">
+        <div class="crash-card parchment" role="alertdialog" aria-modal="true" :aria-label="$t('crash.title')">
+          <h2><Icon name="warning" />{{ $t('crash.title') }}</h2>
+          <p>{{ $t('crash.text') }}</p>
+          <p v-if="latest" class="crash-latest" data-testid="crash-latest">{{ $t('crash.latest', { name: latest.name }) }}</p>
+          <p v-else class="crash-latest">{{ $t('crash.noSave') }}</p>
+          <p v-if="crashError" class="sm-error" role="alert" data-testid="crash-error">{{ crashError }}</p>
+          <details class="crash-detail"><summary>{{ $t('crash.detail') }}</summary><code data-testid="crash-message">{{ crash.area }}: {{ crash.message }}</code></details>
+          <div class="crash-actions">
+            <button class="primary" data-testid="crash-load" :disabled="!latest || crashBusy" @click="crashLoad"><Icon name="load" />{{ $t('crash.load') }}</button>
+            <button data-testid="crash-reload" @click="crashReload">{{ $t('crash.reload') }}</button>
+            <button data-testid="crash-menu" @click="crashMenu">{{ $t('end.toMenu') }}</button>
+          </div>
+        </div>
+      </div>
+
       <GameMenu v-if="menuOpen" :engine="engine" :touch="ui.touch" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" />
     </template>
   </div>
@@ -118,7 +134,7 @@ import { getMission, SPECIAL_MAPS } from '../sim/missions/registry.js';
 import { setMenuMusic } from '../audio/index.js';
 import { settings, applyPlayerColor } from './settings.js';
 import { clock } from './plugin.js';
-import { getStore, autosaveDue, AUTO_ID, SaveError } from '../save/index.js';
+import { getStore, autosaveDue, autosaveStart, snapshotText, whenIdle, AUTO_ID, SaveError } from '../save/index.js';
 import { defaultSaveName } from '../save/format.js';
 import { makeThumb } from './saves/thumb.js';
 import { t } from '../i18n/index.js';
@@ -128,6 +144,8 @@ import { missing } from './hud/hudLayout.js';
  *  compact – phone/narrow: panel across the full width, map as a button;
  *  mid – smaller map and tiles; narrow – portrait without shield, key figures in the panel. */
 const COMPACT = 760;
+/** sessionStorage: page was reloaded from the error dialog */
+const CRASH_FLAG = 'kronland-crash';
 const MID = 1100;
 const NARROW = 1500;
 
@@ -171,6 +189,13 @@ export default {
       /** Scenario in the world editor (kept during test play) */
       editorScenario: null,
       touchDevice: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
+      /** Game halted after a permanent error (Engine.crash): error dialog */
+      crash: null,
+      /** Error dialog: loading is in progress or has failed */
+      crashBusy: false,
+      crashError: '',
+      /** The page was reloaded after an error or the game was left after an error (notice in the start menu) */
+      recovered: false,
     };
   },
   computed: {
@@ -187,9 +212,9 @@ export default {
     'dev.on'(on) { this.engine?.setDevMode(on); },
     // Menu music on start and campaign screens (plays after the first click; in-game GameAudio takes over)
     screen: { immediate: true, handler(s) { if (['menu', 'campaign', 'adventures', 'special', 'editor'].includes(s)) setMenuMusic(true); else if (s === 'loading') setMenuMusic(false); } },
-    // Autosave every 5 game minutes (setting "Save automatically")
+    // Autosave every 2 game minutes, the first shortly after the start (setting "Save automatically")
     'ui.tick'(tick) {
-      if (tick !== undefined && settings.autosave && autosaveDue(tick, this.lastAutoTick ?? tick)) this.autosave();
+      if (tick !== undefined && settings.autosave && autosaveDue(tick, this.lastAutoTick ?? tick)) this.autosave({ idle: true });
     },
     // Record mission end once (progress, best time)
     'ui.mission.result'(r) {
@@ -229,6 +254,7 @@ export default {
     document.addEventListener('visibilitychange', this.onHide);
     window.addEventListener('pagehide', this.onHide);
     this.refreshLatest();
+    try { this.recovered = sessionStorage.getItem(CRASH_FLAG) === '1'; sessionStorage.removeItem(CRASH_FLAG); } catch { /* without sessionStorage no notice */ }
     // Direct start via address (for tests and links): ?seed=…&ai=easy|normal|hard&players=2
     const q = new URLSearchParams(location.search);
     if (q.has('mission') && getMission(q.get('mission'))) {
@@ -274,8 +300,11 @@ export default {
       if (!opts.noAssets) await loadAssets(players, (d, t) => { this.progress = Math.round((d / t) * 100); });
       this.progress = 100;
       await this.$nextTick();
-      this.engine = markRaw(new Engine(this.$refs.canvas, { ...opts, onUi: (state) => this.applyUi(state) }));
-      this.lastAutoTick = this.engine.sim.tick;
+      this.crash = null;
+      this.crashError = '';
+      this.recovered = false;
+      this.engine = markRaw(new Engine(this.$refs.canvas, { ...opts, onUi: (state) => this.applyUi(state), onCrash: (c) => this.onCrash(c) }));
+      this.lastAutoTick = autosaveStart(this.engine.sim.tick);
       this.engine.start();
       if (devState.on) this.engine.setDevMode(true);
       this.screen = 'game';
@@ -336,26 +365,43 @@ export default {
       this.closeMenu();
     },
     /**
-     * Write the autosave slot (silently; only errors are reported). State and preview image are
-     * copied synchronously; the store queues the writes one after another (store.serial), so
-     * the latest state always wins - even if an autosave is still running on leaving.
+     * Write the autosave slot (silently; only errors are reported). The state is turned into text synchronously without a deep
+     * copy (snapshotText), compression and storage run afterwards asynchronously. The store queues
+     * the writes one after another (store.serial), so the most recent
+     * state always wins – even if an autosave is still running when leaving.
+     * @param {{ idle?: boolean }} [opts] idle: only when the browser has air between two frames (regular autosave)
      */
-    async autosave() {
-      const e = this.engine, ui = this.ui;
+    async autosave({ idle = false } = {}) {
+      const e = this.engine;
       if (!e || !settings.autosave || this.screen !== 'game') return;
+      // Never save after a crash: the state may be broken, the last good save is kept
+      if (e.crash) return;
+      this.lastAutoTick = e.sim.tick;
+      if (idle) {
+        await whenIdle();
+        if (this.engine !== e || e.crash || this.screen !== 'game') return;
+      }
       // Do not save finished games any more
+      const ui = this.ui;
       if (ui?.gameOver || ui?.mission?.result || e.sim.winner !== null) return;
       const sim = e.sim;
-      this.lastAutoTick = sim.tick;
       // The same tick is already saved (pagehide often follows right after visibilitychange)
       if (this.autoSaved?.engine === e && this.autoSaved.tick === sim.tick) return this.autoSaved.promise;
       const meta = { tick: sim.tick, mode: sim.mission ? 'mission' : 'free', mission: sim.mission?.def?.id ?? null, seed: sim.seed };
-      let state, thumb;
-      try { state = e.save(); thumb = makeThumb(e); } catch (err) { console.error(err); return; }
+      let snap, thumb;
+      const t0 = performance.now();
+      try {
+        snap = snapshotText(e.save({ clone: false }), { name: defaultSaveName(meta, t) });
+        thumb = makeThumb(e);
+      } catch (err) { console.error(err); return; }
+      // Measurement for developer mode and E2E (docs/PERFORMANCE.md): time on the main thread, size of the text
+      const stats = { syncMs: performance.now() - t0, chars: snap.text.length, tick: meta.tick };
+      e.autosaveStats = stats;
       const promise = (async () => {
         try {
-          const entry = await (await getStore()).save(state, { id: AUTO_ID, name: defaultSaveName(meta, t), thumb });
+          const entry = await (await getStore()).saveText(snap.text, snap.meta, { id: AUTO_ID, thumb });
           this.latest = entry;
+          stats.totalMs = performance.now() - t0;
           if (this.engine === e && document.visibilityState !== 'hidden') e.toast('saves.autosaved', null, { icon: 'save', ttl: 2000 });
         } catch (err) {
           const code = err instanceof SaveError ? err.code : 'saves.err.unknown';
@@ -367,6 +413,33 @@ export default {
       })();
       this.autoSaved = { engine: e, tick: sim.tick, promise };
       return promise;
+    },
+    /** Engine reports a permanent error: game stops, dialog with load/reload. */
+    onCrash(c) {
+      this.crash = c;
+      this.menuOpen = false;
+      this.refreshLatest();
+    },
+    /** Error dialog: load the latest save game (usually the autosave). */
+    async crashLoad() {
+      if (!this.latest) return;
+      this.crashBusy = true;
+      this.crashError = '';
+      try {
+        const doc = await (await getStore()).load(this.latest.id);
+        this.loadDoc(doc);
+      } catch (e) {
+        this.crashError = t(e instanceof SaveError ? e.code : 'saves.err.unknown', e?.params ?? {});
+      } finally { this.crashBusy = false; }
+    },
+    /** Error dialog: reload the page; the start menu then points to "Continue". */
+    crashReload() {
+      try { sessionStorage.setItem(CRASH_FLAG, '1'); } catch { /* notice is missing then */ }
+      location.href = location.pathname;
+    },
+    crashMenu() {
+      this.quit();
+      this.recovered = true;
     },
     openMenu() { this.menuOpen = true; this.wasPaused = this.engine.paused; this.engine.paused = true; this.engine.emitUi(); },
     closeMenu() { this.menuOpen = false; if (this.engine) { this.engine.paused = !!this.wasPaused; this.engine.emitUi(); } },
@@ -442,4 +515,16 @@ export default {
 .end-actions { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin: 0.375rem 1.5rem 0; }
 .end-actions button { min-height: var(--touch); padding-inline: 1.25rem; }
 .end-actions button:not(.primary) { color: var(--parch-ink); background: rgba(255, 255, 255, 0.3); border-color: rgba(58, 42, 23, 0.35); box-shadow: none; }
+
+/* Error dialog (game halted after a permanent error) */
+.crash-scrim { z-index: 60; }
+.crash-card { width: min(32rem, 100%); padding: 1.25rem 1.25rem 1rem; display: flex; flex-direction: column; gap: 0.625rem; }
+.crash-card h2 { margin: 0; display: flex; align-items: center; gap: 0.5rem; font-family: var(--display); font-size: clamp(1.25rem, 5vw, 1.75rem); line-height: 1.15; }
+.crash-card p { margin: 0; line-height: 1.45; }
+.crash-latest { font-weight: 700; }
+.crash-detail { font-size: var(--fs-sm); color: var(--parch-ink-muted); }
+.crash-detail code { display: block; margin-top: 0.25rem; white-space: pre-wrap; word-break: break-word; }
+.crash-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem; }
+.crash-actions button { min-height: var(--touch); padding-inline: 1rem; flex: 1 1 auto; }
+.crash-actions button:not(.primary) { color: var(--parch-ink); background: rgba(255, 255, 255, 0.3); border-color: rgba(58, 42, 23, 0.35); box-shadow: none; }
 </style>
