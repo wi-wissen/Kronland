@@ -104,8 +104,12 @@ Hinweis Kosten und Bedingungen. Ist etwas gesperrt, steht dort der Grund.
 
 ### Meldungen
 
-Rechts erscheinen Meldungen: fertige Gebäude, Angriffe, abgeschlossene Forschung, Zahltag. Ein Klick auf
-eine Meldung mit Ortsangabe springt dorthin.
+Rechts erscheinen Meldungen: fertige Gebäude, Angriffe, abgeschlossene Forschung, Handel, Wetter. Ein Klick auf
+eine Meldung mit Ortsangabe springt dorthin, das **×** daneben schließt sie. Wichtiges steht oben: Angriffe,
+Brände und ein bewusstloser Held bleiben als **Dauerwarnung** (pulsierendes Symbol) stehen, solange der Anlass
+anhält – ein Angriff, bis einige Sekunden lang nichts Eigenes mehr getroffen wurde. Gleiche Meldungen werden
+zusammengefasst („12 Beförderungen“, „×3“), und jede Art von Meldung bekommt einen Platz: Auch mitten im Kampf
+siehst du, dass ein Gebäude fertig ist.
 
 **Angriffe** meldet das Spiel dreifach: Die Sturmglocke läutet, die Getroffenen rufen um Hilfe (bei Gebäuden ein
 Leibeigener, sonst die Figur selbst), und auf der Minikarte pulsiert die Stelle **rot**, solange dort gekämpft
@@ -205,7 +209,7 @@ Den Steuersatz stellst du in der **Burg** ein, sobald **Bildung** erforscht ist:
 ### Überstunden und Segnungen
 
 - **Überstunden** (Knopf im Gebäude) lassen eine Werkstatt schneller arbeiten, kosten aber Motivation.
-- In der **Kapelle** erzeugen Priester **Glauben**. Mit genug Glauben segnest du eine Berufsgruppe – deren Motivation steigt deutlich.
+- In der **Kapelle** erzeugen Priester **Glauben**. Mit genug Glauben segnest du eine Berufsgruppe – deren Motivation steigt deutlich. Oben rechts im Wappen steht dein Glaube; solange du keinen hast, ist er ausgegraut.
 
 ## Forschung {#research}
 
@@ -375,6 +379,11 @@ Unter **Einstellungen** (Startmenü und Spielmenü) findest du Sprache (Deutsch/
 (Automatisch, Niedrig, Mittel, Hoch), Lautstärken für Musik und Effekte, Größe der Oberfläche, Randscrollen
 und Hilfetexte.
 
+**Karte teilen:** Im Spielmenü (Pause) steht die Karte, z. B. „Karte: 62921“, darunter **„Link kopieren“** (am
+Handy **„Link teilen“**). Wer den Link öffnet, beginnt dieselbe Karte mit denselben Einstellungen **von vorn** –
+dein aktueller Spielstand ist nicht enthalten. Bei Missionen enthält der Link nur die Mission; geladene
+Spielstände haben keinen Link.
+
 > **Für Fortgeschrittene:** Das Spiel lässt sich über die Adresse direkt starten, z. B.
 > `play/?seed=42&ai=hard&players=3&hero=orrin`, `&fog=off` ohne Nebel, `?mission=c1` für ein Kampagnenkapitel
 > oder `?quality=low` für schwache Geräte.
@@ -390,7 +399,7 @@ Kronland lässt sich als App installieren: im Browser-Menü **„Zum Startbildsc
 
 - **Spiel speichern** legt einen Spielstand an. Du kannst **mehrere Spielstände** führen; jeder zeigt Name,
   Datum und Spielzeit. Ältere Stände lassen sich überschreiben oder löschen.
-- **Laden** zeigt die Liste deiner Spielstände. Im Startmenü setzt **„Gespeichertes Spiel fortsetzen“** den
+- **Laden** zeigt die Liste deiner Spielstände. Im Startmenü setzt **„Weiterspielen“** den
   neuesten Stand fort.
 - **Exportieren** lädt einen Spielstand als **JSON-Datei** herunter – zur Sicherung oder für ein anderes Gerät.
 - **Importieren** liest eine solche Datei wieder ein.

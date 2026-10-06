@@ -38,7 +38,7 @@ export const chooseLang = (l) => setLang(l);
 
 /** Links to the pages, relative to the current page. */
 export function pageLinks(root = siteRoot()) {
-  return { home: root, play: `${root}play/`, manual: `${root}manual/`, compendium: `${root}compendium/` };
+  return { home: root, play: `${root}play/`, manual: `${root}manual/`, compendium: `${root}compendium/`, blog: `${root}blog/` };
 }
 
 /**

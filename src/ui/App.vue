@@ -44,7 +44,7 @@
         @group="engine.selectGroup($event)"
       />
 
-      <ToastFeed :toasts="ui.toasts" @jump="jump" />
+      <ToastFeed :toasts="ui.toasts" @jump="jump" @dismiss="(t) => engine?.dismissToast(t.id)" />
 
       <div v-if="ui.gameOver && !watching" class="scrim endscreen" data-testid="game-over">
         <div class="end-card parchment" :class="ui.gameOver.won ? 'won' : 'lost'" role="dialog" aria-modal="true" :aria-label="ui.gameOver.won ? $t('end.victory') : $t('end.defeat')">
@@ -106,7 +106,7 @@
         </div>
       </div>
 
-      <GameMenu v-if="menuOpen" :engine="engine" :touch="ui.touch" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" />
+      <GameMenu v-if="menuOpen" :engine="engine" :touch="ui.touch" :share="share" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" />
     </template>
   </div>
 
@@ -140,6 +140,8 @@ import { makeThumb } from './saves/thumb.js';
 import { t } from '../i18n/index.js';
 import { devState, setDevMode, isDevHotkey } from '../dev/state.js';
 import { missing } from './hud/hudLayout.js';
+import { buildStartLink, parseStartLink, normalizeFree, addressFor, shareUrl } from './startLink.js';
+import { siteUrl } from '../paths.js';
 /** Levels by window width (CSS px at UI size 100 %), as classes on .game:
  *  compact – phone/narrow: panel across the full width, map as a button;
  *  mid – smaller map and tiles; narrow – portrait without shield, key figures in the panel. */
@@ -196,9 +198,23 @@ export default {
       crashError: '',
       /** The page was reloaded after an error or the game was left after an error (notice in the start menu) */
       recovered: false,
+      /** Start of the running game ({ kind: 'free'|'mission', … }, src/ui/startLink.js) or null (save game, scenario file) */
+      start: null,
     };
   },
   computed: {
+    /** Start link for the game menu: { url, name } or null */
+    share() {
+      const st = this.start;
+      if (!st) return null;
+      let base;
+      try { base = new URL(siteUrl('play/'), location.href).href; } catch { base = location.href; }
+      const url = shareUrl(base, buildStartLink(st));
+      if (st.kind === 'free') return { url, name: String(st.seed), title: t('gmenu.mapSeed', { seed: st.seed }) };
+      const def = getMission(st.id);
+      const title = def?.title ? this.$tr(def.title) : st.id;
+      return { url, name: st.seed ? `${title} · ${st.seed}` : title, title };
+    },
     need() { return this.preview && this.ui ? missing(this.preview, this.ui.res) : null; },
     hudVars() { return { '--bottom-h': `${this.bottomH}px`, '--top-total': `${this.topH}px` }; },
     /** Scenario JSON of the running game (coding adventure, script mission, editor) or null */
@@ -255,21 +271,11 @@ export default {
     window.addEventListener('pagehide', this.onHide);
     this.refreshLatest();
     try { this.recovered = sessionStorage.getItem(CRASH_FLAG) === '1'; sessionStorage.removeItem(CRASH_FLAG); } catch { /* without sessionStorage no notice */ }
-    // Direct start via address (for tests and links): ?seed=…&ai=easy|normal|hard&players=2
-    const q = new URLSearchParams(location.search);
-    if (q.has('mission') && getMission(q.get('mission'))) {
-      this.startMission(q.get('mission'), { noAssets: q.has('no-models'), seed: Number(q.get('seed')) || undefined });
-    } else if (q.has('seed')) {
-      this.newGame({
-        seed: Number(q.get('seed')) || 1,
-        difficulty: { easy: 'easy', normal: 'normal', hard: 'hard' }[q.get('ai')] ?? 'normal',
-        players: Math.min(4, Math.max(2, Number(q.get('players')) || 2)),
-        hero: q.get('hero') ?? 'nelia',
-        // Fog of war: ?fog=off turns it off
-        fog: !['off', '0'].includes(q.get('fog') ?? ''),
-        noAssets: q.has('no-models'),
-      });
-    }
+    // Direct start via address (start links, tests): ?seed=…&ai=easy|normal|hard&players=2&hero=…&fog=off
+    // or ?mission=<id>[&seed=…]; invalid values → default (src/ui/startLink.js, docs/ARCHITEKTUR.md#url-parameter)
+    const link = parseStartLink(location.search, { hasMission: (id) => !!getMission(id) });
+    if (link?.kind === 'mission') this.startMission(link.id, { noAssets: link.noAssets, seed: link.seed });
+    else if (link) this.newGame({ ...link, noAssets: link.noAssets });
   },
   beforeUnmount() {
     this.engine?.stop();
@@ -312,7 +318,22 @@ export default {
       // For E2E tests and debugging
       window.__kronland = this.engine;
     },
-    newGame(opts) { this.boot(opts); },
+    newGame(opts) {
+      // Bring values from the start menu or address to valid ones; exactly this is what the link starts
+      const start = normalizeFree(opts);
+      this.setStart(start);
+      const { kind: _kind, ...free } = start;
+      this.boot({ ...opts, ...free });
+    },
+    /**
+     * Remember the start of the running game and set the address bar to the canonical start link
+     * (history.replaceState: no new history entry). null: save game/scenario file – clear the query.
+     * @param {object|null} start
+     */
+    setStart(start) {
+      this.start = start;
+      try { history.replaceState(null, '', addressFor(location.pathname, location.search, start ? buildStartLink(start) : null)); } catch { /* without History API no link in the address */ }
+    },
     /** Start a mission, tutorial, coding adventure or script mission. */
     startMission(id, extra = {}) {
       const def = getMission(id);
@@ -322,6 +343,9 @@ export default {
       // Special maps (showcase, stress test) have their own menu: return there
       this.origin = SPECIAL_MAPS.includes(def) ? 'special' : def.scenario ? 'adventures' : 'campaign';
       const players = def.players.filter((p) => p.kind !== 'bandits').length + (def.players.some((p) => p.kind === 'bandits') ? 1 : 0);
+      // Fixed mission map: link only ?mission=<id>; a deviating seed comes along with it
+      const seed = extra.seed !== undefined && extra.seed !== def.seed ? extra.seed : undefined;
+      this.setStart({ kind: 'mission', id, ...(seed !== undefined ? { seed } : {}) });
       this.boot({ mission: { id, seed: extra.seed }, players, noAssets: extra.noAssets });
     },
     /** Play scenario JSON (file or world editor). */
@@ -329,6 +353,8 @@ export default {
       this.recorded = false;
       this.record = false;
       this.origin = origin;
+      // Scenario file / world editor: is in no directory, hence no start link
+      this.setStart(null);
       const players = json.players.filter((p) => p.kind !== 'bandits').length + (json.players.some((p) => p.kind === 'bandits') ? 1 : 0);
       this.boot({ scenario: json, players });
     },
@@ -336,7 +362,7 @@ export default {
     retry() {
       const def = this.engine?.sim.mission?.def;
       if (def?.custom) this.startScenario(def.scenario, this.origin ?? 'adventures');
-      else this.startMission(this.ui.mission.id);
+      else this.startMission(this.ui.mission.id, { seed: this.start?.kind === 'mission' ? this.start.seed : undefined });
     },
     openEditor(scenario = null) {
       if (scenario) this.editorScenario = scenario;
@@ -357,6 +383,8 @@ export default {
       this.menuOpen = false;
       this.recorded = false;
       this.record = false;
+      // Save game: cannot be rebuilt from a seed – no start link
+      this.setStart(null);
       this.boot({ load: doc.state });
     },
     onSaved(entry) {
@@ -406,7 +434,7 @@ export default {
         } catch (err) {
           const code = err instanceof SaveError ? err.code : 'saves.err.unknown';
           if (!(err instanceof SaveError)) console.error(err);
-          if (this.engine === e) e.toast(code, err?.params ?? null, { icon: 'warning', tone: 'bad', ttl: 6000 });
+          if (this.engine === e) e.toast(code, err?.params ?? null, { icon: 'warning', tone: 'bad', ttl: 6000, cat: 'system' });
           // Next attempt allowed at the next occasion
           if (this.autoSaved?.promise === promise) this.autoSaved = null;
         }
@@ -453,9 +481,11 @@ export default {
       // Test play from the world editor: back to the editor
       this.screen = this.origin === 'editor' ? 'editor' : 'menu';
       this.origin = null;
+      this.start = null;
       if (location.search) history.replaceState(null, '', location.pathname);
     },
-    jump(t) { this.engine?.jumpTo(t.pos.x, t.pos.y, true); this.engine?.dismissToast(t.id); },
+    // Permanent notices (attack, fire, hero) stay after the jump; only the × hides them
+    jump(t) { this.engine?.jumpTo(t.pos.x, t.pos.y, true); if (!t.sticky) this.engine?.dismissToast(t.id); },
     onQuick(k) {
       const e = this.engine;
       if (k === 'hq') e.focusHeadquarters();

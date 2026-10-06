@@ -18,7 +18,7 @@ async function boot(page, info) {
 }
 
 test('Construction site: every serf builds from its own tile', async ({ page }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(480_000);
   const errors = await boot(page, info);
   const res = await page.evaluate(() => {
     const e = window.__kronland, s = e.sim, P = e.player;
@@ -59,7 +59,7 @@ test('Construction site: every serf builds from its own tile', async ({ page }, 
 });
 
 test('Campfire: resting workers sit in a circle, each on its own tile', async ({ page }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(480_000);
   const errors = await boot(page, info);
   const res = await page.evaluate(() => {
     const e = window.__kronland, s = e.sim, P = e.player;

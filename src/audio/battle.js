@@ -1,20 +1,35 @@
 // Combat intensity near the camera (purely computational, testable): combat events leave "heat points"
 // that decay over time. From them follow the volume of the battle ambience and – with
 // hysteresis so the music does not flutter – the switch between build and combat theme.
+// The combat theme belongs to fights the player is involved in (combat): if BATTLE_MUSIC.grace
+// seconds pass without such a hit, the fight is over – even if heat is still in view.
 
 import { viewRadius } from './spatial.js';
+import { BATTLE_MUSIC } from './settings.js';
 
 export class BattleMeter {
-  constructor({ halfLife = 4, enter = 0.45, exit = 0.12, hold = 12 } = {}) {
+  /** @param {Partial<typeof BATTLE_MUSIC>} [opts] */
+  constructor(opts = {}) {
+    const o = { ...BATTLE_MUSIC, ...opts };
     /** @type {{ x: number, z: number, w: number }[]} */
     this.spots = [];
-    this.k = Math.LN2 / halfLife;
-    this.enter = enter;
-    this.exit = exit;
+    this.k = Math.LN2 / o.halfLife;
+    this.kRelease = Math.LN2 / o.releaseHalfLife;
+    this.enter = o.enter;
+    this.exit = o.exit;
+    /** Combat without heat in view (camera away) ends after this much quiet */
+    this.hold = o.hold;
     /** Minimum duration of the combat theme in seconds */
-    this.hold = hold;
+    this.minHold = o.minHold;
+    /** Seconds without combat involving the player after which the fight is over */
+    this.grace = o.grace;
     this.mode = 'build';
+    /** Start of the combat theme */
     this.since = -Infinity;
+    /** recently high intensity in view */
+    this.hot = -Infinity;
+    /** last hit involving the player */
+    this.lastCombat = -Infinity;
   }
 
   /** Combat event at a position (tiles) with weight. Nearby points are merged. */
@@ -25,9 +40,17 @@ export class BattleMeter {
     if (this.spots.length < 64) this.spots.push({ x: pos.x, z: pos.z, w });
   }
 
-  decay(dt) {
+  /** The player fights (own unit hits or is hit). @param {number} now seconds */
+  combat(now) { this.lastCombat = now; }
+
+  /** Is the player currently fighting (hit within the grace period)? */
+  engaged(now) { return now - this.lastCombat < this.grace; }
+
+  /** Let heat decay; if the player's fight is over, faster (remnants only). @param {number} [now] */
+  decay(dt, now) {
     if (!this.spots.length) return;
-    const f = Math.exp(-this.k * dt);
+    const k = now !== undefined && !this.engaged(now) ? this.kRelease : this.k;
+    const f = Math.exp(-k * dt);
     for (const s of this.spots) s.w *= f;
     this.spots = this.spots.filter((s) => s.w > 0.05);
   }
@@ -44,11 +67,20 @@ export class BattleMeter {
     return Math.min(1, sum / 20);
   }
 
-  /** Music theme with hysteresis. @param {number} now seconds */
+  /**
+   * Music theme with hysteresis. Combat: high intensity in view and the player is fighting. Back to build,
+   * when grace seconds passed without a fight by the player (at the earliest minHold after the start) or hold seconds
+   * no heat was left in view.
+   * @param {number} now seconds
+   */
   theme(intensity, now) {
-    if (this.mode === 'build' && intensity >= this.enter) { this.mode = 'battle'; this.since = now; }
-    else if (this.mode === 'battle' && intensity <= this.exit && now - this.since >= this.hold) this.mode = 'build';
-    else if (this.mode === 'battle' && intensity >= this.enter) this.since = now;
+    const engaged = this.engaged(now);
+    if (intensity >= this.enter) this.hot = now;
+    if (this.mode === 'build') {
+      if (intensity >= this.enter && engaged) { this.mode = 'battle'; this.since = now; }
+    } else if (now - this.since >= this.minHold && (!engaged || (intensity <= this.exit && now - this.hot >= this.hold))) {
+      this.mode = 'build';
+    }
     return this.mode;
   }
 }

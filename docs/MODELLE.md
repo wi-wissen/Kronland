@@ -164,6 +164,35 @@ Darstellung, die Simulation kennt keine Varianten. Jeder Eintrag darf Rollenfeld
 `tint`, `clips` …). Fehlt das Modell einer Variante, wird die nächste verfügbare genommen. Helden sind
 feste Rollen (`hero.nelia` …) mit eigenen Figuren (Konzeptbögen in `assets-src/characters/<hero>/`, siehe [STIL.md](STIL.md)).
 
+### Varianten und Geschlecht
+
+Jede Variante trägt `"sex": "m"` oder `"f"` (Rollen ohne Varianten optional, z. B. `hero.nelia`; fehlt es, gilt
+männlich). Alle Rollen mit Varianten (Leibeigene, alle Berufe, Kanoniere, Schwert-, Speer-, Bogenkämpfer, leichte und
+schwere Reiter, Räuber, Bogenräuber) haben genau ein Paar m/f; Hauptleute sind feste männliche Modelle.
+Die Wahl steckt in reinen Funktionen in `src/render/variants.js`, die Darstellung, Oberfläche und Ton teilen:
+
+- `figureRole(e, players, UNITS)` – Rolle wie in der Darstellung (`Renderer.roleOf`),
+- `figureVariant(manifest, rolle, id)` – derselbe Index wie der Darstellungsschlüssel `<rolle>#<i>` (`pickVariant`),
+- `figureSex(manifest, rolle, id)` – `'m'`/`'f'`. Ohne geladenes Manifest (`?no-models`, prozedurale Figuren) `'m'`.
+
+Die Simulation bleibt unberührt (kein Zustand, kein Hash). `Engine.sexOf(e)` liefert der Auswahl `sex`
+(einzelne Figur) bzw. `female`/`sex` (Leibeigenen-Gruppe; `sex: null` = gemischt). Daraus folgen:
+
+- **Titel** über `sexKey(key, sex)` (`src/i18n`): weibliche Form unter `<key>.f` – `serfs.one.f` („1 Leibeigene“),
+  `foreign.serf.f`, `foreign.worker.f`, `foreign.soldier.f`, `foreign.hero.f`, `prof.<beruf>.f` („Schmiedin“),
+  `figure.<gattung>[.f]` (eine Figur einer Truppe, „Schwertkämpferin“; Mehrzahl weiter `line.*`). Gruppen heißen
+  immer in der Mehrzahl („3 Leibeigene“), auch gemischt. Ein ausgewählter Arbeiter heißt nach seinem Beruf.
+- **Porträt** (`selectionPortrait`): `portraits/serf.webp` / `serf-f.webp`, Arbeiter `worker-<beruf>[-f].webp`;
+  gemischte Gruppe: Porträt der Mehrheit (Gleichstand männlich).
+- **Stimme** (`GameAudio.voiceOf`): Feld `voice` der Variante, sonst nach Geschlecht – Leibeigene und Arbeiter
+  `serf`/`serfF` (auch der Warnruf einer angegriffenen Arbeiterin), Miliz `sword`/`soldierF` (für die Miliz-Sätze
+  fehlen Aufnahmen in `soldierF`, sie schweigt dann).
+
+Porträts schneidet `scripts/portraits.py` aus den Vorderansichten (`node scripts/asset-gen/views.mjs <id>` erzeugt
+`view-1.png` aus `sheet.png`, nicht in Git): `python3 scripts/portraits.py serf serf-f worker-smith worker-smith-f …`
+(Spieler-Blau statt Magenta). Neue Rolle mit Paar: `sex` an beide Varianten, weibliche Namen `<key>.f` in de/en,
+Porträts in `WORKER_PORTRAITS` bzw. `PORTRAITS` – `tests/render/figureSex.test.js` prüft das.
+
 **Masken-Textur:** Statt Zellen oder Rechtecken kann eine Bilddatei die Spielerfarbe (Rotkanal) und die
 Tönung (Grünkanal) festlegen. Der Shader liest sie je Bildpunkt (`uMaskMap`). Die Pipeline erzeugt sie aus
 der Markerfarbe Magenta. Als Liste gilt je Detailstufe eine eigene Datei (Lücken erben die Stufe davor).
@@ -268,7 +297,7 @@ die Datei an, baut `variantStale` die Darstellung mit beiden Stufen neu (gleiche
 Maß ist immer das Modell mit den Animationen). Ältere Figuren mit Animationen nur im Nahmodell laden es wie
 früher gleich mit. Umstellung bestehender Dateien: `node scripts/asset-gen/anims-to-game.mjs [Modell …]`
 (postprocess.mjs ruft es für neue Figuren selbst auf). Dabei rückt das Skript bei animierten Werkzeug-Knoten die
-Entquantisierung in einen Kindknoten (`<Teil>_netz`), sonst überschriebe die Animation sie und das Werkzeug säße
+Entquantisierung in einen Kindknoten (`<Teil>_mesh`), sonst überschriebe die Animation sie und das Werkzeug säße
 falsch in der Hand. Prüfung: `tests/render/characterBake.test.js` vergleicht für jede Figur die gebackene Pose
 des Nahmodells mit dem CPU-Skinning von three.js (Körper exakt, Werkzeuge auch im Spielmodell an derselben Stelle).
 
@@ -368,7 +397,7 @@ Arbeitsbewegungen: Holzhacken und Spitzhacke als Text-Bewegung, Hämmern aus der
 1. GLB nach `public/models/characters/` legen (Format siehe oben).
 2. Im Manifest unter `models` eintragen (Clips, Größe, Teamfarbe) und die Rolle(n) unter `roles` darauf zeigen lassen.
 3. `node scripts/trim-animations.mjs public/models/characters/Farmer.glb` – entfernt Clips, die das Manifest nicht nennt.
-4. `node scripts/build-lods.mjs public/models/characters/Farmer.glb` – erzeugt `Bauer.lod1…3.glb`; `"lods": 3` im Manifest.
+4. `node scripts/build-lods.mjs public/models/characters/Farmer.glb` – erzeugt `Farmer.lod1…3.glb`; `"lods": 3` im Manifest.
 5. `node scripts/asset-gen/anims-to-game.mjs Farmer` – Animationen ins Spielmodell, damit das Nahmodell erst bei
    Bedarf geladen wird.
 6. Prüfen: `npx vitest run tests/render` (Manifest gültig, Posen stimmen?), Spiel mit `?debug=1&quality=high` öffnen.
@@ -397,15 +426,15 @@ Vorlagen: das Gebäudesymbol aus dem Atlas (`public/icons/symbols.webp`, z. B. `
 Bildmodell: Seedream 5.0 Flash über `/api/v1/images` (0,02 $ je Bild).
 
 ```bash
-node scripts/asset-gen/building.mjs concept wohnhaus   # Konzept → assets-src/buildings/house/concept.png (Freigabe)
-node scripts/asset-gen/building.mjs concept wohnhaus --out x [--model …]   # Variante zum Vergleich, pick wohnhaus x übernimmt
-node scripts/asset-gen/building.mjs model wohnhaus     # Meshy 7.1, ein Bild → 3D mit PBR (~30 Credits, ~4 min)
-node scripts/asset-gen/building.mjs build wohnhaus     # → public/models/buildings/wohnhaus_<farbe>.glb + .lod1/.lod2
+node scripts/asset-gen/building.mjs concept house   # Konzept → assets-src/buildings/house/concept.png (Freigabe)
+node scripts/asset-gen/building.mjs concept house --out x [--model …]   # Variante zum Vergleich, pick house x übernimmt
+node scripts/asset-gen/building.mjs model house     # Meshy 7.1, ein Bild → 3D mit PBR (~30 Credits, ~4 min)
+node scripts/asset-gen/building.mjs build house     # → public/models/buildings/wohnhaus_<farbe>.glb + .lod1/.lod2
 ```
 
 - `assets-src/buildings/<id>/spec.json`: `icon` (Atlasname) oder `from` (Ordner der Vorstufe), `file` (Dateiname im
   Spiel), `level` (1–3), `polycount`, `describe` (kurz, englisch, ohne Gebäudenamen – sonst malt das Modell Schrift).
-- **Alle Stufen in einem Bild** (`set burg,castle2_old,castle3_old`): gleiche Bauweise und gleicher Maßstab, Vorlagen Symbol,
+- **Alle Stufen in einem Bild** (`set castle,castle2,castle3`): gleiche Bauweise und gleicher Maßstab, Vorlagen Symbol,
   Stilbild und das fertige Wohnhaus; das Bild (`set-vN.png`) wird in Inhaltsspalten zerlegt (Beschriftungen unter den
   Gebäuden fallen weg) und je Stufe als `concept.png` abgelegt. Stufen im Prompt nach Lage benennen („left building“),
   nicht „Level 1“ – sonst schreibt das Modell Beschriftungen ins Bild.

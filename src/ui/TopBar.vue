@@ -49,7 +49,8 @@
           <Ring :frac="ui.weather.frac" :color="weatherColor" class="tb-wx"><Icon :name="'weather-' + ui.weather.state" /></Ring>
           <b ref="wxname" class="tb-wxname tb-hide-m">{{ $name.weather(ui.weather.state) }}</b>
         </span>
-        <span v-if="ui.faith" v-tip="faithTip" class="tb-item tb-hide-m" tabindex="0" data-testid="faith">
+        <!-- Faith always visible (greyed out at 0), so the right plate does not look empty and people know it -->
+        <span v-if="ui.faith !== undefined && ui.faith !== null" v-tip="faithTip" class="tb-item tb-hide-m" :class="{ 'tb-none': !ui.faith }" tabindex="0" data-testid="faith">
           <Icon name="faith" />
           <b class="num">{{ ui.faith }}</b>
         </span>
@@ -175,7 +176,7 @@ export default {
       return { title: this.$t('top.population'), text: this.$t('top.populationTip', { used: this.ui.pop[0], limit: this.ui.pop[1] }), lines: [[this.$t('top.workers'), this.ui.workers, 'worker']] };
     },
     motTip() { return { title: this.$t('top.motivation'), text: this.$t('top.motivationTip', { v: this.ui.motivation, max: this.ui.maxMotivation }) }; },
-    faithTip() { return { title: this.$t('top.faith'), text: this.$t('top.faithTip', { v: this.ui.faith, cost: this.ui.blessingCost }) }; },
+    faithTip() { return { title: this.$t('top.faith'), text: this.ui.faith ? this.$t('top.faithTip', { v: this.ui.faith, cost: this.ui.blessingCost }) : this.$t('top.faithNone') }; },
     weatherTip() {
       const w = this.ui.weather;
       return { title: this.$t('top.weather'), text: this.$t('top.weatherTip', { weather: this.$name.weather(w.state), next: this.$name.weather(w.next), s: w.in }) };
@@ -303,6 +304,7 @@ export default {
 .mot-bad b { color: var(--bad); }
 .tb-wx { width: 2rem; height: 2rem; }
 .tb-wx .ico { width: 1.25rem; height: 1.25rem; }
+.tb-item.tb-none { opacity: 0.45; filter: grayscale(1); }
 .tb-wxname { font-size: var(--fs-md) !important; }
 .tb-medal {
   position: relative; z-index: 1; flex: none; margin: 0 -2rem; width: 4.5rem; height: 4.5rem; border-radius: 50%; display: grid; place-items: center; cursor: default;

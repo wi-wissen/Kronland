@@ -32,10 +32,11 @@ E2E läuft headless über SwiftShader (Software-WebGL) und ist langsam (passt di
 - **Handy mitdenken**: Touch, kein Hover, kleine Bildschirme.
 - Spieldateien in `public/` immer über `siteUrl()`/`assetUrl()` (`src/paths.js`) adressieren – nur so greift der Inhalts-Hash im Build. Rohdateien der Asset-Pipeline liegen in `assets-src/` **außerhalb von Git** (`.gitignore`), nur lokal beim Maintainer; nichts in Spiel, Tests oder Build darf davon abhängen, Pipeline-Skripte brechen ohne den Ordner mit Hinweis ab (docs/ROHDATEIEN.md).
 - **Nur freie (CC0) oder selbst generierte Assets** (eigene Bildgenerierung, Meshy), Herkunft in CREDITS.md; keine gekauften Asset-Pakete. Keine Namen, Texte oder Grafiken aus Siedler – Mechaniken nachbauen ja, Benennung eigen.
-- **Sprache:** Code, Bezeichner, Kommentare, Dateinamen, Commit-Nachrichten sowie Titel und Beschreibung von Pull Requests auf **Englisch**. Markdown-Doku (README, docs/, CLAUDE.md) und Spielertexte (Werte in `src/i18n/de.js`, Anzeigenamen in `src/sim/data/`, Handbuch) bleiben **Deutsch** (Spielertexte zusätzlich englisch in `en.js`). Kompakt schreiben. Neue Funktionen in README/docs nachtragen.
+- **Sprache:** Code, Bezeichner, Kommentare, Dateinamen, Commit-Nachrichten sowie Titel und Beschreibung von Pull Requests auf **Englisch**. Markdown-Doku (README, docs/, CLAUDE.md) und Spielertexte (Werte in `src/i18n/de.js`, Anzeigenamen in `src/sim/data/`, Handbuch, Blog) bleiben **Deutsch** (Spielertexte zusätzlich englisch in `en.js`). Kompakt schreiben. Neue Funktionen in README/docs nachtragen.
 - Neue Logik bekommt Vitest-Tests, sichtbare Funktionen eine Playwright-Spec. Vor dem PR: `npm test` grün, `npm run build` ok, betroffene E2E-Specs grün.
 
 ## Arbeitsweise
 - Eigener Branch je Aufgabe, Pull Request gegen `main`. Vor dem PR `main` hineinmergen.
+- PRs werden per **Squash** in `main` übernommen: ein Commit je PR, der englische PR-Titel ist die Commit-Nachricht.
 - Fehlende Punkte selbst erkennen und mit umsetzen; nicht unfertig aufhören.
 - Ergebnisse mit Screenshots (Desktop 1440×900 und Handy) belegen.

@@ -17,6 +17,8 @@ import { createMissionSim, createScenarioSim } from '../sim/missions/runtime.js'
 import { resetSpeech, stopSpeech } from '../audio/speech.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
+import { characterManifest } from '../render/characters.js';
+import { figureRole, figureSex } from '../render/variants.js';
 import { getQuality } from '../render/quality.js';
 import { get as setting, applyPlayerColor } from '../ui/settings.js';
 import { Input } from './Input.js';
@@ -26,6 +28,7 @@ import { COMBAT } from '../sim/data/combat.js';
 import { buildingSystemsUi } from './buildingUi.js';
 import { relationOf, showsInterior } from './relation.js';
 import { noteAlert, activeAlerts } from './alerts.js';
+import { addNotice, expireNotices, pickVisible, attackInfo, attackNotices } from './notices.js';
 import { isDamaged } from '../sim/systems/damage.js';
 import { hasForecast, forecast } from '../sim/systems/weather.js';
 import { starsOf, EXPERIENCE } from '../sim/data/experience.js';
@@ -34,6 +37,11 @@ import { canSee, isExplored, isVisible, knownBuildings, fogEnabled } from '../si
 import { Vector3 } from 'three';
 import { padPreview } from '../sim/systems/terrain.js';
 import { TICK_MS, runSteps, FaultGuard } from './loop.js';
+
+/** Entity kinds with a figure (sex in the selection) */
+const FIGURE_KINDS = new Set(['unit', 'worker', 'soldier', 'leader', 'hero', 'npc']);
+/** Figure role → key figure.* (singular of the squad type): 'soldier.bow' → 'bow', 'bandit.bow' → 'banditBow' */
+const figureLook = (role) => (role === 'bandit.bow' ? 'banditBow' : role === 'bandit' ? 'bandit' : role.replace(/^soldier\./, '').replace(/\.leader$/, ''));
 
 /** Dialogue camera: distance close to the figure, duration of the move, pause before the return move (ms) */
 const DIALOG_DIST = 8, DIALOG_FLY_MS = 1100, DIALOG_BACK_MS = 1200;
@@ -74,8 +82,10 @@ export const BUILDING_SECTIONS = [];
 /** @param {(engine: Engine, building: any) => any} fn */
 export const registerBuildingSection = (fn) => { BUILDING_SECTIONS.push(fn); };
 
-/** Mindestabstand (ms) zwischen zwei Angriffsmeldungen in derselben Gegend */
+/** Minimum gap (ms) between two alarm bells in the same region (the notice itself stays while the attack lasts) */
 const ATTACK_TOAST_MS = 15000;
+/** At most this many notices at once (desktop / touch) */
+const MAX_TOASTS = 5, MAX_TOASTS_TOUCH = 4;
 /** Figures that attack serfs on command (not buildings) */
 const FIGHT_TARGETS = new Set(['unit', 'worker', 'leader', 'soldier', 'hero']);
 
@@ -125,8 +135,14 @@ export class Engine {
     this.speed = 1;
     this.paused = false;
     this.acc = 0;
+    /** Transient notices (src/game/notices.js); persistent notices arise in persistentNotices() */
     this.toasts = [];
     this.toastId = 0;
+    /** Own burning buildings (IDs, from buildingBurning/-Extinguished; scanned once on first access) */
+    this.burning = null;
+    /** Dismissed persistent notices: fires (building IDs), unconscious heroes (IDs) */
+    this.mutedFires = new Set();
+    this.mutedHeroes = new Set();
     this.touch = matchMedia?.('(pointer: coarse)').matches ?? false;
     this.input = new Input(this, canvas);
     this.canvas = canvas;
@@ -297,15 +313,60 @@ export class Engine {
    * @param {{ icon?: string, tone?: 'info'|'good'|'warn'|'bad', pos?: {x:number,y:number}|null, ttl?: number }} [opts]
    */
   toast(key, params = null, opts = {}) {
-    const t = { id: ++this.toastId, key, params, icon: opts.icon ?? 'info', tone: opts.tone ?? 'info', pos: opts.pos ?? null, at: performance.now(), ttl: opts.ttl ?? 5000 };
-    this.toasts.push(t);
-    if (this.toasts.length > 5) this.toasts.shift();
+    const now = performance.now();
+    const t = addNotice(this.toasts, { id: ++this.toastId, key, params, icon: opts.icon ?? 'info', tone: opts.tone ?? 'info', pos: opts.pos ?? null, at: now, ttl: opts.ttl ?? 5000, cat: opts.cat }, now);
     this.emitUi();
     return t.id;
   }
 
-  /** Dismiss a notice early. */
-  dismissToast(id) { this.toasts = this.toasts.filter((t) => t.id !== id); this.emitUi(); }
+  /**
+   * Close a notice early. Persistent notices (attack, fire, hero) then stay away until their cause ends
+   * or a new one is added (new attack place, another burning building).
+   */
+  dismissToast(id) {
+    if (typeof id === 'string') {
+      if (id.startsWith('attack-')) { const z = (this.alerts ?? []).find((a) => `attack-${a.id}` === id); if (z) z.muted = true; }
+      if (id === 'fire') for (const b of this.burning ?? []) this.mutedFires.add(b);
+      if (id === 'hero') for (const e of this.sim.entities.values()) if (e.kind === 'hero' && e.owner === this.player && e.down) this.mutedHeroes.add(e.id);
+    } else this.toasts = this.toasts.filter((t) => t.id !== id);
+    this.emitUi();
+  }
+
+  /**
+   * Persistent notices from the current state (not from individual events): attack places (until ALERT_MS after the
+   * last hit), burning buildings (merged), unconscious heroes (merged). Costs only the small lists,
+   * no scan over all entities; `heroes` comes from quickInfo().
+   * @param {{ id: number, down: boolean }[]} heroes
+   */
+  persistentNotices(heroes) {
+    const sim = this.sim, now = performance.now();
+    this.alerts = activeAlerts(this.alerts, now);
+    const out = attackNotices(this.alerts);
+    const down = heroes.filter((h) => h.down);
+    for (const id of this.mutedHeroes) if (!down.some((h) => h.id === id)) this.mutedHeroes.delete(id);
+    const showHeroes = down.filter((h) => !this.mutedHeroes.has(h.id));
+    if (showHeroes.length) {
+      const e = sim.entities.get(showHeroes[0].id);
+      out.push({ id: 'hero', key: showHeroes.length > 1 ? 'toast.heroesDown' : 'toast.heroDown', params: { n: showHeroes.length }, icon: 'skull', tone: 'bad', pos: this.entityPos(e), at: 0, ttl: Infinity, cat: 'alarm', count: 1, many: null, sticky: true });
+    }
+    if (!this.burning) {
+      this.burning = new Set();
+      for (const e of sim.entities.values()) if (e.kind === 'building' && e.owner === this.player && e.burning) this.burning.add(e.id);
+    }
+    const fires = [];
+    for (const id of this.burning) {
+      const b = sim.entities.get(id);
+      if (!b || !b.burning || b.owner !== this.player) { this.burning.delete(id); this.mutedFires.delete(id); } else fires.push(b);
+    }
+    if (fires.some((b) => !this.mutedFires.has(b.id))) {
+      const b = fires[fires.length - 1]; // most recently caught fire: jump there
+      out.push({
+        id: 'fire', key: fires.length > 1 ? 'toast.buildingsBurning' : 'toast.buildingBurning', params: { building: b.type, level: b.level, n: fires.length },
+        icon: 'fire', tone: 'bad', pos: this.entityPos(b), at: 0, ttl: Infinity, cat: 'fire', count: 1, many: null, sticky: true,
+      });
+    }
+    return out;
+  }
 
   /** Tile centre of an entity (for click-to-jump). */
   entityPos(e) {
@@ -323,7 +384,8 @@ export class Engine {
     for (const ev of events) {
       if (ev.type === 'weather' && !machine) this.toast('toast.weather', { weather: ev.state }, { icon: `weather-${ev.state}` });
       if (ev.type === 'buildingDestroyed' && ev.owner === me) this.toast('toast.buildingDestroyed', { building: ev.buildingType }, { icon: 'demolish', tone: 'bad', pos: this.lastPos?.get(ev.building) ?? null });
-      if (ev.type === 'killed' && ev.kind === 'hero' && ev.owner === me) this.toast('toast.heroDown', null, { icon: 'skull', tone: 'bad', pos: this.entityPos(sim.entities.get(ev.id)) });
+      // hero unconscious: persistent notice (persistentNotices) while he lies down
+      if (ev.type === 'killed' && ev.kind === 'hero' && ev.owner === me) this.emitUi();
       if (ev.type === 'victory' || (ev.type === 'defeated' && ev.player === me)) this.emitUi();
       if (ev.type === 'missionWon' || ev.type === 'missionLost') { this.paused = true; this.emitUi(); }
       if (ev.type === 'dialog' || ev.type === 'tutorialStep' || ev.type === 'objective') this.emitUi();
@@ -345,10 +407,9 @@ export class Engine {
         if (b) this.toast('toast.buildingResearchDone', { tech: ev.tech, building: b.type, level: b.level }, { icon: `b-${b.type}`, tone: 'good', pos: this.entityPos(b) });
         else this.toast('toast.researchDone', { tech: ev.tech }, { icon: 'research', tone: 'good' });
       }
-      if (ev.type === 'buildingBurning') {
-        const b = sim.entities.get(ev.building);
-        if (b) this.toast('toast.buildingBurning', { building: b.type, level: b.level }, { icon: 'fire', tone: 'bad', pos: this.entityPos(b), ttl: 8000 });
-      }
+      // fire: persistent notice (persistentNotices) while the building burns; a new fire shows it again
+      if (ev.type === 'buildingBurning') { (this.burning ??= new Set()).delete(ev.building); this.burning.add(ev.building); this.mutedFires.delete(ev.building); this.emitUi(); }
+      if (ev.type === 'buildingExtinguished') this.burning?.delete(ev.building);
       if (ev.type === 'repaired') {
         const b = sim.entities.get(ev.building);
         if (b) this.toast('toast.repaired', { building: b.type, level: b.level }, { icon: 'repair', tone: 'good', pos: this.entityPos(b), ttl: 3500 });
@@ -382,23 +443,23 @@ export class Engine {
     }
   }
 
-  /** “Attack on …!” – own buildings, workers or troops are hit by enemies (throttled per region). */
+  /**
+   * "Angriff auf …!" – own buildings, workers or squads are hit by enemies. The place (alerts.js) carries the
+   * minimap pulse and persistent notice until no hit has come for ALERT_MS; the alarm bell is throttled per region.
+   */
   attackToast(ev) {
     const t = this.sim.entities.get(ev.target), a = this.sim.entities.get(ev.by);
     if (!t || t.owner !== this.player || !a || a.owner === this.player || this.sim.allied(a.owner, this.player)) return;
     const pos = this.entityPos(t);
     if (!pos) return;
     const now = performance.now();
-    // Minimap: red pulse at the spot as long as hits keep coming there
-    this.alerts = noteAlert(this.alerts, pos, now);
+    const fresh = !activeAlerts(this.alerts, now).length;
+    this.alerts = noteAlert(this.alerts, pos, now, attackInfo(t, pos));
+    if (fresh) this.emitUi(); // show the first place immediately, afterwards the 200 ms tick suffices
     this.attackSeen ??= [];
     this.attackSeen = this.attackSeen.filter((s) => now - s.at < ATTACK_TOAST_MS);
     if (this.attackSeen.some((s) => Math.hypot(s.x - pos.x, s.y - pos.y) < 18)) return;
     this.attackSeen.push({ ...pos, at: now });
-    const what = t.kind === 'building' ? { key: 'toast.attackBuilding', params: { building: t.type, level: t.level } }
-      : t.kind === 'worker' || t.kind === 'unit' ? { key: 'toast.attackSettlers', params: null }
-        : { key: 'toast.attackTroops', params: null };
-    this.toast(what.key, what.params, { icon: 'attack', tone: 'bad', pos, ttl: 7000 });
     try { this.audio?.alarm(t); } catch { /* audio is a side issue */ }
   }
 
@@ -1225,6 +1286,15 @@ export class Engine {
     this.onUi(this.uiState());
   }
 
+  /**
+   * Sex of a figure as it is drawn (variant in the figure manifest, src/render/variants.js) –
+   * for title and portrait of the selection. Rendering only, the simulation knows no sex.
+   * @returns {'m'|'f'}
+   */
+  sexOf(e) {
+    return figureSex(characterManifest(), figureRole(e, this.sim.players, UNITS), e.id);
+  }
+
   /** Newly selected figures speak up (bark, see GameAudio.bark). */
   noticeSelection() {
     const prev = this.prevSelected ?? new Set();
@@ -1243,7 +1313,8 @@ export class Engine {
     const res = {}, stock = {}, raw = {};
     for (const r of RESOURCES) { res[r] = pl.stock[r] + pl.raw[r]; stock[r] = pl.stock[r]; raw[r] = pl.raw[r]; }
     const now = performance.now();
-    this.toasts = this.toasts.filter((t) => now - t.at < t.ttl);
+    expireNotices(this.toasts, now);
+    const quick = this.quickInfo();
     const serfs = this.ownSerfIds();
     const army = this.ownArmyIds().map((id) => sim.entities.get(id));
     let selection = null;
@@ -1285,15 +1356,16 @@ export class Engine {
         groups: [...groups.values()], attackMode: !!this.attackMode,
       };
     } else if (serfs.length) {
-      let idle = 0, wood = 0, mining = 0, building = 0;
+      let idle = 0, wood = 0, mining = 0, building = 0, female = 0;
       for (const id of serfs) {
+        if (this.sexOf(sim.entities.get(id)) === 'f') female++;
         const j = sim.entities.get(id).job;
         if (!j) idle++;
         else if (j.kind === 'build') building++;
         else if (sim.entities.get(j.target)?.kind === 'tree') wood++;
         else mining++;
       }
-      selection = { kind: 'serfs', count: serfs.length, idle, jobs: { wood, mining, building } };
+      selection = { kind: 'serfs', count: serfs.length, female, sex: female === serfs.length ? 'f' : female ? null : 'm', idle, jobs: { wood, mining, building } };
     } else if (this.selected.size === 1) {
       const e = sim.entities.get([...this.selected][0]);
       if (e?.kind === 'building') {
@@ -1342,7 +1414,7 @@ export class Engine {
         };
       } else if (e) {
         const kind = e.kind === 'leader' ? 'leader' : e.kind;
-        selection = { kind: 'foreign', entity: kind, owner: e.owner ?? -1, relation: relationOf(sim, this.player, e.owner ?? -1), unit: e.def ?? null, hero: e.hero ?? null, prof: e.prof ?? null, type: e.kind === 'ruin' ? e.type : null, level: e.kind === 'ruin' ? e.level : null };
+        selection = { kind: 'foreign', entity: kind, owner: e.owner ?? -1, relation: relationOf(sim, this.player, e.owner ?? -1), unit: e.def ?? null, hero: e.hero ?? null, prof: e.prof ?? null, sex: FIGURE_KINDS.has(e.kind) ? this.sexOf(e) : null, figure: e.kind === 'soldier' ? figureLook(figureRole(e, sim.players, UNITS)) : null, type: e.kind === 'ruin' ? e.type : null, level: e.kind === 'ruin' ? e.level : null };
       }
     }
     const buildOptions = serfs.length ? BUILD_MENU.filter((type) => BUILDINGS[type]).map((type) => {
@@ -1374,10 +1446,11 @@ export class Engine {
       speed: this.speed,
       paused: this.paused,
       selection,
-      ...this.quickInfo(),
+      ...quick,
       buildOptions,
       placing: this.placing ? { type: this.placing.type, valid: this.placing.valid, reason: this.placing.reason, hasPos: this.placing.hasPos, level: this.placing.slope?.state ?? null } : null,
-      toasts: this.toasts.map((t) => ({ id: t.id, key: t.key, params: t.params, icon: t.icon, tone: t.tone, pos: t.pos })),
+      toasts: pickVisible(this.toasts, this.persistentNotices(quick.heroes), this.touch ? MAX_TOASTS_TOUCH : MAX_TOASTS)
+        .map((t) => ({ id: t.id, key: t.key, params: t.params, icon: t.icon, tone: t.tone, pos: t.pos, cat: t.cat, count: t.count, many: t.many, sticky: !!t.sticky })),
       touch: this.touch,
       weather: {
         state: sim.weather.state, in: Math.max(0, Math.ceil((sim.weather.until - sim.tick) / 10)), frac: Math.max(0, Math.min(1, (sim.weather.until - sim.tick) / wDur)), next: nextWeather,

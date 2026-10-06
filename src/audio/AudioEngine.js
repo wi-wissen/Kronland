@@ -47,6 +47,8 @@ export class AudioEngine {
     this.music = new Music(this);
     this.ambient = new Ambient(this);
     this.installed = false;
+    /** Counter of played effects per name (check aid for tests and debugging: window.__kronlandAudio.played) */
+    this.played = Object.create(null);
   }
 
   /** Register event listeners (once, from App.vue or GameAudio). */
@@ -92,7 +94,7 @@ export class AudioEngine {
       try {
         const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource();
         s.buffer = b; s.connect(ctx.destination); s.start(0);
-      } catch { /* never mind */ }
+      } catch { /* egal */ }
       this.unlocked = true;
       this.removeUnlock?.();
       // let further gestures resume it, in case the browser suspends the context again later
@@ -280,6 +282,7 @@ export class AudioEngine {
       def.play(ctx, g, t, this.rnd);
     }
     setTimeout(() => g.disconnect(), (t - now + dur + 1) * 1000);
+    this.played[name] = (this.played[name] ?? 0) + 1;
     return true;
   }
 

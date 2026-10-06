@@ -293,14 +293,19 @@ test('Campfire appears where houses are missing and goes out with house and farm
     const p = sim.findPlacement(e.player, 'stonemason', hq.x + 2, hq.y + 2, 30);
     sim.createBuilding(e.player, 'stonemason', p.x, p.y, true);
     e.focusPoint(p.x + 1, p.y + 1);
-    e.setSpeed(4);
+    // Fast-forward instead of real time: under software WebGL the game manages only a few ticks per second
+    // (fire after ~25 s of game time). The simulation needs the same number of ticks without graphics.
+    e.paused = true;
+    const lit = () => [...sim.entities.values()].some((x) => x.kind === 'camp' && x.owner === e.player);
+    for (let i = 0; i < 3000 && !lit(); i++) e.stepOnce();
+    e.paused = false;
   });
   const camp = () => page.evaluate(() => {
     const e = window.__kronland;
     const f = [...e.sim.entities.values()].find((x) => x.kind === 'camp' && x.owner === e.player);
     return f ? { id: f.id, drawn: !!e.renderer.camps?.get(f.id), mm: e.minimapDynamic().camps.length } : null;
   });
-  await expect.poll(camp, { timeout: 60_000 }).not.toBeNull();
+  await expect.poll(camp, SLOW).not.toBeNull();
   await expect.poll(async () => (await camp())?.drawn, SLOW).toBe(true);
   expect((await camp()).mm).toBe(1);
   await expect(page.getByTestId('toast').filter({ hasText: 'Lagerfeuer' })).toBeVisible(SLOW);
@@ -311,8 +316,13 @@ test('Campfire appears where houses are missing and goes out with house and farm
   await page.evaluate(() => {
     const e = window.__kronland, sim = e.sim, hq = sim.findBuilding(e.player, 'headquarters');
     for (const t of ['residence', 'farm']) { const p = sim.findPlacement(e.player, t, hq.x + 2, hq.y + 2, 30); sim.createBuilding(e.player, t, p.x, p.y, true); }
+    e.paused = true;
+    const lit = () => [...sim.entities.values()].some((x) => x.kind === 'camp' && x.owner === e.player);
+    for (let i = 0; i < 3000 && lit(); i++) e.stepOnce();
+    e.paused = false;
   });
-  await expect.poll(camp, { timeout: 60_000 }).toBeNull();
-  expect(await page.evaluate(() => window.__kronland.renderer.camps?.size ?? 0)).toBe(0);
+  await expect.poll(camp, SLOW).toBeNull();
+  // The rendering cleans up in the next frame
+  await expect.poll(() => page.evaluate(() => window.__kronland.renderer.camps?.size ?? 0), SLOW).toBe(0);
   expect(errors).toEqual([]);
 });

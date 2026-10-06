@@ -177,7 +177,7 @@ import BuildingPanel from './BuildingPanel.vue';
 import ArmyPanel from './ArmyPanel.vue';
 import SelectionCard from './SelectionCard.vue';
 import RelationTag from './RelationTag.vue';
-import { selectionIcon, selectionPortrait, foreignName } from './hudLayout.js';
+import { selectionIcon, selectionPortrait, foreignName, serfsTitle } from './hudLayout.js';
 import { siteRoot } from '../../paths.js';
 
 export default {
@@ -207,7 +207,7 @@ export default {
       const s = this.sel, p = this.ui.placing;
       if (p) return this.$t('build.place', { building: this.$name.building(p.type) });
       if (!s) return '';
-      if (s.kind === 'serfs') return this.compact ? (s.count === 1 ? this.$t('serfs.one') : this.$t('serfs.count', { n: s.count })) : this.$t('build.title');
+      if (s.kind === 'serfs') return this.compact ? serfsTitle(s, this.$t) : this.$t('build.title');
       if (s.kind === 'army') return s.heroes.length === 1 && !s.groups.length ? this.$name.hero(s.heroes[0].hero) : this.$t('army.title');
       if (s.kind === 'building') return this.$name.building(s.type, s.levelIndex);
       if (s.kind === 'foreign' && s.entity === 'ruin') return this.$t('sys.ruin');
@@ -217,7 +217,7 @@ export default {
       const s = this.sel;
       if (this.ui.placing || !s) return '';
       if (s.kind === 'building') return this.$t('common.levelOf', { n: s.level, max: s.maxLevel });
-      if (s.kind === 'serfs') return this.compact ? this.$t('serfs.idle', { n: s.idle }) : this.$t('serfs.count', { n: s.count }) + ' · ' + this.$t('serfs.idle', { n: s.idle });
+      if (s.kind === 'serfs') return this.compact ? this.$t('serfs.idle', { n: s.idle }) : serfsTitle(s, this.$t) + ' · ' + this.$t('serfs.idle', { n: s.idle });
       if (s.kind === 'army') return s.soldiers ? this.$t('army.soldiers', { n: s.soldiers }) : '';
       return '';
     },

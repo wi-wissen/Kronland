@@ -7,7 +7,7 @@
 import { composeSection, composeJingle, THEMES } from './composer.js';
 import { scheduleNotes } from './synth.js';
 import { pickFile, lookup } from './manifest.js';
-import { MUSIC_PAUSES } from './settings.js';
+import { MUSIC_PAUSES, BATTLE_MUSIC } from './settings.js';
 
 /** All music names in the manifest. */
 export const MUSIC_THEMES = /** @type {const} */ (['menu', 'build', 'winter', 'battle', 'victory', 'defeat']);
@@ -88,10 +88,11 @@ class SynthTrack {
     for (const g of [this.fader.gain, this.wet.gain]) { g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(v, t, tau); }
   }
 
-  stop() {
+  /** @param {number} [fadeOut] seconds until (almost) silent */
+  stop(fadeOut = FADE_OUT) {
     this.stopped = true;
-    this.fade(0, FADE_OUT / 4);
-    setTimeout(() => { this.fader.disconnect(); this.wet.disconnect(); }, (FADE_OUT + LOOKAHEAD + 3) * 1000);
+    this.fade(0, fadeOut / 4);
+    setTimeout(() => { this.fader.disconnect(); this.wet.disconnect(); }, (fadeOut + LOOKAHEAD + 3) * 1000);
   }
 }
 
@@ -162,11 +163,12 @@ export class FileTrack {
     g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(v, t, tau);
   }
 
-  stop() {
+  /** @param {number} [fadeOut] seconds until (almost) silent */
+  stop(fadeOut = FADE_OUT) {
     this.stopped = true;
-    this.fade(0, FADE_OUT / 4);
+    this.fade(0, fadeOut / 4);
     const src = this.src;
-    setTimeout(() => { try { src?.stop(); } catch { /* */ } this.fader.disconnect(); }, (FADE_OUT + 2) * 1000);
+    setTimeout(() => { try { src?.stop(); } catch { /* */ } this.fader.disconnect(); }, (fadeOut + 2) * 1000);
   }
 }
 
@@ -208,7 +210,8 @@ export class Music {
       this.track.retarget(theme, entry);
       return;
     }
-    this.track?.stop();
+    // combat over: slowly fade out the combat theme, the peace music fades in underneath
+    this.track?.stop(this.track.theme === 'battle' && PEACE_THEMES.has(theme) ? BATTLE_MUSIC.fadeOut : FADE_OUT);
     this.track = null;
     if (!theme) return;
     if (entry) {

@@ -40,7 +40,7 @@
 import SelectionStats from './SelectionStats.vue';
 import RelationTag from './RelationTag.vue';
 import { playerColor } from '../plugin.js';
-import { selectionIcon, selectionPortrait, foreignName } from './hudLayout.js';
+import { selectionIcon, selectionPortrait, foreignName, serfsTitle } from './hudLayout.js';
 import { siteRoot } from '../../paths.js';
 
 export default {
@@ -68,7 +68,7 @@ export default {
     title() {
       const s = this.sel;
       if (s.kind === 'building') return this.$name.building(s.type, s.levelIndex);
-      if (s.kind === 'serfs') return s.count === 1 ? this.$t('serfs.one') : this.$t('serfs.count', { n: s.count });
+      if (s.kind === 'serfs') return serfsTitle(s, this.$t);
       if (s.kind === 'army') return s.heroes.length === 1 && !s.groups.length ? this.$name.hero(s.heroes[0].hero) : this.$t('army.title');
       if (s.kind === 'foreign') return foreignName(s, this.$t, this.$name);
       return '';

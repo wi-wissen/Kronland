@@ -8,7 +8,7 @@ Arbeitstitel; Name, Grafiken und Texte sind eigene.
 
 ```bash
 npm install
-npm run dev     # Entwicklungsserver: Startseite /, Spiel /play/, Handbuch /manual/, Kompendium /compendium/
+npm run dev     # Entwicklungsserver: Startseite /, Spiel /play/, Handbuch /manual/, Kompendium /compendium/, Blog /blog/
 npm test        # Simulationstests (Vitest)
 npm run test:e2e  # Oberflächentests Desktop + Handy (Playwright); anderer Port: E2E_PORT=4204 npm run test:e2e
 npm run build   # Produktionsbuild nach dist/ (statische Website, alle Pfade relativ)
@@ -22,6 +22,7 @@ npm run build   # Produktionsbuild nach dist/ (statische Website, alle Pfade rel
 | `play/` | das Spiel (URL-Parameter wie unten, z. B. `play/?seed=42`; PWA mit Start `play/`) |
 | `manual/` | Handbuch DE/EN mit Inhaltsverzeichnis, Suche, Druckansicht (Markdown in `src/site/manual/`) |
 | `compendium/` | Kompendium: alle Werte und Formeln mit Seitenleiste, Suche, Deep-Links – alle Tabellen aus `src/sim/data/` erzeugt, neue Inhalte erscheinen automatisch |
+| `blog/` | Blog: wie Kronland entstanden ist, im Rückblick – ein Artikel je Meilenstein (DE/EN, Markdown in `src/site/blog/posts/`), Meilensteine (je ein Commit auf `main`) in [docs/MEILENSTEINE.md](docs/MEILENSTEINE.md) |
 
 Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](docs/WEBSITE.md). Laden und Caching (Inhalts-Hash, Datenmengen): [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
@@ -64,6 +65,10 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   Details: [Missionen](docs/MISSIONEN.md#sonderkarten).
 - **Freies Spiel**: Im Startmenü Gegnerzahl (1–3), Stärke, Held (Nelia, Orrin, Taran oder Malvor), Nebel des Krieges an/aus und Karte wählen.
 - Direktstart per Adresse: `play/?seed=42&ai=hard&players=3&hero=orrin` (ohne Nebel: `&fog=off`)
+- **Links teilen**: Beim Spielstart steht der Start-Link der Karte in der Adresszeile; im Spielmenü (Pause) zeigen
+  „Karte: 62921“ und „Link kopieren“ (Handy: „Link teilen“) ihn an. Der Link startet die Karte **von vorn** mit
+  denselben Einstellungen (bzw. `?mission=<id>`), nicht den aktuellen Spielstand; geladene Spielstände haben keinen
+  Link. Parameter: [Architektur](docs/ARCHITEKTUR.md#url-parameter).
 - **Brücken und Zierden** nach Vorbild der Siedler-5-Erweiterungen, fest im Spiel: Brücken an Brückenstellen über
   Flüsse (Mathematik), Brunnen und Denkmal für mehr Motivation. Die KI baut sie auch. Details:
   [Erweiterung](docs/ADDON.md), [Spielregeln §13](docs/SPIELREGELN.md#13-brücken-und-zierden).
@@ -83,6 +88,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
 - **Nahkampf im Kreis**: Schwertkämpfer, Speerträger und Ritter umzingeln ihr Ziel auf eigenen Plätzen statt
   auf einem Punkt zu stehen; Figuren am selben Fleck werden leicht versetzt gezeichnet
   ([Spielregeln §8](docs/SPIELREGELN.md#8-militär), [Architektur](docs/ARCHITEKTUR.md#darstellung-srcrender)).
+- **Ruhende Figuren im Kreis**: Rastende sitzen rund ums Lagerfeuer, wartende Arbeiter stehen im Bogen vor ihrem
+  Gebäude, Holzfäller rund um den Stamm – jeder auf einem eigenen Punkt, mit Blick zum Ziel
+  ([Spielregeln §3](docs/SPIELREGELN.md#3-leibeigene), [§4](docs/SPIELREGELN.md#4-arbeiter-motivation-steuern)).
 - Kamera wie ein Kartenprogramm: Ziehen (mittlere Maustaste, ein Finger) greift den Boden, Mausrad und
   Zwei-Finger-Zoom zoomen zum Zeiger bzw. zur Fingermitte, nichts gleitet oder wippt nach.
 - Nahzoom bis dicht an Figuren und Gebäude; ganz nah wird der Blick flacher, Figuren und Gebäude bleiben in
@@ -116,7 +124,8 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
   als eckige Knöpfe ohne Namen (Burg, Untätige mit Zahl, Alle Leibeigenen, Truppen), darüber die Heldenporträts übereinander (Klick wählt den Helden und holt ihn ins Bild; bewusstlos: grau mit Restzeit bis zum Aufwachen) und die
   **Steuergruppen** (Umschalt+1–9 merkt die Auswahl, 1–9 ruft sie ab, zweimal holt sie ins Bild; am Handy über
   „Als Gruppe merken“),
-  Befehlstafel nur bei Auswahl und Porträt der Auswahl. Das Baumenü zeigt alle Gruppen ohne Reiter.
+  Befehlstafel nur bei Auswahl und Porträt der Auswahl (Titel und Porträt passend zur gezeichneten Figur: „1 Leibeigene“,
+  „Schmiedin“ …, siehe docs/MODELLE.md#varianten-und-geschlecht). Das Baumenü zeigt alle Gruppen ohne Reiter.
   Nichts überlappt: bei weniger Breite brechen Leisten um, Karte und Kacheln werden kleiner, am Handy wird die
   Tafel zur Schublade. Große Rohstoffmengen erscheinen ab 10 000 gekürzt („50k“, genauer Wert im Tooltip); reicht der
   Platz trotzdem nicht, wird die Rohstoffleiste zweizeilig, das Wappen bleibt in der Zeile. Am Handy: unten rechts nur
@@ -125,6 +134,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](
 - **Angriffswarnung**: Sturmglocke, Hilferuf der Getroffenen (vertont) und roter Puls an der Stelle auf der Minikarte
   (am Handy pulsiert der Kartenknopf), auch bei Fernangriffen; fremde Figuren und Gebäude nennen ihre Diplomatie (Feind,
   neutral, verbündet). Angegriffene Leibeigene fliehen; gewählte Leibeigene greifen einen angeklickten Gegner an (wie beim Holzhacken).
+- **Meldungen mit Kategorien**: Angriff, Brand und bewusstloser Held stehen als Dauerwarnung, solange der Anlass anhält;
+  gleiche Meldungen werden gebündelt („12 Beförderungen“), jede Kategorie behält einen Platz; Sprung per Klick, × schließt
+  ([Architektur](docs/ARCHITEKTUR.md#sprache-und-oberfläche)).
 - **Lagerfeuer zeigen Wohnungsnot**: Arbeiter ohne Bett oder Essplatz entzünden nahe ihrer Werkstatt ein Lagerfeuer
   (auch auf der Minikarte), das wieder ausgeht, sobald dort alle untergebracht sind ([Spielregeln §4](docs/SPIELREGELN.md#4-arbeiter-motivation-steuern)).
 - Jedes Symbol ist erklärt: Maus darüber (Desktop) oder **lang drücken** (Handy) zeigt Name, Kosten und Erklärung,
@@ -164,7 +176,7 @@ scripts/build-assets.sh <Pfad Hexagon-Paket>
 ```
 
 Das Skript optimiert die Modelle und erzeugt die Detailstufen `*.lod1.glb`, `*.lod2.glb` (`scripts/build-lods.mjs`).
-Bäume und Büsche sind eigene Meshy-Modelle (`public/models/buildings/tree_*.glb`, `busch*.glb`, mit Winterfassung,
+Bäume und Büsche sind eigene Meshy-Modelle (`public/models/buildings/tree_*.glb`, `bush*.glb`, mit Winterfassung,
 siehe [docs/MODELLE.md](docs/MODELLE.md#bäume-und-büsche)).
 Zuordnung Gebäudetyp → Modell: `src/render/assets.js`; Figuren: `public/models/characters/manifest.json`.
 Eigene Figuren erzeugen (Konzeptbild → Meshy → Nachbearbeitung, `scripts/asset-gen/`) und einbauen:

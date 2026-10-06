@@ -15,7 +15,7 @@
 // Pure helper functions (role resolution, clip fallback, frame computation, masks) are testable without WebGL.
 
 import * as THREE from 'three';
-import { pickVariant } from './variants.js';
+import { pickVariant, roleVariants } from './variants.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LodState, sphereVisible, lodSettings, screenHeightPx, pixelMetric } from './lod.js';
 import { assetUrl } from '../paths.js';
@@ -95,9 +95,8 @@ export function variantRole(role, pick, available = () => true) {
   return { ...role, ...v, weight: undefined };
 }
 
-export { pickVariant };
+export { pickVariant, roleVariants };
 
-/** Variants list of the role that a key resolves to (or null). */
 /** Placeholder whose model has been loaded in the meantime (also in attachments such as the crew)? */
 export function variantStale(v) {
   if (!v) return false;
@@ -106,24 +105,6 @@ export function variantStale(v) {
   if (v.nearPending && store.models.get(v.nearPending)?.gltf) return true;
   if (v.pendingCheck?.()) return true;
   return (v.attach ?? []).some((a) => variantStale(a.variant));
-}
-
-export function roleVariants(manifest, key) {
-  const roles = manifest?.roles ?? {};
-  const seen = new Set();
-  let k = key;
-  while (k && !seen.has(k)) {
-    seen.add(k);
-    const role = roles[k];
-    if (role) {
-      if (role.variants?.length) return role.variants;
-      if (role.model || (role.procedural && !role.fallback)) return null;
-      if (role.fallback) { k = role.fallback; continue; }
-    }
-    const dot = k.lastIndexOf('.');
-    k = dot > 0 ? k.slice(0, dot) : null;
-  }
-  return null;
 }
 
 /**

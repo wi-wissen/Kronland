@@ -3,13 +3,16 @@ import vue from '@vitejs/plugin-vue';
 import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'node:path';
 import hashedAssets from './scripts/vite-hashed-assets.js';
+import blogPages from './scripts/vite-blog-pages.js';
 
-// Website made of several pages (Vite multi-page): home, game, manual, compendium. All paths relative (base './').
+// Website made of several pages (Vite multi-page): home, game, manual, compendium, blog. All paths relative (base './').
 const PAGES = {
   main: 'index.html',
   play: 'play/index.html',
   manual: 'manual/index.html',
   compendium: 'compendium/index.html',
+  // Blog: overview; the article pages blog/<name>/ are written by scripts/vite-blog-pages.js
+  blog: 'blog/index.html',
 };
 
 /**
@@ -93,6 +96,7 @@ export default defineConfig({
       },
     }),
     pagePaths(),
+    blogPages(),
   ],
   build: {
     rollupOptions: {

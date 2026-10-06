@@ -25,6 +25,15 @@ PORTRAITS = {
     'sp-bandit': ('bandit', 5, 0.45, 0.55), 'sp-miner': ('worker_miner', 30, 0.6, 0.85),
     'sp-scholar': ('worker_scholar_f', 205, 0.25, 0.7), 'sp-prisoner': ('serf_m', 30, 0.4, 0.75),
 }
+# Selection portraits of own characters per gender (src/render/variants.js figureSex, hudLayout.selectionPortrait):
+# Magenta becomes player blue. Serfs: serf / serf-f, workers per profession: worker-<profession> / worker-<profession>-f.
+PLAYER_BLUE = (218, 0.85, 1)
+PROFESSIONS = ['farmer', 'scholar', 'miner', 'brickmaker', 'sawyer', 'mason', 'smith', 'alchemist', 'treasurer', 'priest',
+               'trader', 'weatherman']
+PORTRAITS.update({'serf': ('serf_m', *PLAYER_BLUE), 'serf-f': ('serf_f', *PLAYER_BLUE)})
+for _p in PROFESSIONS:
+    PORTRAITS[f'worker-{_p}'] = (f'worker_{_p}', *PLAYER_BLUE)
+    PORTRAITS[f'worker-{_p}-f'] = (f'worker_{_p}_f', *PLAYER_BLUE)
 CREAM = np.array([241, 236, 228]) / 255
 
 
@@ -66,7 +75,10 @@ def portrait(figure, hue, sat=1.0, val=1.0, size=256):
     height = bot - top
     band = fg[top:top + int(height * 0.2)]
     bx = np.where(band.any(0))[0]
-    cx = (bx.min() + bx.max()) // 2
+    # Head = connected column range with the most pixels (tools next to it, e.g. a weather vane, do not count)
+    runs = np.split(bx, np.where(np.diff(bx) > 1)[0] + 1)
+    run = max(runs, key=lambda r: band[:, r].sum())
+    cx = (run.min() + run.max()) // 2
     o = recolor_magenta(a, hue, sat, val)
     soft = np.array(Image.fromarray((bgm * 255).astype('uint8')).filter(ImageFilter.GaussianBlur(1.5))).astype(float)[..., None] / 255
     o = o * (1 - soft) + CREAM * soft
@@ -101,6 +113,8 @@ def building_icon(folder, size=128):
 
 if __name__ == '__main__':
     import sys
+    if not (ROOT / 'assets-src').exists():
+        sys.exit('Missing assets-src/: the raw files of the asset pipeline (assets-src/) are not part of the repository, they are kept locally by the maintainer. See docs/ROHDATEIEN.md.')
     only = set(sys.argv[1:])  # e.g. hero-nelia: only these portraits/icons
     out = ROOT / 'public/portraits'
     for name, (figure, *tone) in PORTRAITS.items():

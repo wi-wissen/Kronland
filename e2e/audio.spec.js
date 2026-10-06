@@ -67,6 +67,7 @@ test('In game: build music, ambience, spatial sounds, events', async ({ page }) 
     const e = window.__kronland, l = window.__kronlandAudio.listener;
     e.audio.onEvents([{ type: 'payday', player: 0 }, { type: 'rejected', player: 0, reason: 'x' }, { type: 'weather', state: 'winter' }], e.prev);
     for (let i = 0; i < 40; i++) e.audio.battle.add({ x: l.x, z: l.z }, 1);
+    e.audio.battle.combat(performance.now() / 1000); // the player takes part in the fight
   });
   await page.waitForFunction(() => window.__kronlandAudio.music.want === 'battle');
   expect(await page.evaluate(() => window.__kronlandAudio.ambient.weather)).toBe('winter');
@@ -198,5 +199,97 @@ test('Bundled music: build as file, winter, music pauses setting', async ({ page
   await page.evaluate(() => { const e = window.__kronland; e.audio.onEvents([{ type: 'weather', state: 'winter' }], e.prev); });
   await page.waitForFunction(() => window.__kronlandAudio.music.want === 'winter' && window.__kronlandAudio.music.track?.theme === 'winter');
   expect(await page.evaluate(() => window.__kronlandAudio.music.track.kind)).toBe('file');
+  expect(errors).toEqual([]);
+});
+
+test('Combat: alarm call "Eure Truppen sind im Kampf!" is spoken, then the combat music ends', async ({ page }, info) => {
+  test.setTimeout(150_000);
+  if (info.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 900 });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => localStorage.setItem('kronland-lang', 'de'));
+  await page.goto(playUrl('?seed=42&no-models&fog=off'));
+  await page.waitForFunction(() => !!window.__kronland?.audio);
+  await quick(page, 'hq');
+  await page.waitForFunction(() => window.__kronlandAudio.ctx?.state === 'running');
+  // Own sword squad and a (tough) enemy one side by side on open ground, camera on them
+  await page.evaluate(() => {
+    const e = window.__kronland, s = e.sim, m = s.map, hq = s.findBuilding(0, 'headquarters');
+    let f = null;
+    for (let r = 4; r < 30 && !f; r++) for (let dx = -r; dx <= r && !f; dx++) {
+      const x = hq.x + dx, y = hq.y + hq.h + r;
+      let ok = true;
+      for (let j = -3; j <= 3 && ok; j++) for (let i = -3; i <= 8 && ok; i++) if (!m.walkable(x + i, y + j)) ok = false;
+      if (ok) f = { x, y };
+    }
+    s.spawnLeader(0, 'sword4', f.x, f.y);
+    const C = s.spawnLeader(1, 'sword4', f.x + 3, f.y);
+    for (const id of C.soldiers) s.entities.get(id).hp *= 20;
+    C.hp *= 20;
+    window.__foe = [C.id, ...C.soldiers];
+    e.clearSelection();
+    const rig = e.renderer.rig;
+    rig.lookAt(f.x + 1.5, f.y); rig.dist = 18; rig.update(0);
+  });
+  // Notice appears and the alarm call (recording) is played
+  await expect(page.getByTestId('toasts')).toContainText('Eure Truppen sind im Kampf!', { timeout: 30_000 });
+  await page.waitForFunction(() => window.__kronland.audio.announced.some((a) => (a.kind === 'leader' || a.kind === 'soldier') && a.played), null, { timeout: 30_000 });
+  const said = await page.evaluate(() => window.__kronland.audio.announced.find((a) => a.played));
+  expect(said.url).toMatch(/audio\/voice\/de\//);
+  await page.waitForFunction(() => window.__kronlandAudio.music.want === 'battle', null, { timeout: 30_000 });
+  await page.screenshot({ path: info.outputPath(`combat-${info.project.name}.png`) });
+
+  // Combat over (enemy gone): back to build music after the grace period (+ minimum duration) at the latest
+  const grace = await page.evaluate(() => {
+    const e = window.__kronland;
+    for (const id of window.__foe) e.sim.entities.delete(id);
+    return e.audio.battle.grace;
+  });
+  await page.waitForFunction(() => window.__kronlandAudio.music.want === 'build', null, { timeout: 40_000 });
+  const r = await page.evaluate(() => {
+    const e = window.__kronland, b = e.audio.battle;
+    return { quiet: performance.now() / 1000 - b.lastCombat, held: performance.now() / 1000 - b.since, track: window.__kronlandAudio.music.track?.theme };
+  });
+  // Under software graphics frames stutter: some leeway above the grace period
+  expect(r.quiet).toBeGreaterThanOrEqual(grace - 0.5);
+  expect(r.quiet).toBeLessThan(grace + 4);
+  expect(r.track).toBe('build');
+  expect(errors).toEqual([]);
+});
+
+test('Showcase: many workers moving in do not ring constantly (notice sounds throttled)', async ({ page }) => {
+  test.setTimeout(240_000);
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(playUrl('?mission=showcase&no-models'));
+  await page.waitForFunction(() => !!window.__kronland && window.__kronland.renderer.frameNo > 2, null, { timeout: 180_000 });
+  await page.mouse.click(5, 5);
+  await page.waitForFunction(() => window.__kronlandAudio.ctx?.state === 'running');
+  // Count simulation arrivals; the engine counts played sounds itself (AudioEngine.played)
+  await page.evaluate(() => {
+    const e = window.__kronland, ga = e.audio, a = window.__kronlandAudio, orig = ga.onEvents.bind(ga);
+    window.__arrived = 0;
+    window.__played0 = a.played.workerArrived ?? 0;
+    window.__t0 = a.ctx.currentTime;
+    ga.onEvents = (evs, prev) => { window.__arrived += evs.filter((v) => v.type === 'workerArrived' && v.player === e.player).length; return orig(evs, prev); };
+    e.setSpeed(8);
+  });
+  await page.waitForTimeout(15_000);
+  // Burst like on the showcase: 40 arrivals in 4 s (fed in by hand, independent of the compute speed)
+  await page.evaluate(async () => {
+    const e = window.__kronland;
+    for (let i = 0; i < 40; i++) {
+      e.audio.onEvents([{ type: 'workerArrived', player: e.player, worker: 0, prof: 'farmer', workplace: 0 }], e.prev);
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  });
+  const st = await page.evaluate(() => {
+    const a = window.__kronlandAudio;
+    return { arrived: window.__arrived, played: (a.played.workerArrived ?? 0) - window.__played0, secs: a.ctx.currentTime - window.__t0 };
+  });
+  console.log('Showcase arrival:', JSON.stringify(st));
+  // at most one sound per quiet period (8 s), no matter how many workers move in
+  expect(st.played).toBeGreaterThanOrEqual(1);
+  expect(st.played).toBeLessThanOrEqual(Math.ceil(st.secs / 8) + 1);
   expect(errors).toEqual([]);
 });

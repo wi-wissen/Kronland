@@ -9,10 +9,11 @@ import { getAudio } from './AudioEngine.js';
 import { audibleRadius, viewRadius, zoomGain, spatialize } from './spatial.js';
 import { StrikeGate, strikeIn, strikePhase, CLIP_SOUND, STRIKE_PERIOD } from './workbeat.js';
 import { BattleMeter } from './battle.js';
-import { BarkGate, barkRole, alarmRole, chooseBark, BARKS, ALARM_REST } from './barks.js';
+import { BarkGate, barkRole, alarmRole, alarmVoices, chooseBark, BARKS, ALARM_REST, ALARM_DELAY, ALARM_WAIT } from './barks.js';
 import { voiceFile } from './voiceLines.js';
+import { NotifyGate } from './notify.js';
 import { speaking } from './speech.js';
-import { pickVariant } from '../render/variants.js';
+import { figureRole, figureVariant, figureSex } from '../render/variants.js';
 import { characterManifest } from '../render/characters.js';
 import { UNITS } from '../sim/data/units.js';
 import { currentLang } from '../i18n/index.js';
@@ -63,7 +64,17 @@ export class GameAudio {
     this.audio.ambient.setWeather(engine.sim.weather?.state ?? 'summer');
     this.audio.music.setTheme(musicTheme('build', this.audio.ambient.weather));
     this.ended = false;
+    /** spoken notices (alarm calls) for checking in tests: { toast, role, voice, url, played } */
+    this.announced = [];
+    /** quiet periods for notice sounds from mass events (arrival, promotion) */
+    this.notify = new NotifyGate();
   }
+
+  /** Clock for combat music and alarm calls (seconds, real time). */
+  now() { return performance.now() / 1000; }
+
+  /** Is a player (or a figure with this number) the player's own? */
+  mine(owner) { return owner !== undefined && owner === this.player; }
 
   get player() { return this.engine.player; }
 
@@ -108,7 +119,12 @@ export class GameAudio {
   /** Events of one tick. @param {any[]} events @param {Map<number,{px:number,py:number}>} prev */
   onEvents(events, prev) {
     const a = this.audio, me = this.player, sim = this.engine.sim;
+    const ownerOf = (id) => sim.entities.get(id)?.owner ?? prev?.get(id)?.owner;
+    const now = a.ctx?.currentTime ?? 0;
     for (const ev of events) {
+      // combat involving the player keeps the combat music (battle.js); otherwise it ends after the grace period
+      if ((ev.type === 'hit' || ev.type === 'shot') && (this.mine(ev.owner ?? ownerOf(ev.by)) || this.mine(ownerOf(ev.target)))) this.battle.combat(this.now());
+      else if (ev.type === 'killed' && MORTAL.has(ev.kind) && (ev.owner === me || ev.by === me)) this.battle.combat(this.now());
       const own = ev.player === me;
       switch (ev.type) {
         case 'buildingDone': if (own) a.play('buildingDone'); break;
@@ -116,7 +132,7 @@ export class GameAudio {
         case 'upgradeStarted': case 'lineUpgraded': if (own) a.play('upgrade'); break;
         case 'payday': if (own) a.play('coin'); break;
         case 'researchDone': if (own) a.play('research'); break;
-        case 'workerArrived': if (own) a.play('workerArrived'); break;
+        case 'workerArrived': if (own) this.notify.run('workerArrived', now, () => a.play('workerArrived')); break;
         case 'serfBought': if (own) a.play('serfBought'); break;
         case 'recruited': if (own) a.play('recruited'); break;
         case 'blessed': if (own) a.play('blessing'); break;
@@ -172,7 +188,7 @@ export class GameAudio {
         case 'tradeStarted': if (own) a.play('coin', { gain: 0.6 }); break;
         case 'tradeDone': if (own) a.play('coin'); break;
         case 'weatherChanged': a.play('thunder', { gain: own ? 1 : 0.6 }); break;
-        case 'promoted': if (own) this.at('upgrade', this.posOf(ev.leader, prev), { important: true }); break;
+        case 'promoted': if (own) this.notify.run('promoted', now, () => this.at('upgrade', this.posOf(ev.leader, prev), { important: true })); break;
         case 'victory': {
           const won = sim.players[me]?.team === ev.team;
           this.end(won ? 'victory' : 'defeat');
@@ -278,13 +294,14 @@ export class GameAudio {
     // while a dialogue speaks, music and ambience step back
     const talk = speaking();
     if (talk !== !!this.audio.ducked) this.audio.duck(talk);
-    this.battle.decay(dt);
+    const now = this.now();
+    this.battle.decay(dt, now);
     this.sceneTimer -= dt;
     if (this.sceneTimer > 0) return;
     this.sceneTimer = 0.25;
     const intensity = this.battle.intensity(l);
     if (!this.ended) {
-      const mode = this.battle.theme(intensity, performance.now() / 1000);
+      const mode = this.battle.theme(intensity, now);
       this.audio.music.setTheme(musicTheme(mode, this.audio.ambient.weather));
     }
     const land = this.landscape(l);
@@ -294,13 +311,20 @@ export class GameAudio {
 
   // ---------- Barks (voiced) ----------
 
-  /** Voice of a figure to match its look: variant or role in the figure manifest (field voice). */
+  /**
+   * Voice of a figure to match its look: variant or role in the figure manifest (field voice), otherwise by
+   * sex of the drawn figure (figureSex): serfs and workers serf/serfF, militia sword/soldierF.
+   */
   voiceOf(e, textRole) {
-    const roles = characterManifest()?.roles ?? {};
+    const manifest = characterManifest();
+    const roles = manifest?.roles ?? {};
     if (e.kind === 'hero') return e.hero;
-    if (e.kind === 'unit') {
-      const v = roles.serf?.variants;
-      return v?.length ? v[pickVariant(v, e.id)].voice ?? 'serf' : 'serf';
+    if (e.kind === 'unit' || e.kind === 'worker') {
+      const role = figureRole(e, [], UNITS);
+      const v = figureVariant(manifest, role, e.id)?.variant;
+      if (e.kind === 'unit' && !e.militia && v?.voice) return v.voice;
+      const f = figureSex(manifest, role, e.id) === 'f';
+      return e.militia ? (f ? 'soldierF' : 'sword') : f ? 'serfF' : 'serf';
     }
     const line = UNITS[e.def]?.line;
     return roles[`soldier.${line}.leader`]?.voice ?? roles[`soldier.${line}`]?.voice ?? DEFAULT_VOICE[textRole] ?? 'sword';
@@ -330,31 +354,60 @@ export class GameAudio {
 
   /**
    * Something of the player's own is attacked (Engine.attackToast, already throttled per region): alarm bell and an alarm call
-   * of the hit figure (for buildings and workers a serf calls). Independent of the setting
-   * "Sprüche der Figuren" – it is a notice –, but at most every ALARM_REST seconds and never over a
-   * running dialogue or bark.
+   * of the figure hit (for buildings and workers a serf calls, soldiers call like their captain).
+   * Independent of the setting "Sprüche der Figuren" – it is a notice –, but at most every ALARM_REST
+   * seconds and never over a running dialogue or bark: if a bark is still running, the call waits for its end
+   * (at most ALARM_WAIT s); the quiet pause after barks does not apply to alarm calls.
    * @param {any} target own object hit
    */
   alarm(target) {
     if (!target) return;
-    const now = performance.now() / 1000;
+    const now = this.now();
     if (now < (this.alarmUntil ?? -Infinity)) return;
     this.alarmUntil = now + ALARM_REST;
     this.audio.play('alarm');
     const gate = (this.barks ??= new BarkGate());
-    if (speaking() || now < gate.busyUntil) return;
-    const role = alarmRole(target, UNITS[target.def]?.line, (u) => this.voiceOf(u));
-    const line = role && chooseBark(BARKS[role], 'alarm', this.audio.rnd, false, gate.lastLine.get(role + ':alarm'));
-    if (!line) return;
-    gate.lastLine.set(role + ':alarm', line);
-    const lang = currentLang();
-    const voice = target.kind === 'building' || target.kind === 'worker' ? 'serf' : this.voiceOf(target, role);
-    const url = voiceFile(voice, lang, line[lang] ?? line.de);
-    if (!url) return;
+    const pick = this.alarmLine(target);
+    const entry = { kind: target.kind, role: pick?.role ?? null, voice: pick?.voice ?? null, url: pick?.url ?? null, played: false, skipped: null };
+    this.announced.push(entry);
+    if (this.announced.length > 20) this.announced.shift();
+    if (!pick) { entry.skipped = 'noLine'; return; }
+    const wait = Math.max(ALARM_DELAY, (gate.playingUntil ?? -Infinity) - now + 0.3);
+    if (wait > ALARM_WAIT) { entry.skipped = 'busy'; return; }
+    gate.lastLine.set(pick.role + ':alarm', pick.line);
     const mode = this.audio.settings?.barks ?? 'rare';
-    gate.spoke(now, 4, mode);
-    // shortly after the bell, so both stay understandable
-    setTimeout(() => this.audio.playFile(url, { gain: 1 }).then((dur) => gate.spoke(now, (dur || 0) + 0.8, mode)), 800);
+    gate.spoke(now + wait, 3, mode); // provisional until the recording length is known
+    // shortly after the bell (or after the running bark), so both stay understandable
+    setTimeout(() => {
+      if (speaking()) { entry.skipped = 'dialog'; return; }
+      this.audio.playFile(pick.url, { gain: 1 }).then((dur) => {
+        entry.played = dur > 0;
+        if (!entry.played) entry.skipped = 'audio';
+        const at = this.now();
+        gate.spoke(at, dur || 0, mode);
+      });
+    }, wait * 1000);
+  }
+
+  /** Voice for alarm calls: militia call as a serf of their sex (serf/serfF), otherwise voiceOf. */
+  alarmVoiceOf(u) {
+    const v = this.voiceOf(u, alarmRole(u, UNITS[u.def]?.line));
+    return u.kind === 'unit' && u.militia ? (v === 'soldierF' || v === 'serfF' ? 'serfF' : 'serf') : v;
+  }
+
+  /**
+   * Alarm call with recording in the current language: first the figure hit, otherwise a substitute caller
+   * (alarmVoices). @returns {{ role: string, voice: string, line: {de:string,en:string}, url: string }|null}
+   */
+  alarmLine(target) {
+    const lang = currentLang();
+    const gate = (this.barks ??= new BarkGate());
+    for (const { role, voice } of alarmVoices(target, UNITS[target.def]?.line, (u) => this.alarmVoiceOf(u))) {
+      const set = BARKS[role]?.alarm?.filter((l) => voiceFile(voice, lang, l[lang] ?? l.de));
+      const line = set?.length ? chooseBark({ alarm: set }, 'alarm', this.audio.rnd, false, gate.lastLine.get(role + ':alarm')) : null;
+      if (line) return { role, voice, line, url: /** @type {string} */ (voiceFile(voice, lang, line[lang] ?? line.de)) };
+    }
+    return null;
   }
 
   /** Speaker of a selection: hero before captain before serf. */

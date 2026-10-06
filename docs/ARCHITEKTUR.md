@@ -107,7 +107,8 @@ Darstellungs-Versatz (`jitter.js`, nur Renderer): Die Simulation trennt Figuren 
 Leibeigene auf demselben Weg oder Soldaten im Gedränge stünden sonst genau übereinander. `Renderer.jitter()`
 verschiebt jede Figur um einen festen Versatz aus ihrer ID (Hash, Betrag 0,06–0,16 Kacheln). Ohne Versatz
 (genaue Lage): Helden (Zwischensequenzen, Skriptschritte), NPC, Fallen und Geschütze, Leibeigene bei der Arbeit
-(Auftrag, kein Weg mehr) und Arbeiter am Arbeitsplatz, im Haus und am Feuer. Der Wechsel wird weich überblendet
+(Auftrag, kein Weg mehr) und Arbeiter am Arbeitsplatz, im Haus, am Feuer und auf ihrem Kreisplatz vor einem
+Gebäude (genauer Punkt aus `src/sim/systems/spots.js`, Blick zur Gebäudemitte). Der Wechsel wird weich überblendet
 (Gewicht 0…1 je Figur, `JITTER_FADE` je Sekunde). Auswahlringe, Lebensbalken, Picking (`pickEntity`),
 Rahmenauswahl (`Engine.selectBox`), Treffer-Funken und die Blickrichtung zum Ziel lesen die gezeichnete Lage
 (`chars.records`), damit alles zusammenpasst. Der State-Hash bleibt unberührt.
@@ -155,6 +156,33 @@ Canvas und WebGL-Kontext; `dispose()` gibt Szene, modulweite Zwischenspeicher (M
 Texturen) und den Kontext frei. Neue modulweite three.js-Ressourcen dort mit aufnehmen, sonst hält ihr
 `dispose`-Zuhörer den alten Renderer samt Spielzustand im Speicher (siehe docs/QA-BERICHT.md).
 
+## URL-Parameter
+
+Das Spiel (`play/`) liest beim Laden die Abfrage (`src/ui/startLink.js`: `parseStartLink`, `buildStartLink`).
+Jeder Spielbeginn mit festem Start schreibt per `history.replaceState` (kein neuer Verlaufseintrag) den
+**kanonischen Start-Link** in die Adresszeile; „Zum Hauptmenü“ entfernt die Abfrage wieder. Das Spielmenü zeigt
+die Karte und „Link kopieren“ (am Handy „Link teilen“ über `navigator.share`; ohne Clipboard-API ein markiertes
+Textfeld). Der geteilte Link wird über `siteUrl('play/')` aufgelöst und funktioniert daher unter jeder Basis-URL.
+Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
+
+| Parameter | Werte | Standard / ungültig | Im Start-Link |
+|---|---|---|---|
+| `seed` | Ganzzahl 1–2147483647 | 1 | ja (freies Spiel; Mission nur bei abweichendem Seed) |
+| `ai` | `easy`, `normal`, `hard` | `normal` | ja |
+| `players` | 2–4 (eigene Burg + Gegner) | 2, außerhalb geklemmt | ja |
+| `hero` | `nelia`, `orrin`, `taran`, `malvor` | `nelia` | ja |
+| `fog` | `off` (auch `0`, `no`, `false`) | an | nur `fog=off` |
+| `mission` | Kennung aus `src/sim/missions/registry.js` (Kampagne, Tutorial, Lernabenteuer, Sonderkarten) | unbekannt: freies Spiel, falls `seed` da, sonst Startmenü | ja |
+| `quality` (`low`/`medium`/`high`), `nature` (`off`), `dev`/`debug`, `no-models` | Darstellung, Fehlersuche | – | nein (bleiben nur in der Adresszeile) |
+
+- Freies Spiel: `?seed=62921&ai=hard&players=3&hero=orrin&fog=off`. Missionen haben einen festen Seed
+  (`def.seed`), ihr Link ist nur `?mission=<id>`.
+- **Kein Link** für geladene Spielstände (nicht aus einem Seed nachbaubar) und Szenario-Dateien/Welteneditor
+  (in keinem Verzeichnis): die Abfrage wird geleert, das Spielmenü zeigt keine Karte.
+- Freischaltung: `?mission=c5` startet ein Kampagnenkapitel auch ohne die Vorgänger gewonnen zu haben (wie schon
+  bisher). Bewusst so belassen – ein geteilter Link soll für jeden funktionieren; der Fortschritt wird nur durch
+  einen Sieg eingetragen, spätere Kapitel bleiben im Kampagnenmenü gesperrt, bis die Vorgänger gewonnen sind.
+
 ## Sprache und Oberfläche
 
 - **Die Simulation kennt keine Texte.** Ablehnungen sind Codes mit Parametern
@@ -167,7 +195,24 @@ Texturen) und den Kontext frei. Neue modulweite three.js-Ressourcen dort mit auf
   Fehlt ein Schlüssel für neue Daten, erscheint der deutsche Name aus der Datendatei.
 - Sprache: reaktiv (`i18n.lang`), gespeichert in `localStorage['kronland-lang']`; in Komponenten
   `$t`, `$tr`, `$reason`, `$name.building(…)` (globales Plugin `src/ui/plugin.js`).
-- Meldungen: `engine.toast(key, params, { icon, tone, pos })`; mit `pos` springt ein Klick dorthin.
+- Meldungen: `engine.toast(key, params, { icon, tone, pos, ttl, cat })`; mit `pos` springt ein Klick dorthin, das ×
+  schließt (`dismissToast`). Logik rein in `src/game/notices.js` (Test `tests/game/notices.test.js`):
+  - **Kategorien** mit Vorrang und Grenze (`CATEGORIES`, Zuordnung je Schlüssel `categoryOf`, `err.*` = feedback):
+    alarm (Angriff, zerstört, Held) > fire (Brand) > feedback (Antwort auf Eingaben, `err.*`) > system (Speichern) >
+    build (fertig, repariert) > research > economy (Handel, Rohstoffe, Lagerfeuer) > military (rekrutiert, befördert)
+    > world (Wetter, Brücke eingestürzt) > info. Je Kategorie höchstens `limit` flüchtige Einträge, die älteste fällt weg.
+  - **Bündeln** (`addNotice`): gleiche Meldung (Schlüssel + Parameter) zählt hoch („×3“); Schlüssel in `MERGE`
+    (Beförderung, Rekrutiert, Gebäude fertig, Handel) bündeln auch mit anderen Parametern zu einem Text mit `{n}`
+    („12 Beförderungen – zuletzt …“), Ort und Text der neuesten.
+  - **Dauermeldungen** baut `Engine.persistentNotices()` bei jedem `uiState` aus dem Zustand (nur kleine Listen, kein
+    Entity-Scan): Angriffsstellen aus `alerts.js` (dieselben wie der Minikarten-Puls, höchstens 2, Text nach dem
+    ranghöchsten Ziel Burg > Gebäude > Siedler > Truppen; steht bis `ALERT_MS` = 8 s nach dem letzten Treffer),
+    brennende Gebäude (IDs aus `buildingBurning`/`buildingExtinguished`, gebündelt) und bewusstlose Helden (aus
+    `quickInfo`). Ein Sprung lässt sie stehen; × blendet sie aus, bis der Anlass endet oder neu auftritt (neue
+    Angriffsstelle, weiteres brennendes Gebäude). Bewusst **nicht** dauerhaft: Lagerfeuer/fehlende Häuser und Höfe
+    (normaler Wirtschaftszustand, Minikarte zeigt die Feuer) und Missionsziele (stehen im Ziele-Panel).
+  - **Auswahl** (`pickVisible`, höchstens 5, Touch 4): erst Dauermeldungen (höchstens max − 1, solange Flüchtiges
+    wartet), dann je Kategorie die neueste, dann der Rest nach Vorrang; oben die wichtigste Kategorie.
 - Nebel des Krieges in der Engine: `canSee(e)`, `tileVisible`, `tileExplored`, `fogLifted()` (Nebel aus, Spielende,
   ausgeschieden); `selectable()` liefert für Unsichtbares `null`; `minimapFog()` liefert die Nebel-Ebene der Minikarte.
 - Einstellungen: `src/ui/settings.js` (`get`, `set`, `onChange`, Fenster-Ereignis `kronland-settings`;
@@ -373,6 +418,17 @@ Leibeigene, Miliz, Hauptleute mit demselben Einheitentyp (samt Trupp) – alle H
 jeder Held einzigartig ist. Gegner, Gebäude und Figuren außerhalb des Bildes bleiben außen vor; ein
 Doppelklick auf etwas anderes wirkt wie zwei einfache Klicks. Reine Rechenfunktionen in
 `src/game/sameType.js`, die Auswahl bleibt Oberflächenzustand (kein Befehl an die Simulation).
+
+**Picking** (`Renderer.pickEntity`): Figuren sind instanziert und nicht per Raycast treffbar. Gewählt wird im
+Bildraum über die Achse Fuß–Kopf jeder Figur (gezeichnete Lage samt Versatz), Regeln als reine Funktion
+`pickFigure` in `src/render/pick.js`: nur in diesem Bild gezeichnete Figuren (`meshLvl ≥ 0`, nicht
+weggeschnitten, nicht im Nebel), Fuß- und Kopfpunkt im Sichtvolumen (NDC-Tiefe −1…1), getroffener Achsenpunkt
+im Bild, Fangradius 0,32 × Bildhöhe der Figur, mindestens 9 px (Touch 16 px), höchstens 64 px; die dem Zeiger
+nächste gewinnt. Gebäude, Fallen und Geschütze per Raycast (nur sichtbare Netze), das Nähere gewinnt.
+Früherer Fehler: Eine Figur knapp unter bzw. hinter der Kamera (Tiefe vor der nahen Schnittebene) bekam
+riesige Bildkoordinaten und damit einen riesigen Fangradius – ein Klick auf leeren Boden wählte sie, sie lief
+von außerhalb des Bildes heran (häufiger bei vielen Figuren, z. B. „Gewimmel“). `Renderer.project()` meldet
+solche Punkte als `behind`.
 
 Die Kamera folgt der Hand direkt wie ein Kartenprogramm (Vorbild three.js `MapControls`, Gesten wie
 MapLibre), ohne Nachgleiten oder Nachwippen: Die Kameralage ist eine reine Funktion von Ziel, Drehung,

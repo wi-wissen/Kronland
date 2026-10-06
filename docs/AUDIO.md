@@ -21,7 +21,8 @@ das Spiel statt der Synthese. Fehlt eine Datei oder lässt sie sich nicht dekodi
 | `workbeat.js` | Arbeitsschläge im Takt der Animation, gemeinsames Tor gegen Salven (reine Funktionen) |
 | `spatial.js` | Abstandsdämpfung und Stereo-Panorama (reine Mathematik) |
 | `voices.js` | Stimmenbegrenzung je Klangart, Abklingzeit, globale Obergrenze mit Vorrang |
-| `battle.js` | Kampfintensität in Kameranähe, Themenwechsel mit Hysterese |
+| `notify.js` | Ruhezeiten für Meldungsklänge aus Massenereignissen (Einzug, Beförderung) |
+| `battle.js` | Kampfintensität in Kameranähe, Kampfmusik an/aus (Beteiligung des Spielers, Nachfrist) |
 | `manifest.js` | Manifest prüfen, Pfade auflösen, Datei wählen (reine Funktionen) |
 | `settings.js` | Lautstärke-Einstellungen, Speicher, Brücke zur Einstellungs-Oberfläche |
 | `index.js` | Öffentliche Schnittstelle |
@@ -150,7 +151,7 @@ Direktzugriff: `getAudio().setVolume('sfx', 0.5)`, `getAudio().toggleMute()`.
 | `serfBought` | Leibeigener gekauft (ui) | global |
 | `coin` | Zahltag (ui) | global |
 | `research` | Forschung abgeschlossen, Missionsziel erfüllt (ui) | global |
-| `workerArrived` | Arbeiter eingezogen (ui) | global |
+| `workerArrived` | Arbeiter eingezogen (ui), höchstens alle 8 s (`notify.js`) | global |
 | `upgrade` | Ausbau begonnen, Truppenlinie verbessert (ui) | global |
 | `blessing` | Segen in der Kapelle (ui) | global |
 | `recruited` | Truppe rekrutiert – Hornruf (ui) | global |
@@ -211,7 +212,7 @@ vorgeladen.
 
 | Thema | Dateien | Länge | Stimmung |
 |---|---|---|---|
-| `build` | `build-morning`, `-markt`, `-weite`, `-felder`, `-abend` | je 2–2,5 min | Morgen im Tal, Markttag (keltisch), weites Land, Erntefelder (3/4), Abend |
+| `build` | `build-morning`, `-market`, `-expanse`, `-fields`, `-evening` | je 2–2,5 min | Morgen im Tal, Markttag (keltisch), weites Land, Erntefelder (3/4), Abend |
 | `winter` | `winter-snow`, `winter-frost` | je 2,5 min | Celesta, Harfe, Flöte, Streicher, keine Trommeln |
 | `battle` | `battle-storm`, `battle-shieldwall` | je 2 min | Kriegstrommeln, Streicher-Ostinato, Hörner/Schalmei |
 | `menu` | `menu` | 1,5 min, nahtlose Schleife | Harfe, Laute, Horn-Thema |
@@ -338,9 +339,25 @@ liest der Browser den Dialog vor (Einstellung „Dialoge vorlesen“), Sprüche 
   Sprachausgabe des Browsers. Der nächste Satz wartet, bis die Aufnahme zu Ende ist (`speak(…, { onEnd })`).
   Solange eine Stimme spricht, treten Musik (22 %) und Umgebung (55 %) zurück (`AudioEngine.duck`).
 - **Warnrufe** (`GameAudio.alarm`, aus `Engine.attackToast`): Wird Eigenes angegriffen, läutet die Sturmglocke
-  (`alarm` in `sfx.js`) und die getroffene Figur ruft (Anlass `alarm` in `barks.js`; bei Gebäuden und Arbeitern ein
-  Leibeigener). Unabhängig von der Einstellung „Sprüche der Figuren“, höchstens alle 20 s (`ALARM_REST`), nie über
-  einen Dialog oder Spruch.
+  (`alarm` in `sfx.js`) und die getroffene Figur ruft (Anlass `alarm` in `barks.js`; bei Gebäuden ein Leibeigener,
+  Arbeiter(innen) und Miliz mit der Leibeigenen-Stimme ihres Geschlechts `serf`/`serfF` (`GameAudio.alarmVoiceOf`),
+  Soldaten wie ihr Hauptmann). Unabhängig von der Einstellung
+  „Sprüche der Figuren“, höchstens alle 20 s (`ALARM_REST`), nie über einen Dialog. Läuft gerade ein Spruch,
+  wartet der Ruf dessen Ende ab (höchstens 5 s, `ALARM_WAIT`); die Ruhepause nach Sprüchen gilt nicht.
+  Gewählt wird nur ein Satz, zu dem es in der Stimme eine Aufnahme gibt (`GameAudio.alarmLine`); sonst ruft ein
+  Ersatz (`alarmVoices`: Leibeigener bzw. Schwertkämpfer). Gesprochene Rufe stehen zur Prüfung in
+  `GameAudio.announced` (`{ kind, role, voice, url, played, skipped }`).
+
+  | Meldung | Warnruf | vorher |
+  |---|---|---|
+  | „Angriff auf …“ (Gebäude) | Leibeigener | ja (außer nach einem Spruch) |
+  | „Eure Siedler werden angegriffen!“ | Leibeigener in seiner Stimme | ja; Miliz stumm (Speerträger-Sätze ohne Aufnahme in Leibeigenen-Stimme) |
+  | „Eure Truppen sind im Kampf!“ | Hauptmann/Soldat bzw. Held | **nein**, wenn ein Soldat getroffen wurde (meist): Soldaten hatten keine Sprechrolle; Malvor ohne Warnrufe |
+  | Held gefallen, Gebäude brennt/zerstört, Ziel erfüllt/verfehlt, Welle | – (nur Effekt: `heroDown`, `notify`, `buildingCrash`, `research`/`error`) | gleich |
+
+  Außerdem verschluckte die Ruhepause nach einem Spruch (8 s bei „Selten“) den Ruf – typischerweise nach dem
+  Angriffsbefehl („Drauf!“) –, und die 20 s Sperre galt trotzdem. Prüfung: `tests/audio/alarm.test.js` (jede
+  getroffene Figurart × de/en hat eine Aufnahme), `e2e/audio.spec.js` (echter Kampf).
 - **Sprüche** (`GameAudio.bark`, Regeln in `BarkGate`/`BARK_RULES`, `src/audio/barks.js`): beim Auswählen
   (Held vor Hauptmann vor Leibeigenem) und bei Befehlen (Laufen, Angreifen, Bauen, Abbauen) – aber **meist
   bleibt es still**, sonst nervt das beim Herumschicken. Einstellung „Sprüche der Figuren“:
@@ -426,6 +443,12 @@ noch zu hören, mehrere klangen wie ein Wald voller Äxte.
   Aufruf variiert leicht (Tonhöhe ±5–12 %, Zeitversatz, Klangfarbe).
 - **Stimmenbegrenzung**: je Effekt höchstens 1–4 gleichzeitige Stimmen und eine Abklingzeit
   (z. B. Münzen 0,5 s), global 24 (Handy 12) Stimmen; Oberflächenklänge haben Vorrang.
+- **Meldungen aus Massenereignissen** (`notify.js`, `NOTIFY_REST`): Ereignisse, die von selbst in Schüben
+  kommen, klingen höchstens einmal je Ruhezeit – Einzug neuer Arbeiter (`workerArrived`, Harfen-Dreiklang) 8 s,
+  Beförderung einer Truppe (`upgrade`) 5 s. Der erste Klang eines Schubs spielt, die folgenden schweigen.
+  Anlass: Auf dem Schaukasten schicken vier eigene Dorfzentren je alle 3 s einen Arbeiter (~140 Einzüge in den
+  ersten zwei Minuten); mit 0,4 s Abklingzeit war das ein Dauer-„Klingeling“, auf dem Gewimmel ebenso die
+  Beförderungen in den Dauerschlachten. Zählhilfe: `window.__kronlandAudio.played` (gespielte Effekte je Name).
 - **Räumlich**: siehe [Räumlicher Klang](#räumlicher-klang).
 - **Musik** (`composer.js`, Rückfall, solange keine Datei geladen ist; kein Winterthema): drei Themen, je zwei komponierte achttaktige Melodien mit Akkordfolge
   und eine Form (z. B. Intro · A · A′ · B · A · Ruhe · B′ · A′).
@@ -435,15 +458,36 @@ noch zu hören, mehrere klangen wie ein Wald voller Äxte.
   - *Menü „Krone“*: G-Mixolydisch, 3/4, 66 BPM – Harfe, Blockflöte, Bordun.
   - Variation je Abschnitt: Durchgangs- und Nachbartöne, punktiert ↔ gerade, Vorschläge in
     A′/B′, wechselnde Arpeggio-Muster; Kadenztakte bleiben unverändert. Deterministisch je Seed.
-  - Themenwechsel nach Kampfintensität mit Hysterese (Kampf ab 0,45, zurück unter 0,12 nach ≥ 12 s).
+  - Themenwechsel: siehe [Kampfmusik](#kampfmusik).
 - **Handy** (grober Zeiger oder ≤ 4 Kerne): günstiger Hall, weniger Stimmen, ausgedünnte Begleitung,
   seltenere Umgebungsereignisse. Verborgener Tab: `AudioContext.suspend()`.
+
+## Kampfmusik
+
+`BattleMeter` (`src/audio/battle.js`), Werte in `BATTLE_MUSIC` (`src/audio/settings.js`):
+
+- **Hitze**: Treffer, Schüsse, Gefallene und Explosionen im sichtbaren Bereich hinterlassen Hitzepunkte;
+  daraus die Intensität 0…1 um die Bildmitte (Schlachtlärm der Umgebung, Musik).
+- **Beteiligung**: `GameAudio.onEvents` meldet jeden Treffer bzw. Schuss, bei dem Angreifer oder Ziel dem
+  Spieler gehört, und jeden eigenen Gefallenen (`battle.combat(now)`).
+- **Kampf an**: Intensität ≥ 0,45 (`enter`) *und* der Spieler kämpft (letzte Beteiligung < `grace`). Fremde
+  Kämpfe im Bild bringen nur Schlachtlärm, keine Kampfmusik.
+- **Kampf aus**: `grace` = 16 s ohne Beteiligung des Spielers (frühestens `minHold` = 9 s nach Beginn) – oder
+  die Kamera ist weg: Intensität ≤ 0,12 (`exit`) seit `hold` = 12 s. Danach klingt die restliche Hitze mit
+  2,5 s statt 4 s Halbwertszeit ab (`releaseHalfLife`), der Schlachtlärm verstummt mit.
+- **Übergang**: Das Kampfthema blendet über `fadeOut` = 4,5 s aus, die Friedensmusik blendet darunter ein
+  (`Music.startWanted`; andere Wechsel 3 s).
+
+Vorher hing das Ende nur an der Hitze: Bei großen Kämpfen (je Stelle bis 60, Halbwertszeit 4 s) fiel sie erst
+25–30 s nach dem letzten Treffer unter 0,12, dazu 12 s Mindestdauer ab dem letzten heißen Moment – die
+Kampfmusik lief nach dem Kampf eine halbe Minute weiter, beim Zuschauen fremder Kämpfe sprang sie ebenfalls an.
 
 ## Prüfen
 
 ```bash
 npx vitest run tests/audio            # reine Teile: Manifest, Stimmen, Räumlichkeit, Komponist, Stimmung,
-                                      # Arbeitstakt und Ruhe (tests/audio/quiet.test.js)
+                                      # Arbeitstakt und Ruhe (tests/audio/quiet.test.js),
+                                      # Meldungs-Ruhezeiten auf dem Schaukasten (tests/audio/notify.test.js)
 E2E_PORT=4212 npx playwright test e2e/audio.spec.js
 npx vite --port 4290 &                # dann:
 python3 scripts/audio-check.py        # rendert alles offline, prüft Pegel/Übersteuerung/Dauer/Spektrum

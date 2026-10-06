@@ -3,7 +3,7 @@ import { parseManifest, resolvePath, lookup, pickFile, allFiles, emptyManifest }
 import { VoiceLimiter } from '../../src/audio/voices.js';
 import { distanceGain, audibleRadius, viewRadius, screenPan, spatialize, zoomGain } from '../../src/audio/spatial.js';
 import { composeSection, composeJingle, degreeToMidi, varyMelody, THEMES, barLength, RANGES } from '../../src/audio/composer.js';
-import { normalizeSettings, applySettingsDetail, loadAudioSettings, saveAudioSettings, AUDIO_DEFAULTS, AUDIO_SETTINGS_KEY } from '../../src/audio/settings.js';
+import { normalizeSettings, applySettingsDetail, loadAudioSettings, saveAudioSettings, AUDIO_DEFAULTS, AUDIO_SETTINGS_KEY, BATTLE_MUSIC } from '../../src/audio/settings.js';
 import { karplusStrong, midiToFreq } from '../../src/audio/karplus.js';
 import { BattleMeter } from '../../src/audio/battle.js';
 import { ambientTargets } from '../../src/audio/ambient.js';
@@ -298,11 +298,63 @@ describe('Battle intensity and ambience', () => {
     for (let i = 0; i < 30; i++) b.add({ x: 52, z: 50 }, 1);
     expect(b.intensity(l)).toBeGreaterThan(0.5);
     expect(b.intensity({ ...l, x: 200 })).toBe(0);
+    // Foreign fights on screen (without player involvement) do not trigger the battle theme
+    expect(b.theme(b.intensity(l), 0)).toBe('build');
+    b.combat(0);
     expect(b.theme(b.intensity(l), 0)).toBe('battle');
     b.decay(30);
     expect(b.intensity(l)).toBeLessThan(0.12);
     expect(b.theme(b.intensity(l), 5)).toBe('battle');   // minimum duration
     expect(b.theme(b.intensity(l), 20)).toBe('build');
+  });
+
+  it('battle theme ends after the grace period without player combat, even if heat is still on screen', () => {
+    const { grace, minHold, halfLife, releaseHalfLife } = BATTLE_MUSIC;
+    const b = new BattleMeter();
+    const l = { x: 50, z: 50, dist: 28, yaw: 0 };
+    // Big fight: for 30 s, hits at several spots every 0.1 s (heat up to the cap)
+    let t = 0;
+    for (; t < 30; t += 0.1) {
+      for (let k = 0; k < 6; k++) b.add({ x: 46 + k * 4, z: 50 }, 1);
+      b.combat(t);
+      b.decay(0.1, t);
+      const mode = b.theme(b.intensity(l), t);
+      if (t > 2) expect(mode).toBe('battle');
+    }
+    const end = t;
+    expect(b.intensity(l)).toBe(1);
+    // Before: with half-life 4 s and hysteresis only back after > 25 s; now after grace
+    let back = null;
+    for (; t < end + 60; t += 0.25) {
+      b.decay(0.25, t);
+      if (b.theme(b.intensity(l), t) === 'build') { back = t; break; }
+    }
+    expect(back - end).toBeGreaterThanOrEqual(grace - 0.5);
+    expect(back - end).toBeLessThanOrEqual(grace + 0.5);
+    // Afterwards the heat decays quickly (battle noise of the surroundings falls silent)
+    for (let i = 0; i < releaseHalfLife * 5 * 4; i++) { t += 0.25; b.decay(0.25, t); }
+    expect(b.intensity(l)).toBeLessThan(0.05);
+    expect(releaseHalfLife).toBeLessThan(halfLife);
+    // Short skirmish: at least minHold battle theme
+    const c = new BattleMeter();
+    for (let i = 0; i < 40; i++) c.add({ x: 50, z: 50 }, 1);
+    c.combat(100);
+    expect(c.theme(c.intensity(l), 100)).toBe('battle');
+    expect(c.theme(c.intensity(l), 100 + Math.max(grace, minHold) - 0.1)).toBe('battle');
+    expect(c.theme(0, 100 + Math.max(grace, minHold) + 0.1)).toBe('build');
+  });
+
+  it('combat continues while the player fights (even with pauses below the grace period)', () => {
+    const b = new BattleMeter();
+    const l = { x: 50, z: 50, dist: 28, yaw: 0 };
+    for (let i = 0; i < 40; i++) b.add({ x: 50, z: 50 }, 1);
+    b.combat(0);
+    expect(b.theme(b.intensity(l), 0)).toBe('battle');
+    for (let t = 1; t < 40; t += 1) {
+      if (t % 5 === 0) { b.combat(t); b.add({ x: 50, z: 50 }, 10); }
+      b.decay(1, t);
+      expect(b.theme(b.intensity(l), t)).toBe('battle');
+    }
   });
 
   it('ambient layers per weather', () => {

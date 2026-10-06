@@ -8,7 +8,7 @@ import { isEnemy, targetable, strike } from './military.js';
 import { SERF_COMBAT } from '../data/units.js';
 import { techBonus, boosted, buildingMaxHp } from './techs.js';
 import { DAMAGE, isDamaged } from './damage.js';
-import { takenSpots, pickSpot, freeSpots, regionOf } from './spots.js';
+import { takenSpots, pickSpot, freeSpots, regionOf, pickSlot, freeSlots, slotPoint, slotTile, stepToPoint } from './spots.js';
 
 const S = BALANCE.serf;
 
@@ -17,7 +17,7 @@ function rectOf(t) {
   return t.kind === 'building' ? { x: t.x, y: t.y, w: t.w, h: t.h } : { x: t.x, y: t.y, w: 1, h: 1 };
 }
 
-/** Work spots around a target: the walkable tiles directly next to it. */
+/** Tile spots around a construction site: the walkable tiles directly next to it (trees and piles: ring slots). */
 const spotsAround = (sim, t) => { const r = rectOf(t); return sim.map.ring(r.x, r.y, r.w, r.h); };
 
 /** Is the target still valid work for this serf? */
@@ -41,6 +41,7 @@ export function clearJob(sim, u) {
   }
   u.job = null;
   u.spot = -1;
+  u.slot = -1;
   u.timer = 0;
   u.path = [];
 }
@@ -65,12 +66,12 @@ export function assignJob(sim, u, t) {
     u.spot = spot;
   } else if (t.kind === 'tree' || t.kind === 'pile') {
     if (t.amount <= 0) return false;
-    if (u.job?.target === t.id && u.spot >= 0) return true;
-    const spot = pickSpot(sim, u, spotsAround(sim, t));
-    if (spot < 0) return false;
+    if (u.job?.target === t.id && u.slot >= 0) return true;
+    const slot = pickSlot(sim, u, t);
+    if (slot < 0) return false;
     clearJob(sim, u);
     u.job = { kind: 'gather', target: t.id, res: t.res };
-    u.spot = spot;
+    u.slot = slot;
   } else if (canFight(sim, u, t)) {
     // Attack opponent: with bare fists (SERF_COMBAT), until it falls; idle afterwards
     clearJob(sim, u);
@@ -95,7 +96,9 @@ export function siteRoom(sim, b, u) {
 
 /** Does the target still have a free spot that `u` can reach? (Without the spot of `u` itself.) */
 export function hasFreeSpot(sim, u, t, taken = takenSpots(sim, u.id)) {
-  return freeSpots(sim.map, spotsAround(sim, t), taken, regionOf(sim.map, u)).length > 0;
+  const region = regionOf(sim.map, u);
+  if (t.kind !== 'building') return freeSlots(sim.map, t, taken, region).length > 0;
+  return freeSpots(sim.map, spotsAround(sim, t), taken, region).length > 0;
 }
 
 /** How many serfs work at a tree or pile at the same time (after that they move aside). */
@@ -126,8 +129,8 @@ function reachable(map, e, region) {
 /**
  * Nearest node reachable for `u` with resource `res` around the tile (tx,ty) within the search radius.
  * Prefers nodes below their limit (`gatherersPerTree`/`…Pile`); if all are occupied, the nearest
- * at all (better to share than stand idle). Only ever nodes with a free spot around them – every
- * serf stands on its own tile. Tie: smaller ID (insertion order) – deterministic.
+ * at all (better to share than to stand idle). Always only nodes with a free spot in the circle around – each
+ * serf stands on their own point. Tie: smaller ID (insertion order) – deterministic.
  */
 function nearestNode(sim, u, res, tx, ty, counts, taken = takenSpots(sim, u.id)) {
   const m = sim.map, r2 = S.searchRadius * S.searchRadius;
@@ -139,7 +142,7 @@ function nearestNode(sim, u, res, tx, ty, counts, taken = takenSpots(sim, u.id))
     if (d > r2 || (d >= anyD && d >= freeD)) continue;
     if (region && !reachable(m, e, region)) continue;
     // Without a free spot around (neighbouring trees, other serfs) the node is full
-    if (!freeSpots(m, spotsAround(sim, e), taken, region).length) continue;
+    if (!freeSlots(m, e, taken, region).length) continue;
     if (d < anyD) { any = e; anyD = d; }
     if (d < freeD && (counts.get(e.id) ?? 0) < gatherCap(e)) { free = e; freeD = d; }
   }
@@ -271,7 +274,42 @@ function onRing(m, k, r) {
   return !inside && x >= r.x - 1 && x <= r.x + r.w && y >= r.y - 1 && y <= r.y + r.h;
 }
 
-/** Tick of a serf. */
+/**
+ * Mining at a tree or pile: walk to the own ring slot (path to its tile, then straight to
+ * the point) and work there. If the point is no longer walkable, a new one is chosen; without a spot (circle full)
+ * as before at any neighbouring tile.
+ */
+function gatherAt(sim, u, t, r) {
+  const m = sim.map;
+  let p = slotPoint(t, u.slot ?? -1), k = p ? slotTile(m, p) : -1;
+  if (k < 0 && ((u.slot ?? -1) >= 0 || (!u.path.length && (sim.tick + u.id) % 10 === 0))) {
+    u.slot = pickSlot(sim, u, t);
+    u.path = [];
+    p = slotPoint(t, u.slot); k = p ? slotTile(m, p) : -1;
+  }
+  if (k >= 0) {
+    if (!u.path.length) {
+      if (m.idx(toTile(u.px), toTile(u.py)) === k) {
+        if (stepToPoint(u, p, serfSpeed(sim, u))) doWork(sim, u, t);
+        return;
+      }
+      const path = pathTo(sim, u, [k]);
+      if (!path) { clearJob(sim, u); return; }
+      u.path = path;
+    }
+    moveSerf(sim, u);
+    return;
+  }
+  if (isAdjacent(u, r) && !u.path.length) { doWork(sim, u, t); return; }
+  if (!u.path.length) {
+    const path = pathTo(sim, u, m.ring(r.x, r.y, r.w, r.h));
+    if (path === null) { clearJob(sim, u); return; }
+    if (!path.length) { doWork(sim, u, t); return; }
+    u.path = path;
+  }
+  moveSerf(sim, u);
+}
+
 /**
  * An attacked serf (no militia) flees: to the castle, otherwise – if the attacker is closer to the castle
  * or there is none – away from the attacker. The work stays assigned and continues afterwards (as in the model:
@@ -302,6 +340,7 @@ export function startFlee(sim, u, a) {
   u.path = [];
 }
 
+/** Tick of a serf. */
 export function updateSerf(sim, u) {
   // Fleeing: first away, afterwards (work stays assigned) continue normally
   if (u.fleeUntil !== undefined) {
@@ -333,6 +372,7 @@ export function updateSerf(sim, u) {
 
   const r = rectOf(t);
   const m = sim.map;
+  if (u.job.kind === 'gather') { gatherAt(sim, u, t, r); return; }
   // Own spot: still walkable and directly at the target? Otherwise choose a new one (tile built over or similar).
   // Without a spot (emergency mode below) only search again now and then and not in the middle of the path.
   const spotOk = u.spot >= 0 && m.walkable(u.spot % m.width, (u.spot / m.width) | 0) && onRing(m, u.spot, r);

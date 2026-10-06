@@ -62,6 +62,18 @@ export function saveGame(sim, extra = {}, { clone = true } = {}) {
   return clone ? structuredClone(state) : state;
 }
 
+/**
+ * Align older save games (without a new version number, the conversion is lossless enough):
+ * resting/waiting workers and serfs mining used to stand on a tile spot (`spot`),
+ * now on a ring slot (`slot`, src/sim/systems/spots.js). The old tile spot is dropped; the figure
+ * picks a ring slot at the next step (until then it stays where it is).
+ */
+export function migrateEntity(e) {
+  if (e.slot !== undefined || e.spot === undefined) return e;
+  if (e.kind === 'worker') { delete e.spot; e.slot = -1; } else if (e.kind === 'unit' && e.job?.kind === 'gather') { e.spot = -1; e.slot = -1; }
+  return e;
+}
+
 /** @returns {Sim} */
 export function loadGame(data) {
   if (data?.version !== SAVE_VERSION) throw new Error('Save game does not match this version');
@@ -84,7 +96,7 @@ export function loadGame(data) {
   sim.rng.setState(data.rng);
   sim.players = data.players.map((p) => ({ ...p, techs: new Set(p.techs) }));
   sim.diplomacy = data.diplomacy ?? {};
-  sim.entities = new Map(data.entities.map((e) => [e.id, e]));
+  sim.entities = new Map(data.entities.map((e) => [e.id, migrateEntity(e)]));
   sim.mission = data.mission ? MissionRuntime.fromState(data.mission) : null;
   loadVision(sim, data.vision, fromB64);
   // Scripts (VM states) need the finished simulation

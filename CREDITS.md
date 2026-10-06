@@ -1,5 +1,8 @@
 # Danksagung und Lizenzen
 
+Pfade unter `assets-src/` verweisen auf die Rohdateien der Asset-Pipeline; sie liegen lokal beim Maintainer,
+nicht im Repository (siehe [docs/ROHDATEIEN.md](docs/ROHDATEIEN.md)).
+
 ## 3D-Modelle
 
 - **KayKit Medieval Hexagon Pack 1.0** von Kay Lousberg, [www.kaylousberg.com](https://www.kaylousberg.com) –
@@ -7,7 +10,7 @@
   Felsgipfel (`mountain_*`). Lizenztext unter `public/models/`. Erzeugt mit `scripts/build-assets.sh`.
 
 - **Bäume und Busch** (Eiche, Buche, Birke, Fichte, Kiefer, Busch, je mit Winterfassung;
-  `public/models/buildings/tree_*.glb`, `busch*.glb`): Konzeptbilder mit OpenRouter-Bildmodellen
+  `public/models/buildings/tree_*.glb`, `bush*.glb`): Konzeptbilder mit OpenRouter-Bildmodellen
   (`bytedance-seed/seedream-5-0-flash`) im Stil der eigenen Gebäude, 3D-Modell mit [Meshy](https://www.meshy.ai)
   (Bild → 3D), Detailstufen mit `scripts/build-lods.mjs`. Eigene Erzeugnisse des Projekts; Prompts,
   Task-IDs und Konzepte unter `assets-src/buildings/<name>/`.
@@ -55,33 +58,36 @@ denselben Skripten. Prompts, Kosten und Kandidaten: `assets-src/nature/`, Ablauf
 
 Die bunten Symbole (`public/icons/symbols.webp`) hat das Bildmodell `openai/gpt-5.4-image-2` (über
 OpenRouter) für dieses Projekt erzeugt. Vorlage waren die eigenen SVG-Symbole und die eigenen, mit ChatGPT
-erstellten Figurenbögen (`assets-src/icons/stil-*.webp`). Ablauf und Prompts: [docs/SYMBOLE.md](docs/SYMBOLE.md).
+erstellten Figurenbögen (`assets-src/icons/style-*.webp`). Ablauf und Prompts: [docs/SYMBOLE.md](docs/SYMBOLE.md).
 Favicon und App-Icons (`public/favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) sind die
 Krone aus diesem Bogen, freigestellt von `scripts/icons/favicon.py`.
 
 Die Fähigkeitssymbole Weitblick, Bestechen und Einschüchtern (`public/icons/ab-farsight.webp`, `ab-bribe.webp`,
 `ab-intimidate.webp`) hat `google/gemini-3-pro-image-preview` (über OpenRouter) mit dem Symbolbogen als
 Stilvorlage für dieses Projekt erzeugt; freigestellt mit `scripts/art/finish.mjs`. Prompt, Modell, Kosten und
-Rohbilder: `assets-src/art/symbole/`.
+Rohbilder: `assets-src/art/symbols/`.
 
 Die Menüsymbole Sonderkarten und Programmier-Abenteuer (`public/icons/mode-special.webp`, `mode-adventure.webp`) hat
 ebenfalls `google/gemini-3-pro-image-preview` (über OpenRouter) mit dem Symbolbogen als Stilvorlage für dieses Projekt
-erzeugt; freigestellt mit `scripts/art/finish.mjs`. Prompt, Modell, Kosten und Rohbild: `assets-src/art/menue/`.
+erzeugt; freigestellt mit `scripts/art/finish.mjs`. Prompt, Modell, Kosten und Rohbild: `assets-src/art/menu/`.
 
 ## Titelbild und Ladebild
 
 `public/art/title.webp` (Kulisse von Start-, Kampagnen- und Abenteuermenü und Welteditor) und `public/art/loading.webp`
 (Ladebildschirm) hat `google/gemini-3-pro-image-preview` (über OpenRouter) für dieses Projekt erzeugt; Stilvorlagen
 waren eigene Gebäudekonzepte (`assets-src/buildings/`) und ein Heldenporträt. Prompts, Modell, Kosten und Rohbilder:
-`assets-src/art/titel/`, `assets-src/art/laden/`; Skripte `scripts/art/`.
+`assets-src/art/title/`, `assets-src/art/loading/`; Skripte `scripts/art/`.
 
 ## Porträts
 
-- `public/portraits/serf.webp` und `worker.webp`: Ausschnitte aus den eigenen Figurenbögen
-  (`assets-src/icons/style-1.webp`, `style-2.webp`); die Platzhalter-Spielerfarbe ist auf Spieler-Blau umgefärbt.
+- `public/portraits/worker.webp`: Ausschnitt aus dem eigenen Figurenbogen (`assets-src/icons/style-2.webp`); die
+  Platzhalter-Spielerfarbe ist auf Spieler-Blau umgefärbt.
+- `public/portraits/serf.webp`, `serf-f.webp`, `worker-<beruf>.webp`, `worker-<beruf>-f.webp` (Auswahl nach
+  Geschlecht): mit `scripts/portraits.py` aus den Vorderansichten der eigenen Konzeptbögen
+  (`assets-src/characters/serf_m`, `serf_f`, `worker_<beruf>[_f]/sheet.png`) geschnitten, Magenta → Spieler-Blau.
 - `public/portraits/sp-herald.webp` (Herold in den Missionsdialogen): von `google/gemini-3-pro-image-preview`
   (über OpenRouter) mit drei vorhandenen Porträts und einem Figurenbogen als Stilvorlage erzeugt; Prompt, Kosten
-  und Rohbilder in `assets-src/art/herold/`. Die übrigen Sprecher- und Heldenporträts schneidet `scripts/portraits.py`
+  und Rohbilder in `assets-src/art/herald/`. Die übrigen Sprecher- und Heldenporträts schneidet `scripts/portraits.py`
   aus den eigenen Konzeptbögen.
 
 ## Vorbild

@@ -141,6 +141,8 @@ export class BarkGate {
 
   /** Recording runs from now for dur seconds; then quiet according to the setting. */
   spoke(now, dur, mode) {
+    /** until when the recording itself runs (without quiet) – alarm calls only wait for this */
+    this.playingUntil = now + dur;
     this.busyUntil = now + dur + ((mode in BARK_RULES ? BARK_RULES[mode]?.rest : null) ?? BARK_RULES.rare.rest);
   }
 }
@@ -175,13 +177,50 @@ export function chooseBark(set, event, rnd, again = false, last = undefined) {
 
 /** Minimum gap between two alarm calls (seconds), so a long fight does not call constantly */
 export const ALARM_REST = 20;
+/** Gap of the alarm call after the bell (s); if a bark is still running, the call waits at most ALARM_WAIT s */
+export const ALARM_DELAY = 0.8, ALARM_WAIT = 5;
 
 /**
- * Who calls when something of one's own is attacked: the hit figure itself (hero, squad, serf);
- * for buildings and workers a serf calls for the village.
+ * Notices (Engine.attackToast) for which an alarm call is spoken. Other notices (hero fallen,
+ * building burning/destroyed, objective met) have no voice line, only an effect (GameAudio.onEvents).
+ * Per notice the kind of figures hit, for which an alarm call with recording (de + en) must exist.
+ */
+export const ALARM_TOASTS = {
+  'toast.attackBuilding': ['building'],
+  'toast.attackSettlers': ['worker', 'unit'],
+  'toast.attackTroops': ['leader', 'soldier', 'hero'],
+};
+
+/** Squad type → speaking role */
+const LINE_ROLE = { sword: 'sword', spear: 'spear', bow: 'bow', lightCav: 'cavalry', heavyCav: 'cavalry', cannon: 'cannon' };
+
+/**
+ * Who calls when something of the player's own is attacked: the figure hit itself (hero, squad, serf,
+ * worker with serf sentences); for buildings a serf calls for the village.
  * @param {any} target @param {string|undefined} line squad type @param {(e:any) => string|null} [serfVoice]
  */
 export function alarmRole(target, line, serfVoice) {
-  if (target.kind === 'building' || target.kind === 'worker') return 'serf';
+  if (target.kind === 'building') return 'serf';
+  // Workers and militia (armed serfs) call with the serf voice of their sex
+  // (serf/serfF, see GameAudio.voiceOf and alarmVoiceOf)
+  if (target.kind === 'worker' || target.kind === 'unit') return serfVoice?.(target) ?? 'serf';
+  // Soldiers of a group call like their captain (before: no role → silent, although squads are reported)
+  if (target.kind === 'soldier') return LINE_ROLE[line] ?? 'sword';
   return barkRole(target, line, serfVoice);
+}
+
+/**
+ * Who calls with which voice, in order of choice: first the figure hit, otherwise (no
+ * sentences or no recording in this voice) a substitute – serf for civilians, swordsman for
+ * squads and heroes without their own alarm calls.
+ * @param {any} target @param {string|undefined} line @param {(e:any) => string} voiceOf voice of a figure
+ * @returns {{ role: string, voice: string }[]}
+ */
+export function alarmVoices(target, line, voiceOf) {
+  const civil = target.kind === 'building' || target.kind === 'worker' || target.kind === 'unit';
+  const out = [];
+  const role = alarmRole(target, line, civil ? voiceOf : undefined);
+  if (role && BARKS[role]) out.push({ role, voice: target.kind === 'building' ? 'serf' : voiceOf(target) });
+  out.push(civil ? { role: 'serf', voice: 'serf' } : { role: 'sword', voice: 'sword' });
+  return out;
 }

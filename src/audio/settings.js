@@ -19,6 +19,17 @@ const BARK_MODES = ['off', 'rare', 'often'];
 /** Silence between two peace pieces (build, winter) in seconds [min, max]; only ambience in between. */
 export const MUSIC_PAUSES = Object.freeze({ off: [2, 4], short: [20, 45], normal: [60, 120], long: [150, 300] });
 
+/**
+ * Combat music (battle.js, music.js): when the combat theme comes and when it goes. Times in seconds.
+ * - halfLife: half-life of the combat heat while the player fights; releaseHalfLife afterwards (remnants decay quickly)
+ * - enter/exit: intensity (0…1) for switching into combat or back (hysteresis)
+ * - grace: for this long without combat involving the player the fight counts as over
+ * - minHold: combat theme runs at least this long (no flutter on short skirmishes)
+ * - hold: combat without nearby heat (camera away) ends only after this much quiet in view
+ * - fadeOut: fade-out of the combat theme on the way back to the peace music
+ */
+export const BATTLE_MUSIC = Object.freeze({ halfLife: 4, releaseHalfLife: 2.5, enter: 0.45, exit: 0.12, grace: 16, minHold: 9, hold: 12, fadeOut: 4.5 });
+
 export const VOLUME_KEYS = /** @type {const} */ (['master', 'music', 'sfx', 'ambient', 'ui']);
 
 /** German labels for a settings UI (player-visible). */

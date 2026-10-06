@@ -86,6 +86,7 @@
         <a :href="links.home" data-testid="menu-link-home">{{ $t('site.home') }}</a>
         <a :href="links.manual" data-testid="menu-link-manual">{{ $t('site.manual') }}</a>
         <a :href="links.compendium" data-testid="menu-link-compendium">{{ $t('site.compendium') }}</a>
+        <a :href="links.blog" data-testid="menu-link-blog">{{ $t('site.blog') }}</a>
       </nav>
       <p class="sm-credits">{{ $t('menu.credits') }}</p>
     </div>
@@ -138,7 +139,7 @@ export default {
       seed: Math.floor(Math.random() * 99999) + 1, settingsOpen: false, savesOpen: false, fog: true,
       busy: false, error: '', touch: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
       // Website: home page, manual, compendium (relative to the root, see src/paths.js)
-      links: { home: siteRoot(), manual: `${siteRoot()}manual/`, compendium: `${siteRoot()}compendium/` },
+      links: { home: siteRoot(), manual: `${siteRoot()}manual/`, compendium: `${siteRoot()}compendium/`, blog: `${siteRoot()}blog/` },
     };
   },
   mounted() {

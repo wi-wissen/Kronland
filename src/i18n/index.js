@@ -90,7 +90,14 @@ export const rankName = (stars) => orData(`rank.${stars}`, RANK_NAMES[stars] ?? 
 export const unitName = (id) => orData(`unit.${id}`, UNITS[id]?.name);
 export const lineName = (id) => orData(`line.${id}`, id);
 export const resName = (id) => orData(`res.${id}`, id);
-export const profName = (id) => orData(`prof.${id}`, id);
+/**
+ * Key for a figure by sex: for 'f' the feminine form `<key>.f`, if present
+ * (sex from src/render/variants.js figureSex).
+ * @param {string} key @param {'m'|'f'|null|undefined} sex
+ */
+export const sexKey = (key, sex) => (sex === 'f' && has(`${key}.f`) ? `${key}.f` : key);
+/** Profession name, with sex 'f' in feminine form (Bäuerin, Schmiedin …). */
+export const profName = (id, sex) => orData(sexKey(`prof.${id}`, sex), id);
 export const weatherName = (id) => orData(`weather.${id}`, id);
 export const blessingName = (id) => orData(`blessing.${id}`, id);
 export const heroTitle = (id) => orData(`hero.${id}.title`, HEROES[id]?.title);

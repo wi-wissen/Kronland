@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
 import { UNITS } from '../src/sim/data/units.js';
+import { quick } from './quick.js';
 
 /** Load the game and wait for the engine. */
 async function boot(page) {
@@ -37,14 +38,14 @@ test('Game starts without errors and shows resources', async ({ page }) => {
 
 test('Buy a serf in the castle', async ({ page }) => {
   await boot(page);
-  await page.getByRole('button', { name: 'Burg' }).click();
+  await quick(page, 'hq');
   await page.getByTestId('buy-serf').click();
   await expect(page.getByTestId('res-gold')).toHaveText('450');
 });
 
 test('Place a house via the build menu', async ({ page }, info) => {
   await boot(page);
-  await page.getByRole('button', { name: 'Alle' }).click();
+  await quick(page, 'all');
   await page.getByTestId('build-residence').click();
   const pos = await screenPosFor(page, 'residence');
   await page.waitForTimeout(200);
@@ -107,7 +108,7 @@ test('Start menu: start a new game, save and load again', async ({ page }) => {
   await expect(page.getByTestId('game-menu')).toBeHidden();
   await page.evaluate(() => { window.__kronland.sim.players[0].stock.gold = 1; });
   await page.getByTestId('menu').click();
-  await page.getByRole('button', { name: 'Gespeichertes Spiel laden' }).click();
+  await page.getByRole('button', { name: 'Spiel laden' }).click();
   await page.getByTestId('save-load').click();
   await page.getByTestId('confirm-ok').click();
   await page.waitForFunction(() => window.__kronland?.sim.players[0].stock.gold === 777);

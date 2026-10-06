@@ -105,8 +105,11 @@ conditions. If something is locked, the reason is shown.
 
 ### Messages
 
-Messages appear on the right: finished buildings, attacks, completed research, payday. Clicking a message
-with a location jumps there.
+Messages appear on the right: finished buildings, attacks, completed research, trades, weather. Clicking a
+message with a location jumps there; the **×** next to it closes it. Important ones sit on top: attacks, fires and
+an unconscious hero stay as a **persistent warning** (pulsing icon) as long as the cause lasts – an attack until
+nothing of yours has been hit for a few seconds. Repeated messages are combined ("12 promotions", "×3"), and every
+kind of message gets a slot: even in the middle of a battle you still see that a building is finished.
 
 **Attacks** are announced three ways: the alarm bell rings, those hit call for help (a serf for buildings,
 otherwise the figure itself), and the spot pulses **red** on the minimap while fighting goes on there. On phones
@@ -204,7 +207,7 @@ You set the tax rate at the **castle** once **Education** has been researched:
 ### Overtime and blessings
 
 - **Overtime** (button in the building) makes a workshop work faster but costs motivation.
-- At the **chapel**, priests generate **faith**. With enough faith you bless a group of professions – their motivation rises noticeably.
+- At the **chapel**, priests generate **faith**. With enough faith you bless a group of professions – their motivation rises noticeably. Your faith is shown on the right of the crest at the top; it stays greyed out until you have some.
 
 ## Research {#research}
 
@@ -372,6 +375,10 @@ place with “Show objective”.
 **Settings** (main menu and game menu) contain language (German/English), graphics quality (Automatic, Low,
 Medium, High), volumes for music and effects, interface size, edge scrolling and help texts.
 
+**Sharing a map:** the game menu (pause) shows the map, e.g. “Map: 62921”, with **“Copy link”** below (on phones
+**“Share link”**). Whoever opens the link starts the same map with the same settings **from the beginning** – your
+current game is not included. For missions the link only names the mission; loaded saves have no link.
+
 > **For advanced players:** the game can be started directly via its address, e.g.
 > `play/?seed=42&ai=hard&players=3&hero=orrin`, `&fog=off` without fog, `?mission=c1` for a campaign chapter
 > or `?quality=low` for weak devices.
@@ -387,7 +394,7 @@ Open the **menu** in the game ([[Esc]] or the button at the top right).
 
 - **Save game** creates a save. You can keep **several saves**; each shows its name, date and play time. Older
   saves can be overwritten or deleted.
-- **Load** lists your saves. In the main menu, **“Continue saved game”** resumes the most recent one.
+- **Load** lists your saves. In the main menu, **“Continue”** resumes the most recent one.
 - **Export** downloads a save as a **JSON file** – as a backup or to move it to another device.
 - **Import** reads such a file back in.
 

@@ -1,4 +1,4 @@
-# Website: Startseite, Spiel, Handbuch, Kompendium
+# Website: Startseite, Spiel, Handbuch, Kompendium, Blog
 
 Der Build ist eine kleine statische Website (Vite Multi-Page, `base: './'`, alle Pfade relativ – in jedem
 Unterordner hostbar):
@@ -9,6 +9,7 @@ Unterordner hostbar):
 | `play/` | `play/index.html` | das Spiel | `src/main.js`, `src/ui/` … |
 | `manual/` | `manual/index.html` | Handbuch DE/EN | `src/site/manual/` |
 | `compendium/` | `compendium/index.html` | Kompendium: alle Werte und Formeln, aus den Spieldaten erzeugt | `src/site/compendium/` |
+| `blog/`, `blog/<name>/` | `blog/index.html` (Artikelseiten erzeugt der Build) | Blog: Übersicht und Artikel, u. a. einer je Meilenstein | `src/site/blog/` |
 
 **Adressen sind englisch** (wie bei Spielen üblich: `play/`, `manual/`, `compendium/`), die Seiten selbst zweisprachig.
 Das Kompendium hieß früher „Wiki“; umbenannt, weil niemand mitschreibt – es ist ein Nachschlagewerk, das aus den
@@ -22,7 +23,7 @@ Eine neue Seite: HTML-Datei anlegen (Kopf wie die vorhandenen, `window.KRONLAND_
 - `site.js` – `mountPage(Komponente)`: Sprache, `$s()` (Website-Texte), `$t()`/`$name` (Spieltexte), `$links`, `$siteRoot`.
   Sprache wie im Spiel aus `localStorage['kronland-lang']`, sonst Browsersprache (nicht gespeichert); die
   Umschaltung in der Kopfzeile speichert und gilt damit auch fürs Spiel.
-- `SiteLayout.vue` – Kopfzeile (Startseite · Spielen · Handbuch · Kompendium · DE/EN) und Fußzeile mit Danksagung.
+- `SiteLayout.vue` – Kopfzeile (Startseite · Spielen · Handbuch · Kompendium · Blog · DE/EN) und Fußzeile mit Danksagung.
 - `strings.js` – Texte der Website (DE/EN, gleiche Schlüssel; Test in `tests/site/site.test.js`).
 - `site.css` – baut auf den Tokens aus `src/ui/style.css` auf; Lesetext auf Pergament (`.prose`), Druckansicht.
 - `markdown.js` – kleiner Markdown-Umsetzer (Überschriften mit `{#id}`, Listen, Tabellen, `> Hinweis`,
@@ -69,6 +70,40 @@ Suche entstehen aus den Überschriften (`##`, `###`).
 - Verweise ins Kompendium: `[Text](compendium/#b-farm)`, auf Kapitel: `[Text](#economy)`.
 - Die Danksagung kommt aus `CREDITS.md` (Platzhalter `{{credits}}`).
 
+## Blog: neuer Artikel
+
+Ein Artikel = zwei Markdown-Dateien `src/site/blog/posts/<name>.de.md` und `<name>.en.md` (Name aus `a-z`, `0-9`, `-`;
+er wird die Adresse `blog/<name>/`). Kopf zwischen `---`-Zeilen:
+
+```
+---
+title: Titel des Artikels
+date: 2026-10-07T18:00:00+02:00
+teaser: Ein bis zwei Sätze für die Übersicht.
+milestone: true      (nur bei Artikeln zu einem Meilenstein: Name = ID in docs/milestones.json)
+pinned: true         (nur für den Einstieg „Worum es geht“)
+---
+```
+
+Darunter Kapitel wie im Handbuch (`## Titel {#gleiche-id}` in beiden Sprachen; ein Test prüft das). Platzhalter
+`{{start}}`, `{{end}}`, `{{days}}`, `{{milestones}}` … aus `src/site/blog/milestones.js`. Sonst ist nichts zu tun:
+
+- **Übersicht** (`blog/`): angeheftete Artikel, dann alle nach Datum, **älteste zuerst** – sie liest sich wie die
+  Geschichte des Projekts, neue Artikel kommen ans Ende. Je Tag eine Zwischenzeile.
+- **Artikelseite** (`blog/<name>/`): dieselbe Seite wie die Übersicht; sie liest den Namen aus der Adresse
+  (Rückfall `blog/?post=<name>`). Das Plugin `scripts/vite-blog-pages.js` schreibt im Build für jeden Artikel eine
+  Kopie von `blog/index.html` nach `blog/<name>/index.html` (relative Verweise eine Ebene tiefer) und leitet im
+  Entwicklungsserver `blog/<name>/` auf die Übersicht um. `blog/index.html` setzt `KRONLAND_ROOT` je nach Tiefe.
+- **Meilenstein-Artikel** zeigen einen Kasten mit Zahlen aus `docs/milestones.json` (Zeitraum, Arbeitszeit,
+  Änderungen, neue Testfälle) und zwei Links: „Code dieses Meilensteins“ (`…/commit/<commit>`) und „Projekt zu
+  diesem Stand“ (`…/tree/<commit>`), ohne `commit` beide auf `…/tree/main` (`sourceLinks()`, Adresse des
+  Repositorys in `REPO_URL`). Sie blättern zum vorigen/nächsten Artikel.
+  Neuer Meilenstein: in `docs/milestones.json` anlegen, `node scripts/milestones.mjs` (siehe
+  [MEILENSTEINE.md](MEILENSTEINE.md)), dann die beiden Artikel mit `date` = `date_end` schreiben – der Test
+  `tests/site/blog.test.js` verlangt zu jedem Meilenstein einen Artikel in beiden Sprachen.
+- E2E: `e2e/blog.spec.js` (Desktop 1440×900 und Pixel 7, DE und EN); mit `BLOG_SHOTS=<ordner>` legt die Spec
+  Bildschirmfotos ab.
+
 ## Kompendium erweitern
 
 Das Kompendium wird zur Laufzeit aus den Datenmodulen erzeugt (`src/site/compendium/generate.js`): `BUILDINGS`, `UNITS`,
@@ -97,6 +132,6 @@ Technologie wie aus einem Addon hinzu und prüft, dass sie ohne Codeänderung er
 `python3 scripts/site-screens.py http://localhost:4301 [filter]` nimmt die Bilder für Startseite und Handbuch
 aus dem laufenden Spiel auf (Vorschau-Server mit aktuellem Build; Desktop 1440×900, Grafikstufe hoch, plus
 Handy) und legt sie als WebP unter `public/site/` ab (`<name>.webp`, Galerie zusätzlich `<name>-small.webp`,
-HUD-Ausschnitte `hud-*.webp`). Mit SwiftShader dauert das einige Minuten. Filter z. B. `kampf,winter`.
-Motive: `hero`, `settlement`, `hud-*`, `combat`, `hud-armee`, `winter`, `fog`, `slope` (gelbe Bauvorschau),
+HUD-Ausschnitte `hud-*.webp`). Mit SwiftShader dauert das einige Minuten. Filter z. B. `combat,winter`.
+Motive: `hero`, `settlement`, `hud-*`, `combat`, `hud-army`, `winter`, `fog`, `slope` (gelbe Bauvorschau),
 `developer` (A*-Suche), `programming` (Code-Panel am Haltepunkt), `phone`. Ein Test begrenzt die Dateigröße (Galerie ≤ 120 kB, groß ≤ 300 kB).

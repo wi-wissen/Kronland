@@ -1,6 +1,7 @@
 // Pure helper functions for the game UI (without DOM, tested with Vitest).
 import { PORTRAITS } from '../icons/index.js';
 import { assetPath } from '../../paths.js';
+import { sexKey } from '../../i18n/index.js';
 
 /** Share of the side length taken up by the longer map edge in the minimap. The minimap is square
  *  like the map (only slightly rounded corners), so the map fills it completely – nothing lies under the frame. */
@@ -62,14 +63,41 @@ export function selectionIcon(s) {
   return 'info';
 }
 
-/** Painted portrait (public/portraits/) for heroes, own serfs and workers, otherwise null (then icon). */
+/** Professions with their own portrait per sex (scripts/portraits.py: worker-<profession>.webp, worker-<profession>-f.webp). */
+export const WORKER_PORTRAITS = ['farmer', 'scholar', 'miner', 'brickmaker', 'sawyer', 'mason', 'smith', 'alchemist', 'treasurer', 'priest', 'trader', 'weatherman'];
+
+/**
+ * Sex of a serf selection for the portrait: all the same → that one, mixed → the majority
+ * (tie: male). The title names mixed groups in the plural ("3 serfs").
+ * @param {{ count: number, female?: number, sex?: 'm'|'f'|null }} s
+ */
+export function serfsSex(s) {
+  if (s.sex) return s.sex;
+  return (s.female ?? 0) * 2 > s.count ? 'f' : 'm';
+}
+
+/**
+ * Painted portrait (public/portraits/) for heroes, own serfs and workers, otherwise null (then icon).
+ * Serfs and workers matching the sex of the drawn figure (s.sex, see Engine.sexOf).
+ */
 export function selectionPortrait(s, base = '/') {
   if (!s) return null;
   const hero = s.kind === 'army' && s.heroes.length && !s.groups.length ? s.heroes[0].hero : s.kind === 'foreign' ? s.hero : null;
   if (hero && PORTRAITS[`hero-${hero}`]) return base + assetPath(PORTRAITS[`hero-${hero}`]);
-  if (s.kind === 'serfs') return base + assetPath('portraits/serf.webp');
-  if (s.kind === 'foreign' && s.owner === 0 && s.entity === 'worker') return base + assetPath('portraits/worker.webp');
+  if (s.kind === 'serfs') return base + assetPath(serfsSex(s) === 'f' ? 'portraits/serf-f.webp' : 'portraits/serf.webp');
+  if (s.kind === 'foreign' && s.owner === 0 && s.entity === 'worker') {
+    const f = s.sex === 'f' ? '-f' : '';
+    return base + assetPath(WORKER_PORTRAITS.includes(s.prof) ? `portraits/worker-${s.prof}${f}.webp` : 'portraits/worker.webp');
+  }
   return null;
+}
+
+/**
+ * Title of a serf selection: a single figure by sex ("1 serf"), several in the plural
+ * ("3 serfs" – also for mixed groups).
+ */
+export function serfsTitle(s, t) {
+  return s.count === 1 ? t(sexKey('serfs.one', s.sex)) : t('serfs.count', { n: s.count });
 }
 
 /** Common word endings of German building names: a narrow tile may break there. */
@@ -161,6 +189,9 @@ export function relationKey(r) {
 export function foreignName(s, t, name) {
   if (s.entity === 'ruin') return t('sys.ruin') + (s.type ? ' · ' + name.building(s.type, s.level ?? 0) : '');
   if (s.hero) return name.hero(s.hero);
+  // a single figure by sex (s.sex): profession, troop type (singular) or serf
+  if (s.entity === 'worker' && s.prof) return name.prof(s.prof, s.sex);
+  if (s.entity === 'soldier' && s.figure) return t(sexKey('figure.' + s.figure, s.sex));
   if (s.unit) return name.unit(s.unit);
-  return t('foreign.' + (s.entity === 'unit' ? 'serf' : s.entity in { worker: 1, hero: 1, soldier: 1 } ? s.entity : 'unit'));
+  return t(sexKey('foreign.' + (s.entity === 'unit' ? 'serf' : s.entity in { worker: 1, hero: 1, soldier: 1 } ? s.entity : 'unit'), s.sex));
 }

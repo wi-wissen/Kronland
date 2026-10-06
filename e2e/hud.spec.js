@@ -202,8 +202,12 @@ test('Desktop: crest exactly at the screen centre, castle panel two-column, 5 se
   // the crest stays in one row
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.locator('.tb-wxname')).toBeVisible();
+  // Without faith it is shown greyed out (no gap in the right shield)
+  await expect(page.getByTestId('faith')).toHaveClass(/tb-none/);
+  await expect(page.getByTestId('faith')).toHaveText('0');
   await page.evaluate(() => { const e = window.__kronland; e.sim.players[0].faith = 1234; e.emitUi(); });
   await expect(page.getByTestId('faith')).toBeVisible();
+  await expect(page.getByTestId('faith')).not.toHaveClass(/tb-none/);
   await expect(page.locator('.topbar')).not.toHaveClass(/tight/);
   await page.setViewportSize({ width: 1920, height: 900 });
   await expect(page.locator('.tb-wxname')).toBeVisible();

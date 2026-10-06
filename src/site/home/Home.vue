@@ -92,6 +92,12 @@
           <p>{{ $s('home.learn.compendium') }}</p>
           <span class="lc-go">{{ $s('home.learn.toCompendium') }} →</span>
         </a>
+        <a class="learn-card parchment" :href="$links.blog" data-testid="home-blog">
+          <Icon name="time" class="lc-ico" />
+          <h3>{{ $s('nav.blog') }}</h3>
+          <p>{{ $s('home.learn.blog') }}</p>
+          <span class="lc-go">{{ $s('home.learn.toBlog') }} →</span>
+        </a>
       </div>
     </section>
 
@@ -246,7 +252,8 @@ export default {
 @media (max-width: 860px) { .school { grid-template-columns: 1fr; } }
 
 /* ---------- Manual / compendium ---------- */
-.learn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.5rem; }
+.learn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
+@media (max-width: 1000px) and (min-width: 701px) { .learn-grid { grid-template-columns: 1fr 1fr; } }
 .learn-card { display: block; padding: 1.5rem 1.5rem 1.25rem; text-decoration: none; color: var(--parch-ink) !important; transition: filter 0.15s; }
 .learn-card:hover { filter: brightness(1.05); }
 .learn-card h3 { font-family: var(--display); color: #5a3a12; font-size: 1.75rem; margin: 0.5rem 0 0.25rem; }

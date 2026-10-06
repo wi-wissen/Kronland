@@ -48,17 +48,23 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
   mehrere zu einem Baum, gehen die übrigen zu freien Bäumen in der Nähe (Umkreis 12 Kacheln, nur
   erreichbare). Ist dort nichts mehr frei, teilen sie sich einen Baum; ist gar nichts mehr da, bleiben sie
   untätig und es erscheint die Meldung „Kein Holz mehr in der Nähe“.
-- **Feste Plätze – nie zwei auf einer Kachel**: Wer baut, repariert, Holz fällt oder einen Haufen abbaut,
-  belegt eine eigene freie Kachel direkt an der Grundfläche bzw. am Baum/Haufen (die nächste zu ihm,
-  im selben Gebiet). Sind rundum alle Kacheln belegt (auch von Leibeigenen an Nachbarbäumen oder
-  Nachbarbaustellen, von wartenden Arbeitern), ist das Ziel voll: Eine Baustelle nimmt dann keinen
-  weiteren Leibeigenen an (Meldung „An der Baustelle ist kein Platz mehr frei“, `err.siteFull`), beim
+- **Feste Plätze – nie zwei auf einem Fleck** **(A)**: Wer baut oder repariert, belegt eine eigene freie
+  Kachel direkt an der Grundfläche (die nächste zu ihm, im selben Gebiet) und steht in deren Mitte – so schlägt
+  er an die Wand. Wer Holz fällt oder einen Haufen abbaut, steht auf einem eigenen **Punkt im Kreis** um
+  Baum bzw. Haufen (Baum: 8 Plätze, Halbmesser 0,9 Kacheln; Haufen: 8 Plätze, 0,95 Kacheln), mit Blick zum
+  Ziel. Plätze auf gesperrten Kacheln (Nachbarbaum, Wasser, Gebäude) oder in einem anderen Gebiet fallen weg;
+  belegt ist ein Platz, wenn eine andere ruhende Figur näher als 0,6 Kacheln steht (auch Leibeigene an
+  Nachbarbäumen, Bauleute, wartende Arbeiter). Ist alles belegt, ist das Ziel voll: Eine Baustelle nimmt dann
+  keinen weiteren Leibeigenen an (Meldung „An der Baustelle ist kein Platz mehr frei“, `err.siteFull`), beim
   Abbau weichen die übrigen auf den nächsten Baum/Haufen mit freiem Platz aus. Die Obergrenze von 4 je
   Baustelle bleibt; frei werdende Plätze (Abzug, Tod, Abbruch, Miliz) werden sofort wieder vergeben.
-  Umsetzung: `src/sim/systems/spots.js`; der Platz steht an der Figur (`spot`, gespeichert und im
-  Zustands-Hash), die belegten Plätze werden daraus abgeleitet. KI und Missions-Bots schicken nur so
-  viele Leibeigene, wie Plätze frei sind (`siteRoom`). Im Kampf und bei Laufbefehlen gilt das nicht
-  (dort fächern Formationen bzw. Zielkacheln auf).
+  Gewählt wird im innersten Ring der Platz, der der Figur am nächsten liegt (also in der Richtung, aus der sie
+  kommt, sonst der nächste freie daneben). Die Figur läuft bis in die Kachel des Platzes und dann geradeaus
+  auf den genauen Punkt. Umsetzung: `src/sim/systems/spots.js`, Werte in `SPOTS` (`src/sim/data/spots.js`);
+  der Platz steht an der Figur (`spot` = Kachel, `slot` = Kreisplatz; gespeichert und im Zustands-Hash), die
+  belegten Plätze werden daraus abgeleitet. KI und Missions-Bots schicken nur so viele Leibeigene, wie Plätze
+  frei sind (`siteRoom`). Im Kampf und bei Laufbefehlen gilt das nicht (dort fächern Formationen bzw.
+  Zielkacheln auf).
 - Laufbefehle fächern auf: Jede Figur bekommt eine eigene Zielkachel um den Klickpunkt (Leibeigene
   1 Kachel Abstand, Truppen und Helden 3 Kacheln, damit die Soldaten dahinter Platz haben).
 - Beim Platzieren eines Gebäudes mit ausgewählten Leibeigenen fangen diese sofort an zu bauen.
@@ -86,11 +92,16 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
   So zeigen Lagerfeuer (auch als orange Punkte auf der Minikarte), wo Wohnhäuser oder Bauernhöfe fehlen;
   beim ersten Feuer kommt eine Meldung (höchstens einmal je Minute). Findet sich kein Platz, rasten sie wie
   früher an Dorfzentrum oder Burg. Burg und Dorfzentrum haben kein festes Lagerfeuer mehr.
-- **Plätze am Lagerfeuer**: Rastende sitzen im Kreis auf den 8 Kacheln um das Feuer, jeder auf seiner
-  eigenen. Ist der Kreis voll, nimmt der Nächste ein anderes Feuer in Reichweite mit freiem Platz oder
-  entzündet ein weiteres (mind. 3 Kacheln vom nächsten Feuer, die Kreise überschneiden sich nicht).
-  Ebenso bekommen Arbeiter, die draußen vor ihrem Arbeitsplatz warten (Ausbau, keine Rohware), eine
-  eigene Kachel daneben. Nur wenn wirklich alles belegt ist, stellen sie sich wie früher irgendwo dazu.
+- **Plätze am Lagerfeuer** **(A)**: Rastende sitzen im Kreis um das Feuer (8 Plätze, Halbmesser 1,1 Kacheln,
+  je einer in jeder der 8 Nachbarkacheln) und schauen hinein. Ist der Kreis voll, nimmt der Nächste ein anderes
+  Feuer in Reichweite mit freiem Platz oder entzündet ein weiteres (mind. 3 Kacheln vom nächsten Feuer, die
+  Kreise überschneiden sich nicht).
+- **Warten vor dem Gebäude** **(A)**: Arbeiter, die draußen vor ihrem Arbeitsplatz warten (Ausbau, keine
+  Rohware) – oder ohne Feuerplatz an Dorfzentrum bzw. Burg rasten –, stehen auf einem Kreis um das Gebäude
+  (Halbmesser halbe Diagonale der Grundfläche + 0,4 Kacheln, zweiter Ring 0,9 Kacheln weiter außen und um
+  einen halben Platz versetzt, Plätze mindestens 1 Kachel auseinander) und schauen zum Gebäude. Die Gruppe
+  sammelt sich auf der Seite, von der sie kommt. Nur wenn wirklich alles belegt ist, stellen sie sich wie
+  früher irgendwo dazu.
 - Wohnhaus 6/9/12 Betten, Bauernhof 8/10/12 Essplätze (Stufe 1/2/3).
 - Umsetzung (Werte in `src/sim/data/professions.js`): Ausdauer max. 2000 (neue Arbeiter 600),
   ein Arbeitsgang kostet 100. Essen +200, Schlafen +400 – jeweils × Motivationswirkung; Lagerfeuer

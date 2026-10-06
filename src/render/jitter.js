@@ -39,8 +39,9 @@ export function jitterTarget(e, moving) {
     case 'leader': case 'soldier': return 1;
     // Serfs: not while working (building, felling, mining, delivering at the target)
     case 'unit': return !moving && e.job && !e.path?.length && !e.militia ? 0 : 1;
-    // Workers: only on the way or while waiting outside, not at the workplace, in the house or at the fire
-    case 'worker': return !e.inside && (e.state === 'walk' || e.state === 'waiting') ? 1 : 0;
+    // Workers: only on the way or while waiting without their own ring slot – not at the workplace, in the house,
+    // at the fire or at their spot in front of the building (exact point on the ring)
+    case 'worker': return !e.inside && (e.state === 'walk' || (e.state === 'waiting' && !(e.slot >= 0))) ? 1 : 0;
     // Heroes (cutscenes, script steps), NPCs, traps, siege weapons: exact
     default: return 0;
   }

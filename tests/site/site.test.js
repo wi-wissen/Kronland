@@ -124,14 +124,14 @@ describe('Website texts and paths', () => {
 });
 
 describe('Website addresses', () => {
-  it('English paths: manual/ and compendium/', () => {
-    expect(pageLinks('../')).toEqual({ home: '../', play: '../play/', manual: '../manual/', compendium: '../compendium/' });
-    for (const p of ['manual', 'compendium']) expect(existsSync(resolve(p, 'index.html')), p).toBe(true);
+  it('English paths: manual/, compendium/, blog/', () => {
+    expect(pageLinks('../')).toEqual({ home: '../', play: '../play/', manual: '../manual/', compendium: '../compendium/', blog: '../blog/' });
+    for (const p of ['manual', 'compendium', 'blog']) expect(existsSync(resolve(p, 'index.html')), p).toBe(true);
   });
 
   it('all pages are in the Vite configuration', () => {
     const cfg = readFileSync(resolve('vite.config.js'), 'utf8');
-    for (const p of ['play', 'manual', 'compendium']) expect(cfg).toContain(`'${p}/index.html'`);
+    for (const p of ['play', 'manual', 'compendium', 'blog']) expect(cfg).toContain(`'${p}/index.html'`);
   });
 });
 

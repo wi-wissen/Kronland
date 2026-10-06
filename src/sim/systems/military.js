@@ -1,5 +1,6 @@
 // Military: squad leaders with soldiers, heroes, militia, towers, traps, combat and damage.
 
+import { DIR72 } from '../dirs.js';
 import { UNITS, MILITIA, SERF_COMBAT, TOWER, HEROES, HERO_COMMON, WORKER_COMBAT } from '../data/units.js';
 import { COMBAT, computeDamage } from '../data/combat.js';
 import { buildingArmor } from '../data/buildings.js';
@@ -372,11 +373,7 @@ function engage(sim, e, st, t) {
 // ---------- Surrounding ----------
 
 /** 24 directions in a 15° grid as integer vectors (length 1000) – no floating-point angles in the sim. */
-const SIN15 = [0, 259, 500, 707, 866, 966, 1000];
-const DIR24 = Array.from({ length: 24 }, (_, k) => {
-  const s = (i) => { const j = ((i % 24) + 24) % 24; return j <= 6 ? SIN15[j] : j <= 12 ? SIN15[12 - j] : -s(j - 12); };
-  return { x: s(k + 6), y: s(k) };
-});
+const DIR24 = Array.from({ length: 24 }, (_, k) => DIR72[3 * k]);
 
 /**
  * Taken spots per target in this tick: target ID → bitmasks per ring. Cleared at the start of every military tick

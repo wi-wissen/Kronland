@@ -43,6 +43,9 @@ describe('jitterTarget', () => {
   it('workers only on the way or waiting outside', () => {
     expect(jitterTarget({ kind: 'worker', state: 'walk' }, true)).toBe(1);
     expect(jitterTarget({ kind: 'worker', state: 'waiting' }, false)).toBe(1);
+    // on its own ring slot in front of the building: exact point, no offset
+    expect(jitterTarget({ kind: 'worker', state: 'waiting', slot: 3 }, false)).toBe(0);
+    expect(jitterTarget({ kind: 'worker', state: 'waiting', slot: -1 }, false)).toBe(1);
     for (const state of ['working', 'eating', 'sleeping', 'camping']) expect(jitterTarget({ kind: 'worker', state }, false)).toBe(0);
     expect(jitterTarget({ kind: 'worker', state: 'walk', inside: true }, false)).toBe(0);
   });

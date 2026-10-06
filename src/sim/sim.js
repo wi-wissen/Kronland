@@ -949,9 +949,9 @@ export class Sim {
       h.int(e.id).str(e.kind).int(e.owner ?? -1);
       if (e.fearUntil !== undefined) h.int(e.fearUntil);
       if (e.fleeUntil !== undefined) h.int(e.fleeUntil).int(e.fleeGoal);
-      if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp).int(e.spot ?? -1);
+      if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp).int(e.spot ?? -1).int(e.slot ?? -1);
       else if (e.kind === 'leader') h.int(e.px).int(e.py).int(e.hp).int(e.targetId).int(e.cooldown).int(e.xp ?? 0);
-      else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state).int(e.spot ?? -1);
+      else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state).int(e.slot ?? -1);
       else if (e.px !== undefined) h.int(e.px).int(e.py).int(e.hp ?? 0).int(e.targetId ?? 0).int(e.cooldown ?? 0).int(e.face ?? -1);
       else if (e.kind === 'building') {
         h.str(e.type).int(e.x).int(e.y).int(e.progress).int(e.done ? 1 : 0).int(e.level).int(e.hp).int(e.burning ? 1 : 0);

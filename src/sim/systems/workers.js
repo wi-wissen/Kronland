@@ -9,7 +9,7 @@ import { tileCenter, toTile } from '../fixed.js';
 import { WATER, OCCUPIED, RESERVED, CLIFF, BRIDGE } from '../map.js';
 import { techBonus, boosted } from './techs.js';
 import { addWeatherEnergy } from './weather.js';
-import { takenSpots, pickSpot, freeSpots } from './spots.js';
+import { takenSpots, pickSlot, freeSlots, slotPoint, slotTile, stepToPoint } from './spots.js';
 
 /**
  * @typedef {Object} Worker
@@ -32,7 +32,7 @@ import { takenSpots, pickSpot, freeSpots } from './spots.js';
  * @property {boolean} resting
  * @property {boolean} ate
  * @property {boolean} inside inside the building (invisible)
- * @property {number} [spot] own spot (tile) when waiting or resting outside, -1 = none
+ * @property {number} [slot] own ring slot around `target` when waiting or resting outside, -1 = none (spots.js)
  */
 
 // ---------- Helpers ----------
@@ -137,23 +137,30 @@ export function updateSpawning(sim) {
   }
 }
 
-// ---------- Ablauf ----------
+// ---------- Flow ----------
 
 /** Intents in which the worker stays outside and therefore needs an own spot. */
 const OUTSIDE = new Set(['wait', 'campEat', 'campSleep']);
 
+/** Walking speed of a worker (tech "Schuhe"). */
+const workerSpeed = (sim, w) => boosted(W.speed, techBonus(sim, w.owner, 'workers').speed);
+
 function walkTo(sim, w, b, intent) {
+  const keep = w.target === b.id && !w.inside ? (w.slot ?? -1) : -1;
   w.inside = false;
   w.intent = intent;
   w.target = b.id;
-  const m = sim.map, ring = m.ring(b.x, b.y, b.w, b.h);
-  // Whoever waits or rests outside gets an own tile around the target; if all are taken,
-  // they stand somewhere nearby as before.
-  w.spot = OUTSIDE.has(intent) ? pickSpot(sim, w, ring) : -1;
-  const here = m.idx(toTile(w.px), toTile(w.py));
-  if (w.spot >= 0 ? here === w.spot : isAdjacent(w, b)) { w.path = []; arrive(sim, w); return; }
-  const p = pathTo(sim, w, w.spot >= 0 ? [w.spot] : ring);
-  if (!p) { w.state = 'waiting'; w.timer = 20; w.spot = -1; return; }
+  const m = sim.map;
+  // Whoever waits or rests outside gets an own spot in the circle around the target (fire, building);
+  // if everything is taken, they stand somewhere next to it as before.
+  w.slot = OUTSIDE.has(intent) ? pickSlot(sim, w, b, keep) : -1;
+  const pt = w.slot >= 0 ? slotPoint(b, w.slot) : null;
+  const k = pt ? slotTile(m, pt) : -1;
+  if (pt ? w.px === pt.x && w.py === pt.y : isAdjacent(w, b)) { w.path = []; arrive(sim, w); return; }
+  // Already in the spot's tile: only straight to the point (in walking state)
+  if (pt && m.idx(toTile(w.px), toTile(w.py)) === k) { w.path = []; w.state = 'walk'; return; }
+  const p = pathTo(sim, w, pt ? [k] : m.ring(b.x, b.y, b.w, b.h));
+  if (!p) { w.state = 'waiting'; w.timer = 20; w.slot = -1; return; }
   w.path = p;
   w.state = 'walk';
 }
@@ -217,8 +224,8 @@ function campOf(sim, w) {
   for (const f of campsOf(sim, w.owner)) {
     const d = d2(f, from);
     if (d > r2 || d >= bd) continue;
-    const seats = sim.map.ring(f.x, f.y, 1, 1);
-    if (!seats.includes(w.spot) && !freeSpots(sim.map, seats, taken).length) continue; // Kreis voll
+    const seated = w.target === f.id && !w.inside && (w.slot ?? -1) >= 0;
+    if (!seated && !freeSlots(sim.map, f, taken).length) continue; // circle full
     bd = d; best = f;
   }
   if (best) return best;
@@ -342,9 +349,16 @@ export function updateWorker(sim, w) {
     case 'walk': {
       const target = sim.entities.get(w.target);
       if (!target) { decide(sim, w); return; }
-      if (moveAlong(sim, w, boosted(W.speed, techBonus(sim, w.owner, 'workers').speed))) {
-        if (isAdjacent(w, target)) arrive(sim, w); else decide(sim, w);
+      const walking = w.path.length > 0;
+      if (!moveAlong(sim, w, workerSpeed(sim, w))) return;
+      if ((w.slot ?? -1) >= 0) {
+        // Own spot: from the tile centre straight to the exact point, then arrive
+        const pt = slotPoint(target, w.slot), k = pt ? slotTile(sim.map, pt) : -1;
+        if (k < 0 || sim.map.idx(toTile(w.px), toTile(w.py)) !== k) { decide(sim, w); return; }
+        if (!walking && stepToPoint(w, pt, workerSpeed(sim, w))) arrive(sim, w);
+        return;
       }
+      if (isAdjacent(w, target)) arrive(sim, w); else decide(sim, w);
       return;
     }
     case 'working': {

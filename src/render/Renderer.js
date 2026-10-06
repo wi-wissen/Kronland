@@ -25,6 +25,7 @@ import {
   unitModel, heroModel, gadgetModel, horseModel, constructionStage, ruinModel, RUIN_ASSETS, CAMPFIRE_ASSET, hasConstructionStages, bridgeModel,
 } from './models.js';
 import { UNITS, HEROES, HERO_IDS } from '../sim/data/units.js';
+import { figureRole } from './variants.js';
 import { sharedModelMaterials } from './models.js';
 import { playerHex } from './playerColors.js';
 import { sharedAssetRoots, assetState, hasAsset, ownAsset, loadNatureModels } from './assets.js';
@@ -39,6 +40,7 @@ import { knownBuildings } from '../sim/systems/vision.js';
 import { jitterOffset, jitterTarget, JITTER_FADE } from './jitter.js';
 import { COMBAT } from '../sim/data/combat.js';
 import { wrapAngle } from './angle.js';
+import { pickFigure, inDepth } from './pick.js';
 
 /** Player colour; figures without owner (conversation figures) in neutral brown. */
 /**
@@ -1200,14 +1202,9 @@ export class Renderer {
 
   /** Role of a serf/worker/fighter for the figure manifest. */
   roleOf(e) {
-    if (e.kind === 'unit') return e.militia ? 'soldier.spear' : 'serf';
-    if (e.kind === 'npc') return e.look ?? 'serf';
-    if (e.kind === 'worker') return `worker.${e.prof}`; // own model per profession, otherwise role 'worker'
-    if (e.kind === 'hero') return `hero.${e.hero}`;
-    const line = UNITS[e.def]?.line ?? 'sword';
-    if (this.sim.players[e.owner]?.neutral && !this.sim.players[e.owner].soldierLook) return line === 'bow' ? 'bandit.bow' : 'bandit';
-    return `soldier.${line}${e.kind === 'leader' ? '.leader' : ''}`;
+    return figureRole(e, this.sim.players, UNITS);
   }
+
 
   /**
    * Rendering offset of a figure in tiles (see jitter.js): fixed per ID, faded in and out softly,
@@ -1250,6 +1247,10 @@ export class Renderer {
         // turn towards the fire (resting workers sit in a circle)
         const f = this.sim.entities.get(e.target);
         if (f) yaw = Math.atan2(f.x + (f.w ?? 1) / 2 - x, f.y + (f.h ?? 1) / 2 - z);
+      } else if (e.state === 'waiting' && e.slot >= 0 && !moving) {
+        // waiting workers on their ring slot look towards the building
+        const b = this.sim.entities.get(e.target);
+        if (b) yaw = Math.atan2(b.x + (b.w ?? 1) / 2 - x, b.y + (b.h ?? 1) / 2 - z);
       }
     } else {
       const working = !moving && e.job && e.path.length === 0;
@@ -1581,7 +1582,8 @@ export class Renderer {
 
   /**
    * Entity under a screen position. Figures are instanced: selection via the screen distance
-   * to the body (capsule from foot to head point); buildings and small items via raycast. The nearer one wins.
+   * to the body (capsule from foot and head point, `pickFigure` in pick.js: only drawn figures on screen,
+   * pick radius limited); buildings and small stuff via raycast. The closer one wins.
    */
   pickEntity(clientX, clientY) {
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -1589,33 +1591,28 @@ export class Renderer {
     this.raycaster.setFromCamera(ndc, this.camera);
     // last seen buildings in fog are not selectable (otherwise they would reveal the current state)
     const objs = [...this.units.values(), ...[...this.buildings.values()].filter((g) => !g.userData.ghost)];
-    const hit = this.raycaster.intersectObjects(objs, true)[0];
-    let best = null, bestScore = Infinity, bestDepth = Infinity;
+    // only visible things (invisible meshes are also hit by the raycaster otherwise)
+    const hit = this.raycaster.intersectObjects(objs, true).find((h) => shownInScene(h.object));
+    const view = { width: rect.width, height: rect.height, touch: !!matchMedia?.('(pointer: coarse)').matches };
     const a = new THREE.Vector3(), b = new THREE.Vector3();
-    const px = clientX - rect.left, py = clientY - rect.top;
-    const touch = matchMedia?.('(pointer: coarse)').matches;
-    for (const r of this.chars.records.values()) {
-      if (!r.visible || r.dying || r.lod.level < 0) continue;
-      a.copy(r.position).project(this.camera);
-      b.copy(r.position); b.y += 0.95 + (r.variant?.seat ?? 0);
-      b.project(this.camera);
-      if (a.z > 1 || b.z > 1) continue;
-      const ax = (a.x + 1) / 2 * rect.width, ay = (1 - a.y) / 2 * rect.height;
-      const bx = (b.x + 1) / 2 * rect.width, by = (1 - b.y) / 2 * rect.height;
-      // Abstand Punkt–Strecke
-      const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1;
-      const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L));
-      const d = Math.hypot(ax + dx * t - px, ay + dy * t - py);
-      const radius = Math.max(touch ? 16 : 9, Math.sqrt(L) * 0.32);
-      if (d > radius) continue;
-      // figure closest to the pointer (in groups otherwise always the frontmost, e.g. a soldier in front of
-      // the hero); at equal distance the front one
-      const score = d + a.z * 1e-3;
-      if (score < bestScore) { bestScore = score; bestDepth = a.z; best = r; }
-    }
-    if (best && (!hit || bestDepth <= new THREE.Vector3().copy(hit.point).project(this.camera).z)) {
-      const e = this.sim.entities.get(best.id);
-      return e?.kind === 'soldier' ? e.leader : best.id;
+    // foot and head point of every figure drawn in this frame (drawn position including offset)
+    const figures = function* (chars, camera) {
+      for (const r of chars.records.values()) {
+        if (!r.visible || r.dying || r.lod.level < 0) continue;
+        a.copy(r.position).project(camera);
+        b.copy(r.position); b.y += 0.95 + (r.variant?.seat ?? 0);
+        b.project(camera);
+        yield {
+          r, drawn: r.meshLvl >= 0, az: a.z, bz: b.z,
+          ax: (a.x + 1) / 2 * rect.width, ay: (1 - a.y) / 2 * rect.height,
+          bx: (b.x + 1) / 2 * rect.width, by: (1 - b.y) / 2 * rect.height,
+        };
+      }
+    };
+    const best = pickFigure(figures(this.chars, this.camera), clientX - rect.left, clientY - rect.top, view);
+    if (best && (!hit || best.az <= new THREE.Vector3().copy(hit.point).project(this.camera).z)) {
+      const e = this.sim.entities.get(best.r.id);
+      return e?.kind === 'soldier' ? e.leader : best.r.id;
     }
     return hit ? hit.object.userData.entity ?? null : null;
   }
@@ -1641,9 +1638,13 @@ export class Renderer {
   project(x, y, z) {
     const v = new THREE.Vector3(x, y, z).project(this.camera);
     const rect = this.renderer.domElement.getBoundingClientRect();
-    return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height, behind: v.z > 1 };
+    // behind: behind the camera (z > 1) or between the camera and the near clipping plane (z < −1, huge coordinates)
+    return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height, behind: !inDepth(v.z) };
   }
 }
+
+/** Object visible together with all its parents? */
+function shownInScene(o) { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; }
 
 /** Time after which a ruin (without simulation ruin) begins to fade (seconds). */
 const RUIN_TIME = 14;

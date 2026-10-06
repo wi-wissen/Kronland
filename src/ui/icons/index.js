@@ -120,6 +120,8 @@ const GLYPH = {
   trash: g('M6 9h20M13 9V6h6v3M8.5 9l1.5 17h12l1.5-17M13.5 13.5v8M18.5 13.5v8', 2.3),
   download: g('M16 5v14M10 13.5l6 6 6-6M6 22v4h20v-4', 2.6),
   upload: g('M16 20V6M10 11.5l6-6 6 6M6 22v4h20v-4', 2.6),
+  // Share start link (game menu)
+  link: g('M13.5 18.5l5-5M14 9.5l2.5-2.5a5 5 0 0 1 7 7L21 16.5M18 22.5l-2.5 2.5a5 5 0 0 1-7-7L11 15.5', 2.6),
 };
 
 // ---------- Display crests ----------
