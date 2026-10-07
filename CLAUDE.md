@@ -6,7 +6,7 @@ Desktop und Handy, Einzelspieler gegen Computergegner, Multiplayer (Lockstep) vo
 ## Stack
 - Reines JavaScript mit JSDoc – **kein TypeScript**.
 - Vite, Vue 3 **Options API** (keine Composition API), Three.js, Vitest, Playwright.
-- Einstieg: README.md, docs/ARCHITEKTUR.md (Aufbau, Steuerung), docs/SPIELREGELN.md (Mechaniken), docs/MODELLE.md + docs/STIL.md (Figuren).
+- Einstieg: README.md, docs/ARCHITEKTUR.md (Aufbau, Steuerung), docs/SPIELREGELN.md (Mechaniken), docs/MODELLE.md + docs/STIL.md (Figuren), docs/TESTS.md (Tests, CI).
 
 ## Befehle
 ```bash
@@ -34,7 +34,7 @@ E2E läuft headless über SwiftShader (Software-WebGL) und ist langsam (passt di
 - **Nur freie (CC0) oder selbst generierte Assets** (eigene Bildgenerierung, Meshy), Herkunft in CREDITS.md; keine gekauften Asset-Pakete. Keine Namen, Texte oder Grafiken aus Siedler – Mechaniken nachbauen ja, Benennung eigen.
 - **Sprache:** Code, Bezeichner, Kommentare, Dateinamen, Commit-Nachrichten sowie Titel und Beschreibung von Pull Requests auf **Englisch**. Markdown-Doku (README, docs/, CLAUDE.md) und Spielertexte (Werte in `src/i18n/de.js`, Anzeigenamen in `src/sim/data/`, Handbuch, Blog) bleiben **Deutsch** (Spielertexte zusätzlich englisch in `en.js`). Kompakt schreiben. Neue Funktionen in README/docs nachtragen.
 - Neue Logik bekommt Vitest-Tests, sichtbare Funktionen eine Playwright-Spec. Vor dem PR: `npm test` grün, `npm run build` ok, betroffene E2E-Tests grün.
-- **Gezielt testen, E2E sparsam:** Während der Arbeit nur die Vitest-Ordner der Änderung (`npx vitest run tests/audio`), `npm test` komplett einmal vor dem PR. E2E nur, wenn sich Sichtbares geändert hat, und dann nur die betroffenen Tests per Zeile (`e2e/hud.spec.js:223`), Handy-Projekt (`--project=mobile`) nur bei Handy-Layout, `--workers=1` und nie parallel zu anderen schweren Läufen (sonst SwiftShader-Timeouts, die wie Fehler aussehen). Logikfehler erst mit Vitest oder einem Node-Skript gegen die Sim eingrenzen, nicht per Browser. CI (`.github/workflows/ci.yml`): Vitest und Build bei jedem Push auf einen PR, die volle E2E-Suite erst, wenn der PR kein Entwurf mehr ist (oder per „Run workflow“).
+- **Gezielt testen, E2E sparsam:** Während der Arbeit nur die Vitest-Ordner der Änderung (`npx vitest run tests/audio`), `npm test` komplett einmal vor dem PR. E2E nur, wenn sich Sichtbares geändert hat, und dann nur die betroffenen Tests per Zeile (`e2e/hud.spec.js:223`), Handy-Projekt (`--project=mobile`) nur bei Handy-Layout, `--workers=1` und nie parallel zu anderen schweren Läufen (sonst SwiftShader-Timeouts, die wie Fehler aussehen). Logikfehler erst mit Vitest oder einem Node-Skript gegen die Sim eingrenzen, nicht per Browser. CI (`.github/workflows/ci.yml`, Aufbau in docs/TESTS.md): Vitest und Build bei jedem Push auf einen PR, die volle E2E-Suite erst, wenn der PR kein Entwurf mehr ist (oder per „Run workflow“) – in parallelen Shards (leicht/schwer, `E2E_GROUP`), Ergebnis abwarten, bevor gemergt wird.
 
 ## Arbeitsweise
 - Eigener Branch je Aufgabe, Pull Request gegen `main`. Vor dem PR `main` hineinmergen.
