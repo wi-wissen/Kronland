@@ -237,7 +237,9 @@ cavalry, cannons.
 - Each troop type has strengths and weaknesses: spears against cavalry, swords against spears, cannons against buildings.
   The exact damage table is in the [compendium](compendium/#units).
 
-![Troops selected: captains, hero and orders](site/hud-army.webp)
+![Troops selected: orders and the hero's abilities](site/hud-army.webp)
+
+![Selection card on the right: hero and captains with rank, troop strength and hit points](site/hud-selection.webp)
 
 ### Orders
 
