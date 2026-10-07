@@ -41,6 +41,7 @@ import { jitterOffset, jitterTarget, JITTER_FADE } from './jitter.js';
 import { COMBAT } from '../sim/data/combat.js';
 import { wrapAngle } from './angle.js';
 import { pickFigure, inDepth } from './pick.js';
+import { findSpinners, turnParts } from './movingParts.js';
 
 /** Player colour; figures without owner (conversation figures) in neutral brown. */
 /**
@@ -1058,10 +1059,8 @@ export class Renderer {
         if (!e.done && !ghost) this.fx.dust(g.position.x, g.position.y, g.position.z, 10, 0.5);
       }
     }
-    const rotor = g.getObjectByName('rotor');
-    if (rotor) rotor.rotation.z = this.time * 1.5;
-    const spin = g.getObjectByName('spinY');
-    if (spin) spin.rotation.y = this.time * 2.2;
+    // sails, water wheels, weather vanes (src/render/movingParts.js); still while being built or out of sight
+    if (e.done && !ghost) turnParts(g.userData.turning ??= findSpinners(g), this.time);
     const flame = g.getObjectByName('flame');
     if (flame) flame.scale.y = 0.8 + Math.sin(this.time * 12 + e.id) * 0.2;
     g.userData.ghost = ghost;

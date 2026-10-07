@@ -143,7 +143,7 @@ const BUILDERS = {
     orb.material = mat(0x9fd0f0, { roughness: 0.25, metalness: 0.1, emissive: 0x24506a, emissiveIntensity: 0.6 });
     orb.position.set(0, 3.85, 0); g.add(orb);
     // wind vane (turns like the windmill)
-    const vane = new THREE.Group(); vane.position.set(0, 4.05, 0); vane.name = 'spinY';
+    const vane = new THREE.Group(); vane.position.set(0, 4.05, 0); vane.userData.turn = { axis: new THREE.Vector3(0, 1, 0), speed: 2.2 };
     vane.add(box(0.03, 0.4, 0.03, DARK, 0, 0, 0));
     for (let i = 0; i < 4; i++) { const c = mesh(new THREE.SphereGeometry(0.06, 6, 4), 0xc9c2b0); c.position.set(Math.sin(i * 1.571) * 0.22, 0.3, Math.cos(i * 1.571) * 0.22); vane.add(c); vane.add(box(0.22, 0.02, 0.02, DARK, Math.sin(i * 1.571) * 0.11, 0.29, Math.cos(i * 1.571) * 0.11)); }
     g.add(vane);
@@ -163,7 +163,7 @@ const BUILDERS = {
   },
   windwheel(g) {
     g.add(cyl(0.06, 0.1, 1.8, BEAM));
-    const hub = new THREE.Group(); hub.position.set(0, 1.8, 0.1); hub.name = 'rotor';
+    const hub = new THREE.Group(); hub.position.set(0, 1.8, 0.1); hub.userData.turn = { axis: new THREE.Vector3(0, 0, 1), speed: 1.5 };
     for (let i = 0; i < 6; i++) { const b = box(0.08, 0.6, 0.02, 0xf3ecdc, 0, 0, 0); b.position.set(Math.sin(i * 1.047) * 0.3, Math.cos(i * 1.047) * 0.3, 0); b.rotation.z = -i * 1.047; hub.add(b); }
     g.add(hub);
   },
