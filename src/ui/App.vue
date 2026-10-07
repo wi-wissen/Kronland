@@ -17,7 +17,7 @@
   </div>
 
   <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact, narrow, mid, 'show-labels': settings.labels, split: splitW > 0 }" :style="hudVars">
-    <canvas ref="canvas" data-testid="game-canvas"></canvas>
+    <canvas ref="canvas" data-testid="game-canvas" :class="{ 'paused-gray': showPause }"></canvas>
 
     <template v-if="ui && engine">
       <TopBar ref="top" :ui="ui" :need="need" @speed="engine.setSpeed($event)" @pause="engine.togglePause()" @menu="openMenu" />
@@ -44,7 +44,7 @@
         @group="engine.selectGroup($event)"
       />
 
-      <PauseBanner :show="showPause" :touch="!!ui.touch" />
+      <PauseBanner :show="showPause" :touch="!!ui.touch" :top="!!(ui.selection || ui.placing)" />
 
       <ToastFeed :toasts="ui.toasts" @jump="jump" @dismiss="(t) => engine?.dismissToast(t.id)" />
 
