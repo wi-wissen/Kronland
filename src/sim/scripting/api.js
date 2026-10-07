@@ -68,6 +68,8 @@ export const API_DOC = [
   { name: 'places', sig: 'places()', level: 'player', group: 'world' },
   { name: 'tile', sig: 'tile(x, y)', level: 'player', group: 'world' },
   { name: 'distance', sig: 'distance(a, b)', level: 'player', group: 'world' },
+  { name: 'obj.distance_to', sig: 'obj.distance_to(target)', level: 'player', group: 'world' },
+  { name: 'place.contains', sig: 'place.contains(target)', level: 'player', group: 'world' },
   { name: 'trees_near', sig: 'trees_near(target, radius=6)', level: 'player', group: 'world' },
   { name: 'piles_near', sig: 'piles_near(target, radius=6, res=None)', level: 'player', group: 'world' },
   // Village (commands as in the UI)
@@ -77,11 +79,12 @@ export const API_DOC = [
   { name: 'troops', sig: 'troops()', level: 'player', group: 'village' },
   { name: 'buildings', sig: 'buildings(kind=None)', level: 'player', group: 'village' },
   { name: 'hq', sig: 'hq()', level: 'player', group: 'village' },
-  { name: 'find_spot', sig: 'find_spot(kind, near)', level: 'player', group: 'village' },
+  { name: 'find_spot', sig: 'find_spot(kind, near, radius=20)', level: 'player', group: 'village' },
   { name: 'can_build', sig: 'can_build(kind, x, y)', level: 'player', group: 'village' },
   { name: 'build', sig: 'build(kind, x, y)', level: 'player', group: 'village' },
   { name: 'buy_serf', sig: 'buy_serf(count=1)', level: 'player', group: 'village' },
   { name: 'unit.move_to', sig: 'unit.move_to(target, wait=True)', level: 'player', group: 'village' },
+  { name: 'unit.is_at', sig: 'unit.is_at(target)', level: 'player', group: 'village' },
   { name: 'unit.work_on', sig: 'serf.work_on(target)', level: 'player', group: 'village' },
   { name: 'unit.attack', sig: 'troop.attack(target)', level: 'player', group: 'village' },
   { name: 'building.upgrade', sig: 'building.upgrade()', level: 'player', group: 'village' },
@@ -101,7 +104,7 @@ export const API_DOC = [
   { name: 'on_recruited', sig: '@on_recruited(player=HUMAN)', level: 'mission', group: 'events' },
   { name: 'on_research', sig: '@on_research(tech=None, player=HUMAN)', level: 'mission', group: 'events' },
   { name: 'on_enter', sig: '@on_enter(target, who="any", player=HUMAN)', level: 'mission', group: 'events' },
-  { name: 'on_objective', sig: '@on_objective(id, status="done")', level: 'mission', group: 'events' },
+  { name: 'on_objective', sig: '@on_objective(id, status=None)', level: 'mission', group: 'events' },
   { name: 'on_weather', sig: '@on_weather(state=None)', level: 'mission', group: 'events' },
   // Goals and end
   { name: 'objective', sig: 'objective(id, text, condition=None, primary=True, hidden=False)', level: 'mission', group: 'goals' },
@@ -119,6 +122,8 @@ export const API_DOC = [
   { name: 'give_tech', sig: 'give_tech(player, *techs)', level: 'mission', group: 'power' },
   { name: 'place_building', sig: 'place_building(player, kind, near, done=True)', level: 'mission', group: 'power' },
   { name: 'remove', sig: 'remove(thing)', level: 'mission', group: 'power' },
+  { name: 'hero.teleport', sig: 'hero.teleport(target)', level: 'mission', group: 'power' },
+  { name: 'obj.kill', sig: 'obj.kill()', level: 'mission', group: 'power' },
   { name: 'attack', sig: 'attack(units, target)', level: 'mission', group: 'power' },
   { name: 'move', sig: 'move(units, target)', level: 'mission', group: 'power' },
   { name: 'units_in', sig: 'units_in(target, player=HUMAN, who="any")', level: 'mission', group: 'power' },
@@ -135,18 +140,19 @@ export const API_DOC = [
   { name: 'add_tree', sig: 'add_tree(x, y)', level: 'mission', group: 'terrain' },
   { name: 'add_pile', sig: 'add_pile(res, x, y, amount=None)', level: 'mission', group: 'terrain' },
   { name: 'clear_area', sig: 'clear_area(target, radius)', level: 'mission', group: 'terrain' },
-  { name: 'world.width', sig: 'world.width, world.height', level: 'mission', group: 'terrain' },
+  { name: 'world.width', sig: 'world.width, world.height, world.water_level', level: 'mission', group: 'terrain' },
   { name: 'world.height_at', sig: 'world.height_at(x, y)', level: 'mission', group: 'terrain' },
+  { name: 'world.is_water', sig: 'world.is_water(x, y)', level: 'mission', group: 'terrain' },
   { name: 'world.set_height', sig: 'world.set_height(x, y, h)', level: 'mission', group: 'terrain' },
   { name: 'world.set_water', sig: 'world.set_water(x, y, on=True)', level: 'mission', group: 'terrain' },
   { name: 'world.set_cliff', sig: 'world.set_cliff(x, y, on=True)', level: 'mission', group: 'terrain' },
-  { name: 'world.noise', sig: 'world.noise(x, y, cell=16)', level: 'mission', group: 'terrain' },
+  { name: 'world.noise', sig: 'world.noise(x, y, cell=16, seed=0)', level: 'mission', group: 'terrain' },
   // Constants
   { name: 'HUMAN', sig: 'HUMAN, ENEMY, BANDITS', level: 'player', group: 'const' },
 ];
 
-/** Names of the methods per handle class and level. */
-const METHODS = {
+/** Names of the methods per handle class and level (also read by the scripting reference on the website). */
+export const CLASS_METHODS = {
   Hero: {
     player: ['step', 'turn_left', 'turn_right', 'turn_to', 'ahead', 'can_step', 'move_to', 'is_at', 'take', 'chop', 'say', 'distance_to'],
     mission: ['teleport', 'kill'],
@@ -162,8 +168,8 @@ const METHODS = {
   Place: { player: ['distance_to', 'contains'], mission: [] },
 };
 
-/** Properties per class (for dir() and suggestions). */
-const PROPS = {
+/** Properties per class (for dir(), suggestions and the scripting reference). */
+export const CLASS_PROPS = {
   common: ['id', 'kind', 'owner', 'x', 'y', 'alive', 'hp'],
   Hero: ['name', 'facing', 'down'],
   Troop: ['type', 'soldiers'],
@@ -790,8 +796,8 @@ export function makeApi(host, level) {
 
   // ---------- Methods and properties of the handles ----------
 
-  const methodsOf = (cls) => [...(METHODS[cls]?.player ?? []), ...(isMission ? METHODS[cls]?.mission ?? [] : [])];
-  const propsOf = (cls) => [...(cls === 'Place' ? [] : PROPS.common), ...(PROPS[cls] ?? [])];
+  const methodsOf = (cls) => [...(CLASS_METHODS[cls]?.player ?? []), ...(isMission ? CLASS_METHODS[cls]?.mission ?? [] : [])];
+  const propsOf = (cls) => [...(cls === 'Place' ? [] : CLASS_PROPS.common), ...(CLASS_PROPS[cls] ?? [])];
 
   const hostHooks = {
     modules,

@@ -8,7 +8,7 @@ Arbeitstitel; Name, Grafiken und Texte sind eigene.
 
 ```bash
 npm install
-npm run dev     # Entwicklungsserver: Startseite /, Spiel /play/, Handbuch /manual/, Kompendium /compendium/, Blog /blog/
+npm run dev     # Entwicklungsserver: Startseite /, Spiel /play/, Handbuch /manual/, Kompendium /compendium/, Programmier-Referenz /scripting/, Blog /blog/
 npm test        # Simulationstests (Vitest)
 npm run test:e2e  # Oberflächentests Desktop + Handy (Playwright); anderer Port: E2E_PORT=4204 npm run test:e2e
 npm run build   # Produktionsbuild nach dist/ (statische Website, alle Pfade relativ)
@@ -22,6 +22,7 @@ npm run build   # Produktionsbuild nach dist/ (statische Website, alle Pfade rel
 | `play/` | das Spiel (URL-Parameter wie unten, z. B. `play/?seed=42`; PWA mit Start `play/`) |
 | `manual/` | Handbuch DE/EN mit Inhaltsverzeichnis, Suche, Druckansicht (Markdown in `src/site/manual/`) |
 | `compendium/` | Kompendium: alle Werte und Formeln mit Seitenleiste, Suche, Deep-Links – alle Tabellen aus `src/sim/data/` erzeugt, neue Inhalte erscheinen automatisch |
+| `scripting/` | Programmier-Referenz: Kronland-Python (Ablauf, Sprache, Fehler) und jeder Befehl mit Parametern, Rückgabe, typischen Fehlern und Beispiel; Python-Beispiele zeigen ihre echte Ausgabe, Tests prüfen jedes Beispiel |
 | `blog/` | Blog: wie Kronland entstanden ist, im Rückblick – ein Artikel je Meilenstein (DE/EN, Markdown in `src/site/blog/posts/`), Meilensteine (je ein Commit auf `main`) in [docs/MEILENSTEINE.md](docs/MEILENSTEINE.md) |
 
 Online unter **https://kronland.wi7.net/** – jeder Push auf `main` wird per GitHub Pages veröffentlicht, Links

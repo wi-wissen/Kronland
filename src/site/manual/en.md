@@ -433,7 +433,7 @@ Clicking a **line number** sets a **breakpoint**. When the program pauses, the c
 you see all variables and the call stack. On an error the line turns red; a box explains what went wrong and often
 makes a suggestion (“Did you mean `turn_left`?”).
 
-**Commands** lists every command with an explanation and an example you can insert with one tap. The most important:
+**Commands** lists every command with an explanation and an example you can insert with one tap. The [scripting reference](scripting/) explains them in detail – with parameters, return values, errors and many examples. The most important:
 `hero.step()`, `hero.turn_left()`, `hero.turn_right()`, `hero.ahead()`, `hero.chop()`, `hero.take()` and `print()`.
 
 ```

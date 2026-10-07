@@ -26,6 +26,8 @@ export class Suspend {
 const MAX_DEPTH = 200;
 /** Upper limit for synchronous calls from natives (sorted(key=…), conditions) */
 const SYNC_LIMIT = 2_000_000;
+/** Limits for documentation (scripting reference): call depth and instructions of a synchronous call. */
+export const BUDGET_LIMITS = { maxDepth: MAX_DEPTH, syncLimit: SYNC_LIMIT };
 
 /**
  * @typedef {Object} Frame

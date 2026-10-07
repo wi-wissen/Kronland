@@ -74,8 +74,9 @@ Zwei Rechtestufen. Die Stufe entscheidet, welche Namen ein Programm überhaupt k
   Simulation.
 - **mission**: alles – Truppen erzeugen, Rohstoffe geben, Dialoge, Kamera, Ziele, Gelände formen.
 
-Die vollständige Liste mit Erklärungen steht im Spiel unter **Befehle** (Code-Panel) und in `API_DOC`
-(`api.js`). Die wichtigsten:
+Die vollständige Liste steht im Spiel unter **Befehle** (Code-Panel, jeder Eintrag verlinkt auf die Website)
+und ausführlich mit Parametern, Rückgabe, Fehlern und Beispielen in der **Programmier-Referenz** (`scripting/`,
+siehe [WEBSITE.md](WEBSITE.md)); Quelle ist `API_DOC` (`api.js`). Die wichtigsten:
 
 ```python
 # Held (player)
