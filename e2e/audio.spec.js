@@ -295,3 +295,47 @@ test('Showcase: many workers moving in do not ring constantly (notice sounds thr
   expect(st.played).toBeLessThanOrEqual(Math.ceil(st.secs / 8) + 1);
   expect(errors).toEqual([]);
 });
+
+test('Pause: music, ambience and game sounds fade out and continue on resume, UI sounds stay', async ({ page }, info) => {
+  test.skip(info.project.name === 'mobile', 'audio logic, desktop is enough');
+  test.setTimeout(120_000);
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(playUrl('?seed=42&no-models'));
+  await page.waitForFunction(() => !!window.__kronland);
+  await quick(page, 'hq');
+  await page.waitForFunction(() => window.__kronlandAudio.ctx?.state === 'running' && !!window.__kronlandAudio.music.track, null, { timeout: 30_000 });
+  const pos = () => page.evaluate(() => {
+    const a = window.__kronlandAudio, t = a.music.track;
+    return t?.kind === 'file' && t.src ? a.ctx.currentTime - t.startsAt : null;
+  });
+  // bundled build music as a file, already playing for a moment
+  await page.waitForFunction(() => { const a = window.__kronlandAudio, t = a.music.track; return t?.kind === 'file' && !!t.src && a.ctx.currentTime - t.startsAt > 1; }, null, { timeout: 60_000 });
+  const gains = () => page.evaluate(() => Object.fromEntries(Object.entries(window.__kronlandAudio.holds).map(([k, h]) => [k, h.gain.value])));
+
+  // Pause button: game audio held, buses at 0 after the fade
+  const before = await pos();
+  await page.getByTestId('pause').click();
+  await page.waitForFunction(() => window.__kronlandAudio.held && window.__kronlandAudio.music.held);
+  await page.waitForFunction(() => window.__kronlandAudio.holds.music.gain.value < 0.01, null, { timeout: 5000 });
+  expect(await gains()).toEqual({ music: 0, sfx: 0, ambient: 0 });
+  const l = await page.evaluate(() => window.__kronlandAudio.listener);
+  expect(await page.evaluate(({ x, z }) => window.__kronlandAudio.play('clash', { x, z }), l)).toBe(false);
+  expect(await page.evaluate(() => window.__kronlandAudio.play('click'))).toBe(true);
+  await page.waitForTimeout(1500);
+
+  // Resume: fade back in, the music file continues at its position (not from the start)
+  await page.getByTestId('pause').click();
+  await page.waitForFunction(() => !window.__kronlandAudio.held && window.__kronlandAudio.holds.music.gain.value > 0.99, null, { timeout: 5000 });
+  const after = await pos();
+  expect(before).toBeGreaterThan(1);
+  expect(after - before).toBeGreaterThan(0);
+  expect(after - before).toBeLessThan(1.5); // continued, not from the start and not run on during the pause
+
+  // Game menu pauses the game as well → audio held; closing it continues
+  await page.getByTestId('menu').click();
+  await page.waitForFunction(() => window.__kronlandAudio.held);
+  await page.getByTestId('resume').click();
+  await page.waitForFunction(() => !window.__kronlandAudio.held);
+  expect(errors).toEqual([]);
+});
