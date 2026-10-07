@@ -41,10 +41,10 @@ Nachtlauf schickt GitHub als Mail.
 
 ## Gruppen und Projekte (`playwright.config.js`)
 
-- **Schwer** (`HEAVY`): `cavalry`, `circle`, `figures`, `showcase`, `spots`, `update`, `winter` – hohe Grafikstufe, die
+- **Schwer** (`HEAVY`): `cavalry`, `circle`, `figures`, `moving-parts`, `showcase`, `spots`, `update`, `winter` – hohe Grafikstufe, die
   Schaukasten-Karte oder ein zweiter Build (`update`: Deploy-Simulation), Minuten je Test. `E2E_GROUP=heavy` wählt nur sie, `E2E_GROUP=light` alle anderen, ohne Variable
   läuft alles.
-- **Nur Desktop** (`DESKTOP_ONLY`, dieselben sieben Specs): sie prüfen Darstellung oder Simulation ohne Handy-Bezug
+- **Nur Desktop** (`DESKTOP_ONLY`, dieselben acht Specs): sie prüfen Darstellung oder Simulation ohne Handy-Bezug
   (kein Touch, kein Hochformat-Layout). Alles mit Touch, Hochformat oder Handy-Panels läuft in beiden Projekten.
   `E2E_ALL_PROJECTS=1` nimmt sie für Belegbilder auch ins Handy-Projekt.
 - Belegbilder-Specs (`circle`, `spots`, `showcase`) prüfen den Zustand, nicht die Pixel: sie laufen auf der Stufe
@@ -65,5 +65,8 @@ E2E_GROUP=heavy E2E_PORT=4310 npx playwright test --workers=1     # nur die schw
   Autosave abschalten, wenn Spielstand-Listen gezählt werden.
 - Kein `quality=high`, wenn nicht Modelle oder Effekte dieser Stufe geprüft werden; kleines Fenster
   (`page.setViewportSize`), wenn nur der Bildmittelpunkt oder der Zustand zählt.
+- Bildschirmpunkte (Klick, Auswahlrahmen) gelten nur, solange die Kamera steht: vorher die Maus auf die Karte setzen
+  (`page.mouse.move(Mitte)`). Playwrights Maus startet bei (0, 0) im Randscroll-Streifen; ein vom Browser
+  erzeugtes `pointermove` dort schiebt die Kamera nach links oben (`e2e/multiselect.spec.js`).
 - Auf Zustände warten (`waitForFunction`, `expect.poll`), nicht auf feste Zeiten; Befehle, die erst im nächsten Tick
   wirken (Debugger-Schritte), einzeln abwarten.

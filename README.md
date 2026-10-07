@@ -100,6 +100,7 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   ([Spielregeln §3](docs/SPIELREGELN.md#3-leibeigene), [§4](docs/SPIELREGELN.md#4-arbeiter-motivation-steuern)).
 - Kamera wie ein Kartenprogramm: Ziehen (mittlere Maustaste, ein Finger) greift den Boden, Mausrad und
   Zwei-Finger-Zoom zoomen zum Zeiger bzw. zur Fingermitte, nichts gleitet oder wippt nach.
+- **Bewegte Gebäude**: Mühlenflügel, Windrad, Wasserrad und Wetterhahn drehen sich ([Modelle](docs/MODELLE.md#bewegliche-teile-flügel-räder-wetterhahn)).
 - Nahzoom bis dicht an Figuren und Gebäude; ganz nah wird der Blick flacher, Figuren und Gebäude bleiben in
   voller Detailstufe ([Architektur](docs/ARCHITEKTUR.md#steuerung)).
 - **Doppelklick bzw. Doppeltippen** auf eine eigene Figur wählt alle eigenen Figuren derselben Art im Bild
