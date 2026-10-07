@@ -4,6 +4,8 @@
  * Workbox plugin for page navigations (serialised into sw.js – the functions must be self-contained):
  * always ask the server (`no-cache`: revalidate, also past the 10-min HTTP cache of GitHub Pages), so a reload
  * after a deploy gets the new page. Offline: the page from the precache – it matches the precached bundles.
+ * While a new worker waits, the precache holds both page revisions (`index.html?__WB_REVISION__=…`); `match` returns
+ * the first stored entry, i.e. the active (older) worker's page – the one whose bundles that worker serves.
  */
 export const freshPages = {
   requestWillFetch: async ({ request }) => new Request(request.url, { cache: 'no-cache', credentials: 'same-origin' }),
