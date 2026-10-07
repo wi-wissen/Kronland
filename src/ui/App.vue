@@ -16,7 +16,7 @@
     </div>
   </div>
 
-  <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact, narrow, mid, 'show-labels': settings.labels }" :style="hudVars">
+  <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact, narrow, mid, 'show-labels': settings.labels, 'with-code': showScriptPanel && !compact }" :style="hudVars">
     <canvas ref="canvas" data-testid="game-canvas"></canvas>
 
     <template v-if="ui && engine">

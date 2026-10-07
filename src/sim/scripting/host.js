@@ -15,6 +15,8 @@ const T = TICKS_PER_SECOND;
 /** Commands per tick for all mission scripts together or for the player program */
 export const BUDGET = { mission: 60_000, player: 20_000, setup: 8_000_000 };
 const MAX_CONSOLE = 300;
+/** Longest text a print() notice carries (the console keeps the full line) */
+const PRINT_EVENT_MAX = 300;
 const MAX_ERRORS = 20;
 
 /** May the sim state start a handler on this event? Event → [handler kind, filter, arguments]. */
@@ -397,18 +399,22 @@ export class ScriptHost {
     const lines = text.split('\n');
     // Continue a started line (print(…, end=""))
     const last = st.console[st.console.length - 1];
+    /** Entries written by this call (for the notice: the whole line, also when continued) */
+    const touched = [];
     let first = true;
     for (let i = 0; i < lines.length; i++) {
       const piece = lines[i];
       if (i === lines.length - 1 && piece === '') break;
-      if (first && last && last.open && last.level === level) last.text += piece;
-      else st.console.push({ seq: ++st.seq, level, text: piece, open: false });
+      if (first && last && last.open && last.level === level) { last.text += piece; touched.push(last); }
+      else { st.console.push({ seq: ++st.seq, level, text: piece, open: false }); touched.push(st.console[st.console.length - 1]); }
       first = false;
       st.console[st.console.length - 1].open = i === lines.length - 1;
     }
     if (text.endsWith('\n') && st.console.length) st.console[st.console.length - 1].open = false;
     void task;
     if (st.console.length > MAX_CONSOLE) st.console.splice(0, st.console.length - MAX_CONSOLE);
+    // Display only (notice in the game, src/game/Engine.js eventToasts); no effect on the simulation
+    if (touched.length) this.sim?.events.push({ type: 'scriptPrint', level, text: touched.map((c) => c.text).join('\n').slice(0, PRINT_EVENT_MAX), player: this.runtime.state.human });
   }
 
   reportError(level, err) {
@@ -484,6 +490,8 @@ export class ScriptHost {
     this.modules.player = mod;
     st.player.code = override;
     st.player.runs++;
+    // Console entries up to here belong to earlier runs (the code panel only shows the current run)
+    st.player.since = st.seq;
     st.player.bps = cmd.debug?.bps ?? {};
     st.player.error = null;
     try {
@@ -595,7 +603,7 @@ export class ScriptHost {
   /** State for code panel, console and debugger (read only, pure JSON). */
   uiState() {
     const st = this.state;
-    const player = { status: st.player.status, runs: st.player.runs, error: st.player.error ?? null, line: null, vars: null };
+    const player = { status: st.player.status, runs: st.player.runs, since: st.player.since ?? 0, error: st.player.error ?? null, line: null, vars: null };
     const pvm = this.vms.player;
     if (pvm) {
       const main = [...pvm.tasks.values()].find((t) => t.meta?.kind === 'main');
