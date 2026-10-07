@@ -83,7 +83,7 @@ Aufbau- und Echtzeitstrategiespielen.
 2. **Erst Ruhe, dann Druck:** Der Gegner legt erst los, wenn der Spieler einen Meilenstein erreicht hat (keine Uhr
    zu Beginn); eine späte Obergrenze nur, wo man sonst ewig warten könnte.
 3. **Neues schrittweise, Kommendes sichtbar:** Jede Mission schaltet wenige Gebäude, Forschungen und Grubenplätze
-   frei; der Rest steht **ausgegraut** mit Schloss im Menü („Kommt später in der Kampagne“).
+   frei; der Rest steht **ausgegraut** mit Schloss im Menü („In dieser Mission nicht verfügbar“).
 4. **Erklären, wenn es gebraucht wird:** Eine Figur sagt in einem Satz, wozu das Neue dient, ein Ziel nennt es,
    ein Zeiger zeigt auf den Knopf. Alles gesprochen, überspringbar.
 5. **Eine Technik für Tutorial und Kampagne:** Zeiger (`hint.ui`), Zielort-Ring und Sperren sind Missionsbausteine
@@ -198,7 +198,7 @@ dem Eis zum Tauen verleiten und den See wieder einfrieren, sobald das eigene Kra
 | Heldenwahl | ![Startmenü](images/campaign/start-heroes-desktop.webp) | ![Startmenü Handy](images/campaign/start-heroes-phone.webp) |
 | Mission 1: verlassener Dorfplatz, Orrin ruft (Desktop); sein Gespräch mit „Gespräch überspringen“ (Handy) | ![Mission 1 Dorfplatz](images/campaign/c1-square-desktop.webp) | ![Mission 1 Dorfplatz Handy](images/campaign/c1-square-phone.webp) |
 | Mission 1: Dorfälteste mit Ausrufezeichen | ![Mission 1](images/campaign/c1-elder-desktop.webp) | ![Mission 1 Handy](images/campaign/c1-elder-phone.webp) |
-| Mission 2: Baumenü mit Zeiger auf den Bauernhof, spätere Gebäude ausgegraut | ![Mission 2 Freischaltung](images/campaign/c2-unlocks-desktop.webp) | ![Mission 2 Freischaltung Handy](images/campaign/c2-unlocks-phone.webp) |
+| Mission 2: Baumenü mit Zeiger auf den Bauernhof, nicht verfügbare Gebäude ausgegraut | ![Mission 2 Freischaltung](images/campaign/c2-unlocks-desktop.webp) | ![Mission 2 Freischaltung Handy](images/campaign/c2-unlocks-phone.webp) |
 | Mission 4: Angebote (Söldner oder Leibeigene) | ![Mission 4](images/campaign/c4-offers-desktop.webp) | ![Mission 4 Handy](images/campaign/c4-offers-phone.webp) |
 | Mission 3: Bergkamm mit Schlucht (zugefrorener Fluss) | ![Mission 3](images/campaign/c3-gorge-desktop.webp) | ![Mission 3 Handy](images/campaign/c3-gorge-phone.webp) |
 | Mission 3: Wetterwerk zerstört, die Uhr läuft bis zum Tauwetter | ![Mission 3 Tauwetter](images/campaign/c3-thaw-desktop.webp) | ![Mission 3 Tauwetter Handy](images/campaign/c3-thaw-phone.webp) |

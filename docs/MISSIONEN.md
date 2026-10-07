@@ -195,8 +195,8 @@ Baumenü hervor; es zeigt das erste offene Ziel mit Zeiger (Hauptziele zuerst), 
 Auslösern), z. B. `{ type: 'not', cond: { type: 'built', building: 'clayMine', placed: true } }`.
 
 **Schrittweise freischalten (Kampagne):** Mit `available` gibt es für den Menschen nur die genannten Gebäude und
-Forschungen (Hochschule); alles andere steht ausgegraut mit Schloss im Menü („Kommt später in der Kampagne“) und
-wird von der Simulation abgelehnt (`err.laterInCampaign`). Die Aktion `unlock` schaltet im Lauf frei. Ohne
+Forschungen (Hochschule); alles andere steht ausgegraut mit Schloss im Menü („In dieser Mission nicht verfügbar“) und
+wird von der Simulation abgelehnt (`err.notInMission`). Die Aktion `unlock` schaltet im Lauf frei. Ohne
 `available` (freies Spiel, eigene Szenarien, Mission 6) gibt es alles; Computergegner sind nie betroffen.
 
 | `type` | Felder | erfüllt, wenn … |

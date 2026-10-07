@@ -26,7 +26,7 @@ export default {
   next: 'c2',
   // Deep winter: the whole mission takes place in the snow
   weatherCycle: [['winter', 360000]], // Malvor's winter: only ends with the weather works (mission 3)
-  // Campaign unlocks: only the basics, everything else shows greyed out ("later in the campaign"); only clay pits
+  // Campaign unlocks: only the basics, everything else shows greyed out ("not available in this mission"); only clay pits
   available: { buildings: ['villageCenter', 'residence', 'farm', 'clayMine'], techs: [] },
   shafts: ['clay'],
   players: [

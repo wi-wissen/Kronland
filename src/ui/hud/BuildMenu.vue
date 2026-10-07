@@ -83,8 +83,8 @@ export default {
   beforeUnmount() { this.$emit('preview', null); },
   methods: {
     reasonCode(b) { return !b?.reason ? null : typeof b.reason === 'string' ? b.reason : b.reason.code; },
-    /** Not yet available: missing tech or later in the campaign (grey with lock) */
-    isTech(b) { const c = this.reasonCode(b); return c === 'err.techMissing' || c === 'err.laterInCampaign'; },
+    /** Not yet available: missing tech or not available in this mission (grey with lock) */
+    isTech(b) { const c = this.reasonCode(b); return c === 'err.techMissing' || c === 'err.notInMission'; },
     label(type) { return softHyphens(this.$name.building(type)); },
     pick(b) { if (!b.reason) this.$emit('build', b.type); },
     preview(b) {

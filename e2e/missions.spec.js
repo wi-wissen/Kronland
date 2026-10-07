@@ -150,7 +150,7 @@ test('Mission 2: later buildings are greyed out, the pointer shows the farm, the
   await expect(page.getByTestId('ui-pointer')).toBeVisible(SLOW);
   const barracks = page.getByTestId('build-barracks');
   await expect(barracks).toHaveClass(/locked/);
-  await expect(barracks).toHaveAttribute('aria-label', /Kommt später in der Kampagne/);
+  await expect(barracks).toHaveAttribute('aria-label', /In dieser Mission nicht verfügbar/);
   await expect(page.getByTestId('build-smithy')).toHaveClass(/locked/);
   await page.screenshot({ path: testInfo.outputPath('c2-locked.png') });
   // Milestone: first trade – the herald comes, the barracks is free

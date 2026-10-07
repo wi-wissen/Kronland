@@ -63,7 +63,7 @@ export class MissionRuntime {
       npcs: {},
       /**
        * Campaign unlocks for the human: { buildings: [], techs: [] } or null (everything). Whatever is missing is
-       * shown greyed out ("later in the campaign") and rejected by the simulation; action `unlock` adds to it.
+       * shown greyed out ("not available in this mission") and rejected by the simulation; action `unlock` adds to it.
        */
       available: def.available ? { buildings: [...(def.available.buildings ?? [])], techs: [...(def.available.techs ?? [])] } : null,
       /** Own scenario (editor, file): is part of the save game because it is in no directory */

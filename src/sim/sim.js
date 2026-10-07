@@ -464,7 +464,7 @@ export class Sim {
     const def = BUILDINGS[type];
     if (def.buildable === false) return 'err.notBuildable';
     if (!Number.isInteger(x) || !Number.isInteger(y)) return 'err.notFree';
-    if (this.mission?.locked(owner, 'buildings', type)) return 'err.laterInCampaign';
+    if (this.mission?.locked(owner, 'buildings', type)) return 'err.notInMission';
     if (def.requires && !this.players[owner].techs.has(def.requires)) return { code: 'err.techMissing', params: { tech: def.requires } };
     const m = this.map;
     if (def.placement === 'settlement') {
@@ -634,7 +634,7 @@ export class Sim {
     if (!hasKey(TECHS, techId)) return 'err.unknownTech';
     const t = TECHS[techId];
     const p = this.players[owner];
-    if (this.mission?.locked(owner, 'techs', techId) && !p.techs.has(techId)) return 'err.laterInCampaign';
+    if (this.mission?.locked(owner, 'techs', techId) && !p.techs.has(techId)) return 'err.notInMission';
     if (!b || b.type !== 'university' || !b.done) return 'err.universityNeeded';
     if (b.research) return 'err.busyResearching';
     if (p.techs.has(techId)) return 'err.alreadyResearched';

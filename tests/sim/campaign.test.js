@@ -48,23 +48,23 @@ describe('Campaign: setup and texts', () => {
 describe('Campaign: step-by-step unlocks and pointers', () => {
   const hq = (sim) => sim.findBuilding(0, 'headquarters');
 
-  it('mission 1: only the basics can be built, the rest is "later in the campaign"; only clay shafts', () => {
+  it('mission 1: only the basics can be built, the rest is "not available in this mission"; only clay shafts', () => {
     const sim = createMissionSim('c1');
     const h = hq(sim);
-    expect(sim.checkPlacement(0, 'storehouse', h.x, h.y)).toBe('err.laterInCampaign');
-    expect(sim.checkPlacement(0, 'barracks', h.x, h.y)).toBe('err.laterInCampaign');
+    expect(sim.checkPlacement(0, 'storehouse', h.x, h.y)).toBe('err.notInMission');
+    expect(sim.checkPlacement(0, 'barracks', h.x, h.y)).toBe('err.notInMission');
     expect(sim.findPlacement(0, 'residence', h.x, h.y, 20)).not.toBeNull();
     expect(new Set(sim.shafts.map((s) => s.res))).toEqual(new Set(['clay']));
     // Command is rejected as well
     const p = sim.findPlacement(0, 'residence', h.x, h.y, 20);
     const ev = sim.step([{ player: 0, type: 'placeBuilding', building: 'storehouse', x: p.x, y: p.y, units: [] }]);
-    expect(ev.find((e) => e.type === 'rejected')?.reason).toBe('err.laterInCampaign');
+    expect(ev.find((e) => e.type === 'rejected')?.reason).toBe('err.notInMission');
   });
 
   it('mission 2: the barracks unlocks with the first trade and stays unlocked after loading', () => {
     const sim = createMissionSim('c2');
     const h = hq(sim);
-    expect(sim.checkPlacement(0, 'barracks', h.x, h.y)).toBe('err.laterInCampaign');
+    expect(sim.checkPlacement(0, 'barracks', h.x, h.y)).toBe('err.notInMission');
     expect(new Set(sim.shafts.map((s) => s.res))).toEqual(new Set(['clay', 'stone']));
     const before = sim.hash();
     sim.mission.state.flags.traded = true;
@@ -91,8 +91,8 @@ describe('Campaign: step-by-step unlocks and pointers', () => {
     const sim = createMissionSim('c4');
     const uni = sim.createBuilding(0, 'university', hq(sim).x + 8, hq(sim).y + 8, true);
     sim.players[0].stock.gold = 5000;
-    expect(sim.checkResearch(0, uni, 'gears')).toBe('err.laterInCampaign');
-    expect(sim.checkResearch(0, uni, 'standingArmy')).not.toBe('err.laterInCampaign');
+    expect(sim.checkResearch(0, uni, 'gears')).toBe('err.notInMission');
+    expect(sim.checkResearch(0, uni, 'standingArmy')).not.toBe('err.notInMission');
   });
 
   it('free play and the AI are not restricted', () => {

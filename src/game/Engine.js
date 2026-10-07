@@ -1462,7 +1462,7 @@ export class Engine {
       const def = BUILDINGS[type];
       const cost = def.levels[0].cost;
       let reason = null;
-      if (sim.mission?.locked(this.player, 'buildings', type)) reason = 'err.laterInCampaign';
+      if (sim.mission?.locked(this.player, 'buildings', type)) reason = 'err.notInMission';
       else if (def.requires && !pl.techs.has(def.requires)) reason = { code: 'err.techMissing', params: { tech: def.requires } };
       else if (!sim.canPay(this.player, cost)) reason = 'err.notEnoughResources';
       return { type, category: BUILD_CATEGORY[type] ?? 'admin', cost: Object.entries(cost), reason, requires: def.requires ?? null };
