@@ -225,7 +225,8 @@ Stufe tiefer), Rücktaste löscht eine Einrückstufe. Klick auf eine Zeilennumme
   (mit Fehlerzähler) und **Hilfe** (Befehlsliste mit Suche). Unten Ausführen, Schritt, Stopp und „⋯“
   (Speichern .py, Öffnen, Raster, Vorlage wiederherstellen), darüber beim Tippen die Tastenleiste
   (⇥ ⇤ : ( ) " " = == [ ] . _ #). **Ausführen** schaltet auf **Spiel ansehen**: Spiel im Vollbild, unten eine
-  Leiste mit der aktuellen Zeile, Anhalten/Weiter, Stopp und „Code“. Bei einem Fehler (oder Haltepunkt) springt
+  Leiste mit der aktuellen Zeile, Anhalten/Weiter, Stopp und „Code“; ist der Held nicht im freien Bildbereich zu
+  sehen, rückt ihn die Kamera über die Leiste (`Engine.watchFocus`), sonst bleibt die Ansicht. Bei einem Fehler (oder Haltepunkt) springt
   das Blatt zurück zum Code, die Fehlerzeile ist sichtbar. Geöffnet wird das Blatt auch über die goldene Münze
   „Code“ im Schnellzugriff (mit grünem Punkt, solange das Programm läuft) oder „Spiel“ im Kopf geschlossen.
 

@@ -41,7 +41,7 @@
           <strong class="sp-title">{{ $tr(scenario.title) }}</strong>
           <span class="sp-status" :class="status" data-testid="script-status">{{ $t('script.status.' + status) }}</span>
           <button v-if="split" v-tip="$t('script.collapse')" class="icon-btn ghost" :aria-label="$t('script.collapse')" data-testid="script-collapse" @click="setCollapsed(true)"><Icon name="next" /></button>
-          <button v-else class="sp-watchbtn" :aria-label="$t('script.watchTip')" data-testid="script-watch" @click="$emit('update:open', false)"><Icon name="map" />{{ $t('script.watch') }}</button>
+          <button v-else class="sp-watchbtn" :aria-label="$t('script.watchTip')" data-testid="script-watch" @click="watchGame"><Icon name="map" />{{ $t('script.watch') }}</button>
         </header>
 
         <div v-if="split" class="sp-tools" role="toolbar" :aria-label="$t('script.tools')">
@@ -159,7 +159,7 @@
     </aside>
 
     <!-- Phone, "watch game": the game in full, below the current line and the controls -->
-    <div v-if="showStrip" class="sp-watch frame" data-testid="script-watch-strip">
+    <div v-if="showStrip" ref="strip" class="sp-watch frame" data-testid="script-watch-strip">
       <div class="sp-watch-line" :class="status">
         <i v-if="watchLine" class="num">{{ watchLine.n }}</i>
         <code data-testid="script-watch-line">{{ watchLine?.text ?? '' }}</code>
@@ -354,8 +354,8 @@ export default {
       this.menu = false;
       this.stripHidden = false;
       this.engine.scriptRun(this.editable(), { mode: stepMode ? 'step' : 'run', bps: this.playerBps() });
-      // Phone: watch the game while the program runs (step mode stays in the code)
-      if (!this.split && !stepMode) this.$emit('update:open', false);
+      // Phone: watch the game while the program runs (step mode stays in the code); hero into view above the strip
+      if (!this.split && !stepMode) this.watchGame();
     },
     step(kind) {
       if (this.mode === 'editor' && this.script.mission?.paused) { this.engine.scriptDebug(kind, 'mission'); return; }
@@ -367,6 +367,11 @@ export default {
       this.engine.scriptDebug(cmd, 'player');
     },
     stop() { this.engine.scriptStop(); },
+    /** Phone: close the sheet and show the game; the hero comes into view above the run strip if it is not visible. */
+    watchGame() {
+      this.$emit('update:open', false);
+      this.$nextTick(() => requestAnimationFrame(() => this.engine?.watchFocus?.(this.$refs.strip?.getBoundingClientRect().height ?? 0)));
+    },
     /** Run strip → back to the code */
     toCode() { this.tab = 'code'; this.$emit('update:open', true); },
     setBps(id, list) {

@@ -189,6 +189,20 @@ test.describe('phone sheet', () => {
     await expect(panel).toBeHidden();
     await expect(page.getByTestId('script-watch-strip')).toBeVisible();
     await expect(page.getByTestId('script-watch-line')).toContainText('hero.step()', SLOW);
+    // The hero is in view above the run strip
+    const strip = await page.getByTestId('script-watch-strip').boundingBox();
+    const hero = await page.evaluate(() => {
+      const e = window.__kronland, r = e.renderer;
+      const h = [...e.sim.entities.values()].find((x) => x.kind === 'hero');
+      const rec = r.chars?.records.get(h.id);
+      const x = rec ? rec.position.x : h.px / 1000, z = rec ? rec.position.z : h.py / 1000;
+      return r.project(x, r.terrain.heightAt(x, z) + 0.3, z);
+    });
+    expect(hero.behind).toBe(false);
+    expect(hero.x).toBeGreaterThan(0);
+    expect(hero.x).toBeLessThan(vp.width);
+    expect(hero.y).toBeGreaterThan(0);
+    expect(hero.y).toBeLessThan(strip.y);
     await shot(page, 'watch');
     await page.getByTestId('script-watch-code').click();
     await expect(panel).toBeVisible();
