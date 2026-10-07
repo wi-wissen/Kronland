@@ -8,7 +8,8 @@ Vitest prüft Simulation und Render-Logik (`tests/`), Playwright das Spiel im Br
 | Job | Wann | Inhalt |
 |-----|------|--------|
 | `unit` | jeder Push auf einen PR, „Run workflow“ | `npm test`, `npm run build` |
-| `build` | PR kein Entwurf (mehr), „Run workflow“ | `npm run build` einmal für alle Shards, `dist/` als Artefakt (parallel zu `unit`) |
+| `e2e-plan` | PR kein Entwurf (mehr), „Run workflow“, nachts | entscheidet, ob die Browser-Tests laufen (siehe unten) |
+| `build` | wenn `e2e-plan` ja sagt | `npm run build` einmal für alle Shards, `dist/` als Artefakt (parallel zu `unit`) |
 | `e2e light 1/12 … 12/12` | ebenso, nach `build` | alle leichten Specs, auf 12 Shards verteilt |
 | `e2e heavy 1/3 … 3/3` | ebenso | die schweren Specs (siehe unten) in eigenen Shards |
 | `e2e-report` | nach allen E2E-Jobs, auch bei Fehlern | führt die Blob-Berichte zu einem HTML-Bericht zusammen (Artefakt `playwright-report`) |
@@ -23,6 +24,20 @@ Vitest prüft Simulation und Render-Logik (`tests/`), Playwright das Spiel im Br
 - `fail-fast: false`: ein roter Shard bricht die anderen nicht ab. Bei Fehlern lädt jeder Shard `test-results/`
   (Screenshots, Fehlerkontext, Trace) als `test-results-<shard>` hoch.
 - Ein neuer Push bricht den laufenden Lauf desselben PRs ab.
+
+## Wann die Browser-Tests laufen
+
+Voller Lauf (etwa 11 min) bei jedem PR, der kein Entwurf ist, bei „Run workflow“ und jede Nacht (03:00 UTC) auf
+`main`. Ein bereiter PR **überspringt** ihn,
+- automatisch, wenn er nur `README.md`, `CLAUDE.md`, `docs/*.md`, Vitest-Tests (`tests/`) oder `.claude/` ändert;
+- mit dem Label **`skip-e2e`** bei kleinen Fixes. Claude setzt es selbst, wenn alles zutrifft: kleine, örtlich
+  begrenzte Änderung (ein Text, ein Stil, ein einzelner Fehler); die betroffenen Specs (`grep` in `e2e/` nach
+  geänderten Dateien, Test-IDs und Texten) liefen lokal grün; keine Änderung an Sim-Regeln, Balance, Speicherformat,
+  Renderer-Kern, Steuerung oder HUD-Aufbau. Im Zweifel kein Label.
+
+Label setzen oder entfernen startet die Prüfung neu. Die Zusammenfassung des Laufs nennt die Entscheidung
+(„Browser tests: false (label skip-e2e)“). Was ein übersprungener PR durchlässt, fängt der nächtliche Lauf; ein roter
+Nachtlauf schickt GitHub als Mail.
 
 ## Gruppen und Projekte (`playwright.config.js`)
 
