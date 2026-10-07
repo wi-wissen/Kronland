@@ -71,6 +71,11 @@ jobs:
           - { group: heavy, shard: 2/3, id: heavy-2 }
           - { group: heavy, shard: 3/3, id: heavy-3 }
     name: e2e ${{ matrix.group }} ${{ matrix.shard }}
+    # Playwright image: browser and system libraries preinstalled (installing them with apt took up to 10 min).
+    # The tag must match @playwright/test in package-lock.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
     env:
       E2E_GROUP: ${{ matrix.group }}
       E2E_PREBUILT: '1'
@@ -87,18 +92,6 @@ jobs:
         with:
           name: dist
           path: dist/
-      # Browser per Playwright version from the cache; the system libraries are installed anew each time
-      - id: pw
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
-        id: pw-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-      - if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-      - if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
       - run: npx playwright test --shard=${{ matrix.shard }}
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}

@@ -14,8 +14,9 @@ Vitest prüft Simulation und Render-Logik (`tests/`), Playwright das Spiel im Br
 | `e2e-report` | nach allen E2E-Jobs, auch bei Fehlern | führt die Blob-Berichte zu einem HTML-Bericht zusammen (Artefakt `playwright-report`) |
 
 - Die E2E-Jobs bauen nicht selbst: sie laden `dist/` aus dem `build`-Job (`E2E_PREBUILT=1` → nur `vite preview`).
-- Der Playwright-Browser liegt im Actions-Cache (Schlüssel: Playwright-Version), nur die Systembibliotheken werden
-  jedes Mal installiert.
+- Die Shards laufen im Container `mcr.microsoft.com/playwright:v<Version>-noble`: Browser und Systembibliotheken sind
+  dort schon installiert (per `apt` dauerte das bis zu 10 min). **Beim Update von `@playwright/test` den Tag in
+  `ci.yml` mitziehen.**
 - Je Runner **ein** Worker (`workers: 1` bei `CI`): zwei SwiftShader-Browser auf einer Maschine bremsen sich
   gegenseitig bis in Zeitüberschreitungen. Parallelität kommt aus den Shards; `fullyParallel` verteilt einzelne Tests
   (nicht ganze Dateien) auf die Shards.
