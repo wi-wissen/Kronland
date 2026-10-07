@@ -17,6 +17,7 @@ export const CATEGORIES = {
   military: { prio: 7, limit: 2 }, // recruited, promotions
   world: { prio: 8, limit: 1 }, // weather, collapsed bridges
   info: { prio: 9, limit: 1 }, // everything else
+  script: { prio: 10, limit: 1 }, // print() of the player program (newest wins, a loop bundles into one entry)
 };
 
 /** Key → category (keys without an entry: `err.*` = feedback, `saves.*` = system, otherwise info) */
@@ -30,6 +31,7 @@ const KEY_CATEGORY = {
   'toast.researchDone': 'research', 'toast.buildingResearchDone': 'research', 'toast.lineUpgraded': 'research',
   'toast.tradeDone': 'economy', 'toast.noMoreNodes': 'economy', 'toast.nodeDepleted': 'economy', 'toast.campLit': 'economy', 'toast.workerLeft': 'economy',
   'toast.recruited': 'military', 'toast.promoted': 'military',
+  'toast.print': 'script',
   'toast.weather': 'world', 'toast.weatherChanged': 'world', 'toast.weatherChangedEnemy': 'world', 'toast.bridgeCollapsed': 'world',
 };
 
@@ -42,6 +44,7 @@ export const MERGE = {
   'toast.recruited': 'toast.recruitedMany',
   'toast.buildingDone': 'toast.buildingDoneMany',
   'toast.tradeDone': 'toast.tradeDoneMany',
+  'toast.print': 'toast.printMany',
 };
 
 /** @param {string} key @returns {keyof typeof CATEGORIES} */

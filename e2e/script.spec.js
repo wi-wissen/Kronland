@@ -80,6 +80,49 @@ test('Error message with line and suggestion, single step with variables', async
   expect(errors).toEqual([]);
 });
 
+test('print() as a notice, error clears after editing, save and open .py', async ({ page }) => {
+  const errors = await fresh(page);
+  await page.goto(playUrl('?mission=adv1&no-models'));
+  await page.waitForFunction(() => !!window.__kronland, null, SLOW);
+  await openPanel(page);
+  const sec = page.getByTestId('section-player');
+  const ta = sec.getByTestId('code-input');
+
+  // Error: red line and box …
+  await ta.fill('wood = 3\nprint(wod)\n');
+  await page.getByTestId('script-run').click();
+  await expect(page.getByTestId('script-error')).toContainText('NameError', SLOW);
+  await expect(sec.getByTestId('ce-line-2')).toHaveClass(/error/);
+  // … gone as soon as the code changes (also not moved into the console)
+  await ta.fill('wood = 3\nprint(wood)\n');
+  await expect(page.getByTestId('script-error')).toHaveCount(0);
+  await expect(sec.locator('.ce-ln.error')).toHaveCount(0);
+  await expect(page.getByTestId('script-status')).toHaveText('bereit');
+  await expect(page.getByTestId('script-console')).toHaveCount(0);
+
+  // print(): notice in the game (newest wins, bundled) and output in the panel, only of the current run
+  await ta.fill('print("Hallo Kronland")\nfor i in range(3):\n    print("Runde", i)\n');
+  await page.getByTestId('script-run').click();
+  const note = page.locator('[data-testid="toast"][data-cat="script"]');
+  await expect(note).toHaveCount(1, SLOW);
+  await expect(note).toContainText('Runde 2', SLOW);
+  await expect(page.getByTestId('script-console')).toContainText('Hallo Kronland', SLOW);
+  await expect(page.getByTestId('script-console')).toContainText('Runde 2');
+  await expect(page.getByTestId('script-console')).not.toContainText('NameError');
+  await page.screenshot({ path: test.info().outputPath('print.png') });
+
+  // Save as .py
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('script-download').click()]);
+  expect(dl.suggestedFilename()).toBe('adv1.py');
+  const fs = await import('node:fs/promises');
+  expect(await fs.readFile(await dl.path(), 'utf8')).toContain('print("Runde", i)');
+
+  // Open a .py file from the device
+  await page.getByTestId('script-file').setInputFiles({ name: 'weg.py', mimeType: 'text/x-python', buffer: Buffer.from('\uFEFFfor i in range(2):\r\n    hero.step()\r\n') });
+  await expect(ta).toHaveValue('for i in range(2):\n    hero.step()\n');
+  expect(errors).toEqual([]);
+});
+
 test('World editor: paint forest, place a spot, test play and back', async ({ page }) => {
   const errors = await fresh(page);
   await page.goto(playUrl());
