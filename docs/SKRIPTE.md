@@ -86,7 +86,7 @@ hero.ahead()    # "free", "tree", "pile", "water", "cliff", "building", "edge" �
 hero.can_step()  hero.move_to(ziel)  hero.is_at(ziel)  hero.take()  hero.chop()  hero.say(text)
 place("goal")  tile(x, y)  trees_near(ziel)  stock("wood")  count("farm")  serfs(idle=True)
 hq()  find_spot("residence", hq())  build("residence", x, y)  serf.work_on(baustelle)
-wait(sekunden)  wait_until(lambda: …, timeout=None)  time()  print(…)
+wait(sekunden)  wait_until(lambda: …, timeout=None)  time()  print(…)  notify(text)
 nelia  orrin  taran  malvor        # jeder Held unter seinem Namen (eigener zuerst, sonst None); hero = Haupt-Held
 diplomacy(HUMAN, ENEMY)            # "allied", "neutral" oder "hostile"
 
@@ -253,10 +253,12 @@ Fehler: rote Zeile und Kasten mit Python-Namen, Abschnitt, Zeile, Erklärung und
 bearbeitet wird, verschwinden Markierung und Kasten (der Fehler steht dann womöglich nicht mehr im Programm), der
 Status springt auf „bereit“.
 
-**Ausgabe:** `print()` erscheint als Meldung im Spiel (Kategorie `script`, niedrigster Vorrang, höchstens eine;
-weitere Ausgaben ersetzen den Text und zählen mit – „… (12 Ausgaben)“, eine Schleife flutet also nicht) und
-unter „Ausgabe“ im Code-Panel (Desktop unter dem Code, Handy eigener Reiter). Die Simulation meldet jeden Aufruf als Ereignis `scriptPrint` (nur Anzeige);
-das Panel zeigt nur den aktuellen Lauf (`player.since` = Konsolen-Zähler beim Start). Anzeige-Logik:
+**Ausgabe und Meldungen:** `print()` schreibt nur unter „Ausgabe“ im Code-Panel (Desktop unter dem Code, Handy
+eigener Reiter). Eine Meldung im Spiel sendet `notify(text)` („Meldung senden“, Spieler- und Missionsskripte):
+Kategorie `script`, niedrigster Vorrang, höchstens eine; weitere Meldungen ersetzen den Text und zählen mit –
+„… (12 Meldungen)“, eine Schleife flutet also nicht. Die Simulation meldet sie als Ereignis `scriptNotify` (nur
+Anzeige, kein Sim-Zustand; alle Aufrufe eines Ticks werden zu einem Ereignis mit Zähler `n` zusammengefasst).
+`message(text)` (nur Missionen) ist dagegen eine Dialogzeile ohne Sprecher. Das Panel zeigt nur den aktuellen Lauf (`player.since` = Konsolen-Zähler beim Start). Anzeige-Logik:
 `src/ui/script/panelState.js` (Test `tests/ui/scriptPanel.test.js`).
 
 **Dateien:** **Speichern** lädt den Code als `<szenario>.py` herunter (Blob, auch am Handy), **Öffnen** lädt eine
