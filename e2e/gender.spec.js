@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl, hashed } from './paths.js';
 
 // Selection by sex: a female serf is called "1 Leibeigene" and shows the female portrait, a male serf

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Foreign selection: diplomacy named correctly (enemy / neutral / ally), foreign buildings without inner life.

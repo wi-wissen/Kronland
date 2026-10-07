@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Figures from the asset pipeline: serf male/female as variants, mask texture, tools per clip.

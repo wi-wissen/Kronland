@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Click confirmation: a right click (tap on mobile) with selected serfs shows a marker at the walk target;

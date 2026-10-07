@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Player colour selectable: setting "Spielerfarbe" (red), then game start - own figures, minimap and

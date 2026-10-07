@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Close zoom (issue #6): mouse wheel or two-finger gesture all the way in, flatter view, camera above the
