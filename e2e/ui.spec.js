@@ -82,17 +82,18 @@ test('Settings are saved and offered in the game', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('Build menu: all groups without tabs, tiles labelled, locked ones with reason', async ({ page, isMobile }) => {
+test('Build menu: all groups reachable (side by side or as tabs), tiles labelled, locked ones with reason', async ({ page, isMobile }) => {
   const errors = await fresh(page);
   await bootGame(page);
   await quick(page, 'all');
   await expect(page.getByTestId('build-residence')).toBeVisible();
-  // All groups are present at once, every tile carries its name
-  for (const g of ['home', 'raw', 'refine', 'military', 'admin']) await expect(page.getByTestId('build-group-' + g)).toHaveCount(1);
+  // Every group is reachable (wide: all at once, otherwise one tab each), every tile carries its name
+  const tabs = (await page.getByTestId('build-menu').getAttribute('data-layout')) === 'tabs';
+  for (const g of ['home', 'raw', 'refine', 'military', 'admin']) await expect(page.getByTestId((tabs ? 'build-tab-' : 'build-group-') + g)).toHaveCount(1);
   await expect(page.getByTestId('build-residence').locator('.bm-name')).toHaveText('Wohnhaus');
+  if (tabs) await page.getByTestId('build-tab-raw').click();
   await expect(page.getByTestId('build-clayMine')).toHaveCount(1);
-  // Narrow: jump mark brings the group into view
-  if (isMobile) await page.getByTestId('build-cat-military').click();
+  if (tabs) await page.getByTestId('build-tab-military').click();
   const barracks = page.getByTestId('build-barracks');
   await expect(barracks).toBeInViewport();
   await expect(barracks).toHaveAttribute('aria-disabled', 'true');
@@ -100,12 +101,13 @@ test('Build menu: all groups without tabs, tiles labelled, locked ones with reas
   // Locked: click starts no placement
   await barracks.click({ force: true });
   expect(await page.evaluate(() => window.__kronland.placing)).toBeNull();
-  // Desktop: detail line shows costs or reason of the hovered building
+  // Desktop: info strip shows costs or reason of the hovered building
   if (!isMobile) {
     await barracks.hover();
-    await expect(page.getByTestId('build-detail')).toContainText('Wehrpflicht');
+    await expect(page.getByTestId('build-info')).toContainText('Wehrpflicht');
+    if (tabs) await page.getByTestId('build-tab-home').click();
     await page.getByTestId('build-farm').hover();
-    await expect(page.getByTestId('build-detail')).toContainText('Bauernhof');
+    await expect(page.getByTestId('build-info')).toContainText('Bauernhof');
   }
   expect(errors).toEqual([]);
 });
