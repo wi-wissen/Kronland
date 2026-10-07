@@ -126,12 +126,12 @@ test('Mobile: build menu right after the selection, tapping starts the build', a
   test.skip(!isMobile, 'mobile only');
   const errors = await boot(page);
   await quick(page, 'all');
-  // No intermediate step any more: tiles are there immediately
+  // Default build view: tiles are there immediately
   await expect(page.getByTestId('build-residence')).toBeVisible();
-  // Jump mark brings a group further right into view
-  await page.getByTestId('build-cat-admin').click();
+  // Tabs switch the group
+  await page.getByTestId('build-tab-admin').click();
   await expect(page.getByTestId('build-university')).toBeInViewport();
-  await page.getByTestId('build-cat-home').click();
+  await page.getByTestId('build-tab-home').click();
   await expect(page.getByTestId('build-residence')).toBeInViewport();
   await page.getByTestId('build-residence').click();
   await expect(page.getByTestId('place-cancel')).toBeVisible();
