@@ -51,6 +51,11 @@ test('Home page loads with title image, features, gallery and footer', async ({ 
   await expect(page.locator('.features')).toContainText('Leibeigene packen an');
   await expect(page.locator('.features')).toContainText('Kaufen oder kämpfen');
   await expect(page.locator('.features .ico.atlas').first()).toBeVisible();
+  // all feature icons stand free; heroes too (cut-out portrait, not the portrait with its cream ground)
+  await expect(page.locator('.features .ico.portrait')).toHaveCount(0);
+  const heroIco = page.locator('.features img.ico[src*="icons/heroes"]');
+  await expect(heroIco).toHaveCount(1);
+  await expect.poll(() => heroIco.evaluate((el) => el.complete && el.naturalWidth > 0)).toBe(true);
   // Gallery: hovering brightens but moves nothing
   const shot = gallery.locator('img').first();
   await shot.scrollIntoViewIfNeeded();
@@ -176,4 +181,5 @@ test('Compendium: deep link with anchor', async ({ page }) => {
   await expect(page.getByTestId('nav-compendium')).toHaveText('Kompendium');
   // Compendium shows the icons from the game's atlas
   await expect(page.getByTestId('compendium').locator('.ico.atlas').first()).toBeVisible();
+  await expect(page.getByTestId('compendium').locator('img.ico[src*="icons/heroes"]').first()).toBeAttached();
 });

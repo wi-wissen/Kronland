@@ -298,7 +298,7 @@ function heroesSection(lang, names, f) {
     return { id: anchor.hero(id), title: `${names.hero(id)}`, icon: `hero-${id}`, sub: names.heroTitle(id), blocks: [{ type: 'facts', items: facts }, abil] };
   });
   const hp = Object.values(HEROES)[0]?.hp ?? 0;
-  return { id: 'heroes', icon: 'hero-nelia', blocks: [], entries,
+  return { id: 'heroes', icon: 'heroes', blocks: [], entries,
     vars: { heroHp: hp, reviveS: COMBAT.heroReviveTicks / 10, reviveR: COMBAT.heroReviveRadius } };
 }
 

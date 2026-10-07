@@ -170,6 +170,13 @@ DEV_FRAME = """() => {
 
 HIDE_HUD = "() => { const st = document.createElement('style'); st.id = 'nohud'; st.textContent = '.game > :not(canvas), .tooltip { display: none !important; }'; document.head.appendChild(st); }"
 SHOW_HUD = "() => document.getElementById('nohud')?.remove()"
+PLAIN_GROUND = "() => { const st = document.createElement('style'); st.id = 'plain'; st.textContent = '.game > canvas, .toasts, .notices { visibility: hidden !important; } .game { background: #1d1712 !important; }'; document.head.appendChild(st); }"
+# No shown figure waits for a lazily loaded model any more (src/render/characters.js: pendingModel; prepared but
+# unused roles may keep their placeholder, so only the records of drawn figures count)
+PLACEHOLDERS_GONE = """() => { const c = window.__kronland?.renderer?.chars; if (!c) return true;
+  const pending = (v) => !!v && (!!v.pendingModel || (v.attach ?? []).some((a) => pending(a.variant)));
+  return ![...c.records.values()].some((r) => r.visible && pending(r.variant)); }"""
+STUCK = "() => [...new Set([...window.__kronland.renderer.chars.records.values()].filter((r) => r.visible && r.variant?.pendingModel).map((r) => r.roleKey + '>' + r.variant.pendingModel))]"
 
 
 def save(img_bytes, name, small=True, size=None, quality=80):
@@ -196,11 +203,22 @@ def frames(page, n=2):
 def shoot(page, target=None):
     """Freeze the frame (3D scene stops drawing, HUD stays), then capture. Without freezing,
     Playwright cannot keep up with the screenshot when a frame arrives every few seconds."""
+    # Figure models (riders, horse …) load lazily; until then a procedural placeholder stands in
+    try:
+        page.wait_for_function(PLACEHOLDERS_GONE, timeout=180000, polling=1000)
+    except Exception:
+        print('warning: placeholders left:', page.evaluate(STUCK), flush=True)
     frames(page, 2)
     page.evaluate("() => { const r = window.__kronland.renderer; if (!r.__frame) { r.__frame = r.frame; r.frame = () => {}; } }")
     page.wait_for_timeout(700)
     # Crop via the element's position (Locator.screenshot waits for "stable" – animated panels never are)
-    clip = target.bounding_box() if target else None
+    # several targets: their common rectangle (e.g. command panel and selection card of the army)
+    boxes = [t.bounding_box() for t in (target if isinstance(target, (list, tuple)) else [target])] if target else []
+    clip = None
+    if boxes:
+        x0, y0 = min(b['x'] for b in boxes), min(b['y'] for b in boxes)
+        x1, y1 = max(b['x'] + b['width'] for b in boxes), max(b['y'] + b['height'] for b in boxes)
+        clip = {'x': x0, 'y': y0, 'width': x1 - x0, 'height': y1 - y0}
     shot = page.screenshot(type='png', timeout=600000, clip=clip) if clip else page.screenshot(type='png', timeout=600000)
     page.evaluate("() => { const r = window.__kronland.renderer; if (r.__frame) { r.frame = r.__frame; delete r.__frame; } }")
     return shot
@@ -290,12 +308,12 @@ def run(pw):
         ctx.close()
 
     # ---------- Combat ----------
-    if want('combat') or want('hud-army'):
+    if want('combat') or want('hud-army') or want('hud-selection'):
         ctx = b.new_context(**DESK, locale='de-DE')
         ctx.add_init_script(init % 'de')
         page = boot(ctx, '?seed=11&fog=off&quality=high&players=2&hero=nelia')
         settle(page, ticks=0, wait=500, list=['residence', 'farm', 'barracks', 'archery', 'tower'], levels=False)
-        print('Fallen enemies:', page.evaluate(BATTLE, {'dist': 18, 'pitch': 0.8}), flush=True)
+        print('Fallen enemies:', page.evaluate(BATTLE, {'dist': 15, 'pitch': 0.8}), flush=True)
         # camera on the middle of the skirmish, above the command bar
         mid = page.evaluate("() => { const L = [...window.__kronland.sim.entities.values()].filter((x) => x.kind === 'leader' || x.kind === 'soldier');"
                             " const n = L.length || 1; return [L.reduce((a, x) => a + x.px, 0) / n / 1000, L.reduce((a, x) => a + x.py, 0) / n / 1000]; }")
@@ -304,7 +322,14 @@ def run(pw):
         if want('combat'):
             save(shoot(page), 'combat')
         if want('hud-army'):
+            # orders (command panel below)
             save(shoot(page, page.get_by_test_id('context-panel')), 'hud-army', small=False)
+        if want('hud-selection'):
+            # captains and hero: selection card on the right, with the round crest that juts out of it
+            page.evaluate(PLAIN_GROUND)
+            sel = page.get_by_test_id('selection-card')
+            save(shoot(page, [sel, sel.locator('.sc-portrait')]), 'hud-selection', small=False)
+            page.evaluate("() => document.getElementById('plain')?.remove()")
         ctx.close()
 
     # ---------- Winter ----------

@@ -3,7 +3,7 @@
 Die bunten Symbole (Rohstoffe, Gebäude, Einheiten, Helden, Fähigkeiten, Wetter, Status) kommen aus einem
 **Sprite-Atlas**, den ein Bildmodell in einem einzigen Durchgang gemalt hat. Die 34 einfarbigen
 Bediensymbole (Pause, Menü, Schließen …) bleiben Vektoren, weil sie die Textfarbe übernehmen. Wenige Symbole ohne
-Atlasfeld (Brunnen, Denkmal, Brücke, drei Heldenfähigkeiten, zwei Menüsymbole) sind Einzelbilder, siehe [unten](#einzelbilder-fähigkeiten-herold-menükulissen).
+Atlasfeld (Brunnen, Denkmal, Brücke, drei Heldenfähigkeiten, zwei Menüsymbole, Rubrik „Helden“) sind Einzelbilder, siehe [unten](#einzelbilder-fähigkeiten-herold-menükulissen).
 
 Diese Seite beschreibt, wie der Atlas entstanden ist und wie man ihn neu erzeugt, etwa für neue Symbole
 oder einen anderen Stil.
@@ -58,6 +58,14 @@ node scripts/art/finish.mjs menu           # Menüsymbole (Sonderkarten, Program
 - **Kulissen:** Burg auf dem Hügel in der Bildmitte (bleibt beim hochkant zugeschnittenen Handy sichtbar), ruhiger
   Himmel oben hinter dem Titel, ruhige Ränder. Der Ladebildschirm hat ein helleres, ruhigeres Morgenbild.
   Im Spiel liegt ein abdunkelnder Verlauf darüber; lädt das Bild nicht, bleiben die CSS-Verläufe.
+
+### Rubrik „Helden“
+
+Startseite („Was das Spiel ausmacht“) und Kompendium zeigen für die Helden das Symbol `heroes`
+(`public/icons/heroes.webp`, 128 px, Alpha). Es ist Nelias gemaltes Porträt ohne seinen Cremegrund, damit es wie die
+übrigen Symbole frei steht – das Porträt selbst (mit Grund) bleibt für Auswahl, Schnellzugriff und Dialoge.
+`python3 scripts/icons/hero-icon.py [held] [--preview datei.png]` stellt es frei: Flut vom Bildrand über alles nahe der
+Grundfarbe, 2-px-Saum als „Farbe über Grund“ zurückgerechnet, eingepasst wie ein Atlasfeld.
 
 ## Favicon und App-Icons
 

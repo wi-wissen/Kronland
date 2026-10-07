@@ -131,7 +131,7 @@ import { UNITS, HEROES } from '../../sim/data/units.js';
 import { TECHS } from '../../sim/data/technologies.js';
 import { BUILDING_TECHS } from '../../sim/data/buildingTechs.js';
 import { CAMPAIGN } from '../../sim/missions/registry.js';
-import { iconForLine, iconForHero, iconForWeather } from '../../ui/icons/index.js';
+import { iconForLine, iconForWeather } from '../../ui/icons/index.js';
 
 export default {
   name: 'HomePage',
@@ -152,7 +152,7 @@ export default {
         { id: 'economy', icon: 'gold' },
         { id: 'research', icon: 'research' },
         { id: 'military', icon: iconForLine('sword'), n: new Set(Object.values(UNITS).map((u) => u.line)).size },
-        { id: 'heroes', icon: iconForHero('nelia'), n: Object.keys(HEROES).length },
+        { id: 'heroes', icon: 'heroes', n: Object.keys(HEROES).length },
         { id: 'weather', icon: iconForWeather('winter') },
         { id: 'choices', icon: 'gold' },
         { id: 'campaign', icon: 'scroll', n: CAMPAIGN.length },
