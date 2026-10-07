@@ -49,10 +49,6 @@
         >{{ $t('set.q.' + q) }}</button>
       </div>
       <p v-if="inGame" class="st-note">{{ $t('set.qualityNote') }}</p>
-      <button class="switch" role="switch" :aria-checked="s.menuMotion" data-testid="menu-motion" @click="set('menuMotion', !s.menuMotion)">
-        <span class="st-sl-label"><Icon name="display" />{{ $t('set.menuMotion') }}</span><span class="track"></span>
-      </button>
-      <p class="st-note">{{ $t('set.menuMotionNote') }}</p>
     </section>
 
     <section class="st-sec">

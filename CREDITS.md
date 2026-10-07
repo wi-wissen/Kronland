@@ -78,10 +78,6 @@ erzeugt; freigestellt mit `scripts/art/finish.mjs`. Prompt, Modell, Kosten und R
 waren eigene Gebäudekonzepte (`assets-src/buildings/`) und ein Heldenporträt. Prompts, Modell, Kosten und Rohbilder:
 `assets-src/art/title/`, `assets-src/art/loading/`; Skripte `scripts/art/`.
 
-Die bewegte Fassung des Titelbilds (`public/art/title-loop.av1.mp4`, `title-loop.h264.mp4`) hat `google/veo-3.1-fast`
-(über OpenRouter) aus `title.webp` als erstem und letztem Bild für dieses Projekt erzeugt; zum Loop geschnitten mit
-`scripts/art/loop.mjs`. Prompts, Modelle, Kosten und Rohvideos: `assets-src/art/title-loop/`.
-
 ## Porträts
 
 - `public/portraits/worker.webp`: Ausschnitt aus dem eigenen Figurenbogen (`assets-src/icons/style-2.webp`); die

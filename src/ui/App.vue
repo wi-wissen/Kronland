@@ -1,5 +1,4 @@
 <template>
-  <MenuBackdrop v-if="menuScreen" />
   <StartMenu v-if="screen === 'menu'" :latest="latest" :recovered="recovered" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" @adventures="screen = 'adventures'" @special="screen = 'special'" />
   <CampaignMenu v-else-if="screen === 'campaign'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @tutorial="startMission('tutorial')" />
   <SpecialMapsMenu v-else-if="screen === 'special'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" />
@@ -130,7 +129,6 @@ import TopBar from './TopBar.vue';
 import CommandBar from './hud/CommandBar.vue';
 import ToastFeed from './hud/ToastFeed.vue';
 import StartMenu from './StartMenu.vue';
-import MenuBackdrop from './MenuBackdrop.vue';
 import GameMenu from './GameMenu.vue';
 import Tooltip from './Tooltip.vue';
 import CampaignMenu from './mission/CampaignMenu.vue';
@@ -164,7 +162,7 @@ const NARROW = 1500;
 export default {
   name: 'App',
   components: {
-    TopBar, CommandBar, ToastFeed, StartMenu, MenuBackdrop, GameMenu, Tooltip, CampaignMenu, SpecialMapsMenu, MissionHud, MissionResult, AdventureMenu,
+    TopBar, CommandBar, ToastFeed, StartMenu, GameMenu, Tooltip, CampaignMenu, SpecialMapsMenu, MissionHud, MissionResult, AdventureMenu,
     // Code panel and world editor: loaded only on demand
     ScriptPanel: defineAsyncComponent(() => import('./script/ScriptPanel.vue')),
     WorldEditor: defineAsyncComponent(() => import('./editor/WorldEditor.vue')),
@@ -218,8 +216,6 @@ export default {
     };
   },
   computed: {
-    /** Menus over the title backdrop (the moving one stays mounted, and keeps running, while switching between them) */
-    menuScreen() { return ['menu', 'campaign', 'special', 'adventures'].includes(this.screen); },
     /** Start link for the game menu: { url, name } or null */
     share() {
       const st = this.start;

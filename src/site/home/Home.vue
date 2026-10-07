@@ -4,6 +4,18 @@
       <picture class="hero-bg">
         <img :src="img('hero')" :srcset="img('hero') + ' 1440w, ' + img('hero-wide') + ' 2880w'" sizes="100vw" :alt="$s('home.heroAlt')" width="1440" height="900" fetchpriority="high">
       </picture>
+      <!-- The same scene recorded in the game as a silent loop (scripts/site-video.py); fades in over the still once it
+           really plays. Not with "reduce motion" or "save data"; if autoplay is refused the still simply stays. -->
+      <video
+        v-if="motion"
+        class="hero-video"
+        :class="{ playing }"
+        muted autoplay loop playsinline disablepictureinpicture disableremoteplayback
+        preload="auto" tabindex="-1" aria-hidden="true" data-testid="hero-video"
+        @playing="playing = true"
+      >
+        <source v-for="v in heroVideo" :key="v.src" :src="v.src" :type="v.type">
+      </video>
       <div class="hero-shade" aria-hidden="true"></div>
       <div class="wrap hero-inner">
         <p class="kicker">{{ $s('home.kicker') }}</p>
@@ -121,6 +133,7 @@
 <script>
 import SiteLayout from '../SiteLayout.vue';
 import { siteUrl } from '../../paths.js';
+import { HERO_VIDEO, heroMotion, matchQuery } from './heroVideo.js';
 import { BUILDINGS } from '../../sim/data/buildings.js';
 import { UNITS, HEROES } from '../../sim/data/units.js';
 import { TECHS } from '../../sim/data/technologies.js';
@@ -133,6 +146,8 @@ export default {
   components: { SiteLayout },
   data() {
     return {
+      reduced: !!matchQuery('(prefers-reduced-motion: reduce)')?.matches,
+      playing: false,
       // Order in the enlarged view (arrows); 'developer' is in the section "Für die Schule"
       shots: ['settlement', 'phone', 'combat', 'winter', 'fog', 'slope', 'developer'],
       // Gallery rows; width per image by aspect ratio (equal-height images per row)
@@ -163,6 +178,16 @@ export default {
       ],
     };
   },
+  computed: {
+    motion() { return heroMotion({ reducedMotion: this.reduced, saveData: !!globalThis.navigator?.connection?.saveData }); },
+    heroVideo() { return HERO_VIDEO.map((v) => ({ src: siteUrl(v.path), type: v.type })); },
+  },
+  mounted() {
+    this.mq = matchQuery('(prefers-reduced-motion: reduce)');
+    this.onReduce = () => { this.reduced = !!this.mq?.matches; };
+    this.mq?.addEventListener?.('change', this.onReduce);
+  },
+  beforeUnmount() { this.mq?.removeEventListener?.('change', this.onReduce); },
   methods: {
     img(name) { return siteUrl(`site/${name}.webp`); },
     open(i) {
@@ -179,6 +204,9 @@ export default {
 .hero-bg, .hero-bg img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hero-bg { z-index: -2; pointer-events: none; }
 .hero-bg img { object-fit: cover; object-position: 60% 50%; z-index: -2; }
+/* Same framing as the still; fades in only once it plays (its first frame continues the still's scene) */
+.hero-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 60% 50%; z-index: -2; pointer-events: none; opacity: 0; transition: opacity 0.8s ease; }
+.hero-video.playing { opacity: 1; }
 .hero-shade { position: absolute; inset: 0; z-index: -1; pointer-events: none; background:
   linear-gradient(90deg, rgba(23, 15, 9, 0.92) 0%, rgba(23, 15, 9, 0.7) 38%, rgba(23, 15, 9, 0.1) 70%),
   linear-gradient(0deg, var(--wood-900) 0%, rgba(34, 23, 15, 0) 35%); }

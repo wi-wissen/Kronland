@@ -423,5 +423,6 @@ def run(pw):
     b.close()
 
 
-with sync_playwright() as pw:
-    run(pw)
+if __name__ == '__main__':
+    with sync_playwright() as pw:
+        run(pw)

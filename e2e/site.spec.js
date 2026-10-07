@@ -19,6 +19,29 @@ function watch(page) {
   return problems;
 }
 
+test('Title image of the home page moves: recorded loop over the still, still with reduced motion', async ({ page }, info) => {
+  test.setTimeout(60_000);
+  if (info.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 900 });
+  const problems = watch(page);
+  await page.goto('/');
+  const video = page.getByTestId('hero-video');
+  // Chromium without proprietary codecs takes the AV1 file; it plays silently, loops and fades in over the still
+  await expect(video).toHaveClass(/playing/, { timeout: 30_000 });
+  const v = await video.evaluate((el) => ({ src: el.currentSrc, muted: el.muted, loop: el.loop, paused: el.paused, w: el.videoWidth }));
+  expect(v).toMatchObject({ muted: true, loop: true, paused: false, w: 1920 });
+  expect(v.src).toMatch(/site\/hero-loop\.av1(\.[0-9a-f]{10})?\.mp4$/);
+  await expect(page.locator('.hero-bg img')).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: `test-results/home-hero-video-${info.project.name}.png` });
+  // "Reduce motion": no video, only the still
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(video).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByTestId('home-hero')).toBeVisible();
+  await expect(video).toHaveCount(0);
+  expect(problems).toEqual([]);
+});
+
 test('Home page loads with title image, features, gallery and footer', async ({ page }) => {
   const problems = watch(page);
   await page.goto('/');

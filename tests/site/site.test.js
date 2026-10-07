@@ -106,7 +106,7 @@ describe('Website images', () => {
 
   it('images are small enough (WebP, gallery ≤ 120 kB, large ≤ 300 kB, wide title image ≤ 700 kB)', () => {
     const dir = resolve('public/site');
-    const files = readdirSync(dir);
+    const files = readdirSync(dir).filter((f) => !f.endsWith('.mp4'));
     expect(files.length).toBeGreaterThan(10);
     for (const f of files) {
       expect(f, f).toMatch(/\.webp$/);

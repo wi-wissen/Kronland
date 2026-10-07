@@ -14,22 +14,6 @@ export function artVars(url = siteUrl) {
   return { '--art-title': `url("${url(ART.title)}")`, '--art-loading': `url("${url(ART.loading)}")` };
 }
 
-/**
- * Animated title backdrop: seamless loop of the title image (scripts/art/video.mjs + loop.mjs, origin in CREDITS.md).
- * First match wins: AV1 (smallest; Chrome, Firefox, Edge, Safari with AV1 hardware) before H.264 (everyone else).
- * Its first frame is the title image, so the switch from the still to the running clip is invisible.
- */
-export const ART_LOOP = [
-  { path: 'art/title-loop.av1.mp4', type: 'video/mp4; codecs="av01.0.05M.08"' },
-  { path: 'art/title-loop.h264.mp4', type: 'video/mp4; codecs="avc1.4D401F"' },
-];
-
-/**
- * May the menu backdrop move? Off by setting, with the system's "reduce motion" and with "save data".
- * @param {{ setting: boolean, reducedMotion?: boolean, saveData?: boolean }} o
- */
-export const menuMotionAllowed = ({ setting, reducedMotion = false, saveData = false }) => !!setting && !reducedMotion && !saveData;
-
 /** Sets the variables on <html> and preloads the title image (it is the first thing you see). */
 export function applyArt(el = globalThis.document?.documentElement) {
   if (!el) return;

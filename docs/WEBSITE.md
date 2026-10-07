@@ -176,6 +176,29 @@ Python-Playwright fehlt in der Cloud-Umgebung: `pip install playwright`, Browser
 Motive: `hero` (Titelbild der Startseite, doppelte Pixeldichte: `hero.webp` 1440 px und `hero-wide.webp` 2880 px per `srcset` für große Bildschirme), `settlement`, `hud-*`, `combat`, `hud-army` (Befehle), `hud-selection` (Auswahlkarte mit Held und Hauptleuten), `winter`, `fog`, `slope` (gelbe Bauvorschau),
 `developer` (A*-Suche), `programming` (Code-Panel am Haltepunkt), `phone`. Ein Test begrenzt die Dateigröße (Galerie ≤ 120 kB, groß ≤ 300 kB).
 
+## Bewegtes Titelbild
+
+Über dem Titelbild der Startseite läuft dieselbe Szene als stummer, nahtloser Loop aus dem Spiel (Karte 11,
+gleiche Siedlung und Kamera wie `hero`): Leibeigene laufen, die Mühle dreht sich, Wimpel und Bäume wehen.
+
+```bash
+python3 scripts/site-video.py http://localhost:4301      # Bild für Bild aufnehmen → assets-src/site/hero-loop/raw.mp4 (~40 min)
+node scripts/video-loop.mjs assets-src/site/hero-loop/raw.mp4 --out site/hero-loop --loop 201 --fade 24 [--compare]
+```
+
+- **Aufnahme** (`site-video.py`): baut die Szene wie `site-screens.py` auf, hält dann die Spielschleife an und
+  treibt sie mit fester Uhr (`Engine.frame()` mit je 1/24 s): Spielzeit und Animationen laufen wie in Echtzeit,
+  egal wie langsam SwiftShader zeichnet. Jedes Bild kommt direkt aus der Leinwand (1920×1200, ohne HUD).
+- **Länge:** zwei volle Umdrehungen des Mühlenrads (Renderer: 1,5 rad/s → 201 Bilder = 8,375 s) plus eine
+  Sekunde. **Schnitt** (`video-loop.mjs`): Die Sekunde nach dem Loop wird in seinen Anfang überblendet; die Mühle
+  steht dabei in beiden Bildern gleich, nur laufende Figuren blenden kurz ineinander.
+- **Format:** MP4 als AV1 (Chrome, Edge, Firefox, Safari mit AV1-Hardware) und H.264 für alle anderen, je mit
+  `faststart` und einem Schlüsselbild; Video dekodiert in Hardware. Animiertes WebP wäre ein Vielfaches größer
+  und wird auf der CPU entpackt (Vergleich mit `--compare`).
+- **Einbindung:** `src/site/home/heroVideo.js` (`HERO_VIDEO`), `<video>` in `Home.vue` über dem Standbild; es
+  blendet erst ein, wenn es wirklich läuft. Kein Video bei „Bewegung reduzieren“ und „Datensparmodus“; verweigert der
+  Browser den Autostart (iOS-Stromsparmodus), bleibt das Standbild. Die PWA legt die Videos nicht in den Cache.
+
 ## Linkvorschau (Open Graph)
 
 Das Plugin `scripts/vite-social-meta.js` schreibt im Build in jede Seite `<link rel="canonical">` und Open-Graph-Tags

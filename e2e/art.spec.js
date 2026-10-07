@@ -27,15 +27,9 @@ test('Start menu and loading screen show the painted backdrop', async ({ page },
   expect((await title).ok()).toBe(true);
   const menu = page.getByTestId('start-menu');
   await expect(menu).toBeVisible(SLOW);
-  // Moving backdrop (MenuBackdrop.vue): the still lies under the clip, the menu above only darkens
-  const anim = page.getByTestId('menu-anim');
-  expect(await anim.evaluate((el) => getComputedStyle(el).backgroundImage)).toMatch(hashed('art/title.webp'));
-  expect(await menu.evaluate((el) => getComputedStyle(el).backgroundImage)).toMatch(/^linear-gradient/);
-  // Chromium without proprietary codecs takes the AV1 file; it runs and loops by itself, silent
-  await expect(anim).toHaveClass(/playing/, SLOW);
-  const vid = await anim.locator('video').evaluate((v) => ({ src: v.currentSrc, muted: v.muted, loop: v.loop, paused: v.paused, w: v.videoWidth }));
-  expect(vid).toMatchObject({ muted: true, loop: true, paused: false, w: 1920 });
-  expect(vid.src).toMatch(hashed('art/title-loop.av1.mp4'));
+  const bg = await menu.evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(bg).toMatch(hashed('art/title.webp'));
+  expect(bg).toContain('linear-gradient'); // darkening gradient and fallback gradients remain
   // Menu icons coding adventure and special maps: painted single images like tutorial and campaign
   for (const [id, file] of [['menu-adventures', 'mode-adventure'], ['menu-special', 'mode-special']]) {
     const ico = page.getByTestId(id).locator('.sm-seal img.ico');
@@ -55,31 +49,6 @@ test('Start menu and loading screen show the painted backdrop', async ({ page },
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${SHOTS}/art-loading-${info.project.name}.png` });
   expect(errors).toEqual([]);
-});
-
-test('Menu backdrop stays still with reduced motion and when switched off', async ({ page }, info) => {
-  test.setTimeout(90_000);
-  if (info.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 900 });
-  await page.addInitScript(() => localStorage.setItem('kronland-lang', 'de'));
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto(playUrl());
-  const menu = page.getByTestId('start-menu');
-  await expect(menu).toBeVisible(SLOW);
-  await expect(page.getByTestId('menu-anim')).toHaveCount(0);
-  expect(await menu.evaluate((el) => getComputedStyle(el).backgroundImage)).toMatch(hashed('art/title.webp'));
-
-  // System allows motion: the clip appears, the switch in the settings removes it again (and it stays off)
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await expect(page.getByTestId('menu-anim')).toHaveCount(1, SLOW);
-  await page.getByTestId('menu-settings').click();
-  const sw = page.getByTestId('menu-motion');
-  await expect(sw).toHaveAttribute('aria-checked', 'true');
-  await sw.click();
-  await expect(sw).toHaveAttribute('aria-checked', 'false');
-  await expect(page.getByTestId('menu-anim')).toHaveCount(0);
-  await page.reload();
-  await expect(menu).toBeVisible(SLOW);
-  await expect(page.getByTestId('menu-anim')).toHaveCount(0);
 });
 
 test('Abilities and herald are painted', async ({ page }, info) => {
