@@ -42,7 +42,8 @@ public/audio/manifest.json              →  dist/audio/manifest.4b1c…….json
 
 | Was | Strategie | Wann |
 |---|---|---|
-| Code, Seiten, CSS, Oberflächenbilder (Symbol-Atlas, Porträts, Menükulissen) | Vorab-Cache (~3,6 MB) | beim ersten Besuch, im Hintergrund |
+| Seitenaufrufe (Navigation) | immer zuerst das Netz (`no-cache`), offline die vorab gecachte Seite | bei jedem Aufruf |
+| Code, Seiten, CSS, Oberflächenbilder (Symbol-Atlas, Porträts, Menükulissen) | Vorab-Cache (~4,7 MB) | beim ersten Besuch, im Hintergrund |
 | Modelle, Figuren-Manifest | CacheFirst `models` | beim ersten Laden |
 | Boden- und Naturtexturen | CacheFirst `textures` | beim ersten Laden (nur die Größe der Grafikstufe) |
 | Musik, Effekte, Stimmen, Ton-Manifeste | CacheFirst `audio` | beim ersten Abspielen |
@@ -70,6 +71,46 @@ Cloudflare Pages (`_headers`):
 ```
 
 `sw.js` und die HTML-Seiten dagegen immer frisch (`no-cache`), sonst erfährt der Browser nichts vom Update.
+GitHub Pages lässt sich nicht einstellen und schickt für alles `Cache-Control: max-age=600`; darum fragt der
+Service-Worker bei Seitenaufrufen selbst mit `no-cache` nach (ETag, meist nur ein 304).
+
+## Updates nach einem Deploy
+
+**Früher:** Auch die HTML-Seiten lagen im Vorab-Cache und kamen von dort (Cache zuerst). Nach einem Deploy lieferte
+ein Neuladen also die *alte* Seite mit den *alten* Bundles; erst dabei fand der Browser die neue `sw.js`, die sich
+sofort aktivierte (`skipWaiting`, `clientsClaim`) und die alten Bundles aus dem Vorab-Cache löschte. Die offene
+alte Seite lud danach nachgeladene Teile (Code-Panel, Welteneditor, Entwicklermodus, Befehlskarten) vergeblich –
+auf dem Server sind sie weg (404) – daher „komische Fehler“; erst das zweite Neuladen zeigte die neue Fassung.
+Außerdem räumte `cacheCleanup.js` auf so einer alten Seite die Dateien der *neuen* Fassung als „veraltet“ ab.
+
+**Jetzt** (`scripts/sw-pages.js`, `src/pwa.js`):
+
+- **Seiten aus dem Netz:** Navigationen beantwortet der Service-Worker nicht mehr aus dem Vorab-Cache
+  (`directoryIndex: null`), sondern mit einer Netzanfrage (`no-cache`, an der 10-Minuten-Frist von GitHub Pages
+  vorbei). Ein normales Neuladen zeigt nach einem Deploy sofort die neue Fassung; deren Bundles haben neue Namen
+  und kommen am alten Vorab-Cache vorbei aus dem Netz. Offline: die vorab gecachte Seite (passt zu den vorab
+  gecachten Bundles). Umleitungen (`/play` → `/play/`) gibt der Worker als Umleitung weiter.
+- **Offene Tabs merken das Update:** Übernimmt ein neuer Service-Worker (`controllerchange`), schlägt ein
+  nachgeladenes Bundle fehl (`vite:preloadError`) oder kommt ein Tab nach mehr als 10 Minuten wieder in den
+  Vordergrund, holt die Seite ihre eigene HTML-Datei frisch vom Server und vergleicht die Bundle-Namen
+  (`checkForUpdate`). Ist die Seite veraltet:
+  - in den Menüs (Hauptmenü, Kampagne, Abenteuer, Sonderkarten; kein Entwurf im Welteneditor): sofort neu laden,
+  - im laufenden Spiel: nichts unterbrechen. Hinweis „Neue Version verfügbar“ und im Spielmenü
+    **„Speichern und neu laden“** (schreibt den Autosave-Platz, auch wenn Autosave aus ist, danach Hauptmenü mit
+    „Weiterspielen“); spätestens beim Verlassen des Spiels lädt die neue Fassung.
+  - Höchstens ein automatisches Neuladen je Minute (`sessionStorage`), damit ein Server, der weiter die alte
+    Seite liefert, keine Schleife auslöst.
+- Das Aufräumen alter Cache-Einträge (`cacheCleanup.js`) läuft nur, wenn die Seite nachweislich aktuell ist.
+
+**Übergang:** Geräte mit dem alten Service-Worker bekommen beim ersten Neuladen nach diesem Deploy noch einmal die
+alte Seite aus dem Vorab-Cache (der alte Worker entscheidet das); ab dann gilt das Neue.
+
+**Prüfen:** `tests/build/update.test.js` (Erkennung, Antwort des Workers), `e2e/update.spec.js` (echter Deploy:
+Build A ausliefern, Service-Worker installieren, auf Build B mit `KRONLAND_BUILD=b` umschalten – Neuladen zeigt B,
+ein Tab im Menü lädt sich selbst neu, ein laufendes Spiel zeigt den Hinweis). Der Testserver
+(`e2e/static-server.js`) schickt dieselben Kopfzeilen wie GitHub Pages. Von Hand: Seite offen lassen, deployen,
+einmal neu laden → neue Fassung (in den Entwicklerwerkzeugen unter „Application → Service Workers“ ist der neue
+Worker aktiv, im Netzwerk-Reiter kommt `play/` vom Server).
 
 ## Wie viele Daten braucht ein Spiel?
 
@@ -115,6 +156,46 @@ Nahmodell lädt `requestNearModel` beim ersten Heranzoomen nach (Ablauf und Prü
 
 Weitere Kandidaten: Animationen quantisieren (sie sind Float32, ~0,2–0,4 MB je Figur), Texturen als KTX2
 (weniger Grafikspeicher), Musik als Opus statt MP3 (~40 % kleiner).
+
+### Zweiter Besuch: was kommt woher, wohin geht die Zeit?
+
+Frage aus dem Spiel: „Lade ich bei jedem Start alle Modelle neu?“ – **Nein.** Gemessen im selben Browserprofil
+(Chromium, Software-Grafik, Testserver mit GitHub-Pages-Kopfzeilen, der jedes ausgelieferte Byte zählt,
+Oktober 2026):
+
+| Szenario | 1. Besuch vom Server | 2./3. Besuch vom Server | 2. Besuch aus dem Service-Worker-Cache |
+|---|--:|--:|--:|
+| Freies Spiel, Desktop „hoch“ | 23,2 MB | 3 KB (nur die HTML-Seite) | 66 Dateien beim Laden + 3 bei Bedarf |
+| Kampagne Mission 1, „hoch“ | 27,6 MB | 3 KB | 85 + 3 Dateien |
+| Schaukasten, „niedrig“ | 119,8 MB | 3 KB (+ 40 KB Ton) | 175 + 47 Dateien (~70 MB) |
+
+Alle Modelle, Texturen und Figuren kommen beim zweiten Besuch aus dem Cache (`fromServiceWorker`, 0 Byte vom
+Server). Die Ladezeit ist dann fast nur **Entpacken und Aufbauen**, nicht Herunterladen: Die 30 MB der
+Schaukasten-Startdateien lesen sich in 1,7 s aus dem Cache, der Ladebildschirm braucht 8–9 s (meshopt-Geometrie
+entpacken, Bilder dekodieren, Modelle einpassen, erstes Bild mit Shadern) – unter Software-Grafik; auf echter
+Grafikkarte ist alles schneller, das Verhältnis ähnlich.
+
+**Warum trotzdem kurz Platzhalter?** Beim Start lädt das Spiel nur Gebäude der ersten Stufe (Burg, Dorfzentrum,
+Haus), Bäume und die Leibeigenen. Alles andere – höhere Gebäudestufen, Werkstätten, Minen, Berufe, Truppen,
+Ruinen, Lagerfeuer – fordert erst das erste gezeichnete Bild an; bis es da ist, stehen einfache Ersatzmodelle.
+Auf normalen Karten sind das 3 Dateien (Ruinen, Lagerfeuer), auf dem Schaukasten 47 Dateien (40 MB). Aus dem
+Cache kommen sie in Millisekunden, aber eben erst *nach* dem ersten Bild. Beim Gewimmel fällt das nicht auf:
+dort braucht schon das erste Bild so lange, dass die Modelle bis dahin da sind.
+
+**Schneller Weg (jetzt):** Nach dem Aufbau zeichnet das Spiel die ersten Bilder hinter dem Ladebildschirm
+(Spiel pausiert) und sieht nach, welche Modelle dabei nachgefordert wurden (`src/render/lazyLoads.js`). Liegen
+**alle** schon im Cache, bleibt der Ladebildschirm, bis sie da sind (höchstens 3 s nach den ersten zwei Bildern,
+auch nachgeladene Folgestufen); sonst – erster Besuch – geht es sofort los wie bisher. Ergebnis je Start in
+`__kronland.startupWait` (`none` | `cold` | `done` | `timeout`, Millisekunden).
+
+Gemessen am Schaukasten (Software-Grafik): 1. Besuch `cold` – keine zusätzliche Wartezeit, die Modelle
+kommen wie bisher nach und nach. 2. Besuch (kleines Fenster): `done` – alle 47 nachgeforderten Dateien kamen in
+~10–60 ms je Datei aus dem Cache, das erste sichtbare Bild zeigt die echten Modelle. Unter Software-Grafik dauern
+schon die zwei verdeckten Bilder Sekunden (bei 1440×900 endet das Warten darum oft mit `timeout`); auf echter
+Grafikkarte sind es Millisekunden.
+
+Messskript dazu: wie `load-report.mjs`, zusätzlich Resource Timing (`encodedBodySize`, Zeitpunkte relativ zum
+Spielstart) und die Bytezählung des Testservers `e2e/static-server.js`.
 
 ## Messwerkzeug: `scripts/load-report.mjs`
 
