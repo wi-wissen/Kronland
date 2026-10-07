@@ -179,6 +179,9 @@ export const devDe = {
   'dev.st.tier': 'Grafikstufe',
   'dev.st.gpu': 'GPU',
   'dev.st.cam': 'Kamera',
+  'dev.st.music': 'Kampfmusik',
+  'dev.st.engaged': 'Spieler kämpft',
+  'dev.st.notEngaged': 'Spieler kämpft nicht',
   'dev.st.lod': 'LOD 0/1/2/3',
   'dev.st.figures': 'Figuren',
 };
@@ -361,6 +364,9 @@ export const devEn = {
   'dev.st.tier': 'Graphics tier',
   'dev.st.gpu': 'GPU',
   'dev.st.cam': 'Camera',
+  'dev.st.music': 'Combat music',
+  'dev.st.engaged': 'player fighting',
+  'dev.st.notEngaged': 'player not fighting',
   'dev.st.lod': 'LOD 0/1/2/3',
   'dev.st.figures': 'Figures',
 };

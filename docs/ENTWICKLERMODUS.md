@@ -56,7 +56,9 @@ Zustand, auch unter dem Nebel.
 Halbtransparent oben links: Bilder/s, Bildzeit als Live-Diagramm (Linien bei 60 und 30 Bildern/s),
 Sim-Takt- und KI-Zeit, Takt, Tempo, State-Hash, Zeichenaufrufe, Dreiecke, Geometrien/Texturen/
 Shader-Programme, JS-Heap (Chrome), Entitäten je Art, Figuren gezeichnet, LOD-Verteilung, Auflösung ×
-Pixelverhältnis, Grafikstufe, GPU, Kamera. „Kopieren“ legt alles als Text in die Zwischenablage.
+Pixelverhältnis, Grafikstufe, GPU, Kamera, Kampfmusik (Modus, Intensität im Bild / nötige Schwelle, ob der
+Spieler gerade kämpft, gewünschtes → spielendes Thema – zeigt, warum die Kampfmusik kommt oder ausbleibt).
+„Kopieren“ legt alles als Text in die Zwischenablage.
 
 ## Unterrichtsideen
 

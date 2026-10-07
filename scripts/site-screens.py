@@ -3,7 +3,8 @@
 
 Usage (preview server must be running, e.g. `npm run build && npx vite preview --port 4301`):
     python3 scripts/site-screens.py [base-url] [filter]
-Output: public/site/<name>.webp (+ <name>-small.webp for the gallery), HUD crops hud-*.webp.
+Output: public/site/<name>.webp (+ <name>-small.webp for the gallery), HUD crops hud-*.webp,
+title image hero.webp (1440 px) and hero-wide.webp (2880 px, twice the pixel density).
 Desktop 1440×900 with graphics level high (SwiftShader – slow, several minutes).
 """
 import io
@@ -19,6 +20,8 @@ OUT = Path(__file__).resolve().parent.parent / 'public' / 'site'
 OUT.mkdir(parents=True, exist_ok=True)
 GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
 DESK = dict(viewport={'width': 1440, 'height': 900}, device_scale_factor=1)
+# Title image of the start page fills large screens: same picture (1440×900 viewport), twice the pixel density
+DESK2 = dict(viewport={'width': 1440, 'height': 900}, device_scale_factor=2)
 PHONE = dict(viewport={'width': 412, 'height': 915}, device_scale_factor=2, is_mobile=True, has_touch=True)
 
 # Settlement: technologies, resources, buildings around the castle, serfs on construction sites, fast-forward time
@@ -169,11 +172,11 @@ HIDE_HUD = "() => { const st = document.createElement('style'); st.id = 'nohud';
 SHOW_HUD = "() => document.getElementById('nohud')?.remove()"
 
 
-def save(img_bytes, name, small=True, size=None):
+def save(img_bytes, name, small=True, size=None, quality=80):
     im = Image.open(io.BytesIO(img_bytes)).convert('RGB')
     if size:
         im.thumbnail(size, Image.LANCZOS)
-    im.save(OUT / f'{name}.webp', 'WEBP', quality=80, method=6)
+    im.save(OUT / f'{name}.webp', 'WEBP', quality=quality, method=6)
     if small:
         sm = im.copy()
         sm.thumbnail((720, 720), Image.LANCZOS)
@@ -228,22 +231,31 @@ def run(pw):
     b = pw.chromium.launch(args=GL, executable_path=os.environ.get('PW_CHROMIUM') or None)
     init = "try { localStorage.setItem('kronland-lang', '%s'); localStorage.setItem('kronland-settings', JSON.stringify({ edgeScroll: false })); } catch (e) {}"
 
-    # ---------- Settlement (hero without HUD, gallery with HUD) and HUD crops ----------
+    # ---------- Title image of the start page (without HUD), rendered at twice the pixel density ----------
+    if want('hero'):
+        ctx = b.new_context(**DESK2, locale='de-DE')
+        ctx.add_init_script(init % 'de')
+        page = boot(ctx, '?seed=11&fog=off&quality=high&players=2')
+        settle(page, ticks=1500, dist=34, pitch=0.62, yaw=0.9, dx=1, dy=1)
+        page.evaluate("() => { const e = window.__kronland, h = e.sim.findBuilding(0, 'headquarters'); window.__hqc = [h.x + 2.5, h.y + 2.5]; }")
+        hq = page.evaluate('() => window.__hqc')
+        page.evaluate(FRAME, [hq[0], hq[1], 0.68, 0.5])
+        page.wait_for_timeout(2500)
+        page.evaluate(HIDE_HUD)
+        page.wait_for_timeout(800)
+        shot = shoot(page)
+        # hero.webp 1440 px for phones and normal screens, hero-wide.webp 2880 px for large and sharp screens (srcset)
+        save(shot, 'hero', small=False, size=(1440, 900))
+        save(shot, 'hero-wide', small=False, quality=70)
+        ctx.close()
+
+    # ---------- Settlement (gallery with HUD) and HUD crops ----------
     hud = ['hud-resources', 'hud-status', 'hud-minimap', 'hud-commandbar', 'hud-building', 'hud-research']
-    if want('settlement') or want('hero') or any(want(n) for n in hud):
+    if want('settlement') or any(want(n) for n in hud):
         ctx = b.new_context(**DESK, locale='de-DE')
         ctx.add_init_script(init % 'de')
         page = boot(ctx, '?seed=11&fog=off&quality=high&players=2')
         settle(page, ticks=1500, dist=34, pitch=0.62, yaw=0.9, dx=1, dy=1)
-        if want('hero'):
-            page.evaluate("() => { const e = window.__kronland, h = e.sim.findBuilding(0, 'headquarters'); window.__hqc = [h.x + 2.5, h.y + 2.5]; }")
-            hq = page.evaluate('() => window.__hqc')
-            page.evaluate(FRAME, [hq[0], hq[1], 0.68, 0.5])
-            page.wait_for_timeout(2500)
-            page.evaluate(HIDE_HUD)
-            page.wait_for_timeout(800)
-            save(shoot(page), 'hero', small=False)
-            page.evaluate(SHOW_HUD)
         if want('settlement'):
             page.evaluate("() => { const e = window.__kronland; e.renderer.rig.dist = 26; e.renderer.rig.pitch = 0.85; "
                           "const u = [...e.sim.entities.values()].find((x) => x.kind === 'building' && x.owner === 0 && x.type === 'university'); "

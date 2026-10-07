@@ -2,7 +2,7 @@
   <SiteLayout page="home" overlay>
     <section class="hero" data-testid="home-hero">
       <picture class="hero-bg">
-        <img :src="img('hero')" :alt="$s('home.heroAlt')" width="1440" height="900" fetchpriority="high">
+        <img :src="img('hero')" :srcset="img('hero') + ' 1440w, ' + img('hero-wide') + ' 2880w'" sizes="100vw" :alt="$s('home.heroAlt')" width="1440" height="900" fetchpriority="high">
       </picture>
       <div class="hero-shade" aria-hidden="true"></div>
       <div class="wrap hero-inner">

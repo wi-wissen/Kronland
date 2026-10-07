@@ -2,7 +2,8 @@
 // The camera follows the hand directly as in a map application (model: three.js MapControls, gestures as
 // in MapLibre): the ground itself is dragged, zoom goes to the pointer, nothing glides on afterwards.
 //
-// Desktop:  left click = select, double click on own figure = all visible of the same kind,
+// Desktop:  left click = select (Shift/Ctrl/Cmd adds or removes), double click on own figure = all visible of
+//           the same kind,
 //           left drag = selection box, right click = command,
 //           right drag = rotate (sideways) and tilt (up/down), middle button drag = grab
 //           the map, wheel = zoom to the mouse pointer (tilt follows), Shift+wheel = tilt,
@@ -209,14 +210,16 @@ export class Input {
     }
 
     if (p.button === 0) {
+      // Shift, Ctrl or Cmd add to the selection (click toggles a figure)
+      const add = e.shiftKey || e.ctrlKey || e.metaKey;
       if (this.gesture?.kind === 'box') {
         this.box.hidden = true;
-        this.engine.selectBox(p.sx, p.sy, e.clientX, e.clientY, e.shiftKey);
+        this.engine.selectBox(p.sx, p.sy, e.clientX, e.clientY, add);
       } else if (!moved) {
         if (this.engine.placing) this.engine.confirmPlacement(e.shiftKey);
         else if (this.engine.attackMode) this.engine.commandAt(e.clientX, e.clientY, true);
-        else if (!(this.doubleClick(e) && this.engine.selectSameTypeAt(e.clientX, e.clientY, e.shiftKey || e.ctrlKey || e.metaKey))) {
-          this.engine.selectAt(e.clientX, e.clientY, e.shiftKey);
+        else if (!(this.doubleClick(e) && this.engine.selectSameTypeAt(e.clientX, e.clientY, add))) {
+          this.engine.selectAt(e.clientX, e.clientY, add);
         }
       }
     } else if (p.button === 2 && !moved) {

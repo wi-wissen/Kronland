@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'node:path';
 import hashedAssets from './scripts/vite-hashed-assets.js';
 import blogPages from './scripts/vite-blog-pages.js';
+import socialMeta from './scripts/vite-social-meta.js';
 
 // Website made of several pages (Vite multi-page): home, game, manual, compendium, blog. All paths relative (base './').
 const PAGES = {
@@ -43,6 +44,8 @@ export default defineConfig({
     vue(),
     // Game files from public/ with a content hash in the name (models/…/castle.3f2a91c0d7.glb), see docs/PERFORMANCE.md
     hashedAssets(),
+    // Link previews (Open Graph) and canonical address on every page, see docs/WEBSITE.md
+    socialMeta(),
     VitePWA({
       registerType: 'autoUpdate',
       // Registration itself (src/main.js, with path to the root): the plugin script would sit relative to the page

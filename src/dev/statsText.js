@@ -37,6 +37,9 @@ export function statsRows(s, t) {
     [t('dev.st.gpu'), String(s.gpu)],
     [t('dev.st.cam'), `x ${s.camera.x.toFixed(1)} z ${s.camera.z.toFixed(1)} · yaw ${(s.camera.yaw * 180 / Math.PI).toFixed(0)}° · pitch ${(s.camera.pitch * 180 / Math.PI).toFixed(0)}° · zoom ${s.camera.dist.toFixed(1)}`],
   ];
+  // Combat music: mode, intensity in view / threshold, player involved, wanted → playing theme
+  const m = s.music;
+  if (m) rows.push([t('dev.st.music'), `${m.mode} · ${m.intensity.toFixed(2)}/${m.need.toFixed(2)} · ${t(m.engaged ? 'dev.st.engaged' : 'dev.st.notEngaged')} · ${m.want ?? '–'} → ${m.playing ?? '–'}`]);
   return rows;
 }
 

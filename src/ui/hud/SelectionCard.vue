@@ -1,8 +1,10 @@
 <template>
   <!-- Selection bottom right: portrait in a brass frame, next to it a plate with labelled values.
-       With little width (narrow) only the portrait remains; the values are then in the command panel. -->
+       With little width (narrow) only the portrait remains; the values are then in the command panel.
+       Troops bring their plate down to medium width: heroes, captains and squads stand here, the panel keeps
+       only the commands. -->
   <section class="selcard" data-testid="selection-card" :aria-label="title">
-    <div v-if="!narrow" class="sc-plaque frame">
+    <div v-if="!narrow || (sel.kind === 'army' && !mid)" class="sc-plaque frame" :class="{ 'sc-army': sel.kind === 'army' }">
       <div class="sc-title">
         <b>{{ title }}</b>
         <small v-if="subtitle">{{ subtitle }}</small>
@@ -18,11 +20,14 @@
         </div>
         <p v-if="hints" class="sc-hint">{{ touch ? $t('serfs.hintTouch') : $t('serfs.hint') }}</p>
       </template>
-      <div v-else-if="sel.kind === 'army'" class="sc-rows">
-        <span><Icon name="banner" />{{ $t('card.leaders', { n: leaders }) }}</span>
-        <span><Icon name="soldiers" />{{ $t('army.soldiers', { n: sel.soldiers }) }}</span>
-        <span v-if="sel.heroes.length"><Icon name="crown" />{{ $t('card.heroes', { n: sel.heroes.length }) }}</span>
-      </div>
+      <template v-else-if="sel.kind === 'army'">
+        <div v-if="sel.groups.length || sel.heroes.length > 1" class="sc-rows">
+          <span v-if="leaders"><Icon name="banner" />{{ $t('card.leaders', { n: leaders }) }}</span>
+          <span v-if="sel.heroes.length"><Icon name="crown" />{{ $t('card.heroes', { n: sel.heroes.length }) }}</span>
+        </div>
+        <ArmyRoster :sel="sel" dense class="sc-roster scroll-y" />
+        <p v-if="hints" class="sc-hint">{{ touch ? $t('army.hintTouch') : $t('army.hint') }}</p>
+      </template>
       <p v-else-if="sel.kind === 'foreign'" class="sc-hint"><RelationTag :relation="sel.relation" :owner="sel.owner" /></p>
     </div>
     <div class="sc-portrait" :style="ownerStyle">
@@ -39,18 +44,21 @@
 <script>
 import SelectionStats from './SelectionStats.vue';
 import RelationTag from './RelationTag.vue';
+import ArmyRoster from './ArmyRoster.vue';
 import { playerColor } from '../plugin.js';
 import { selectionIcon, selectionPortrait, foreignName, serfsTitle } from './hudLayout.js';
 import { siteRoot } from '../../paths.js';
 
 export default {
   name: 'SelectionCard',
-  components: { SelectionStats, RelationTag },
+  components: { SelectionStats, RelationTag, ArmyRoster },
   props: {
     ui: { type: Object, required: true },
     touch: Boolean,
     hints: { type: Boolean, default: true },
     narrow: Boolean,
+    /** Medium width: troops too only as a portrait (roster in the command panel) */
+    mid: Boolean,
   },
   emits: ['deselect'],
   computed: {
@@ -100,6 +108,9 @@ export default {
 .sc-plaque .sstats { font-size: var(--fs-xs); }
 .sc-plaque .ss-row { grid-template-columns: 5.25rem 1fr auto; gap: 0.375rem; }
 .sc-plaque .ss-row b { min-width: 2.75rem; }
+/* Troops: wider plate with the roster (scrolls when there are many) */
+.sc-plaque.sc-army { width: 19rem; }
+.sc-roster { max-height: min(40vh, 17rem); padding-right: 2px; }
 .sc-hint { margin: 0; color: var(--ink-muted); font-size: var(--fs-xs); }
 .sc-portrait { position: relative; z-index: 1; flex: none; width: var(--portrait, 7.25rem); height: var(--portrait, 7.25rem); border-radius: 50%; padding: 0.375rem; background: var(--brass); box-shadow: 0 0 0 2px var(--wood-950), 0 8px 18px rgba(0, 0, 0, 0.55); }
 .sc-pic { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--tile-bg); box-shadow: inset 0 0 0 2px var(--wood-950), inset 0 -0.3125rem 0 var(--owner, var(--royal)); }

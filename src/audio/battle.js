@@ -23,7 +23,13 @@ export class BattleMeter {
     this.minHold = o.minHold;
     /** Seconds without combat involving the player after which the fight is over */
     this.grace = o.grace;
+    /** After a fight the next one brings the combat theme back already at this intensity … */
+    this.reenter = o.reenter;
+    /** … for this many seconds after the combat theme ended */
+    this.rearm = o.rearm;
     this.mode = 'build';
+    /** End of the last combat theme */
+    this.left = -Infinity;
     /** Start of the combat theme */
     this.since = -Infinity;
     /** recently high intensity in view */
@@ -42,6 +48,9 @@ export class BattleMeter {
 
   /** The player fights (own unit hits or is hit). @param {number} now seconds */
   combat(now) { this.lastCombat = now; }
+
+  /** Intensity needed for the combat theme (lower shortly after a fight). */
+  need(now) { return now - this.left < this.rearm ? this.reenter : this.enter; }
 
   /** Is the player currently fighting (hit within the grace period)? */
   engaged(now) { return now - this.lastCombat < this.grace; }
@@ -70,16 +79,19 @@ export class BattleMeter {
   /**
    * Music theme with hysteresis. Combat: high intensity in view and the player is fighting. Back to build,
    * when grace seconds passed without a fight by the player (at the earliest minHold after the start) or hold seconds
-   * no heat was left in view.
+   * no heat was left in view. Shortly after a fight (rearm) the theme returns already at the lower reenter
+   * intensity: the next skirmish of the same war must not stay under the freshly started peace music.
    * @param {number} now seconds
    */
   theme(intensity, now) {
     const engaged = this.engaged(now);
     if (intensity >= this.enter) this.hot = now;
     if (this.mode === 'build') {
-      if (intensity >= this.enter && engaged) { this.mode = 'battle'; this.since = now; }
+      const need = this.need(now);
+      if (intensity >= need && engaged) { this.mode = 'battle'; this.since = now; }
     } else if (now - this.since >= this.minHold && (!engaged || (intensity <= this.exit && now - this.hot >= this.hold))) {
       this.mode = 'build';
+      this.left = now;
     }
     return this.mode;
   }

@@ -134,7 +134,7 @@
           </div>
         </template>
 
-        <ArmyPanel v-else-if="sel?.kind === 'army'" :sel="sel" :touch="ui.touch" :hints="hints" :group="ui.group" @action="$emit('action', $event)" />
+        <ArmyPanel v-else-if="sel?.kind === 'army'" :sel="sel" :touch="ui.touch" :hints="hints" :group="ui.group" :details="compact || mid" @action="$emit('action', $event)" />
 
         <BuildMenu
           v-else-if="sel?.kind === 'serfs'"
@@ -166,7 +166,7 @@
       </div>
     </section>
 
-    <SelectionCard v-if="!compact && sel" class="cb-card" :ui="ui" :touch="ui.touch" :hints="hints" :narrow="narrow" @deselect="$emit('deselect')" />
+    <SelectionCard v-if="!compact && sel" class="cb-card" :ui="ui" :touch="ui.touch" :hints="hints" :narrow="narrow" :mid="mid" @deselect="$emit('deselect')" />
   </div>
 </template>
 
