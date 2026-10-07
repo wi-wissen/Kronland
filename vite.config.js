@@ -51,7 +51,8 @@ export default defineConfig({
     // Link previews (Open Graph) and canonical address on every page, see docs/WEBSITE.md
     socialMeta(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // New workers wait; the page decides when they take over (SKIP_WAITING message, src/pwa.js)
+      registerType: 'prompt',
       // Registration itself (src/main.js, with path to the root): the plugin script would sit relative to the page
       injectRegister: null,
       includeAssets: ['favicon.ico'], // PNG icons are already covered by globPatterns
@@ -86,8 +87,9 @@ export default defineConfig({
         directoryIndex: null,
         // URL parameters never select a different precached file (play/?seed=42&dev=1 offline: freshPages ignores them too)
         ignoreURLParametersMatching: [/.*/],
-        // A new worker takes over at once; tabs still running the old version notice it and reload (src/pwa.js)
-        skipWaiting: true,
+        // A new worker waits (the old one keeps its precache while an old page runs) until a page sends SKIP_WAITING
+        // (src/pwa.js). clientsClaim only matters for the very first worker: it controls the first page at once.
+        skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,

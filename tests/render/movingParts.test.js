@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { MOVING_PARTS, partAt, splitGeometry, splitMovingParts, findSpinners, turnParts } from '../../src/render/movingParts.js';
+import { MOVING_PARTS, partAt, splitGeometry, splitMovingParts, findSpinners, turnParts, doubleHalf } from '../../src/render/movingParts.js';
 import { OWN_BUILDING_MODELS } from '../../src/render/assets.js';
 
 /** One triangle per centre (small, in the XY plane). */
@@ -64,6 +64,20 @@ describe('moving parts', () => {
     turnParts([g], Math.PI / 4); // speed 2 → half a turn
     expect(g.quaternion.angleTo(new THREE.Quaternion())).toBeCloseTo(Math.PI / 2, 5);
     delete MOVING_PARTS.test_mill;
+  });
+
+  it('keeps one half of a rotor and adds it turned by 180° onto the other side', () => {
+    const g = triangles([[0.3, 0.2, 0], [-0.1, -0.3, 0]]); // one triangle above, one below the axis
+    const out = doubleHalf(g, [0, 0, 1], [0, 1, 0]);
+    const pos = out.attributes.position;
+    expect(pos.count).toBe(6);
+    expect(out.attributes.uv.count).toBe(6);
+    // the copy is the upper triangle turned around z: (x, y) → (-x, -y)
+    for (let i = 0; i < 3; i++) {
+      expect(pos.getX(i + 3)).toBeCloseTo(-pos.getX(i), 6);
+      expect(pos.getY(i + 3)).toBeCloseTo(-pos.getY(i), 6);
+    }
+    expect(Math.max(pos.getY(0), pos.getY(1), pos.getY(2))).toBeGreaterThan(0.2);
   });
 
   it('leaves models without parts untouched', () => {
