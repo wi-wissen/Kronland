@@ -107,29 +107,32 @@ ersten Neuladen nach dem Update noch einmal die alte Seite aus dem Vorab-Cache (
 Solche Seiten können ein Update nicht selbst bemerken. Darum grüßt der neue Worker beim Aktivieren jedes Fenster
 seines Bereichs (`postMessage`). Seiten ab diesem Stand antworten sofort – ein kleines Skript im `<head>` jeder
 Seite, noch vor dem Spielcode – und regeln Updates selbst (laufende Spiele bleiben unangetastet, siehe oben). Wer
-1,5 s schweigt, ist eine alte Seite und wird per `client.navigate` neu geladen – auf die neue Fassung:
+1,5 s schweigt, ist eine alte Seite. Davon lädt der Worker **nur eine** per `client.navigate` neu – auf die neue
+Fassung –, nämlich die, die ihn mitgebracht hat:
 
-- Startseite, Handbuch, Kompendium, Blog, Code-Referenz: immer (kein Spielstand, nichts zu verlieren).
-- Das Spiel (`play/`): nur in einem **sichtbaren** Tab. Der neue Worker aktiviert sich während eines Seitenaufrufs;
-  der sichtbare Spiel-Tab ist darum fast immer der, den man gerade neu geladen hat (Menü oder ein Start-Link, der
-  eben erst losging). Ein **verborgener** Spiel-Tab kann dagegen ein langes Spiel enthalten; ob, verrät eine alte
-  Seite nicht (die Adresse hilft nicht: geladene Spielstände haben keinen Start-Link in der Adresse). Er bleibt
-  stehen und bekommt die neue Fassung beim nächsten Neuladen.
-- Abwägung: Spielt jemand genau in dem sichtbaren Tab ein altes Spiel, während ein anderer Tab das Update
-  auslöst, wird es neu geladen. Die alte Fassung speichert alle 2 Spielminuten und beim Verlassen der Seite
-  automatisch („Weiterspielen“); verloren gehen höchstens die Minuten seit dem letzten Autosave – einmalig, nur
-  beim Übergang.
-- Keine Schleife: Eine Adresse, die der Worker neu geladen hat, lädt er 60 s lang nicht noch einmal (Eintrag im
-  Cache `kronland-sw`); aktiviert wird ein Worker ohnehin nur einmal je Fassung.
+- Der Browser sucht nach einem neuen Worker beim Seitenaufruf. Aktiviert sich der neue Worker, schaut man also
+  fast immer auf die Seite, die man gerade neu geladen hat: sie ist sichtbar und hat den Fokus. Diese wird neu
+  geladen (ohne Fokus-Angabe: das erste sichtbare stille Fenster, `matchAll` liefert das zuletzt fokussierte
+  zuerst). Verlieren kann man dabei nichts – die Seite ist eben erst geladen (Menü oder ein frisch gestarteter
+  Start-Link).
+- Genauer geht es nicht: Den auslösenden Seitenaufruf hat noch der *alte* Worker beantwortet, der neue sieht
+  weder `clientId` noch `resultingClientId` davon.
+- Alle anderen alten Tabs gelten als laufend (ein langes Spiel – ob, verrät eine alte Seite nicht; die Adresse
+  hilft nicht, geladene Spielstände haben keinen Start-Link) und bleiben unangetastet. Beim nächsten Neuladen
+  bekommen sie die neue Fassung, denn dann antwortet schon der neue Worker.
+- Keine Schleife: Ein Worker aktiviert sich nur einmal je Fassung; zusätzlich lädt er eine Adresse, die er neu
+  geladen hat, 60 s lang nicht noch einmal (Eintrag im Cache `kronland-sw`). Eine eigene Fassungs-Kennung im Worker
+  bräuchte eine Build-ID in `sw.js`, die sich auch bei inhaltsgleichen Builds ändern würde – unnötig, da `activate`
+  ohnehin nur einmal je Fassung kommt.
 
 Der Worker-Teil kommt per Workbox `importScripts` als `sw-legacy.<hash>.js` in die `sw.js`, das Antwortskript per
 Vite-Plugin in jede Seite (auch die Blog-Artikel).
 
 **Prüfen:** `tests/build/update.test.js` (Erkennung, Antwort des Workers), `e2e/update.spec.js` (echter Deploy:
 Build A ausliefern, Service-Worker installieren, auf Build B mit `KRONLAND_BUILD=b` umschalten – Neuladen zeigt B,
-ein Tab im Menü lädt sich selbst neu, ein laufendes Spiel zeigt den Hinweis, eine alte Seite ohne Antwortskript wird
-genau einmal neu geladen), `tests/build/swLegacy.test.js` (Auswahl, Schleifenschutz). Der Testserver
-(`e2e/static-server.js`) schickt dieselben Kopfzeilen wie GitHub Pages. Von Hand: Seite offen lassen, deployen,
+ein Tab im Menü lädt sich selbst neu, ein laufendes Spiel zeigt den Hinweis; von zwei alten Seiten ohne
+Antwortskript wird nur die frisch neu geladene genau einmal neu geladen, die ältere bleibt),
+`tests/build/swLegacy.test.js` (Auswahl, Schleifenschutz). Der Testserver (`e2e/static-server.js`) schickt dieselben Kopfzeilen wie GitHub Pages. Von Hand: Seite offen lassen, deployen,
 einmal neu laden → neue Fassung (in den Entwicklerwerkzeugen unter „Application → Service Workers“ ist der neue
 Worker aktiv, im Netzwerk-Reiter kommt `play/` vom Server).
 

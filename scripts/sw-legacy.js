@@ -3,8 +3,8 @@
 // Such "legacy" pages cannot notice a new version themselves. When a new worker activates, it greets every window in
 // its scope (postMessage 'kronland-ping'). Pages built since then answer at once from a tiny inline script in the
 // HTML head (`PONG_SCRIPT`, injected into every page by the plugin below) – they handle updates themselves, running
-// games included. A page that stays silent for PING_WAIT_MS is a legacy page and is reloaded with
-// `client.navigate`, but only where little can be lost (`pickLegacyClients`). An address reloaded this way is not
+// games included. Of the pages that stay silent for PING_WAIT_MS (legacy pages) only the one the user has just
+// (re)loaded is reloaded with `client.navigate` (`pickLegacyClients`); other legacy tabs are left alone. An address reloaded this way is not
 // reloaded again within GUARD_MS (a Cache entry): a page that keeps coming back silent is never reloaded in a loop.
 //
 // The worker part is added to the generated sw.js via workbox `importScripts` as a file with a content hash in its
@@ -19,30 +19,26 @@ export const PING = 'kronland-ping';
 export const PONG = 'kronland-pong';
 
 /**
- * Which silent windows get reloaded? Pages that answered handle updates themselves. The game (play/) is reloaded
- * only while its tab is visible: activation happens during a page load, so the visible game tab is almost always
- * the one the user has just (re)loaded – nothing to lose. A hidden game tab may hold a long game (a legacy page
- * cannot tell us); it keeps running and gets the new version on its next reload. Other pages (start page,
- * manual, compendium, blog) hold no state: always reloaded.
- * Self-contained (serialised into the worker).
- * @param {{ id: string, url: string, visibilityState?: string }[]} clients
+ * Which silent window gets reloaded? Only the one that brought the new worker: update checks happen on page loads,
+ * so the new worker activates while the user is looking at the page they have just (re)loaded – that page is
+ * visible and focused. All other legacy tabs count as running (possibly a long game – a legacy page cannot tell us)
+ * and are left alone; they get the new version on their next reload, which the new worker then serves.
+ * The new worker cannot see that navigation itself (the old worker handled it), so focus decides:
+ * the focused silent window; without focus info the first visible one in `matchAll` order (most recently focused
+ * first). Self-contained (serialised into the worker).
+ * @param {{ id: string, url: string, visibilityState?: string, focused?: boolean }[]} clients in matchAll order
  * @param {Set<string>} answered ids of clients that answered the ping
  * @param {string} scope registration scope (site root URL, with trailing '/')
- * @returns {string[]} ids to reload
+ * @returns {string[]} ids to reload (at most one)
  */
 export function pickLegacyClients(clients, answered, scope) {
-  const out = [];
-  for (const c of clients) {
-    if (answered.has(c.id)) continue;
-    let path;
-    try { path = new URL(c.url).pathname; } catch { continue; }
-    const root = new URL(scope).pathname;
-    if (!path.startsWith(root)) continue;
-    const game = path.slice(root.length).startsWith('play/');
-    if (game && c.visibilityState !== 'visible') continue;
-    out.push(c.id);
-  }
-  return out;
+  const root = new URL(scope).pathname;
+  const silent = clients.filter((c) => {
+    if (answered.has(c.id) || c.visibilityState !== 'visible') return false;
+    try { return new URL(c.url).pathname.startsWith(root); } catch { return false; }
+  });
+  const pick = silent.find((c) => c.focused) ?? silent[0];
+  return pick ? [pick.id] : [];
 }
 
 /**
@@ -61,7 +57,7 @@ export function installLegacyReload(sw, pick, cfg) {
     if (!list.length) return;
     for (const c of list) c.postMessage({ type: cfg.ping });
     await new Promise((r) => setTimeout(r, cfg.wait));
-    const ids = pick(list.map((c) => ({ id: c.id, url: c.url, visibilityState: c.visibilityState })), answered, sw.registration.scope);
+    const ids = pick(list.map((c) => ({ id: c.id, url: c.url, visibilityState: c.visibilityState, focused: c.focused })), answered, sw.registration.scope);
     if (!ids.length) return;
     // Loop guard: an address this worker family reloaded within cfg.guard is not reloaded again (Cache entry)
     const cache = await caches.open('kronland-sw');

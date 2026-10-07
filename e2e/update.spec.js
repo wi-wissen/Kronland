@@ -1,8 +1,8 @@
 // Deploy simulation: build A (dist/, served by the test's own server with GitHub Pages headers) is open with an
 // installed service worker, then the server switches to build B (built here with KRONLAND_BUILD=b). A normal reload
 // must show B at once; an open tab in the menu reloads itself; a running game gets a notice instead
-// (src/pwa.js, scripts/sw-pages.js, docs/PERFORMANCE.md#updates-nach-einem-deploy); a page from before the update
-// handling is reloaded once by the new worker (scripts/sw-legacy.js). Desktop only (one build B).
+// (src/pwa.js, scripts/sw-pages.js, docs/PERFORMANCE.md#updates-nach-einem-deploy); of the pages from before the
+// update handling only the freshly reloaded one is reloaded by the new worker (scripts/sw-legacy.js). Desktop only.
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -95,26 +95,38 @@ test('a running game is not interrupted: notice in the game menu, save and reloa
   await expect(page.getByTestId('continue')).toBeVisible({ timeout: 30_000 });
 });
 
-test('a page from before the update handling is reloaded once by the new worker, without a loop', async ({ context, page }) => {
+test('legacy pages: only the freshly reloaded one is reloaded by the new worker, once; an older one stays', async ({ context, page }) => {
   test.setTimeout(180_000);
-  // Legacy page: no answer script, no game code (it cannot notice updates itself). Shows which build served it.
-  server.setOverride((url, dir) => (url.pathname === '/play/' && url.searchParams.has('legacy')
-    ? `<!doctype html><html><head><meta charset="utf-8"><title>legacy</title></head><body><p id="build">${dir === DIST_A ? 'a' : 'b'}</p></body></html>`
-    : null));
+  // Legacy page: no answer script, no game code (it cannot notice updates itself). Like the old worker serving its
+  // precached page, the server keeps answering with the old content ('a') until the worker reloads the page.
+  const hits = new Map();
+  server.setOverride((url) => {
+    if (url.pathname !== '/play/' || !url.searchParams.has('legacy')) return null;
+    const n = (hits.get(url.search) ?? 0) + 1;
+    hits.set(url.search, n);
+    const version = n <= (url.search === '?legacy=fresh' ? 2 : 1) ? 'a' : 'b';
+    return `<!doctype html><html><head><meta charset="utf-8"><title>legacy</title></head><body><p id="build">${version}</p></body></html>`;
+  });
   try {
     await openA(page); // installs the worker of build A
-    const old = await context.newPage();
+    const older = await context.newPage();
+    await older.goto(BASE + '/play/?legacy=older');
+    const fresh = await context.newPage();
+    await fresh.goto(BASE + '/play/?legacy=fresh');
     let loads = 0;
-    old.on('load', () => { loads++; });
-    await old.goto(BASE + '/play/?legacy');
-    await expect(old.locator('#build')).toHaveText('a');
-    expect(await old.evaluate(() => document.visibilityState)).toBe('visible');
-    await deployB(page);
-    // the new worker greets every window; the legacy page stays silent and is reloaded – onto build B
-    await expect(old.locator('#build')).toHaveText('b', { timeout: 60_000 });
-    // still silent after the reload, but no second round: exactly one reload
-    await old.waitForTimeout(5000);
-    expect(loads).toBe(2);
+    fresh.on('load', () => { loads++; });
+    // Deploy B, then the user reloads the fresh tab: this navigation makes the browser find and install the new worker
+    server.setRoot(distB);
+    await fresh.bringToFront();
+    await fresh.reload();
+    await expect(fresh.locator('#build')).toHaveText('a');
+    // the new worker greets every window; the focused silent page is reloaded – onto the new version
+    await expect(fresh.locator('#build')).toHaveText('b', { timeout: 60_000 });
+    await fresh.waitForTimeout(5000);
+    expect(loads).toBe(2); // the user's reload + exactly one by the worker, no loop
+    // the older legacy tab was left alone
+    await expect(older.locator('#build')).toHaveText('a');
+    expect(hits.get('?legacy=older')).toBe(1);
   } finally {
     server.setOverride(null);
   }

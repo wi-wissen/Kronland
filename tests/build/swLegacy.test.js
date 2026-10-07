@@ -7,14 +7,19 @@ import { pickLegacyClients, legacyReloadSource, injectPong, PONG_SCRIPT, legacyR
 const SCOPE = 'https://k.example/';
 const client = (id, path, visibilityState = 'visible') => ({ id, url: SCOPE + path, visibilityState });
 
-describe('which silent pages are reloaded', () => {
+describe('which silent page is reloaded', () => {
   it('pages that answered never', () => {
     expect(pickLegacyClients([client('a', 'play/'), client('b', '')], new Set(['a', 'b']), SCOPE)).toEqual([]);
   });
 
-  it('the game only in a visible tab, other pages always', () => {
-    const list = [client('menu', 'play/'), client('bg', 'play/?seed=4', 'hidden'), client('home', '', 'hidden'), client('manual', 'manual/#faq', 'hidden')];
-    expect(pickLegacyClients(list, new Set(), SCOPE)).toEqual(['menu', 'home', 'manual']);
+  it('only the focused one of several legacy tabs', () => {
+    const list = [client('older', 'play/'), { ...client('fresh', 'play/?seed=4'), focused: true }, client('manual', 'manual/')];
+    expect(pickLegacyClients(list, new Set(), SCOPE)).toEqual(['fresh']);
+  });
+
+  it('without focus info: the first visible one (most recently focused first), never a hidden one', () => {
+    expect(pickLegacyClients([client('bg', 'play/', 'hidden'), client('a', 'play/'), client('b', '')], new Set(), SCOPE)).toEqual(['a']);
+    expect(pickLegacyClients([client('bg', 'play/', 'hidden')], new Set(), SCOPE)).toEqual([]);
   });
 
   it('ignores windows outside the scope', () => {
@@ -71,8 +76,11 @@ describe('worker', () => {
   });
 
   it('the guard is per address and expires', async () => {
-    const w = fakeWorker([{ id: 'old', url: SCOPE, visibilityState: 'hidden' }, { id: 'man', url: SCOPE + 'manual/', visibilityState: 'hidden' }]);
-    w.store.set('legacy-reload', JSON.stringify({ [SCOPE]: Date.now() - 61_000, [SCOPE + 'manual/']: Date.now() - 1000 }));
+    const w = fakeWorker([{ id: 'old', url: SCOPE, visibilityState: 'visible' }]);
+    w.store.set('legacy-reload', JSON.stringify({ [SCOPE]: Date.now() - 1000 }));
+    await w.activate();
+    expect(w.navigated).toEqual([]);
+    w.store.set('legacy-reload', JSON.stringify({ [SCOPE]: Date.now() - 61_000 }));
     await w.activate();
     expect(w.navigated).toEqual([['old', SCOPE]]);
   });
