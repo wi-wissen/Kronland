@@ -388,7 +388,7 @@ Prüfung im Editor, ohne Build-Schritt.
 
 | | Desktop | Touch |
 |---|---|---|
-| Auswählen | Linksklick, Rahmen ziehen, Shift fügt hinzu | Tippen |
+| Auswählen | Linksklick, Rahmen ziehen, Umschalt oder Strg fügt hinzu bzw. nimmt heraus | Tippen |
 | Alle sichtbaren derselben Art | Doppelklick auf eigene Figur (Umschalt/Strg: hinzufügen) | doppelt tippen |
 | Befehl (laufen, bauen, abbauen) | Rechtsklick | Tippen mit Auswahl |
 | Kamera verschieben | mittlere Taste ziehen (greift den Boden), WASD/Pfeile, Bildschirmrand | 1 Finger ziehen (greift den Boden) |

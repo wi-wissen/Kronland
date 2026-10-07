@@ -554,8 +554,8 @@ export class Engine {
     for (const e of this.sim.entities.values()) {
       if (!(e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero') || e.owner !== this.player) continue;
       // drawn position (with rendering offset), otherwise that of the simulation
-      const r = this.renderer.chars?.records.get(e.id);
-      const x = r ? r.position.x : e.px / UNIT, z = r ? r.position.z : e.py / UNIT;
+      const rec = this.renderer.chars?.records.get(e.id);
+      const x = rec ? rec.position.x : e.px / UNIT, z = rec ? rec.position.z : e.py / UNIT;
       const s = this.renderer.project(x, this.renderer.terrain.heightAt(x, z) + 0.3, z);
       if (!s.behind && s.x >= l && s.x <= r && s.y >= t && s.y <= b) this.selected.add(e.id);
     }

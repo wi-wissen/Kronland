@@ -222,16 +222,23 @@ test('Desktop: crest exactly at the screen centre, castle panel two-column, 5 se
 
 test('Heroes stacked, unconscious visible, abilities and control group explained', async ({ page, isMobile }) => {
   const errors = await boot(page, '/?seed=42&no-models&hero=hedda');
-  // Abilities and control group are explained in the panel, not only in the tooltip
   await page.locator('[data-testid^=quick-hero-]').first().click();
   const explain = page.getByTestId('army-explain');
-  await expect(explain).toBeVisible();
-  const desc = await page.evaluate(() => {
-    const e = window.__kronland, h = [...e.sim.entities.values()].find((x) => x.kind === 'hero' && x.owner === 0);
-    return Object.keys(window.__kronland.uiState().selection.heroes[0].abilities.reduce((o, a) => ({ ...o, [a.id]: 1 }), {}));
-  });
-  expect(desc.length).toBeGreaterThan(0);
-  await expect(explain).toContainText('Gruppe 1');
+  const ability = page.locator('[data-testid^=ability-]').first();
+  await expect(ability).toBeVisible();
+  if (isMobile) {
+    // Touch: no hover – abilities and control group are spelled out in the panel
+    await expect(explain).toBeVisible();
+    await expect(explain).toContainText('Gruppe 1');
+  } else {
+    // Desktop: compact panel, explanation in the tooltip; health of the hero in the selection card
+    await expect(explain).toHaveCount(0);
+    await ability.hover();
+    await expect(page.getByTestId('tooltip')).toBeVisible();
+    await page.getByTestId('group-save').hover();
+    await expect(page.getByTestId('tooltip')).toContainText('Taste 1');
+    await expect(page.getByTestId('selection-card')).toContainText('Lebenspunkte');
+  }
   await expect(page.getByTestId('group-save')).toContainText('Gruppe 1 anlegen');
   // Unconscious: portrait shows the remaining time instead of the health bar
   await page.evaluate(() => {

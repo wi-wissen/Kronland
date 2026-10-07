@@ -24,7 +24,10 @@ npm run build   # Produktionsbuild nach dist/ (statische Website, alle Pfade rel
 | `compendium/` | Kompendium: alle Werte und Formeln mit Seitenleiste, Suche, Deep-Links – alle Tabellen aus `src/sim/data/` erzeugt, neue Inhalte erscheinen automatisch |
 | `blog/` | Blog: wie Kronland entstanden ist, im Rückblick – ein Artikel je Meilenstein (DE/EN, Markdown in `src/site/blog/posts/`), Meilensteine (je ein Commit auf `main`) in [docs/MEILENSTEINE.md](docs/MEILENSTEINE.md) |
 
-Aufbau, Erweitern von Handbuch und Kompendium, Pfade und PWA: [docs/WEBSITE.md](docs/WEBSITE.md). Laden und Caching (Inhalts-Hash, Datenmengen): [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+Online unter **https://kronland.wi7.net/** – jeder Push auf `main` wird per GitHub Pages veröffentlicht, Links
+zeigen beim Teilen eine Vorschau (Open Graph).
+
+Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Veröffentlichung: [docs/WEBSITE.md](docs/WEBSITE.md). Laden und Caching (Inhalts-Hash, Datenmengen): [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Stand
 
@@ -191,6 +194,13 @@ Ohne Modelle zeigt das Spiel prozedurale Platzhalter.
 Die bunten Symbole (Rohstoffe, Gebäude, Einheiten …) stammen aus einem Sprite-Atlas, den ein Bildmodell
 (OpenRouter, `openai/gpt-5.4-image-2`) im Stil der Figuren gemalt hat. Neu erzeugen mit
 `scripts/icons/` – Ablauf in [docs/SYMBOLE.md](docs/SYMBOLE.md).
+
+## Mitarbeiten
+
+- **Sprache:** Quelltext, Bezeichner, Kommentare im Code, Dateinamen, Commit-Nachrichten und Pull Requests auf
+  Englisch; Markdown-Doku (README, `docs/`) und Spielertexte auf Deutsch (Spielertexte zusätzlich englisch).
+- Ein Branch je Aufgabe, Pull Request gegen `main` (Squash); vorher `npm test`, `npm run build` und die betroffenen
+  E2E-Specs. Weitere feste Regeln (Determinismus der Simulation, Assets, i18n): [CLAUDE.md](CLAUDE.md).
 
 ## Dokumentation
 

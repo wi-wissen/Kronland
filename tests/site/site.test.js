@@ -93,14 +93,14 @@ describe('Website images', () => {
     }
   });
 
-  it('images are small enough (WebP, gallery ≤ 120 kB, large ≤ 300 kB)', () => {
+  it('images are small enough (WebP, gallery ≤ 120 kB, large ≤ 300 kB, wide title image ≤ 700 kB)', () => {
     const dir = resolve('public/site');
     const files = readdirSync(dir);
     expect(files.length).toBeGreaterThan(10);
     for (const f of files) {
       expect(f, f).toMatch(/\.webp$/);
       const kb = statSync(resolve(dir, f)).size / 1024;
-      expect(kb, f).toBeLessThanOrEqual(f.endsWith('-small.webp') ? 120 : 300);
+      expect(kb, f).toBeLessThanOrEqual(f.endsWith('-small.webp') ? 120 : f === 'hero-wide.webp' ? 700 : 300);
     }
   });
 });

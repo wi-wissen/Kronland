@@ -40,3 +40,4 @@ E2E läuft headless über SwiftShader (Software-WebGL) und ist langsam (passt di
 - PRs werden per **Squash** in `main` übernommen: ein Commit je PR, der englische PR-Titel ist die Commit-Nachricht.
 - Fehlende Punkte selbst erkennen und mit umsetzen; nicht unfertig aufhören.
 - Ergebnisse mit Screenshots (Desktop 1440×900 und Handy) belegen.
+- Veröffentlichung: jeder Push auf `main` geht per GitHub Pages nach https://kronland.wi7.net/ (docs/WEBSITE.md).

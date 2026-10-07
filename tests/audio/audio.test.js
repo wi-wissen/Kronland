@@ -357,6 +357,33 @@ describe('Battle intensity and ambience', () => {
     }
   });
 
+  it('a new fight shortly after the combat theme ended brings it back at once (lower threshold)', () => {
+    const { grace, minHold, reenter, enter, rearm } = BATTLE_MUSIC;
+    const b = new BattleMeter();
+    const l = { x: 50, z: 50, dist: 28, yaw: 0 };
+    for (let i = 0; i < 40; i++) b.add({ x: 50, z: 50 }, 1);
+    b.combat(0);
+    expect(b.theme(b.intensity(l), 0)).toBe('battle');
+    let t = 0;
+    for (; t < 60 && b.theme(b.intensity(l), t) === 'battle'; t += 0.25) b.decay(0.25, t);
+    expect(t).toBeGreaterThanOrEqual(Math.max(grace, minHold) - 0.5);
+    // peace music just started; a small skirmish of the player (below enter, above reenter)
+    b.decay(10, t + 10);
+    t += 10;
+    const small = (reenter + enter) / 2 * 20;
+    b.add({ x: 50, z: 50 }, small);
+    expect(b.intensity(l)).toBeLessThan(enter);
+    expect(b.theme(b.intensity(l), t)).toBe('build'); // foreign fight: no
+    b.combat(t);
+    expect(b.theme(b.intensity(l), t)).toBe('battle');
+    // long after the last fight the normal threshold applies again
+    const c = new BattleMeter();
+    c.left = 0;
+    c.add({ x: 50, z: 50 }, small);
+    c.combat(rearm + 1);
+    expect(c.theme(c.intensity(l), rearm + 1)).toBe('build');
+  });
+
   it('ambient layers per weather', () => {
     expect(ambientTargets('summer', 0, 0, 1, { forest: 1 })).toMatchObject({ summer: 0.6, rain: 0, winter: 0, wind: 0 });
     expect(ambientTargets('rain').rain).toBeGreaterThan(0);

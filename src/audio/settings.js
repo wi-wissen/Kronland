@@ -27,8 +27,10 @@ export const MUSIC_PAUSES = Object.freeze({ off: [2, 4], short: [20, 45], normal
  * - minHold: combat theme runs at least this long (no flutter on short skirmishes)
  * - hold: combat without nearby heat (camera away) ends only after this much quiet in view
  * - fadeOut: fade-out of the combat theme on the way back to the peace music
+ * - reenter/rearm: within rearm seconds after the combat theme ended, a new fight of the player brings it back
+ *   already at intensity reenter (the peace music that just started gives way at once)
  */
-export const BATTLE_MUSIC = Object.freeze({ halfLife: 4, releaseHalfLife: 2.5, enter: 0.45, exit: 0.12, grace: 16, minHold: 9, hold: 12, fadeOut: 4.5 });
+export const BATTLE_MUSIC = Object.freeze({ halfLife: 4, releaseHalfLife: 2.5, enter: 0.45, exit: 0.12, grace: 16, minHold: 9, hold: 12, fadeOut: 4.5, reenter: 0.15, rearm: 120 });
 
 export const VOLUME_KEYS = /** @type {const} */ (['master', 'music', 'sfx', 'ambient', 'ui']);
 

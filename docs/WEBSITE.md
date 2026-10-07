@@ -133,5 +133,29 @@ Technologie wie aus einem Addon hinzu und prüft, dass sie ohne Codeänderung er
 aus dem laufenden Spiel auf (Vorschau-Server mit aktuellem Build; Desktop 1440×900, Grafikstufe hoch, plus
 Handy) und legt sie als WebP unter `public/site/` ab (`<name>.webp`, Galerie zusätzlich `<name>-small.webp`,
 HUD-Ausschnitte `hud-*.webp`). Mit SwiftShader dauert das einige Minuten. Filter z. B. `combat,winter`.
-Motive: `hero`, `settlement`, `hud-*`, `combat`, `hud-army`, `winter`, `fog`, `slope` (gelbe Bauvorschau),
+Motive: `hero` (Titelbild der Startseite, doppelte Pixeldichte: `hero.webp` 1440 px und `hero-wide.webp` 2880 px per `srcset` für große Bildschirme), `settlement`, `hud-*`, `combat`, `hud-army`, `winter`, `fog`, `slope` (gelbe Bauvorschau),
 `developer` (A*-Suche), `programming` (Code-Panel am Haltepunkt), `phone`. Ein Test begrenzt die Dateigröße (Galerie ≤ 120 kB, groß ≤ 300 kB).
+
+## Linkvorschau (Open Graph)
+
+Das Plugin `scripts/vite-social-meta.js` schreibt im Build in jede Seite `<link rel="canonical">`, Open-Graph- und
+Twitter-Karten-Tags (`og:title`, `og:description`, `og:image` …). Titel und Beschreibung kommen aus `<title>` und
+`<meta name="description">` der Seite – eine neue Seite braucht also nur diese beiden. Blogartikel bekommen Titel
+und `teaser` aus ihrer deutschen Markdown-Datei und `og:type` = `article` (`scripts/vite-blog-pages.js`).
+Crawler brauchen absolute Adressen: Basis ist `https://kronland.wi7.net/`, ein anderer Host setzt beim Build
+`KRONLAND_SITE_URL`.
+
+Vorschaubild: `public/og-image.jpg` (1200×630, JPEG, ohne Inhalts-Hash, damit die Adresse stabil bleibt) – nur das
+Titelbild mit dem Namen, ohne Text in einer Sprache, weil Links auf Deutsch wie auf Englisch geteilt werden. Neu
+erzeugen: `node scripts/og-image.mjs` (Chromium über Playwright, Schrift von Google Fonts; in der Cloud mit
+`PW_CHROMIUM=/opt/pw-browsers/chromium`).
+
+## Veröffentlichung (GitHub Pages)
+
+Jeder Push auf `main` baut die Website und veröffentlicht sie unter **https://kronland.wi7.net/**
+(`.github/workflows/pages.yml`: `npm ci`, `npm run build`, Upload von `dist/`). Keine Releases – online ist immer
+der Stand von `main`; von Hand auslösen geht im Reiter „Actions“ (Pages → „Run workflow“).
+
+Einmalig in den Repository-Einstellungen unter *Settings → Pages*: **Source = GitHub Actions** und **Custom
+domain = kronland.wi7.net** (danach „Enforce HTTPS“). Im DNS zeigt `kronland.wi7.net` per CNAME auf
+`wi-wissen.github.io`. `public/CNAME` hält die Domain zusätzlich im Build fest.
