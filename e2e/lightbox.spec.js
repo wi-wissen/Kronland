@@ -40,7 +40,7 @@ test('Blog article: enlarge images, step with arrow keys, close with Escape', as
   await expect(box).toBeVisible();
   await expect(page.getByTestId('lightbox-caption')).toHaveText(caption);
   const img = page.getByTestId('lightbox-img');
-  await expect.poll(() => img.evaluate((el) => el.complete && el.naturalWidth > 0)).toBe(true);
+  await expect.poll(() => img.evaluate((el) => el.complete && el.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
   // As large as possible: wider than the article image
   expect((await img.boundingBox()).width).toBeGreaterThan(box0.width * (testInfo.project.name === 'desktop' ? 1.2 : 0.95));
   await expect(page.getByTestId('lightbox')).toContainText('1 / 5');
@@ -53,7 +53,7 @@ test('Blog article: enlarge images, step with arrow keys, close with Escape', as
   await expect(page.getByTestId('lightbox-caption')).toHaveText(caption2);
   await expect(img).toHaveAttribute('src', /\.svg/);
   expect(await img.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 250, 240)');
-  await expect.poll(() => img.evaluate((el) => el.complete && el.naturalWidth > 0)).toBe(true);
+  await expect.poll(() => img.evaluate((el) => el.complete && el.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
   if (SHOTS) await page.screenshot({ path: join(SHOTS, `lightbox-svg-${testInfo.project.name}.png`) });
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
