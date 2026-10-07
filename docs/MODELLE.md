@@ -488,12 +488,13 @@ Meshy liefert jedes Gebäude als **ein** Netz. `src/render/movingParts.js` schne
 Zylinder um eine Achse heraus (`MOVING_PARTS`: Drehpunkt, Achse, Radius, Bereich entlang der Achse, Tempo,
 Ausschlusskästen) und hängt sie als eigene Gruppe an den Drehpunkt; Original und Detailstufen teilen die
 Modellkoordinaten, darum gilt ein Eintrag für alle drei. Lange Splitter, die über die Schnittgrenze reichen (Meshy
-verbindet Flügel und Turm oft mit einem Dreieck), fallen weg (`bridge`, Standard 0,08). Der Renderer dreht die Gruppen
+verbindet Flügel und Turm oft mit einem Dreieck), fallen weg (`bridge`, Standard 0,08). Ist eine Hälfte des Rotors im Modell kaputt, nimmt `half` (Richtung quer zur Achse)
+nur die gute Hälfte und setzt sie um 180° gedreht auf die andere Seite. Der Renderer dreht die Gruppen
 mit der Animationszeit – bei Pause und auf Baustellen stehen sie, bei zuletzt gesehenen Feindgebäuden auch.
 
 | Modell | Teil |
 |---|---|
-| `windwheel` | beide Windräder auf der Turmspitze |
+| `windwheel` | beide Windräder auf der Turmspitze (untere Hälfte aus der oberen, `half`) |
 | `weather_tower` | Wetterhahn (langsam), Schalenkreuz darunter (schnell) |
 | `farm2`, `farm3` | Mühlenflügel (Holzgerüst bzw. Steinturm) |
 | `sawmill2` | Wasserrad (seine Rückseite ist auf die Wand gemalt und bleibt stehen) |
