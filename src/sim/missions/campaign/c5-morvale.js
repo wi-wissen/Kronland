@@ -51,10 +51,16 @@ export default {
   },
   next: 'c6',
   weatherCycle: [['summer', 3600], ['rain', 1500], ['summer', 3600], ['winter', 1800]],
+  available: {
+    buildings: ['villageCenter', 'residence', 'farm', 'clayMine', 'storehouse', 'stoneMine', 'barracks', 'ironMine', 'sulfurMine', 'university', 'archery', 'tower'],
+    techs: ['standingArmy'],
+  },
+  shafts: ['clay', 'stone', 'iron'],
   players: [
     {
+      // Small stock: the deliveries to the villages need goods that are mined first (iron)
       kind: 'human', heroes: ['nelia', 'orrin'], serfs: 12, techs: ['conscription', 'education', 'construction'],
-      stock: { gold: 1500, clay: 2000, wood: 2500, stone: 1600, iron: 700, sulfur: 200 },
+      stock: { gold: 800, clay: 1200, wood: 1500, stone: 1000, iron: 0, sulfur: 0 },
     },
     { kind: 'bandits', look: 'soldiers' },
     { kind: 'village', name: 'moorbrook', diplomacy: { human: 'allied' } },
@@ -147,6 +153,7 @@ export default {
     { id: 'herald', when: { type: 'time', at: 150 }, do: [
       say('herald', 'Hört, Leute von Morvale! Statthalter Malvor lässt verkünden: Die „Prinzessin“ ist die Tochter eines Leibeigenen aus Lindgrund!', 'Hear, people of Morvale! Governor Malvor proclaims: the “princess” is the daughter of a serf from Lindgrund!'),
       say('herald', 'Ein Händler hat die Lüge erfunden, um Geld zu machen. Wer ihr folgt, folgt einem Märchen.', 'A merchant invented the lie to make money. Whoever follows her follows a fairy tale.'),
+      say('herald', 'Und die Zacke, die man in Erlenhof verwahrt, gehört dem Statthalter. Gebt sie heraus!', 'And the shard kept in Alderfarm belongs to the governor. Hand it over!'),
       say('nelia', 'Es stimmt. Ich bin keine Prinzessin. Ich habe es von Anfang an gesagt.', 'It’s true. I am no princess. I said so from the start.'),
       say('orrin', 'Nelia … nein. Sag so etwas nicht.', 'Nelia … no. Don’t say that.'),
       ...VILLAGES.map((v) => ({ type: 'diplomacy', b: v, state: 'neutral' })),
@@ -157,7 +164,10 @@ export default {
       { type: 'tribute', id: 'supplyReedham' },
       { type: 'tribute', id: 'supplyAlderfarm' },
     ] },
-    { id: 'order', when: { type: 'time', at: 330 }, do: [
+    // Milestone: the first delivery to a village (at the latest five minutes after the herald) – then Malvor gives his order
+    { id: 'order', when: { type: 'any', of: [
+      { type: 'tribute', id: 'supplyMoorbrook' }, { type: 'tribute', id: 'supplyReedham' }, { type: 'tribute', id: 'supplyAlderfarm' },
+      { type: 'delay', after: 'herald', seconds: 300 }] }, do: [
       say('herald', 'Hauptmann Taran! Befehl des Statthalters: Brennt die Höfe von Moorbrook nieder. Wer nicht gehorcht, soll hungern.', 'Captain Taran! The governor’s order: burn Moorbrook’s farms. Whoever disobeys shall starve.'),
       say('taran', '… Nein. Ich habe ein Dorf verhungern sehen. Meine Schwester war sieben. Ich zünde kein Korn an.', '… No. I watched a village starve. My sister was seven. I will not burn grain.'),
       say('taran', 'Wer mit mir geht, kommt mit. Die Leibeigene weiß wenigstens, was Hunger ist.', 'Whoever goes with me, come along. The serf at least knows what hunger is.'),
@@ -166,7 +176,7 @@ export default {
       { type: 'camera', at: 'moorbrookArea' },
       say('nelia', 'Taran! Hilf uns, die Höfe zu halten!', 'Taran! Help us hold the farms!'),
     ] },
-    { id: 'reinforce', when: { type: 'time', at: 660 }, do: [
+    { id: 'reinforce', when: { type: 'delay', after: 'order', seconds: 330 }, do: [
       say('herald', 'Verstärkung für die Getreuen! Morvale wird gehorchen!', 'Reinforcements for the loyal! Morvale will obey!'),
       { type: 'spawn', owner: 'bandits', at: 'taranCampArea', ref: 'loyalists', append: true, units: [{ def: 'sword1', count: 2, soldiers: 4 }], order: 'attackMove', target: 'moorbrookArea' },
     ] },

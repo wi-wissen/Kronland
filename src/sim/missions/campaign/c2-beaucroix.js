@@ -16,22 +16,30 @@ export default {
   title: t('Beaucroix', 'Beaucroix'),
   summary: t('Baue einen Markt auf und hol die zweite Zacke – mit Talern oder mit Schwertern.', 'Set up a market and get the second shard – with thalers or with swords.'),
   briefing: t(
-    'Beaucroix lebt vom Flusshandel. Die Märkte sind voll, doch das Korn ist teuer: Malvors Agenten kaufen alles auf. Im Flusswald hält eine Räuberbande eine seltsame Zacke aus Metall. Orrin kennt die Preise. Nelia kennt den Hunger.',
-    'Beaucroix lives on river trade. The markets are full, but grain is expensive: Malvor’s agents buy up everything. In the river woods a band of robbers holds a strange metal shard. Orrin knows the prices. Nelia knows hunger.',
+    'Beaucroix lebt vom Flusshandel. Die Märkte sind voll, doch das Korn ist teuer: Malvors Agenten kaufen alles auf. Wo gehandelt wird, hört man alles – vielleicht auch, wo die zweite Zacke liegt. Orrin kennt die Preise. Nelia kennt den Hunger.',
+    'Beaucroix lives on river trade. The markets are full, but grain is expensive: Malvor’s agents buy up everything. Where people trade, you hear everything – perhaps also where the second shard lies. Orrin knows the prices. Nelia knows hunger.',
   ),
   victoryText: t('Die zweite Zacke ist euer. Beaucroix hat Nahrung und einen Markt.', 'The second shard is yours. Beaucroix has food and a market.'),
-  debrief: t(
+  // The debrief follows the path taken: storming the camp leaves a captured robber, buying it a talkative chief
+  debrief: (st) => (st.flags.shardStormed ? t(
     'Der gefangene Räuber zittert, aber nicht vor Kälte: „Der Winter ist nicht echt. Im Norden, bei Hagenfurt, steht ein altes Wetterwerk. Malvor hat es wieder angeworfen.“ Orrin wird blass. Nelia packt ihren Mantel.',
     'The captured robber is trembling, but not from the cold: “The winter isn’t real. Up north, near Hagenfurt, there’s an old weatherworks. Malvor has started it up again.” Orrin turns pale. Nelia packs her coat.',
-  ),
+  ) : t(
+    'Der Räuberhauptmann zählt Orrins Taler zweimal. Beim Abschied grinst er: „Der Winter ist nicht echt, wisst ihr? Im Norden, bei Hagenfurt, steht ein altes Wetterwerk. Malvor hat es wieder angeworfen.“ Orrin wird blass. Nelia packt ihren Mantel.',
+    'The robber chief counts Orrin’s thalers twice. As they leave he grins: “The winter isn’t real, you know? Up north, near Hagenfurt, there’s an old weatherworks. Malvor has started it up again.” Orrin turns pale. Nelia packs her coat.',
+  )),
   defeatText: t('Euer Lager ist gefallen.', 'Your camp has fallen.'),
   defeatTexts: { hq: t('Euer Lager ist gefallen. Beaucroix bleibt in Malvors Hand.', 'Your camp has fallen. Beaucroix stays in Malvor’s hands.') },
   next: 'c3',
   weatherCycle: [['winter', 360000]], // Malvor's winter: only ends with the weather works (mission 3)
+  // New here: market and stone; the barracks comes with the robbers (milestone "first trade")
+  available: { buildings: ['villageCenter', 'residence', 'farm', 'clayMine', 'storehouse', 'stoneMine'], techs: [] },
+  shafts: ['clay', 'stone'],
   players: [
     {
+      // Few thalers: the price of the shard is earned at the market
       kind: 'human', heroes: ['nelia', 'orrin'], serfs: 10, techs: ['conscription', 'education', 'trade'],
-      stock: { gold: 1500, clay: 1800, wood: 2000, stone: 1200, iron: 400, sulfur: 0 },
+      stock: { gold: 300, clay: 1800, wood: 2000, stone: 1200, iron: 400, sulfur: 0 },
     },
     { kind: 'bandits' },
     { kind: 'village', name: 'beaucroix', diplomacy: { human: 'allied' } },
@@ -41,7 +49,6 @@ export default {
     const { sim, api, m } = ctx;
     const hq = ctx.hqCenter();
     const mid = ctx.mapCenter();
-    api.placeBuilding(sim, ctx.human, 'university', { x: hq.x + 7, y: hq.y + 2 }, { minR: 2 });
     // Merchants' quarter of Beaucroix (allied): the merchant stands at the market
     const town = m.playerOf('beaucroix');
     const side = api.toward(hq, { x: hq.x < mid.x ? sim.map.width - 4 : 4, y: mid.y }, 20);
@@ -61,30 +68,41 @@ export default {
   start: [
     say('orrin', 'Beaucroix! Hier riecht sogar der Schnee nach Geld. Wir brauchen einen eigenen Markt, Nelia.', 'Beaucroix! Even the snow smells of money here. We need a market of our own, Nelia.'),
     say('nelia', 'Wir brauchen Brot für unsere Leute. Wenn der Markt das bringt, bauen wir ihn.', 'We need bread for our people. If a market brings that, we’ll build one.'),
+    say('orrin', 'Ein Markt beginnt mit einem Lager. Bau es aus, dann tauschen die Händler dort, was du übrig hast, gegen Taler.',
+      'A market starts with a storehouse. Upgrade it, and the traders there swap whatever you have spare for thalers.'),
+    say('nelia', 'Und die zweite Zacke? Wenn Malvor sie sucht, sucht er sie auch hier.', 'And the second shard? If Malvor is looking for it, he is looking here too.'),
+    say('orrin', 'Darum hören wir uns um. Auf dem Markt erfährt man alles – man muss nur etwas zu tauschen haben.',
+      'That’s why we listen. At the market you learn everything – you just need something to trade.'),
   ],
 
   objectives: [
-    { id: 'farms', type: 'build', building: 'farm', count: 3, primary: true, text: t('Sichere Nahrung: Baue 3 Bauernhöfe', 'Secure food: build 3 farms') },
-    { id: 'market', type: 'build', building: 'storehouse', level: 1, primary: true, text: t('Errichte einen Marktplatz (baue ein Lager und baue es aus)', 'Set up a marketplace (build a storehouse and upgrade it)') },
+    { id: 'farms', type: 'build', building: 'farm', count: 3, primary: true, hint: { ui: ['build-farm', 'quick-all'] }, text: t('Sichere Nahrung: Baue 3 Bauernhöfe', 'Secure food: build 3 farms') },
+    { id: 'market', type: 'build', building: 'storehouse', level: 1, primary: true, hint: { ui: ['build-storehouse', 'quick-all'], uiWhile: { type: 'not', cond: { type: 'built', building: 'storehouse', placed: true } } }, text: t('Errichte einen Marktplatz (baue ein Lager und baue es aus)', 'Set up a marketplace (build a storehouse and upgrade it)') },
     { id: 'trade', type: 'flag', flag: 'traded', primary: true, text: t('Tausche Waren am Markt', 'Trade goods at the market') },
-    { id: 'shard', type: 'flag', flag: 'shard2', primary: true, hidden: true, text: t('Hol die zweite Zacke: über Orrin freikaufen oder das Räuberlager stürmen', 'Get the second shard: buy it through Orrin or storm the robbers’ camp') },
+    // Pointer at the newly unlocked barracks for a while (the way with swords), ring at the camp
+    { id: 'shard', type: 'flag', flag: 'shard2', primary: true, hidden: true,
+      hint: { area: 'robbersArea', ui: ['build-barracks', 'quick-all'], uiWhile: { type: 'all', of: [
+        { type: 'not', cond: { type: 'built', building: 'barracks', placed: true } }, { type: 'not', cond: { type: 'delay', after: 'offer', seconds: 90 } }] } },
+      text: t('Hol die zweite Zacke: über Orrin freikaufen oder das Räuberlager stürmen', 'Get the second shard: buy it through Orrin or storm the robbers’ camp') },
     { id: 'clay', type: 'flag', flag: 'clayDelivered', hidden: true, text: t('Optional: Liefere dem Kaufmann den Lehm, den Orrin verkauft hat', 'Optional: Deliver the clay Orrin sold to the merchant') },
   ],
 
   tributes: {
     buyShard: {
-      group: 'shard', cost: { gold: 1500, wood: 500 },
+      group: 'shard', cost: { gold: 1200 },
       text: t('Zacke freikaufen (Orrin verhandelt mit den Räubern)', 'Buy the shard free (Orrin bargains with the robbers)'),
       onPaid: [
         say('bandit', 'Taler sind Taler. Nimm dein Blechstück, Händler.', 'Thalers are thalers. Take your bit of tin, merchant.'),
+        { type: 'flag', name: 'shardBought' },
         ...gotShard,
       ],
     },
     buyShardCheap: {
-      group: 'shard', cost: { gold: 900, wood: 300 },
+      group: 'shard', cost: { gold: 800 },
       text: t('Zacke freikaufen – mit Rabatt des Kaufmanns', 'Buy the shard free – with the merchant’s discount'),
       onPaid: [
         say('bandit', 'Der Kaufmann bürgt für dich? Dann sei’s drum. Nimm dein Blechstück.', 'The merchant vouches for you? Fine then. Take your bit of tin.'),
+        { type: 'flag', name: 'shardBought' },
         ...gotShard,
       ],
     },
@@ -116,8 +134,15 @@ export default {
   },
 
   events: [
-    { id: 'offer', when: { type: 'time', at: 30 }, do: [
-      say('orrin', 'Die Räuber im Flusswald haben eine Zacke wie deine. Ich kann sie freikaufen – oder du holst sie dir.', 'The robbers in the river woods have a shard like yours. I can buy it free – or you go and take it.'),
+    // Milestone: the first trade. Only now does Malvor's herald come – and with him the robbers' shard
+    { id: 'offer', when: { type: 'flag', name: 'traded' }, do: [
+      say('herald', 'Hört, Leute von Beaucroix! Statthalter Malvor zahlt für jedes Stück der alten Krone tausend Taler!',
+        'Hear, people of Beaucroix! Governor Malvor pays a thousand thalers for every piece of the old crown!'),
+      say('orrin', 'Tausend! Die Räuber im Flusswald haben so ein Stück, das weiß hier jeder. Ich biete mehr – oder du holst es dir.',
+        'A thousand! The robbers in the river woods have such a piece, everyone here knows it. I’ll bid more – or you go and take it.'),
+      say('nelia', 'Mit Malvors Geld kaufen sie sich Waffen. Wenn wir kämpfen, brauchen wir Schwertkämpfer – eine Kaserne bildet sie aus.',
+        'With Malvor’s money they’ll buy weapons. If we fight, we need swordsmen – a barracks trains them.'),
+      { type: 'unlock', buildings: ['barracks'] },
       { type: 'reveal', id: 'shard' },
       { type: 'tribute', id: 'buyShard' },
       { type: 'reveal', area: 'robbersArea', seconds: 30 },
@@ -127,13 +152,14 @@ export default {
       { type: 'flag', name: 'traded' },
       say('orrin', 'Hörst du das? Das ist der schönste Klang der Welt: Taler, die klimpern.', 'Hear that? The most beautiful sound in the world: thalers clinking.'),
     ] },
-    // The gang raids the camp as long as it has the prong
-    { id: 'raid', when: { type: 'all', of: [{ type: 'time', at: 360 }, { type: 'not', cond: { type: 'flag', name: 'shard2' } }] }, every: 300, times: 3, do: [
+    // Armed with Malvor's money the gang raids the camp as long as it has the shard – first five minutes after the herald
+    { id: 'raid', when: { type: 'all', of: [{ type: 'delay', after: 'offer', seconds: 300 }, { type: 'not', cond: { type: 'flag', name: 'shard2' } }] }, every: 300, times: 3, do: [
       say('bandit', 'Holt euch, was die Prinzessin hortet!', 'Grab what the princess is hoarding!'),
       { type: 'spawn', owner: 'bandits', at: 'robbersArea', units: [{ def: 'sword1', count: 2, soldiers: 3 }], order: 'attackMove', target: 'humanHq' },
     ] },
     { id: 'stormed', when: { type: 'destroyed', ref: 'robbersGuards' }, do: [
       say('prisoner', 'Gnade! Hier, nehmt das verfluchte Ding. Es hat uns nur Unglück gebracht.', 'Mercy! Here, take the cursed thing. It has brought us nothing but bad luck.'),
+      { type: 'flag', name: 'shardStormed' },
       ...gotShard,
     ] },
   ],

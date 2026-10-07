@@ -12,7 +12,8 @@ import { BattleMeter } from './battle.js';
 import { BarkGate, barkRole, alarmRole, alarmVoices, chooseBark, BARKS, ALARM_REST, ALARM_DELAY, ALARM_WAIT } from './barks.js';
 import { voiceFile } from './voiceLines.js';
 import { NotifyGate } from './notify.js';
-import { speaking } from './speech.js';
+import { speaking, holdSpeech } from './speech.js';
+import { shouldHold } from './hold.js';
 import { figureRole, figureVariant, figureSex } from '../render/variants.js';
 import { characterManifest } from '../render/characters.js';
 import { UNITS } from '../sim/data/units.js';
@@ -205,6 +206,7 @@ export class GameAudio {
   end(result) {
     if (this.ended) return;
     this.ended = true;
+    this.hold(false); // the game halts at its end, the jingle must still sound
     this.audio.music.jingle(result);
   }
 
@@ -290,8 +292,20 @@ export class GameAudio {
     return { mode: this.battle.mode, intensity: this.intensity ?? 0, need: this.battle.need(now), engaged: this.battle.engaged(now), want: m.want, playing: m.track?.theme ?? null };
   }
 
-  /** Per frame: listener, combat intensity, music theme, ambience. */
+  /**
+   * Game paused (player, game menu, script debugger, error, loading screen) → hold music, ambience, game
+   * sounds and voices (AudioEngine.setHold, holdSpeech); not after the game has ended.
+   * @param {boolean} on
+   */
+  hold(on) {
+    this.audio.setHold(on);
+    holdSpeech('pause', on);
+  }
+
+  /** Per frame: pause hold, listener, combat intensity, music theme, ambience. */
   frame(dt) {
+    const e = this.engine;
+    this.hold(shouldHold({ paused: e.paused, ended: this.ended, stopped: e.stopped }));
     const rig = this.engine.renderer?.rig;
     if (!rig) return;
     const l = { x: rig.target.x, z: rig.target.z, dist: rig.dist, yaw: rig.yaw };
@@ -483,6 +497,7 @@ export class GameAudio {
   waterNear(l) { return this.landscape(l).water; }
 
   dispose() {
+    this.hold(false);
     this.audio.setAmbient(false);
     this.audio.listener = null;
   }

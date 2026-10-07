@@ -515,6 +515,7 @@ export default {
   'err.popLimit': 'Population limit reached',
   'err.notEnoughGold': 'Not enough thalers',
   'err.notBuildable': 'Building cannot be built',
+  'err.notInMission': 'Not available in this mission',
   'err.techMissing': 'Requires “{tech}”',
   'err.settlementOnly': 'Only on settlement sites',
   'err.spotTaken': 'Site taken',

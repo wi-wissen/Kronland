@@ -231,7 +231,7 @@ export default {
     },
     /** The panel appears only if there is something to do */
     open() { return !!(this.ui.placing || this.sel); },
-    hintIds() { const h = this.ui.mission?.tutorial?.hint?.ui ?? []; return Array.isArray(h) ? h : [h]; },
+    hintIds() { return this.ui.mission?.pointer ?? []; },
     panelTitle() {
       const s = this.sel, p = this.ui.placing;
       if (p) return this.$t('build.place', { building: this.$name.building(p.type) });
