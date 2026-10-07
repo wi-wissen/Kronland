@@ -1,7 +1,7 @@
 // Deploy simulation: build A (dist/, served by the test's own server with GitHub Pages headers) is open with an
 // installed service worker, then the server switches to build B (built here with KRONLAND_BUILD=b). A normal reload
-// must show B at once; an open tab in the menu reloads itself; a running game gets a notice instead
-// (src/pwa.js, scripts/sw-pages.js, docs/PERFORMANCE.md#updates-nach-einem-deploy). Desktop only (one build B).
+// must show B at once; an open tab in the menu lets the waiting worker take over and reloads itself exactly once; a
+// running game keeps the old worker (and its precache) and gets a notice instead (src/pwa.js, scripts/sw-pages.js, docs/PERFORMANCE.md#updates-nach-einem-deploy). Desktop only (one build B).
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -52,6 +52,12 @@ async function deployB(page) {
   await page.evaluate(() => navigator.serviceWorker.getRegistration().then((r) => r?.update())).catch(() => {});
 }
 
+/** State of the service worker registration: is a new worker waiting, does an active one control the page? */
+const swState = (page) => page.evaluate(async () => {
+  const r = await navigator.serviceWorker.getRegistration();
+  return { waiting: !!r?.waiting, controlled: !!navigator.serviceWorker.controller };
+});
+
 test('a normal reload after a deploy shows the new version at once', async ({ page }) => {
   test.setTimeout(180_000);
   const broken = [];
@@ -62,14 +68,25 @@ test('a normal reload after a deploy shows the new version at once', async ({ pa
   await page.reload();
   expect(await build(page)).toBe('b');
   await expect(page.getByTestId('start-menu')).toBeVisible({ timeout: 30_000 });
+  // the page is current: the waiting worker takes over quietly, without another reload
+  await expect.poll(() => swState(page), { timeout: 30_000 }).toEqual({ waiting: false, controlled: true });
+  expect(await build(page)).toBe('b');
   expect(broken).toEqual([]);
 });
 
-test('an open tab in the menu reloads itself when the new version takes over', async ({ page }) => {
+test('an open tab in the menu lets the new worker take over and reloads itself once', async ({ page }) => {
   test.setTimeout(180_000);
   await openA(page);
+  let loads = 0;
+  page.on('load', () => { loads++; });
   await deployB(page);
   await expect.poll(() => build(page), { timeout: 90_000 }).toBe('b');
+  await expect(page.getByTestId('start-menu')).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => swState(page), { timeout: 30_000 }).toEqual({ waiting: false, controlled: true });
+  // no reload loop: the new page is current and stays
+  await page.waitForTimeout(8_000);
+  expect(loads).toBe(1);
+  expect(await build(page)).toBe('b');
 });
 
 test('a running game is not interrupted: notice in the game menu, save and reload on request', async ({ page }) => {
@@ -78,10 +95,15 @@ test('a running game is not interrupted: notice in the game menu, save and reloa
   await openA(page, '/play/?seed=42&no-models');
   await page.waitForFunction(() => window.__kronland?.renderer?.frameNo > 2, null, { timeout: 120_000 });
   await deployB(page);
-  // the new worker takes over, the page notices it is outdated – but stays on A
+  // the new worker waits, the page notices it is outdated – but stays on A
   await page.getByTestId('menu').click();
   await expect(page.getByTestId('gmenu-update')).toBeVisible({ timeout: 90_000 });
   expect(await build(page)).toBe('');
+  expect(await swState(page)).toEqual({ waiting: true, controlled: true });
+  // the old worker still serves A's bundles from its precache (B's server has deleted them)
+  const entry = await page.evaluate(() => document.querySelector('script[type=module][src*="assets/"]').src);
+  expect(await page.evaluate((u) => caches.match(u, { ignoreSearch: true }).then((r) => !!r), entry)).toBe(true);
+  expect((await page.request.get(entry)).status()).toBe(404);
   // evidence pictures: game menu with the notice, desktop and phone width
   const shots = process.env.UPDATE_SHOTS ?? 'test-results';
   await page.screenshot({ path: `${shots}/update-notice-desktop.png`, timeout: 120_000 });

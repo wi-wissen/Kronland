@@ -2,7 +2,7 @@
 // navigations (scripts/sw-pages.js). The full flow runs in the browser: e2e/update.spec.js.
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { bundleRefs, isOutdated, reloadAllowed, RELOAD_GUARD_MS } from '../../src/pwa.js';
+import { bundleRefs, isOutdated, reloadAllowed, updateAction, RELOAD_GUARD_MS } from '../../src/pwa.js';
 import { freshPages } from '../../scripts/sw-pages.js';
 
 const page = (entry, css = 'play-BwPUHL4K.css') => `<!doctype html><html><head>
@@ -38,6 +38,26 @@ describe('outdated page', () => {
     expect(reloadAllowed(1_000_000, 1_000_000 - RELOAD_GUARD_MS)).toBe(true);
     // clock jumped back (other tab, changed system time): allowed
     expect(reloadAllowed(1_000_000, 2_000_000)).toBe(true);
+  });
+});
+
+describe('update decision (waiting worker, page decides)', () => {
+  it('outdated page: reload in the menus, notice in a game or editor draft', () => {
+    expect(updateAction({ outdated: true, waiting: true, idle: true })).toBe('reload');
+    expect(updateAction({ outdated: true, waiting: false, idle: true })).toBe('reload'); // worker not found yet: plain reload
+    expect(updateAction({ outdated: true, waiting: true, idle: false })).toBe('notice');
+    expect(updateAction({ outdated: true, waiting: false, idle: false })).toBe('notice');
+  });
+
+  it('current page with a waiting worker: let it take over without a reload, but only when idle', () => {
+    expect(updateAction({ outdated: false, waiting: true, idle: true })).toBe('activate');
+    expect(updateAction({ outdated: false, waiting: true, idle: false })).toBe('none');
+  });
+
+  it('current or unknown (offline): nothing – no reload, no loop', () => {
+    expect(updateAction({ outdated: false, waiting: false, idle: true })).toBe('none');
+    expect(updateAction({ outdated: null, waiting: true, idle: true })).toBe('none');
+    expect(updateAction({ outdated: null, waiting: false, idle: false })).toBe('none');
   });
 });
 

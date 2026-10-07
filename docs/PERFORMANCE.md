@@ -83,34 +83,49 @@ alte Seite lud danach nachgeladene Teile (Code-Panel, Welteneditor, Entwicklermo
 auf dem Server sind sie weg (404) – daher „komische Fehler“; erst das zweite Neuladen zeigte die neue Fassung.
 Außerdem räumte `cacheCleanup.js` auf so einer alten Seite die Dateien der *neuen* Fassung als „veraltet“ ab.
 
-**Jetzt** (`scripts/sw-pages.js`, `src/pwa.js`):
+**Jetzt** (`scripts/sw-pages.js`, `src/pwa.js`) – das übliche Muster „Netz zuerst für Seiten, neuer Worker wartet,
+die Seite entscheidet“ (vite-plugin-pwa `registerType: 'prompt'`, `skipWaiting: false`):
 
-- **Seiten aus dem Netz:** Navigationen beantwortet der Service-Worker nicht mehr aus dem Vorab-Cache
+- **Seiten aus dem Netz:** Navigationen beantwortet der Service-Worker nicht aus dem Vorab-Cache
   (`directoryIndex: null`), sondern mit einer Netzanfrage (`no-cache`, an der 10-Minuten-Frist von GitHub Pages
   vorbei). Ein normales Neuladen zeigt nach einem Deploy sofort die neue Fassung; deren Bundles haben neue Namen
-  und kommen am alten Vorab-Cache vorbei aus dem Netz. Offline: die vorab gecachte Seite (passt zu den vorab
-  gecachten Bundles). Umleitungen (`/play` → `/play/`) gibt der Worker als Umleitung weiter.
-- **Offene Tabs merken das Update:** Übernimmt ein neuer Service-Worker (`controllerchange`), schlägt ein
-  nachgeladenes Bundle fehl (`vite:preloadError`) oder kommt ein Tab nach mehr als 10 Minuten wieder in den
-  Vordergrund, holt die Seite ihre eigene HTML-Datei frisch vom Server und vergleicht die Bundle-Namen
-  (`checkForUpdate`). Ist die Seite veraltet:
-  - in den Menüs (Hauptmenü, Kampagne, Abenteuer, Sonderkarten; kein Entwurf im Welteneditor): sofort neu laden,
+  und kommen am alten Vorab-Cache vorbei aus dem Netz. Der Vorab-Cache ist nur der Offline-Ersatz (die Seite passt
+  zu den vorab gecachten Bundles). Umleitungen (`/play` → `/play/`) gibt der Worker als Umleitung weiter.
+- **Neuer Worker wartet:** Nach einem Deploy installiert sich die neue `sw.js` und bleibt in `registration.waiting`.
+  Der alte Worker bedient weiter – samt seinem Vorab-Cache –, eine noch laufende alte Seite verliert also keine
+  nachladbaren Teile. Erst wenn die Seite es will, schickt sie `{ type: 'SKIP_WAITING' }`; auf `controllerchange`
+  lädt sie dann genau einmal neu.
+- **Wann:** Die Seite holt ihre eigene HTML-Datei frisch vom Server und vergleicht die Bundle-Namen
+  (`checkForUpdate`) – beim Start, wenn ein neuer Worker fertig installiert ist, wenn ein anderer Tab ihn übernommen
+  hat (`controllerchange`) und wenn der Tab nach mehr als 10 Minuten wieder in den Vordergrund kommt. Ist die Seite
+  veraltet:
+  - in den Menüs (Hauptmenü, Kampagne, Abenteuer, Sonderkarten; kein Entwurf im Welteneditor): neuen Worker
+    übernehmen lassen, einmal neu laden,
   - im laufenden Spiel: nichts unterbrechen. Hinweis „Neue Version verfügbar“ und im Spielmenü
-    **„Speichern und neu laden“** (schreibt den Autosave-Platz, auch wenn Autosave aus ist, danach Hauptmenü mit
-    „Weiterspielen“); spätestens beim Verlassen des Spiels lädt die neue Fassung.
-  - Höchstens ein automatisches Neuladen je Minute (`sessionStorage`), damit ein Server, der weiter die alte
-    Seite liefert, keine Schleife auslöst.
-- Das Aufräumen alter Cache-Einträge (`cacheCleanup.js`) läuft nur, wenn die Seite nachweislich aktuell ist.
+    **„Speichern und neu laden“** (schreibt den Autosave-Platz, auch wenn Autosave aus ist, dann Worker übernehmen
+    lassen, Hauptmenü mit „Weiterspielen“); spätestens beim Verlassen des Spiels lädt die neue Fassung.
+  - Ist die Seite schon aktuell (kam aus dem Netz), übernimmt der wartende Worker still, ohne Neuladen, sobald
+    die Seite in den Menüs ist.
+- **Nachladefehler:** Schlägt ein nachgeladenes Bundle fehl (Vites Ereignis `vite:preloadError`), lädt die Seite in
+  den Menüs einmal neu, im Spiel prüft sie auf ein Update (Hinweis statt Spielverlust).
+- Höchstens ein automatisches Neuladen je Minute (`sessionStorage`), damit ein Server, der weiter die alte Seite
+  liefert, keine Schleife auslöst.
+- Das Aufräumen alter Spieldateien in den Laufzeit-Caches (`cacheCleanup.js`; Modelle, Texturen, Ton) läuft nur auf
+  einer nachweislich aktuellen Seite und nur, wenn kein neuer Worker wartet – sonst könnte in einem anderen Tab noch
+  die alte Fassung laufen.
 
-**Übergang:** Geräte mit dem alten Service-Worker bekommen beim ersten Neuladen nach diesem Deploy noch einmal die
-alte Seite aus dem Vorab-Cache (der alte Worker entscheidet das); ab dann gilt das Neue.
+**Übergang:** Der zuvor ausgelieferte Worker aktivierte sich sofort (`skipWaiting`, `clientsClaim`). Er ersetzt sich
+beim ersten Deploy dieses Musters noch selbst nicht – der neue Worker wartet, bis eine Seite der neuen Fassung ihn
+übernehmen lässt (in den Menüs sofort) oder alle Tabs zu sind. Alte offene Tabs merken das wie bisher am
+Bundle-Vergleich. Dieser einmalige Übergang ist in Kauf genommen.
 
 **Prüfen:** `tests/build/update.test.js` (Erkennung, Antwort des Workers), `e2e/update.spec.js` (echter Deploy:
 Build A ausliefern, Service-Worker installieren, auf Build B mit `KRONLAND_BUILD=b` umschalten – Neuladen zeigt B,
-ein Tab im Menü lädt sich selbst neu, ein laufendes Spiel zeigt den Hinweis). Der Testserver
+ein Tab im Menü lässt den neuen Worker übernehmen und lädt sich genau einmal neu, ein laufendes Spiel behält den
+alten Worker samt Vorab-Cache und zeigt den Hinweis). Der Testserver
 (`e2e/static-server.js`) schickt dieselben Kopfzeilen wie GitHub Pages. Von Hand: Seite offen lassen, deployen,
-einmal neu laden → neue Fassung (in den Entwicklerwerkzeugen unter „Application → Service Workers“ ist der neue
-Worker aktiv, im Netzwerk-Reiter kommt `play/` vom Server).
+einmal neu laden → neue Fassung (in den Entwicklerwerkzeugen unter „Application → Service Workers“ wartet der neue
+Worker bzw. ist nach dem Wechsel in die Menüs aktiv, im Netzwerk-Reiter kommt `play/` vom Server).
 
 ## Wie viele Daten braucht ein Spiel?
 
