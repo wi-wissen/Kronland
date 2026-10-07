@@ -404,6 +404,8 @@ def run(pw):
         page.get_by_test_id('section-player').get_by_test_id('ce-line-5').click()
         page.get_by_test_id('script-run').click()
         page.wait_for_function("() => document.querySelector('[data-testid=script-status]')?.textContent.includes('angehalten')", timeout=240000)
+        # whole map in the game area left of the code panel (the intro dialog may have moved the camera)
+        page.evaluate("() => window.__kronland.frameOverview(0)")
         page.wait_for_timeout(3000)
         save(shoot(page), 'programming')
         ctx.close()
