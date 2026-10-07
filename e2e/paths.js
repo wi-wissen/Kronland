@@ -19,3 +19,10 @@ export function hashed(path, end = '') {
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
   return new RegExp(`${esc(path.slice(0, i))}(\\.[0-9a-f]{10})?${esc(path.slice(i))}${end}`);
 }
+
+/**
+ * Graphics level of specs whose pictures are only evidence (positions, facing and drawn objects are checked in the
+ * state, not in the pixels): "low" by default – under software WebGL "high" costs seconds per frame and pushes the
+ * runs into timeouts. Pictures in high quality: E2E_SHOT_QUALITY=high npx playwright test e2e/circle.spec.js
+ */
+export const SHOT_QUALITY = process.env.E2E_SHOT_QUALITY ?? 'low';

@@ -102,9 +102,19 @@ test('Mission 1: Orrin joins on the village square, the conversation can be skip
   const skip = page.locator('[data-testid=dialog]:not(.dlg-leave-active) [data-testid=dialog-skip-all]');
   await expect(skip).toBeVisible({ timeout: 20_000 });
   await page.screenshot({ path: info.outputPath('orrin-talk.png') });
-  await skip.click();
+  // Skip while a line is being spoken (each lasts 4 s, between two lines nothing plays that could be cut off).
+  // Check and click in one step in the page: under load a line may end between a separate check and the click.
+  await page.waitForFunction(() => window.__voiceLog.at(-1)?.ev === 'play', null, { timeout: 30_000 });
+  const before = await page.evaluate(() => {
+    const log = window.__voiceLog, playing = log.at(-1).ev === 'play', n = log.length;
+    document.querySelector('[data-testid=dialog]:not(.dlg-leave-active) [data-testid=dialog-skip-all]').click();
+    return { playing, n };
+  });
   await expect(page.getByTestId('dialog')).toHaveCount(0, { timeout: 5000 });
-  expect(await page.evaluate(() => window.__voiceLog.at(-1).ev)).toBe('pause');
+  // the spoken line is cut off, no further line starts afterwards
+  await page.waitForTimeout(1000);
+  const after = await page.evaluate(() => window.__voiceLog.map((x) => x.ev));
+  expect(after.slice(before.n)).toEqual(before.playing ? ['pause'] : []);
   // Next objective: the old tree (on mobile the objective list is behind the "Ziele" button)
   if (info.project.name === 'mobile') await page.getByTestId('objectives-toggle').click();
   await expect(page.getByTestId('objective-root')).toBeVisible();

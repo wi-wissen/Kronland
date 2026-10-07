@@ -14,7 +14,7 @@ import {
 } from './lod.js';
 import { CharacterSystem, sharedCharacterRoots, cavalryGait } from './characters.js';
 import { Effects, HealthBars, GroundMarks, sharedPuffTexture } from './effects.js';
-import { CameraRig, nearFactor } from './CameraRig.js';
+import { CameraRig, nearFactor, buildingTop } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT, TICKS_PER_SECOND } from '../sim/fixed.js';
 import { WATER, CLIFF, OCCUPIED, RESERVED, BRIDGE } from '../sim/map.js';
@@ -933,11 +933,7 @@ export class Renderer {
       const r = g.userData.rect;
       if (!r) continue;
       const h = (g.userData.height ?? 2) * (g.userData.body?.scale.y ?? 1);
-      const edge = 0.8 + 0.35 * h;
-      const dx = Math.max(r.x - x, 0, x - (r.x + r.w)), dz = Math.max(r.y - z, 0, z - (r.y + r.h));
-      if (dx >= edge || dz >= edge) continue;
-      const s = Math.min(1, Math.hypot(dx, dz) / edge);
-      top = Math.max(top, g.position.y + h * (1 - s * s * (3 - 2 * s)));
+      top = Math.max(top, buildingTop(r, g.position.y, h, x, z));
     }
     return top;
   }

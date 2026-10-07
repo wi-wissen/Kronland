@@ -83,7 +83,9 @@ test('Error message with line and suggestion, single step with variables', async
   await ta.fill('a = 1\nb = a + 41\nprint(b)\n');
   await page.getByTestId('script-step').click();
   await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'paused', SLOW);
+  // One step at a time: two step commands within the same tick count as one (the script only runs in the tick)
   await page.getByTestId('script-step').click();
+  await expect(page.getByTestId('script-vars')).toContainText(/a\s*1/, SLOW); // a = 1
   await page.getByTestId('script-step').click();
   await expect(page.getByTestId('script-vars')).toContainText('42', SLOW);
   await page.getByTestId('script-continue').click();
