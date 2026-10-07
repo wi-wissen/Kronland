@@ -69,6 +69,24 @@ describe('Scenarios', () => {
     expect(e).toMatchObject({ kind: 'ZeroDivisionError', line: 4, section: 'b', sline: 2 });
   });
 
+  it('print() emits a display event per call and marks where the current run starts', () => {
+    const sim = createScenarioSim(scenario([playerSection()]));
+    runCode(sim, 'print(wod)\n');
+    sim.step();
+    expect(sim.mission.script.state.player.status).toBe('error');
+    const before = sim.mission.script.state.seq;
+    runCode(sim, 'print("a", end="")\nprint("b")\nprint("x\\ny")\n');
+    const events = [];
+    for (let i = 0; i < 5; i++) events.push(...sim.step());
+    const prints = events.filter((e) => e.type === 'scriptPrint');
+    expect(prints.map((e) => e.text)).toEqual(['a', 'ab', 'x\ny']);
+    expect(prints.every((e) => e.level === 'player' && e.player === 0)).toBe(true);
+    const st = sim.mission.script.uiState();
+    expect(st.player.since).toBe(before);
+    // Everything after `since` belongs to this run: the old NameError is not part of it
+    expect(st.console.filter((c) => c.seq > st.player.since).map((c) => c.text)).toEqual(['ab', 'x', 'y']);
+  });
+
   it('hero: turning, facing direction, obstacles, take() and chop()', () => {
     const sim = createScenarioSim(scenario([
       { id: 'w', level: 'mission', code: 'add_tree(6, 8)\nadd_pile("stone", 4, 7, 50)\n' },

@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { renderMarkdown, slugify } from '../../src/site/markdown.js';
+import { renderMarkdown, slugify, highlight } from '../../src/site/markdown.js';
 import { manualSections } from '../../src/site/manual/content.js';
 import { manualVars, creditsMarkdown } from '../../src/site/manual/vars.js';
 import STRINGS from '../../src/site/strings.js';
@@ -44,6 +44,17 @@ describe('Markdown', () => {
     expect(html).toContain('<pre><code>for i in range(3):\n    # kein Titel\n    hero.step() &lt; 2</code></pre>');
     expect(headings).toEqual([]);
     expect(html).toContain('<p>Danach</p>');
+  });
+
+  it('code blocks with a language get simple highlighting and an optional file label', () => {
+    const { html } = renderMarkdown('```js src/sim/rng.js\nconst a = 0x1f; // c < d\nreturn \'x\';\n```');
+    expect(html).toContain('<figure class="code"><figcaption>src/sim/rng.js</figcaption><pre class="lang-js"><code>');
+    expect(html).toContain('<span class="tk-k">const</span> a = <span class="tk-n">0x1f</span>; <span class="tk-c">// c &lt; d</span>');
+    expect(html).toContain('<span class="tk-k">return</span> <span class="tk-s">\'x\'</span>;');
+    expect(highlight('solange k nicht leer: # Kommentar', 'pseudo')).toBe('<span class="tk-k">solange</span> k <span class="tk-k">nicht</span> leer: <span class="tk-c"># Kommentar</span>');
+    expect(highlight('def f(): return "a"', 'py')).toContain('<span class="tk-s">&quot;a&quot;</span>');
+    // unknown language: only escaped, no file label without a second word
+    expect(renderMarkdown('```text\n<b>\n```').html).toBe('<pre class="lang-text"><code>&lt;b&gt;</code></pre>');
   });
 
   it('anchor from umlauts', () => { expect(slugify('Größe & Übersicht')).toBe('groesse-uebersicht'); });

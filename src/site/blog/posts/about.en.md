@@ -1,7 +1,7 @@
 ---
 title: What this is about – a game built by AI agents
 date: 2026-10-06
-teaser: Kronland was built in four days with Claude Code, image and 3D models. This blog tells the story in hindsight, milestone by milestone – to read and to try yourself.
+teaser: Kronland was built in four days with Claude Code, image and 3D models. This blog tells in hindsight, milestone by milestone, how a game works and comes into being – written for everyone who has had computer science at school and now wants to look behind the scenes.
 pinned: true
 ---
 
@@ -19,6 +19,31 @@ sounds are original – nothing has been taken from the original game.
 
 Work began on **{{start}}**, the latest milestone so far was completed on **{{end}}**: {{days}} calendar days,
 {{milestones}} milestones. All times in this blog are Central European Summer Time.
+
+## Who this blog is for {#audience}
+
+It is written above all for students in their final school years – and everyone else – who have met variables, loops,
+arrays, objects and perhaps graphs or recursion in computer science lessons and now want to know: **how does a real
+game actually work, and how is it made?** The articles explain the ideas from the ground up, with real excerpts from
+the code, pseudocode, schematic diagrams and screenshots of the very first versions of the game. Technical terms are
+linked to Wikipedia.
+
+Some of the questions you will find answers to here:
+
+- **How does a game run without a screen?** Why the game rules are a program of their own that you can run on the
+  command line and test in seconds – [Simulation core](blog/simulation-core/#headless).
+- **How do figures find their way?** Grid or polygons, breadth-first search, Dijkstra and A\* with a heuristic –
+  [Simulation core](blog/simulation-core/#pathfinding).
+- **How do you build a random map that is still fair?** Seeds, noise, flood fill –
+  [Simulation core](blog/simulation-core/#mapgen) and [Terrain and graphics](blog/terrain-graphics/#noise).
+- **How do numbers become a 3D image?** Scene graph, triangles, camera, shaders – [3D rendering](blog/rendering/#scene).
+- **How does an AI opponent work?** Priorities, state machines and why it cannot cheat –
+  [Military and AI opponents](blog/military-ai/#ai).
+- **How do you test a game?** From Vitest and Playwright to fuzz tests with nonsense commands –
+  [QA rounds](blog/qa-fog/#fuzz).
+
+You do not need to program like a professional. If you know what a loop and an object are, you can follow the code
+excerpts; the text around them explains what matters.
 
 ## The numbers {#numbers}
 
@@ -39,8 +64,10 @@ As of {{end}}, counted in the repository:
 ## How this blog works {#structure}
 
 In hindsight the work falls into {{milestones}} milestones, and each milestone has its own article here – dated with
-the moment it was completed. Each article tells what was built, how, what didn’t work and how it was solved, and ends
-with tips for trying it yourself. The box at the top gives time span, working time, changed lines and new tests
+the moment it was completed. Each article tells what was built, explains the technology behind it, reports what didn’t work and
+how it was solved, and ends with tips for trying it yourself. The first articles go into the basics in particular; if
+you read them in order, you build up a picture of how the parts fit together step by step. The screenshots in the
+articles show what the game really looked like at that point – taken with the code of exactly that milestone. The box at the top gives time span, working time, changed lines and new tests
 (`docs/milestones.json`, overview in `docs/MEILENSTEINE.md`); two links lead to the code of the milestone and to the
 whole project at that state. New articles are simply added at the end.
 
@@ -87,6 +114,26 @@ whole project at that state. New articles are simply added at the end.
 - **CC0 sounds** from Kenney and Freesound for work and combat noises; the rest is synthesised in the game.
 - Only free (CC0) or self-generated files; the origin of every file is in the credits, prompts and job IDs are kept
   under `assets-src/`.
+
+## Ask an AI about the code {#ask-ai}
+
+The entire code of Kronland is public: [github.com/wi-wissen/Kronland](https://github.com/wi-wissen/Kronland). About
+49,000 lines are a lot to read – but you do not have to read them alone. Give the address of the repository to an AI
+assistant that can read code (Claude, for example) and ask it your questions. An AI assistant can show you files,
+explain processes step by step and translate technical terms – and you can keep asking until it clicks. A few questions
+to get started:
+
+- “Explain to me what happens in `src/sim/sim.js` during a single tick – step by step.”
+- “How does a serf in Kronland find his way to a tree? Show me the places in the code.”
+- “Why does the simulation use no floating point and no `Math.random`? What would go wrong otherwise?”
+- “How does the AI opponent decide what to build next?”
+- “How does the height map in `src/sim/map.js` become the 3D terrain I see in the browser?”
+- “I want to add a new building. Which files do I have to touch?”
+- “How can I let two AI opponents play against each other without graphics, and what does the output mean?”
+
+One tip: don’t just collect answers – ask for the places in the code and look at them yourself. And if something
+sounds contradictory, ask again – an AI is sometimes wrong too. Incidentally, that is exactly how this game was made: in
+a conversation between a human and AI agents.
 
 ## How a milestone went {#process}
 
