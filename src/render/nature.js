@@ -671,8 +671,11 @@ function mmat(key, opts) {
   return markerMats.get(key);
 }
 /** Mesh with vertex colours; detail: nature texture (e.g. 'rock' for piles and stone ring, 'wood' for wood). */
-function vmesh(geo, detail = null) {
-  const m = new THREE.Mesh(geo, mmat(detail ?? 'v', detail ? { detail: natureDetail(detail) } : {}));
+function vmesh(geo, detail = null, bare = false) {
+  // bare: no snow cap (resource colours must stay readable in winter)
+  const key = `${detail ?? 'v'}${bare ? ':bare' : ''}`;
+  const opts = { ...(detail ? { detail: natureDetail(detail) } : {}), ...(bare ? { snowCap: false } : {}) };
+  const m = new THREE.Mesh(geo, mmat(key, opts));
   m.castShadow = true; m.receiveShadow = true;
   return m;
 }
@@ -685,6 +688,9 @@ const DEPOSIT = {
   gold: { base: 0x7a5a24, chunks: [0xf3c85e, 0xe1a83a, 0xffe08a], accent: 0xfff1c4 },
   sulfur: { base: 0x77705a, chunks: [0xe8cf3a, 0xd8c33a, 0xf2e266], accent: 0xfff27a },
 };
+
+/** Pennant colour of a shaft site per resource: saturated, so stone and iron stand out on snow too. */
+const SHAFT_FLAG = { clay: 0xc4602e, stone: 0x5d6b80, iron: 0x2f3b55, sulfur: 0xe2c21c, gold: 0xe8b13a };
 
 /** Wood pile in the style of the other resource piles: flat mound of bark and shavings, with stacked logs on top. */
 function woodPile(seed) {
@@ -816,13 +822,27 @@ export function shaftMarker(res) {
   const rope = new THREE.CylinderGeometry(0.012, 0.012, 0.9, 4);
   rope.translate(0, 0.62, 0.1);
   parts.push(solid(rope, 0xc8b48a, 0));
-  // pile in resource colour
+  // pile in resource colour: large enough to read from afar, never snowed over
   const d = DEPOSIT[res] ?? DEPOSIT.stone;
-  for (let i = 0; i < 6; i++) {
-    const s = new THREE.DodecahedronGeometry(0.08 + r() * 0.06, 0);
-    s.translate(0.85 + r() * 0.35, 0.06, 0.55 + r() * 0.35);
-    stones.push(solid(s, d.chunks[i % d.chunks.length], 0.1, i));
+  const ore = [];
+  for (let i = 0; i < 10; i++) {
+    const s = new THREE.DodecahedronGeometry(0.11 + r() * 0.08, 0);
+    const a = r() * Math.PI * 2, rr = r() * 0.28;
+    s.translate(0.95 + Math.cos(a) * rr, 0.08 + (rr < 0.12 ? 0.1 : 0), 0.65 + Math.sin(a) * rr);
+    ore.push(solid(s, d.chunks[i % d.chunks.length], 0.1, i));
   }
+  // pennant in the resource colour on a tall pole
+  const pole = new THREE.CylinderGeometry(0.035, 0.04, 2.1, 5);
+  pole.translate(-0.95, 1.05, -0.7);
+  parts.push(solid(pole, 0x5a3e26, 0.04));
+  const flag = new THREE.BufferGeometry();
+  flag.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0, 0, -0.6, 0, 0.9, -0.3, 0]), 3));
+  flag.computeVertexNormals();
+  flag.translate(-0.95, 2.1, -0.7);
+  const flagBack = flag.clone();
+  flagBack.setIndex([0, 2, 1]);
+  const fc = SHAFT_FLAG[res] ?? d.chunks[0];
+  ore.push(solid(flag, fc, 0), solid(flagBack, fc, 0));
   // sign
   parts.push(plank(0.05, 0.6, 0.05, wood, -0.95, 0, 0.75));
   parts.push(plank(0.36, 0.22, 0.04, 0xc8a878, -0.95, 0.42, 0.78));
@@ -831,6 +851,7 @@ export function shaftMarker(res) {
   parts.push(solid(badge, d.chunks[0], 0));
   const flat = (list) => mergeGeometries(list.map((p) => p.index ? p.toNonIndexed() : p));
   g.add(vmesh(flat(stones), 'ore'));
+  g.add(vmesh(flat(ore), null, true));
   g.add(vmesh(flat(parts), 'timber'));
   // pit: dark funnel instead of a flat disc, two boards above it
   const pit = new THREE.CylinderGeometry(0.6, 0.18, 0.5, 14, 1, true);

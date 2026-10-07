@@ -42,8 +42,8 @@ export default {
   ),
   victoryText: t('Das Wetterwerk ist zerstört. Über den Bergen reißt der Himmel auf.', 'The weatherworks is destroyed. Above the mountains, the sky breaks open.'),
   debrief: t(
-    'Zum ersten Mal seit Jahren tropft es von den Dächern. Der Frühling kommt. In Nelias Tasche knistern die Bruchstücke von Hrimgars Bauplänen. In Hagenfurt erfährt Malvor, wer ihm den Winter genommen hat.',
-    'For the first time in years, water drips from the roofs. Spring is coming. In Nelia’s bag rustle the fragments of Hrimgar’s plans. In Hagenfurt, Malvor learns who took his winter.',
+    'Zum ersten Mal seit Jahren tropft es von den Dächern. Der Frühling kommt. In Nelias Tasche knistern die Bruchstücke von Hrimgars Bauplänen. Von den Wachen am Wetterwerk wissen sie jetzt auch: Malvor trägt selbst eine Zacke, an einer Kette um den Hals. In Hagenfurt erfährt Malvor, wer ihm den Winter genommen hat.',
+    'For the first time in years, water drips from the roofs. Spring is coming. In Nelia’s bag rustle the fragments of Hrimgar’s plans. From the guards at the weatherworks they now know something else: Malvor wears a shard himself, on a chain around his neck. In Hagenfurt, Malvor learns who took his winter.',
   ),
   defeatText: t('Die Gruppe ist gescheitert.', 'The group has failed.'),
   defeatTexts: {
@@ -104,9 +104,9 @@ export default {
     ], { r: 8 });
     const tower = api.placeBuilding(sim, ctx.bandits, 'tower', gate.far, { minR: 2, radius: 6, level: 1 });
     if (tower) ctx.ref('gateTower', tower.id);
-    // The outpost at the gorge: small, but a fight costs people
+    // The outpost at the gorge: small, but a fight costs people; it guards the frozen river itself (onIce)
     const bank = ax.at(ax.p(gorge.far.x, gorge.far.y) + 2, -22 + 5);
-    ctx.camp('ford', bank, [{ def: 'spear1', count: 1, soldiers: 3 }, { def: 'bow1', count: 1, soldiers: 4 }], { r: 6, maxR: 6 });
+    ctx.camp('ford', bank, [{ def: 'spear1', count: 1, soldiers: 3 }, { def: 'bow1', count: 1, soldiers: 4 }], { r: 6, maxR: 6, onIce: true });
     // Prisoners in a camp at the valley edge
     ctx.camp('prison', ax.at(54, 28), [{ def: 'sword1', count: 1, soldiers: 3 }, { def: 'spear1', count: 1, soldiers: 3 }], { r: 6 });
     // Hrimgar's ruins on the other valley edge: blueprint fragments

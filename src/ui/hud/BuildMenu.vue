@@ -112,7 +112,8 @@ export default {
     this.lp.cancel(); this.$emit('preview', null); this.$emit('info', null);
   },
   methods: {
-    isTech(b) { return reasonCode(b?.reason) === 'err.techMissing'; },
+    /** Not yet available: missing tech or not available in this mission (grey with lock) */
+    isTech(b) { const c = reasonCode(b?.reason); return c === 'err.techMissing' || c === 'err.notInMission'; },
     label(type) { return softHyphens(this.$name.building(type)); },
     setTab(id) { this.show(null); setSetting('serfBuildTab', id); },
     /**

@@ -138,8 +138,8 @@ export const STRATEGIES = {
     research: [],
     upgrades: [['storehouse', 1]],
     army: [['sword', 2]],
-    reserve: 300,
-    goldWant: 1800,
+    reserve: 0,
+    goldWant: 1300,
     tax: 'gold',
     militia: true,
     script(bot) {
@@ -277,7 +277,11 @@ function scriptWeatherworks(bot) {
  */
 function scriptThroneLake(bot) {
   const { sim, m } = bot;
-  bot.payTribute('scholars', 0);
+  // Self-research needs the alchemist's hut upgraded (metallurgy): buy the knowledge instead and save thalers for it
+  // (taxes, market) – building only keeps what it needs above that reserve
+  const open = m.state.tributes.scholars === 'open';
+  if (open && !bot.payTribute('scholars', 0)) bot.s.reserve = 1900;
+  else bot.s.reserve = 300;
   // first the weather power plant, then the army (otherwise the troops eat all thalers)
   bot.armyPlan ??= bot.s.army;
   bot.s.army = bot.placed.weatherPlant ? bot.armyPlan : [];

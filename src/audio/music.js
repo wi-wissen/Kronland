@@ -8,6 +8,7 @@ import { composeSection, composeJingle, THEMES } from './composer.js';
 import { scheduleNotes } from './synth.js';
 import { pickFile, lookup } from './manifest.js';
 import { MUSIC_PAUSES, BATTLE_MUSIC } from './settings.js';
+import { holdPosition } from './hold.js';
 
 /** All music names in the manifest. */
 export const MUSIC_THEMES = /** @type {const} */ (['menu', 'build', 'winter', 'battle', 'victory', 'defeat']);
@@ -48,6 +49,32 @@ class SynthTrack {
     this.wet.connect(music.eng.musicReverb.input);
     this.out = { dry: this.fader, wet: this.wet };
     this.loadSection(startAt);
+  }
+
+  /**
+   * Game paused: the music falls silent at audio time `at` (the hold stage fades it). Notes already
+   * scheduled beyond that are cut off with their output nodes, so nothing doubles on resume.
+   */
+  hold(at) {
+    this.heldAt = at;
+    const old = [this.fader, this.wet];
+    for (const n of old) { n.gain.cancelScheduledValues(at); n.gain.setValueAtTime(0, at); }
+    setTimeout(() => { for (const n of old) n.disconnect(); }, (LOOKAHEAD + 4) * 1000);
+  }
+
+  /** Game resumes: continue with the first note not heard before the hold (new output nodes, same level). */
+  release(now) {
+    if (this.heldAt === undefined) return;
+    const ctx = this.music.eng.ctx;
+    this.fader = ctx.createGain(); this.wet = ctx.createGain();
+    this.fader.connect(this.music.eng.buses.music);
+    this.wet.connect(this.music.eng.musicReverb.input);
+    this.out = { dry: this.fader, wet: this.wet };
+    const spb = 60 / this.bpm, at = this.heldAt;
+    const i = this.events.findIndex((e) => this.start + e.beat * spb >= at);
+    this.next = i < 0 ? this.events.length : i;
+    this.start += now + 0.1 - at;
+    this.heldAt = undefined;
   }
 
   loadSection(at) {
@@ -113,7 +140,8 @@ export class FileTrack {
     this.playBuffer(firstBuffer, firstFile, ctx.currentTime + 0.05);
   }
 
-  playBuffer(buffer, file, at) {
+  /** @param {number} [offset] seconds into the file (continuing after a pause of the game) */
+  playBuffer(buffer, file, at, offset = 0) {
     const ctx = this.music.eng.ctx;
     const s = ctx.createBufferSource();
     s.buffer = buffer;
@@ -121,11 +149,36 @@ export class FileTrack {
     s.loop = this.entry.files.length === 1 && this.entry.loop !== false && !this.peace;
     this.level.gain.setValueAtTime(this.entry.gain ?? 1, Math.max(ctx.currentTime, at - 0.01));
     s.connect(this.level);
-    s.start(at);
+    s.start(at, offset);
     this.src = s;
-    this.startsAt = at;
+    this.startsAt = at - offset;
     this.last = file;
     s.onended = () => { if (!this.stopped && !s.loop && this.src === s) this.playNext(this.peace ? this.music.pauseGap() : 1.5); };
+  }
+
+  /** Pause between pieces (s) after a piece has ended. */
+  gapAfter() { return this.peace ? this.music.pauseGap() : 1.5; }
+
+  /** Game paused: halt at audio time `at` and remember the position (or the remaining pause between pieces). */
+  hold(at) {
+    const s = this.src;
+    this.req = (this.req ?? 0) + 1; // a piece still loading must not start while paused
+    if (s) {
+      this.src = null; // its onended must not chain the next piece
+      const pos = holdPosition(this.startsAt, at, s.buffer?.duration ?? 0, s.loop);
+      this.resume = pos ? { buffer: s.buffer, file: this.last, ...pos } : { next: true, gap: this.gapAfter() };
+      try { s.stop(at); } catch { /* */ }
+    } else this.resume = { next: true, gap: this.pendingGap ?? this.gapAfter() };
+    this.pendingGap = null;
+  }
+
+  /** Game resumes: continue the piece at its position (or wait out the rest of the pause). */
+  release(now) {
+    const r = this.resume;
+    this.resume = null;
+    if (!r || this.stopped) return;
+    if (r.buffer) this.playBuffer(r.buffer, r.file, now + 0.02 + r.gap, r.offset);
+    else this.playNext(r.gap);
   }
 
   /** Next piece after gap seconds (audio time, pauses along with a hidden tab). */
@@ -186,6 +239,23 @@ export class Music {
     let s = this.seed;
     this.rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
     this.timer = null;
+    /** game paused (AudioEngine.setHold): no scheduling, theme changes wait for the resume */
+    this.held = false;
+  }
+
+  /**
+   * Halt (game paused) or continue the music. @param {boolean} on
+   * @param {number} at audio time of silence (hold) or of continuing (release)
+   */
+  hold(on, at) {
+    if (on === this.held) return;
+    this.held = on;
+    if (!this.eng.ctx) return;
+    if (on) { this.track?.hold(at); return; }
+    this.track?.release(at);
+    // theme changed meanwhile (combat over, winter): switch now
+    this.startWanted();
+    this.update();
   }
 
   /** Random pause length between peace pieces according to the setting. */
@@ -195,11 +265,11 @@ export class Music {
   setTheme(theme) {
     if (theme === this.want && (this.track || !this.eng.ctx)) return;
     this.want = theme;
-    if (this.eng.ctx) this.startWanted();
+    if (this.eng.ctx && !this.held) this.startWanted();
   }
 
   /** Called after the audio context is unlocked. */
-  onReady() { if (this.want && !this.track) this.startWanted(); }
+  onReady() { if (this.want && !this.track && !this.held) this.startWanted(); }
 
   startWanted() {
     const eng = this.eng;
@@ -223,6 +293,7 @@ export class Music {
         this.track?.stop();
         this.track = new FileTrack(this, theme, entry, buf, file);
         this.track.fade(1, FADE_IN / 4);
+        if (this.held) this.track.hold(eng.ctx.currentTime);
       });
     } else this.startSynth(theme);
     if (!this.timer) this.timer = setInterval(() => this.update(), INTERVAL);
@@ -240,7 +311,7 @@ export class Music {
 
   update() {
     const ctx = this.eng.ctx;
-    if (!ctx || ctx.state !== 'running') return;
+    if (!ctx || ctx.state !== 'running' || this.held) return;
     this.track?.update(ctx.currentTime);
   }
 

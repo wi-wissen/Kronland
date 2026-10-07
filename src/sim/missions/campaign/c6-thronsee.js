@@ -55,8 +55,8 @@ export default {
   title: t('Der Thronsee', 'The Throne Lake'),
   summary: t('Lass den Thronsee zufrieren und stürme Malvors Inselschloss über das Eis.', 'Freeze the Throne Lake and storm Malvor’s island castle across the ice.'),
   briefing: t(
-    'Malvor hat sich im Inselschloss verschanzt, mitten im Thronsee. Kein Boot kommt dort an, keine Brücke führt hinüber. Nelia hat Hrimgars Bauplan-Bruchstücke. Mit ihnen kann sie selbst einen Wetterturm bauen und den See zufrieren lassen. Aber Malvor kennt die Technik auch.',
-    'Malvor has entrenched himself in the island castle in the middle of the Throne Lake. No boat can reach it, no bridge leads across. Nelia has Hrimgar’s plan fragments. With them she can build a weather tower of her own and make the lake freeze. But Malvor knows the technique too.',
+    'Malvor hat sich im Inselschloss verschanzt, mitten im Thronsee. Kein Boot kommt dort an, keine Brücke führt hinüber. Nelia hat Hrimgars Bauplan-Bruchstücke. Mit ihnen kann sie selbst einen Wetterturm bauen und den See zufrieren lassen. Aber Malvor kennt die Technik auch. Und um den Hals trägt er die fünfte Zacke.',
+    'Malvor has entrenched himself in the island castle in the middle of the Throne Lake. No boat can reach it, no bridge leads across. Nelia has Hrimgar’s plan fragments. With them she can build a weather tower of her own and make the lake freeze. But Malvor knows the technique too. And around his neck he wears the fifth shard.',
   ),
   victoryText: t('Malvor ist gefallen. Die fünf Zacken sind vereint.', 'Malvor has fallen. The five shards are united.'),
   debrief: t(
@@ -70,7 +70,8 @@ export default {
   players: [
     {
       kind: 'human', heroes: ['nelia', 'orrin', 'taran'], serfs: 16, techs: ['conscription', 'education', 'construction', 'alchemy', 'standingArmy'],
-      stock: { gold: 3500, clay: 2500, wood: 3000, stone: 2500, iron: 1500, sulfur: 1200 },
+      // Buying the scholars' knowledge is possible, but costs the economy of a while (self-research stays cheaper)
+      stock: { gold: 1500, clay: 2500, wood: 3000, stone: 2500, iron: 1500, sulfur: 600 },
     },
     {
       kind: 'ai', hero: 'malvor', difficulty: 'normal', aggression: 'passive', aiSerfs: 14, militia: false,
@@ -126,6 +127,7 @@ export default {
 
   start: [
     say('malvor', 'Eine Leibeigene mit einem Händler und einem Verräter. Komm nur, Nelia. Der See ist tief.', 'A serf with a merchant and a traitor. Come then, Nelia. The lake is deep.'),
+    say('malvor', 'Vier Zacken hast du gesammelt. Die fünfte trage ich – hol sie dir, wenn du kannst.', 'You have gathered four shards. The fifth I wear – come and take it, if you can.'),
     say('taran', 'Er hat recht, der See ist tief. Aber im Winter trägt er.', 'He’s right, the lake is deep. But in winter it holds.'),
     say('orrin', 'Hrimgars Pläne! Ein Wetterturm, Nelia. Dafür brauchen wir eine Alchimistenhütte, Wissen – oder Geld. Ich kenne Gelehrte in Beaucroix …', 'Hrimgar’s plans! A weather tower, Nelia. For that we need an alchemist’s hut, knowledge – or money. I know scholars in Beaucroix …'),
     say('taran', 'Malvor hat sein eigenes Kraftwerk, dort auf der kleinen Insel vor dem Schloss. Ist es geladen, taut er den See, sobald wir aufs Eis gehen. Aber vom Ufer aus treffen es Bogenschützen und Kanonen.', 'Malvor has his own weather plant, there on the small island in front of the castle. Once it is charged, he thaws the lake as soon as we step onto the ice. But archers and cannons can hit it from the shore.'),
@@ -153,7 +155,7 @@ export default {
 
   tributes: {
     scholars: {
-      cost: { gold: 2200, sulfur: 500 },
+      cost: { gold: 1800, sulfur: 400 },
       text: t('Wissen der Gelehrten kaufen: Wettervorhersage und Meteorologie', 'Buy the scholars’ knowledge: Weather Forecast and Meteorology'),
       onPaid: [
         { type: 'give', techs: ['weatherForecast', 'meteorology'] },
@@ -191,7 +193,8 @@ export default {
     { id: 'firstThaw', when: { type: 'fired', id: 'malvorThaw' }, do: [
       say('orrin', 'Sein Kraftwerk ist leer – er muss jetzt nachladen und warten wie wir. Frieren wir den See wieder ein, sobald unseres bereit ist, kann er nichts tun.', 'His plant is empty – now he has to recharge and wait, just like us. If we freeze the lake again as soon as ours is ready, he can do nothing.'),
     ] },
-    { id: 'raid', when: { type: 'time', at: 360 }, every: 300, do: [
+    // Milestone: weather research started to pay off (or bought) – at the latest after 10 minutes; then every 5 minutes
+    { id: 'raid', when: { type: 'any', of: [{ type: 'tech', tech: 'weatherForecast' }, { type: 'time', at: 600 }] }, every: 300, do: [
       say('malvor', 'Hagenfurts Garde! Zeigt dieser Bauernmagd, was Ordnung heißt.', 'Guard of Hagenfurt! Show this peasant girl what order means.'),
       { type: 'spawn', owner: 1, at: 'northGate', units: [{ def: 'sword1', count: 2, soldiers: 4 }, { def: 'bow1', count: 1, soldiers: 4 }], order: 'attackMove', target: 'humanHq' },
     ] },

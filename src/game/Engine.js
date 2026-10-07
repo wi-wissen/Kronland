@@ -1348,6 +1348,9 @@ export class Engine {
     const has = (h) => !!(h && (h.entity || h.area));
     const goal = [...ui.objectives].sort((a, b) => Number(b.primary) - Number(a.primary)).find((o) => has(o.hint));
     mv.hint = has(ui.tutorial?.hint) ? ui.tutorial.hint : goal?.hint ?? null;
+    // Pointer at controls (glow frame, build menu tile): the tutorial step, otherwise the first open objective with one
+    const uiGoal = [...ui.objectives].sort((a, b) => Number(b.primary) - Number(a.primary)).find((o) => o.hint?.ui?.length);
+    ui.pointer = ui.tutorial ? ui.tutorial.hint?.ui ?? [] : uiGoal?.hint.ui ?? [];
     mv.landmarks = ui.landmarks;
     return ui;
   }
@@ -1495,7 +1498,8 @@ export class Engine {
       const def = BUILDINGS[type];
       const cost = def.levels[0].cost;
       let reason = null;
-      if (def.requires && !pl.techs.has(def.requires)) reason = { code: 'err.techMissing', params: { tech: def.requires } };
+      if (sim.mission?.locked(this.player, 'buildings', type)) reason = 'err.notInMission';
+      else if (def.requires && !pl.techs.has(def.requires)) reason = { code: 'err.techMissing', params: { tech: def.requires } };
       else if (!sim.canPay(this.player, cost)) reason = 'err.notEnoughResources';
       const lvl = def.levels[0];
       // Read-only data for the info strip of the build menu (size, build time, staff, where to research)

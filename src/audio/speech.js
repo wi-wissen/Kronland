@@ -13,6 +13,59 @@ const HIGH = new Set(['nelia', 'elder', 'villager', 'scholar']);
 
 let audio = null;
 let lastSeq = 0;
+/** Reasons the voice is held ('pause': game paused, 'hidden': tab in the background) */
+const holds = new Set();
+/** recording paused by a hold (its pause event must not count as "finished") */
+let heldAudio = null;
+let fadeTimer = null;
+/** volume of the current recording (target when fading back in) */
+let audioVol = 1;
+/** Fade length of a held recording (ms), like the game sounds (hold.js) */
+const FADE_MS = 300;
+
+/** Fade an <audio> element's volume to `to`, then call done (volume is ignored on iOS: done comes anyway). */
+function fadeVolume(a, to, done) {
+  clearInterval(fadeTimer);
+  const from = a.volume, steps = 10;
+  let i = 0;
+  fadeTimer = setInterval(() => {
+    i++;
+    try { a.volume = Math.max(0, Math.min(1, from + ((to - from) * i) / steps)); } catch { /* */ }
+    if (i >= steps) { clearInterval(fadeTimer); fadeTimer = null; done?.(); }
+  }, FADE_MS / steps);
+}
+
+/**
+ * Hold or release the spoken dialogue: a recording fades out and pauses (and later continues where it
+ * stopped), the browser's speech output pauses. Several reasons can hold at once.
+ * @param {'pause'|'hidden'} reason @param {boolean} on
+ */
+export function holdSpeech(reason, on) {
+  const was = holds.size > 0;
+  if (on) holds.add(reason); else holds.delete(reason);
+  const now = holds.size > 0;
+  if (was === now) return;
+  try { if (now) globalThis.speechSynthesis?.pause(); else globalThis.speechSynthesis?.resume(); } catch { /* without speech output */ }
+  const a = audio;
+  if (!a) return;
+  if (now) {
+    if (a.paused && heldAudio !== a) return;
+    heldAudio = a;
+    fadeVolume(a, 0, () => { if (holds.size && audio === a) a.pause(); });
+  } else if (heldAudio === a) {
+    clearInterval(fadeTimer);
+    const go = () => { heldAudio = null; fadeVolume(a, audioVol); };
+    if (a.paused) a.play().then(go).catch(() => { heldAudio = null; }); else go();
+  }
+}
+
+/** Is the voice held right now? */
+export const speechHeld = () => holds.size > 0;
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => holdSpeech('hidden', document.hidden));
+  if (document.hidden) holdSpeech('hidden', true);
+}
 
 // Load the recording index early so even the first dialogues of a mission find their recording
 if (typeof window !== 'undefined') loadVoiceIndex();
@@ -22,6 +75,8 @@ export const speaking = () => (audio && !audio.paused) || (globalThis.speechSynt
 
 /** Stop everything (dialogue dismissed, game ended). */
 export function stopSpeech() {
+  clearInterval(fadeTimer);
+  heldAudio = null;
   try { if (audio) { audio.pause(); audio = null; } } catch { /* without audio */ }
   try { globalThis.speechSynthesis?.cancel(); } catch { /* without speech output */ }
 }
@@ -55,10 +110,13 @@ export function speak(msg, lang, opts = {}) {
       const a = new Audio(assetUrl(file));
       audio = a;
       a.volume = volume;
+      audioVol = volume;
       const end = once(opts.onEnd);
       a.addEventListener('ended', end);
       a.addEventListener('error', end);
-      a.addEventListener('pause', end); // also when paused (clicked away, next dialogue)
+      // also when paused (clicked away, next dialogue) – but not when held by a game pause
+      a.addEventListener('pause', () => { if (heldAudio !== a) end(); });
+      if (holds.size) { heldAudio = a; a.volume = 0; return true; } // starts once the game resumes
       a.play().catch(() => { if (audio === a) audio = null; end(); });
       return true;
     } catch { audio = null; }
@@ -80,6 +138,7 @@ export function speak(msg, lang, opts = {}) {
     u.onend = end;
     u.onerror = end;
     synth.speak(u);
+    if (holds.size) synth.pause();
     return true;
   } catch { return false; }
 }
