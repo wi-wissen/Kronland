@@ -52,9 +52,11 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
 
 - **Tutorial**: Der Händler Orrin führt Nelia in 18 Schritten durch Leibeigene, Bauen, Arbeiter, Forschung und Kampf.
 - **Kampagne** „Krone aus Eis“: sechs Karten in drei Akten (Winter, Krieg, Wissen). Die Leibeigenentochter Nelia
-  sammelt mit dem Händler Orrin die fünf Zacken der zerbrochenen Krone, zerstört Malvors Wetterwerk, gewinnt
-  Hauptmann Taran und stürmt das Inselschloss über den gefrorenen See. Kaufen oder Kämpfen (Tribute), Dörfer
-  (Diplomatie), Gesprächsfiguren. Story und Mechanik: [Kampagne](docs/KAMPAGNE.md). Fortschritt und Bestzeiten
+  sammelt mit dem Händler Orrin die fünf Zacken der zerbrochenen Krone – im Wettlauf mit Malvor, der damit König
+  werden will –, zerstört sein Wetterwerk, gewinnt Hauptmann Taran und stürmt das Inselschloss über den gefrorenen
+  See. Kaufen oder Kämpfen (Tribute), Dörfer (Diplomatie), Gesprächsfiguren. Jede Mission schaltet wenige neue
+  Gebäude und Forschungen frei (der Rest steht ausgegraut im Menü), Figuren stellen Neues vor, ein Zeiger zeigt auf
+  den Knopf; der Gegner legt erst nach einem Meilenstein des Spielers los. Story und Mechanik: [Kampagne](docs/KAMPAGNE.md). Fortschritt und Bestzeiten
   speichert der Browser. Direktstart: `play/?mission=c1` … `play/?mission=c6`, `play/?mission=tutorial`.
 - **Programmier-Abenteuer**: Nelia mit Python steuern – fünf Lernabenteuer (Schleifen, Bedingungen, Funktionen,
   Listen), Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)

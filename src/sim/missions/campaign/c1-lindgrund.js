@@ -26,6 +26,9 @@ export default {
   next: 'c2',
   // Deep winter: the whole mission takes place in the snow
   weatherCycle: [['winter', 360000]], // Malvor's winter: only ends with the weather works (mission 3)
+  // Campaign unlocks: only the basics, everything else shows greyed out ("not available in this mission"); only clay pits
+  available: { buildings: ['villageCenter', 'residence', 'farm', 'clayMine'], techs: [] },
+  shafts: ['clay'],
   players: [
     // Nelia comes alone; Orrin sits on the village square (talk figure) and joins
     { kind: 'human', heroes: ['nelia'], serfs: 0, stock: { gold: 400, clay: 1400, wood: 600, stone: 200, iron: 0, sulfur: 0 } },
@@ -103,6 +106,11 @@ export default {
         say('nelia', 'Unter der Wurzel glänzt etwas … ein Stück Metall, wie eine Zacke. Kalt wie Eis.', 'Something glitters under the root … a piece of metal, like a spike. Cold as ice.'),
         say('orrin', 'Bei allen Märkten! Das ist eine Zacke der Krone! Nur das Königsblut findet so etwas!', 'By all the markets! That’s a shard of the crown! Only royal blood finds such a thing!'),
         say('nelia', 'Ich bin eine Leibeigene, Orrin. Mein Vater schlägt Holz.', 'I’m a serf, Orrin. My father chops wood.'),
+        say('orrin', 'König Edrians Krone zerbrach in fünf Zacken. Wer alle fünf vereint, den müssen die Provinzen krönen – so will es das alte Recht.',
+          'King Edrian’s crown broke into five shards. Whoever unites all five must be crowned by the provinces – so the old law says.'),
+        say('nelia', 'Malvor herrscht doch längst. Wozu braucht er eine Krone?', 'Malvor rules already. What does he need a crown for?'),
+        say('orrin', 'Er ist nur Statthalter. Mit der Krone wäre er König, und keiner dürfte ihm widersprechen. Glaub mir, er sucht die Zacken.',
+          'He is only governor. With the crown he would be king, and no one could gainsay him. Believe me, he is looking for the shards.'),
         say('orrin', 'Pflegeeltern, Kind! Die Königin ertrank, aber die kleine Prinzessin … Leute! Die verlorene Prinzessin ist zurück!', 'Foster parents, child! The queen drowned, but the little princess … everyone! The lost princess has returned!'),
         { type: 'give', serfs: 3 },
         say('villager', 'Die Prinzessin! In Lindgrund! Dann wird alles gut!', 'The princess! In Lindgrund! Then all will be well!'),
@@ -121,7 +129,7 @@ export default {
           'Open the build menu and set it on the old foundations. Whoever is selected starts building right away.'),
         { type: 'reveal', id: 'center' },
       ] },
-    { id: 'center', type: 'build', building: 'villageCenter', count: 1, primary: true, hidden: true, hint: { area: 'square' },
+    { id: 'center', type: 'build', building: 'villageCenter', count: 1, primary: true, hidden: true, hint: { area: 'square', ui: ['build-villageCenter', 'quick-all'] },
       text: t('Bau das Dorfzentrum auf dem Dorfplatz wieder auf', 'Rebuild the village centre on the square'),
       onDone: [
         say('nelia', 'Das Dorfzentrum steht wieder. Wie früher.', 'The village centre stands again. Like it used to.'),
@@ -129,19 +137,19 @@ export default {
           'And now beds. Whoever works here needs somewhere to sleep – otherwise he huddles at the campfire and gets little done.'),
         { type: 'reveal', id: 'homes' },
       ] },
-    { id: 'homes', type: 'build', building: 'residence', count: 2, primary: true, hidden: true, text: t('Baue 2 Wohnhäuser', 'Build 2 residences'),
+    { id: 'homes', type: 'build', building: 'residence', count: 2, primary: true, hidden: true, hint: { ui: ['build-residence', 'quick-all'] }, text: t('Baue 2 Wohnhäuser', 'Build 2 residences'),
       onDone: [
         say('orrin', 'Wer geschlafen hat, will essen. Baut Bauernhöfe – und der Bauer ist gleich unser erster Arbeiter.',
           'Whoever has slept wants to eat. Build farms – and the farmer is our very first worker.'),
         { type: 'reveal', id: 'farms' },
       ] },
-    { id: 'farms', type: 'build', building: 'farm', count: 2, primary: true, hidden: true, text: t('Baue 2 Bauernhöfe', 'Build 2 farms'),
+    { id: 'farms', type: 'build', building: 'farm', count: 2, primary: true, hidden: true, hint: { ui: ['build-farm', 'quick-all'] }, text: t('Baue 2 Bauernhöfe', 'Build 2 farms'),
       onDone: [
         say('orrin', 'Arbeiter kommen von selbst, sobald es Arbeit gibt. Bau beim Lehm dort drüben eine Lehmmine – die braucht Leute.',
           'Workers come on their own when there’s work. The clay pit over there needs hands – build a clay mine.'),
         { type: 'reveal', id: 'workers' },
       ] },
-    { id: 'workers', type: 'workers', count: 6, primary: true, hidden: true, hint: { area: 'clayShaft' }, text: t('Gib 6 Arbeitern Bett und Essen', 'Give 6 workers a bed and food') },
+    { id: 'workers', type: 'workers', count: 6, primary: true, hidden: true, hint: { area: 'clayShaft', ui: ['build-clayMine', 'quick-all'], uiWhile: { type: 'not', cond: { type: 'built', building: 'clayMine', placed: true } } }, text: t('Gib 6 Arbeitern Bett und Essen', 'Give 6 workers a bed and food') },
     { id: 'collectors', type: 'destroy', ref: 'collectors', primary: true, hidden: true, text: t('Vertreibe Malvors Eintreiber', 'Drive off Malvor’s collectors'),
       onDone: [
         say('collector', 'Das wird Malvor erfahren! Ihr werdet um sein Korn betteln!', 'Malvor will hear of this! You’ll beg for his grain!'),
@@ -200,7 +208,7 @@ export default {
     // Only when the village lives again (farms stand), Malvor's collectors come – after 25 minutes at the latest
     { id: 'collect', when: { type: 'any', of: [{ type: 'objective', id: 'farms' }, { type: 'time', at: 1500 }] }, do: [
       { type: 'spawn', owner: 'bandits', ref: 'collectors', at: 'collectorFrom', units: [{ def: 'spear1', count: 2, soldiers: 2 }], order: 'attackMove', target: 'humanHq' },
-      say('collector', 'Im Namen des Statthalters! Jeder zehnte Sack Korn gehört Malvor.', 'In the name of the governor! Every tenth sack of grain belongs to Malvor.'),
+      say('collector', 'Im Namen des Statthalters! Jeder zehnte Sack Korn gehört Malvor – und was ihr unter dem alten Baum gefunden habt, auch.', 'In the name of the governor! Every tenth sack of grain belongs to Malvor – and so does what you found under the old tree.'),
       say('orrin', 'Eintreiber! Nelia, das sind nur ein paar Speerträger. Ruf deine Leute zusammen – und mach ihnen Mut!', 'Collectors! Nelia, those are only a few spearmen. Gather your people – and rally them!'),
       say('orrin', 'In der Burg rufst du „Zu den Waffen!“ – dann greifen die Leibeigenen zu Mistgabeln. Und du, Nelia, hast ein Herz, das andere mitreißt.',
         'At the castle you call “To arms!” – then the serfs grab their pitchforks. And you, Nelia, have a heart that carries others along.'),
