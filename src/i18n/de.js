@@ -73,6 +73,7 @@ export default {
   'site.home': 'Startseite',
   'site.manual': 'Handbuch',
   'site.compendium': 'Kompendium',
+  'site.scripting': 'Programmieren',
   'site.blog': 'Blog',
 
   // ---------- Loading ----------

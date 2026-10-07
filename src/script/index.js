@@ -8,6 +8,8 @@ import { ScriptError, suggest } from './errors.js';
 import { saveVm, loadVm } from './serialize.js';
 
 export { VM, Suspend, ScriptError, suggest, OP, OP_NAMES, saveVm, loadVm, MODULES };
+export { KINDS as ERROR_KINDS } from './errors.js';
+export { BUDGET_LIMITS } from './vm.js';
 export * from './values.js';
 export { highlightRanges, tokenize } from './lexer.js';
 

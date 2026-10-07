@@ -72,6 +72,7 @@ export default {
   'site.home': 'Home page',
   'site.manual': 'Manual',
   'site.compendium': 'Compendium',
+  'site.scripting': 'Scripting',
   'site.blog': 'Blog',
 
   // ---------- Loading ----------
