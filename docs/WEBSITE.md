@@ -1,4 +1,4 @@
-# Website: Startseite, Spiel, Handbuch, Kompendium, Blog
+# Website: Startseite, Spiel, Handbuch, Kompendium, Programmier-Referenz, Blog
 
 Der Build ist eine kleine statische Website (Vite Multi-Page, `base: './'`, alle Pfade relativ – in jedem
 Unterordner hostbar):
@@ -9,6 +9,7 @@ Unterordner hostbar):
 | `play/` | `play/index.html` | das Spiel | `src/main.js`, `src/ui/` … |
 | `manual/` | `manual/index.html` | Handbuch DE/EN | `src/site/manual/` |
 | `compendium/` | `compendium/index.html` | Kompendium: alle Werte und Formeln, aus den Spieldaten erzeugt | `src/site/compendium/` |
+| `scripting/` | `scripting/index.html` | Programmier-Referenz: Kronland-Python, jeder Befehl mit Beispiel | `src/site/scripting/` |
 | `blog/`, `blog/<name>/` | `blog/index.html` (Artikelseiten erzeugt der Build) | Blog: Übersicht und Artikel, u. a. einer je Meilenstein | `src/site/blog/` |
 
 **Adressen sind englisch** (wie bei Spielen üblich: `play/`, `manual/`, `compendium/`), die Seiten selbst zweisprachig.
@@ -23,7 +24,12 @@ Eine neue Seite: HTML-Datei anlegen (Kopf wie die vorhandenen, `window.KRONLAND_
 - `site.js` – `mountPage(Komponente)`: Sprache, `$s()` (Website-Texte), `$t()`/`$name` (Spieltexte), `$links`, `$siteRoot`.
   Sprache wie im Spiel aus `localStorage['kronland-lang']`, sonst Browsersprache (nicht gespeichert); die
   Umschaltung in der Kopfzeile speichert und gilt damit auch fürs Spiel.
-- `SiteLayout.vue` – Kopfzeile (Startseite · Spielen · Handbuch · Kompendium · Blog · DE/EN) und Fußzeile mit Danksagung.
+- `SiteLayout.vue` – Kopfzeile (Startseite · Spielen · Handbuch · Kompendium · Code · Blog · DE/EN) und Fußzeile mit Danksagung.
+- `ImageLightbox.vue`, `lightbox.js` – Bildvergrößerung, einmal in `SiteLayout` eingehängt: Bilder in `.prose`-Abbildungen
+  (Blog, Handbuch, Kompendium, Code) öffnen per Klick/Tippen oder Enter/Leertaste einen `<dialog>` mit größter
+  `srcset`-Fassung und Bildunterschrift; Pfeiltasten, Knöpfe oder Wischen blättern durch die Bilder desselben Artikels,
+  Escape/Hintergrund schließt. Ereignisdelegation am Dokument plus `MutationObserver` – greift auch nach neu
+  gezeichnetem `v-html`. Die Startseiten-Galerie nutzt dieselbe Komponente (`showImages(items, i)` am Layout).
 - `strings.js` – Texte der Website (DE/EN, gleiche Schlüssel; Test in `tests/site/site.test.js`).
 - `site.css` – baut auf den Tokens aus `src/ui/style.css` auf; Lesetext auf Pergament (`.prose`), Druckansicht.
 - `markdown.js` – kleiner Markdown-Umsetzer (Überschriften mit `{#id}`, Listen, Tabellen, `> Hinweis`,
@@ -70,6 +76,28 @@ Suche entstehen aus den Überschriften (`##`, `###`).
 - Verweise ins Kompendium: `[Text](compendium/#b-farm)`, auf Kapitel: `[Text](#economy)`.
 - Die Danksagung kommt aus `CREDITS.md` (Platzhalter `{{credits}}`).
 
+## Programmier-Referenz (`scripting/`)
+
+Erklärt Kronland-Python: Kapitel (Was Skripte können, Editor, Ablauf mit Takt/Budget/Determinismus, Sprache, was
+fehlt, Fehlermeldungen, ausführliche Beispiele) und danach je Befehl einen Eintrag mit Signatur, Parametern,
+Rückgabe, Beispiel und typischen Fehlern. Anker = Name des Befehls (`scripting/#hero.step`, `#len`, `#str.split`),
+Kapitel `#intro`, `#language` …, Sprachgrundlagen `#lang-for` …, Spielobjekte `#cls-Hero`.
+
+- **Eine Quelle:** Liste der Spielbefehle `API_DOC` (`src/sim/scripting/api.js`), Python-Teil `PY_DOC`, Beispiele
+  `EXAMPLES`, Fehler `ERRORS`, längere Beispiele `WORKED` (`src/ui/script/reference.js` – auch die Befehlshilfe im
+  Spiel liest sie und verlinkt jeden Eintrag mit `refUrl()` hierher). Lange Texte: `src/ui/script/docs/de.js`
+  und `en.js` (gleiche Schlüssel); `src/ui/script/commandDocs.js` liefert je Befehl Signatur, Kurztext, Parameter,
+  Rückgabe, Beispiel, Fehler, Anker und Adresse als Daten (`commandDoc(name, lang)`) – für Seite und Code-Editor, Kapitel: `intro.de.md`/`intro.en.md`, Kurztexte: `script.api.*` in
+  `src/i18n/script.js`. Englischer Wortlaut deutscher Beispieltexte steht in `EN_TEXT` (`reference.js`).
+- **Echte Ausgaben:** Python-Beispiele (und ```` ```py ````-Blöcke der Kapitel) laufen beim Anzeigen in der VM; die
+  Seite zeigt ihre Ausgabe. Zahlen (Budget, Takt, Rekursionstiefe) kommen als Platzhalter aus dem Code.
+- **Tests** (`tests/site/scripting.test.js`): jede Grundfunktion, Modulfunktion und Methode aus `builtins.js` und
+  jeder Eintrag aus `API_DOC` hat Text in beiden Sprachen und ein Beispiel; Python-Beispiele laufen fehlerfrei,
+  Spielbeispiele laufen auf einer Testkarte ohne Skriptfehler (Spielerbefehle als Spielerprogramm), die
+  Musterlösungen gewinnen ihr Abenteuer; alle internen Anker existieren. Neuer Befehl: Eintrag in `API_DOC`,
+  Kurztext in `script.js`, Beispiel in `EXAMPLES`, Text in `docs/de.js`/`docs/en.js` – sonst schlägt der Test fehl.
+- E2E: `e2e/scripting.spec.js` (mit `REF_SHOTS=<ordner>` Bildschirmfotos).
+
 ## Blog: neuer Artikel
 
 Ein Artikel = zwei Markdown-Dateien `src/site/blog/posts/<name>.de.md` und `<name>.en.md` (Name aus `a-z`, `0-9`, `-`;
@@ -101,6 +129,13 @@ Darunter Kapitel wie im Handbuch (`## Titel {#gleiche-id}` in beiden Sprachen; e
   Neuer Meilenstein: in `docs/milestones.json` anlegen, `node scripts/milestones.mjs` (siehe
   [MEILENSTEINE.md](MEILENSTEINE.md)), dann die beiden Artikel mit `date` = `date_end` schreiben – der Test
   `tests/site/blog.test.js` verlangt zu jedem Meilenstein einen Artikel in beiden Sprachen.
+- **Bilder und Abbildungen** liegen unter `public/blog/<name>/` und stehen im Text relativ zur Website-Wurzel:
+  `![Bildunterschrift](blog/<name>/bild.webp)` – allein in einer Zeile wird daraus eine Abbildung mit Unterschrift.
+  Im Build bekommen sie wie alle Spieldateien einen Inhalts-Hash; der Service Worker lädt sie erst bei Bedarf.
+  Fotos als WebP (rund 1 280–1 440 px breit), Schemata als SVG mit eigenem hellem Hintergrund, mit Text je Sprache
+  (`…-de.svg`, `…-en.svg`). Ein Test prüft, dass jedes verlinkte Bild existiert.
+- **Code-Blöcke** mit Sprache und Dateiangabe: ` ```js src/sim/rng.js ` – einfache Hervorhebung für `js`, `python`,
+  `pseudo` (Pseudocode, deutsche und englische Schlüsselwörter) und `bash`, die Angabe erscheint als Kopfzeile.
 - E2E: `e2e/blog.spec.js` (Desktop 1440×900 und Pixel 7, DE und EN); mit `BLOG_SHOTS=<ordner>` legt die Spec
   Bildschirmfotos ab.
 

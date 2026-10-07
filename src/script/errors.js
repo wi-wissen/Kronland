@@ -3,7 +3,7 @@
 // (src/i18n/script.js), so the language stays independent of German/English.
 
 /** Python name of the exception per error code (everything else: RuntimeError). */
-const KINDS = {
+export const KINDS = {
   syntax: 'SyntaxError', expected: 'SyntaxError', unexpected: 'SyntaxError', unclosed: 'SyntaxError',
   unterminatedString: 'SyntaxError', badNumber: 'SyntaxError', badAssign: 'SyntaxError', badChar: 'SyntaxError',
   notSupported: 'SyntaxError', outsideLoop: 'SyntaxError', outsideFunction: 'SyntaxError', badParams: 'SyntaxError',

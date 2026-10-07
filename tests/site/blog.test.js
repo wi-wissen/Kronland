@@ -2,7 +2,7 @@
 // article in DE and EN, source links, article loader, addresses of the article pages.
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import MILESTONES from '../../docs/milestones.json';
 import { POSTS, loadPosts, parseFrontMatter, postIn, postSections, slugFromLocation } from '../../src/site/blog/posts.js';
@@ -127,6 +127,19 @@ describe('Blog', () => {
     expect(intro).toContain('Rückblick');
     expect(intro).toContain('href="../../manual/#licenses"');
     expect(postSections(postIn(POSTS[0], 'en'), 'en', '../../').map((s) => s.html).join('')).toContain('hindsight');
+  });
+
+  it('images in articles exist under public/ (convention: public/blog/<article>/…)', () => {
+    for (const post of POSTS) {
+      for (const [lang, text] of Object.entries(post.langs)) {
+        for (const m of text.body.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)/g)) {
+          const src = m[1];
+          if (/^[a-z]+:/i.test(src)) continue;
+          expect(existsSync(resolve(ROOT, 'public', src)), `${post.slug}.${lang}: ${src}`).toBe(true);
+          if (src.startsWith('blog/')) expect(src.split('/')[1], `${post.slug}.${lang}: ${src}`).toBe(post.slug);
+        }
+      }
+    }
   });
 
   it('front matter, sorting and missing language', () => {

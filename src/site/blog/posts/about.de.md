@@ -1,7 +1,7 @@
 ---
 title: Worum es geht – ein Spiel, gebaut von KI-Agenten
 date: 2026-10-06
-teaser: Kronland entstand in vier Tagen mit Claude Code, Bild- und 3D-Modellen. Dieser Blog erzählt die Geschichte im Rückblick, Meilenstein für Meilenstein – zum Nachlesen und Nachmachen.
+teaser: Kronland entstand in vier Tagen mit Claude Code, Bild- und 3D-Modellen. Dieser Blog erzählt im Rückblick, Meilenstein für Meilenstein, wie ein Spiel funktioniert und entsteht – geschrieben für alle, die Informatik im Unterricht hatten und jetzt hinter die Kulissen schauen wollen.
 pinned: true
 ---
 
@@ -21,6 +21,31 @@ Grafiken und Klänge sind eigene – nichts davon ist aus dem Original übernomm
 Die Arbeit begann am **{{start}}**, der bisher letzte Meilenstein war am **{{end}}** abgeschlossen: {{days}}
 Kalendertage, {{milestones}} Meilensteine. Alle Zeiten in diesem Blog sind mitteleuropäische Sommerzeit.
 
+## Für wen dieser Blog ist {#audience}
+
+Geschrieben ist er vor allem für Schülerinnen und Schüler der Oberstufe – und alle anderen –, die im
+Informatikunterricht Variablen, Schleifen, Arrays, Objekte und vielleicht schon Graphen oder Rekursion kennengelernt
+haben und jetzt wissen wollen: **Wie funktioniert eigentlich ein echtes Spiel, und wie entsteht es?** Die Artikel
+erklären die Ideen von Grund auf, mit echten Ausschnitten aus dem Code, Pseudocode, schematischen Abbildungen und
+Bildschirmfotos der allerersten Spielfassungen. Fachbegriffe sind mit Wikipedia verlinkt.
+
+Einige Fragen, auf die du hier Antworten findest:
+
+- **Wie läuft ein Spiel ohne Bildschirm?** Warum die Spielregeln ein eigenes Programm sind, das man in der
+  Kommandozeile laufen lassen und in Sekunden testen kann – [Simulationskern](blog/simulation-core/#headless).
+- **Wie finden Figuren ihren Weg?** Raster oder Polygone, Breitensuche, Dijkstra und A\* mit Heuristik –
+  [Simulationskern](blog/simulation-core/#pathfinding).
+- **Wie entsteht eine Zufallskarte, die trotzdem fair ist?** Seeds, Rauschen, Floodfill –
+  [Simulationskern](blog/simulation-core/#mapgen) und [Gelände und Grafik](blog/terrain-graphics/#noise).
+- **Wie wird aus Zahlen ein 3D-Bild?** Szenengraph, Dreiecke, Kamera, Shader – [3D-Darstellung](blog/rendering/#scene).
+- **Wie funktioniert ein Computergegner?** Prioritäten, Zustandsautomaten und warum er nicht schummeln kann –
+  [Militär und Computergegner](blog/military-ai/#ai).
+- **Wie testet man ein Spiel?** Von Vitest über Playwright bis zu Fuzz-Tests mit Unsinnsbefehlen –
+  [QA-Runden](blog/qa-fog/#fuzz).
+
+Du musst dafür nicht programmieren können wie ein Profi. Wenn du weißt, was eine Schleife und ein Objekt ist, kannst du
+den Code-Ausschnitten folgen; der Text drumherum erklärt, worauf es ankommt.
+
 ## Die Zahlen {#numbers}
 
 Stand {{end}}, gezählt im Repository:
@@ -29,19 +54,22 @@ Stand {{end}}, gezählt im Repository:
 |---|---:|
 | Kalendertage vom Beginn bis zum letzten Meilenstein | {{days}} |
 | Meilensteine (je ein Artikel) | {{milestones}} |
-| Programmcode in `src/` (JavaScript, Vue, CSS) | rund 49 000 Zeilen in 227 Dateien |
-| Tests: Vitest (84 Dateien) und Playwright (33 Specs) | rund 17 500 Zeilen; {{vitestCount}} Vitest-Tests, jede Playwright-Spec auf Desktop und Pixel 7 |
-| Werkzeugskripte (`scripts/`: Asset-Pipeline, Messungen, Bots) | rund 7 000 Zeilen |
-| Dokumentation (`docs/`) | rund 4 100 Zeilen in 19 Dateien |
+| Programmcode in `src/` (JavaScript, Vue, CSS) | rund 49 000 Zeilen in 227 Dateien |
+| Tests: Vitest (84 Dateien) und Playwright (33 Specs) | rund 17 500 Zeilen; {{vitestCount}} Vitest-Tests, jede Playwright-Spec auf Desktop und Pixel 7 |
+| Werkzeugskripte (`scripts/`: Asset-Pipeline, Messungen, Bots) | rund 7 000 Zeilen |
+| Dokumentation (`docs/`) | rund 4 100 Zeilen in 19 Dateien |
 | 3D-Dateien (Gebäude mit Ausbaustufen, Figuren, Natur; mit Detailstufen) | 348 GLB, davon 82 Gebäude- und Naturmodelle ohne Detailstufen und 94 Figurendateien |
 | Ton | 12 Musikstücke, 430 Sprachdateien (DE/EN), 24 CC0-Effekte |
-| Meshy-Guthaben laut Budget-Buch | knapp 9 700 Credits (das Buch zählt abgelehnte Aufträge mit, ist also eher zu hoch) |
+| Meshy-Guthaben laut Budget-Buch | knapp 9 700 Credits (das Buch zählt abgelehnte Aufträge mit, ist also eher zu hoch) |
 
 ## So ist der Blog aufgebaut {#structure}
 
 Im Rückblick gliedert sich die Entstehung in {{milestones}} Meilensteine, und jeder Meilenstein hat hier einen eigenen
-Artikel – datiert auf den Zeitpunkt, an dem er abgeschlossen war. Jeder Artikel erzählt, was entstand, wie es gebaut
-wurde, was nicht klappte und wie es gelöst wurde, und endet mit Tipps zum Nachmachen. Der Kasten am Anfang nennt
+Artikel – datiert auf den Zeitpunkt, an dem er abgeschlossen war. Jeder Artikel erzählt, was entstand, erklärt die
+Technik dahinter, berichtet, was nicht klappte und wie es gelöst wurde, und endet mit Tipps zum Nachmachen. Die ersten
+Artikel gehen dabei besonders auf die Grundlagen ein; wer der Reihe nach liest, baut Schritt für Schritt ein Bild davon
+auf, wie die Teile zusammenspielen. Die Bildschirmfotos in den Artikeln zeigen, wie das Spiel zum jeweiligen Zeitpunkt
+wirklich aussah – aufgenommen mit dem Code genau dieses Meilensteins. Der Kasten am Anfang nennt
 Zeitraum, Arbeitszeit, geänderte Zeilen und neue Tests (`docs/milestones.json`, Übersicht in `docs/MEILENSTEINE.md`);
 zwei Links führen zum Code des Meilensteins und zum ganzen Projekt in diesem Stand. Weitere Artikel kommen einfach
 hinten dazu.
@@ -90,6 +118,26 @@ hinten dazu.
 - Nur freie (CC0) oder selbst erzeugte Dateien; Herkunft jeder Datei steht in der Danksagung, Prompts und
   Auftragsnummern liegen unter `assets-src/`.
 
+## Frag eine KI nach dem Code {#ask-ai}
+
+Der gesamte Code von Kronland ist öffentlich: [github.com/wi-wissen/Kronland](https://github.com/wi-wissen/Kronland).
+Rund 49 000 Zeilen sind viel zum Lesen – aber du musst sie nicht allein lesen. Gib die Adresse des Repositorys einem
+KI-Assistenten, der Code lesen kann (zum Beispiel Claude), und stell ihm deine Fragen. Ein KI-Assistent kann dir
+Dateien zeigen, Abläufe Schritt für Schritt erklären und Fachbegriffe übersetzen – und du kannst so lange nachfragen,
+bis es klick macht. Ein paar Fragen zum Einstieg:
+
+- „Erkläre mir, was in `src/sim/sim.js` in einem einzigen Takt passiert – Schritt für Schritt.“
+- „Wie findet ein Leibeigener in Kronland seinen Weg zu einem Baum? Zeig mir die Stellen im Code.“
+- „Warum benutzt die Simulation keine Kommazahlen und kein `Math.random`? Was würde sonst schiefgehen?“
+- „Wie entscheidet der Computergegner, was er als Nächstes baut?“
+- „Wie wird aus der Höhenkarte in `src/sim/map.js` das 3D-Gelände, das ich im Browser sehe?“
+- „Ich möchte ein neues Gebäude hinzufügen. Welche Dateien muss ich anfassen?“
+- „Wie kann ich zwei Computergegner ohne Grafik gegeneinander spielen lassen, und was bedeutet die Ausgabe?“
+
+Ein Tipp dazu: Lass dir nicht nur Antworten geben, sondern frag nach den Stellen im Code und schau sie dir selbst an.
+Und wenn etwas widersprüchlich klingt, frag nach – auch eine KI liegt manchmal daneben. Genau so ist übrigens dieses
+Spiel entstanden: im Gespräch zwischen einem Menschen und KI-Agenten.
+
 ## So lief ein Meilenstein ab {#process}
 
 1. **Aufgabe beschreiben.** Der Mensch formuliert ein Ziel in ein paar Sätzen („Bauen am Hang wie im Vorbild“,
@@ -117,7 +165,7 @@ Protokolle im Repository: `docs/ASSET-ERKENNTNISSE.md`, `docs/QA-BERICHT.md`, `d
   Spielstände, Fuzz-Tests und Fehlersuche per Zustands-Hash.
 - **Eine CLAUDE.md mit festen Regeln** spart in jeder Sitzung Erklärungen – kurz halten, auf Doku verweisen.
 - **Kleine, parallele Aufgaben** mit eigenem Zweig; vorher den aktuellen Stand von `main` hereinholen. Große Zweige (bei uns die
-  eigene Grafik mit über 2 000 Dateien) brauchen am meisten Abstimmung.
+  eigene Grafik mit über 2 000 Dateien) brauchen am meisten Abstimmung.
 - **Jede sichtbare Änderung mit Bildschirmfotos belegen,** Desktop und Handy – auf Bildern fallen Fehler auf, die
   kein Test bemerkt (abgeschnittene Kopfleiste bei 130 %, Menü im Querformat nicht erreichbar).
 - **Geschmack bleibt beim Menschen:** Figuren, Stimmen und Musik hat der Nutzer abgenommen; KI-Prüfer (Gemini als
