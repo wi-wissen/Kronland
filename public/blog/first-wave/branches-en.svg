@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400" width="900" height="400" role="img"><title>Parallel branches</title><style>
+.bg{fill:#fbf7ef;stroke:#e2d6c0}
+.t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
+.s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
+.h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
+.m{fill:#3a2d1c;font:13px ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace}
+.box{fill:#fff;stroke:#8a7556;stroke-width:1.5}
+.box2{fill:#f3e6cf;stroke:#8a7556;stroke-width:1.5}
+.hl{fill:#fde3c4;stroke:#b5651d;stroke-width:1.8}
+.blue{fill:#d7e6fb;stroke:#2a78d6;stroke-width:1.5}
+.green{fill:#d4efdf;stroke:#2e8b57;stroke-width:1.5}
+.red{fill:#f8d7d3;stroke:#c0392b;stroke-width:1.5}
+.ln{stroke:#6b5a43;stroke-width:1.6;fill:none}
+.lnb{stroke:#2a78d6;stroke-width:2.2;fill:none}
+.lnr{stroke:#c0392b;stroke-width:2.2;fill:none}
+.lno{stroke:#b5651d;stroke-width:2.2;fill:none}
+.lng{stroke:#2e8b57;stroke-width:2.2;fill:none}
+.dash{stroke:#8a7556;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+.grid{stroke:#e2d6c0;stroke-width:1;fill:none}
+.fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
+.ah{fill:#6b5a43}
+@media (prefers-color-scheme: dark){
+.bg{fill:#231c15;stroke:#4a3d2c}
+.t,.h,.m{fill:#f1e8d8}.s{fill:#cbbda4}
+.box{fill:#2f261c;stroke:#a8936f}
+.box2{fill:#3a2f22;stroke:#a8936f}
+.hl{fill:#4a3220;stroke:#e08a43}
+.blue{fill:#1d2f47;stroke:#5a9be8}
+.green{fill:#1d3a2a;stroke:#4cb87c}
+.red{fill:#45201c;stroke:#e06a5c}
+.ln{stroke:#cbbda4}.ah{fill:#cbbda4}
+.lnb{stroke:#5a9be8}.lnr{stroke:#e06a5c}.lno{stroke:#e08a43}.lng{stroke:#4cb87c}
+.dash{stroke:#a8936f}.grid{stroke:#3d3226}
+.fo{fill:#e08a43}.fb{fill:#5a9be8}.fr{fill:#e06a5c}.fg{fill:#4cb87c}.fm{fill:#cbbda4}
+}
+</style><rect x="0.5" y="0.5" width="899" height="399" rx="12" class="bg"/>
+<text x="30" y="38" class="h" text-anchor="start" >4 October: many sessions, one branch each, merged into main one by one</text>
+<line x1="60" y1="330" x2="860" y2="330" class="lno"/>
+<text x="865" y="335" class="m" text-anchor="start" >main</text>
+<circle cx="110" cy="330" r="7" class="hl"/>
+<text x="110" y="360" class="s" text-anchor="middle" >QA</text>
+<path d="M150,330 C150,80 150,80 180,80 L400,80 C430,80 430,80 430,330" class="lnb"/>
+<text x="190" y="72" class="s" text-anchor="start" >Developer mode</text>
+<circle cx="430" cy="330" r="6" class="blue"/>
+<path d="M170,330 C170,118 170,118 200,118 L470,118 C500,118 500,118 500,330" class="lnb"/>
+<text x="210" y="110" class="s" text-anchor="start" >Slopes</text>
+<circle cx="500" cy="330" r="6" class="blue"/>
+<path d="M190,330 C190,156 190,156 220,156 L530,156 C560,156 560,156 560,330" class="lnb"/>
+<text x="230" y="148" class="s" text-anchor="start" >Save slots</text>
+<circle cx="560" cy="330" r="6" class="blue"/>
+<path d="M210,330 C210,194 210,194 240,194 L590,194 C620,194 620,194 620,330" class="lnb"/>
+<text x="250" y="186" class="s" text-anchor="start" >Expansion</text>
+<circle cx="620" cy="330" r="6" class="blue"/>
+<path d="M260,330 C260,232 260,232 290,232 L660,232 C690,232 690,232 690,330" class="lnb"/>
+<text x="300" y="224" class="s" text-anchor="start" >Icon atlas</text>
+<circle cx="690" cy="330" r="6" class="blue"/>
+<path d="M300,330 C300,270 300,270 330,270 L740,270 C770,270 770,270 770,330" class="lnb"/>
+<text x="340" y="262" class="s" text-anchor="start" >Website</text>
+<circle cx="770" cy="330" r="6" class="blue"/>
+<circle cx="380" cy="330" r="8" class="green"/>
+<text x="380" y="360" class="m" text-anchor="middle" >CLAUDE.md</text>
+<text x="470" y="386" class="s" text-anchor="middle" >before each merge: bring in current main, run the tests</text>
+</svg>

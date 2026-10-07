@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 400" width="940" height="400" role="img"><title>Projection behind the camera</title><style>
+.bg{fill:#fbf7ef;stroke:#e2d6c0}
+.t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
+.s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
+.h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
+.m{fill:#3a2d1c;font:13px ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace}
+.box{fill:#fff;stroke:#8a7556;stroke-width:1.5}
+.box2{fill:#f3e6cf;stroke:#8a7556;stroke-width:1.5}
+.hl{fill:#fde3c4;stroke:#b5651d;stroke-width:1.8}
+.blue{fill:#d7e6fb;stroke:#2a78d6;stroke-width:1.5}
+.green{fill:#d4efdf;stroke:#2e8b57;stroke-width:1.5}
+.red{fill:#f8d7d3;stroke:#c0392b;stroke-width:1.5}
+.ln{stroke:#6b5a43;stroke-width:1.6;fill:none}
+.lnb{stroke:#2a78d6;stroke-width:2.2;fill:none}
+.lnr{stroke:#c0392b;stroke-width:2.2;fill:none}
+.lno{stroke:#b5651d;stroke-width:2.2;fill:none}
+.lng{stroke:#2e8b57;stroke-width:2.2;fill:none}
+.dash{stroke:#8a7556;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+.grid{stroke:#e2d6c0;stroke-width:1;fill:none}
+.fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
+.ah{fill:#6b5a43}
+@media (prefers-color-scheme: dark){
+.bg{fill:#231c15;stroke:#4a3d2c}
+.t,.h,.m{fill:#f1e8d8}.s{fill:#cbbda4}
+.box{fill:#2f261c;stroke:#a8936f}
+.box2{fill:#3a2f22;stroke:#a8936f}
+.hl{fill:#4a3220;stroke:#e08a43}
+.blue{fill:#1d2f47;stroke:#5a9be8}
+.green{fill:#1d3a2a;stroke:#4cb87c}
+.red{fill:#45201c;stroke:#e06a5c}
+.ln{stroke:#cbbda4}.ah{fill:#cbbda4}
+.lnb{stroke:#5a9be8}.lnr{stroke:#e06a5c}.lno{stroke:#e08a43}.lng{stroke:#4cb87c}
+.dash{stroke:#a8936f}.grid{stroke:#3d3226}
+.fo{fill:#e08a43}.fb{fill:#5a9be8}.fr{fill:#e06a5c}.fg{fill:#4cb87c}.fm{fill:#cbbda4}
+}
+</style><rect x="0.5" y="0.5" width="939" height="399" rx="12" class="bg"/>
+<text x="30" y="38" class="h" text-anchor="start" >Side view: where does a point behind the camera project to?</text>
+<line x1="470" y1="90" x2="470" y2="330" class="lno"/>
+<text x="478" y="86" class="s" text-anchor="start" >image plane</text>
+<polygon points="360,210 334,194 334,226" class="box2"/>
+<text x="347" y="250" class="s" text-anchor="middle" >camera</text>
+<line x1="360" y1="210" x2="860" y2="60" class="dash"/>
+<line x1="360" y1="210" x2="860" y2="360" class="dash"/>
+<circle cx="760" cy="160" r="8" class="fg"/>
+<text x="772" y="152" class="s" text-anchor="start" >figure in front</text>
+<line x1="760" y1="160" x2="360" y2="210" class="lng"/>
+<circle cx="470" cy="196.2" r="5" class="fg"/>
+<circle cx="260" cy="250" r="8" class="fr"/>
+<text x="248" y="276" class="s" text-anchor="middle" >figure just behind the camera</text>
+<line x1="260" y1="250" x2="470" y2="166.0" class="lnr"/>
+<circle cx="470" cy="166.0" r="5" class="fr"/>
+<text x="480" y="156.0" class="s" text-anchor="start" >mirrored, often far outside</text>
+<text x="30" y="300" class="s" text-anchor="start" ></text>
+<text x="30" y="300" class="s" text-anchor="start" ></text>
+<text x="30" y="300" class="s" text-anchor="start" ></text>
+<text x="30" y="300" class="s" text-anchor="start" ></text>
+<text x="30" y="300" class="s" text-anchor="start" ></text>
+<text x="30" y="300" class="s" text-anchor="start" ></text>
+<text x="30" y="300" class="s" text-anchor="start" ></text>
+<text x="30" y="300" class="s" text-anchor="start" ></text>
+<text x="30" y="80" class="s" text-anchor="start" >The maths divides by the depth w.</text>
+<text x="30" y="102" class="s" text-anchor="start" >If w &lt; 0 (behind the camera), a number</text>
+<text x="30" y="124" class="s" text-anchor="start" >still comes out – mirrored and huge.</text>
+<text x="30" y="146" class="s" text-anchor="start" >The pick radius grew with it: 80 % of</text>
+<text x="30" y="168" class="s" text-anchor="start" >clicks on grass hit an invisible</text>
+<text x="30" y="190" class="s" text-anchor="start" >figure this way.</text>
+<text x="30" y="330" class="t" text-anchor="start" >Fix: only points with −1 ≤ z ≤ 1</text>
+<text x="30" y="352" class="t" text-anchor="start" >(between near and far plane) count.</text>
+</svg>

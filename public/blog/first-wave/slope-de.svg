@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" width="960" height="470" role="img"><title>Bauplatz einebnen</title><style>
+.bg{fill:#fbf7ef;stroke:#e2d6c0}
+.t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
+.s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
+.h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
+.m{fill:#3a2d1c;font:13px ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace}
+.box{fill:#fff;stroke:#8a7556;stroke-width:1.5}
+.box2{fill:#f3e6cf;stroke:#8a7556;stroke-width:1.5}
+.hl{fill:#fde3c4;stroke:#b5651d;stroke-width:1.8}
+.blue{fill:#d7e6fb;stroke:#2a78d6;stroke-width:1.5}
+.green{fill:#d4efdf;stroke:#2e8b57;stroke-width:1.5}
+.red{fill:#f8d7d3;stroke:#c0392b;stroke-width:1.5}
+.ln{stroke:#6b5a43;stroke-width:1.6;fill:none}
+.lnb{stroke:#2a78d6;stroke-width:2.2;fill:none}
+.lnr{stroke:#c0392b;stroke-width:2.2;fill:none}
+.lno{stroke:#b5651d;stroke-width:2.2;fill:none}
+.lng{stroke:#2e8b57;stroke-width:2.2;fill:none}
+.dash{stroke:#8a7556;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+.grid{stroke:#e2d6c0;stroke-width:1;fill:none}
+.fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
+.ah{fill:#6b5a43}
+@media (prefers-color-scheme: dark){
+.bg{fill:#231c15;stroke:#4a3d2c}
+.t,.h,.m{fill:#f1e8d8}.s{fill:#cbbda4}
+.box{fill:#2f261c;stroke:#a8936f}
+.box2{fill:#3a2f22;stroke:#a8936f}
+.hl{fill:#4a3220;stroke:#e08a43}
+.blue{fill:#1d2f47;stroke:#5a9be8}
+.green{fill:#1d3a2a;stroke:#4cb87c}
+.red{fill:#45201c;stroke:#e06a5c}
+.ln{stroke:#cbbda4}.ah{fill:#cbbda4}
+.lnb{stroke:#5a9be8}.lnr{stroke:#e06a5c}.lno{stroke:#e08a43}.lng{stroke:#4cb87c}
+.dash{stroke:#a8936f}.grid{stroke:#3d3226}
+.fo{fill:#e08a43}.fb{fill:#5a9be8}.fr{fill:#e06a5c}.fg{fill:#4cb87c}.fm{fill:#cbbda4}
+}
+</style><rect x="0.5" y="0.5" width="959" height="469" rx="12" class="bg"/>
+<text x="30" y="38" class="h" text-anchor="start" >Schnitt durch einen Hang: ein 3 Kacheln breites Gebäude</text>
+<line x1="70" y1="400" x2="710" y2="400" class="ln"/>
+<line x1="70" y1="300.0" x2="710" y2="300.0" class="grid"/>
+<text x="64" y="305.0" class="s" text-anchor="end" >100 cm</text>
+<line x1="70" y1="200.0" x2="710" y2="200.0" class="grid"/>
+<text x="64" y="205.0" class="s" text-anchor="end" >200 cm</text>
+<rect x="96" y="260.0" width="108" height="140.0" rx="3" class="box2"/>
+<text x="150.0" y="424" class="s" text-anchor="middle" >Rand</text>
+<text x="150.0" y="250.0" class="m" text-anchor="middle" >140</text>
+<rect x="216" y="220.0" width="108" height="180.0" rx="3" class="hl"/>
+<text x="270.0" y="424" class="s" text-anchor="middle" >Bauplatz</text>
+<text x="270.0" y="210.0" class="m" text-anchor="middle" >180</text>
+<rect x="336" y="220.0" width="108" height="180.0" rx="3" class="hl"/>
+<text x="390.0" y="424" class="s" text-anchor="middle" >Bauplatz</text>
+<text x="390.0" y="210.0" class="m" text-anchor="middle" >180</text>
+<rect x="456" y="220.0" width="108" height="180.0" rx="3" class="hl"/>
+<text x="510.0" y="424" class="s" text-anchor="middle" >Bauplatz</text>
+<text x="510.0" y="210.0" class="m" text-anchor="middle" >180</text>
+<rect x="576" y="180.0" width="108" height="220.0" rx="3" class="box2"/>
+<text x="630.0" y="424" class="s" text-anchor="middle" >Rand</text>
+<text x="630.0" y="170.0" class="m" text-anchor="middle" >220</text>
+<polyline points="150.0,300.0 270.0,260.0 390.0,220.0 510.0,180.0 630.0,140.0" class="lnb"/>
+<circle cx="150.0" cy="300.0" r="4" class="blue"/>
+<circle cx="270.0" cy="260.0" r="4" class="blue"/>
+<circle cx="390.0" cy="220.0" r="4" class="blue"/>
+<circle cx="510.0" cy="180.0" r="4" class="blue"/>
+<circle cx="630.0" cy="140.0" r="4" class="blue"/>
+<line x1="730" y1="90" x2="760" y2="90" class="lnb"/>
+<text x="768" y="95" class="s" text-anchor="start" >vorher</text>
+<rect x="730" y="108" width="30" height="16" rx="3" class="hl"/>
+<text x="768" y="121" class="s" text-anchor="start" >nachher</text>
+<text x="720" y="170" class="t" text-anchor="start" >Zielhöhe = Mittelwert</text>
+<text x="720" y="190" class="t" text-anchor="start" >der 3 Bauplatz-Kacheln:</text>
+<text x="720" y="214" class="m" text-anchor="start" >(140+180+220)/3 = 180</text>
+<text x="720" y="256" class="t" text-anchor="start" >Randkachel geht die</text>
+<text x="720" y="276" class="t" text-anchor="start" >halbe Strecke mit:</text>
+<text x="720" y="300" class="m" text-anchor="start" >100 + (180−100)/2 = 140</text>
+<text x="720" y="324" class="m" text-anchor="start" >260 + (180−260)/2 = 220</text>
+<text x="720" y="362" class="s" text-anchor="start" >Eckkacheln: ein Viertel</text>
+</svg>

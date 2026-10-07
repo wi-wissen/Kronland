@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 430" width="940" height="430" role="img"><title>Gaits</title><style>
+.bg{fill:#fbf7ef;stroke:#e2d6c0}
+.t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
+.s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
+.h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
+.m{fill:#3a2d1c;font:13px ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace}
+.box{fill:#fff;stroke:#8a7556;stroke-width:1.5}
+.box2{fill:#f3e6cf;stroke:#8a7556;stroke-width:1.5}
+.hl{fill:#fde3c4;stroke:#b5651d;stroke-width:1.8}
+.blue{fill:#d7e6fb;stroke:#2a78d6;stroke-width:1.5}
+.green{fill:#d4efdf;stroke:#2e8b57;stroke-width:1.5}
+.red{fill:#f8d7d3;stroke:#c0392b;stroke-width:1.5}
+.ln{stroke:#6b5a43;stroke-width:1.6;fill:none}
+.lnb{stroke:#2a78d6;stroke-width:2.2;fill:none}
+.lnr{stroke:#c0392b;stroke-width:2.2;fill:none}
+.lno{stroke:#b5651d;stroke-width:2.2;fill:none}
+.lng{stroke:#2e8b57;stroke-width:2.2;fill:none}
+.dash{stroke:#8a7556;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+.grid{stroke:#e2d6c0;stroke-width:1;fill:none}
+.fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
+.ah{fill:#6b5a43}
+@media (prefers-color-scheme: dark){
+.bg{fill:#231c15;stroke:#4a3d2c}
+.t,.h,.m{fill:#f1e8d8}.s{fill:#cbbda4}
+.box{fill:#2f261c;stroke:#a8936f}
+.box2{fill:#3a2f22;stroke:#a8936f}
+.hl{fill:#4a3220;stroke:#e08a43}
+.blue{fill:#1d2f47;stroke:#5a9be8}
+.green{fill:#1d3a2a;stroke:#4cb87c}
+.red{fill:#45201c;stroke:#e06a5c}
+.ln{stroke:#cbbda4}.ah{fill:#cbbda4}
+.lnb{stroke:#5a9be8}.lnr{stroke:#e06a5c}.lno{stroke:#e08a43}.lng{stroke:#4cb87c}
+.dash{stroke:#a8936f}.grid{stroke:#3d3226}
+.fo{fill:#e08a43}.fb{fill:#5a9be8}.fr{fill:#e06a5c}.fg{fill:#4cb87c}.fm{fill:#cbbda4}
+}
+</style><rect x="0.5" y="0.5" width="939" height="429" rx="12" class="bg"/>
+<text x="30" y="38" class="h" text-anchor="start" >When each hoof is on the ground (two cycles, values from gait.mjs)</text>
+<text x="30" y="80" class="t" text-anchor="start" >walk: four-beat, 0.75 s per cycle – always 2–3 hooves down</text>
+<text x="158" y="109" class="s" text-anchor="end" >left hind</text>
+<rect x="170" y="94" width="700" height="20" rx="3" class="box"/>
+<rect x="170.0" y="96" width="217.0" height="16" rx="2" class="hl"/>
+<rect x="520.0" y="96" width="217.0" height="16" rx="2" class="hl"/>
+<text x="158" y="135" class="s" text-anchor="end" >left front</text>
+<rect x="170" y="120" width="700" height="20" rx="3" class="box"/>
+<rect x="257.5" y="122" width="217.0" height="16" rx="2" class="hl"/>
+<rect x="607.5" y="122" width="217.0" height="16" rx="2" class="hl"/>
+<text x="158" y="161" class="s" text-anchor="end" >right hind</text>
+<rect x="170" y="146" width="700" height="20" rx="3" class="box"/>
+<rect x="345.0" y="148" width="175.0" height="16" rx="2" class="hl"/>
+<rect x="170.0" y="148" width="42.000000000000036" height="16" rx="2" class="hl"/>
+<rect x="695.0" y="148" width="175.0" height="16" rx="2" class="hl"/>
+<rect x="520.0" y="148" width="42.000000000000036" height="16" rx="2" class="hl"/>
+<text x="158" y="187" class="s" text-anchor="end" >right front</text>
+<rect x="170" y="172" width="700" height="20" rx="3" class="box"/>
+<rect x="432.5" y="174" width="87.5" height="16" rx="2" class="hl"/>
+<rect x="170.0" y="174" width="129.50000000000003" height="16" rx="2" class="hl"/>
+<rect x="782.5" y="174" width="87.5" height="16" rx="2" class="hl"/>
+<rect x="520.0" y="174" width="129.50000000000003" height="16" rx="2" class="hl"/>
+<line x1="520.0" y1="90" x2="520.0" y2="198" class="dash"/>
+<text x="30" y="234" class="t" text-anchor="start" >gallop: 0.5 s per cycle – with a suspension phase (no hoof down)</text>
+<text x="158" y="263" class="s" text-anchor="end" >left hind</text>
+<rect x="170" y="248" width="700" height="20" rx="3" class="box"/>
+<rect x="170.0" y="250" width="126.0" height="16" rx="2" class="hl"/>
+<rect x="520.0" y="250" width="126.0" height="16" rx="2" class="hl"/>
+<text x="158" y="289" class="s" text-anchor="end" >left front</text>
+<rect x="170" y="274" width="700" height="20" rx="3" class="box"/>
+<rect x="240.0" y="276" width="126.00000000000001" height="16" rx="2" class="hl"/>
+<rect x="590.0" y="276" width="126.00000000000001" height="16" rx="2" class="hl"/>
+<text x="158" y="315" class="s" text-anchor="end" >right hind</text>
+<rect x="170" y="300" width="700" height="20" rx="3" class="box"/>
+<rect x="226.0" y="302" width="126.0" height="16" rx="2" class="hl"/>
+<rect x="576.0" y="302" width="126.0" height="16" rx="2" class="hl"/>
+<text x="158" y="341" class="s" text-anchor="end" >right front</text>
+<rect x="170" y="326" width="700" height="20" rx="3" class="box"/>
+<rect x="303.0" y="328" width="126.0" height="16" rx="2" class="hl"/>
+<rect x="653.0" y="328" width="126.0" height="16" rx="2" class="hl"/>
+<line x1="520.0" y1="244" x2="520.0" y2="352" class="dash"/>
+<rect x="170" y="372" width="20" height="14" rx="2" class="hl"/>
+<text x="198" y="384" class="s" text-anchor="start" >stance (hoof glides backwards at ground speed)</text>
+</svg>

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 460" width="940" height="460" role="img"><title>Nahtlos machen</title><style>
+.bg{fill:#fbf7ef;stroke:#e2d6c0}
+.t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
+.s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
+.h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
+.m{fill:#3a2d1c;font:13px ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace}
+.box{fill:#fff;stroke:#8a7556;stroke-width:1.5}
+.box2{fill:#f3e6cf;stroke:#8a7556;stroke-width:1.5}
+.hl{fill:#fde3c4;stroke:#b5651d;stroke-width:1.8}
+.blue{fill:#d7e6fb;stroke:#2a78d6;stroke-width:1.5}
+.green{fill:#d4efdf;stroke:#2e8b57;stroke-width:1.5}
+.red{fill:#f8d7d3;stroke:#c0392b;stroke-width:1.5}
+.ln{stroke:#6b5a43;stroke-width:1.6;fill:none}
+.lnb{stroke:#2a78d6;stroke-width:2.2;fill:none}
+.lnr{stroke:#c0392b;stroke-width:2.2;fill:none}
+.lno{stroke:#b5651d;stroke-width:2.2;fill:none}
+.lng{stroke:#2e8b57;stroke-width:2.2;fill:none}
+.dash{stroke:#8a7556;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+.grid{stroke:#e2d6c0;stroke-width:1;fill:none}
+.fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
+.ah{fill:#6b5a43}
+@media (prefers-color-scheme: dark){
+.bg{fill:#231c15;stroke:#4a3d2c}
+.t,.h,.m{fill:#f1e8d8}.s{fill:#cbbda4}
+.box{fill:#2f261c;stroke:#a8936f}
+.box2{fill:#3a2f22;stroke:#a8936f}
+.hl{fill:#4a3220;stroke:#e08a43}
+.blue{fill:#1d2f47;stroke:#5a9be8}
+.green{fill:#1d3a2a;stroke:#4cb87c}
+.red{fill:#45201c;stroke:#e06a5c}
+.ln{stroke:#cbbda4}.ah{fill:#cbbda4}
+.lnb{stroke:#5a9be8}.lnr{stroke:#e06a5c}.lno{stroke:#e08a43}.lng{stroke:#4cb87c}
+.dash{stroke:#a8936f}.grid{stroke:#3d3226}
+.fo{fill:#e08a43}.fb{fill:#5a9be8}.fr{fill:#e06a5c}.fg{fill:#4cb87c}.fm{fill:#cbbda4}
+}
+</style><rect x="0.5" y="0.5" width="939" height="459" rx="12" class="bg"/>
+<text x="30" y="38" class="h" text-anchor="start" >Ein Durchgang (waagrecht): Original und um die halbe Breite verschobene Kopie mischen</text>
+<rect x="60" y="70" width="260.0" height="70" rx="4" class="blue"/>
+<rect x="320.0" y="70" width="260.0" height="70" rx="4" class="green"/>
+<text x="190.0" y="110" class="h" text-anchor="middle" >A</text>
+<text x="450.0" y="110" class="h" text-anchor="middle" >B</text>
+<text x="600" y="100" class="t" text-anchor="start" >Original: Kante links ≠ Kante rechts</text>
+<text x="600" y="120" class="s" text-anchor="start" >→ beim Kacheln sichtbare Naht</text>
+<rect x="60" y="160" width="260.0" height="70" rx="4" class="green"/>
+<rect x="320.0" y="160" width="260.0" height="70" rx="4" class="blue"/>
+<text x="190.0" y="200" class="h" text-anchor="middle" >B</text>
+<text x="450.0" y="200" class="h" text-anchor="middle" >A</text>
+<line x1="320.0" y1="152" x2="320.0" y2="238" class="lnr"/>
+<text x="600" y="190" class="t" text-anchor="start" >Kopie: am Rand durchgehend,</text>
+<text x="600" y="210" class="s" text-anchor="start" >Naht jetzt in der Mitte</text>
+<line x1="60" y1="380" x2="580" y2="380" class="ln"/>
+<line x1="60" y1="270" x2="60" y2="380" class="ln"/>
+<polyline points="60.0,380.0 65.2,379.3 70.4,377.4 75.6,374.4 80.8,370.4 86.0,365.5 91.2,359.9 96.4,353.7 101.6,346.9 106.8,339.8 112.0,332.5 117.2,325.0 122.4,317.5 127.6,310.2 132.8,303.1 138.0,296.3 143.2,290.1 148.4,284.5 153.6,279.6 158.8,275.6 164.0,272.6 169.2,270.7 174.4,270.0 179.6,270.0 184.8,270.0 190.0,270.0 195.2,270.0 200.4,270.0 205.6,270.0 210.8,270.0 216.0,270.0 221.2,270.0 226.4,270.0 231.6,270.0 236.8,270.0 242.0,270.0 247.2,270.0 252.4,270.0 257.6,270.0 262.8,270.0 268.0,270.0 273.2,270.0 278.4,270.0 283.6,270.0 288.8,270.0 294.0,270.0 299.2,270.0 304.4,270.0 309.6,270.0 314.8,270.0 320.0,270.0 325.2,270.0 330.4,270.0 335.6,270.0 340.8,270.0 346.0,270.0 351.2,270.0 356.4,270.0 361.6,270.0 366.8,270.0 372.0,270.0 377.2,270.0 382.4,270.0 387.6,270.0 392.8,270.0 398.0,270.0 403.2,270.0 408.4,270.0 413.6,270.0 418.8,270.0 424.0,270.0 429.2,270.0 434.4,270.0 439.6,270.0 444.8,270.0 450.0,270.0 455.2,270.0 460.4,270.0 465.6,270.0 470.8,270.7 476.0,272.6 481.2,275.6 486.4,279.6 491.6,284.5 496.8,290.1 502.0,296.3 507.2,303.1 512.4,310.2 517.6,317.5 522.8,325.0 528.0,332.5 533.2,339.8 538.4,346.9 543.6,353.7 548.8,359.9 554.0,365.5 559.2,370.4 564.4,374.4 569.6,377.4 574.8,379.3 580.0,380.0" class="lno"/>
+<text x="52" y="276" class="s" text-anchor="end" >1</text>
+<text x="52" y="384" class="s" text-anchor="end" >0</text>
+<text x="320.0" y="404" class="s" text-anchor="middle" >Gewicht des Originals über die Breite (Rand: 22 % Übergang)</text>
+<text x="600" y="300" class="t" text-anchor="start" >Rand: nur die Kopie</text>
+<text x="600" y="325" class="t" text-anchor="start" >Mitte: nur das Original</text>
+<text x="600" y="350" class="t" text-anchor="start" >dazwischen weich gemischt,</text>
+<text x="600" y="370" class="s" text-anchor="start" >das hellere Pixel setzt sich durch</text>
+<text x="600" y="410" class="t" text-anchor="start" >Danach dasselbe senkrecht.</text>
+</svg>
