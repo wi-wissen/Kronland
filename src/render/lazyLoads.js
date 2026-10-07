@@ -30,18 +30,21 @@ export async function inCache(url) {
 }
 
 /**
- * Wait for the on-demand loads the first frames triggered – only if all their files are cached, at most `maxMs`.
+ * Wait for the on-demand loads the first frames triggered – only if all their files are cached, at most `maxMs`
+ * after the first two frames.
  * Several rounds: a finished load can trigger the next one (building: far levels first, then the original).
  * @param {{ maxMs?: number, frame?: () => Promise<void>, isCached?: (url: string) => Promise<boolean>, now?: () => number }} [opts]
  * @returns {Promise<'none'|'cold'|'done'|'timeout'>} none: nothing to load; cold: not (all) cached, no wait
  */
 export async function settleLazyLoads({ maxMs = 3000, frame = nextFrame, isCached = inCache, now = () => performance.now() } = {}) {
-  const end = now() + maxMs;
+  let end = 0;
   let result = 'none';
   for (let round = 0; round < 6; round++) {
     // let the renderer draw (and request what it misses)
     await frame();
     await frame();
+    // the first frames would be drawn anyway (slow under software rendering): the time limit starts after them
+    end ||= now() + maxMs;
     const list = pendingLoads();
     if (!list.length) return result;
     const urls = [...new Set(list.flatMap((j) => j.urls))];
