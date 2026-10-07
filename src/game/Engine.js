@@ -24,6 +24,7 @@ import { get as setting, applyPlayerColor } from '../ui/settings.js';
 import { Input } from './Input.js';
 import { ControlGroups } from './groups.js';
 import { visibleSameType } from './sameType.js';
+import { dragRect, unitsInBox } from './boxSelect.js';
 import { COMBAT } from '../sim/data/combat.js';
 import { buildingSystemsUi } from './buildingUi.js';
 import { relationOf, showsInterior } from './relation.js';
@@ -584,15 +585,14 @@ export class Engine {
 
   selectBox(x1, y1, x2, y2, additive = false) {
     if (!additive) this.selected.clear();
-    const [l, r] = [Math.min(x1, x2), Math.max(x1, x2)], [t, b] = [Math.min(y1, y2), Math.max(y1, y2)];
-    for (const e of this.sim.entities.values()) {
-      if (!(e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero') || e.owner !== this.player) continue;
-      // drawn position (with rendering offset), otherwise that of the simulation
-      const rec = this.renderer.chars?.records.get(e.id);
+    const r = this.renderer;
+    // drawn position (with rendering offset), otherwise that of the simulation
+    const ids = unitsInBox(this.sim.entities.values(), this.player, (e) => {
+      const rec = r.chars?.records.get(e.id);
       const x = rec ? rec.position.x : e.px / UNIT, z = rec ? rec.position.z : e.py / UNIT;
-      const s = this.renderer.project(x, this.renderer.terrain.heightAt(x, z) + 0.3, z);
-      if (!s.behind && s.x >= l && s.x <= r && s.y >= t && s.y <= b) this.selected.add(e.id);
-    }
+      return r.project(x, r.terrain.heightAt(x, z) + 0.3, z);
+    }, dragRect(x1, y1, x2, y2));
+    for (const id of ids) this.selected.add(id);
     this.emitUi();
   }
 

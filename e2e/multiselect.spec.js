@@ -42,10 +42,25 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
 
   // Box over all three
   const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
-  await page.mouse.move(Math.min(...xs) - 40, Math.min(...ys) - 40);
+  const x0 = Math.min(...xs) - 40, y0 = Math.min(...ys) - 40, x1 = Math.max(...xs) + 40, y1 = Math.max(...ys) + 40;
+  const box = page.locator('.selbox');
+  await expect(box).toHaveCount(1); // stays in the page (own layer), only shown while dragging
+  await expect(box).toBeHidden();
+  await page.mouse.move(x0, y0);
   await page.mouse.down();
-  await page.mouse.move(Math.max(...xs) + 40, Math.max(...ys) + 40, { steps: 6 });
+  // The box follows the pointer from the first moves on (after the drag threshold of 8 px)
+  for (const [dx, dy] of [[12, 9], [30, 20]]) {
+    await page.mouse.move(x0 + dx, y0 + dy);
+    await expect(box).toBeVisible();
+    const bb = await box.boundingBox();
+    expect(Math.abs(bb.x - x0)).toBeLessThan(2);
+    expect(Math.abs(bb.y - y0)).toBeLessThan(2);
+    expect(Math.abs(bb.width - dx)).toBeLessThan(2);
+    expect(Math.abs(bb.height - dy)).toBeLessThan(2);
+  }
+  await page.mouse.move(x1, y1, { steps: 6 });
   await page.mouse.up();
+  await expect(box).toBeHidden();
   await expect.poll(selected).toEqual([...ids].sort((a, b) => a - b));
 
   // Click: only one; Ctrl click adds, Shift click adds, Ctrl click again removes

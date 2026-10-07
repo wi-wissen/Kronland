@@ -16,6 +16,7 @@
 import { get as setting } from '../ui/settings.js';
 import { pinchMode, twistUnlocked, wrapAngle } from './gestures.js';
 import { isDoubleClick } from './sameType.js';
+import { dragRect } from './boxSelect.js';
 
 const DRAG_PX = 8;
 /** Width of the edge strip (px) in which the mouse pushes the camera */
@@ -30,9 +31,12 @@ export class Input {
     /** @type {Map<number, {x:number,y:number,sx:number,sy:number,button:number,type:string}>} */
     this.pointers = new Map();
     this.gesture = null;
+    // Selection box: one element that stays in the page with its own compositor layer (style.css .selbox);
+    // dragging only moves it (transform) and resizes it, showing and hiding toggles a class – no element or
+    // layer is created or removed at the start of a drag.
     this.box = document.createElement('div');
     this.box.className = 'selbox';
-    this.box.hidden = true;
+    this.box.setAttribute('aria-hidden', 'true');
     canvas.parentElement.appendChild(this.box);
 
     this.on(canvas, 'pointerdown', this.down);
@@ -185,9 +189,7 @@ export class Input {
     else if (p.button === 1 && this.gesture?.kind === 'pan') this.panTo(p.x, p.y);
     else if (p.button === 0 && moved && !this.engine.placing) {
       this.gesture = { kind: 'box' };
-      const x = Math.min(p.sx, p.x), y = Math.min(p.sy, p.y);
-      Object.assign(this.box.style, { left: x + 'px', top: y + 'px', width: Math.abs(p.x - p.sx) + 'px', height: Math.abs(p.y - p.sy) + 'px' });
-      this.box.hidden = false;
+      this.showBox(dragRect(p.sx, p.sy, p.x, p.y));
     }
     this.engine.hover(e.clientX, e.clientY);
   }
@@ -216,7 +218,7 @@ export class Input {
       // Shift, Ctrl or Cmd add to the selection (click toggles a figure)
       const add = e.shiftKey || e.ctrlKey || e.metaKey;
       if (this.gesture?.kind === 'box') {
-        this.box.hidden = true;
+        this.hideBox();
         this.engine.selectBox(p.sx, p.sy, e.clientX, e.clientY, add);
       } else if (!moved) {
         if (this.engine.placing) this.engine.confirmPlacement(e.shiftKey);
@@ -230,6 +232,21 @@ export class Input {
       else this.engine.commandAt(e.clientX, e.clientY, e.ctrlKey);
     }
     this.gesture = null;
+  }
+
+  /** Draw the selection box over the rectangle (screen coordinates). */
+  showBox(r) {
+    const s = this.box.style;
+    s.transform = `translate(${r.left}px, ${r.top}px)`;
+    s.width = r.width + 'px';
+    s.height = r.height + 'px';
+    if (!this.boxOn) { this.boxOn = true; this.box.classList.add('on'); }
+  }
+
+  hideBox() {
+    if (!this.boxOn) return;
+    this.boxOn = false;
+    this.box.classList.remove('on');
   }
 
   /** Remember click or tap; true if it is the second one of a double click. */
