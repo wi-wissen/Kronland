@@ -199,6 +199,8 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
   Missionsergebnis, Rückfragen) hängen per `<Teleport to="body">` direkt an `<body>`. Im Startmenü würde
   `.backdrop > *` sie sonst als Inhalt unter das Menü setzen, im Spiel sperrt `.game.split` (`contain: layout`) sie
   auf die Spielfläche neben dem Code-Fenster ein. `e2e/modals.spec.js` prüft, dass sie den Bildschirm bedecken.
+  HUD-Teile (`position: fixed` in `.game`) bemessen Breiten deshalb in `%` der Spielfläche statt `vw`. Die Ziele-Ansicht
+  auf dem Handy liegt wie `.scrim` auf Ebene 30, also über dem Laufstreifen des Code-Fensters (29).
 - Meldungen: `engine.toast(key, params, { icon, tone, pos, ttl, cat })`; mit `pos` springt ein Klick dorthin, das ×
   schließt (`dismissToast`). Logik rein in `src/game/notices.js` (Test `tests/game/notices.test.js`):
   - **Kategorien** mit Vorrang und Grenze (`CATEGORIES`, Zuordnung je Schlüssel `categoryOf`, `err.*` = feedback):

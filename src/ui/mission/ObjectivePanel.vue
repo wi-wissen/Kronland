@@ -128,7 +128,8 @@ export default {
 @keyframes op-fresh { 50% { box-shadow: var(--panel-edge), 0 0 0 2px var(--gold-300), 0 0 16px rgba(243, 200, 94, 0.75); } }
 /* Phone: goals full-screen */
 .op-scrim {
-  position: fixed; inset: 0; z-index: 27; display: flex; justify-content: center; background: rgba(10, 6, 3, 0.6);
+  /* like .scrim (30): above the run strip of the code panel (.sp-watch, 29) */
+  position: fixed; inset: 0; z-index: 30; display: flex; justify-content: center; background: rgba(10, 6, 3, 0.6);
   padding: max(0.5rem, var(--safe-t)) max(0.5rem, var(--safe-r)) max(0.5rem, var(--safe-b)) max(0.5rem, var(--safe-l));
 }
 .op-sheet { width: 100%; max-width: 40rem; height: 100%; display: flex; flex-direction: column; padding: 0; overflow: hidden; }

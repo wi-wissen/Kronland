@@ -66,11 +66,12 @@ export default {
 </script>
 
 <style>
-/* Notices top right under the coin buttons; new ones appended at the bottom, older ones slide away upward */
+/* Notices top right under the coin buttons; new ones appended at the bottom, older ones slide away upward.
+   Widths in % of the game area (split screen: .game.split is the containing block), not 100vw */
 .toasts {
   position: fixed; z-index: 6; pointer-events: none;
   right: calc(var(--hud-gap) * 2 + var(--safe-r)); top: calc(var(--top-total, 4rem) + var(--hud-gap));
-  width: min(19rem, calc(100vw - 1rem)); display: flex; flex-direction: column; gap: 0.3125rem; align-items: flex-end;
+  width: min(19rem, calc(100% - 1rem)); display: flex; flex-direction: column; gap: 0.3125rem; align-items: flex-end;
 }
 .toast {
   pointer-events: auto; display: flex; align-items: stretch; max-width: 100%; min-height: 2.5rem;
@@ -109,13 +110,13 @@ button.toast-main:hover { filter: brightness(1.15); }
 .toast-enter-from { opacity: 0; transform: translateX(16px); }
 .toast-leave-to { opacity: 0; }
 /* Phone: right-aligned, the goals button of the missions stays free on the left */
-.compact .toasts { right: calc(var(--hud-gap) + var(--safe-r)); width: min(22rem, calc(100vw - 10.5rem)); }
+.compact .toasts { right: calc(var(--hud-gap) + var(--safe-r)); width: min(22rem, calc(100% - 10.5rem)); }
 @media (max-width: 760px), (max-height: 480px) and (orientation: landscape) {
   .toast { min-height: var(--touch); }
   .toast-close { width: 2.25rem; }
 }
 /* Landscape phone: heroes and map button are on the right, therefore centred */
 @media (max-height: 480px) and (orientation: landscape) {
-  .compact .toasts { right: auto; left: 50%; transform: translateX(-50%); align-items: center; width: min(22rem, calc(100vw - 20rem)); }
+  .compact .toasts { right: auto; left: 50%; transform: translateX(-50%); align-items: center; width: min(22rem, calc(100% - 20rem)); }
 }
 </style>
