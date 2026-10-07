@@ -125,7 +125,7 @@ export default {
       at: 'town', owner: 'eisenhain', look: 'worker.miner', hero: 'nelia', speaker: 'miner',
       wrongHero: t('Die Prinzessin soll selbst kommen.', 'The princess should come herself.'),
       onTalk: [
-        say('miner', 'Das ist es, was Malvor wollte. Wir haben es im tiefsten Stollen versteckt. Es gehört zu euch.', 'This is what Malvor wanted. We hid it in the deepest gallery. It belongs with you.'),
+        say('miner', 'Das ist es, was Malvor wollte. Ganz unten im Berg lag es versteckt. Nehmt es, es gehört zu euch.', 'This is what Malvor wanted. It lay hidden deep down in the mountain. Take it, it belongs with you.'),
         say('nelia', 'Die dritte Zacke … Danke. Wir hätten euch auch ohne sie geholfen.', 'The third shard … Thank you. We would have helped you without it, too.'),
         { type: 'flag', name: 'shard3' },
       ],
