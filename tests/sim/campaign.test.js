@@ -33,6 +33,23 @@ describe('Campaign: setup and texts', () => {
     }
   });
 
+  it('mission 1: the whole find conversation reaches the UI, also its first sentence (many lines in one tick)', () => {
+    const sim = createMissionSim('c1');
+    sim.mission.runActions(sim, sim.mission.def.objectives.find((o) => o.id === 'root').onDone);
+    const texts = sim.mission.uiState(sim).messages.map((m) => m.text.de);
+    const find = texts.findIndex((x) => x.startsWith('Unter der Wurzel'));
+    expect(find).toBeGreaterThanOrEqual(0);
+    expect(texts.length - find).toBeGreaterThan(8); // more than the old limit of 8 messages
+    expect(texts[find + 1]).toMatch(/^Bei allen Märkten/);
+  });
+
+  it('the guard at the weatherworks speaks with the collector\'s voice and portrait', async () => {
+    const { speakerVoice } = await import('../../src/audio/voiceLines.js');
+    const { speakerPortrait } = await import('../../src/ui/icons/index.js');
+    expect(speakerVoice('guard')).toBe('collector');
+    expect(speakerPortrait('guard')).toBe('portraits/sp-collector.webp');
+  });
+
   it('mission 2: the debrief follows the path taken (bought or stormed)', () => {
     const debrief = (flag) => {
       const sim = createMissionSim('c2');

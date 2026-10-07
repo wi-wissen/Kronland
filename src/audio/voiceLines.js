@@ -5,7 +5,7 @@
 import { siteUrl } from '../paths.js';
 
 /** Speakers of the missions without their own voice */
-export const SPEAKER_VOICE = { kunz: 'bandit' };
+export const SPEAKER_VOICE = { kunz: 'bandit', guard: 'collector' };
 
 /** Voice of a mission speaker. */
 export const speakerVoice = (speaker) => SPEAKER_VOICE[speaker] ?? speaker;

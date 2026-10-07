@@ -42,8 +42,8 @@ export default {
   ),
   victoryText: t('Das Wetterwerk ist zerstört. Über den Bergen reißt der Himmel auf.', 'The weatherworks is destroyed. Above the mountains, the sky breaks open.'),
   debrief: t(
-    'Zum ersten Mal seit Jahren tropft es von den Dächern. Der Frühling kommt. In Nelias Tasche knistern die Bruchstücke von Hrimgars Bauplänen. Von den Wachen am Wetterwerk wissen sie jetzt auch: Malvor trägt selbst eine Zacke, an einer Kette um den Hals. In Hagenfurt erfährt Malvor, wer ihm den Winter genommen hat.',
-    'For the first time in years, water drips from the roofs. Spring is coming. In Nelia’s bag rustle the fragments of Hrimgar’s plans. From the guards at the weatherworks they now know something else: Malvor wears a shard himself, on a chain around his neck. In Hagenfurt, Malvor learns who took his winter.',
+    'Zum ersten Mal seit Jahren tropft es von den Dächern. Der Frühling kommt. In Nelias Tasche knistern die Bruchstücke von Hrimgars Bauplänen. Ein gefangener Wächter verrät noch etwas: Malvor trägt selbst eine Zacke, an einer Kette um den Hals. In Hagenfurt erfährt Malvor, wer ihm den Winter genommen hat.',
+    'For the first time in years, water drips from the roofs. Spring is coming. In Nelia’s bag rustle the fragments of Hrimgar’s plans. A captured guard gives away one more thing: Malvor wears a shard himself, on a chain around his neck. In Hagenfurt, Malvor learns who took his winter.',
   ),
   defeatText: t('Die Gruppe ist gescheitert.', 'The group has failed.'),
   defeatTexts: {
@@ -160,7 +160,7 @@ export default {
       say('nelia', 'Da ist es, mitten im See. Das Eis trägt uns hin – Hrimgars Winter bringt uns zu seinem eigenen Werk.', 'There it is, in the middle of the lake. The ice will carry us – Hrimgar’s winter brings us to his own works.'),
     ] },
     { id: 'alarm', when: { type: 'area', area: 'isle', who: 'army' }, do: [
-      say('collector', 'Alarm! Eindringlinge am Werk! Wache vom Tor, zum See!', 'Alarm! Intruders at the works! Gate guard, to the lake!'),
+      say('guard', 'Alarm! Eindringlinge am Werk! Wache vom Tor, zum See!', 'Alarm! Intruders at the works! Gate guard, to the lake!'),
       { type: 'spawn', owner: 'bandits', at: 'gateCampArea', units: [{ def: 'sword1', count: 2, soldiers: 4 }, { def: 'bow1', count: 1, soldiers: 3 }], order: 'attackMove', target: 'isle' },
     ] },
     { id: 'worksDown', when: { type: 'objective', id: 'works' }, do: [
@@ -168,7 +168,7 @@ export default {
       say('orrin', `Runter vom See! In einer Minute ist das hier Wasser!`, 'Off the lake! In a minute this will all be water!'),
     ] },
     { id: 'cutOff', when: { type: 'delay', after: 'worksDown', seconds: 5 }, do: [
-      say('collector', 'Das Werk brennt! Fangt sie am Ufer ab, bevor sie entkommen!', 'The works is burning! Catch them at the shore before they escape!'),
+      say('guard', 'Das Werk brennt! Fangt sie am Ufer ab, bevor sie entkommen!', 'The works is burning! Catch them at the shore before they escape!'),
       { type: 'spawn', owner: 'bandits', at: 'gateCampArea', units: [{ def: 'spear1', count: 2, soldiers: 3 }], order: 'attackMove', target: 'landing' },
     ] },
     { id: 'thawSoon', when: { type: 'delay', after: 'worksDown', seconds: THAW_AFTER - 15 }, do: [

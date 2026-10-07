@@ -11,6 +11,7 @@ export const SPEAKERS = {
   elder: { name: { de: 'Dorfälteste', en: 'Village Elder' }, color: '#6faa6a', initial: 'D' },
   villager: { name: { de: 'Dorfbewohnerin', en: 'Villager' }, color: '#a8925a', initial: 'D' },
   collector: { name: { de: 'Eintreiber', en: 'Tax Collector' }, color: '#b8433f', initial: 'E' },
+  guard: { name: { de: 'Wache', en: 'Guard' }, color: '#b8433f', initial: 'W' },
   merchant: { name: { de: 'Kaufmann', en: 'Merchant' }, color: '#5b86c4', initial: 'K' },
   bandit: { name: { de: 'Räuberhauptmann', en: 'Bandit Captain' }, color: '#b8433f', initial: 'R' },
   prisoner: { name: { de: 'Gefangener', en: 'Prisoner' }, color: '#8a7a66', initial: 'G' },

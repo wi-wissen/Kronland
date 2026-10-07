@@ -899,7 +899,8 @@ export class MissionRuntime {
     }
     return {
       id: st.id, title: def.title, objectives, tutorial, kind: def.kind ?? 'mission',
-      messages: st.messages.slice(-8),
+      // all kept messages (at most MAX_MESSAGES): a conversation of many lines in one tick must not lose its start
+      messages: st.messages,
       tributes: Object.entries(st.tributes ?? {}).filter(([, v]) => v === 'open').map(([id]) => {
         const d = this.def.tributes[id];
         return { id, text: d.text, cost: d.cost, affordable: sim.canPay(st.human, d.cost) };
