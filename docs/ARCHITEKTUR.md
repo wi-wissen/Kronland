@@ -29,7 +29,7 @@ src/
               ui/mission/ für Kampagne und Tutorial, ui/saves/ Spielstandliste und Bestätigungsdialog,
               ui/script/ Code-Panel (geteilter Bildschirm/Handy-Blatt, splitLayout.js) und Debugger, ui/editor/ Welteneditor (mit game/EditorView.js)
 tests/        Vitest (Simulation, KI, Website)
-e2e/          Playwright (Desktop und Handy-Viewport); Adresse des Spiels zentral in e2e/paths.js
+e2e/          Playwright (Desktop und Handy-Viewport, Gruppen und CI-Shards: docs/TESTS.md); Adresse des Spiels zentral in e2e/paths.js
 docs/         Spielregeln und Architektur
 ```
 
@@ -420,6 +420,16 @@ Prüfung im Editor, ohne Build-Schritt.
 | Menü | Esc | Knopf |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
 
+**Auswahlrahmen** (`src/game/boxSelect.js`, `Input.showBox`): Ab 8 px Zug erscheint der Rahmen. Er ist ein einziges
+Element mit eigener Compositor-Ebene (`will-change: transform`), das dauerhaft in der Seite bleibt; Ziehen verschiebt es
+per `transform` und ändert nur die Größe, Ein-/Ausblenden schaltet eine Klasse. Während des Ziehens wird nichts
+gerechnet – welche eigenen Figuren drin liegen (`unitsInBox`, projiziert nur Leibeigene, Hauptleute und Helden), ermittelt
+`Engine.selectBox` erst beim Loslassen. Ein Zug pro Mausbewegung kostet so unter 1 ms.
+Die Karte bricht den `mousedown` der linken (und mittleren) Taste ab: Firefox verfolgt sonst bei jedem Linksklick eine
+eigene Drag-and-Drop-/Markier-Geste (bis zur Zugschwelle mit erzwungenem Layout je Mausbewegung) und wertet sie nach
+wenigen Pixeln aus – genau dann, wenn der Rahmen startet. Weil damit auch der Fokuswechsel entfällt, gibt `releaseFocus`
+den Fokus aus Eingabefeldern (Code-Editor) selbst ab, damit die Tastenkürzel nach einem Klick auf die Karte wieder greifen.
+
 **Doppelklick/Doppeltippen** (bewusste Abweichung vom Vorbild, übliche RTS-Steuerung): Zwei Klicks bzw.
 Tipper binnen 400 ms und 24 px auf eine eigene Figur wählen alle eigenen Figuren derselben Art, deren Fußpunkt
 im sichtbaren Kartenausschnitt liegt (Bild ohne die von Leisten verdeckten Ränder oben/unten). Gleiche Art:
@@ -446,4 +456,6 @@ mit. Mausrad und Zwei-Finger-Zoom fahren entlang des Strahls durch Zeiger bzw. F
 (wie `OrbitControls.zoomToCursor`). Zwei Finger legen die Geste einmal fest: Neigen nur, wenn beide Finger
 parallel senkrecht gleiten; sonst Zoomen und Verschieben, Drehen erst ab 25 px Drehweg (wie MapLibre), damit
 ein Zoom nicht nebenbei dreht. Randscrollen läuft sanft an und endet, sobald die Maus das Fenster verlässt
-(auch nach oben in die Browserleiste).
+(auch nach oben in die Browserleiste). Es wirkt nur im Spielbereich und nie mit gedrückter Taste; ein Druck
+außerhalb des Spielbereichs (z. B. Trennlinie des Programmfensters) sperrt es, und kommt der Zeiger von dort
+direkt in den Randstreifen, scrollt es erst, nachdem er einmal auf der Karte war (`src/game/edgeScroll.js`).

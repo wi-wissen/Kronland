@@ -7,7 +7,17 @@ import { readFileSync } from 'node:fs';
 
 test.describe.configure({ timeout: 600_000 });
 
-async function boot(page, url = '/?seed=42&no-models') {
+/**
+ * Start a game. Autosave off unless a test checks it: the first autosave comes 30 game seconds after the start and
+ * would otherwise appear as an extra entry in the lists (game time runs in real time even with slow frames).
+ */
+async function boot(page, url = '/?seed=42&no-models', { autosave = false } = {}) {
+  if (!autosave) {
+    await page.addInitScript(() => {
+      const s = JSON.parse(localStorage.getItem('kronland-settings') || '{}');
+      localStorage.setItem('kronland-settings', JSON.stringify({ ...s, autosave: false }));
+    });
+  }
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'warning' && /Spielstände|[Ss]ave/.test(m.text())) console.log('[Browser]', m.text()); });
@@ -128,7 +138,7 @@ test('export (download) and import again', async ({ page }) => {
 });
 
 test('Start menu: continue (autosave on leaving) and error messages on import', async ({ page }) => {
-  const errors = await boot(page);
+  const errors = await boot(page, undefined, { autosave: true });
   await setGold(page, 999);
   // Leaving saves automatically
   await quitToMenu(page);

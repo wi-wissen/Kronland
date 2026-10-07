@@ -40,8 +40,8 @@ tests compare this.
 
 Tapping a **line number** sets a [breakpoint](https://en.wikipedia.org/wiki/Breakpoint). When the program halts, the
 line turns green and you see global, passed and local variables and the call stack – a small
-[debugger](https://en.wikipedia.org/wiki/Debugger). The **Commands** tab lists all commands briefly; every entry links
-to the detailed explanation here. The **# Grid** button shows the tiles so you can count steps. Your code is
+[debugger](https://en.wikipedia.org/wiki/Debugger). Hovering over a command (on a phone: long press) shows a card
+explaining it; the **Reference** button opens this page. The **# Grid** button shows the tiles so you can count steps. Your code is
 remembered in the browser. More about the controls in the [manual](manual/#coding).
 
 In the **world editor** (Coding adventures → World editor) the **Code** tab holds all sections of a scenario:

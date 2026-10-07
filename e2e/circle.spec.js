@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { playUrl } from './paths.js';
+import { playUrl, SHOT_QUALITY } from './paths.js';
 
 // Ring slots: resting workers at the campfire, waiting workers in front of a building and woodcutters at a tree stand on
 // exact points of a circle around their target and look at it. The simulation is fast-forwarded
@@ -15,7 +15,7 @@ async function boot(page, info) {
   if (info.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 900 });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(playUrl('?seed=42&quality=high&fog=off'));
+  await page.goto(playUrl(`?seed=42&quality=${SHOT_QUALITY}&fog=off`));
   await page.waitForFunction(() => !!window.__kronland?.renderer?.chars, null, { timeout: 120_000 });
   return errors;
 }

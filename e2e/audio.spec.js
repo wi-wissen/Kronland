@@ -14,6 +14,8 @@ test('Sound unlocks on first click, menu music and settings', async ({ page }) =
   expect(await page.evaluate(() => window.__kronlandAudio.ctx)).toBeNull();
   await page.mouse.click(5, 5);
   await page.waitForFunction(() => window.__kronlandAudio.ctx?.state === 'running');
+  // the music starts right after the click, outside of the input event (AudioEngine.unlock → afterGesture)
+  await page.waitForFunction(() => !!window.__kronlandAudio.music.track);
   const music = await page.evaluate(() => ({ want: window.__kronlandAudio.music.want, track: window.__kronlandAudio.music.track?.theme }));
   expect(music).toEqual({ want: 'menu', track: 'menu' });
 

@@ -10,7 +10,7 @@ das Spiel statt der Synthese. Fehlt eine Datei oder lässt sie sich nicht dekodi
 
 | Datei | Aufgabe |
 |---|---|
-| `AudioEngine.js` | Gemeinsamer `AudioContext` (erst beim ersten Klick/Tippen/Tastendruck, iOS-Freischaltung), Busse, Lautstärken, Pause bei verborgenem Tab, Manifest und Dateien laden, `play()` |
+| `AudioEngine.js` | Gemeinsamer `AudioContext` (erst beim ersten Klick/Tippen/Tastendruck, iOS-Freischaltung; Musik und Umgebung starten danach außerhalb des Eingabe-Ereignisses, `afterGesture`, damit der erste Klick oder Auswahlrahmen nicht hängt), Busse, Lautstärken, Pause bei verborgenem Tab, Manifest und Dateien laden, `play()` |
 | `GameAudio.js` | Brücke zur `Engine`: Simulationsereignisse → Klänge, Arbeitsgeräusche aus dem Zustand, Kamera als Zuhörer, Musikthema, Umgebung |
 | `sfx.js` | Prozedurale Effekte (Liste unten), je mit Länge, Stimmenregel und Bus |
 | `synth.js` | Bausteine: Rauschen, Hüllkurven, Glocken, Karplus-Strong-Saiten, Hall, Musikinstrumente |
