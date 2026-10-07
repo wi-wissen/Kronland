@@ -100,7 +100,7 @@
       </template>
     </div>
 
-    <section v-if="open" ref="panel" class="context frame" :class="{ wide: sel?.kind === 'building' && sel.own && !compact && !mid, tall: (sel?.kind === 'serfs' || sel?.kind === 'building') && !compact }" data-testid="context-panel" :aria-label="panelTitle">
+    <section v-if="open" ref="panel" class="context frame" :class="{ wide: sel?.kind === 'building' && sel.own && !compact && !mid, tall: (sel?.kind === 'serfs' || sel?.kind === 'building') && !compact }" data-testid="context-panel" :aria-label="panelLabel">
       <!-- Info strip of the hovered / long-pressed building tile, attached to the top edge of the panel -->
       <BuildInfo v-if="infoOpt" ref="info" :opt="infoOpt" :have="ui.res" :notch="info.x" />
       <header class="cx-head">
@@ -242,12 +242,16 @@ export default {
       if (s.kind === 'foreign' && s.entity === 'ruin') return this.$t('sys.ruin');
       return foreignName(s, this.$t, this.$name);
     },
+    /** Accessible name of the panel: for serfs who is selected (the visible title may say "Bauen") */
+    panelLabel() {
+      return this.sel?.kind === 'serfs' && !this.ui.placing ? serfsTitle(this.sel, this.$t) : this.panelTitle;
+    },
     headSub() {
       const s = this.sel;
       if (this.ui.placing || !s) return '';
       if (s.kind === 'building') return this.$t('common.levelOf', { n: s.level, max: s.maxLevel });
-      // Phone build view: back button, title, collapse and close leave no room for the counts
-      if (s.kind === 'serfs' && settings.serfBuildView && this.compact && !this.collapsed) return '';
+      // Phone build view: back button, title, collapse and close leave room only for who is selected
+      if (s.kind === 'serfs' && settings.serfBuildView && this.compact) return serfsTitle(s, this.$t);
       if (s.kind === 'serfs') return settings.serfBuildView ? serfsTitle(s, this.$t) + ' · ' + this.$t('serfs.idle', { n: s.idle }) : this.$t('serfs.idle', { n: s.idle });
       if (s.kind === 'army') return s.soldiers ? this.$t('army.soldiers', { n: s.soldiers }) : '';
       return '';
