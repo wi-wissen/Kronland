@@ -49,6 +49,9 @@ async function setup(page, query, at, dist) {
     const r = window.__kronland.renderer.chars.records.get(id);
     return r && Math.hypot(r.position.x - p.x, r.position.z - p.z) < 0.3;
   }, [serf.id, placed], { timeout: 60_000 });
+  // Hold the game: otherwise figures of the crowd walk onto the free spots between finding them and the click
+  // (game time runs in real time even with slow frames)
+  await page.evaluate(() => { const k = window.__kronland; k.paused = true; k.emitUi(); });
   await page.waitForTimeout(300);
   return { errors, serf: serf.id, other: serf.other };
 }
@@ -85,7 +88,7 @@ async function clickEmpty(page, info, { serf, other }, name) {
     if (mobile) await page.touchscreen.tap(p.x, p.y); else await page.mouse.click(p.x, p.y);
     await page.waitForTimeout(450); // no double click with the next one
     const sel = await page.evaluate(() => [...window.__kronland.selected]);
-    expect(sel, `Click on empty ground at ${p.x},${p.y}`).toEqual([]);
+    expect(sel, `Click on empty ground at ${p.x},${p.y} (figure under the camera: ${serf})`).toEqual([]);
   }
   await page.screenshot({ path: `${SHOTS}/picking-${name}-${info.project.name}.png` });
   // A figure in the picture stays selectable where it is drawn

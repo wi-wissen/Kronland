@@ -57,7 +57,8 @@ test('Place a house via the build menu', async ({ page }, info) => {
     await page.mouse.click(pos.x, pos.y);
   }
   await expect(page.getByTestId('res-wood')).toHaveText('1600');
-  const sites = await page.evaluate(() => [...window.__kronland.sim.entities.values()].filter((e) => e.type === 'residence').length);
+  // Only the own residences: the computer opponents build their first residence early as well (game time runs in real time)
+  const sites = await page.evaluate(() => [...window.__kronland.sim.entities.values()].filter((e) => e.type === 'residence' && e.owner === window.__kronland.player).length);
   expect(sites).toBe(1);
 });
 

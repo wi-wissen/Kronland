@@ -6,14 +6,27 @@ import { playUrl } from './paths.js';
 
 const SHOTS = process.env.SHOTS_DIR;
 
-/** Fingerprint of the map: seed, players, heroes, castles, height checksum. */
+/** Fingerprint of the map: seed, players, heroes, castles. */
 const mapPrint = (page) => page.evaluate(() => {
   const s = window.__kronland.sim;
-  let h = 0;
-  for (let i = 0; i < s.map.heights.length; i++) h = (h * 31 + s.map.heights[i]) | 0;
   const hqs = s.players.map((_, i) => { const b = s.findBuilding(i, 'headquarters'); return b ? [b.x, b.y] : null; });
-  return { seed: s.seed, players: s.players.length, heights: h, hqs, fog: s.vision.enabled };
+  return { seed: s.seed, players: s.players.length, hqs, fog: s.vision.enabled };
 });
+
+/** Footprints of all buildings (placing a building levels the ground below it and one tile around it). */
+const sites = (page) => page.evaluate(() => [...window.__kronland.sim.entities.values()].filter((b) => b.kind === 'building').map((b) => [b.x, b.y, b.w, b.h]));
+
+/**
+ * Checksum of the terrain heights without the given building spots: the computer opponents build in real time, so
+ * two games of the same map differ there depending on how long they ran.
+ */
+const heightPrint = (page, rects) => page.evaluate((rects) => {
+  const m = window.__kronland.sim.map;
+  const near = (x, y) => rects.some(([bx, by, w, h]) => x >= bx - 1 && x <= bx + w && y >= by - 1 && y <= by + h);
+  let h = 0;
+  for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) if (!near(x, y)) h = (h * 31 + m.heights[m.idx(x, y)]) | 0;
+  return h;
+}, rects);
 
 const waitGame = (page) => page.waitForFunction(() => !!window.__kronland && window.__kronland.renderer.frameNo > 2, null, { timeout: 90_000 });
 
@@ -68,6 +81,10 @@ test('Free game from the menu: start link in the address, same link = same map',
   await other.goto(shared);
   await waitGame(other);
   expect(await mapPrint(other)).toEqual(first);
+  // Same terrain: both games held (the game menu pauses the first one), building spots of both left out
+  await other.evaluate(() => { window.__kronland.paused = true; });
+  const built = [...(await sites(page)), ...(await sites(other))];
+  expect(await heightPrint(other, built)).toBe(await heightPrint(page, built));
   expect(new URL(other.url()).search).toBe(url.search);
   await other.close();
 

@@ -31,6 +31,30 @@ const CLEAR_FAR = 1.5, CLEAR_NEAR = 0.45;
 const NEAR_FAR = 0.3, NEAR_NEAR = 0.08;
 
 /**
+ * Soft edge around a building for the camera (tiles): grows with the height so that the camera rises steadily, but at
+ * most BUILDING_EDGE_MAX – with an unlimited edge the 11-tile castle tower lifted the camera already 4 tiles in front
+ * of its walls and the close view in front of the castle stayed steep.
+ */
+export const BUILDING_EDGE_MAX = 2.5;
+/** @param {number} h building height (tiles) */
+export const buildingEdge = (h) => Math.min(BUILDING_EDGE_MAX, 0.8 + 0.35 * h);
+
+/**
+ * Top edge of one building at (x, z) for the camera: above the footprint base + height, outside it falls softly
+ * (smoothstep) to nothing at buildingEdge(h).
+ * @param {{x:number, y:number, w:number, h:number}} r footprint (tiles, y = z axis) @param {number} base ground height
+ * @param {number} h building height @param {number} x @param {number} z
+ * @returns {number} −∞ outside the edge
+ */
+export function buildingTop(r, base, h, x, z) {
+  const edge = buildingEdge(h);
+  const dx = Math.max(r.x - x, 0, x - (r.x + r.w)), dz = Math.max(r.y - z, 0, z - (r.y + r.h));
+  if (dx >= edge || dz >= edge) return -Infinity;
+  const s = Math.min(1, Math.hypot(dx, dz) / edge);
+  return base + h * (1 - s * s * (3 - 2 * s));
+}
+
+/**
  * Share of close view 0 (from TILT_START and further) … 1 (MIN_DIST), softly rounded.
  * @param {number} dist
  */

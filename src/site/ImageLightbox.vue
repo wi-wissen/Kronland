@@ -1,5 +1,5 @@
 <template>
-  <dialog ref="box" class="lightbox" data-testid="lightbox" :aria-label="item ? item.caption || item.alt : ''" @click="onClick" @close="index = null" @keydown="onKey" @touchstart.passive="onTouchStart" @touchend="onTouchEnd">
+  <dialog ref="box" class="lightbox" data-testid="lightbox" :aria-label="item ? item.caption || item.alt : ''" @click="onClick" @close="onClose" @keydown="onKey" @touchstart.passive="onTouchStart" @touchend="onTouchEnd">
     <figure v-if="item" class="lb-fig">
       <img :key="item.src" :src="item.src" :alt="item.alt" :class="{ svg: svg }" :style="sizeStyle" data-testid="lightbox-img" @load="onLoad">
       <figcaption v-if="item.caption" data-testid="lightbox-caption">{{ item.caption }}</figcaption>
@@ -101,6 +101,11 @@ export default {
       this.ratio = this.items[i]?.ratio ?? 0;
     },
     close() { this.$refs.box?.close?.(); },
+    /**
+     * The close event arrives as a task after closing: if an image was opened again in the meantime (Escape and at
+     * once Enter on the next image – input runs before queued tasks), it must not clear the new image.
+     */
+    onClose() { if (!this.$refs.box?.open) this.index = null; },
     step(d) { if (this.items.length > 1) this.go(wrapIndex(this.index, d, this.items.length)); },
     onLoad(e) {
       const { naturalWidth: w, naturalHeight: h } = e.target;
