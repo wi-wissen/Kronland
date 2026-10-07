@@ -74,9 +74,9 @@ Zwei Rechtestufen. Die Stufe entscheidet, welche Namen ein Programm überhaupt k
   Simulation.
 - **mission**: alles – Truppen erzeugen, Rohstoffe geben, Dialoge, Kamera, Ziele, Gelände formen.
 
-Die vollständige Liste steht im Spiel unter **Befehle** (Code-Panel, jeder Eintrag verlinkt auf die Website;
-Antippen der Signatur zeigt die Karte mit Parametern und Beispiel, dazu die Python-Funktionen und -Methoden)
-und ausführlich mit Parametern, Rückgabe, Fehlern und Beispielen in der **Programmier-Referenz** (`scripting/`,
+Im Spiel erklärt die Karte beim Überfahren (Handy: langes Drücken) jeden Befehl im Code, der Knopf **Referenz**
+im Code-Panel öffnet die Website; eine eigene Befehlsliste gibt es nur noch im Welteneditor (`ApiHelp.vue`). Die
+vollständige Liste steht ausführlich mit Parametern, Rückgabe, Fehlern und Beispielen in der **Programmier-Referenz** (`scripting/`,
 siehe [WEBSITE.md](WEBSITE.md)); Quelle ist `API_DOC` (`api.js`). Die wichtigsten:
 
 ```python
@@ -221,15 +221,15 @@ Stufe tiefer), Rücktaste löscht eine Einrückstufe. Klick auf eine Zeilennumme
   schmaler: `.game` bekommt rechts die Panelbreite und `contain: layout`, damit Leiste, Minimap und Meldungen
   im Spielbereich bleiben; Canvas, Kamera-Seitenverhältnis und Randscrollen folgen. Die HUD-Stufen
   (`compact`, `mid`, `narrow`) richten sich nach der Breite des Spielbereichs. Werkzeugleiste: Ausführen,
-  Schritt, Über, Heraus, Stopp | Speichern, Öffnen | Raster, **Befehle**; darunter immer der Code (Abschnitte,
-  Fehlerkasten, Variablen) und unten die **Ausgabe** – ohne Reiter. **Befehle** öffnet die Befehlsliste (Suche,
-  Erklärkarten, Beispiele einfügen) als Schublade rechts über dem Code; × oder Esc schließt sie, ein neuer
-  Fehler ebenfalls. Eingeklappte Abschnitte (z. B. „Welt aufbauen“) zeigen links Pfeil und Titel, rechts
+  Schritt, Über, Heraus, Stopp | Speichern, Öffnen | Raster, **Referenz**; darunter immer der Code (Abschnitte,
+  Fehlerkasten, Variablen) und unten die **Ausgabe** – ohne Reiter. **Referenz** (Buch) öffnet die
+  Programmier-Referenz der Website (`scripting/`) in einem neuen Tab; eine Befehlsliste im Panel gibt es nicht
+  (Erklärungen liefern die Karten beim Überfahren und die Referenz). Eingeklappte Abschnitte (z. B. „Welt aufbauen“) zeigen links Pfeil und Titel, rechts
   Zeilenzahl und das Schild „gesperrt“, wenn sie nicht bearbeitbar sind. Einen Status-Text im Kopf gibt es nicht
   – den Zustand zeigen die markierte Zeile und der Knopf Ausführen/Anhalten/Weiter.
 - **Handy (hochkant oder niedrig) – Blatt:** Das Programm füllt den Bildschirm, Reiter **Code**, **Ausgabe**
-  (mit Fehlerzähler) und **Hilfe** (Befehlsliste mit Suche). Unten Ausführen, Schritt, Stopp und „⋯“
-  (Speichern .py, Öffnen, Raster, Vorlage wiederherstellen), darüber beim Tippen die Tastenleiste
+  (mit Fehlerzähler). Unten Ausführen, Schritt, Stopp und „⋯“
+  (Speichern .py, Öffnen, Raster, Vorlage wiederherstellen, Referenz), darüber beim Tippen die Tastenleiste
   (⇥ ⇤ : ( ) " " = == [ ] . _ #). **Ausführen** schaltet auf **Spiel ansehen**: Spiel im Vollbild, unten eine
   Leiste mit der aktuellen Zeile, Anhalten/Weiter, Stopp und „Code“; ist der Held nicht im freien Bildbereich zu
   sehen, rückt ihn die Kamera über die Leiste (`Engine.watchFocus`), sonst bleibt die Ansicht. Bei einem Fehler (oder Haltepunkt) springt

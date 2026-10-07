@@ -1,6 +1,6 @@
 <template>
   <!-- Code panel in the game (coding adventures, test play from the world editor):
-       sections (collapsible, locked or editable), run/debugger, output, variables, help.
+       sections (collapsible, locked or editable), run/debugger, output, variables, link to the scripting reference.
        Layout (splitLayout.js): 'split' – game left, program right with a draggable divider, collapsible to a strip;
        'sheet' – phones: full-screen sheet with tabs, while a program runs the game is shown with a run strip. -->
   <div class="sp-host">
@@ -57,12 +57,12 @@
           <button v-tip="$t('script.openTip')" class="ghost" :disabled="!fileSection" :aria-label="$t('script.open')" data-testid="script-open-file" @click="$refs.file.click()"><Icon name="upload" /><span class="sp-lbl sp-lbl-file">{{ $t('script.open') }}</span></button>
           <span class="sp-grow"></span>
           <button v-tip="$t('script.gridTip')" class="ghost sp-grid" :aria-pressed="grid" :class="{ on: grid }" data-testid="script-grid" @click="toggleGrid"><span class="sp-glyph" aria-hidden="true">#</span><span class="sp-lbl sp-lbl-file">{{ $t('script.grid') }}</span></button>
-          <button v-tip="$t('script.helpTip')" class="sp-helpbtn" :aria-label="$t('script.tab.help')" :aria-expanded="helpOpen" aria-controls="sp-help" :class="{ on: helpOpen }" data-testid="script-help" @click="helpOpen = !helpOpen"><Icon name="scroll" /><span class="sp-lbl">{{ $t('script.tab.help') }}</span></button>
+          <a v-tip="$t('script.referenceTip')" class="sp-ref" :href="refUrl()" target="_blank" rel="noopener" :aria-label="$t('script.referenceTip')" data-testid="script-reference"><Icon name="book" /><span class="sp-lbl">{{ $t('script.reference') }}</span></a>
         </div>
 
         <nav v-if="!split" class="seg sp-tabs" role="tablist">
           <button v-for="t in tabs" :key="t" role="tab" :aria-selected="tab === t" :class="{ active: tab === t }" :data-testid="'script-tab-' + t" @click="tab = t">
-            {{ $t(t === 'help' ? 'script.tab.docs' : 'script.tab.' + t) }}<i v-if="t === 'output' && errCount" class="sp-badge" data-testid="script-err-count">{{ errCount }}</i>
+            {{ $t('script.tab.' + t) }}<i v-if="t === 'output' && errCount" class="sp-badge" data-testid="script-err-count">{{ errCount }}</i>
           </button>
         </nav>
 
@@ -135,22 +135,6 @@
               <p v-else-if="split || !error" class="sp-none">{{ $t('script.noOutput') }}</p>
             </div>
           </div>
-
-          <div v-if="!split && tab === 'help'" class="sp-body scroll-y">
-            <ApiHelp :level="mode === 'editor' ? 'mission' : 'player'" @insert="insertExample" />
-          </div>
-
-          <!-- Split screen: command help as a drawer over the code (toolbar button "Commands"), Escape or × closes it -->
-          <section v-if="split && helpOpen" id="sp-help" class="sp-help" :aria-label="$t('script.tab.help')" data-testid="script-help-panel" @keydown.esc.stop="closeHelp">
-            <header class="sp-help-head">
-              <Icon name="scroll" />
-              <strong>{{ $t('script.tab.help') }}</strong>
-              <button class="icon-btn ghost" :aria-label="$t('common.close')" data-testid="script-help-close" @click="closeHelp"><Icon name="close" /></button>
-            </header>
-            <div class="sp-help-body scroll-y">
-              <ApiHelp :level="mode === 'editor' ? 'mission' : 'player'" @insert="insertExample" />
-            </div>
-          </section>
         </div>
 
         <template v-if="!split">
@@ -171,6 +155,7 @@
               <button role="menuitem" :disabled="!fileSection" data-testid="script-open-file" @click="menu = false; $refs.file.click()"><Icon name="upload" />{{ $t('script.open') }}<small>.py</small></button>
               <button role="menuitemcheckbox" :aria-checked="grid" :class="{ on: grid }" data-testid="script-grid" @click="toggleGrid"><span class="sp-glyph sp-menu-glyph" aria-hidden="true">#</span>{{ $t('script.grid') }}<small>{{ grid ? '✓' : '' }}</small></button>
               <button role="menuitem" data-testid="script-reset" @click="menu = false; resetCode()"><Icon name="back" />{{ $t('script.reset') }}</button>
+              <a role="menuitem" :href="refUrl()" target="_blank" rel="noopener" data-testid="script-reference" @click="menu = false"><Icon name="book" />{{ $t('script.reference') }}<small>↗</small></a>
             </div>
           </div>
         </template>
@@ -201,7 +186,7 @@
 <script>
 import CodeEditor from './CodeEditor.vue';
 import KeyBar from './KeyBar.vue';
-import ApiHelp from './ApiHelp.vue';
+import { refUrl } from './reference.js';
 import { scriptErrorText, tr } from '../../i18n/index.js';
 import { shownError, shownStatus, consoleView, fileName, sourceFromFile, MAX_FILE_BYTES } from './panelState.js';
 import { loadSplit, saveSplit, panelWidth, widthFromPointer, guideOffset, clampWidth } from './splitLayout.js';
@@ -216,7 +201,7 @@ const store = {
 
 export default {
   name: 'ScriptPanel',
-  components: { CodeEditor, KeyBar, ApiHelp },
+  components: { CodeEditor, KeyBar },
   props: {
     engine: { type: Object, required: true },
     scenario: { type: Object, required: true },
@@ -243,8 +228,6 @@ export default {
       winW: window.innerWidth,
       /** Divider drag (or arrow keys): only the guide line moves, the width is applied once on drop */
       dragging: false,
-      /** Split screen: command help drawer open */
-      helpOpen: false,
       /** Sheet: "⋯" menu open; run strip hidden by the player (until the next run) */
       menu: false,
       stripHidden: false,
@@ -255,7 +238,7 @@ export default {
     isCollapsed() { return this.split && this.splitState.collapsed; },
     /** Width the panel takes up on the right (split screen), 0 on phones */
     occupied() { return this.split ? panelWidth(this.splitState, this.winW) : 0; },
-    tabs() { return ['code', 'output', 'help']; },
+    tabs() { return ['code', 'output']; },
     sections() {
       // In the adventure hidden sections (mission logic) stay invisible, in the editor you see everything
       return (this.scenario.sections ?? []).filter((s) => this.mode === 'editor' || (s.visibility ?? 'open') !== 'hidden');
@@ -291,9 +274,8 @@ export default {
     occupied: { immediate: true, handler(w) { this.$emit('width', w); } },
     'error.seq'(seq) {
       if (!seq) return;
-      // New error: phones jump back from the game to the code, the help drawer closes; line and box come into view
+      // New error: phones jump back from the game to the code; the line and the box come into view
       this.tab = 'code';
-      this.helpOpen = false;
       if (!this.split && !this.open) this.$emit('update:open', true);
       this.revealError();
     },
@@ -302,8 +284,6 @@ export default {
       if (s === 'paused' && before !== 'paused' && !this.split && !this.open) { this.tab = 'code'; this.$emit('update:open', true); }
     },
     open(o) { if (o) this.menu = false; },
-    /** Help drawer opened: straight into the search field (desktop) */
-    helpOpen(o) { if (o && !this.touch) this.$nextTick(() => this.$el?.querySelector?.('.sp-help .api-search')?.focus()); },
     consoleLines(now, before) {
       // New output: keep the end of the console in view
       const last = now[now.length - 1]?.seq ?? 0;
@@ -483,10 +463,6 @@ export default {
       this.dragging = false;
       if (px != null && px !== this.occupied) this.applyWidth(px);
     },
-    closeHelp() {
-      this.helpOpen = false;
-      this.$nextTick(() => this.$el?.querySelector?.('[data-testid="script-help"]')?.focus());
-    },
     /** Save the program as a .py file (download; works on phones too). */
     download() {
       const sec = this.fileSection;
@@ -521,6 +497,7 @@ export default {
       this.edited(sec.id);
       if (!this.touch) this.$nextTick(() => this.editors[sec.id]?.focus?.()); // phones: no keyboard popping up
     },
+    refUrl,
     blurred() { setTimeout(() => { if (!this.$el?.isConnected || !document.activeElement?.closest?.('.script-panel')) this.focused = null; }, 150); },
     key(k) {
       const ed = this.editors[this.focused];
@@ -528,14 +505,6 @@ export default {
       if (k.indent) ed.indent(false);
       else if (k.dedent) ed.indent(true);
       else ed.insert(k.text, k.back ?? 0);
-    },
-    insertExample(text) {
-      const sec = (this.scenario.sections ?? []).find((s) => s.editable && s.level === 'player') ?? (this.scenario.sections ?? []).find((s) => s.editable);
-      if (!sec) return;
-      this.tab = 'code';
-      const cur = this.codes[sec.id] ?? '';
-      this.codes[sec.id] = cur.replace(/\n*$/, '\n') + text + '\n';
-      this.edited(sec.id);
     },
   },
 };
@@ -584,14 +553,19 @@ export default {
 .sp-sep { width: 1px; height: 1.5rem; background: rgba(225, 168, 58, 0.25); margin: 0 0.125rem; }
 .sp-grow { flex: 1; }
 .sp-grid .sp-glyph { font-family: ui-monospace, Menlo, monospace; font-weight: 800; }
-.sp-helpbtn .ico { width: 1.125rem; height: 1.125rem; }
-.sp-grid.on, .sp-helpbtn.on { color: var(--gold-200); background: rgba(243, 200, 94, 0.14); box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.45); }
+.sp-tools .sp-ref {
+  display: inline-flex; align-items: center; gap: 0.3rem; min-height: 2.375rem; padding: 0 0.5rem; border-radius: var(--r-md);
+  color: var(--ink-muted); text-decoration: none; font-size: inherit;
+}
+.sp-tools .sp-ref:hover { color: var(--ink); background: rgba(255, 225, 170, 0.07); }
+.sp-ref .ico { width: 1.125rem; height: 1.125rem; }
+.sp-grid.on { color: var(--gold-200); background: rgba(243, 200, 94, 0.14); box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.45); }
 /* Narrow panel: icons only for the debugger steps, then for everything but "Run" */
 @container (max-width: 50rem) { .sp-lbl-dbg { display: none; } }
 @container (max-width: 44rem) { .sp-lbl-file { display: none; } }
 @container (max-width: 34.5rem) { .sp-lbl { display: none; } .sp-run { min-width: 0; } .sp-grow, .sp-sep { display: none; } }
 /* Minimum width: everything in one row, "Run" as ▶ only (name stays as label for screen readers) */
-@container (max-width: 25rem) { .sp-run-lbl { display: none; } .sp-tools button { padding: 0 0.3125rem; } }
+@container (max-width: 25rem) { .sp-run-lbl { display: none; } .sp-tools button, .sp-tools .sp-ref { padding: 0 0.3125rem; } }
 .sp-file { display: none; }
 .sp-tabs { align-self: flex-start; }
 .sp-tabs > button { min-height: 2rem; padding: 0 0.875rem; gap: 0.375rem; display: inline-flex; align-items: center; justify-content: center; }
@@ -643,16 +617,6 @@ export default {
 .sp-none { color: var(--ink-dim); font-style: italic; }
 .sp-frame { font-family: ui-monospace, Menlo, Consolas, monospace; }
 .sp-reset { align-self: flex-start; font-size: var(--fs-sm); min-height: 2rem; }
-/* Command help (split screen): drawer over the code on the right, full width in a narrow panel */
-.sp-help {
-  position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(28rem, 100%); display: flex; flex-direction: column;
-  border-radius: var(--r-lg); background: var(--panel-bg), var(--wood-900); box-shadow: var(--panel-edge), -8px 0 24px rgba(10, 6, 2, 0.55);
-}
-.sp-help-head { flex: none; display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.375rem 0.375rem 0.75rem; border-bottom: 1px solid rgba(225, 168, 58, 0.18); }
-.sp-help-head > .ico { width: 1.125rem; height: 1.125rem; }
-.sp-help-head strong { flex: 1; font-family: var(--display); color: var(--gold-200); font-size: var(--fs-md); }
-.sp-help-head .icon-btn { min-height: 2rem; width: 2rem; min-width: 2rem; padding: 0; }
-.sp-help-body { flex: 1; min-height: 0; padding: 0.625rem 0.75rem; }
 
 /* ---------- Sheet (phones): full screen over the game ---------- */
 .script-panel.sheet { inset: 0; z-index: 30; flex-direction: column; }
@@ -672,8 +636,10 @@ export default {
   position: absolute; right: calc(0.625rem + var(--safe-r)); bottom: calc(100% + 0.25rem); z-index: 5; min-width: 14rem; padding: 0.375rem; display: flex; flex-direction: column; gap: 2px;
   border-radius: var(--r-lg); background: var(--panel-bg); box-shadow: var(--panel-edge), 0 10px 30px rgba(0, 0, 0, 0.6);
 }
-.sp-menu > button { justify-content: flex-start; display: flex; align-items: center; gap: 0.5rem; background: transparent; border-color: transparent; box-shadow: none; min-height: var(--touch); text-align: left; }
-.sp-menu > button small { margin-left: auto; color: var(--ink-dim); font-family: ui-monospace, Menlo, monospace; }
+.sp-menu > button, .sp-menu > a { justify-content: flex-start; display: flex; align-items: center; gap: 0.5rem; background: transparent; border-color: transparent; box-shadow: none; min-height: var(--touch); text-align: left; }
+.sp-menu > a { color: var(--ink); text-decoration: none; padding: 0.4375rem 0.75rem; border-radius: var(--r-md); }
+.sp-menu > a:hover { background: rgba(255, 225, 170, 0.07); }
+.sp-menu > button small, .sp-menu > a small { margin-left: auto; color: var(--ink-dim); font-family: ui-monospace, Menlo, monospace; }
 .sp-menu > button.on small { color: var(--gold-300); }
 .sp-menu-glyph { width: 1.25rem; text-align: center; font-family: ui-monospace, Menlo, monospace; font-weight: 800; }
 /* "Watch game": run strip at the bottom over the command bar */

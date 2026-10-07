@@ -140,12 +140,12 @@ test.describe('desktop split screen', () => {
     expect(errors).toEqual([]);
   });
 
-  test('No tabs: the code stays visible, "Commands" opens the help as a drawer, locked section header', async ({ page }) => {
+  test('No tabs: the code stays visible, "Reference" opens the website, locked section header', async ({ page }) => {
     const errors = await start(page);
     const panel = page.getByTestId('script-panel');
     await expect(page.getByTestId('script-tab-code')).toHaveCount(0);
-    await expect(page.getByTestId('script-tab-help')).toHaveCount(0);
     await expect(page.getByTestId('script-status')).toHaveCount(0);
+    await expect(page.getByTestId('api-help')).toHaveCount(0);
     await expect(panel).toHaveAttribute('data-status', 'idle');
     // Locked, folded world section: chevron and title on the left, badge on the right edge
     const fold = page.getByTestId('fold-world');
@@ -156,27 +156,16 @@ test.describe('desktop split screen', () => {
     expect(fb.x + fb.width - (badge.x + badge.width)).toBeLessThan(16);
     await expect(fold.getByTestId('section-locked')).toHaveText('gesperrt');
 
-    const help = page.getByTestId('script-help');
-    await expect(help).toHaveAttribute('aria-expanded', 'false');
-    await help.click();
-    const drawer = page.getByTestId('script-help-panel');
-    await expect(drawer).toBeVisible();
-    await expect(help).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByTestId('api-search')).toBeFocused();
-    await expect(page.getByTestId('section-player').getByTestId('code-editor')).toBeVisible();
-    await page.getByTestId('api-search').fill('split');
-    await page.getByTestId('api-sig-str.split').click();
-    await expect(drawer.getByTestId('doc-card')).toContainText('split');
-    await shot(page, 'help');
-    // Escape closes the drawer (not the game menu), the button closes it too
-    await page.keyboard.press('Escape');
-    await expect(drawer).toHaveCount(0);
-    await expect(page.getByTestId('game-menu')).toHaveCount(0);
-    await expect(help).toBeFocused();
-    await help.click();
-    await expect(drawer).toBeVisible();
-    await page.getByTestId('script-help-close').click();
-    await expect(drawer).toHaveCount(0);
+    // "Reference" in the toolbar: scripting reference of the website in a new tab
+    const ref = page.getByTestId('script-reference');
+    await expect(ref).toBeVisible();
+    await expect(ref).toHaveAttribute('href', '../scripting/');
+    await expect(ref).toHaveAttribute('target', '_blank');
+    await shot(page, 'toolbar');
+    const [popup] = await Promise.all([page.waitForEvent('popup'), ref.click()]);
+    await popup.waitForLoadState('domcontentloaded').catch(() => {});
+    expect(popup.url()).toMatch(/\/scripting\/$/);
+    await popup.close();
     expect(errors).toEqual([]);
   });
 
@@ -239,14 +228,12 @@ test.describe('phone sheet', () => {
     expect(b.width).toBeGreaterThanOrEqual(vp.width - 1);
     expect(b.height).toBeGreaterThanOrEqual(vp.height - 1);
     await shot(page, 'sheet-code');
-    await page.getByTestId('script-tab-help').click();
-    await page.getByTestId('api-search').fill('split');
-    await page.getByTestId('api-sig-str.split').click();
-    await expect(page.getByTestId('doc-card')).toContainText('split');
-    await shot(page, 'sheet-help');
-    await page.getByTestId('script-tab-code').click();
+    // Tabs Code and Output only (no command list), the reference sits in the "⋯" menu
+    await expect(page.getByTestId('script-tab-help')).toHaveCount(0);
+    await expect(page.getByTestId('api-help')).toHaveCount(0);
     await page.getByTestId('script-menu').click();
     await expect(page.getByTestId('script-menu-list')).toBeVisible();
+    await expect(page.getByTestId('script-menu-list').getByTestId('script-reference')).toHaveAttribute('href', '../scripting/');
     await shot(page, 'sheet-menu');
     await page.getByTestId('script-menu').click();
 

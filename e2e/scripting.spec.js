@@ -86,17 +86,15 @@ test('Reference is linked from the home page, the adventure menu and the in-game
   await page.getByTestId('menu-adventures').click();
   await expect(page.getByTestId('open-reference')).toHaveAttribute('href', '../scripting/');
 
-  // Command help in the code panel: every entry links to its anchor
+  // Code panel: "Reference" (toolbar on the desktop, "⋯" menu on phones) links to the website
   await page.getByTestId('adventure-start').click();
   await page.waitForFunction(() => !!window.__kronland, null, { timeout: 30_000 });
   await expect(page.getByTestId('script-panel')).toBeAttached({ timeout: 30_000 });
   const fab = page.getByTestId('script-open');
-  if (await fab.isVisible()) await fab.click();
-  // Desktop: "Commands" button in the toolbar (drawer); phone: "Help" tab of the sheet
-  const helpBtn = page.getByTestId('script-help');
-  await (await helpBtn.isVisible() ? helpBtn : page.getByTestId('script-tab-help')).click();
-  await expect(page.getByTestId('api-more-hero.step')).toHaveAttribute('href', '../scripting/#hero.step');
-  await expect(page.getByTestId('api-more-py.for')).toHaveAttribute('href', '../scripting/#lang-for');
-  await expect(page.getByTestId('api-reference')).toHaveAttribute('href', '../scripting/');
+  if (await fab.isVisible()) {
+    await fab.click();
+    await page.getByTestId('script-menu').click();
+  }
+  await expect(page.getByTestId('script-reference')).toHaveAttribute('href', '../scripting/');
   expect(problems.filter((p) => !p.includes('favicon'))).toEqual([]);
 });

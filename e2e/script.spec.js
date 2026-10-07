@@ -119,7 +119,7 @@ test('print() to the console, notify() as a notice, error clears after editing, 
   await expect(page.getByTestId('script-console')).toContainText('Hallo Kronland', SLOW);
   await expect(page.getByTestId('script-console')).toContainText('Runde 2');
   await expect(page.getByTestId('script-console')).not.toContainText('NameError');
-  await expect(page.getByTestId('script-status')).toHaveText('fertig', SLOW);
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'done', SLOW);
   await expect(note).toHaveCount(0);
   // notify(): one notice in the game (newest wins, bundled), not in the console
   await ta.fill('print("Hallo Kronland")\nfor i in range(3):\n    notify(f"Meldung {i}")\n    wait(0.1)\n');
