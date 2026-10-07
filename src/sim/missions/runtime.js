@@ -186,7 +186,8 @@ export class MissionRuntime {
 
   /**
    * Create a bandit camp: clearing, camp buildings, guard squads. With `o.anchor` (building ID) the squads guard
-   * an existing building of the bandits instead of a new camp hut.
+   * an existing building of the bandits instead of a new camp hut. Camps and guards stay off frozen water unless
+   * `o.onIce` (an outpost guarding the river itself).
    */
   addCamp(sim, name, near, units, o = {}) {
     const st = this.state;
@@ -194,8 +195,9 @@ export class MissionRuntime {
     let b = o.anchor !== undefined ? sim.entities.get(o.anchor) : null;
     if (!b) {
       const from = o.from ?? null;
-      const p = api.findOpen(sim, near.x, near.y, { maxR: o.maxR ?? 14, clear: 3, from, avoid: o.avoid ?? [] })
-        ?? api.findOpen(sim, near.x, near.y, { maxR: (o.maxR ?? 14) + 10, clear: 2 });
+      const allowWater = !!o.onIce;
+      const p = api.findOpen(sim, near.x, near.y, { maxR: o.maxR ?? 14, clear: 3, from, avoid: o.avoid ?? [], allowWater })
+        ?? api.findOpen(sim, near.x, near.y, { maxR: (o.maxR ?? 14) + 10, clear: 2, allowWater });
       if (!p) { st.warnings.push(`No space for camp ${name}`); return null; }
       api.clearNodes(sim, p.x, p.y, 3);
       b = api.placeBuilding(sim, st.bandits, 'banditCamp', p, { radius: 6, margin: 0 });
@@ -205,7 +207,7 @@ export class MissionRuntime {
     const guards = [];
     for (const u of units) {
       for (let i = 0; i < (u.count ?? 1); i++) {
-        const L = api.spawnTroop(sim, st.bandits, u.def, { x: c.x + (guards.length % 2 ? 3 : -3), y: c.y + 3 }, u.soldiers);
+        const L = api.spawnTroop(sim, st.bandits, u.def, { x: c.x + (guards.length % 2 ? 3 : -3), y: c.y + 3 }, u.soldiers, { allowWater: o.onIce });
         if (L) guards.push(L.id);
       }
     }
@@ -889,7 +891,7 @@ export class MissionRuntime {
       result: st.result ? {
         ...st.result, title: def.title,
         text: st.result.won ? def.victoryText : (def.defeatTexts?.[st.result.reason] ?? def.defeatText),
-        debrief: st.result.won ? def.debrief ?? null : null,
+        debrief: st.result.won ? (typeof def.debrief === 'function' ? def.debrief(st) : def.debrief) ?? null : null,
         next: st.result.won ? def.next ?? null : null,
       } : null,
     };

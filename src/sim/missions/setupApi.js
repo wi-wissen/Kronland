@@ -34,10 +34,14 @@ export function* rings(cx, cy, minR, maxR) {
   }
 }
 
-/** Is the square with radius `clear` around (x,y) walkable and free of reservations? */
-export function openSquare(map, x, y, clear = 1, allowReserved = false) {
+/**
+ * Is the square with radius `clear` around (x,y) walkable and free of reservations? Water counts as blocked even
+ * when frozen (winter): camps, troops and buildings set up by a mission never stand on the ice.
+ */
+export function openSquare(map, x, y, clear = 1, allowReserved = false, allowWater = false) {
   for (let j = y - clear; j <= y + clear; j++) for (let i = x - clear; i <= x + clear; i++) {
     if (!map.walkable(i, j)) return false;
+    if (!allowWater && (map.flags[map.idx(i, j)] & WATER)) return false;
     if (!allowReserved && (map.flags[map.idx(i, j)] & RESERVED)) return false;
   }
   return true;
@@ -79,13 +83,13 @@ export const dist = (a, b) => isqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
  * Searches a free, walkable spot near (cx,cy).
  * @param {import('../sim.js').Sim} sim
  * @param {{minR?:number, maxR?:number, clear?:number, from?:{x:number,y:number}|null, frozen?:boolean, avoid?:{x:number,y:number,r:number}[]}} [o]
- *   from: must be reachable from there; avoid: circles that should stay free
+ *   from: must be reachable from there; avoid: circles that should stay free; allowWater: frozen water counts as open
  */
 export function findOpen(sim, cx, cy, o = {}) {
-  const { minR = 0, maxR = 24, clear = 1, from = null, frozen, avoid = [] } = o;
+  const { minR = 0, maxR = 24, clear = 1, from = null, frozen, avoid = [], allowWater = false } = o;
   let tries = 0;
   for (const p of rings(cx, cy, minR, maxR)) {
-    if (!openSquare(sim.map, p.x, p.y, clear)) continue;
+    if (!openSquare(sim.map, p.x, p.y, clear, false, allowWater)) continue;
     if (avoid.some((a) => dist(a, p) < a.r)) continue;
     if (from && tries++ < 40 && !reachable(sim, from, p, frozen)) continue;
     if (from && tries > 40) return null;
@@ -124,9 +128,9 @@ export function placeBuilding(sim, owner, type, near, o = {}) {
   return b;
 }
 
-/** Create a squad leader with soldiers at a free spot near `near`. */
-export function spawnTroop(sim, owner, defId, near, soldiers) {
-  const p = findOpen(sim, near.x, near.y, { maxR: 12, clear: 1 }) ?? nearestWalkable(sim, near.x, near.y, 12);
+/** Create a squad leader with soldiers at a free spot near `near` (`o.allowWater`: may stand on the ice). */
+export function spawnTroop(sim, owner, defId, near, soldiers, o = {}) {
+  const p = findOpen(sim, near.x, near.y, { maxR: 12, clear: 1, allowWater: !!o.allowWater }) ?? nearestWalkable(sim, near.x, near.y, 12);
   if (!p) return null;
   return sim.spawnLeader(owner, defId, p.x, p.y, soldiers ?? UNITS[defId].soldiers);
 }

@@ -20,10 +20,14 @@ export default {
     'Beaucroix lives on river trade. The markets are full, but grain is expensive: Malvor’s agents buy up everything. In the river woods a band of robbers holds a strange metal shard. Orrin knows the prices. Nelia knows hunger.',
   ),
   victoryText: t('Die zweite Zacke ist euer. Beaucroix hat Nahrung und einen Markt.', 'The second shard is yours. Beaucroix has food and a market.'),
-  debrief: t(
+  // The debrief follows the path taken: storming the camp leaves a captured robber, buying it a talkative chief
+  debrief: (st) => (st.flags.shardStormed ? t(
     'Der gefangene Räuber zittert, aber nicht vor Kälte: „Der Winter ist nicht echt. Im Norden, bei Hagenfurt, steht ein altes Wetterwerk. Malvor hat es wieder angeworfen.“ Orrin wird blass. Nelia packt ihren Mantel.',
     'The captured robber is trembling, but not from the cold: “The winter isn’t real. Up north, near Hagenfurt, there’s an old weatherworks. Malvor has started it up again.” Orrin turns pale. Nelia packs her coat.',
-  ),
+  ) : t(
+    'Der Räuberhauptmann zählt Orrins Taler zweimal. Beim Abschied grinst er: „Der Winter ist nicht echt, wisst ihr? Im Norden, bei Hagenfurt, steht ein altes Wetterwerk. Malvor hat es wieder angeworfen.“ Orrin wird blass. Nelia packt ihren Mantel.',
+    'The robber chief counts Orrin’s thalers twice. As they leave he grins: “The winter isn’t real, you know? Up north, near Hagenfurt, there’s an old weatherworks. Malvor has started it up again.” Orrin turns pale. Nelia packs her coat.',
+  )),
   defeatText: t('Euer Lager ist gefallen.', 'Your camp has fallen.'),
   defeatTexts: { hq: t('Euer Lager ist gefallen. Beaucroix bleibt in Malvors Hand.', 'Your camp has fallen. Beaucroix stays in Malvor’s hands.') },
   next: 'c3',
@@ -77,6 +81,7 @@ export default {
       text: t('Zacke freikaufen (Orrin verhandelt mit den Räubern)', 'Buy the shard free (Orrin bargains with the robbers)'),
       onPaid: [
         say('bandit', 'Taler sind Taler. Nimm dein Blechstück, Händler.', 'Thalers are thalers. Take your bit of tin, merchant.'),
+        { type: 'flag', name: 'shardBought' },
         ...gotShard,
       ],
     },
@@ -85,6 +90,7 @@ export default {
       text: t('Zacke freikaufen – mit Rabatt des Kaufmanns', 'Buy the shard free – with the merchant’s discount'),
       onPaid: [
         say('bandit', 'Der Kaufmann bürgt für dich? Dann sei’s drum. Nimm dein Blechstück.', 'The merchant vouches for you? Fine then. Take your bit of tin.'),
+        { type: 'flag', name: 'shardBought' },
         ...gotShard,
       ],
     },
@@ -134,6 +140,7 @@ export default {
     ] },
     { id: 'stormed', when: { type: 'destroyed', ref: 'robbersGuards' }, do: [
       say('prisoner', 'Gnade! Hier, nehmt das verfluchte Ding. Es hat uns nur Unglück gebracht.', 'Mercy! Here, take the cursed thing. It has brought us nothing but bad luck.'),
+      { type: 'flag', name: 'shardStormed' },
       ...gotShard,
     ] },
   ],

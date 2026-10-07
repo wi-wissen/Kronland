@@ -82,7 +82,7 @@ export default {
   title: t('Titel', 'Title'),
   summary: t('Ein Satz für die Liste', 'One line for the list'),
   briefing: t('Vorgeschichte …', 'Backstory …'),
-  victoryText: t('…', '…'), debrief: t('Was danach geschieht …', '…'),
+  victoryText: t('…', '…'), debrief: t('Was danach geschieht …', '…'), // debrief auch als (state) => t(…), z. B. je nach gewähltem Weg (Merker)
   defeatText: t('…', '…'),
   defeatTexts: { hq: t('…', '…'), protectVc: t('…', '…') }, // je Grund (Ziel-ID, 'hq', eigener Grund)
   next: 'c10',            // null = letzte Mission
@@ -153,7 +153,7 @@ werden ausgehend von Burgen, Kartenmitte oder anderen gefundenen Punkten gesucht
 |---|---|
 | `ctx.hqCenter(p)`, `ctx.mapCenter()` | Bezugspunkte |
 | `ctx.ref(name, wert)` | Bezug merken: Entity-ID, ID-Liste oder Kreis `{x, y, r}` |
-| `ctx.camp(name, nahe, truppen, { from, avoid, maxR, r, anchor })` | Räuberlager mit Wachen; legt `name`, `nameGuards`, `nameArea` an. `anchor`: ID eines vorhandenen Räubergebäudes, das die Wachen statt einer Lagerhütte bewachen. Bestochene Wachen gehören nicht mehr zum Lager |
+| `ctx.camp(name, nahe, truppen, { from, avoid, maxR, r, anchor, onIce })` | Räuberlager mit Wachen; legt `name`, `nameGuards`, `nameArea` an. `anchor`: ID eines vorhandenen Räubergebäudes, das die Wachen statt einer Lagerhütte bewachen. Bestochene Wachen gehören nicht mehr zum Lager. Lager, Wachen und alles, was `api.findOpen`/`api.spawnTroop` aufstellt, meiden Wasser auch zugefroren; `onIce: true` erlaubt das Eis (Posten auf dem Fluss, Mission 3) |
 | `ctx.warn(text)` | Warnung (Tests schlagen dann fehl) |
 | `api.toward(a, b, d)`, `api.dist(a, b)` | Punkt auf der Linie a→b, Abstand |
 | `api.findOpen(sim, x, y, { minR, maxR, clear, from, avoid })` | freie begehbare Stelle, optional erreichbar von `from` |

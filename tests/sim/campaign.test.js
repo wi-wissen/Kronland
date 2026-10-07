@@ -5,6 +5,8 @@
 import { describe, it, expect } from 'vitest';
 import { playMission, TIME_LIMITS } from './missionBot.js';
 import { getMission } from '../../src/sim/missions/registry.js';
+import { createMissionSim } from '../../src/sim/missions/runtime.js';
+import { WATER } from '../../src/sim/map.js';
 
 const CASES = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'].flatMap((id) => [[id, getMission(id).seed], [id, 7]]);
 
@@ -14,6 +16,30 @@ describe('Campaign: weather', () => {
       const cycle = getMission(id).weatherCycle;
       expect(cycle.every(([w]) => w === 'winter'), id).toBe(true);
     }
+  });
+});
+
+describe('Campaign: setup and texts', () => {
+  it('camps and troops never start on frozen water (except the gorge outpost in mission 3)', () => {
+    for (const id of ['c1', 'c2', 'c4', 'c5', 'c6']) {
+      for (const seed of [getMission(id).seed, 7]) {
+        const sim = createMissionSim(id, { seed });
+        const onIce = [...sim.entities.values()].filter((e) => ['leader', 'soldier', 'hero', 'npc'].includes(e.kind)
+          && (sim.map.flags[sim.map.idx(Math.floor(e.px / 1000), Math.floor(e.py / 1000))] & WATER));
+        expect(onIce.length, `${id}/${seed}`).toBe(0);
+      }
+    }
+  });
+
+  it('mission 2: the debrief follows the path taken (bought or stormed)', () => {
+    const debrief = (flag) => {
+      const sim = createMissionSim('c2');
+      sim.mission.state.flags[flag] = true;
+      sim.mission.finish(sim, true, 'objectives');
+      return sim.mission.uiState(sim).result.debrief.de;
+    };
+    expect(debrief('shardBought')).toMatch(/Räuberhauptmann zählt/);
+    expect(debrief('shardStormed')).toMatch(/gefangene Räuber/);
   });
 });
 
