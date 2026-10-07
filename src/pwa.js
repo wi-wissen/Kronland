@@ -131,10 +131,15 @@ export function registerServiceWorker() {
   window.addEventListener('vite:preloadError', () => { if (!update.available) checkForUpdate(); });
   const go = async () => {
     let reg = null;
-    const hadController = !!navigator.serviceWorker.controller;
+    let controlled = !!navigator.serviceWorker.controller;
     try { reg = await navigator.serviceWorker.register(siteUrl('sw.js'), { scope: siteRoot() }); } catch { /* no worker: the page still works */ }
-    // A new worker took over (deploy while this tab was open; not the first install): is this page outdated?
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) checkForUpdate(); });
+    // A new worker took over (deploy while this tab was open): is this page outdated? Not when the very first
+    // worker takes control of a page that had none (first visit).
+    controlled ||= !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (controlled) checkForUpdate();
+      controlled = true;
+    });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'visible' || Date.now() - lastCheck < RECHECK_MS) return;
       reg?.update().catch(() => {});

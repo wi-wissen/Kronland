@@ -53,6 +53,7 @@ async function deployB(page) {
 }
 
 test('a normal reload after a deploy shows the new version at once', async ({ page }) => {
+  test.setTimeout(180_000);
   const broken = [];
   page.on('response', (r) => { if (r.status() >= 400) broken.push(`${r.status()} ${r.url()}`); });
   page.on('pageerror', (e) => broken.push(String(e)));
@@ -65,12 +66,15 @@ test('a normal reload after a deploy shows the new version at once', async ({ pa
 });
 
 test('an open tab in the menu reloads itself when the new version takes over', async ({ page }) => {
+  test.setTimeout(180_000);
   await openA(page);
   await deployB(page);
   await expect.poll(() => build(page), { timeout: 90_000 }).toBe('b');
 });
 
 test('a running game is not interrupted: notice in the game menu, save and reload on request', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
   await openA(page, '/play/?seed=42&no-models');
   await page.waitForFunction(() => window.__kronland?.renderer?.frameNo > 2, null, { timeout: 120_000 });
   await deployB(page);
@@ -78,6 +82,12 @@ test('a running game is not interrupted: notice in the game menu, save and reloa
   await page.getByTestId('menu').click();
   await expect(page.getByTestId('gmenu-update')).toBeVisible({ timeout: 90_000 });
   expect(await build(page)).toBe('');
+  // evidence pictures: game menu with the notice, desktop and phone width
+  const shots = process.env.UPDATE_SHOTS ?? 'test-results';
+  await page.screenshot({ path: `${shots}/update-notice-desktop.png`, timeout: 120_000 });
+  await page.setViewportSize({ width: 412, height: 915 });
+  await expect(page.getByTestId('gmenu-update-reload')).toBeVisible();
+  await page.screenshot({ path: `${shots}/update-notice-phone.png`, timeout: 120_000 });
   await page.getByTestId('gmenu-update-reload').click();
   await expect.poll(() => build(page), { timeout: 60_000 }).toBe('b');
   // the game was saved first: the start menu offers to continue it
