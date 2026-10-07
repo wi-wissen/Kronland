@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Mission dialogues: the next speaker waits until the recording has ended; the dialogue camera moves close to the

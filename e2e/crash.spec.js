@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Robust game loop: a single exception does not stop the game; a persistent error in the simulation

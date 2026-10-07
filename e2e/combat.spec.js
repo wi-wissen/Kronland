@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Melee: attackers surround their target (own spots in the ring), and figures at the same point are drawn with a

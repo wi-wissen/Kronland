@@ -12,7 +12,7 @@ import { ROOT } from './lib.mjs';
 
 const args = process.argv.slice(2);
 const opt = (n) => { const i = args.indexOf(n); if (i < 0) return undefined; const v = args[i + 1]; args.splice(i, 2); return v; };
-const p = opt('--p'), turn = opt('--turn'), c = opt('--c'), zoom = opt('--zoom'), az = opt('--az'), show = opt('--show');
+const p = opt('--p'), turn = opt('--turn'), c = opt('--c'), zoom = opt('--zoom'), az = opt('--az'), show = opt('--show'), tint = opt('--tint');
 const [out, model] = args;
 if (!out || !model) {
   console.error('usage: node scripts/asset-gen/moving-parts.mjs out.png <model> [--p <JSON>] [--turn <rad>] [--c x,y,z] [--zoom <n>]');
@@ -25,7 +25,7 @@ const exe = process.env.PW_CHROMIUM ?? (fs.existsSync('/opt/pw-browsers/chromium
 const browser = await chromium.launch({ executablePath: exe, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const page = await browser.newPage({ viewport: { width: 1400, height: 1400 } });
-  const qs = new URLSearchParams({ f: `/models/buildings/${model}.glb`, ...(p ? { p } : {}), ...(turn ? { turn } : {}), ...(c ? { c } : {}), ...(zoom ? { zoom } : {}), ...(az ? { az } : {}), ...(show ? { show } : {}) });
+  const qs = new URLSearchParams({ f: `/models/buildings/${model}.glb`, ...(p ? { p } : {}), ...(turn ? { turn } : {}), ...(c ? { c } : {}), ...(zoom ? { zoom } : {}), ...(az ? { az } : {}), ...(show ? { show } : {}), ...(tint ? { tint } : {}) });
   page.on('pageerror', (e) => console.error(e.message));
   await page.goto(`${server.resolvedUrls.local[0]}tools/moving-parts.html?${qs}`);
   await page.waitForFunction(() => document.title === 'ready', null, { timeout: 120000 });

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl, hashed } from './paths.js';
 
 // Painted images from scripts/art/ (docs/SYMBOLE.md, "single images"): menu backdrop, loading image,

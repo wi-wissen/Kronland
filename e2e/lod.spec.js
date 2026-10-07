@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Far level of the buildings (scripts/build-lods.mjs, "bake"): at the widest zoom the castle shows its lod2 with corner colours

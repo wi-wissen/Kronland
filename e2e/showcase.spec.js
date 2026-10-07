@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl, SHOT_QUALITY } from './paths.js';
 
 // Showcase: all buildings, figures and map objects on one map, without fog. Start via the URL and

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Cavalry: riders sit on the horse from the pipeline (Horse.lod1.glb, own clips), no longer on the

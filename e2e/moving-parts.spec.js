@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl, SHOT_QUALITY } from './paths.js';
 
 // Moving building parts (src/render/movingParts.js): on the showcase the sails, wheels and the weather vane are cut
