@@ -12,14 +12,14 @@ const CI = !!process.env.CI;
  * no portrait camera): they run in the desktop project only. Everything else runs on desktop and phone.
  */
 export const DESKTOP_ONLY = process.env.E2E_ALL_PROJECTS ? [] // phone evidence pictures of these specs
-  : ['cavalry', 'circle', 'figures', 'showcase', 'spots', 'update', 'winter'].map((n) => `**/${n}.spec.js`);
+  : ['cavalry', 'circle', 'figures', 'moving-parts', 'showcase', 'spots', 'update', 'winter'].map((n) => `**/${n}.spec.js`);
 
 /**
  * Heavy specs: high graphics level or the showcase map under software WebGL, minutes per test. CI runs them as a
  * group of their own (E2E_GROUP=heavy) next to the shards of the remaining ones (E2E_GROUP=light); without the
  * variable everything runs.
  */
-export const HEAVY = ['cavalry', 'circle', 'figures', 'showcase', 'spots', 'update', 'winter'].map((n) => `**/${n}.spec.js`);
+export const HEAVY = ['cavalry', 'circle', 'figures', 'moving-parts', 'showcase', 'spots', 'update', 'winter'].map((n) => `**/${n}.spec.js`);
 const GROUP = process.env.E2E_GROUP;
 /** @type {{ testMatch?: string[], testIgnore?: string[] }} */
 const group = GROUP === 'heavy' ? { testMatch: HEAVY } : GROUP === 'light' ? { testIgnore: HEAVY } : {};
