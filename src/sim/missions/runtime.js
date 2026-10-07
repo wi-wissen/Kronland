@@ -61,6 +61,11 @@ export class MissionRuntime {
       tributes: {},
       /** Talk figures: ID → { entity, state: 'open' | 'talked', hint } */
       npcs: {},
+      /**
+       * Campaign unlocks for the human: { buildings: [], techs: [] } or null (everything). Whatever is missing is
+       * shown greyed out ("later in the campaign") and rejected by the simulation; action `unlock` adds to it.
+       */
+      available: def.available ? { buildings: [...(def.available.buildings ?? [])], techs: [...(def.available.techs ?? [])] } : null,
       /** Own scenario (editor, file): is part of the save game because it is in no directory */
       scenario: def.custom ? def.scenario : null,
     };
@@ -95,6 +100,12 @@ export class MissionRuntime {
   }
 
   get human() { return this.state.human; }
+
+  /** Is a building or tech ('buildings' | 'techs') still locked for this player by the campaign? */
+  locked(player, kind, id) {
+    const a = this.state.available;
+    return !!a && player === this.state.human && !a[kind].includes(id);
+  }
 
   // ---------- Hook 1: setup ----------
 
@@ -155,6 +166,8 @@ export class MissionRuntime {
     const hq = sim.findBuilding(st.human, 'headquarters');
     if (hq) st.refs.hq = hq.id;
 
+    // Shaft sites only for the raw materials the mission needs (def.shafts: ['clay', 'stone'] …)
+    if (def.shafts) api.keepShafts(sim, def.shafts);
     const ctx = this.setupContext(sim);
     def.setup?.(ctx);
     // Places of the scenario are references as in mission files (for declarative goals and actions)
@@ -575,6 +588,13 @@ export class MissionRuntime {
         break;
       }
       case 'flag': st.flags[a.name] = a.value ?? true; break;
+      // Campaign unlock: { type: 'unlock', buildings?: [], techs?: [] }
+      case 'unlock': {
+        if (!st.available) break;
+        for (const kind of ['buildings', 'techs']) for (const id of a[kind] ?? []) if (!st.available[kind].includes(id)) st.available[kind].push(id);
+        sim.events.push({ type: 'unlocked', buildings: a.buildings ?? [], techs: a.techs ?? [], player: st.human });
+        break;
+      }
       // Diplomacy: { type: 'diplomacy', a?: 'human', b: 'moorhof' | 'enemy' | number, state: 'allied' | 'neutral' | 'hostile' }
       case 'diplomacy': {
         const pa = this.playerOf(a.a ?? 'human'), pb = this.playerOf(a.b);
@@ -849,6 +869,7 @@ export class MissionRuntime {
     if (st.tutorial) h.int(st.tutorial.index);
     for (const k of Object.keys(st.tributes ?? {})) h.str(k).str(st.tributes[k]);
     for (const k of Object.keys(st.npcs ?? {})) h.str(k).str(st.npcs[k].state);
+    if (st.available) for (const kind of ['buildings', 'techs']) h.int(st.available[kind].length).str(st.available[kind].join(','));
     this.script?.hash(h);
   }
 
@@ -863,8 +884,8 @@ export class MissionRuntime {
           id: o.id, text: d.text, primary: !!d.primary, status: o.status,
           progress: d.showProgress === false || !o.progress || o.progress[1] <= 1 ? null : o.progress,
           time: d.type === 'survive',
-          // Where to? Goals of type reach show their area, others an own hint (hint: { area } | { entity })
-          hint: o.status === 'active' ? this.resolveHint(sim, d.hint ?? (d.type === 'reach' ? { area: d.area } : null)) : null,
+          // Where to? Goals of type reach show their area, others an own hint (hint: { area } | { entity } | { ui })
+          hint: o.status === 'active' ? this.resolveHint(sim, this.objectiveHint(sim, d)) : null,
         };
       });
     let tutorial = null;
@@ -895,6 +916,21 @@ export class MissionRuntime {
         next: st.result.won ? def.next ?? null : null,
       } : null,
     };
+  }
+
+  /**
+   * Hint of an objective. A pointer at a control (`ui`, e.g. 'build-clayMine') stays only as long as it helps:
+   * while `uiWhile` holds, for build objectives until enough buildings are placed.
+   */
+  objectiveHint(sim, d) {
+    const h = d.hint ?? (d.type === 'reach' ? { area: d.area } : null);
+    if (!h?.ui) return h;
+    // uiWhile: own condition; build objectives: until enough are placed
+    const keep = h.uiWhile ? this.check(sim, h.uiWhile)
+      : d.type !== 'build' || this.builtCount(sim, this.playerOf(d.player), d.building, 0, true) < (d.count ?? 1);
+    if (keep) return h;
+    const { ui, uiWhile, ...rest } = h;
+    return Object.keys(rest).length ? rest : null;
   }
 
   /** Hint for coach and 3D marker: { ui } | { entity } | { area } → resolved positions. */

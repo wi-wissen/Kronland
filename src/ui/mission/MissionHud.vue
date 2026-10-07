@@ -5,6 +5,7 @@
     <TutorialCoach v-if="mission.tutorial" :step="mission.tutorial" :touch="touch" :lang="lang" @next="$emit('next')" @skip="$emit('skip')" />
     <ObjectivePanel v-if="mission.objectives.length" :objectives="mission.objectives" :lang="lang" :compact="compact" @focus="$emit('focus', $event)" />
     <TributePanel v-if="mission.tributes?.length" :tributes="mission.tributes" :lang="lang" @pay="$emit('tribute', $event)" />
+    <UiPointer :ids="mission.pointer ?? []" />
     <DialogBox :messages="mission.messages" :lang="lang" :speed="speed" :scripted="!!mission.script" @skip="$emit('skipDialog')" @line="$emit('line', $event)" />
   </div>
 </template>
@@ -14,10 +15,11 @@ import TutorialCoach from './TutorialCoach.vue';
 import ObjectivePanel from './ObjectivePanel.vue';
 import DialogBox from './DialogBox.vue';
 import TributePanel from './TributePanel.vue';
+import UiPointer from './UiPointer.vue';
 
 export default {
   name: 'MissionHud',
-  components: { TutorialCoach, ObjectivePanel, DialogBox, TributePanel },
+  components: { TutorialCoach, ObjectivePanel, DialogBox, TributePanel, UiPointer },
   props: {
     mission: { type: Object, required: true },
     touch: Boolean,
@@ -39,7 +41,7 @@ export default {
   display: flex; flex-direction: column; gap: 0.5rem;
 }
 .mhud > * { pointer-events: auto; }
-.mhud > .co-ring { pointer-events: none; }
+.mhud > .ui-pointer { pointer-events: none; }
 .compact .mhud { left: calc(var(--hud-gap) + var(--safe-l)); width: calc(100% - 5.25rem - var(--safe-l) - var(--safe-r)); gap: 0.375rem; }
 @media (max-height: 480px) and (orientation: landscape) {
   .compact .mhud { left: calc(var(--hud-gap) + var(--safe-l)); width: min(20rem, 42vw); }

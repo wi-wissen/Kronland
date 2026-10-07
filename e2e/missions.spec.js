@@ -39,7 +39,7 @@ test('Start the tutorial from the menu, see the first step, complete a step, ski
   await expect(page.getByTestId('tutorial-title')).toHaveText('Leibeigene', SLOW);
 
   // Action step: highlight points at "Alle", click completes it
-  await expect(page.getByTestId('tutorial-highlight')).toBeVisible();
+  await expect(page.getByTestId('ui-pointer')).toBeVisible();
   await quick(page, 'all');
   await expect(page.getByTestId('tutorial-title')).toHaveText('Holz schlagen', SLOW);
   expect(await stepId(page)).toBe('wood');
@@ -135,6 +135,28 @@ test('Offers: mercenaries or serfs - paying closes the other offer (mission 4)',
   await page.getByTestId('tribute-pay-refugees').click();
   await expect(panel).toHaveCount(0, SLOW);
   await expect.poll(serfs, SLOW).toBeGreaterThanOrEqual(before + 8);
+  expect(errors).toEqual([]);
+});
+
+test('Mission 2: later buildings are greyed out, the pointer shows the farm, the barracks unlocks with the first trade', async ({ page }, testInfo) => {
+  const errors = await fresh(page);
+  await page.goto(playUrl('?mission=c2&no-models'));
+  await page.waitForFunction(() => window.__kronland?.sim.mission?.state.id === 'c2');
+  await quick(page, 'all');
+  const farm = page.getByTestId('build-farm');
+  await expect(farm).toBeVisible(SLOW);
+  // Objective "3 farms" points at the farm tile; buildings of later missions are locked
+  await expect(farm).toHaveClass(/hint/);
+  await expect(page.getByTestId('ui-pointer')).toBeVisible(SLOW);
+  const barracks = page.getByTestId('build-barracks');
+  await expect(barracks).toHaveClass(/locked/);
+  await expect(barracks).toHaveAttribute('aria-label', /Kommt später in der Kampagne/);
+  await expect(page.getByTestId('build-smithy')).toHaveClass(/locked/);
+  await page.screenshot({ path: testInfo.outputPath('c2-locked.png') });
+  // Milestone: first trade – the herald comes, the barracks is free
+  await page.evaluate(() => { window.__kronland.sim.mission.state.flags.traded = true; });
+  await expect(barracks).not.toHaveClass(/locked/, SLOW);
+  await expect(page.getByTestId('tribute-buyShard')).toBeVisible(SLOW);
   expect(errors).toEqual([]);
 });
 

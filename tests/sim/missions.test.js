@@ -408,7 +408,11 @@ describe('Campaign', () => {
   it('mission 2: buy or fight for Zacke – clay delivery swaps the offer for a cheaper one', () => {
     const sim = createMissionSim('c2');
     const st = sim.mission.state;
+    // nothing to buy before the milestone (first trade); then Malvor's herald comes and the offer opens
     sim.run(310);
+    expect(st.tributes.buyShard).toBeUndefined();
+    st.flags.traded = true;
+    sim.run(2);
     expect(st.tributes.buyShard).toBe('open');
     // without enough thalers: rejected
     sim.players[0].stock.gold = 0;
@@ -426,13 +430,14 @@ describe('Campaign', () => {
     sim.players[0].stock.gold = 2000; sim.players[0].stock.wood = 2000;
     act(sim, { type: 'mission', action: 'tribute', id: 'buyShardCheap' });
     expect(st.flags.shard2).toBe(true);
-    expect(sim.players[0].stock.gold).toBe(1100);
+    expect(sim.players[0].stock.gold).toBe(1200);
   });
 
   it('mission 2: storming the bandit camp brings Zacke just as well', () => {
     const sim = createMissionSim('c2');
     const st = sim.mission.state;
-    sim.run(310);
+    st.flags.traded = true;
+    sim.run(2);
     for (const id of st.refs.robbersGuards) sim.mission.runAction(sim, { type: 'remove', ref: id });
     sim.run(5);
     expect(st.flags.shard2).toBe(true);
@@ -559,7 +564,7 @@ describe('Campaign', () => {
     until(sim, () => st.fired.herald, 2000);
     expect(villages.every((v) => sim.relation(0, v) === 'neutral')).toBe(true);
     expect(st.refs.helpers.some((id) => sim.entities.has(id))).toBe(false);
-    until(sim, () => st.fired.order, 2500);
+    until(sim, () => st.fired.order, 3500); // five minutes after the herald at the latest (or the first delivery)
     const taran = [...sim.entities.values()].find((e) => e.kind === 'hero' && e.hero === 'taran');
     expect(taran.owner).toBe(0);
     expect(objective(sim, 'granaries').status).toBe('active');

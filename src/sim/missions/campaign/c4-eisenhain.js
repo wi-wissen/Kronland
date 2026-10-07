@@ -24,6 +24,12 @@ export default {
   next: 'c5',
   // Changing weather: spring with rain, towards the end a short cold snap
   weatherCycle: [['summer', 4800], ['rain', 1200], ['summer', 4800], ['winter', 1500]],
+  // New here: iron and sulphur, university with the first research (archers), towers
+  available: {
+    buildings: ['villageCenter', 'residence', 'farm', 'clayMine', 'storehouse', 'stoneMine', 'barracks', 'ironMine', 'sulfurMine', 'university', 'archery', 'tower'],
+    techs: ['standingArmy'],
+  },
+  shafts: ['clay', 'stone', 'iron', 'sulfur'],
   players: [
     {
       kind: 'human', heroes: ['nelia', 'orrin'], serfs: 10, techs: ['conscription', 'education', 'construction'],
@@ -66,6 +72,8 @@ export default {
 
   start: [
     say('orrin', 'Eisenhain. Eisen, Schwefel – und eine Armee davor. Ich hätte Beaucroix nie verlassen sollen.', 'Eisenhain. Iron, sulphur – and an army at the gates. I should never have left Beaucroix.'),
+    say('orrin', 'Man sagt, die Bergleute hüten eine Zacke. Darum belagert Malvor sie – nicht wegen des Eisens.',
+      'They say the miners are guarding a shard. That’s why Malvor is besieging them – not for the iron.'),
     say('nelia', 'Die Bergleute halten nicht mehr lange durch. Wir brauchen Truppen, Orrin.', 'The miners won’t hold out much longer. We need troops, Orrin.'),
     say('orrin', 'Truppen! Ich kenne zwei Wege. Söldner kosten viel, kämpfen aber sofort. Geflohene Leibeigene kosten wenig, bringen Vorräte – aber du musst sie erst ausbilden.', 'Troops! I know two ways. Mercenaries cost a lot but fight at once. Runaway serfs cost little and bring supplies – but you’ll have to train them first.'),
     { type: 'tribute', id: 'mercs' },
@@ -81,9 +89,12 @@ export default {
         { type: 'npc', id: 'miner' },
         { type: 'reveal', id: 'shard' },
       ] },
-    { id: 'iron', type: 'build', building: 'ironMine', primary: true, text: t('Baue eine Eisengrube', 'Build an iron pit') },
-    { id: 'sulfur', type: 'build', building: 'sulfurMine', primary: true, text: t('Baue eine Schwefelgrube', 'Build a sulphur pit') },
+    { id: 'iron', type: 'build', building: 'ironMine', primary: true, hint: { ui: ['build-ironMine', 'quick-all'] }, text: t('Baue eine Eisengrube', 'Build an iron pit') },
+    { id: 'sulfur', type: 'build', building: 'sulfurMine', primary: true, hint: { ui: ['build-sulfurMine', 'quick-all'] }, text: t('Baue eine Schwefelgrube', 'Build a sulphur pit') },
     { id: 'shard', type: 'flag', flag: 'shard3', primary: true, hidden: true, text: t('Sprich mit dem Bergmeister in Eisenhain', 'Talk to the mine master in Eisenhain') },
+    { id: 'bows', type: 'research', tech: 'standingArmy', hidden: true,
+      hint: { ui: ['build-university', 'quick-all'], uiWhile: { type: 'not', cond: { type: 'built', building: 'university', placed: true } } },
+      text: t('Optional: Erforsche „Stehendes Heer“ an einer Hochschule – dann bildet der Schießplatz Bogenschützen aus', 'Optional: Research “Standing Army” at a university – then the archery range trains archers') },
     { id: 'army', type: 'recruit', count: 4, text: t('Optional: Bilde 4 eigene Truppen aus', 'Optional: Train 4 troops of your own'),
       onDone: [{ type: 'give', res: { iron: 300 } }, say('miner', 'Gute Leute! Nehmt Eisen für ihre Klingen.', 'Good people! Take iron for their blades.')] },
   ],
@@ -123,6 +134,7 @@ export default {
   events: [
     { id: 'meetTaran', when: { type: 'area', area: 'siegeAArea', who: 'nelia' }, do: [
       say('taran', 'Du bist also die Prinzessin. Geh nach Hause, Mädchen. Hier wird gekämpft.', 'So you’re the princess. Go home, girl. There’s fighting here.'),
+      say('taran', 'Die Bergleute sollen herausgeben, was sie im Stollen verstecken. Dann ziehen wir ab.', 'The miners are to hand over what they’re hiding in the gallery. Then we’ll leave.'),
       say('nelia', 'Warum dient ihr Malvor? Er lässt die Dörfer hungern.', 'Why do you serve Malvor? He lets the villages starve.'),
       say('taran', 'Unter dem milden König sind auch Kinder verhungert. Malvor bringt Ordnung. Volle Speicher.', 'Children starved under the gentle king, too. Malvor brings order. Full granaries.'),
     ] },
@@ -130,7 +142,15 @@ export default {
       say('taran', 'Genug! Rückzug! … Wir sehen uns wieder, Prinzessin.', 'Enough! Fall back! … We’ll meet again, princess.'),
       { type: 'remove', ref: 'taran' },
     ] },
-    { id: 'sortie', when: { type: 'all', of: [{ type: 'time', at: 420 }, { type: 'not', cond: { type: 'objective', id: 'siege' } }] }, every: 300, times: 3, do: [
+    // The iron pit stands: Orrin introduces research (archers)
+    { id: 'research', when: { type: 'objective', id: 'iron' }, do: [
+      say('orrin', 'Schwerter allein brechen keine Belagerung. In einer Hochschule erforschen Gelehrte „Stehendes Heer“ – dann bildet ein Schießplatz Bogenschützen aus.',
+        'Swords alone won’t break a siege. In a university, scholars research “Standing Army” – then an archery range trains archers.'),
+      { type: 'reveal', id: 'bows' },
+    ] },
+    // Milestone: our first troop (hired or trained) – at the latest after 10 minutes. Two minutes later Taran strikes.
+    { id: 'armed', when: { type: 'any', of: [(sim, m) => m.count(sim)[m.human].leaders > 0, { type: 'time', at: 600 }] }, do: [] },
+    { id: 'sortie', when: { type: 'all', of: [{ type: 'delay', after: 'armed', seconds: 120 }, { type: 'not', cond: { type: 'objective', id: 'siege' } }] }, every: 300, times: 3, do: [
       say('taran', 'Schlagt das Lager dieser Prinzessin, bevor es wächst!', 'Hit this princess’s camp before it grows!'),
       { type: 'spawn', owner: 'bandits', at: 'siegeBArea', units: [{ def: 'sword1', count: 2, soldiers: 3 }], order: 'attackMove', target: 'humanHq' },
     ] },

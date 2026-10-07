@@ -91,6 +91,8 @@ export default {
   noDefeat: false,        // true: keine Niederlage (Tutorial)
   fog: true,              // Nebel des Krieges (Standard an)
   vision: { startReveal: 20 }, // erkundeter Umkreis um jede Burg zu Beginn (Tutorial: 34)
+  available: { buildings: ['residence', 'farm', …], techs: ['standingArmy'] }, // Kampagne: nur das ist freigeschaltet
+  shafts: ['clay', 'stone'], // Grubenplätze nur für diese Rohstoffe (die übrigen werden normaler Boden)
   players: [
     { kind: 'human', heroes: ['nelia', 'orrin'], serfs: 8, techs: ['conscription'], stock: { gold: 1000 } },
     { kind: 'ai', hero: 'malvor', difficulty: 'hard', aggression: 'normal', startDelay: 60, forbid: ['foundry'] },
@@ -179,12 +181,23 @@ Insel, die seine Leibeigenen nicht erreichen), bekommen `fixed = true`.
 
 Gemeinsame Felder: `id`, `type`, `text`, `primary` (Hauptziel), `hidden` (erst durch `reveal`
 sichtbar), `player` (Standard: Mensch), `onDone` / `onFail` (Aktionen), `showProgress: false`,
-`hint` (`{ area }` oder `{ entity }`: Ort des Ziels).
+`hint` (`{ area }` oder `{ entity }`: Ort des Ziels; `ui`: Zeiger auf Knöpfe, siehe unten).
 
 **Zielorte:** Ein offenes Ziel mit Ort – `reach` immer (sein `area`), andere über `hint` – bekommt auf der Karte
 Ring und Pfeil (wie Tutorial-Hinweise; das erste solche Ziel, Hauptziele zuerst) und im Zielpanel einen Knopf,
 der die Kamera hinfährt. Damit Spieler wissen, wo „der alte Baum am Waldrand“ ist; ein Wahrzeichen (`landmarks`)
 zeigt dort zusätzlich etwas Passendes.
+
+**Zeiger auf Knöpfe:** `hint.ui` (Liste von `data-testid`s, z. B. `['build-clayMine', 'quick-all']`) umrandet den
+ersten sichtbaren Knopf mit demselben leuchtenden Rahmen wie im Tutorial (`UiPointer.vue`) und hebt die Kachel im
+Baumenü hervor; es zeigt das erste offene Ziel mit Zeiger (Hauptziele zuerst), im Tutorial der Schritt. Bei
+`build`-Zielen verschwindet der Zeiger, sobald genug Baustellen stehen; sonst gilt `hint.uiWhile` (Bedingung wie bei
+Auslösern), z. B. `{ type: 'not', cond: { type: 'built', building: 'clayMine', placed: true } }`.
+
+**Schrittweise freischalten (Kampagne):** Mit `available` gibt es für den Menschen nur die genannten Gebäude und
+Forschungen (Hochschule); alles andere steht ausgegraut mit Schloss im Menü („Kommt später in der Kampagne“) und
+wird von der Simulation abgelehnt (`err.laterInCampaign`). Die Aktion `unlock` schaltet im Lauf frei. Ohne
+`available` (freies Spiel, eigene Szenarien, Mission 6) gibt es alles; Computergegner sind nie betroffen.
 
 | `type` | Felder | erfüllt, wenn … |
 |---|---|---|
@@ -253,6 +266,7 @@ Wiederholungen. `when` kann auch eine Funktion `(sim, m) => boolean` sein.
 | `weather` | `state`, `seconds` |
 | `camera` | `at` – die Oberfläche springt dorthin (liegt das Ziel im Nebel, vorher `reveal` mit `area`) |
 | `flag` | `name`, `value` (Questgegenstände wie die Kronenzacken sind einfach Merker) |
+| `unlock` | `buildings`, `techs` – zu `available` hinzufügen (Kampagne: Neues mitten in der Mission) |
 | `diplomacy` | `a` (Standard Mensch), `b`, `state` (`allied`, `neutral`, `hostile`) |
 | `tribute` / `closeTribute` | `id` – Angebot aus `tributes` öffnen bzw. zurückziehen |
 | `npc` | `id` – Gesprächsfigur aus `npcs` aufstellen |
@@ -312,14 +326,15 @@ ist ein eigenes Entity (`kind: 'npc'`), kämpft nicht und kann nicht angegriffen
 }
 ```
 
-- `hint.ui`: `data-testid`-Werte; der Coach umrandet das erste sichtbare Element der Liste.
+- `hint.ui`: `data-testid`-Werte; der Zeiger (`UiPointer.vue`, auch für Missionsziele) umrandet das erste sichtbare Element der Liste.
 - `hint.entity` / `hint.area`: 3D-Marke auf der Karte (`src/render/hints.js`).
 - Überspringen geht immer; `onEnter` läuft trotzdem, damit spätere Schritte ihre Gebäude haben.
 
 ## Oberfläche
 
-`Engine.uiState().mission` liefert `{ objectives, tutorial, messages, tributes, camera, result }`.
-Komponenten in `src/ui/mission/`: `CampaignMenu`, `MissionHud` (Coach, Ziele, Angebote, Dialog),
+`Engine.uiState().mission` liefert `{ objectives, tutorial, messages, tributes, camera, result, pointer }`
+(`pointer`: Knöpfe, auf die gerade gezeigt wird – Tutorial-Schritt oder erstes Ziel mit `hint.ui`).
+Komponenten in `src/ui/mission/`: `CampaignMenu`, `MissionHud` (Coach, Ziele, Angebote, Dialog, Zeiger),
 `MissionResult`.
 
 **Dialoge** (`DialogBox.vue`): eine Mitteilung nach der anderen. Weiter geht es erst, wenn die Anzeigezeit um ist
@@ -344,7 +359,7 @@ zeigt ein Hinweis auf ein Gebäude, wechselt das Baumenü in dessen Kategorie. K
 |---|---|---|---|
 | 0 | `tutorial` | Erste Schritte | alle Grundlagen geführt |
 | 1 | `c1` | Lindgrund | Winter; Nelia und Orrin, erste Zacke (Merker), Wohnen/Essen/Arbeiter, Eintreiber vertreiben; Nachbardorf über Orrins Gespräch verbündet (optional) |
-| 2 | `c2` | Beaucroix | Winter; Marktplatz und Handel, Zacke freikaufen (Tribut) oder Räuberlager stürmen, Lehmschuld als Nebenquest |
+| 2 | `c2` | Beaucroix | Winter; Marktplatz und Handel, nach dem ersten Tausch: Malvors Herold, Kaserne frei, Zacke freikaufen (Tribut, Taler über den Markt) oder Räuberlager stürmen, Lehmschuld als Nebenquest |
 | 3 | `c3` | Das Wetterwerk | Kommandomission ohne Burg in einem fest geformten Tal: Tor oder zugefrorener Fluss (Posten bestechen), Wetterwerk auf der Insel, Flucht vor dem Tauwetter (60 s), Baupläne sichern |
 | 4 | `c4` | Eisenhain | Belagerung brechen, Taran als feindlicher Held, Söldner oder Leibeigene (Tribute), Bergmeister übergibt die Zacke |
 | 5 | `c5` | Morvale | Herold macht die Dörfer neutral, Taran läuft über und wird spielbar, Höfe schützen, Dörfer per Lieferung zurückgewinnen |

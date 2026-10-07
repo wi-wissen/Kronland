@@ -12,6 +12,10 @@ in fünf Zacken. Malvor, Statthalter von Hagenfurt, hat Hrimgars altes Wetterwer
 herrscht Winter, und nur er hat Korn. Nelia, Tochter eines Leibeigenen aus Lindgrund, findet die erste Zacke.
 Der Händler Orrin erfindet daraus die „verlorene Prinzessin“; die Lüge wird nie aufgelöst.
 
+**Das alte Recht:** Wer alle fünf Zacken vereint, den müssen die Provinzen krönen. Malvor herrscht, ist aber nur
+Statthalter – für die Krone braucht er die Zacken. Orrin erklärt das in Mission 1 gleich nach dem Fund. Damit ist
+jede Zacke ein **Wettlauf** gegen Malvor (siehe unten); eine eigene Anzeige für die Zacken gibt es nicht.
+
 | Figur | Rolle | Im Spiel |
 |---|---|---|
 | Nelia | Heldin | alle Missionen |
@@ -48,7 +52,7 @@ nah am Original.
 | Vorgabe | Umsetzung |
 |---|---|
 | Nahrung, Korn, Kornspeicher | Es gibt keinen Nahrungsrohstoff (wie im Original): Höfe versorgen Arbeiter direkt. Ziele heißen „Bett und Essen für Arbeiter“, „Bauernhöfe bauen“, „Höfe schützen“; Korn bleibt Erzählung. |
-| Kronenzacken, Baupläne | Missionsmerker (`flag`), keine Anzeige, kein Inventar – wie im Original. |
+| Kronenzacken, Baupläne | Missionsmerker (`flag`), keine Anzeige, kein Inventar – wie im Original. Stand und Bedeutung stehen in Dialogen und Zielen. |
 | Kaufen oder Kämpfen | Tribute (Angebote) wie im Original: zwei Angebote einer Gruppe schließen einander aus. |
 | Neutrale/verbündete Dörfer | Diplomatie feindlich/neutral/verbündet, per Aktion änderbar; Dörfer als Spielerplätze ohne Burg. |
 | Mit Figuren reden | Gesprächsfiguren mit Ausrufezeichen, bestimmter Held spricht sie an. |
@@ -62,13 +66,65 @@ nah am Original.
 | # | Karte | Akt | Wetter | Zacke | Helden | Ziele (Hauptziele, Nebenziel) |
 |---|---|---|---|---|---|---|
 | 1 | Lindgrund | Winter | Winter | 1 | Nelia, ab Dorfplatz Orrin | Einführung im verlassenen Dorf: Orrin treffen, Nelia zum alten Baum am Waldrand (Fund unter der Wurzel, Orrins Lüge), Balken holen, Dorfzentrum wieder aufbauen, 2 Wohnhäuser, 2 Höfe, 6 Arbeiter, Eintreiber vertreiben; *Orrin gewinnt das Nachbardorf* |
-| 2 | Beaucroix | Winter | Winter | 2 | Nelia, Orrin | 3 Höfe, Marktplatz, ein Tausch, Zacke freikaufen **oder** Räuberlager stürmen; *Lehmschuld liefern → Rabatt* |
+| 2 | Beaucroix | Winter | Winter | 2 | Nelia, Orrin | 3 Höfe, Marktplatz, ein Tausch; danach Malvors Herold: Zacke freikaufen (1200 Taler, über den Markt verdient) **oder** Räuberlager stürmen; *Lehmschuld liefern → Rabatt* |
 | 3 | Das Wetterwerk | Winter | Winter → Sommer | – | Nelia, Orrin + Trupp | ohne Burg ins Tal: Tor (stark bewacht) **oder** zugefrorener Fluss durch die Schlucht (kleiner Posten, besiegen oder mit Orrin bestechen); Wetterwerk auf der Insel zerstören, danach in 60 s auf festen Talboden; Baupläne in den Ruinen; *Gefangene befreien* |
 | 4 | Eisenhain | Krieg | wechselnd | 3 | Nelia, Orrin | Belagerung brechen (Taran zieht sich geschlagen zurück), Eisen- und Schwefelgrube, Bergmeister; Söldner **oder** Leibeigene; *4 eigene Truppen* |
 | 5 | Morvale | Krieg | wechselnd | 4 | Nelia, Orrin, ab Mitte Taran | Herold enthüllt die Lüge, Dörfer neutral, Taran läuft über; Höfe schützen, Dörfer per Lieferung zurückgewinnen, Malvors Truppen vertreiben, Dorfälteste; *4 eigene Höfe* |
 | 6 | Der Thronsee | Wissen | Sommer, Winter per Wetterkraftwerk | 5 | Nelia, Orrin, Taran | Wetterkraftwerk (selbst forschen **oder** Wissen kaufen), See zufrieren lassen, Inselschloss erobern; Malvors eigenes Kraftwerk taut den See, sobald wir auf dem Eis stehen; *sein Kraftwerk vom Ufer aus zerstören, Turm, 8 Truppen* |
 
 Jede Karte hat ein Ziel ohne Kampf (Aufbau, Handel, Versorgung, Forschung oder Gespräch).
+
+## Leitlinien
+
+Festgelegt am 7. Okt. 2026 nach Spielerrückmeldungen zu Mission 1 und 2; übliche Muster aus Kampagnen von
+Aufbau- und Echtzeitstrategiespielen.
+
+1. **Ein Gegenspieler mit Ziel:** Malvor will die Zacken selbst, jede ist umkämpft.
+2. **Erst Ruhe, dann Druck:** Der Gegner legt erst los, wenn der Spieler einen Meilenstein erreicht hat (keine Uhr
+   zu Beginn); eine späte Obergrenze nur, wo man sonst ewig warten könnte.
+3. **Neues schrittweise, Kommendes sichtbar:** Jede Mission schaltet wenige Gebäude, Forschungen und Grubenplätze
+   frei; der Rest steht **ausgegraut** mit Schloss im Menü („Kommt später in der Kampagne“).
+4. **Erklären, wenn es gebraucht wird:** Eine Figur sagt in einem Satz, wozu das Neue dient, ein Ziel nennt es,
+   ein Zeiger zeigt auf den Knopf. Alles gesprochen, überspringbar.
+5. **Eine Technik für Tutorial und Kampagne:** Zeiger (`hint.ui`), Zielort-Ring und Sperren sind Missionsbausteine
+   ([Missionen](MISSIONEN.md#ziele)).
+
+### Der Wettlauf um die Krone
+
+| Zacke | Wo | Malvors Anteil | Weg |
+|---|---|---|---|
+| 1 | Lindgrund, unter dem alten Baum | Eintreiber fordern „was ihr unter dem Baum gefunden habt“ | Fund, Eintreiber vertreiben |
+| 2 | Beaucroix, Räuber im Flusswald | Herold bietet 1000 Taler, die Räuber rüsten mit seinem Geld auf | freikaufen oder stürmen |
+| – | Wetterwerk | Abspann: Malvor trägt selbst eine Zacke an einer Kette | – |
+| 3 | Eisenhain, tiefster Stollen | Taran belagert die Stadt, damit die Bergleute sie herausgeben | Belagerung brechen, Bergmeister |
+| 4 | Morvale, Dorfälteste | Herold verlangt sie nach der Enthüllung der Lüge | Dörfer halten und zurückgewinnen |
+| 5 | Thronsee, an Malvors Hals | „Vier hast du gesammelt, die fünfte trage ich.“ | Inselschloss erobern |
+
+### Druck nach Meilensteinen
+
+| Mission | Ruhige Phase | Meilenstein | Danach |
+|---|---|---|---|
+| 1 | Dorf aufbauen | 2 Höfe (spätestens 25 min) | Eintreiber |
+| 2 | Höfe, Markt, Tausch | erster Tausch | Herold, Zacke käuflich, Kaserne frei; Überfälle ab 5 min danach, alle 5 min (3 ×), bis man die Zacke hat |
+| 3 | Weg wählen | Wetterwerk zerstört | 60 s bis zum Tauwetter |
+| 4 | Gruben, Truppen | erste eigene oder gekaufte Truppe (spätestens 10 min) | Tarans Ausfälle 2 min später, alle 5 min (3 ×) |
+| 5 | Herold (Erzählung) | erste Lieferung (spätestens 5 min nach dem Herold) | Befehl an Taran, Überlauf; Verstärkung 5,5 min später |
+| 6 | Forschung, Heer | Wettervorhersage erforscht oder gekauft (spätestens 10 min) | Garde aus Hagenfurt alle 5 min |
+
+### Freischalten je Mission
+
+| Mission | Gebäude | Forschung | Grubenplätze | Neu vorgestellt |
+|---|---|---|---|---|
+| 1 | Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube | – | Lehm | Grundlagen (Orrin, Zeiger auf jedes Gebäude) |
+| 2 | + Lager/Marktplatz, Steingrube; Kaserne ab dem Herold | – | Lehm, Stein | Markt und Tausch (Orrin), Kaserne (Nelia) |
+| 3 | keine Burg | – | – | Weitblick, Bestechen, Eis |
+| 4 | + Eisen-, Schwefelgrube, Hochschule, Schießplatz, Turm | Stehendes Heer | Lehm, Stein, Eisen, Schwefel | Hochschule und Forschung für Bogenschützen (Orrin, nach der Eisengrube) |
+| 5 | wie 4 | Stehendes Heer | Lehm, Stein, Eisen | Lieferungen an Dörfer |
+| 6 | alles | alles | alle | Wetterforschung, Kraftwerk vom Ufer beschießen |
+
+**Preise:** Kaufen kostet Arbeit. Mission 2 startet mit 300 Talern (Zacke 1200, mit Rabatt 800), Mission 5 mit
+kleinem Vorrat (Eisen für die Lieferung muss erst gefördert werden), Mission 6 mit 1500 Talern und 600 Schwefel
+(Wissen der Gelehrten: 1800 Taler, 400 Schwefel). Mission 4 bleibt eine echte Wahl (Söldner 1400 oder Flüchtlinge 400).
 
 ## Mission 1: Lindgrund (Einführung)
 
@@ -142,6 +198,7 @@ dem Eis zum Tauen verleiten und den See wieder einfrieren, sobald das eigene Kra
 | Heldenwahl | ![Startmenü](images/campaign/start-heroes-desktop.webp) | ![Startmenü Handy](images/campaign/start-heroes-phone.webp) |
 | Mission 1: verlassener Dorfplatz, Orrin ruft (Desktop); sein Gespräch mit „Gespräch überspringen“ (Handy) | ![Mission 1 Dorfplatz](images/campaign/c1-square-desktop.webp) | ![Mission 1 Dorfplatz Handy](images/campaign/c1-square-phone.webp) |
 | Mission 1: Dorfälteste mit Ausrufezeichen | ![Mission 1](images/campaign/c1-elder-desktop.webp) | ![Mission 1 Handy](images/campaign/c1-elder-phone.webp) |
+| Mission 2: Baumenü mit Zeiger auf den Bauernhof, spätere Gebäude ausgegraut | ![Mission 2 Freischaltung](images/campaign/c2-unlocks-desktop.webp) | ![Mission 2 Freischaltung Handy](images/campaign/c2-unlocks-phone.webp) |
 | Mission 4: Angebote (Söldner oder Leibeigene) | ![Mission 4](images/campaign/c4-offers-desktop.webp) | ![Mission 4 Handy](images/campaign/c4-offers-phone.webp) |
 | Mission 3: Bergkamm mit Schlucht (zugefrorener Fluss) | ![Mission 3](images/campaign/c3-gorge-desktop.webp) | ![Mission 3 Handy](images/campaign/c3-gorge-phone.webp) |
 | Mission 3: Wetterwerk zerstört, die Uhr läuft bis zum Tauwetter | ![Mission 3 Tauwetter](images/campaign/c3-thaw-desktop.webp) | ![Mission 3 Tauwetter Handy](images/campaign/c3-thaw-phone.webp) |

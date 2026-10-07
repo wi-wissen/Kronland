@@ -498,6 +498,7 @@ export default {
   'err.popLimit': 'Bevölkerungslimit erreicht',
   'err.notEnoughGold': 'Nicht genug Taler',
   'err.notBuildable': 'Gebäude nicht baubar',
+  'err.laterInCampaign': 'Kommt später in der Kampagne',
   'err.techMissing': 'Benötigt „{tech}“',
   'err.settlementOnly': 'Nur auf Siedlungsplätzen',
   'err.spotTaken': 'Platz belegt',

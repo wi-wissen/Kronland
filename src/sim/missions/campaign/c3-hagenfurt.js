@@ -42,8 +42,8 @@ export default {
   ),
   victoryText: t('Das Wetterwerk ist zerstört. Über den Bergen reißt der Himmel auf.', 'The weatherworks is destroyed. Above the mountains, the sky breaks open.'),
   debrief: t(
-    'Zum ersten Mal seit Jahren tropft es von den Dächern. Der Frühling kommt. In Nelias Tasche knistern die Bruchstücke von Hrimgars Bauplänen. In Hagenfurt erfährt Malvor, wer ihm den Winter genommen hat.',
-    'For the first time in years, water drips from the roofs. Spring is coming. In Nelia’s bag rustle the fragments of Hrimgar’s plans. In Hagenfurt, Malvor learns who took his winter.',
+    'Zum ersten Mal seit Jahren tropft es von den Dächern. Der Frühling kommt. In Nelias Tasche knistern die Bruchstücke von Hrimgars Bauplänen. Von den Wachen am Wetterwerk wissen sie jetzt auch: Malvor trägt selbst eine Zacke, an einer Kette um den Hals. In Hagenfurt erfährt Malvor, wer ihm den Winter genommen hat.',
+    'For the first time in years, water drips from the roofs. Spring is coming. In Nelia’s bag rustle the fragments of Hrimgar’s plans. From the guards at the weatherworks they now know something else: Malvor wears a shard himself, on a chain around his neck. In Hagenfurt, Malvor learns who took his winter.',
   ),
   defeatText: t('Die Gruppe ist gescheitert.', 'The group has failed.'),
   defeatTexts: {

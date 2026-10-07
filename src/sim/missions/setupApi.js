@@ -201,6 +201,14 @@ export function ensureShaft(sim, res, near, maxDist = 22) {
   return best ?? addShaft(sim, res, near, { minR: 6, maxR: maxDist });
 }
 
+/** Remove all shaft sites except those for the given raw materials (the site becomes normal ground again). */
+export function keepShafts(sim, res) {
+  for (const s of sim.shafts.filter((q) => !res.includes(q.res))) {
+    for (let y = s.y; y < s.y + 3; y++) for (let x = s.x; x < s.x + 3; x++) sim.map.flags[sim.map.idx(x, y)] &= ~RESERVED;
+    sim.shafts.splice(sim.shafts.indexOf(s), 1);
+  }
+}
+
 /** Set all serfs of a player to n. */
 export function setSerfs(sim, owner, n) {
   const serfs = [...sim.entities.values()].filter((e) => e.kind === 'unit' && e.owner === owner);
