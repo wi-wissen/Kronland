@@ -47,9 +47,12 @@ test('Ranged attack alerts as well; serfs attack an enemy like a tree (right cli
   });
   await expect(page.getByTestId('toasts')).toContainText('Angriff auf Burg', SLOW);
 
-  // Select own serfs; only once the build panel is up, look for the free click point
+  // Select own serfs; only once the build panel is up, look for the free click point. Pause the game until the
+  // click: otherwise the opponent AI walks the enemy away from the click point in the meantime (the command given
+  // while paused runs once the game continues)
   await page.evaluate(() => {
     const e = window.__kronland;
+    e.paused = true;
     e.selected.clear();
     for (const u of e.sim.entities.values()) if (u.kind === 'unit' && u.owner === 0) e.selected.add(u.id);
     e.emitUi();
@@ -62,26 +65,26 @@ test('Ranged attack alerts as well; serfs attack an enemy like a tree (right cli
     const foe = [...s.entities.values()].find((u) => u.kind === 'unit' && u.owner === 1);
     const x = hq.x + hq.w + 3.5, z = hq.y + hq.h + 1.5;
     foe.px = Math.round(x * 1000); foe.py = Math.round(z * 1000); foe.job = null; foe.path = []; foe.goal = undefined;
-    // Set the camera so the enemy stands clear in the picture (not under the build panel or a button)
+    // Set the camera so the enemy stands clear in the picture (not under the build panel or a button, with a margin
+    // around the point so a panel edge right next to it does not matter)
+    const free = (p) => [[0, 0], [12, 0], [-12, 0], [0, 12], [0, -12]].every(([ox, oy]) => document.elementFromPoint(p.x + ox, p.y + oy)?.tagName === 'CANVAS');
     let p = null;
     search: for (let r = 0; r <= 16; r += 2) {
       for (const [dx, dz] of [[r, r], [-r, r], [r, -r], [-r, -r], [0, r], [r, 0], [0, -r], [-r, 0]]) {
         e.renderer.rig.lookAt(x + dx, z + dz); e.renderer.rig.update(0);
         p = e.renderer.project(x, e.renderer.terrain.heightAt(x, z) + 0.4, z);
-        if (document.elementFromPoint(p.x, p.y)?.tagName === 'CANVAS') break search;
+        if (free(p)) break search;
       }
     }
-    return { x: p.x, y: p.y, foe: foe.id, fx: foe.px, fz: foe.py };
+    return { x: p.x, y: p.y, foe: foe.id };
   });
-  await page.waitForTimeout(1500);
-  // Click point must not lie under a panel
-  expect(await page.evaluate((p) => document.elementFromPoint(p.x, p.y)?.tagName, pos)).toBe('CANVAS');
-  // Put the enemy back in place right before the click (the opponent AI may have sent it away meanwhile)
-  await page.evaluate((p) => {
-    const f = window.__kronland.sim.entities.get(p.foe);
-    f.px = p.fx; f.py = p.fz; f.job = null; f.path = []; f.goal = undefined;
-  }, pos);
-  await page.waitForTimeout(400);
+  // Picking uses the figures as drawn in the last rendered frame (position, visibility, detail level). Under software
+  // WebGL the first frame after the camera jump can take seconds, so a fixed wait is not enough: wait until the click
+  // point is free of panels and actually picks the enemy.
+  await expect.poll(() => page.evaluate((p) => {
+    const e = window.__kronland;
+    return document.elementFromPoint(p.x, p.y)?.tagName === 'CANVAS' && e.renderer.pickEntity(p.x, p.y) === p.foe;
+  }, pos), SLOW).toBe(true);
   if (info.project.name === 'mobile') await page.touchscreen.tap(pos.x, pos.y);
   else await page.mouse.click(pos.x, pos.y, { button: 'right' });
   await page.evaluate(() => { window.__kronland.paused = false; });

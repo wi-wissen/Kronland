@@ -14,6 +14,7 @@ import {
 } from './lod.js';
 import { CharacterSystem, sharedCharacterRoots, cavalryGait } from './characters.js';
 import { Effects, HealthBars, GroundMarks, sharedPuffTexture } from './effects.js';
+import { OrderMarkers } from './orderMarker.js';
 import { CameraRig, nearFactor, buildingTop } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT, TICKS_PER_SECOND } from '../sim/fixed.js';
@@ -123,6 +124,7 @@ export class Renderer {
     this.fx = new Effects(this.scene, q);
     this.bars = new HealthBars(this.scene);
     this.marks = new GroundMarks(this.scene);
+    this.orderMarks = new OrderMarkers();
     /** Destroyed buildings as ruins (rendering only) */
     this.ruins = [];
     /** Construction values from the last frame (dust clouds on progress) */
@@ -903,6 +905,8 @@ export class Renderer {
     this.syncGhost(view.ghost);
     (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, realDt);
     (this.npcMarks ??= new NpcMarks(this.scene, this.terrain)).update(talkers, realDt);
+    // click confirmation is UI feedback: it runs on while paused, like the camera
+    this.orderMarks.update(realDt, this.rig.dist, this.marks, (x, z) => this.groundY(x, z));
     this.syncLandmarks(view.landmarks, fog, sim.map);
 
     this.syncTerrain();
@@ -1492,6 +1496,9 @@ export class Renderer {
     const b = this.sim.entities.get(m.owner[m.idx(tx, tz)]) ?? (this.sim.bridgeSites ?? []).find((s) => tx >= s.x && tz >= s.y && tx < s.x + s.w && tz < s.y + s.h);
     return Math.max(h, b ? this.bridgeDeckY(b) : this.terrain.waterLevelY + 0.25);
   }
+
+  /** Click confirmation at a walk target. @param {number} x @param {number} z world coordinates (tiles) */
+  orderMarker(x, z) { this.orderMarks.add(x, z); }
 
   /** Selection: rings under units, frames around buildings, health bars for selected buildings. */
   syncSelection(selected) {
