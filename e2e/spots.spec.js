@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { playUrl } from './paths.js';
+import { playUrl, SHOT_QUALITY } from './paths.js';
 
 // Fixed spots: serfs at a construction site and resting workers at the campfire each stand on their
 // own tile, never on top of each other. The simulation is fast-forwarded (software WebGL is too slow
@@ -12,7 +12,7 @@ async function boot(page, info) {
   if (info.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 900 });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(playUrl('?seed=42&quality=high&fog=off'));
+  await page.goto(playUrl(`?seed=42&quality=${SHOT_QUALITY}&fog=off`));
   await page.waitForFunction(() => !!window.__kronland?.renderer?.chars, null, { timeout: 120_000 });
   return errors;
 }

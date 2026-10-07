@@ -29,7 +29,7 @@ src/
               ui/mission/ für Kampagne und Tutorial, ui/saves/ Spielstandliste und Bestätigungsdialog,
               ui/script/ Code-Panel (geteilter Bildschirm/Handy-Blatt, splitLayout.js) und Debugger, ui/editor/ Welteneditor (mit game/EditorView.js)
 tests/        Vitest (Simulation, KI, Website)
-e2e/          Playwright (Desktop und Handy-Viewport); Adresse des Spiels zentral in e2e/paths.js
+e2e/          Playwright (Desktop und Handy-Viewport, Gruppen und CI-Shards: docs/TESTS.md); Adresse des Spiels zentral in e2e/paths.js
 docs/         Spielregeln und Architektur
 ```
 
@@ -433,6 +433,12 @@ Prüfung im Editor, ohne Build-Schritt.
 | Figuren über die Minikarte schicken | Rechtsklick auf die Minikarte (Strg: Angriffsbewegung) | Tippen auf die Minikarte, solange Figuren ausgewählt sind |
 | Einen Schritt zurück (Platzieren → Baumenü → Aktionsleiste → Auswahl aufheben → Menü) | Esc | „‹ Zurück“, „Abbrechen“, ✕ |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
+
+**Auswahlrahmen** (`src/game/boxSelect.js`, `Input.showBox`): Ab 8 px Zug erscheint der Rahmen. Er ist ein einziges
+Element mit eigener Compositor-Ebene (`will-change: transform`), das dauerhaft in der Seite bleibt; Ziehen verschiebt es
+per `transform` und ändert nur die Größe, Ein-/Ausblenden schaltet eine Klasse. Während des Ziehens wird nichts
+gerechnet – welche eigenen Figuren drin liegen (`unitsInBox`, projiziert nur Leibeigene, Hauptleute und Helden), ermittelt
+`Engine.selectBox` erst beim Loslassen. Ein Zug pro Mausbewegung kostet so unter 1 ms.
 
 **Doppelklick/Doppeltippen** (bewusste Abweichung vom Vorbild, übliche RTS-Steuerung): Zwei Klicks bzw.
 Tipper binnen 400 ms und 24 px auf eine eigene Figur wählen alle eigenen Figuren derselben Art, deren Fußpunkt

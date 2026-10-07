@@ -456,8 +456,8 @@ Ein Klick auf eine **Zeilennummer** setzt einen **Haltepunkt**. Hält das Progra
 markiert, und du siehst alle Variablen und den Aufrufstapel. Bei einem Fehler wird die Zeile rot; ein Kasten erklärt,
 was schiefging, und macht oft einen Vorschlag („Meintest du `turn_left`?“).
 
-Unter **Befehle** stehen alle Befehle mit Erklärung und Beispiel, das du mit einem Tipp einfügst. Ausführlich –
-mit Parametern, Rückgabewerten, Fehlern und vielen Beispielen – erklärt sie die [Programmier-Referenz](scripting/). Die wichtigsten:
+Bleibst du mit der Maus auf einem Befehl (am Handy: lange drücken), erklärt ihn eine Karte. Ausführlich –
+mit Parametern, Rückgabewerten, Fehlern und vielen Beispielen – erklärt sie die [Programmier-Referenz](scripting/) (Knopf **Referenz** im Code-Fenster). Die wichtigsten:
 `hero.step()`, `hero.turn_left()`, `hero.turn_right()`, `hero.ahead()`, `hero.chop()`, `hero.take()` und `print()`.
 
 ```
