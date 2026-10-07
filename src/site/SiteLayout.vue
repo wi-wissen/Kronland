@@ -52,7 +52,7 @@ import { chooseLang } from './site.js';
 export default {
   name: 'SiteLayout',
   props: {
-    /** active page: home | play | manual | compendium | blog */
+    /** active page: home | play | manual | compendium | scripting | blog */
     page: { type: String, default: 'home' },
     /** header transparent over the title image (home page) */
     overlay: { type: Boolean, default: false },
@@ -66,6 +66,7 @@ export default {
         { id: 'play', href: L.play, label: 'nav.play' },
         { id: 'manual', href: L.manual, label: 'nav.manual' },
         { id: 'compendium', href: L.compendium, label: 'nav.compendium' },
+        { id: 'scripting', href: L.scripting, label: 'nav.scripting' },
         { id: 'blog', href: L.blog, label: 'nav.blog' },
       ];
     },

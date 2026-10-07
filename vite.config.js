@@ -6,12 +6,13 @@ import hashedAssets from './scripts/vite-hashed-assets.js';
 import blogPages from './scripts/vite-blog-pages.js';
 import socialMeta from './scripts/vite-social-meta.js';
 
-// Website made of several pages (Vite multi-page): home, game, manual, compendium, blog. All paths relative (base './').
+// Website made of several pages (Vite multi-page): home, game, manual, compendium, scripting reference, blog. All paths relative (base './').
 const PAGES = {
   main: 'index.html',
   play: 'play/index.html',
   manual: 'manual/index.html',
   compendium: 'compendium/index.html',
+  scripting: 'scripting/index.html',
   // Blog: overview; the article pages blog/<name>/ are written by scripts/vite-blog-pages.js
   blog: 'blog/index.html',
 };

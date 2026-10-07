@@ -49,7 +49,7 @@ describe('Favicon and app icons (scripts/icons/favicon.py)', () => {
   });
 
   it('every page links favicon and apple icon', () => {
-    for (const page of ['index.html', 'play/index.html', 'manual/index.html', 'compendium/index.html']) {
+    for (const page of ['index.html', 'play/index.html', 'manual/index.html', 'compendium/index.html', 'scripting/index.html']) {
       const html = fs.readFileSync(page, 'utf8');
       expect(html, page).toMatch(/<link rel="icon" href="[.\/]*favicon\.ico"/);
       expect(html, page).toMatch(/<link rel="apple-touch-icon" href="[.\/]*apple-touch-icon\.png"/);
