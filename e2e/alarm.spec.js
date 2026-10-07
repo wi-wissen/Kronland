@@ -47,9 +47,12 @@ test('Ranged attack alerts as well; serfs attack an enemy like a tree (right cli
   });
   await expect(page.getByTestId('toasts')).toContainText('Angriff auf Burg', SLOW);
 
-  // Select own serfs; only once the build panel is up, look for the free click point
+  // Select own serfs; only once the build panel is up, look for the free click point. Pause the game until the
+  // click: otherwise the opponent AI walks the enemy away from the click point in the meantime (the command given
+  // while paused runs once the game continues)
   await page.evaluate(() => {
     const e = window.__kronland;
+    e.paused = true;
     e.selected.clear();
     for (const u of e.sim.entities.values()) if (u.kind === 'unit' && u.owner === 0) e.selected.add(u.id);
     e.emitUi();
@@ -73,15 +76,13 @@ test('Ranged attack alerts as well; serfs attack an enemy like a tree (right cli
         if (free(p)) break search;
       }
     }
-    return { x: p.x, y: p.y, foe: foe.id, fx: foe.px, fz: foe.py };
+    return { x: p.x, y: p.y, foe: foe.id };
   });
   // Picking uses the figures as drawn in the last rendered frame (position, visibility, detail level). Under software
   // WebGL the first frame after the camera jump can take seconds, so a fixed wait is not enough: wait until the click
-  // point is free of panels and actually picks the enemy. Put the enemy back in place each time (the opponent AI
-  // may have sent it away meanwhile).
+  // point is free of panels and actually picks the enemy.
   await expect.poll(() => page.evaluate((p) => {
-    const e = window.__kronland, f = e.sim.entities.get(p.foe);
-    f.px = p.fx; f.py = p.fz; f.job = null; f.path = []; f.goal = undefined;
+    const e = window.__kronland;
     return document.elementFromPoint(p.x, p.y)?.tagName === 'CANVAS' && e.renderer.pickEntity(p.x, p.y) === p.foe;
   }, pos), SLOW).toBe(true);
   if (info.project.name === 'mobile') await page.touchscreen.tap(pos.x, pos.y);
