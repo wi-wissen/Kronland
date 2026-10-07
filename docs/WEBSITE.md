@@ -25,6 +25,11 @@ Eine neue Seite: HTML-Datei anlegen (Kopf wie die vorhandenen, `window.KRONLAND_
   Sprache wie im Spiel aus `localStorage['kronland-lang']`, sonst Browsersprache (nicht gespeichert); die
   Umschaltung in der Kopfzeile speichert und gilt damit auch fürs Spiel.
 - `SiteLayout.vue` – Kopfzeile (Startseite · Spielen · Handbuch · Kompendium · Code · Blog · DE/EN) und Fußzeile mit Danksagung.
+- `ImageLightbox.vue`, `lightbox.js` – Bildvergrößerung, einmal in `SiteLayout` eingehängt: Bilder in `.prose`-Abbildungen
+  (Blog, Handbuch, Kompendium, Code) öffnen per Klick/Tippen oder Enter/Leertaste einen `<dialog>` mit größter
+  `srcset`-Fassung und Bildunterschrift; Pfeiltasten, Knöpfe oder Wischen blättern durch die Bilder desselben Artikels,
+  Escape/Hintergrund schließt. Ereignisdelegation am Dokument plus `MutationObserver` – greift auch nach neu
+  gezeichnetem `v-html`. Die Startseiten-Galerie nutzt dieselbe Komponente (`showImages(items, i)` am Layout).
 - `strings.js` – Texte der Website (DE/EN, gleiche Schlüssel; Test in `tests/site/site.test.js`).
 - `site.css` – baut auf den Tokens aus `src/ui/style.css` auf; Lesetext auf Pergament (`.prose`), Druckansicht.
 - `markdown.js` – kleiner Markdown-Umsetzer (Überschriften mit `{#id}`, Listen, Tabellen, `> Hinweis`,
