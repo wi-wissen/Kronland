@@ -12,6 +12,7 @@ import { SFX } from './sfx.js';
 import { createReverb } from './synth.js';
 import { mulberry32 } from './rng.js';
 import { Music } from './music.js';
+import { HOLD_FADE, HELD_BUSES, holdGain } from './hold.js';
 
 /** Level of music and ambience while a voice speaks (1 = unchanged) */
 const DUCK = { music: 0.22, ambient: 0.55 };
@@ -59,6 +60,10 @@ export class AudioEngine {
     this.installed = false;
     /** Counter of played effects per name (check aid for tests and debugging: window.__kronlandAudio.played) */
     this.played = Object.create(null);
+    /** Game paused: music, ambience and game sounds silent and halted (hold.js); UI sounds still play */
+    this.held = false;
+    /** @type {Record<string, GainNode>} hold stage per held bus (between bus/ducking and master) */
+    this.holds = {};
   }
 
   /** Register event listeners (once, from App.vue or GameAudio). */
@@ -134,9 +139,18 @@ export class AudioEngine {
     this.buses.master = master;
     // Music and ambience run through their own ducking, which lowers them during spoken dialogues
     this.ducks = {};
+    // Held buses get a hold stage in front of master (game paused → fade to 0)
     for (const k of ['music', 'sfx', 'ambient', 'ui']) {
       const g = ctx.createGain();
-      if (DUCK[k] !== undefined) { const d = ctx.createGain(); d.connect(master); g.connect(d); this.ducks[k] = d; } else g.connect(master);
+      let out = master;
+      if (/** @type {readonly string[]} */ (HELD_BUSES).includes(k)) {
+        const h = ctx.createGain();
+        h.gain.value = holdGain(this.held);
+        h.connect(master);
+        this.holds[k] = h;
+        out = h;
+      }
+      if (DUCK[k] !== undefined) { const d = ctx.createGain(); d.connect(out); g.connect(d); this.ducks[k] = d; } else g.connect(out);
       this.buses[k] = g;
     }
     // Reverb: music (own reverb into the music bus) and a quiet shared room for effects
@@ -146,7 +160,7 @@ export class AudioEngine {
     if (!this.lite) {
       const room = createReverb(ctx, true);
       const send = ctx.createGain(); send.gain.value = 0.12;
-      this.buses.sfx.connect(send).connect(room.input);
+      this.holds.sfx.connect(send).connect(room.input);
       this.buses.ui.connect(send);
       room.output.connect(master);
     }
@@ -160,6 +174,28 @@ export class AudioEngine {
     if (!ctx) return;
     if (document.hidden) ctx.suspend().catch(() => {});
     else if (this.unlocked) ctx.resume().catch(() => {});
+  }
+
+  /**
+   * Hold game audio (game paused) or release it: music, ambience and game sounds fade out over HOLD_FADE
+   * and the music halts at its position; on release everything fades back in and the music continues.
+   * UI sounds stay audible. Called every frame by GameAudio (only changes are applied).
+   * @param {boolean} on
+   */
+  setHold(on) {
+    on = !!on;
+    if (on === this.held) return;
+    this.held = on;
+    const ctx = this.ctx;
+    if (!ctx) { this.music.held = on; return; }
+    const t = ctx.currentTime;
+    for (const h of Object.values(this.holds)) {
+      const g = h.gain;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(holdGain(on), t + HOLD_FADE);
+    }
+    this.music.hold(on, on ? t + HOLD_FADE : t);
   }
 
   // ---------- Settings ----------
@@ -263,6 +299,7 @@ export class AudioEngine {
   play(name, o = {}) {
     const ctx = this.ctx, def = SFX[name];
     if (!ctx || !def || ctx.state !== 'running' || this.settings.muted) return false;
+    if (this.held && (def.bus ?? 'sfx') !== 'ui') return false;
     let gain = (o.gain ?? 1) * (def.gain ?? 1), pan = 0;
     if (o.x !== undefined && o.z !== undefined) {
       if (!this.listener) return false;
@@ -306,12 +343,13 @@ export class AudioEngine {
    */
   async playFile(url, o = {}) {
     const ctx = this.ctx;
-    if (!ctx || ctx.state !== 'running' || this.settings.muted) return 0;
+    const bus = o.bus ?? 'sfx';
+    if (!ctx || ctx.state !== 'running' || this.settings.muted || (this.held && bus !== 'ui')) return 0;
     const buf = await this.loadBuffer(url);
-    if (!buf || ctx.state !== 'running') return 0;
+    if (!buf || ctx.state !== 'running' || (this.held && bus !== 'ui')) return 0;
     const g = ctx.createGain();
     g.gain.value = o.gain ?? 1;
-    g.connect(this.buses[o.bus ?? 'sfx']);
+    g.connect(this.buses[bus]);
     const s = ctx.createBufferSource();
     s.buffer = buf;
     s.connect(g);

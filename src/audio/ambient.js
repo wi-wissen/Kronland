@@ -266,7 +266,7 @@ export class Ambient {
   /** Schedule one-off events (from the AudioEngine tick, ~5×/s). */
   tick(now = this.eng.ctx?.currentTime ?? 0) {
     const ctx = this.eng.ctx;
-    if (!ctx || !this.active) return;
+    if (!ctx || !this.active || this.eng.held) return;
     const r = this.r, lite = this.eng.lite;
     const out = this.eng.buses.ambient;
     const rain = this.layers.rain?.level ?? 0, bat = this.layers.battle?.level ?? 0;
