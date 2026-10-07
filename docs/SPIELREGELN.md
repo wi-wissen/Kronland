@@ -41,7 +41,8 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
 
 - Kosten 50 Taler, gekauft in der Burg, belegen 1 Bevölkerungsplatz.
 - 200 LP, Angriff 5, Rüstung 0. Kein Haus, kein Hof, keine Steuern, keine Motivation.
-- Aufgaben (vom Spieler befohlen): bauen (max. 4 je Baustelle, so viele Plätze frei sind), reparieren, Holz fällen,
+- Aufgaben (vom Spieler befohlen): bauen (höchstens so viele wie das Gebäude Bauplätze hat, 1/4/6/8, und so viele
+  Plätze frei sind), reparieren, Holz fällen,
   Haufen abbauen. Nach getaner Arbeit suchen sie im Umkreis gleichartige Arbeit **(A)**
   (auch nach einer Reparatur: nächstes beschädigtes eigenes Gebäude).
 - Abbau verteilt sich: höchstens 1 Leibeigener je Baum und 4 je Rohstoffhaufen **(A)**. Schickt man
@@ -56,8 +57,8 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
   belegt ist ein Platz, wenn eine andere ruhende Figur näher als 0,6 Kacheln steht (auch Leibeigene an
   Nachbarbäumen, Bauleute, wartende Arbeiter). Ist alles belegt, ist das Ziel voll: Eine Baustelle nimmt dann
   keinen weiteren Leibeigenen an (Meldung „An der Baustelle ist kein Platz mehr frei“, `err.siteFull`), beim
-  Abbau weichen die übrigen auf den nächsten Baum/Haufen mit freiem Platz aus. Die Obergrenze von 4 je
-  Baustelle bleibt; frei werdende Plätze (Abzug, Tod, Abbruch, Miliz) werden sofort wieder vergeben.
+  Abbau weichen die übrigen auf den nächsten Baum/Haufen mit freiem Platz aus. Die Obergrenze der Bauplätze je
+  Gebäude bleibt; frei werdende Plätze (Abzug, Tod, Abbruch, Miliz) werden sofort wieder vergeben.
   Gewählt wird im innersten Ring der Platz, der der Figur am nächsten liegt (also in der Richtung, aus der sie
   kommt, sonst der nächste freie daneben). Die Figur läuft bis in die Kachel des Platzes und dann geradeaus
   auf den genauen Punkt. Umsetzung: `src/sim/systems/spots.js`, Werte in `SPOTS` (`src/sim/data/spots.js`);
@@ -68,7 +69,8 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
 - Laufbefehle fächern auf: Jede Figur bekommt eine eigene Zielkachel um den Klickpunkt (Leibeigene
   1 Kachel Abstand, Truppen und Helden 3 Kacheln, damit die Soldaten dahinter Platz haben).
 - Beim Platzieren eines Gebäudes mit ausgewählten Leibeigenen fangen diese sofort an zu bauen.
-- Über jeder Baustelle (auch beim Ausbau) zeigt ein blauer Balken den Baufortschritt.
+- Über jeder Baustelle (auch beim Ausbau) zeigt ein blauer Balken den Baufortschritt. Ausbauten nehmen keine
+  Leibeigenen an (`err.upgradeNoSerfs`), siehe §6.
 - Angreifen wie Holzhacken (Vorbild): Leibeigene wählen, dann Gegner statt Baum anklicken (Rechtsklick bzw.
   Tippen) – sie greifen mit bloßen Fäusten an (Angriff 5, Arbeitsauftrag `fight`), bis er fällt; Gebäude nicht.
   Wer kämpft, flieht nicht.
@@ -139,8 +141,49 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
 
 ## 6. Gebäude
 
-Siehe `src/sim/data/buildings.js` (Kosten, Bauzeit, Größe, Stufen, Freischaltung).
-Bauzeit gilt bei 4 Leibeigenen; mit weniger entsprechend länger **(A)**.
+Siehe `src/sim/data/buildings.js` (Kosten, Bauzeit, Bauplätze, Größe, Stufen, Freischaltung).
+
+**Bauzeit und Bauplätze** (Quelle: Original-XML `config/entities/PB_*.xml`, Spiel-Engine laut
+S5BinkHook `CConstructionSite::GetProgressPerTick`: Fortschritt je Leibeigenem und Takt = 1 / (BuildFactor ·
+Time · 10), BuildFactor 1):
+- `buildTime` von Stufe 1 gilt für **einen** Leibeigenen; jeder weitere zählt voll mit, n Leibeigene brauchen
+  `buildTime / n` (je Leibeigenem und Takt 1 Punkt, Arbeit = `buildTime · 10` Punkte).
+- Höchstens so viele wie das Gebäude **Bauplätze** hat (`builders`, Anzahl `BuilderSlot` im Original): Zierbauten 1,
+  meist 4; Dorfzentrum, Hochschule, Sägemühle, Kaserne, Schießplatz, Kanonengießerei 6; Burg, Bank, Kapelle,
+  Reiterei 8. Gleiche Grenze bei der Reparatur.
+- **Ausbau ohne Leibeigene**: Ein Ausbau läuft von selbst, 1 Punkt je Takt, und dauert genau die angegebene Zeit
+  (`buildTime` der Stufe 2+, im Original `Upgrade/Time` der unteren Stufe; `src/sim/systems/upgrades.js`). Beleg:
+  Die Ausbau-Baustelle `ZB_UpgradeSite*` ist im Original ein reines `EGL::CGLEEntity` ohne Bauplätze (die
+  Neubau-Baustelle dagegen `GGL::CConstructionSite`), der Leibeigene kennt nur `ApproachConstructionSiteTaskList`,
+  und der Fortschritt steht als `UpgradeProgress` am Gebäude (Anzeige wie Forschung und Handel). Während des
+  Ausbaus ruht das Gebäude (Original: `IsBuildingClosed`); LP steigen mit dem Fortschritt auf den neuen Höchstwert.
+  Laufende Reparaturen enden beim Start des Ausbaus.
+
+| Gebäude | Bau (1 Leibeigener) | Ausbau → 2 / → 3 | Bauplätze |
+|---|---|---|---|
+| Burg (nicht baubar) | – | 90 / 120 s | 8 |
+| Dorfzentrum | 110 s | 40 / 40 s | 6 |
+| Wohnhaus, Bauernhof | 80 s | 40 / 50 s | 4 |
+| Hochschule | 90 s | 50 s | 6 |
+| Lehm-, Stein-, Eisenmine | 80 s | 40 / 50 s | 4 |
+| Schwefelmine | 110 s | 40 / 50 s | 4 |
+| Ziegelhütte, Schmiede | 110 s | 40 s | 4 |
+| Sägemühle | 110 s | 40 s | 6 |
+| Steinmetz, Alchimist | 80 s | 40 s | 4 |
+| Bank | 130 s | 40 s | 8 |
+| Kapelle | 140 s | 60 / 90 s | 8 |
+| Lager (Original: Markt) | 80 s | 40 s | 4 |
+| Kaserne, Schießplatz | 90 s | 40 s | 6 |
+| Reiterei | 120 s | 40 s | 8 |
+| Kanonengießerei | 110 s | 40 s | 6 |
+| Wachturm | 80 s | 15 / 15 s | 4 |
+| Wetterturm, Wetterkraftwerk | 40 s | – | 4 |
+| Brücke | 80 s | – | 4 |
+| Windrad (≈ Zierbau 12), Denkmal (≈ Zierbau 07) | 20 s / 30 s | – | 1 |
+| Uhr, Brunnen | 20 s **(A)** | – | 1 |
+
+Vorher galt die Bauzeit bei 4 Leibeigenen (ein Leibeigener brauchte das Vierfache); mit gleich vielen
+Leibeigenen baut Kronland jetzt 3- bis 4-mal so schnell wie zuvor, also wie das Original.
 
 ## 6a. Bauen am Hang
 

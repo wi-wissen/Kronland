@@ -7,7 +7,6 @@ export const BALANCE = {
     fleeTicks: 60,           // attacked: flee this long, then return to work (A; model: serfs flee)
     fleeTiles: 8,            // escape distance away from the attacker if the castle is no refuge (A)
     speed: 200,              // milli-tiles per tick = 2 tiles/s (A)
-    maxBuildersPerSite: 4,
     chopTicks: 40,           // one chop cycle of wood (A)
     chopYield: 2,            // wood per cycle; wood goes about twice as fast (A)
     mineTicks: 40,           // one mining cycle at piles (A)

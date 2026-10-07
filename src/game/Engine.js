@@ -873,7 +873,8 @@ export class Engine {
   }
 
   buySerf(count = 1) { this.issue({ type: 'buySerf', count }); }
-  upgrade(id) { this.issue({ type: 'upgradeBuilding', building: id, units: this.idleSerfsNear(id) }); }
+  /** Upgrade: runs on its own, no serfs are sent. */
+  upgrade(id) { this.issue({ type: 'upgradeBuilding', building: id }); }
   demolish(id) { this.issue({ type: 'demolish', building: id }); this.selected.delete(id); }
   research(id, tech) { this.issue({ type: 'research', building: id, tech }); }
   setOvertime(id, on) { this.issue({ type: 'setOvertime', building: id, on }); }
@@ -892,7 +893,7 @@ export class Engine {
     this.issue({ type: 'assignWork', units: list, target: id });
   }
 
-  /** Up to 4 idle serfs near a building (for extensions). */
+  /** Up to 4 idle serfs near a building (for repairs). */
   idleSerfsNear(id) {
     const b = this.sim.entities.get(id);
     if (!b) return [];
@@ -1420,13 +1421,14 @@ export class Engine {
         selection = {
           kind: 'building', id: e.id, type: e.type, levelIndex: e.level, level: e.level + 1, maxLevel: def.levels.length, done: e.done,
           owner: e.owner, progress: e.work ? Math.floor((e.progress / e.work) * 100) : 100, hp: e.hp, maxHp: lvl.hp,
-          own, relation, builders: e.builders.length, profession: prof, motivation: inside ? motivation : null,
+          own, relation, builders: e.builders.length, maxBuilders: def.builders,
+          remaining: e.done ? 0 : Math.ceil((e.work - e.progress) / 10), profession: prof, motivation: inside ? motivation : null,
           beds: inside && lvl.beds ? [e.residents.length, lvl.beds] : null,
           seats: inside && lvl.seats ? [e.eaters.length, lvl.seats] : null,
           population: inside ? lvl.population ?? null : null,
           workers: inside && workerSlots(e) ? [e.workers.length, workerSlots(e)] : null,
           overtime: e.overtime,
-          upgrade: own && next ? { level: e.level + 1, cost: Object.entries(next.cost), reason: sim.checkUpgrade(this.player, e) } : null,
+          upgrade: own && next ? { level: e.level + 1, cost: Object.entries(next.cost), time: next.buildTime, reason: sim.checkUpgrade(this.player, e) } : null,
           canDemolish: own && e.type !== 'headquarters' && e.type !== 'banditCamp',
           research: own && e.type === 'university' && e.done ? Object.values(TECHS).map((t) => ({
             id: t.id, line: t.line, tier: t.tier, prev: t.prev, cost: Object.entries(t.cost), time: t.time,

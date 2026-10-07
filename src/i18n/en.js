@@ -188,7 +188,8 @@ export default {
   // Buildings
   'bld.underConstruction': 'Under construction',
   'bld.upgrading': 'Upgrading',
-  'bld.progress': '{p} % · {n} serfs',
+  'bld.progress': '{p} % · {n}/{max} serfs',
+  'bld.upgradeLeft': '{p} % · {s} s left',
   'bld.hp': 'Hit points',
   'bld.workers': 'Workers',
   'bld.beds': 'Beds',
@@ -200,7 +201,7 @@ export default {
   'bld.upgrade': 'Upgrade to {name}',
   'bld.upgradeShort': 'Upgrade',
   'bld.upgradeNext': 'Level {n}: {name}',
-  'bld.upgradeTip': 'Idle serfs nearby carry out the upgrade.',
+  'bld.upgradeTip': 'The upgrade takes {s} s and runs on its own, without serfs. The building rests meanwhile.',
   'bld.maxLevel': 'Highest level',
   'bld.overtime': 'Overtime',
   'bld.overtimeTip': 'Work faster at the cost of motivation',
@@ -823,6 +824,7 @@ export default {
   'err.noRepairNeeded': 'Building is undamaged',
   'err.repairFull': 'Enough serfs are already repairing',
   'err.siteFull': 'No room left at the construction site',
+  'err.upgradeNoSerfs': 'The upgrade runs on its own, no serfs needed',
 
   // ---------- Game systems: building technologies (smithy, sawmill, alchemist, …) ----------
   'tech.leatherMail': 'Leather Mail',

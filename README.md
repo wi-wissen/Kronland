@@ -110,6 +110,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   F3 bzw. Strg+Umschalt+D – siehe [Entwicklermodus](docs/ENTWICKLERMODUS.md).
 - Karten werden aus dem Seed erzeugt: Hügel, Täler, Gebirge mit Gipfeln, Flüsse mit Furten, Seen, Küsten.
   Steilhänge und Gipfel (Klippen) sind unpassierbar und nicht bebaubar. Größen 96/128/160 (`generateMap(seed, { size })`).
+- **Bauzeiten wie im Original**: Die Bauzeit gilt für einen Leibeigenen, n Leibeigene brauchen ein n-tel davon
+  (Wohnhaus 80 s allein, 20 s zu viert); je nach Gebäude bauen 1, 4, 6 oder 8 mit. Ausbauten laufen von selbst
+  ohne Leibeigene. Werte aus den Original-XMLs: [Spielregeln §6](docs/SPIELREGELN.md#6-gebäude).
 - **Bauen am Hang**: Mäßige Hänge (bis 4 m Höhenunterschied unter dem Gebäude) werden beim Setzen der Baustelle
   dauerhaft eingeebnet; die Bauvorschau zeigt grün (eben), gelb (wird eingeebnet) oder rot (zu steil).
   Regeln und Recherche: [Spielregeln §6a](docs/SPIELREGELN.md#6a-bauen-am-hang).

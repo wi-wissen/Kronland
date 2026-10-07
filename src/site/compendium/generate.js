@@ -137,6 +137,11 @@ function unlockCells(techId, names, f) {
 
 // ---------- Sections ----------
 
+/** Builder spots that occur, ascending (e.g. "1/4/6/8"). */
+function builderList() {
+  return [...new Set(Object.values(BUILDINGS).map((d) => d.builders).filter(Number.isInteger))].sort((a, b) => a - b).join('/');
+}
+
 function buildingsSection(lang, names, f) {
   const types = Object.keys(BUILDINGS);
   const levelKeys = new Set();
@@ -153,11 +158,11 @@ function buildingsSection(lang, names, f) {
   const overview = {
     type: 'table', id: 'buildings-table', caption: f.L('sec.buildings'),
     cols: [{ label: f.L('col.name') }, { label: f.L('col.size') }, { label: f.L('col.placement') }, { label: f.L('col.levels'), num: true },
-      { label: f.L('col.requires') }, { label: f.L('col.cost') }, { label: f.L('col.buildTime'), num: true }, { label: f.L('col.hp'), num: true }, { label: f.L('col.workers'), num: true }],
+      { label: f.L('col.requires') }, { label: f.L('col.cost') }, { label: f.L('col.buildTime'), num: true }, { label: f.L('col.builders'), num: true }, { label: f.L('col.hp'), num: true }, { label: f.L('col.workers'), num: true }],
     rows: types.map((type) => {
       const d = BUILDINGS[type], l0 = d.levels[0];
       return { id: `row-${type}`, cells: [link(names.building(type, 0), anchor.building(type), `b-${type}`), `${d.w} × ${d.h}`, placement(d), d.levels.length,
-        d.buildable === false ? f.L('f.notBuildable') : reqCell(d.requires), costCell(l0.cost), f.s(l0.buildTime), f.n(l0.hp), l0.workers ?? 0] };
+        d.buildable === false ? f.L('f.notBuildable') : reqCell(d.requires), costCell(l0.cost), f.s(l0.buildTime), d.builders ?? '–', f.n(l0.hp), l0.workers ?? 0] };
     }),
   };
 
@@ -167,6 +172,7 @@ function buildingsSection(lang, names, f) {
     const facts = [
       [f.L('f.size'), `${d.w} × ${d.h}`],
       [f.L('f.placement'), placement(d)],
+      [f.L('f.builders'), d.builders ?? '–'],
       [f.L('f.armor'), d.levels.map((_, i) => buildingArmor(type, i)).filter((v, i, a) => a.indexOf(v) === i).join(' / ')],
       [f.L('f.requires'), d.buildable === false ? f.L('f.notBuildable') : reqCell(d.requires)],
     ];
@@ -181,7 +187,7 @@ function buildingsSection(lang, names, f) {
     const usedExtra = extra.filter((k) => d.levels.some((l) => l[k] !== undefined));
     const levelTable = {
       type: 'table',
-      cols: [{ label: f.L('col.level'), num: true }, { label: f.L('col.name') }, { label: f.L('col.cost') }, { label: f.L('col.buildTime'), num: true },
+      cols: [{ label: f.L('col.level'), num: true }, { label: f.L('col.name') }, { label: f.L('col.cost') }, { label: f.L('col.buildUpgradeTime'), num: true },
         { label: f.L('col.hp'), num: true }, ...usedExtra.map((k) => ({ label: extraLabel(k), num: true })), { label: f.L('col.sight'), num: true }, { label: f.L('col.upgradeReq') }],
       rows: d.levels.map((l, i) => ({ cells: [i + 1, names.building(type, i), costCell(l.cost), f.s(l.buildTime), f.n(l.hp),
         ...usedExtra.map((k) => (l[k] ?? '–')), buildingSight(type, i, true), i === 0 ? f.L('none') : reqCell(UPGRADE_REQUIRES[type]?.[i])] })),
@@ -198,7 +204,7 @@ function buildingsSection(lang, names, f) {
   });
 
   return { id: 'buildings', icon: 'b-residence', blocks: [overview], entries,
-    vars: { builders: BALANCE.serf.maxBuildersPerSite, maxSlope: BALANCE.maxSlope, hqArmor: BUILDINGS.headquarters.levels.map((_, i) => buildingArmor('headquarters', i)).join('/') } };
+    vars: { builderList: builderList(), maxSlope: BALANCE.maxSlope, hqArmor: BUILDINGS.headquarters.levels.map((_, i) => buildingArmor('headquarters', i)).join('/') } };
 }
 
 function unitsSection(lang, names, f) {
@@ -463,7 +469,7 @@ function experienceSection(lang, names, f) {
 
 function damageSection(lang, names, f) {
   return { id: 'damage', icon: 'fire', blocks: [constTable(DAMAGE, f, 'damage-constants', f.L('cap.damage'))], entries: [],
-    vars: { burn: DAMAGE.burnBelowPercent, burnPerS: (DAMAGE.burnHp * 10) / DAMAGE.burnTicks, repair: DAMAGE.repairHpPerTick, builders: BALANCE.serf.maxBuildersPerSite, ruinS: DAMAGE.ruinTicks / 10 } };
+    vars: { burn: DAMAGE.burnBelowPercent, burnPerS: (DAMAGE.burnHp * 10) / DAMAGE.burnTicks, repair: DAMAGE.repairHpPerTick, ruinS: DAMAGE.ruinTicks / 10 } };
 }
 
 function marketSection(lang, names, f) {

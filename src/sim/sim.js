@@ -3,7 +3,7 @@
 import { Rng } from './rng.js';
 import { buildWorld } from './world.js';
 import { OCCUPIED, RESERVED, WATER, CLIFF, BRIDGE } from './map.js';
-import { BUILDINGS, UPGRADE_REQUIRES } from './data/buildings.js';
+import { BUILDINGS, UPGRADE_REQUIRES, buildersOf, isUpgrading } from './data/buildings.js';
 import { TECHS } from './data/technologies.js';
 import { BLESSINGS, WORKER } from './data/professions.js';
 import { BALANCE } from './data/balance.js';
@@ -11,6 +11,7 @@ import { RESOURCES, START_RESOURCES, emptyStock } from './data/resources.js';
 import { UNIT, tileCenter, toTile, secondsToTicks } from './fixed.js';
 import { Hasher } from './hash.js';
 import { updateSerf, clearJob, assignJob, assignGather } from './systems/serfs.js';
+import { updateUpgrades } from './systems/upgrades.js';
 import { unstickAll, nearestWalkable, formationTiles } from './systems/movement.js';
 import { updatePayday } from './systems/payday.js';
 import { updateSpawning, updateWorker, removeWorker, workersOf, maxMotivation, updateCamps } from './systems/workers.js';
@@ -250,7 +251,7 @@ export class Sim {
     /** @type {Building} */
     const b = {
       id: this.nextId++, kind: 'building', type, owner, x, y, w: site?.w ?? def.w, h: site?.h ?? def.h,
-      level: 0, done, progress: 0, work: secondsToTicks(lvl.buildTime) * BALANCE.serf.maxBuildersPerSite,
+      level: 0, done, progress: 0, work: secondsToTicks(lvl.buildTime), // ticks with one serf
       hp: done ? lvl.hp : Math.max(1, Math.trunc(lvl.hp / 10)), builders: [], cooldown: 0,
       workers: [], residents: [], eaters: [], overtime: false, research: null, trade: null, burning: false,
     };
@@ -536,7 +537,9 @@ export class Sim {
     if (!serfs.length) return this.reject(cmd, 'err.noSerfs');
     // Finished own building: only repair if damaged
     if (t.kind === 'building' && t.done && t.owner === cmd.player && !isDamaged(this, t)) return this.reject(cmd, REASONS.noRepairNeeded);
-    if (t.kind === 'building' && t.done && t.owner === cmd.player && t.builders.length >= BALANCE.serf.maxBuildersPerSite
+    // Upgrade: runs on its own, serfs are not needed (as in the original)
+    if (t.kind === 'building' && t.owner === cmd.player && isUpgrading(t)) return this.reject(cmd, REASONS.upgradeNoSerfs);
+    if (t.kind === 'building' && t.done && t.owner === cmd.player && t.builders.length >= buildersOf(t.type)
       && !serfs.some((u) => t.builders.includes(u.id))) return this.reject(cmd, REASONS.repairFull);
     let ok = 0;
     if (t.kind === 'tree' || t.kind === 'pile') ok = assignGather(this, serfs, t);
@@ -603,9 +606,12 @@ export class Sim {
     b.level++;
     b.done = false;
     b.progress = 0;
-    b.work = secondsToTicks(next.buildTime) * BALANCE.serf.maxBuildersPerSite;
+    // Upgrade runs on its own (systems/upgrades.js): one point per tick, no serfs (original: Upgrade/Time)
+    b.work = secondsToTicks(next.buildTime);
+    // Serfs still repairing are released – the upgrade site takes no builders
+    for (const id of [...b.builders]) { const u = this.entities.get(id); if (u) clearJob(this, u); }
+    b.builders = [];
     this.events.push({ type: 'upgradeStarted', player: cmd.player, building: b.id, level: b.level });
-    if (cmd.units?.length) this.cmdAssignWork({ player: cmd.player, units: cmd.units, target: b.id });
     return true;
   }
 
@@ -906,6 +912,7 @@ export class Sim {
       if (e.kind === 'unit' && !e.militia) updateSerf(this, e);
       else if (e.kind === 'worker') updateWorker(this, e);
     }
+    updateUpgrades(this);
     updateCamps(this);
     updateMilitary(this);
     updateBuildingResearch(this);

@@ -11,7 +11,7 @@
     <div v-if="sel.own && (sel.upgrade || (sel.workers && sel.done) || sel.canDemolish)" class="acts bp-span">
       <button
         v-if="sel.upgrade"
-        v-tip="{ title: $t('bld.upgrade', { name: $name.building(sel.type, sel.upgrade.level) }), text: $t('bld.upgradeTip'), cost: sel.upgrade.cost, have, reason: sel.upgrade.reason ? $reason(sel.upgrade.reason) : null }"
+        v-tip="{ title: $t('bld.upgrade', { name: $name.building(sel.type, sel.upgrade.level) }), text: $t('bld.upgradeTip', { s: sel.upgrade.time }), cost: sel.upgrade.cost, have, reason: sel.upgrade.reason ? $reason(sel.upgrade.reason) : null }"
         class="act act-wide"
         :class="{ ready: !sel.upgrade.reason }"
         :aria-disabled="!!sel.upgrade.reason"

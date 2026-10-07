@@ -121,7 +121,8 @@ the map button pulses instead.
 
 Serfs are your all-rounders. You buy them at the **castle** for {{serfCost}} thalers. They
 
-- **build** (up to {{maxBuilders}} per site – more helpers, faster construction),
+- **build**: every helper divides the build time – a residence takes {{residenceBuild}} s alone, a quarter of that
+  with four. How many can help depends on the building (ornaments 1, mostly 4, large buildings up to {{maxBuilders}}),
 - **fell trees** and **mine resource piles** (clay, stone, iron, sulfur),
 - **repair** damaged buildings,
 - **attack** just like chopping wood: select serfs and click or tap an **enemy** instead of a tree – they go at it
@@ -148,7 +149,8 @@ Costs are deducted when you place the building. Demolishing refunds half.
 ### Upgrading
 
 Almost every building has several **levels** (residence → medium → large residence). Upgrading costs resources, often a
-technology, and takes a while; the building keeps working meanwhile. All levels, costs and requirements are
+technology, and takes a fixed time. You need no serfs for it, the upgrade runs on its own; the building rests
+meanwhile (workers wait, residents and diners fall back to a campfire). All levels, costs and requirements are
 listed in the [compendium](compendium/#buildings).
 
 ### Population

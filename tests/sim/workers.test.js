@@ -199,18 +199,19 @@ describe('Research and upgrade', () => {
     expect(reason('trade')).toBe('err.fortressFirst');
   });
 
-  it('house upgrade needs construction and serfs', () => {
+  it('house upgrade needs construction and runs on its own in the upgrade time', () => {
     const sim = newSim();
     const home = quickBuild(sim, 'residence');
     let ev = sim.step([{ type: 'upgradeBuilding', player: 0, building: home.id }]);
     expect(ev.find((e) => e.type === 'rejected')).toMatchObject({ reason: 'err.techFirst', params: { tech: 'construction' } });
     sim.players[0].techs.add('construction');
-    const units = serfsOf(sim).map((u) => u.id);
-    sim.step([{ type: 'upgradeBuilding', player: 0, building: home.id, units }]);
+    sim.step([{ type: 'upgradeBuilding', player: 0, building: home.id }]);
     expect(home.level).toBe(1);
     expect(home.done).toBe(false);
-    runUntil(sim, () => home.done, 3000);
-    expect(home.done).toBe(true);
+    const t = runUntil(sim, () => home.done, 3000);
+    // started tick counts as the first one: exactly upgrade time (40 s) in ticks
+    expect(t + 1).toBe(BUILDINGS.residence.levels[1].buildTime * 10);
+    expect(home.builders).toEqual([]);
     expect(BUILDINGS.residence.levels[home.level].beds).toBe(9);
   });
 

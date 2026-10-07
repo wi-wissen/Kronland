@@ -306,7 +306,7 @@ export default {
         const b = sim.createBuilding(P, type, p.x, p.y, true);
         const next = def.levels[1];
         b.level = 1; b.done = false;
-        b.work = secondsToTicks(next.buildTime) * BALANCE.serf.maxBuildersPerSite;
+        b.work = secondsToTicks(next.buildTime); // runs on its own (systems/upgrades.js), finishes while the scene runs
         b.progress = Math.trunc((b.work * pct) / 100);
         siteBoxes.push({ ...p, w: def.w, h: def.h });
       } else ctx.warn('No space for the upgrade');
