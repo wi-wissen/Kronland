@@ -246,7 +246,7 @@ def run(pw):
         shot = shoot(page)
         # hero.webp 1440 px for phones and normal screens, hero-wide.webp 2880 px for large and sharp screens (srcset)
         save(shot, 'hero', small=False, size=(1440, 900))
-        save(shot, 'hero-wide', small=False, quality=74)
+        save(shot, 'hero-wide', small=False, quality=70)
         ctx.close()
 
     # ---------- Settlement (gallery with HUD) and HUD crops ----------

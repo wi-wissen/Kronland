@@ -151,7 +151,7 @@ export default {
 .ap-body.dense { flex-direction: column; flex-wrap: nowrap; gap: 0.3125rem; }
 .ap-body.dense .hcard { flex: none; gap: 0.5rem; padding: 0.3125rem 0.4375rem; }
 .ap-body.dense .hc-portrait { width: 2.5rem; height: 2.5rem; }
-.ap-body.dense .hc-portrait .ico { width: 2rem; height: 2rem; }
+.ap-body.dense .hc-portrait .ico:not(.portrait) { width: 2rem; height: 2rem; }
 .ap-body.dense .hc-info b { font-size: var(--fs-md, 1rem); }
 .ap-body.dense .ap-leaders { grid-template-columns: 1fr; gap: 0.3125rem; flex: none; }
 .ap-body.dense .lcard, .ap-body.dense .gcard { padding: 0.25rem 0.4375rem; }

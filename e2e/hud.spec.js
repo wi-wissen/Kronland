@@ -320,7 +320,14 @@ test('Resource bar: large amounts shortened, everything in one row with the cres
 test('Hero images sit round in the frame', async ({ page }) => {
   const errors = await boot(page, '/?seed=42&no-models&hero=orrin');
   await page.getByTestId('quick-hero-orrin').click();
+  // hero alone: only the health bar (the heading names him); with a squad the hero card appears
   await expect(page.getByTestId('hero-orrin')).toBeVisible();
+  await expect(page.locator('[data-testid=hero-orrin] .hc-portrait')).toHaveCount(0);
+  await page.evaluate(() => {
+    const e = window.__kronland, s = e.sim, hq = s.findBuilding(0, 'headquarters');
+    e.selected.add(s.spawnLeader(0, 'sword1', hq.x + 2, hq.y + hq.h + 2).id);
+    e.emitUi();
+  });
   for (const frame of ['[data-testid=quick-hero-orrin] .cb-pic', '[data-testid=hero-orrin] .hc-portrait']) {
     const fit = await page.locator(frame).evaluate((el) => {
       const img = el.querySelector('img.ico.portrait');
