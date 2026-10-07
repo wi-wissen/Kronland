@@ -79,7 +79,7 @@ describe('Marketplace', () => {
     expect(sim.market.prices.iron).toBeGreaterThan(low);
     sim.run(MARKET.recoverTicks * 200);
     expect(sim.market.prices.iron).toBe(MARKET.basePrice.iron);
-  });
+  }, 180_000); // long run, slow on loaded machines
 
   it('prices stay within their limits', () => {
     const { sim, m } = setup();

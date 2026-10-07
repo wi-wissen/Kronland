@@ -188,7 +188,8 @@ export default {
   // Buildings
   'bld.underConstruction': 'Im Bau',
   'bld.upgrading': 'Wird ausgebaut',
-  'bld.progress': '{p} % · {n} Leibeigene',
+  'bld.progress': '{p} % · {n}/{max} Leibeigene',
+  'bld.upgradeLeft': '{p} % · noch {s} s',
   'bld.hp': 'Lebenspunkte',
   'bld.workers': 'Arbeiter',
   'bld.beds': 'Betten',
@@ -200,7 +201,7 @@ export default {
   'bld.upgrade': 'Ausbauen zu {name}',
   'bld.upgradeShort': 'Ausbauen',
   'bld.upgradeNext': 'Stufe {n}: {name}',
-  'bld.upgradeTip': 'Freie Leibeigene in der Nähe übernehmen den Ausbau.',
+  'bld.upgradeTip': 'Der Ausbau dauert {s} s und läuft von selbst, ohne Leibeigene. Solange ruht das Gebäude.',
   'bld.maxLevel': 'Höchste Stufe',
   'bld.overtime': 'Überstunden',
   'bld.overtimeTip': 'Schneller arbeiten, kostet aber Motivation',
@@ -821,6 +822,7 @@ export default {
   'err.noRepairNeeded': 'Gebäude ist unbeschädigt',
   'err.repairFull': 'Schon genug Leibeigene an der Reparatur',
   'err.siteFull': 'An der Baustelle ist kein Platz mehr frei',
+  'err.upgradeNoSerfs': 'Der Ausbau läuft von selbst, Leibeigene werden nicht gebraucht',
 
   // ---------- Game systems: building technologies (smithy, sawmill, alchemist, …) ----------
   'tech.leatherMail': 'Kettenlederrüstung',

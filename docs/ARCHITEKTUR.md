@@ -8,7 +8,7 @@ src/
   site/       Startseite, Handbuch, Kompendium (Vue, gemeinsames Layout; Kompendium erzeugt aus sim/data)
   sim/        Spiellogik: reines JS, kein DOM, kein Three.js, deterministisch
     data/     Balancing-Werte (Gebäude, Rohstoffe, Einheiten, Techs)
-    systems/  Ablauf pro Takt (Bauen, Abbau, Zahltag, Gebäude-Forschung, Markt, Wetter, Brand/Reparatur, …)
+    systems/  Ablauf pro Takt (Bauen, Ausbau ohne Leibeigene, Abbau, Zahltag, Gebäude-Forschung, Markt, Wetter, Brand/Reparatur, …)
     reasons.js Ablehnungsgründe der neuen Systeme in einer Tabelle (für i18n-Umstellung)
     missions/ Missionslaufzeit, Tutorial, Kampagne (siehe docs/MISSIONEN.md), scenarios/ (Lernabenteuer)
     scripting/ Python-Skripte in der Simulation: ScriptHost, Spiel-API, Szenario-Format (docs/SKRIPTE.md)

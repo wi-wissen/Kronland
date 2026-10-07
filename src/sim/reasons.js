@@ -29,4 +29,5 @@ export const REASONS = {
   noRepairNeeded: 'err.noRepairNeeded',
   repairFull: 'err.repairFull',
   siteFull: 'err.siteFull',
+  upgradeNoSerfs: 'err.upgradeNoSerfs',
 };

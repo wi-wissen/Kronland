@@ -8,6 +8,7 @@ import { isEnemy, targetable, strike } from './military.js';
 import { SERF_COMBAT } from '../data/units.js';
 import { techBonus, boosted, buildingMaxHp } from './techs.js';
 import { DAMAGE, isDamaged } from './damage.js';
+import { buildersOf, isUpgrading } from '../data/buildings.js';
 import { takenSpots, pickSpot, freeSpots, regionOf, pickSlot, freeSlots, slotPoint, slotTile, stepToPoint } from './spots.js';
 
 const S = BALANCE.serf;
@@ -28,7 +29,7 @@ const canFight = (sim, u, t) => !!t && FIGHTABLE.has(t.kind) && isEnemy(sim, u.o
 function jobValid(sim, u, t) {
   if (!t) return false;
   if (u.job.kind === 'fight') return canFight(sim, u, t);
-  if (u.job.kind === 'build') return t.kind === 'building' && !t.done && t.owner === u.owner;
+  if (u.job.kind === 'build') return t.kind === 'building' && !t.done && !isUpgrading(t) && t.owner === u.owner;
   if (u.job.kind === 'repair') return t.kind === 'building' && t.owner === u.owner && isDamaged(sim, t);
   return (t.kind === 'tree' || t.kind === 'pile') && t.amount > 0;
 }
@@ -48,7 +49,8 @@ export function clearJob(sim, u) {
 
 /**
  * Assign work. Each serf gets their own spot around the target; if none is
- * free any more (or the construction site is already staffed with `maxBuildersPerSite`), it is not accepted.
+ * free any more (or the construction site is already staffed with `builders` of its type), it is not accepted.
+ * Upgrades take no serfs (they run on their own, systems/upgrades.js).
  * @returns {boolean}
  */
 export function assignJob(sim, u, t) {
@@ -56,8 +58,9 @@ export function assignJob(sim, u, t) {
     if (t.owner !== u.owner) return false;
     // Finished buildings: repair, if damaged
     if (t.done && !isDamaged(sim, t)) return false;
+    if (isUpgrading(t)) return false;
     if (t.builders.includes(u.id)) return true;
-    if (t.builders.length >= S.maxBuildersPerSite) return false;
+    if (t.builders.length >= buildersOf(t.type)) return false;
     const spot = pickSpot(sim, u, spotsAround(sim, t));
     if (spot < 0) return false;
     clearJob(sim, u);
@@ -85,10 +88,11 @@ export function assignJob(sim, u, t) {
 
 /**
  * How many serfs (from the region of `u`) a construction site or repair can still take:
- * at most `maxBuildersPerSite` and only as many as there are free spots around it. For AI and bots.
+ * at most `builders` of its type and only as many as there are free spots around it (0 for an upgrade). For AI and bots.
  */
 export function siteRoom(sim, b, u) {
-  const left = S.maxBuildersPerSite - b.builders.length;
+  if (isUpgrading(b)) return 0;
+  const left = buildersOf(b.type) - b.builders.length;
   if (left <= 0) return 0;
   const free = freeSpots(sim.map, spotsAround(sim, b), takenSpots(sim), u ? regionOf(sim.map, u) : 0).length;
   return Math.min(left, free);
@@ -185,8 +189,8 @@ function findNextJob(sim, u, prev) {
   let best = null, bestD = Infinity;
   for (const e of sim.entities.values()) {
     let fits = false;
-    if (prev.kind === 'build') fits = e.kind === 'building' && !e.done && e.owner === u.owner && e.builders.length < S.maxBuildersPerSite;
-    else if (prev.kind === 'repair') fits = e.kind === 'building' && e.owner === u.owner && isDamaged(sim, e) && e.builders.length < S.maxBuildersPerSite;
+    if (prev.kind === 'build') fits = e.kind === 'building' && !e.done && !isUpgrading(e) && e.owner === u.owner && e.builders.length < buildersOf(e.type);
+    else if (prev.kind === 'repair') fits = e.kind === 'building' && e.owner === u.owner && isDamaged(sim, e) && e.builders.length < buildersOf(e.type);
     if (!fits) continue;
     const r = rectOf(e);
     const cx = r.x + (r.w >> 1), cy = r.y + (r.h >> 1);
@@ -239,6 +243,7 @@ function doWork(sim, u, t) {
     return;
   }
   if (u.job.kind === 'build') {
+    // One point per serf and tick: work = build time in ticks with one serf, n serfs need 1/n of it
     t.progress++;
     const maxHp = buildingMaxHp(sim, t);
     t.hp = Math.max(t.hp, Math.trunc((maxHp * t.progress) / t.work));

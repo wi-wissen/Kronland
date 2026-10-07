@@ -121,7 +121,9 @@ wird. Am Handy pulsiert dann der Kartenknopf.
 
 Leibeigene sind deine Allrounder. Du kaufst sie in der **Burg** für {{serfCost}} Taler. Sie
 
-- **bauen** Gebäude (bis zu {{maxBuilders}} je Baustelle – mehr Helfer, schnellerer Bau),
+- **bauen** Gebäude: Jeder Helfer teilt die Bauzeit – ein Wohnhaus braucht allein {{residenceBuild}} s, zu viert
+  ein Viertel davon. Wie viele mitbauen können, hängt vom Gebäude ab (Zierbauten 1, meist 4, große Gebäude bis
+  {{maxBuilders}}),
 - **fällen Bäume** und **bauen Rohstoffhaufen ab** (Lehm, Stein, Eisen, Schwefel),
 - **reparieren** beschädigte Gebäude,
 - **greifen an** wie beim Holzhacken: Leibeigene wählen und statt eines Baums einen **Gegner** anklicken bzw.
@@ -149,7 +151,8 @@ Die Kosten werden beim Platzieren abgezogen. Abreißen erstattet die Hälfte.
 ### Ausbauen
 
 Fast jedes Gebäude hat mehrere **Ausbaustufen** (Wohnhaus → Mittleres → Großes Wohnhaus). Ausbauen kostet
-Rohstoffe, oft eine Technologie und dauert eine Weile; das Gebäude arbeitet währenddessen weiter. Alle
+Rohstoffe, oft eine Technologie und dauert eine feste Zeit. Leibeigene brauchst du dafür nicht, der Ausbau läuft
+von selbst; das Gebäude ruht währenddessen (Arbeiter warten, Bewohner und Gäste weichen ans Lagerfeuer aus). Alle
 Stufen, Kosten und Bedingungen stehen im [Kompendium](compendium/#buildings).
 
 ### Bevölkerung

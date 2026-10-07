@@ -86,7 +86,7 @@ export function buildingSystemsUi(sim, player, b) {
     const damaged = isDamaged(sim, b);
     out.repair = {
       damaged, burning: !!b.burning, repairers: damaged ? b.builders.length : 0,
-      max: BALANCE.serf.maxBuildersPerSite, hpPerSecond: b.builders.length * DAMAGE.repairHpPerTick * 10,
+      max: BUILDINGS[b.type].builders, hpPerSecond: b.builders.length * DAMAGE.repairHpPerTick * 10,
     };
   }
   return out;

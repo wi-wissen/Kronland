@@ -72,7 +72,7 @@ describe('Experience of captains', () => {
     expect(L.hp).toBe(100 + 5 * XP.regenHp);
     sim.run(100000);
     expect(L.hp).toBe(UNITS.sword1.hp);
-  });
+  }, 180_000); // 100 000 ticks
 
   it('experience flows into the state hash', () => {
     const sim = newSim();

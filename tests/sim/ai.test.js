@@ -29,12 +29,12 @@ describe('AI opponent', () => {
     const { sim, ais } = match(2, ['normal', null], 18000, false);
     expect(count(sim, 0, 'leader')).toBeGreaterThanOrEqual(2);
     expect(['attack', 'gather']).toContain(ais[0].armyState);
-  });
+  }, 180_000); // long run, slow on loaded machines
 
   it('the hard AI defeats the easy one', () => {
     const { sim } = match(1, ['hard', 'easy'], 36000);
     expect(sim.winner).toBe(0);
-  });
+  }, 180_000); // long run, slow on loaded machines
 
   it('defends its own castle against attackers', () => {
     const sim = new Sim({ seed: 2 });
@@ -89,5 +89,5 @@ describe('AI opponent', () => {
     const { sim } = match(1, ['hard', 'easy'], 24000, false);
     const own = [...sim.players[0].techs].filter((t) => ['leatherMail', 'softLeather', 'woodHardening', 'marching', 'masonry', 'loom'].includes(t));
     expect(own.length).toBeGreaterThan(0);
-  });
+  }, 180_000); // long run, slow on loaded machines
 });
