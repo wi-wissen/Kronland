@@ -41,8 +41,8 @@ export default {
   ),
   victoryText: t('Die Dörfer stehen wieder hinter Nelia – diesmal ihrer Taten wegen.', 'The villages stand behind Nelia again – this time for what she has done.'),
   debrief: t(
-    'Die Dorfälteste legt die vierte Zacke in Nelias Hand. „Ob du Königsblut hast, ist mir gleich. Du hast unser Korn beschützt.“ Taran steht abseits. Er hat nicht gelächelt, seit er hier ist. Aber er ist geblieben.',
-    'The elder places the fourth shard in Nelia’s hand. “Whether you have royal blood, I don’t care. You protected our grain.” Taran stands apart. He hasn’t smiled since he arrived. But he has stayed.',
+    'Taran steht abseits. Er hat nicht gelächelt, seit er hier ist. Aber er ist geblieben. Nelia hält vier Zacken in der Hand. Die fünfte trägt Malvor.',
+    'Taran stands apart. He hasn’t smiled since he arrived. But he has stayed. Nelia holds four shards in her hand. The fifth is worn by Malvor.',
   ),
   defeatText: t('Morvale ist verloren.', 'Morvale is lost.'),
   defeatTexts: {
@@ -181,7 +181,7 @@ export default {
       { type: 'spawn', owner: 'bandits', at: 'taranCampArea', ref: 'loyalists', append: true, units: [{ def: 'sword1', count: 2, soldiers: 4 }], order: 'attackMove', target: 'moorbrookArea' },
     ] },
     { id: 'elderReady', when: { type: 'all', of: [{ type: 'objective', id: 'regain' }, { type: 'objective', id: 'drive' }] }, do: [
-      say('elder', 'Komm nach Erlenhof, Nelia. Ich habe etwas, das dir gehört.', 'Come to Alderfarm, Nelia. I have something that belongs to you.'),
+      say('elder', 'Komm nach Erlenhof, Nelia. Der Herold wollte etwas von uns – ich gebe es lieber dir.', 'Come to Alderfarm, Nelia. The herald wanted something from us – I’d rather give it to you.'),
       { type: 'reveal', id: 'shard' },
       { type: 'npc', id: 'elder' },
     ] },

@@ -72,8 +72,9 @@ export default {
 
   start: [
     say('orrin', 'Eisenhain. Eisen, Schwefel – und eine Armee davor. Ich hätte Beaucroix nie verlassen sollen.', 'Eisenhain. Iron, sulphur – and an army at the gates. I should never have left Beaucroix.'),
-    say('orrin', 'Man sagt, die Bergleute hüten eine Zacke. Darum belagert Malvor sie – nicht wegen des Eisens.',
-      'They say the miners are guarding a shard. That’s why Malvor is besieging them – not for the iron.'),
+    say('nelia', 'Eine ganze Armee gegen ein paar Bergleute? Nur wegen Eisen?', 'A whole army against a few miners? Just for iron?'),
+    say('orrin', 'Man sagt, sie hüten eine Zacke in ihrem tiefsten Stollen. Darum lässt Malvor sie belagern.',
+      'They say they’re guarding a shard in their deepest gallery. That’s why Malvor has them besieged.'),
     say('nelia', 'Die Bergleute halten nicht mehr lange durch. Wir brauchen Truppen, Orrin.', 'The miners won’t hold out much longer. We need troops, Orrin.'),
     say('orrin', 'Truppen! Ich kenne zwei Wege. Söldner kosten viel, kämpfen aber sofort. Geflohene Leibeigene kosten wenig, bringen Vorräte – aber du musst sie erst ausbilden.', 'Troops! I know two ways. Mercenaries cost a lot but fight at once. Runaway serfs cost little and bring supplies – but you’ll have to train them first.'),
     { type: 'tribute', id: 'mercs' },
@@ -124,8 +125,8 @@ export default {
       at: 'town', owner: 'eisenhain', look: 'worker.miner', hero: 'nelia', speaker: 'miner',
       wrongHero: t('Die Prinzessin soll selbst kommen.', 'The princess should come herself.'),
       onTalk: [
-        say('miner', 'Wir haben sie im tiefsten Stollen gefunden. Sie gehört zu euch.', 'We found it in the deepest gallery. It belongs with you.'),
-        say('nelia', 'Die dritte Zacke … Danke. Euer Eisen gehört aber euch.', 'The third shard … Thank you. But your iron belongs to you.'),
+        say('miner', 'Das ist es, was Malvor wollte. Wir haben es im tiefsten Stollen versteckt. Es gehört zu euch.', 'This is what Malvor wanted. We hid it in the deepest gallery. It belongs with you.'),
+        say('nelia', 'Die dritte Zacke … Danke. Wir hätten euch auch ohne sie geholfen.', 'The third shard … Thank you. We would have helped you without it, too.'),
         { type: 'flag', name: 'shard3' },
       ],
     },
