@@ -50,10 +50,12 @@ relativ zur aktuellen Seite (`play/` → `../models/`). Jede Seite setzt dafür 
 Das Manifest liegt in der Wurzel mit `start_url`/`scope` = `play/` und wird nur in `play/index.html` verlinkt
 (Plugin `kronland:page-paths` in `vite.config.js`). Den Service-Worker registriert das Spiel selbst
 (`src/pwa.js`, Geltungsbereich Website-Wurzel). Ersatzseite für Navigationen ist abgeschaltet
-(`navigateFallback: null`), damit `/play/` nie die Startseite bekommt; Seiten sind vorab gecacht und werden
-mit `autoUpdate` beim nächsten Laden erneuert. URL-Parameter zählen beim Abgleich mit dem Vorab-Cache nicht
-(`ignoreURLParametersMatching`), damit `play/?seed=42&dev=1` auch offline startet. Website-Bilder (`site/`)
-werden erst bei Bedarf gecacht.
+(`navigateFallback: null`), damit `/play/` nie die Startseite bekommt. Seiten kommen bei jedem Aufruf frisch vom
+Server (ein Neuladen nach einem Deploy zeigt sofort die neue Fassung); offline springt die vorab gecachte Seite
+ein, URL-Parameter zählen dabei nicht (`play/?seed=42&dev=1` startet auch offline). Ein Tab, der einen Deploy
+überdauert, lädt sich in den Menüs selbst neu und zeigt im laufenden Spiel „Speichern und neu laden“
+(Ablauf: [PERFORMANCE.md](PERFORMANCE.md#updates-nach-einem-deploy)). Website-Bilder (`site/`) werden erst bei
+Bedarf gecacht.
 
 Alle Dateien aus `public/` (Modelle, Texturen, Ton, Bilder) bekommen im Build einen Inhalts-Hash im Namen und
 werden nach dem ersten Laden nie wieder angefragt; eine geänderte Datei lädt als einzige neu. Ablauf, Cache-
@@ -85,7 +87,7 @@ Kapitel `#intro`, `#language` …, Sprachgrundlagen `#lang-for` …, Spielobjekt
 
 - **Eine Quelle:** Liste der Spielbefehle `API_DOC` (`src/sim/scripting/api.js`), Python-Teil `PY_DOC`, Beispiele
   `EXAMPLES`, Fehler `ERRORS`, längere Beispiele `WORKED` (`src/ui/script/reference.js` – auch die Befehlshilfe im
-  Spiel liest sie und verlinkt jeden Eintrag mit `refUrl()` hierher). Lange Texte: `src/ui/script/docs/de.js`
+  Welteneditor und die Karten im Code-Panel lesen sie und verlinken mit `refUrl()` hierher). Lange Texte: `src/ui/script/docs/de.js`
   und `en.js` (gleiche Schlüssel); `src/ui/script/commandDocs.js` liefert je Befehl Signatur, Kurztext, Parameter,
   Rückgabe, Beispiel, Fehler, Anker und Adresse als Daten (`commandDoc(name, lang)`) – für Seite und Code-Editor, Kapitel: `intro.de.md`/`intro.en.md`, Kurztexte: `script.api.*` in
   `src/i18n/script.js`. Englischer Wortlaut deutscher Beispieltexte steht in `EN_TEXT` (`reference.js`).

@@ -340,6 +340,9 @@ export default {
 
   // ---------- Game menu ----------
   'gmenu.title': 'Menu',
+  'update.available': 'A new version of Kronland is available. It loads when you return to the main menu – or now: your game is saved first.',
+  'update.reload': 'Save and reload',
+  'update.toast': 'New version available – reload from the menu',
   'gmenu.paused': 'The game is paused',
   'gmenu.resume': 'Resume',
   'gmenu.save': 'Save game',

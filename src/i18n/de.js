@@ -341,6 +341,9 @@ export default {
 
   // ---------- Game menu ----------
   'gmenu.title': 'Menü',
+  'update.available': 'Eine neue Version von Kronland ist da. Sie lädt, sobald du zum Hauptmenü gehst – oder jetzt: dein Spiel wird vorher gespeichert.',
+  'update.reload': 'Speichern und neu laden',
+  'update.toast': 'Neue Version verfügbar – im Menü neu laden',
   'gmenu.paused': 'Das Spiel ist pausiert',
   'gmenu.resume': 'Weiterspielen',
   'gmenu.save': 'Spiel speichern',

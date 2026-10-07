@@ -19,6 +19,7 @@ import { pickVariant, roleVariants } from './variants.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LodState, sphereVisible, lodSettings, screenHeightPx, pixelMetric } from './lod.js';
 import { assetUrl } from '../paths.js';
+import { trackLoad } from './lazyLoads.js';
 
 // ---------- Pure logic ----------
 
@@ -297,7 +298,9 @@ export function requestCharacterModel(name) {
   const l = store.lazy;
   if (!l || store.models.has(name) || l.pending.has(name) || !store.manifest?.models?.[name]) return;
   l.pending.add(name);
-  loadModel(name).finally(() => l.pending.delete(name));
+  const def = store.manifest.models[name], first = firstFiles(name, def);
+  const urls = [...first.models, ...first.masks].map((f) => assetUrl(`${l.base}characters/${f}`));
+  trackLoad(loadModel(name).finally(() => l.pending.delete(name)), urls);
 }
 
 /**

@@ -20,6 +20,16 @@ import { Ambient } from './ambient.js';
 const hasWindow = typeof window !== 'undefined';
 const AC = hasWindow ? (window.AudioContext ?? /** @type {any} */ (window).webkitAudioContext) : undefined;
 
+/**
+ * Run work that followed a user gesture a little later, in an idle moment (at the latest after `timeout` ms).
+ * @param {() => void} fn @param {number} [timeout]
+ */
+export function afterGesture(fn, timeout = 400) {
+  const run = () => { try { fn(); } catch (err) { console.error(err); } };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout });
+  else setTimeout(run, 16);
+}
+
 /** Volume slider → gain (closer to perception than linear). */
 export const sliderToGain = (v) => v * v;
 
@@ -99,8 +109,11 @@ export class AudioEngine {
       this.removeUnlock?.();
       // let further gestures resume it, in case the browser suspends the context again later
       for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => { if (ctx.state === 'suspended' && !document.hidden) ctx.resume().catch(() => {}); }, { capture: true, passive: true });
-      this.music.onReady();
-      if (this.wantAmbient) this.ambient.start();
+      // Music and ambience build their synth graphs (together 100–300 ms on the main thread): not inside the
+      // input event, otherwise the first click or selection drag of the session freezes. Each runs in its own
+      // task once the browser has a moment, so frames (and the selection box) get through in between.
+      afterGesture(() => this.music.onReady());
+      afterGesture(() => { if (this.wantAmbient) this.ambient.start(); });
     }
   }
 

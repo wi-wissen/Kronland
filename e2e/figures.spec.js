@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
 
 // Figures from the asset pipeline: serf male/female as variants, mask texture, tools per clip.
-// ?quality=high forces the GLB figures even on the software renderer of the tests. The near model (large file)
+// ?quality=medium forces the GLB figures even on the software renderer of the tests (only "low" falls back to the
+// procedural figures there). The near model (large file)
 // only comes in when zooming in; until then the figure shows the game model (animations live there).
 
 test('Serfs appear as male and female variant with tools', async ({ page }) => {
@@ -11,7 +12,7 @@ test('Serfs appear as male and female variant with tools', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(e.message));
   // Near models of the serfs: Serf.<hash>.glb (not .lod1)
   page.on('request', (r) => { const m = /characters\/(SerfF?)(\.[0-9a-f]{10})?\.glb$/.exec(r.url()); if (m) near.push(m[1]); });
-  await page.goto(playUrl('?seed=42&quality=high&fog=off'));
+  await page.goto(playUrl('?seed=42&quality=medium&fog=off'));
   await page.waitForFunction(() => !!window.__kronland?.renderer?.chars, null, { timeout: 120_000 });
   // Send serfs to the nearest tree, fast-forward the simulation (software WebGL is too slow for real time)
   await page.evaluate(() => {
@@ -44,7 +45,7 @@ test('Serfs appear as male and female variant with tools', async ({ page }) => {
   await page.waitForFunction(() => {
     const c = window.__kronland.renderer.chars;
     return c.variants.get('serf#0')?.levels.length >= 2 || c.variants.get('serf#1')?.levels.length >= 2;
-  }, null, { timeout: 120_000 }).catch(async (err) => {
+  }, null, { timeout: 120_000, polling: 500 }).catch(async (err) => {
     console.log('Near model missing:', JSON.stringify(await page.evaluate(() => {
       const c = window.__kronland.renderer.chars;
       return { stats: c.stats, dist: window.__kronland.renderer.rig.dist, v: [...c.variants.entries()].map(([k, v]) => [k, v?.levels.length, v?.nearPending]) };
@@ -56,7 +57,7 @@ test('Serfs appear as male and female variant with tools', async ({ page }) => {
   await page.waitForFunction(() => {
     const c = window.__kronland.renderer.chars;
     return c.variants.get('serf#0')?.levels.length >= 2 && c.variants.get('serf#1')?.levels.length >= 2;
-  }, null, { timeout: 120_000 });
+  }, null, { timeout: 120_000, polling: 500 });
   const info = await page.evaluate(() => {
     const c = window.__kronland.renderer.chars;
     const bake = c.modelBakes.get('Serf');

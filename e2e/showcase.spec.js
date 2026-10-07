@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { playUrl } from './paths.js';
+import { playUrl, SHOT_QUALITY } from './paths.js';
 
 // Showcase: all buildings, figures and map objects on one map, without fog. Start via the URL and
-// via the "Sonderkarten" menu; screenshots of the areas (desktop 1440×900 and mobile) under
-// test-results/showcase/.
+// via the "Sonderkarten" menu; screenshots of the areas (desktop 1440×900, phone with E2E_ALL_PROJECTS=1) under
+// test-results/showcase/, graphics level from E2E_SHOT_QUALITY (default low, see paths.js).
 
 // Software graphics (SwiftShader) with many models: wait generously
 test.describe.configure({ timeout: 300_000 });
@@ -39,9 +39,9 @@ async function shot(page, info, name, at, dist) {
 }
 
 test('Showcase via URL: no fog, everything drawn, areas reachable via signposts', async ({ page }, info) => {
-  test.setTimeout(1_200_000); // every photo at high graphics takes long under SwiftShader
+  test.setTimeout(SHOT_QUALITY === 'high' ? 1_200_000 : 600_000); // ten photos of the full map under SwiftShader
   const errors = await fresh(page);
-  await page.goto(playUrl('?mission=showcase&quality=high'));
+  await page.goto(playUrl(`?mission=showcase&quality=${SHOT_QUALITY}`));
   await running(page);
   const st = await page.evaluate(() => {
     const e = window.__kronland, s = e.sim;

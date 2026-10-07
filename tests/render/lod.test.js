@@ -1,6 +1,7 @@
 // LOD levels: selection, hysteresis, graphics levels, cull limit (pure logic, without WebGL).
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
+import { TREE_MODELS, TREE_LOD_HEIGHT } from '../../src/render/treeModels.js';
 import {
   selectLod, withinCull, effectiveDistance, lodSettings, LodState, LodCounter, LOD_PROFILES, LOD_TIERS,
   ChunkedInstances, ViewTracker, cameraFrustum, NEAR_FULL_DETAIL, screenHeightPx, pixelMetric,
@@ -256,6 +257,15 @@ describe('Trees by screen height', () => {
     expect(stage(screenHeightPx(2, 60, 55, 915), 'low')).toBe(2);
     // earlier (effective distance with factor 0.55 and wide field of view) this was already the far form from ~12 tiles
     expect(effectiveDistance(25, 55, LOD_TIERS.low.bias)).toBeGreaterThan(62);
+  });
+  it('phone upright "low": the model trees (height · TREE_LOD_HEIGHT) are simple near the bottom edge at game height', () => {
+    // Pixel 7 in the test: 839 CSS pixels tall; camera at game height (distance 28, tilt 0.95) is ~23 tiles above
+    // the ground, the nearest visible trees lie at 23–28 tiles
+    for (const m of TREE_MODELS) {
+      const h = m.height * TREE_LOD_HEIGHT.low;
+      for (const d of [23, 25, 28]) expect(stage(screenHeightPx(h, d, 55, 839), 'low'), `${m.name} at ${d}`).toBeLessThan(2);
+      expect(stage(screenHeightPx(h, 70, 55, 839), 'low'), m.name).toBe(2);
+    }
   });
 });
 
