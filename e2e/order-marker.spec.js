@@ -33,7 +33,7 @@ test('walk command shows a marker at the target spot', async ({ page }, info) =>
     window.__markers = [];
     const add = om.add.bind(om);
     om.add = (mx, mz) => { window.__markers.push({ x: mx, z: mz }); add(mx, mz); };
-    om.update = (dt, d) => update(0, d);
+    om.update = (dt, ...rest) => update(0, ...rest);
     const p = e.renderer.project(x, e.renderer.terrain.heightAt(x, z), z);
     return { x, z, sx: p.x, sy: p.y };
   });
@@ -46,9 +46,9 @@ test('walk command shows a marker at the target spot', async ({ page }, info) =>
   const marks = await page.evaluate(() => window.__markers);
   expect(marks).toHaveLength(1);
   expect(Math.hypot(marks[0].x - target.x, marks[0].z - target.z)).toBeLessThan(1);
-  // marker swirling into the spot
-  for (const [name, age] of [['early', 0.15], ['late', 0.45]]) {
-    await page.evaluate((age) => { for (const p of window.__kronland.renderer.orderMarks.pool) if (p.active) p.age = age; }, age);
+  // ring snapping together, then standing (flickering)
+  for (const [name, age] of [['snap', 0.1], ['ring', 0.3]]) {
+    await page.evaluate((age) => { for (const m of window.__kronland.renderer.orderMarks.list) m.age = age; }, age);
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => window.__kronland.renderer.orderMarks.active)).toBe(1);
     await page.screenshot({ path: `test-results/order-marker-${name}-${info.project.name}.png` });

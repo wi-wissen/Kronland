@@ -6,7 +6,6 @@
 //   node scripts/art/finish.mjs title     backdrop for the start menu → public/art/title.webp (< 400 KB)
 //   node scripts/art/finish.mjs loading   backdrop for the loading screen → public/art/loading.webp (< 400 KB)
 //   node scripts/art/finish.mjs cursors   mouse cursors → public/icons/cursor-<name>.png (40 px) + src/game/cursorHotspots.js
-//   node scripts/art/finish.mjs walkmark  ground marker for walk commands → public/icons/walkmark.webp (256 px)
 //   --preview file.png  (icons only) result on dark and light background
 import fs from 'node:fs';
 import path from 'node:path';
@@ -139,10 +138,11 @@ if (name === 'symbols' || job.kind === 'symbols') {
   // decal: 256 px WebP, centred square (ground marker, seen from above)
   const decal = fin.out === 'decal', SIZE = decal ? 256 : 40, PAD = decal ? 4 : 1;
   const hot = {};
-  for (const [item, { raw, crop, flip }] of Object.entries(fin.items)) {
+  for (const [item, { raw, crop, flip, innerWhite }] of Object.entries(fin.items)) {
     const { data, info } = await sharp(path.join(dir, raw)).removeAlpha()
       .extract({ left: crop[0], top: crop[1], width: crop[2], height: crop[3] }).raw().toBuffer({ resolveWithObject: true });
-    const rgba = cutout(data, info.width, info.height);
+    // shiny steel has pure-white highlights: only cut out enclosed white where asked
+    const rgba = cutout(data, info.width, info.height, innerWhite === true);
     let x0 = info.width, y0 = info.height, x1 = 0, y1 = 0;
     for (let k = 0; k < info.width * info.height; k++) {
       if (rgba[k * 4 + 3] < 40) continue;

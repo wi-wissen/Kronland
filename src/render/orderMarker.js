@@ -1,81 +1,71 @@
-// Click confirmation for walk commands: a painted marker of arrows swirling inwards (scripts/art/, job "walkmark")
-// lies on the ground at the target, turns, contracts into the spot and fades. Always the same, small; work and
-// attack targets are announced by the cursor instead. A small pool of decals.
-
-import * as THREE from 'three';
+// Click confirmation for walk commands: at the target a ring like the selection ring under the figures snaps
+// together and flickers twice, then fades. Dark instead of the light selection colour, so it reads as "goal", not
+// "selected". Work and attack targets are announced by the cursor instead. Drawn through GroundMarks (one draw call
+// with the selection rings, tilted on slopes).
 
 /** Duration of one marker in seconds. */
-export const ORDER_MARKER_TIME = 0.8;
-const POOL = 4;
-/** Picture of the marker (logical path below the site root). */
-export const WALKMARK_IMAGE = 'icons/walkmark.webp';
+export const ORDER_MARKER_TIME = 0.9;
+/** Ring colour: the dark outline brown of the icons and cursors. */
+export const ORDER_MARKER_COLOR = 0x241a10;
+const MAX = 4;
+const SNAP = 0.22;
 
 /**
- * Animation state at a given age (seconds): radius (tiles), turn (radians, clockwise from above) and opacity;
- * null when it is over. Quickly there, then it contracts and fades.
+ * Animation state at a given age (seconds): ring radius (tiles) and opacity; null when it is over.
+ * Snaps together from a wider ring, then flickers twice (dimmer, brighter) and fades out.
  * @param {number} age
  */
 export function orderMarkerPose(age) {
   if (age < 0 || age >= ORDER_MARKER_TIME) return null;
   const t = age / ORDER_MARKER_TIME;
-  return {
-    r: 0.62 - 0.34 * t * t,
-    turn: -2.4 * t,
-    alpha: Math.min(1, t / 0.12) * (t > 0.55 ? 1 - (t - 0.55) / 0.45 : 1),
-  };
+  const s = Math.min(1, age / SNAP);
+  const r = 0.4 + 0.32 * (1 - s) * (1 - s);
+  let alpha = 0.9 * Math.min(1, age / 0.06);
+  if (age > SNAP) alpha *= Math.floor((age - SNAP) / 0.11) % 2 ? 0.3 : 1;
+  if (t > 0.75) alpha *= 1 - (t - 0.75) / 0.25;
+  return { r, alpha };
 }
 
-/** Size factor by camera distance: when zoomed out the marker stays readable. */
-export function orderMarkerScale(dist) { return Math.max(0.8, Math.min(2.4, dist / 24)); }
+/** Size factor by camera distance: when zoomed out the ring stays readable. */
+export function orderMarkerScale(dist) { return Math.max(1, Math.min(2.4, dist / 26)); }
 
 export class OrderMarkers {
-  /**
-   * @param {THREE.Scene} scene
-   * @param {(x:number, z:number) => number} groundY
-   * @param {THREE.Texture|null} [texture] painted marker (without it a plain disc, e.g. in tests)
-   */
-  constructor(scene, groundY, texture = null) {
-    this.groundY = groundY;
-    const geo = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
-    /** @type {{ mesh: THREE.Mesh, mat: THREE.MeshBasicMaterial, age: number, x: number, z: number, active: boolean }[]} */
-    this.pool = [];
-    for (let i = 0; i < POOL; i++) {
-      const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.name = 'order-marker';
-      mesh.renderOrder = 21;
-      mesh.visible = false;
-      scene.add(mesh);
-      this.pool.push({ mesh, mat, age: 0, x: 0, z: 0, active: false });
-    }
+  constructor() {
+    /** @type {{ age: number, x: number, z: number }[]} */
+    this.list = [];
   }
 
   /** Number of running markers. */
-  get active() { return this.pool.filter((m) => m.active).length; }
+  get active() { return this.list.length; }
 
   /**
-   * Start a marker at a walk target. A second one at the same spot in the same moment (army and serfs) is dropped.
+   * Start a marker at a walk target. A second one at the same spot in the same moment (army and serfs) is dropped;
+   * with many quick clicks the oldest goes.
    * @param {number} x @param {number} z world coordinates (tiles)
    */
   add(x, z) {
-    if (this.pool.some((m) => m.active && m.age < 0.15 && Math.hypot(m.x - x, m.z - z) < 0.8)) return;
-    const m = this.pool.find((p) => !p.active) ?? this.pool.reduce((a, b) => (b.age > a.age ? b : a));
-    m.active = true; m.age = 0; m.x = x; m.z = z;
+    if (this.list.some((m) => m.age < 0.15 && Math.hypot(m.x - x, m.z - z) < 0.8)) return;
+    if (this.list.length >= MAX) this.list.shift();
+    this.list.push({ age: 0, x, z });
   }
 
-  /** @param {number} dt seconds @param {number} dist camera distance */
-  update(dt, dist) {
+  /**
+   * Advance and draw the rings.
+   * @param {number} dt seconds @param {number} dist camera distance
+   * @param {{ ring: Function }} marks GroundMarks (between begin and end of the frame)
+   * @param {(x:number, z:number) => number} groundY
+   */
+  update(dt, dist, marks, groundY) {
     const s = orderMarkerScale(dist);
-    for (const m of this.pool) {
-      if (!m.active) continue;
-      m.age += dt;
+    this.list = this.list.filter((m) => (m.age += dt) < ORDER_MARKER_TIME);
+    for (const m of this.list) {
       const p = orderMarkerPose(m.age);
-      if (!p) { m.active = false; m.mesh.visible = false; continue; }
-      m.mesh.visible = true;
-      m.mesh.position.set(m.x, this.groundY(m.x, m.z) + 0.05, m.z);
-      m.mesh.rotation.y = p.turn;
-      m.mesh.scale.setScalar(p.r * s);
-      m.mat.opacity = p.alpha;
+      if (!p || p.alpha <= 0) continue;
+      const r = p.r * s, y = groundY(m.x, m.z);
+      // slope from the height field over the ring diameter, like the selection rings
+      const sx = (groundY(m.x + r, m.z) - groundY(m.x - r, m.z)) / (2 * r);
+      const sz = (groundY(m.x, m.z + r) - groundY(m.x, m.z - r)) / (2 * r);
+      marks.ring(m.x, y + 0.05, m.z, r, ORDER_MARKER_COLOR, p.alpha, 0.07 * s, 0.35, sx, sz);
     }
   }
 }
