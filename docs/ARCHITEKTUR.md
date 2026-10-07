@@ -454,4 +454,6 @@ mit. Mausrad und Zwei-Finger-Zoom fahren entlang des Strahls durch Zeiger bzw. F
 (wie `OrbitControls.zoomToCursor`). Zwei Finger legen die Geste einmal fest: Neigen nur, wenn beide Finger
 parallel senkrecht gleiten; sonst Zoomen und Verschieben, Drehen erst ab 25 px Drehweg (wie MapLibre), damit
 ein Zoom nicht nebenbei dreht. Randscrollen läuft sanft an und endet, sobald die Maus das Fenster verlässt
-(auch nach oben in die Browserleiste).
+(auch nach oben in die Browserleiste). Es wirkt nur im Spielbereich und nie mit gedrückter Taste; ein Druck
+außerhalb des Spielbereichs (z. B. Trennlinie des Programmfensters) sperrt es, und kommt der Zeiger von dort
+direkt in den Randstreifen, scrollt es erst, nachdem er einmal auf der Karte war (`src/game/edgeScroll.js`).
