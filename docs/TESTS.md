@@ -71,4 +71,5 @@ E2E_GROUP=heavy E2E_PORT=4310 npx playwright test --workers=1     # nur die schw
   verschiebt Bildschirmpunkte (Klick, Auswahlrahmen). Die Position übersteht Navigationen; zusätzliche Seiten
   (`context.newPage()`) bekommen sie nicht.
 - Auf Zustände warten (`waitForFunction`, `expect.poll`), nicht auf feste Zeiten; Befehle, die erst im nächsten Tick
-  wirken (Debugger-Schritte), einzeln abwarten.
+  wirken (Debugger-Schritte), einzeln abwarten. Auch Layout nach `setViewportSize` (die Leisten messen sich per
+  `ResizeObserver` neu) per `expect.poll` abwarten, nicht per `waitForTimeout`.
