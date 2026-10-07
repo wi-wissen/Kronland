@@ -32,14 +32,15 @@ You begin with a **castle**, {{startSerfs}} **serfs**, a hero and a small stock:
 | Pan camera | [[W]] [[A]] [[S]] [[D]] or arrow keys, drag with middle mouse button, screen edge |
 | Rotate camera | [[Q]] / [[E]], [[Ins]] / [[Del]], drag with right mouse button |
 | Zoom | Mouse wheel, [[PgUp]] / [[PgDn]] |
-| Build | Build menu, click places the building, right-click cancels |
+| Build | “Build” or [[B]], click places the building, right-click cancels |
+| Building info (cost, build time) | Hover the tile in the build menu |
 | Hero ability | [[X]] / [[C]] (hero selected) |
 | Save control group | [[Shift]] + [[1]] … [[9]] |
 | Select control group | [[1]] … [[9]], twice: camera follows |
 | Idle serfs | [[.]] |
 | Go to castle | [[H]] |
 | Pause | [[Space]] |
-| Menu, clear selection | [[Esc]] |
+| One step back: cancel placing → action bar → clear selection → menu | [[Esc]] |
 
 ### Touch (tablet and phone)
 
@@ -51,7 +52,8 @@ You begin with a **castle**, {{startSerfs}} **serfs**, a hero and a small stock:
 | Pan camera | Drag with one finger |
 | Rotate camera | Twist with two fingers |
 | Zoom | Pinch with two fingers |
-| Build | “Build …”, pick a building, tap a spot, “Build here” |
+| Build | “Build”, pick a building, tap a spot, “Build here” |
+| Building info (cost, build time) | Long-press the tile in the build menu, releasing hides it |
 | Idle serfs, castle, pause | Buttons along the bottom and top |
 | Minimap | The “Map” button shows it, tap to jump there |
 
@@ -89,9 +91,17 @@ under **Settings**.
   Shift+1 to 9 saves a selection as a group; the number key or the group plate selects it again, twice in a row
   brings it into view.
 - **Minimap:** shows terrain, buildings and troops. Click or drag to move the camera.
-- **Command panel:** appears as soon as you select something. With serfs it shows the **build menu** with all
-  groups at a glance: *Housing*, *Raw materials*, *Refining*, *Military*, *Administration*. A red dot means
-  “too expensive”, a lock “not yet researched” – the hint says what is missing.
+- **Command panel:** appears as soon as you select something. With serfs it shows either the **action bar**
+  (*Build* [[B]], *To arms* – the selected serfs become militia –, *Save group*) or the **build menu** with all
+  groups *Housing*, *Raw materials*, *Refining*, *Military*, *Administration* – on large screens all at a glance,
+  otherwise (medium windows, phone) as **tabs** that show only the buildings of the chosen group; the last tab is
+  remembered. “‹ Back” or [[Esc]]
+  leads from the build menu to the action bar; whatever you had open last comes back with the next selection
+  (even after reloading). A red dot means “too expensive”, a lock “not yet researched”.
+- **Building info:** hover a building in the build menu (phone: long press) and the panel grows upward by an
+  info strip: size and site, cost (missing in red), short description, build time with one serf and with all
+  builder spots, workers, beds or seats – and for locked buildings which research is missing and where to
+  research it. A click (tap) hides it and places the building as usual.
 
 ![Minimap](site/hud-minimap.webp)
 
@@ -135,7 +145,7 @@ After finishing a job they look for similar work nearby. Serfs need neither hous
 ### Building
 
 1. Select serfs (optional – then they start right away).
-2. Pick a building in the build menu.
+2. Pick a building in the build menu (if the action bar is showing: first “Build” or [[B]]).
 3. Click a free spot – slopes are fine too (see [building on slopes](#slope)). The preview turns green, yellow or red,
    and the panel shows whether it fits – and if not, why (too steep, occupied, unexplored …).
 

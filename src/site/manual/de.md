@@ -32,14 +32,15 @@ Zu Beginn hast du eine **Burg**, {{startSerfs}} **Leibeigene**, einen Helden und
 | Kamera verschieben | [[W]] [[A]] [[S]] [[D]] oder Pfeiltasten, mittlere Maustaste ziehen, Bildschirmrand |
 | Kamera drehen | [[Q]] / [[E]], [[Einfg]] / [[Entf]], rechte Maustaste ziehen |
 | Zoomen | Mausrad, [[Bild↑]] / [[Bild↓]] |
-| Bauen | Baumenü, Klick setzt das Gebäude, Rechtsklick bricht ab |
+| Bauen | „Bauen“ bzw. [[B]], Klick setzt das Gebäude, Rechtsklick bricht ab |
+| Gebäude-Infos (Kosten, Bauzeit) | Maus über die Kachel im Baumenü |
 | Heldenfähigkeit | [[X]] / [[C]] (Held ausgewählt) |
 | Steuergruppe merken | [[Shift]] + [[1]] … [[9]] |
 | Steuergruppe wählen | [[1]] … [[9]], zweimal: Kamera hin |
 | Untätige Leibeigene | [[.]] |
 | Zur Burg | [[H]] |
 | Pause | [[Leertaste]] |
-| Menü, Auswahl aufheben | [[Esc]] |
+| Einen Schritt zurück: Platzieren abbrechen → Aktionsleiste → Auswahl aufheben → Menü | [[Esc]] |
 
 ### Touch (Tablet und Handy)
 
@@ -51,7 +52,8 @@ Zu Beginn hast du eine **Burg**, {{startSerfs}} **Leibeigene**, einen Helden und
 | Kamera verschieben | Mit einem Finger ziehen |
 | Kamera drehen | Mit zwei Fingern drehen |
 | Zoomen | Mit zwei Fingern spreizen |
-| Bauen | „Bauen …“, Gebäude wählen, Platz antippen, „Hier bauen“ |
+| Bauen | „Bauen“, Gebäude wählen, Platz antippen, „Hier bauen“ |
+| Gebäude-Infos (Kosten, Bauzeit) | Kachel im Baumenü lang drücken, loslassen blendet sie aus |
 | Untätige Leibeigene, Burg, Pause | Knöpfe am unteren bzw. oberen Rand |
 | Minikarte | Knopf „Karte“ blendet sie ein, Tippen springt dorthin |
 
@@ -88,9 +90,17 @@ Im Spiel zeigt **Menü → Steuerung** dieselbe Übersicht. Die **Größe der Ob
   und darunter steht die Restzeit – solange Feinde in der Nähe sind, steht dort „bewusstlos“. Mit Umschalt+1 bis 9 merkst du dir eine Auswahl als Gruppe; die Zahltaste oder das Gruppenschild wählt
   sie wieder, zweimal kurz hintereinander holt sie ins Bild.
 - **Minikarte:** zeigt Gelände, Gebäude und Truppen. Klicken oder Ziehen bewegt die Kamera.
-- **Befehlstafel:** erscheint, sobald du etwas auswählst. Bei Leibeigenen zeigt sie das **Baumenü** mit allen
-  Gruppen auf einen Blick: *Wohnen*, *Rohstoffe*, *Veredelung*, *Militär*, *Verwaltung*. Ein roter Punkt heißt
-  „zu teuer“, ein Schloss „noch nicht erforscht“ – der Hinweis nennt, was fehlt.
+- **Befehlstafel:** erscheint, sobald du etwas auswählst. Bei Leibeigenen zeigt sie entweder die **Aktionsleiste**
+  (*Bauen* [[B]], *Zu den Waffen* – die Gewählten werden Miliz –, *Gruppe anlegen*) oder das **Baumenü** mit allen
+  Gruppen *Wohnen*, *Rohstoffe*, *Veredelung*, *Militär*, *Verwaltung* – auf großen Bildschirmen alle auf einen
+  Blick, sonst (mittlere Fenster, Handy) als **Reiter**, die nur die Gebäude der gewählten Gruppe zeigen; der zuletzt
+  gewählte Reiter bleibt gemerkt. „‹ Zurück“ bzw. [[Esc]]
+  führt vom Baumenü zur Aktionsleiste; was du zuletzt offen hattest, erscheint bei der nächsten Auswahl wieder
+  (auch nach dem Neuladen). Ein roter Punkt heißt „zu teuer“, ein Schloss „noch nicht erforscht“.
+- **Gebäude-Infos:** Fährst du mit der Maus über ein Gebäude im Baumenü (Handy: lang drücken), wächst die Tafel
+  nach oben um eine Infoleiste: Größe und Bauplatz, Kosten (Fehlendes rot), kurze Beschreibung, Bauzeit mit einem
+  Leibeigenen und mit allen Bauplätzen, Arbeiter, Betten oder Essplätze – und bei gesperrten Gebäuden, welche
+  Forschung fehlt und wo man sie erforscht. Ein Klick (Tippen) blendet sie aus und setzt das Gebäude wie gewohnt.
 
 ![Minikarte](site/hud-minimap.webp)
 
@@ -137,7 +147,7 @@ Essen und zahlen keine Steuern.
 ### Bauen
 
 1. Leibeigene auswählen (optional – dann fangen sie gleich an).
-2. Im Baumenü ein Gebäude wählen.
+2. Im Baumenü ein Gebäude wählen (steht die Aktionsleiste da: erst „Bauen“ bzw. [[B]]).
 3. Einen freien Platz anklicken – auch am Hang (siehe [Bauen am Hang](#slope)). Die Vorschau färbt sich grün, gelb oder rot,
    das Panel zeigt, ob der Platz passt – und wenn nicht, warum (zu steil, belegt, unerkundet …).
 

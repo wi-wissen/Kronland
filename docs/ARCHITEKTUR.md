@@ -224,6 +224,21 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
 - Erweiterungen im Gebäudepanel: `registerBuildingSection((engine, building) => ({ id, title, actions }))`
   aus `src/game/Engine.js`; Aktionen schicken ihren `cmd` als normalen Befehl. Neue Gebäude im Baumenü:
   `BUILD_MENU` + `BUILD_CATEGORY` (Gruppen `home`, `raw`, `refine`, `military`, `admin`, alle gleichzeitig sichtbar).
+- Leibeigene ausgewählt: `CommandBar.vue` zeigt die Aktionsleiste `hud/SerfActions.vue` (Bauen, Zu den Waffen =
+  `Engine.armSelected(true)`, Gruppe = `assignGroup`) oder das Baumenü mit „‹ Zurück“; die Einstellung
+  `serfBuildView` (Standard `true` = Baumenü, still gespeichert, nicht im Einstellungsdialog) merkt die Ansicht über
+  Auswahl, Platzieren und Neuladen. Esc geht schrittweise zurück (`escapeStep()` in `src/game/escape.js`, genutzt von
+  `Input.escape()`). Gebäude-Infos: `hud/BuildInfo.vue` hängt als Infoleiste an der Oberkante der Tafel (Maus:
+  Hover/Fokus, Touch: Langdruck über `createLongPress`, Loslassen blendet aus, der Klick danach wird verworfen);
+  Zeilen aus `hud/buildInfo.js` (`buildSeconds`: `buildTime` = Sekunden mit einem Leibeigenen, n Bauende teilen sie,
+  höchstens `builders`), Daten aus `uiState().buildOptions` (nur gelesen: Größe, Bauplatz, Bauzeit, Bauplätze,
+  Arbeiter, Betten, Essplätze, Bevölkerung, `researchAt`). Baukacheln haben deshalb keinen `v-tip`.
+  Aufteilung des Baumenüs nach gemessener Breite: `wide` = alle Gruppen nebeneinander mit zwei Kachelreihen; passen
+  sie nicht in eine Zeile (gemessen: brechen die Gruppen um, `groupsWrap()` in `hudLayout.js`, erneut bei
+  Fenstergröße, Oberflächengröße, Sprache), zeigt es `tabs`: eine Reiterzeile (aktiver Reiter goldgefüllt) und nur
+  die Gebäude dieser Gruppe; am Handy immer Reiter (fünf gleich breite Spalten, Symbol über Kurzname, Kachelfläche
+  zwei Reihen hoch, damit die Tafel beim Wechseln nicht springt). Der Reiter wird in `serfBuildTab` gemerkt;
+  Reiter anderer Gruppen tragen `data-hint-for` für den Tutorial-Leuchtrahmen.
 - Gestaltung: Tokens in `src/ui/style.css` (Holz, Pergament, Messing/Gold, Abstände in rem, skaliert
   über `--ui-scale`), Symbole in `src/ui/icons/` (`<Icon name="gold" />`; bunte aus dem KI-Atlas
   `public/icons/symbols.webp`, SVG als Rückfall, siehe [SYMBOLE.md](SYMBOLE.md)), Tooltips
@@ -237,10 +252,10 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
   Münzknöpfe; Raster mit gleich breiten Seitenspalten, damit das Wappen genau mittig sitzt – passt das nicht,
   misst `TopBar.measure()`: zuerst fällt der Jahreszeitname weg (`.terse`), reicht das nicht, setzt es `.tight` und das Wappen bekommt eine eigene, mittige zweite Reihe mit Namen), `hud/CommandBar.vue` als Raster `Karte | Tafel | Porträt` (`minmax(max-content, 1fr) auto
   minmax(max-content, 1fr)` – die Tafel bekommt den Rest und bricht um, nichts überlappt), `hud/SelectionCard.vue`
-  (Porträt im Messingrahmen, gemalte Porträts unter `public/portraits/`), `hud/BuildMenu.vue` (Gruppen ohne Reiter,
-  schmal als wischbare Reihe mit Sprungmarken). Breitenstufen setzt `App.vue` als Klassen auf `.game`
+  (Porträt im Messingrahmen, gemalte Porträts unter `public/portraits/`), `hud/BuildMenu.vue` (Gruppen
+  nebeneinander, wo sie nicht passen als Reiter). Breitenstufen setzt `App.vue` als Klassen auf `.game`
   (Breite geteilt durch Oberflächengröße): `narrow` < 1500 px (Porträt ohne Schild, Kennzahlen in der Tafel,
-  drei Kachelreihen), `mid` < 1100 px (kleinere Karte, Baumenü als Reihe), `compact` < 760 px oder Höhe < 560 px
+  Baumenü ggf. als Reiter), `mid` < 1100 px (kleinere Karte, kurze Reiternamen), `compact` < 760 px oder Höhe < 560 px
   (Handy: Tafel als Schublade; unten rechts nur der Kartenknopf `minimap-toggle`, der `.cb-pop` mit Minikarte und
   Schnellzugriff aufklappt – Schnellzugriff klappt sie wieder zu; der Tutorial-Leuchtrahmen findet ihn über
   `data-hint-for`; Ziele als Knopf, Liste bildschirmfüllend per Teleport an `<body>`). Unten links eine Kartentafel (`.cb-map.frame`): Schnellzugriff als
@@ -402,10 +417,11 @@ Prüfung im Editor, ohne Build-Schritt.
 | Kamera drehen | Q/E, Einfg/Entf, rechte Taste seitlich ziehen | 2 Finger umeinander drehen (ab 25 px Drehweg) |
 | Kamera neigen | R/F, Pos1/Ende, rechte Taste hoch/runter, Umschalt+Mausrad | 2 Finger parallel hoch/runter |
 | Zoomen (bis ganz nah, Blick dann flacher) | Mausrad zum Mauszeiger, Bild↑/↓ zur Bildmitte | 2 Finger spreizen, zur Fingermitte |
-| Bauen | Baumenü, Klick setzt, Rechtsklick bricht ab | Baumenü, Tippen, „Hier bauen“ |
+| Bauen | Leibeigene: Aktionsleiste „Bauen“ (B) → Baumenü, Klick setzt, Rechtsklick bricht ab | „Bauen“ → Baumenü, Tippen, „Hier bauen“ |
+| Gebäude-Infos (Infoleiste über der Tafel) | Maus über die Kachel | Kachel lang drücken, Loslassen blendet aus |
 | Untätige Leibeigene | Taste . | Knopf „Untätige“ |
 | Pause | Leertaste | Knopf |
-| Baumenü-Gruppe | Mausrad (schmales Fenster) | Sprungmarken |
+| Baumenü-Gruppe | Reiter (nur wenn nicht alle Gruppen nebeneinander passen) | Reiter |
 | Heldenfähigkeit | X, C | Knopf |
 | Steuergruppe merken | Umschalt+1–9 (Strg+1–9, wo der Browser es durchlässt) | Knopf „Als Gruppe merken“ |
 | Steuergruppe abrufen | 1–9, zweimal: Kamera hin | Gruppenschild über der Karte |
@@ -415,7 +431,7 @@ Prüfung im Editor, ohne Build-Schritt.
 | Alle Truppen | Knopf „Truppen“ | Knopf „Truppen“ |
 | Minikarte | Klick/Ziehen | Tippen (Kartenknopf unten rechts klappt Minikarte und Schnellzugriff auf) |
 | Figuren über die Minikarte schicken | Rechtsklick auf die Minikarte (Strg: Angriffsbewegung) | Tippen auf die Minikarte, solange Figuren ausgewählt sind |
-| Menü | Esc | Knopf |
+| Einen Schritt zurück (Platzieren → Baumenü → Aktionsleiste → Auswahl aufheben → Menü) | Esc | „‹ Zurück“, „Abbrechen“, ✕ |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
 
 **Doppelklick/Doppeltippen** (bewusste Abweichung vom Vorbild, übliche RTS-Steuerung): Zwei Klicks bzw.

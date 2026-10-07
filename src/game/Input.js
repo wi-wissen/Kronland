@@ -13,7 +13,8 @@
 //           2 fingers = zoom to the finger centre and pan, twist fingers = rotate (above a threshold),
 //           2 fingers parallel up/down = tilt.
 
-import { get as setting } from '../ui/settings.js';
+import { get as setting, set as setSetting } from '../ui/settings.js';
+import { escapeStep } from './escape.js';
 import { pinchMode, twistUnlocked, wrapAngle } from './gestures.js';
 import { isDoubleClick } from './sameType.js';
 
@@ -251,11 +252,21 @@ export class Input {
     else this.rig.zoomAt(Math.exp(d * (e.ctrlKey && Math.abs(d) < 50 ? 0.01 : 0.001)), ...this.ndc(e.clientX, e.clientY));
   }
 
+  /** Escape steps back: placing → build view → serf action bar → no selection. */
+  escape() {
+    const en = this.engine;
+    const serfs = en.ownSerfIds().length > 0 && !en.ownArmyIds().length;
+    const step = escapeStep({ placing: !!en.placing, serfs, buildView: !!setting('serfBuildView'), selected: en.selected.size > 0 });
+    if (step === 'cancelPlacement') en.cancelPlacement();
+    else if (step === 'actionBar') setSetting('serfBuildView', false);
+    else if (step === 'deselect') en.clearSelection();
+  }
+
   keydown(e) {
     // Typing in input fields and in the code editor does not steer the camera
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target?.isContentEditable) return;
     const k = e.key.toLowerCase();
-    if (k === 'escape') { this.engine.cancelPlacement(); this.engine.clearSelection(); return; }
+    if (k === 'escape') { this.escape(); return; }
     if (k === ' ') { e.preventDefault(); this.engine.togglePause(); return; }
     if (k === '.') { this.engine.selectIdleSerfs(); return; }
     // Control groups: Shift/Ctrl+number remembers the selection, number recalls it (twice: camera there)

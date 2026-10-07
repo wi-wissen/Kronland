@@ -6,6 +6,7 @@ import { BUILDINGS } from '../sim/data/buildings.js';
 import { BALANCE } from '../sim/data/balance.js';
 import { RESOURCES } from '../sim/data/resources.js';
 import { TECHS, researchPoints } from '../sim/data/technologies.js';
+import { BUILDING_TECHS } from '../sim/data/buildingTechs.js';
 import { BLESSINGS, WORKER, professionFor } from '../sim/data/professions.js';
 import { averageMotivation, workerSlots, maxMotivation } from '../sim/systems/workers.js';
 import { UNITS, LINES, HEROES, HERO_IDS, unitOf, fullCost, LINE_UPGRADE_COST } from '../sim/data/units.js';
@@ -1459,7 +1460,14 @@ export class Engine {
       let reason = null;
       if (def.requires && !pl.techs.has(def.requires)) reason = { code: 'err.techMissing', params: { tech: def.requires } };
       else if (!sim.canPay(this.player, cost)) reason = 'err.notEnoughResources';
-      return { type, category: BUILD_CATEGORY[type] ?? 'admin', cost: Object.entries(cost), reason, requires: def.requires ?? null };
+      const lvl = def.levels[0];
+      // Read-only data for the info strip of the build menu (size, build time, staff, where to research)
+      return {
+        type, category: BUILD_CATEGORY[type] ?? 'admin', cost: Object.entries(cost), reason, requires: def.requires ?? null,
+        w: def.w, h: def.h, placement: def.placement, buildTime: lvl.buildTime, builders: def.builders,
+        workers: lvl.workers ?? 0, prof: lvl.workers ? professionFor(type) : null, beds: lvl.beds ?? 0, seats: lvl.seats ?? 0, population: lvl.population ?? 0,
+        researchAt: !def.requires ? null : TECHS[def.requires] ? 'university' : BUILDING_TECHS[def.requires]?.building ?? null,
+      };
     }) : [];
     const ticksToPay = BALANCE.paydayTicks - (sim.tick % BALANCE.paydayTicks);
     const mission = this.missionUi();
