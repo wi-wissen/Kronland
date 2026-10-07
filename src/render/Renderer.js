@@ -1496,13 +1496,8 @@ export class Renderer {
     return Math.max(h, b ? this.bridgeDeckY(b) : this.terrain.waterLevelY + 0.25);
   }
 
-  /**
-   * Click confirmation at the target of a command (walk, attack, work).
-   * @param {'move'|'attackMove'|'attack'|'work'} kind @param {number} x @param {number} z world coordinates (tiles)
-   */
-  orderMarker(kind, x, z) {
-    this.orderMarks.add(kind, x, z);
-  }
+  /** Click confirmation at a walk target. @param {number} x @param {number} z world coordinates (tiles) */
+  orderMarker(x, z) { this.orderMarks.add(x, z); }
 
   /** Selection: rings under units, frames around buildings, health bars for selected buildings. */
   syncSelection(selected) {

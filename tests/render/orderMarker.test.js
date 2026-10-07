@@ -1,69 +1,65 @@
-// Click confirmation for commands: animation course, target point and marker pool.
+// Click confirmation for walk commands: animation course and marker pool.
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { OrderMarkers, orderMarkerPose, orderMarkerScale, orderPoint, ORDER_MARKER_TIME, ORDER_COLORS } from '../../src/render/orderMarker.js';
+import { OrderMarkers, orderMarkerWave, orderMarkerScale, ORDER_MARKER_TIME } from '../../src/render/orderMarker.js';
 
-describe('orderMarkerPose', () => {
-  it('arrows come down from above and converge, then the ring spreads and fades', () => {
-    const start = orderMarkerPose(0.02), land = orderMarkerPose(ORDER_MARKER_TIME * 0.45), late = orderMarkerPose(ORDER_MARKER_TIME * 0.95);
-    expect(start.arrowY).toBeGreaterThan(land.arrowY);
-    expect(start.arrowR).toBeGreaterThan(land.arrowR);
-    expect(start.ringAlpha).toBe(0);
-    expect(late.ringR).toBeGreaterThan(land.ringR);
-    expect(late.ringAlpha).toBeLessThan(0.3);
-    expect(late.arrowAlpha).toBeLessThan(0.2);
+describe('orderMarkerWave', () => {
+  it('arrows flow inwards, fade in and out; the second wave follows the first', () => {
+    const a = orderMarkerWave(0.1, 0), b = orderMarkerWave(0.4, 0);
+    expect(b.r).toBeLessThan(a.r);
+    expect(orderMarkerWave(0.05, 1)).toBeNull();
+    expect(orderMarkerWave(0.3, 1)).not.toBeNull();
+    expect(orderMarkerWave(0.539, 0).alpha).toBeLessThan(0.05);
   });
-  it('is over after its duration', () => {
-    expect(orderMarkerPose(ORDER_MARKER_TIME)).toBeNull();
-    expect(orderMarkerPose(-0.1)).toBeNull();
+  it('everything is over after the duration', () => {
+    expect(orderMarkerWave(ORDER_MARKER_TIME, 0)).toBeNull();
+    expect(orderMarkerWave(ORDER_MARKER_TIME, 1)).toBeNull();
   });
 });
 
 describe('orderMarkerScale', () => {
   it('grows with camera distance, within limits', () => {
-    expect(orderMarkerScale(3)).toBe(1);
+    expect(orderMarkerScale(3)).toBe(0.8);
     expect(orderMarkerScale(50)).toBeGreaterThan(orderMarkerScale(25));
-    expect(orderMarkerScale(500)).toBe(3);
-  });
-});
-
-describe('orderPoint', () => {
-  it('figure in milli-tiles, building and tree centre, plain point', () => {
-    expect(orderPoint({ kind: 'unit', px: 12500, py: 3250 })).toEqual({ x: 12.5, y: 3.25 });
-    expect(orderPoint({ kind: 'building', x: 10, y: 4, w: 3, h: 2 })).toEqual({ x: 11.5, y: 5 });
-    expect(orderPoint({ kind: 'tree', x: 7, y: 8 })).toEqual({ x: 7.5, y: 8.5 });
-    expect(orderPoint({ x: 7.2, y: 8.9 })).toEqual({ x: 7.2, y: 8.9 });
-    expect(orderPoint(null)).toBeNull();
+    expect(orderMarkerScale(500)).toBe(2.4);
   });
 });
 
 describe('OrderMarkers', () => {
-  const make = () => { const scene = new THREE.Scene(); return { scene, m: new OrderMarkers(scene, () => 2) }; };
+  const make = () => new OrderMarkers(new THREE.Scene(), () => 2);
 
-  it('shows a marker on the ground in the colour of the command and hides it afterwards', () => {
-    const { m } = make();
-    m.add('attack', 5, 6);
-    m.update(0.1, 26);
+  it('shows a marker on the ground and hides it afterwards', () => {
+    const m = make();
+    m.add(5, 6);
+    m.update(0.2, 28);
     const p = m.pool.find((x) => x.active);
     expect(p.group.visible).toBe(true);
     expect(p.group.position.toArray()).toEqual([5, 2.05, 6]);
-    expect(p.ringMat.color.getHex()).toBe(ORDER_COLORS.attack);
-    m.update(ORDER_MARKER_TIME, 26);
+    // arrows lie around the centre and point at it
+    p.group.updateMatrixWorld(true);
+    for (const a of p.waves[0].mesh) {
+      const centre = new THREE.Vector3().setFromMatrixPosition(a.matrixWorld);
+      const tip = new THREE.Vector3().fromBufferAttribute(a.geometry.attributes.position, 0).applyMatrix4(a.matrixWorld);
+      const r = (v) => Math.hypot(v.x - 5, v.z - 6);
+      expect(r(centre)).toBeGreaterThan(0.1);
+      expect(r(tip)).toBeLessThan(r(centre));
+    }
+    m.update(ORDER_MARKER_TIME, 28);
     expect(m.active).toBe(0);
     expect(p.group.visible).toBe(false);
   });
 
   it('army and serfs at the same spot: only one marker', () => {
-    const { m } = make();
-    m.add('move', 5, 6); m.add('move', 5.2, 6.1);
+    const m = make();
+    m.add(5, 6); m.add(5.2, 6.1);
     expect(m.active).toBe(1);
-    m.add('move', 9, 6);
+    m.add(9, 6);
     expect(m.active).toBe(2);
   });
 
   it('many quick clicks reuse the oldest marker', () => {
-    const { m } = make();
-    for (let i = 0; i < 20; i++) { m.add('move', i * 3, 0); m.update(0.01, 26); }
+    const m = make();
+    for (let i = 0; i < 20; i++) { m.add(i * 3, 0); m.update(0.01, 28); }
     expect(m.active).toBe(m.pool.length);
     expect(m.pool.some((p) => p.x === 57)).toBe(true);
   });

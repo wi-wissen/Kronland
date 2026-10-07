@@ -165,7 +165,7 @@ export class Input {
     const p = this.pointers.get(e.pointerId);
     if (!p) {
       // build preview only over the map, not over controls
-      if (e.pointerType === 'mouse' && e.target === this.canvas) this.engine.hover(e.clientX, e.clientY);
+      if (e.pointerType === 'mouse' && e.target === this.canvas) { this.engine.hover(e.clientX, e.clientY); this.engine.updateCursor(e.clientX, e.clientY); }
       return;
     }
     const dx = e.clientX - p.x, dy = e.clientY - p.y;
