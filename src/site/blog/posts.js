@@ -13,6 +13,13 @@
 // (pages at build time: scripts/vite-blog-pages.js). Order: pinned first, then by date ascending – the
 // overview reads like the history of the project, new articles go at the end.
 // Chapters as in the manual: `## Title {#same-id}` in both languages.
+//
+// Images and diagrams: files under public/blog/<name>/ (e.g. public/blog/rendering/first-3d.webp), referenced in the
+// text relative to the site root as `![Caption](blog/<name>/first-3d.webp)` – alone on a line it becomes a <figure>
+// with the alt text as caption. In the build they get a content hash like all game files (scripts/vite-hashed-assets.js).
+// Photos as WebP (~1280–1440 px wide), diagrams as SVG with their own light background, per language if they contain
+// text (`…-de.svg`, `…-en.svg`). Code blocks: ```js src/path.js – language for highlighting (js, python, pseudo, bash,
+// text) and an optional file label (src/site/markdown.js).
 
 import { renderMarkdown } from '../markdown.js';
 import { blogVars } from './milestones.js';

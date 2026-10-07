@@ -101,6 +101,13 @@ Darunter Kapitel wie im Handbuch (`## Titel {#gleiche-id}` in beiden Sprachen; e
   Neuer Meilenstein: in `docs/milestones.json` anlegen, `node scripts/milestones.mjs` (siehe
   [MEILENSTEINE.md](MEILENSTEINE.md)), dann die beiden Artikel mit `date` = `date_end` schreiben – der Test
   `tests/site/blog.test.js` verlangt zu jedem Meilenstein einen Artikel in beiden Sprachen.
+- **Bilder und Abbildungen** liegen unter `public/blog/<name>/` und stehen im Text relativ zur Website-Wurzel:
+  `![Bildunterschrift](blog/<name>/bild.webp)` – allein in einer Zeile wird daraus eine Abbildung mit Unterschrift.
+  Im Build bekommen sie wie alle Spieldateien einen Inhalts-Hash; der Service Worker lädt sie erst bei Bedarf.
+  Fotos als WebP (rund 1 280–1 440 px breit), Schemata als SVG mit eigenem hellem Hintergrund, mit Text je Sprache
+  (`…-de.svg`, `…-en.svg`). Ein Test prüft, dass jedes verlinkte Bild existiert.
+- **Code-Blöcke** mit Sprache und Dateiangabe: ` ```js src/sim/rng.js ` – einfache Hervorhebung für `js`, `python`,
+  `pseudo` (Pseudocode, deutsche und englische Schlüsselwörter) und `bash`, die Angabe erscheint als Kopfzeile.
 - E2E: `e2e/blog.spec.js` (Desktop 1440×900 und Pixel 7, DE und EN); mit `BLOG_SHOTS=<ordner>` legt die Spec
   Bildschirmfotos ab.
 
