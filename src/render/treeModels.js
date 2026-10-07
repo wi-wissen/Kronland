@@ -29,9 +29,12 @@ export const BUSH_MODEL = { name: 'bush', kind: 'bush', height: 0.95, bend: 0.15
 /**
  * Fraction of the height with which model trees enter the LOD choice (screen height 80/40 px): they are about
  * twice as tall as the earlier trees; with 0.5 they switch at the same distances (desktop ~30 / 62 tiles).
- * Medium and low switch to the simpler levels earlier (saves triangles, especially on the phone).
+ * Medium switches to the simpler levels earlier. Low (phones) saves through its coarser levels (near already .lod2)
+ * and through the tier factor 0.8 on the screen height (LOD_PROFILES.tree.minBias): 0.6 · 0.8 ≈ 0.5 switches at the
+ * same screen size as "high". Less would make every tree a far model on the phone in portrait at game height (the
+ * camera is ≥ 23 tiles from the ground there; with 0.3 even the nearest tree stayed below 40 px).
  */
-export const TREE_LOD_HEIGHT = { high: 0.5, medium: 0.4, low: 0.3 };
+export const TREE_LOD_HEIGHT = { high: 0.5, medium: 0.4, low: 0.6 };
 
 /** Tree stumps of felled model trees: this much larger than the stump of the earlier, smaller trees. */
 export const MODEL_STUMP_SCALE = 1.8;

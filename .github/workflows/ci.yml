@@ -3,6 +3,9 @@ name: Tests
 # Cheap checks (Vitest + build, a few minutes) on every push to a pull request.
 # The slow browser tests (Playwright, desktop + phone) only once a pull request is ready for review
 # (not as a draft) and on demand via "Run workflow"; on main the Pages build checks the build.
+# Browser tests run in parallel jobs: one build job shares dist/ (artifact), the light specs are split into
+# shards, the heavy specs (high graphics level, showcase) form their own shards, a final job merges the
+# reports. Organisation: docs/TESTS.md.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -26,8 +29,8 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  e2e:
-    needs: unit
+  # Build once for all browser test shards (parallel to the unit job, so the shards do not wait for Vitest)
+  build:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
@@ -37,10 +40,92 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { group: light, shard: 1/12, id: light-1 }
+          - { group: light, shard: 2/12, id: light-2 }
+          - { group: light, shard: 3/12, id: light-3 }
+          - { group: light, shard: 4/12, id: light-4 }
+          - { group: light, shard: 5/12, id: light-5 }
+          - { group: light, shard: 6/12, id: light-6 }
+          - { group: light, shard: 7/12, id: light-7 }
+          - { group: light, shard: 8/12, id: light-8 }
+          - { group: light, shard: 9/12, id: light-9 }
+          - { group: light, shard: 10/12, id: light-10 }
+          - { group: light, shard: 11/12, id: light-11 }
+          - { group: light, shard: 12/12, id: light-12 }
+          - { group: heavy, shard: 1/3, id: heavy-1 }
+          - { group: heavy, shard: 2/3, id: heavy-2 }
+          - { group: heavy, shard: 3/3, id: heavy-3 }
+    name: e2e ${{ matrix.group }} ${{ matrix.shard }}
+    # Playwright image: browser and system libraries preinstalled (installing them with apt took up to 10 min).
+    # The tag must match @playwright/test in package-lock.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    env:
+      E2E_GROUP: ${{ matrix.group }}
+      E2E_PREBUILT: '1'
+      # distinct blob names, the merge job collects them into one folder
+      PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.id }}.zip
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - run: npx playwright test --shard=${{ matrix.shard }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: blob-report-${{ matrix.id }}
+          path: blob-report/
+          retention-days: 3
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: test-results-${{ matrix.id }}
           path: test-results/
+          retention-days: 7
+
+  # One HTML report for all shards (also when some failed)
+  e2e-report:
+    needs: e2e
+    if: ${{ !cancelled() && needs.e2e.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+      - run: npx playwright merge-reports --reporter html,github ./all-blob-reports
+      - uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

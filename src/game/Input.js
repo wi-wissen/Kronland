@@ -17,10 +17,19 @@ import { get as setting } from '../ui/settings.js';
 import { pinchMode, twistUnlocked, wrapAngle } from './gestures.js';
 import { isDoubleClick } from './sameType.js';
 import { dragRect } from './boxSelect.js';
+import { edgeScrollDir, nextArmed } from './edgeScroll.js';
 
 const DRAG_PX = 8;
-/** Width of the edge strip (px) in which the mouse pushes the camera */
-const EDGE_PX = 6;
+
+/**
+ * Take the keyboard focus away from a field (code editor, input) as a click on the page would, so the
+ * map shortcuts work again after a click on the map whose mousedown was cancelled.
+ * @param {Document} doc
+ */
+export function releaseFocus(doc) {
+  const el = /** @type {HTMLElement|null} */ (doc.activeElement);
+  if (el && el !== doc.body && typeof el.blur === 'function') el.blur();
+}
 
 export class Input {
   /** @param {import('./Engine.js').Engine} engine @param {HTMLCanvasElement} canvas */
@@ -45,13 +54,35 @@ export class Input {
     this.on(window, 'pointercancel', this.up);
     this.on(canvas, 'wheel', this.wheel, { passive: false });
     this.on(canvas, 'contextmenu', (e) => e.preventDefault());
-    // Middle button grabs the map (no automatic scrolling of the browser)
-    this.on(canvas, 'mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
+    // Primary and middle button: no native default action on the map. An uncancelled primary mousedown lets
+    // Firefox track a drag-and-drop/selection gesture that it evaluates after a few pixels – right when the
+    // selection box starts; the middle button would start the browser's auto scrolling. Cancelling the
+    // mousedown also skips the focus change, so the primary button hands the focus back itself.
+    this.on(canvas, 'mousedown', (e) => {
+      if (e.button !== 0 && e.button !== 1) return;
+      e.preventDefault();
+      if (e.button === 0) releaseFocus(document);
+    });
+    this.on(canvas, 'dragstart', (e) => e.preventDefault());
     this.on(window, 'keydown', this.keydown);
     this.on(window, 'keyup', (e) => this.rig.keys.delete(e.key.toLowerCase()));
     this.on(window, 'blur', () => { this.rig.keys.clear(); this.mouse = null; });
-    // Edge scrolling: remember the last mouse position; if the mouse leaves the window, it ends
-    this.on(window, 'mousemove', (e) => { this.mouse = { x: e.clientX, y: e.clientY, buttons: e.buttons }; });
+    // Edge scrolling (edgeScroll.js): remember the last mouse position. pointermove instead of mousemove: it also
+    // arrives while another element holds the pointer capture or cancelled the compatibility mouse events
+    // (code panel divider), so the position is never stale. Presses that start outside the game area (divider,
+    // panels) block edge scrolling until the pointer has been back on the map.
+    /** Edge scrolling armed (see edgeScroll.js nextArmed) */
+    this.edgeArmed = true;
+    /** Pointer id of a press that started outside the game area, null = none */
+    this.uiPress = null;
+    this.on(window, 'pointerdown', (e) => {
+      if (e.pointerType !== 'touch' && !this.inGame(e.target)) this.uiPress = e.pointerId;
+      this.track(e);
+    }, true);
+    this.on(window, 'pointermove', this.track, true);
+    const release = (e) => { if (e.pointerId === this.uiPress) this.uiPress = null; this.track(e, true); };
+    this.on(window, 'pointerup', release, true);
+    this.on(window, 'pointercancel', release, true);
     // If the mouse leaves the window (e.g. upwards into the browser bar), edge scrolling ends.
     // mouseleave on the document does not arrive in every browser, mouseout without a target does.
     this.on(document, 'mouseleave', () => { this.mouse = null; });
@@ -76,22 +107,43 @@ export class Input {
    * @param {number} dt seconds
    */
   edgeScroll(dt) {
-    const m = this.mouse;
-    // Edges of the canvas (split screen with the code panel: only the left part of the window)
-    const r = this.canvas.getBoundingClientRect?.() ?? { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
     const W = window.innerWidth, H = window.innerHeight;
     let dx = 0, dy = 0;
-    if (m && !m.buttons && !this.engine.touch && setting('edgeScroll')
-      && !(typeof document !== 'undefined' && !document.hasFocus())
-      && m.x >= r.left && m.x < r.right && m.y >= r.top && m.y < r.bottom) {
-      if (m.x <= r.left + EDGE_PX) dx = 1; else if (m.x >= Math.min(W, r.right) - 1 - EDGE_PX) dx = -1;
-      if (m.y <= r.top + EDGE_PX) dy = 1; else if (m.y >= Math.min(H, r.bottom) - 1 - EDGE_PX) dy = -1;
+    if (!this.engine.touch && setting('edgeScroll') && !(typeof document !== 'undefined' && !document.hasFocus())) {
+      [dx, dy] = edgeScrollDir(this.mouse, this.edgeArmed, this.canvasRect(), W, H);
     }
     // gentle ramp-up (0.25 s) instead of full speed at once
     this.edgeT = dx || dy ? Math.min(1, (this.edgeT ?? 0) + dt * 4) : 0;
     if (!dx && !dy) return;
     const speed = 900 * dt * this.edgeT;
     this.rig.pan(dx * speed, dy * speed, this.canvas.clientHeight || H);
+  }
+
+  /** Edges of the canvas (split screen with the code panel: only the left part of the window). */
+  canvasRect() {
+    return this.canvas.getBoundingClientRect?.() ?? { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+  }
+
+  /** Element inside the game area (canvas or HUD over it), not a panel beside it such as the code panel. */
+  inGame(el) {
+    const area = this.canvas.parentElement ?? this.canvas;
+    return !!el && (el === this.canvas || !!area.contains?.(el));
+  }
+
+  /**
+   * Remember the mouse position for edge scrolling and update whether it is armed.
+   * @param {PointerEvent} e @param {boolean} [released] pointerup/pointercancel: no button held any more
+   */
+  track(e, released = false) {
+    if (e.pointerType === 'touch') return;
+    const prev = this.mouse ?? null;
+    const cur = {
+      x: e.clientX, y: e.clientY, buttons: released ? 0 : e.buttons,
+      // with pointer capture the target is the capturing element (divider) wherever the pointer is
+      inGame: this.inGame(e.target), uiDrag: this.uiPress != null,
+    };
+    this.edgeArmed = nextArmed(this.edgeArmed, prev, cur, this.canvasRect(), window.innerWidth, window.innerHeight);
+    this.mouse = cur;
   }
 
   dispose() { for (const f of this.off ?? []) f(); this.box.remove(); }

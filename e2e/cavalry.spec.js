@@ -3,13 +3,15 @@ import { playUrl } from './paths.js';
 
 // Cavalry: riders sit on the horse from the pipeline (Horse.lod1.glb, own clips), no longer on the
 // procedural blocky horse. Standing, walk/gallop switch by speed, run speed coupled to the hooves.
-// ?quality=high forces the GLB figures even on the software renderer of the tests.
+// ?quality=medium forces the GLB figures even on the software renderer of the tests (only "low" falls back to the
+// procedural figures there); the checks read the figure state, a small window keeps the software frames short.
 
 test('Riders sit on the horse model and gallop in rhythm', async ({ page }, info) => {
   test.setTimeout(300_000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(playUrl('?seed=42&quality=high&fog=off'));
+  await page.setViewportSize({ width: 960, height: 540 });
+  await page.goto(playUrl('?seed=42&quality=medium&fog=off'));
   await page.waitForFunction(() => !!window.__kronland?.renderer?.chars, null, { timeout: 120_000 });
   const ids = await page.evaluate(() => {
     const e = window.__kronland, s = e.sim;
