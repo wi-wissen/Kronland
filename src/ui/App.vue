@@ -17,7 +17,7 @@
   </div>
 
   <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact, narrow, mid, 'show-labels': settings.labels, split: splitW > 0 }" :style="hudVars">
-    <canvas ref="canvas" data-testid="game-canvas"></canvas>
+    <canvas ref="canvas" data-testid="game-canvas" :class="{ 'paused-gray': showPause }"></canvas>
 
     <template v-if="ui && engine">
       <TopBar ref="top" :ui="ui" :need="need" @speed="engine.setSpeed($event)" @pause="engine.togglePause()" @menu="openMenu" />
@@ -43,6 +43,8 @@
         @hero="onHero"
         @group="engine.selectGroup($event)"
       />
+
+      <PauseBanner :show="showPause" :touch="!!ui.touch" :top="!!(ui.selection || ui.placing)" />
 
       <ToastFeed :toasts="ui.toasts" @jump="jump" @dismiss="(t) => engine?.dismissToast(t.id)" />
 
@@ -129,6 +131,7 @@ import { settleLazyLoads } from '../render/lazyLoads.js';
 import TopBar from './TopBar.vue';
 import CommandBar from './hud/CommandBar.vue';
 import ToastFeed from './hud/ToastFeed.vue';
+import PauseBanner from './hud/PauseBanner.vue';
 import StartMenu from './StartMenu.vue';
 import GameMenu from './GameMenu.vue';
 import Tooltip from './Tooltip.vue';
@@ -147,7 +150,7 @@ import { defaultSaveName } from '../save/format.js';
 import { makeThumb } from './saves/thumb.js';
 import { t } from '../i18n/index.js';
 import { devState, setDevMode, isDevHotkey } from '../dev/state.js';
-import { missing } from './hud/hudLayout.js';
+import { missing, pauseBannerVisible } from './hud/hudLayout.js';
 import { buildStartLink, parseStartLink, normalizeFree, addressFor, shareUrl } from './startLink.js';
 import { siteUrl } from '../paths.js';
 import { layoutMode } from './script/splitLayout.js';
@@ -166,7 +169,7 @@ const NARROW = 1500;
 export default {
   name: 'App',
   components: {
-    TopBar, CommandBar, ToastFeed, StartMenu, GameMenu, Tooltip, CampaignMenu, SpecialMapsMenu, MissionHud, MissionResult, AdventureMenu,
+    TopBar, CommandBar, ToastFeed, PauseBanner, StartMenu, GameMenu, Tooltip, CampaignMenu, SpecialMapsMenu, MissionHud, MissionResult, AdventureMenu,
     // Code panel and world editor: loaded only on demand
     ScriptPanel: defineAsyncComponent(() => import('./script/ScriptPanel.vue')),
     WorldEditor: defineAsyncComponent(() => import('./editor/WorldEditor.vue')),
@@ -237,6 +240,7 @@ export default {
       return { url, name: st.seed ? `${title} · ${st.seed}` : title, title };
     },
     need() { return this.preview && this.ui ? missing(this.preview, this.ui.res) : null; },
+    showPause() { return pauseBannerVisible(this.ui, { menuOpen: this.menuOpen, crash: this.crash }); },
     hudVars() {
       const v = { '--bottom-h': `${this.bottomH}px`, '--top-total': `${this.topH}px` };
       // Split screen: the game (canvas and HUD) only fills the area left of the code panel

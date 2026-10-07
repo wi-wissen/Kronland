@@ -406,7 +406,7 @@ Prüfung im Editor, ohne Build-Schritt.
 | Zoomen (bis ganz nah, Blick dann flacher) | Mausrad zum Mauszeiger, Bild↑/↓ zur Bildmitte | 2 Finger spreizen, zur Fingermitte |
 | Bauen | Baumenü, Klick setzt, Rechtsklick bricht ab | Baumenü, Tippen, „Hier bauen“ |
 | Untätige Leibeigene | Taste . | Knopf „Untätige“ |
-| Pause | Leertaste | Knopf |
+| Pause (Spiel und Animationen stehen, Welt in Graustufen, Schild „Pausiert“ unten; Befehle bleiben möglich) | Leertaste | Knopf |
 | Baumenü-Gruppe | Mausrad (schmales Fenster) | Sprungmarken |
 | Heldenfähigkeit | X, C | Knopf |
 | Steuergruppe merken | Umschalt+1–9 (Strg+1–9, wo der Browser es durchlässt) | Knopf „Als Gruppe merken“ |
