@@ -138,8 +138,8 @@ Motive: `hero` (Titelbild der Startseite, doppelte Pixeldichte: `hero.webp` 1440
 
 ## Linkvorschau (Open Graph)
 
-Das Plugin `scripts/vite-social-meta.js` schreibt im Build in jede Seite `<link rel="canonical">`, Open-Graph- und
-Twitter-Karten-Tags (`og:title`, `og:description`, `og:image` …). Titel und Beschreibung kommen aus `<title>` und
+Das Plugin `scripts/vite-social-meta.js` schreibt im Build in jede Seite `<link rel="canonical">` und Open-Graph-Tags
+(`og:title`, `og:description`, `og:image` …); eigene Twitter-/X-Tags gibt es bewusst nicht, X liest Open Graph mit. Titel und Beschreibung kommen aus `<title>` und
 `<meta name="description">` der Seite – eine neue Seite braucht also nur diese beiden. Blogartikel bekommen Titel
 und `teaser` aus ihrer deutschen Markdown-Datei und `og:type` = `article` (`scripts/vite-blog-pages.js`).
 Crawler brauchen absolute Adressen: Basis ist `https://kronland.wi7.net/`, ein anderer Host setzt beim Build

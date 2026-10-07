@@ -23,7 +23,7 @@ describe('Open Graph', () => {
     expect(out).toContain('<meta property="og:title" content="Kronland – Spielen" />');
     expect(out).toContain('<meta property="og:description" content="Bauen &amp; kämpfen" />');
     expect(out).toContain(`<meta property="og:image" content="${SITE}${OG_IMAGE.path}" />`);
-    expect(out).toContain('<meta name="twitter:card" content="summary_large_image" />');
+    expect(out).not.toContain('twitter:');
     expect(out).toContain(`<link rel="canonical" href="${SITE}play/" />`);
   });
 

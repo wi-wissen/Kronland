@@ -1,4 +1,4 @@
-// Vite plugin: link previews for social media and messengers (Open Graph, Twitter cards) and the canonical address
+// Vite plugin: link previews for social media and messengers (Open Graph) and the canonical address
 // for every page. Title and description come from the page's own <title> and <meta name="description">; the
 // preview image is public/og-image.jpg (scripts/og-image.mjs). Crawlers need absolute addresses, hence SITE_URL
 // (GitHub Pages, docs/WEBSITE.md); another host sets KRONLAND_SITE_URL at build time.
@@ -40,10 +40,6 @@ export function socialTags({ title, description, url, type = 'website' }, site =
     `<meta property="og:image:width" content="${OG_IMAGE.width}" />`,
     `<meta property="og:image:height" content="${OG_IMAGE.height}" />`,
     `<meta property="og:image:alt" content="${esc(OG_IMAGE.alt)}" />`,
-    `<meta name="twitter:card" content="summary_large_image" />`,
-    `<meta name="twitter:title" content="${esc(title)}" />`,
-    `<meta name="twitter:description" content="${esc(description)}" />`,
-    `<meta name="twitter:image" content="${esc(img)}" />`,
   ];
   return tags.join('\n    ');
 }
