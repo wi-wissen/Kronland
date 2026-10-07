@@ -42,7 +42,8 @@ public/audio/manifest.json              →  dist/audio/manifest.4b1c…….json
 
 | Was | Strategie | Wann |
 |---|---|---|
-| Code, Seiten, CSS, Oberflächenbilder (Symbol-Atlas, Porträts, Menükulissen) | Vorab-Cache (~3,6 MB) | beim ersten Besuch, im Hintergrund |
+| Seitenaufrufe (Navigation) | immer zuerst das Netz (`no-cache`), offline die vorab gecachte Seite | bei jedem Aufruf |
+| Code, Seiten, CSS, Oberflächenbilder (Symbol-Atlas, Porträts, Menükulissen) | Vorab-Cache (~4,7 MB) | beim ersten Besuch, im Hintergrund |
 | Modelle, Figuren-Manifest | CacheFirst `models` | beim ersten Laden |
 | Boden- und Naturtexturen | CacheFirst `textures` | beim ersten Laden (nur die Größe der Grafikstufe) |
 | Musik, Effekte, Stimmen, Ton-Manifeste | CacheFirst `audio` | beim ersten Abspielen |
@@ -70,6 +71,46 @@ Cloudflare Pages (`_headers`):
 ```
 
 `sw.js` und die HTML-Seiten dagegen immer frisch (`no-cache`), sonst erfährt der Browser nichts vom Update.
+GitHub Pages lässt sich nicht einstellen und schickt für alles `Cache-Control: max-age=600`; darum fragt der
+Service-Worker bei Seitenaufrufen selbst mit `no-cache` nach (ETag, meist nur ein 304).
+
+## Updates nach einem Deploy
+
+**Früher:** Auch die HTML-Seiten lagen im Vorab-Cache und kamen von dort (Cache zuerst). Nach einem Deploy lieferte
+ein Neuladen also die *alte* Seite mit den *alten* Bundles; erst dabei fand der Browser die neue `sw.js`, die sich
+sofort aktivierte (`skipWaiting`, `clientsClaim`) und die alten Bundles aus dem Vorab-Cache löschte. Die offene
+alte Seite lud danach nachgeladene Teile (Code-Panel, Welteneditor, Entwicklermodus, Befehlskarten) vergeblich –
+auf dem Server sind sie weg (404) – daher „komische Fehler“; erst das zweite Neuladen zeigte die neue Fassung.
+Außerdem räumte `cacheCleanup.js` auf so einer alten Seite die Dateien der *neuen* Fassung als „veraltet“ ab.
+
+**Jetzt** (`scripts/sw-pages.js`, `src/pwa.js`):
+
+- **Seiten aus dem Netz:** Navigationen beantwortet der Service-Worker nicht mehr aus dem Vorab-Cache
+  (`directoryIndex: null`), sondern mit einer Netzanfrage (`no-cache`, an der 10-Minuten-Frist von GitHub Pages
+  vorbei). Ein normales Neuladen zeigt nach einem Deploy sofort die neue Fassung; deren Bundles haben neue Namen
+  und kommen am alten Vorab-Cache vorbei aus dem Netz. Offline: die vorab gecachte Seite (passt zu den vorab
+  gecachten Bundles). Umleitungen (`/play` → `/play/`) gibt der Worker als Umleitung weiter.
+- **Offene Tabs merken das Update:** Übernimmt ein neuer Service-Worker (`controllerchange`), schlägt ein
+  nachgeladenes Bundle fehl (`vite:preloadError`) oder kommt ein Tab nach mehr als 10 Minuten wieder in den
+  Vordergrund, holt die Seite ihre eigene HTML-Datei frisch vom Server und vergleicht die Bundle-Namen
+  (`checkForUpdate`). Ist die Seite veraltet:
+  - in den Menüs (Hauptmenü, Kampagne, Abenteuer, Sonderkarten; kein Entwurf im Welteneditor): sofort neu laden,
+  - im laufenden Spiel: nichts unterbrechen. Hinweis „Neue Version verfügbar“ und im Spielmenü
+    **„Speichern und neu laden“** (schreibt den Autosave-Platz, auch wenn Autosave aus ist, danach Hauptmenü mit
+    „Weiterspielen“); spätestens beim Verlassen des Spiels lädt die neue Fassung.
+  - Höchstens ein automatisches Neuladen je Minute (`sessionStorage`), damit ein Server, der weiter die alte
+    Seite liefert, keine Schleife auslöst.
+- Das Aufräumen alter Cache-Einträge (`cacheCleanup.js`) läuft nur, wenn die Seite nachweislich aktuell ist.
+
+**Übergang:** Geräte mit dem alten Service-Worker bekommen beim ersten Neuladen nach diesem Deploy noch einmal die
+alte Seite aus dem Vorab-Cache (der alte Worker entscheidet das); ab dann gilt das Neue.
+
+**Prüfen:** `tests/build/update.test.js` (Erkennung, Antwort des Workers), `e2e/update.spec.js` (echter Deploy:
+Build A ausliefern, Service-Worker installieren, auf Build B mit `KRONLAND_BUILD=b` umschalten – Neuladen zeigt B,
+ein Tab im Menü lädt sich selbst neu, ein laufendes Spiel zeigt den Hinweis). Der Testserver
+(`e2e/static-server.js`) schickt dieselben Kopfzeilen wie GitHub Pages. Von Hand: Seite offen lassen, deployen,
+einmal neu laden → neue Fassung (in den Entwicklerwerkzeugen unter „Application → Service Workers“ ist der neue
+Worker aktiv, im Netzwerk-Reiter kommt `play/` vom Server).
 
 ## Wie viele Daten braucht ein Spiel?
 

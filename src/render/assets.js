@@ -13,6 +13,7 @@ import { siteUrl, assetUrl } from '../paths.js';
 import { playerColorIndex } from './playerColors.js';
 import { SUMMER_NATURE_MODELS, NATURE_MODEL_LODS } from './treeModels.js';
 import { pitShape, pitRect, pitTexture, hangerBeam } from './pit.js';
+import { trackLoad } from './lazyLoads.js';
 
 /** Colour versions of the models in palette order (player → colour: playerColorIndex in playerColors.js). */
 export const ASSET_COLORS = ['blue', 'red', 'green', 'yellow'];
@@ -365,8 +366,10 @@ function requestAsset(n) {
     cache.set(name, { scene: g.scene, animations: g.animations });
   });
   // LOD levels first, so that the original only becomes visible when everything is there
-  const lods = useLods ? Array.from({ length: BUILDING_LODS }, (_, k) => load(`${n}.lod${k + 1}`).catch(() => {})) : [];
-  Promise.all(lods).then(() => load(n)).catch(() => {}).finally(() => pending.delete(n));
+  const lodNames = useLods ? Array.from({ length: BUILDING_LODS }, (_, k) => `${n}.lod${k + 1}`) : [];
+  const done = Promise.all(lodNames.map((f) => load(f).catch(() => {}))).then(() => load(n)).catch(() => {}).finally(() => pending.delete(n));
+  // the loading screen may wait for it (src/render/lazyLoads.js)
+  trackLoad(done, [...lodNames, n].map((f) => assetUrl(`${base}${f}${lazy.ext}`)));
 }
 /** Own bridge model (a whole bridge, models.js stretches the middle part). */
 export const BRIDGE_ASSET = 'bridge';

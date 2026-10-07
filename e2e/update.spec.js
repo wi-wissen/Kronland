@@ -1,0 +1,85 @@
+// Deploy simulation: build A (dist/, served by the test's own server with GitHub Pages headers) is open with an
+// installed service worker, then the server switches to build B (built here with KRONLAND_BUILD=b). A normal reload
+// must show B at once; an open tab in the menu reloads itself; a running game gets a notice instead
+// (src/pwa.js, scripts/sw-pages.js, docs/PERFORMANCE.md#updates-nach-einem-deploy). Desktop only (one build B).
+import { test, expect } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { startStaticServer } from './static-server.js';
+
+const PORT = (Number(process.env.E2E_PORT) || 4173) + 57;
+const BASE = `http://localhost:${PORT}`;
+const DIST_A = resolve('dist');
+let distB, tmp, server;
+
+test.describe.configure({ mode: 'serial' });
+
+test.beforeAll(async ({}, info) => {
+  if (info.project.name !== 'desktop') return;
+  test.setTimeout(400_000);
+  if (!existsSync(join(DIST_A, 'play/index.html'))) throw new Error('dist/ missing (the web server builds it)');
+  tmp = mkdtempSync(join(tmpdir(), 'kronland-deploy-'));
+  distB = join(tmp, 'dist-b');
+  execFileSync('npx', ['vite', 'build', '--outDir', distB, '--emptyOutDir', '--logLevel', 'warn'], { env: { ...process.env, KRONLAND_BUILD: 'b' }, stdio: 'inherit', timeout: 380_000 });
+  server = await startStaticServer({ root: DIST_A, port: PORT });
+});
+
+test.afterAll(async () => {
+  await server?.close();
+  if (tmp) rmSync(tmp, { recursive: true, force: true });
+});
+
+test.beforeEach(({}, info) => {
+  test.skip(info.project.name !== 'desktop', 'deploy simulation runs once (desktop)');
+  server.setRoot(DIST_A);
+});
+
+/** Build label of the running page ('' = A, 'b' = B); null while navigating. */
+const build = (page) => page.evaluate(() => window.__kronlandBuild).catch(() => null);
+
+/** Open build A and wait until its service worker controls the page and has filled the precache. */
+async function openA(page, path = '/play/') {
+  await page.goto(BASE + path);
+  await page.waitForFunction(() => navigator.serviceWorker?.controller && navigator.serviceWorker.ready.then(() => true), null, { timeout: 120_000 });
+  expect(await build(page)).toBe('');
+}
+
+/** Deploy B and let the open tab's worker look for it (as the browser does on the next navigation or check). */
+async function deployB(page) {
+  server.setRoot(distB);
+  await page.evaluate(() => navigator.serviceWorker.getRegistration().then((r) => r?.update())).catch(() => {});
+}
+
+test('a normal reload after a deploy shows the new version at once', async ({ page }) => {
+  const broken = [];
+  page.on('response', (r) => { if (r.status() >= 400) broken.push(`${r.status()} ${r.url()}`); });
+  page.on('pageerror', (e) => broken.push(String(e)));
+  await openA(page);
+  server.setRoot(distB);
+  await page.reload();
+  expect(await build(page)).toBe('b');
+  await expect(page.getByTestId('start-menu')).toBeVisible({ timeout: 30_000 });
+  expect(broken).toEqual([]);
+});
+
+test('an open tab in the menu reloads itself when the new version takes over', async ({ page }) => {
+  await openA(page);
+  await deployB(page);
+  await expect.poll(() => build(page), { timeout: 90_000 }).toBe('b');
+});
+
+test('a running game is not interrupted: notice in the game menu, save and reload on request', async ({ page }) => {
+  await openA(page, '/play/?seed=42&no-models');
+  await page.waitForFunction(() => window.__kronland?.renderer?.frameNo > 2, null, { timeout: 120_000 });
+  await deployB(page);
+  // the new worker takes over, the page notices it is outdated – but stays on A
+  await page.getByTestId('menu').click();
+  await expect(page.getByTestId('gmenu-update')).toBeVisible({ timeout: 90_000 });
+  expect(await build(page)).toBe('');
+  await page.getByTestId('gmenu-update-reload').click();
+  await expect.poll(() => build(page), { timeout: 60_000 }).toBe('b');
+  // the game was saved first: the start menu offers to continue it
+  await expect(page.getByTestId('continue')).toBeVisible({ timeout: 30_000 });
+});
