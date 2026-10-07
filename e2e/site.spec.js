@@ -136,7 +136,8 @@ test('Manual: table of contents, anchors, search', async ({ page }) => {
   }
   const first = manual.locator('figure img').first();
   await first.scrollIntoViewIfNeeded();
-  await expect.poll(() => first.evaluate((el) => el.complete && el.naturalWidth > 0)).toBe(true);
+  // lazy image: loading and decoding under software graphics on a busy CI runner can take longer than 5 s
+  await expect.poll(() => first.evaluate((el) => el.complete && el.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
   expect(problems).toEqual([]);
 });
 

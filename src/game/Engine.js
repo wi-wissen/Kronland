@@ -6,6 +6,7 @@ import { BUILDINGS } from '../sim/data/buildings.js';
 import { BALANCE } from '../sim/data/balance.js';
 import { RESOURCES } from '../sim/data/resources.js';
 import { TECHS, researchPoints } from '../sim/data/technologies.js';
+import { BUILDING_TECHS } from '../sim/data/buildingTechs.js';
 import { BLESSINGS, WORKER, professionFor } from '../sim/data/professions.js';
 import { averageMotivation, workerSlots, maxMotivation } from '../sim/systems/workers.js';
 import { UNITS, LINES, HEROES, HERO_IDS, unitOf, fullCost, LINE_UPGRADE_COST } from '../sim/data/units.js';
@@ -17,6 +18,7 @@ import { createMissionSim, createScenarioSim } from '../sim/missions/runtime.js'
 import { resetSpeech, stopSpeech } from '../audio/speech.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
+import { cursorCss } from './cursors.js';
 import { characterManifest } from '../render/characters.js';
 import { figureRole, figureSex } from '../render/variants.js';
 import { getQuality } from '../render/quality.js';
@@ -240,7 +242,9 @@ export class Engine {
       hint: this.missionView.hint,
       landmarks: this.missionView.landmarks ?? null,
       revealAll: this.fogLifted(),
-      speed: this.paused ? 0 : this.speed,
+      // paused: figures freeze in their current pose (clip and walking speed stay as in the last tick)
+      paused: this.paused,
+      speed: this.speed,
     }), (f) => f && this.fault('render'));
     if (this.dev) g.run('dev', () => this.dev?.frame(dt));
     if (this.audio) g.run('audio', () => this.audio?.frame(dt));
@@ -750,29 +754,66 @@ export class Engine {
 
   // ---------- Commands ----------
 
-  /** Context command for the selected serfs at a screen position. */
+  /** Context command for the selected figures at a screen position. */
   commandAt(cx, cy, attackMove = false) {
-    const army = this.ownArmyIds();
-    let done = false;
-    if (army.length) done = this.armyCommandAt(army, cx, cy, attackMove || this.attackMode) || done;
+    const plan = this.planCommandAt(cx, cy, attackMove || this.attackMode);
     this.attackMode = false;
-    const units = this.ownSerfIds();
-    if (!units.length) { this.emitUi(); return done; }
-    const id = this.renderer.pickEntity(cx, cy);
-    const hit = id ? this.sim.entities.get(id) : null;
+    for (const c of plan.cmds) this.issue(c);
+    // click confirmation only for walking: work and attack show their target through the cursor beforehand
+    if (plan.walk) this.renderer?.orderMarker?.(plan.walk.x, plan.walk.y);
+    this.emitUi();
+    return plan.cmds.length > 0;
+  }
+
+  /**
+   * What a right click at a screen position would do with the current selection, without issuing anything:
+   * the commands, the walk target (click marker) and the cursor that announces it.
+   * @returns {{ cmds: object[], walk: {x:number, y:number}|null, cursor: import('./cursors.js').CursorKind|null }}
+   */
+  planCommandAt(cx, cy, attackMove = false) {
+    const plan = { cmds: [], walk: null, cursor: null };
+    const army = this.ownArmyIds(), units = this.ownSerfIds();
+    if (!army.length && !units.length) return plan;
+    const hitId = this.renderer.pickEntity(cx, cy);
+    const g = this.renderer.pickGround(cx, cy);
+    if (army.length) this.planArmy(plan, army, hitId, g, cx, cy, attackMove);
+    if (units.length) this.planSerfs(plan, units, hitId ? this.sim.entities.get(hitId) : null, g);
+    return plan;
+  }
+
+  planArmy(plan, units, hitId, g, cx, cy, attackMove) {
+    const hit = this.selectable(hitId);
+    if (hit && hit.owner !== this.player && hit.owner !== undefined && targetable(this.sim, hit.kind === 'leader' && hit.soldiers.length ? this.sim.entities.get(hit.soldiers[0]) : hit)) {
+      const target = hit.kind === 'leader' && hit.soldiers.length ? hit.soldiers[0] : hit.id;
+      plan.cmds.push({ type: 'order', units, order: 'attack', target });
+      plan.cursor = 'attack';
+      return;
+    }
+    // Last seen building in the fog: attack-move there (the target itself is unknown)
+    const ghost = !hit && !this.fogLifted() ? this.renderer.pickGhost(cx, cy) : null;
+    if (ghost) {
+      plan.cmds.push({ type: 'order', units, order: 'attackMove', x: Math.floor(ghost.x), y: Math.floor(ghost.y) });
+      plan.cursor = 'attack';
+      return;
+    }
+    if (!g) return;
+    plan.cmds.push({ type: 'order', units, order: attackMove ? 'attackMove' : 'move', x: Math.floor(g.x), y: Math.floor(g.z) });
+    plan.walk = { x: g.x, y: g.z };
+    if (attackMove) plan.cursor = 'attack';
+  }
+
+  planSerfs(plan, units, hit, g) {
+    const work = (target, cursor) => { plan.cmds.push({ type: 'assignWork', units, target: target.id }); plan.cursor ??= cursor; };
+    const buildSite = (e) => e?.kind === 'building' && e.owner === this.player && (!e.done || isDamaged(this.sim, e));
     if (hit?.kind === 'building') {
-      if (hit.owner === this.player && (!hit.done || isDamaged(this.sim, hit))) { this.issue({ type: 'assignWork', units, target: hit.id }); return true; }
+      if (buildSite(hit)) return work(hit, 'build');
     }
     // Enemy instead of tree: the serfs attack it (as in the model, with bare fists)
-    if (hit && FIGHT_TARGETS.has(hit.kind) && isEnemy(this.sim, this.player, hit.owner) && targetable(this.sim, hit)) {
-      this.issue({ type: 'assignWork', units, target: hit.id });
-      return true;
-    }
-    const g = this.renderer.pickGround(cx, cy);
-    if (!g) return false;
+    if (hit && FIGHT_TARGETS.has(hit.kind) && isEnemy(this.sim, this.player, hit.owner) && targetable(this.sim, hit)) return work(hit, 'attack');
+    if (!g) return;
     const tx = Math.floor(g.x), ty = Math.floor(g.z);
     const m = this.sim.map;
-    if (!m.inBounds(tx, ty)) return false;
+    if (!m.inBounds(tx, ty)) return;
     // Tree or pile near the click
     let node = null, best = 2.2;
     for (let y = ty - 1; y <= ty + 1; y++) for (let x = tx - 1; x <= tx + 1; x++) {
@@ -783,11 +824,26 @@ export class Engine {
         if (d < best) { best = d; node = e; }
       }
     }
-    if (node) { this.issue({ type: 'assignWork', units, target: node.id }); return true; }
+    if (node) return work(node, node.kind === 'tree' ? 'chop' : 'mine');
     const occ = this.sim.entities.get(m.owner[m.idx(tx, ty)]);
-    if (occ?.kind === 'building' && occ.owner === this.player && (!occ.done || isDamaged(this.sim, occ))) { this.issue({ type: 'assignWork', units, target: occ.id }); return true; }
-    if (m.walkable(tx, ty)) { this.issue({ type: 'move', units, x: tx, y: ty }); return true; }
-    return false;
+    if (buildSite(occ)) return work(occ, 'build');
+    if (m.walkable(tx, ty)) {
+      plan.cmds.push({ type: 'move', units, x: tx, y: ty });
+      plan.walk ??= { x: g.x, y: g.z };
+    }
+  }
+
+  /** Cursor over the map (glove): announces what a right click would do with the selection (desktop, mouse only). */
+  updateCursor(cx, cy) {
+    const now = performance.now();
+    if (now - (this.cursorAt ?? 0) < 60) return;
+    this.cursorAt = now;
+    let kind = null;
+    if (!this.placing && (this.attackMode || this.hasOrderable())) kind = this.planCommandAt(cx, cy, this.attackMode).cursor;
+    if (kind === this.cursorKind) return;
+    this.cursorKind = kind;
+    const el = this.renderer?.renderer?.domElement;
+    if (el) el.style.cursor = cursorCss(kind);
   }
 
   /**
@@ -807,31 +863,13 @@ export class Engine {
     if (army.length) { this.issue({ type: 'order', units: army, order: attackMove ? 'attackMove' : 'move', x: tx, y: ty }); done = true; }
     const serfs = this.ownSerfIds();
     if (serfs.length) { this.issue({ type: 'move', units: serfs, x: tx, y: ty }); done = true; }
+    if (done) this.renderer?.orderMarker?.(tx + 0.5, ty + 0.5);
     this.emitUi();
     return done ? t : null;
   }
 
   /** Are own figures selected that accept walk commands? */
   hasOrderable() { return this.ownArmyIds().length > 0 || this.ownSerfIds().length > 0; }
-
-  armyCommandAt(units, cx, cy, attackMove) {
-    const hit = this.selectable(this.renderer.pickEntity(cx, cy));
-    if (hit && hit.owner !== this.player && hit.owner !== undefined && targetable(this.sim, hit.kind === 'leader' && hit.soldiers.length ? this.sim.entities.get(hit.soldiers[0]) : hit)) {
-      const target = hit.kind === 'leader' && hit.soldiers.length ? hit.soldiers[0] : hit.id;
-      this.issue({ type: 'order', units, order: 'attack', target });
-      return true;
-    }
-    // Last seen building in the fog: attack-move there (the target itself is unknown)
-    const ghost = !hit && !this.fogLifted() ? this.renderer.pickGhost(cx, cy) : null;
-    if (ghost) {
-      this.issue({ type: 'order', units, order: 'attackMove', x: Math.floor(ghost.x), y: Math.floor(ghost.y) });
-      return true;
-    }
-    const g = this.renderer.pickGround(cx, cy);
-    if (!g) return false;
-    this.issue({ type: 'order', units, order: attackMove ? 'attackMove' : 'move', x: Math.floor(g.x), y: Math.floor(g.z) });
-    return true;
-  }
 
   /** Military commands from the UI. */
   armyOrder(order) {
@@ -1310,6 +1348,9 @@ export class Engine {
     const has = (h) => !!(h && (h.entity || h.area));
     const goal = [...ui.objectives].sort((a, b) => Number(b.primary) - Number(a.primary)).find((o) => has(o.hint));
     mv.hint = has(ui.tutorial?.hint) ? ui.tutorial.hint : goal?.hint ?? null;
+    // Pointer at controls (glow frame, build menu tile): the tutorial step, otherwise the first open objective with one
+    const uiGoal = [...ui.objectives].sort((a, b) => Number(b.primary) - Number(a.primary)).find((o) => o.hint?.ui?.length);
+    ui.pointer = ui.tutorial ? ui.tutorial.hint?.ui ?? [] : uiGoal?.hint.ui ?? [];
     mv.landmarks = ui.landmarks;
     return ui;
   }
@@ -1457,9 +1498,17 @@ export class Engine {
       const def = BUILDINGS[type];
       const cost = def.levels[0].cost;
       let reason = null;
-      if (def.requires && !pl.techs.has(def.requires)) reason = { code: 'err.techMissing', params: { tech: def.requires } };
+      if (sim.mission?.locked(this.player, 'buildings', type)) reason = 'err.notInMission';
+      else if (def.requires && !pl.techs.has(def.requires)) reason = { code: 'err.techMissing', params: { tech: def.requires } };
       else if (!sim.canPay(this.player, cost)) reason = 'err.notEnoughResources';
-      return { type, category: BUILD_CATEGORY[type] ?? 'admin', cost: Object.entries(cost), reason, requires: def.requires ?? null };
+      const lvl = def.levels[0];
+      // Read-only data for the info strip of the build menu (size, build time, staff, where to research)
+      return {
+        type, category: BUILD_CATEGORY[type] ?? 'admin', cost: Object.entries(cost), reason, requires: def.requires ?? null,
+        w: def.w, h: def.h, placement: def.placement, buildTime: lvl.buildTime, builders: def.builders,
+        workers: lvl.workers ?? 0, prof: lvl.workers ? professionFor(type) : null, beds: lvl.beds ?? 0, seats: lvl.seats ?? 0, population: lvl.population ?? 0,
+        researchAt: !def.requires ? null : TECHS[def.requires] ? 'university' : BUILDING_TECHS[def.requires]?.building ?? null,
+      };
     }) : [];
     const ticksToPay = BALANCE.paydayTicks - (sim.tick % BALANCE.paydayTicks);
     const mission = this.missionUi();
@@ -1481,6 +1530,8 @@ export class Engine {
       payday: { income: taxIncome(countWorkers(sim, this.player), pl.taxLevel), wages: countLeaders(sim, this.player) * BALANCE.wagePerLeader, last: this.lastPayday ?? null },
       speed: this.speed,
       paused: this.paused,
+      /** paused by the script debugger (breakpoint), not by the player */
+      halted: this.debugHalt,
       selection,
       ...quick,
       buildOptions,

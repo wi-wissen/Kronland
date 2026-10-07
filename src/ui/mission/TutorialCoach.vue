@@ -13,8 +13,6 @@
       <button class="ghost co-skip" data-testid="tutorial-skip" @click="$emit('skip')">{{ $t('mission.skipStep') }}</button>
     </div>
   </section>
-  <!-- Glow frame around the control the step points at -->
-  <div v-show="box" class="co-ring" :style="boxStyle" aria-hidden="true" data-testid="tutorial-highlight"></div>
 </template>
 
 <script>
@@ -29,38 +27,9 @@ export default {
     lang: { type: String, default: 'de' },
   },
   emits: ['next', 'skip'],
-  data() { return { box: null }; },
   computed: {
     /** Orrin guides through the tutorial (tutorial.js) */
     avatar() { return siteUrl(PORTRAITS['hero-orrin']); },
-    boxStyle() {
-      if (!this.box) return {};
-      const b = this.box;
-      return { left: `${b.x - 5}px`, top: `${b.y - 5}px`, width: `${b.w + 10}px`, height: `${b.h + 10}px` };
-    },
-  },
-  mounted() {
-    // Keep tracking the position of the target element (panels open, scroll, size changes)
-    const loop = () => { this.track(); this.raf = requestAnimationFrame(loop); };
-    this.raf = requestAnimationFrame(loop);
-  },
-  beforeUnmount() { cancelAnimationFrame(this.raf); },
-  methods: {
-    /** First visible element from the hint list (order = priority). */
-    track() {
-      const ids = this.step.hint?.ui ?? [];
-      let found = null;
-      for (const id of ids) {
-        // data-hint-for: a button that first unfolds the target (phone: map button for the quick access)
-        for (const el of document.querySelectorAll(`[data-testid="${id}"], [data-hint-for~="${id}"]`)) {
-          const r = el.getBoundingClientRect();
-          if (r.width > 0 && r.height > 0 && el.offsetParent !== null) { found = r; break; }
-        }
-        if (found) break;
-      }
-      const b = found ? { x: Math.round(found.left), y: Math.round(found.top), w: Math.round(found.width), h: Math.round(found.height) } : null;
-      if (JSON.stringify(b) !== JSON.stringify(this.box)) this.box = b;
-    },
   },
 };
 </script>
@@ -89,12 +58,6 @@ export default {
 .co-wait { color: var(--ink-muted); font-size: var(--fs-sm); font-style: italic; flex: 1; display: inline-flex; align-items: center; gap: 0.375rem; }
 .co-wait .ico { width: 1rem; height: 1rem; flex: none; }
 .co-skip { margin-left: auto; font-size: var(--fs-sm); min-height: var(--touch); }
-.co-ring {
-  position: fixed; z-index: 25; pointer-events: none; border-radius: 0.625rem;
-  border: 3px solid #ffcf4a; box-shadow: 0 0 0 4px rgba(255, 207, 74, 0.25), 0 0 18px rgba(255, 207, 74, 0.6);
-  animation: co-pulse 1.2s ease-in-out infinite;
-}
-@keyframes co-pulse { 50% { box-shadow: 0 0 0 9px rgba(255, 207, 74, 0.08), 0 0 26px rgba(255, 207, 74, 0.85); } }
 @media (max-width: 640px), (max-height: 480px) and (orientation: landscape) {
   .coach { padding: 0.5rem 0.625rem; gap: 0.25rem; }
   .coach h3 { font-size: var(--fs-lg); }

@@ -14,6 +14,7 @@ import {
 } from './lod.js';
 import { CharacterSystem, sharedCharacterRoots, cavalryGait } from './characters.js';
 import { Effects, HealthBars, GroundMarks, sharedPuffTexture } from './effects.js';
+import { OrderMarkers } from './orderMarker.js';
 import { CameraRig, nearFactor, buildingTop } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT, TICKS_PER_SECOND } from '../sim/fixed.js';
@@ -41,6 +42,7 @@ import { jitterOffset, jitterTarget, JITTER_FADE } from './jitter.js';
 import { COMBAT } from '../sim/data/combat.js';
 import { wrapAngle } from './angle.js';
 import { pickFigure, inDepth } from './pick.js';
+import { findSpinners, turnParts } from './movingParts.js';
 
 /** Player colour; figures without owner (conversation figures) in neutral brown. */
 /**
@@ -123,6 +125,7 @@ export class Renderer {
     this.fx = new Effects(this.scene, q);
     this.bars = new HealthBars(this.scene);
     this.marks = new GroundMarks(this.scene);
+    this.orderMarks = new OrderMarkers();
     /** Destroyed buildings as ruins (rendering only) */
     this.ruins = [];
     /** Construction values from the last frame (dust clouds on progress) */
@@ -795,7 +798,8 @@ export class Renderer {
    * @param {number} alpha 0…1 between last and current tick
    * @param {number} dt seconds since last frame
    * @param {Map<number,{px:number,py:number}>} prev positions before the last tick
-   * @param {{ selected: Set<number>, ghost: null|{type:string,x:number,y:number,valid:boolean} }} view
+   * @param {{ selected: Set<number>, ghost: null|{type:string,x:number,y:number,valid:boolean}, paused?: boolean, speed?: number }} view
+   *   paused: world animations (figures, fire, water, wind, projectiles) freeze; camera, fog and markers keep running
    */
   frame(alpha, dt, prev, view) {
     if (!this.warmed) {
@@ -810,10 +814,13 @@ export class Renderer {
     }
     const sim = this.sim;
     if (this.natureDirty) { this.natureDirty = false; this.rebuildNature(); }
+    // animation time stands still while paused (the camera keeps using the real dt)
+    const realDt = dt;
+    if (view.paused) dt = 0;
     this.frameDt = dt;
     this.time = (this.time ?? 0) + dt;
     // camera first: LOD levels and visibility check refer to the current frame
-    this.rig.update(dt);
+    this.rig.update(realDt);
     this.camera.updateMatrixWorld();
     cameraFrustum(this.camera, this.frustum);
     this.chars.begin(this.time);
@@ -826,7 +833,7 @@ export class Renderer {
     // fog of war: game end or eliminated player sees everything
     const fog = this.fog;
     if (view.revealAll) fog.revealAll();
-    fog.update(dt);
+    fog.update(realDt);
     const fogOn = fog.active, me = this.viewer;
     const mine = (o) => o !== undefined && o >= 0 && !!sim.players[o] && sim.allied(o, me);
     const talkers = [];
@@ -897,8 +904,10 @@ export class Renderer {
     this.updateEffects(dt);
     this.syncSelection(view.selected);
     this.syncGhost(view.ghost);
-    (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, dt);
-    (this.npcMarks ??= new NpcMarks(this.scene, this.terrain)).update(talkers, dt);
+    (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, realDt);
+    (this.npcMarks ??= new NpcMarks(this.scene, this.terrain)).update(talkers, realDt);
+    // click confirmation is UI feedback: it runs on while paused, like the camera
+    this.orderMarks.update(realDt, this.rig.dist, this.marks, (x, z) => this.groundY(x, z));
     this.syncLandmarks(view.landmarks, fog, sim.map);
 
     this.syncTerrain();
@@ -1054,10 +1063,8 @@ export class Renderer {
         if (!e.done && !ghost) this.fx.dust(g.position.x, g.position.y, g.position.z, 10, 0.5);
       }
     }
-    const rotor = g.getObjectByName('rotor');
-    if (rotor) rotor.rotation.z = this.time * 1.5;
-    const spin = g.getObjectByName('spinY');
-    if (spin) spin.rotation.y = this.time * 2.2;
+    // sails, water wheels, weather vanes (src/render/movingParts.js); still while being built or out of sight
+    if (e.done && !ghost) turnParts(g.userData.turning ??= findSpinners(g), this.time);
     const flame = g.getObjectByName('flame');
     if (flame) flame.scale.y = 0.8 + Math.sin(this.time * 12 + e.id) * 0.2;
     g.userData.ghost = ghost;
@@ -1488,6 +1495,9 @@ export class Renderer {
     const b = this.sim.entities.get(m.owner[m.idx(tx, tz)]) ?? (this.sim.bridgeSites ?? []).find((s) => tx >= s.x && tz >= s.y && tx < s.x + s.w && tz < s.y + s.h);
     return Math.max(h, b ? this.bridgeDeckY(b) : this.terrain.waterLevelY + 0.25);
   }
+
+  /** Click confirmation at a walk target. @param {number} x @param {number} z world coordinates (tiles) */
+  orderMarker(x, z) { this.orderMarks.add(x, z); }
 
   /** Selection: rings under units, frames around buildings, health bars for selected buildings. */
   syncSelection(selected) {

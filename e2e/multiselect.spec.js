@@ -15,6 +15,10 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
   // screen points computed before that no longer match the picture
   await page.waitForFunction(() => window.__kronland?.renderer.frameNo > 2, null, { timeout: 60_000 });
   await expect(page.getByTestId('res-gold')).toHaveText('500');
+  // Park the pointer on the map: Playwright's mouse starts at (0, 0), inside the edge-scroll strip. Any pointermove
+  // the browser sends there (Chromium's synthetic moves after layout changes) pans the camera towards the top left
+  // while the test measures and drags – the box then misses figures (CI, timing-dependent).
+  await page.mouse.move(720, 450);
 
   // three serfs in a row south of the castle, camera on them
   const ids = await page.evaluate(() => {
@@ -43,6 +47,8 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
       return { x: p.x, y: p.y };
     });
   }, ids);
+  const camera = () => page.evaluate(() => { const t = window.__kronland.renderer.rig.target; return [t.x, t.z]; });
+  const cam0 = await camera();
   const selected = () => page.evaluate(() => [...window.__kronland.selected].sort((a, b) => a - b));
   // Before every click: the canvas is on top there and picking finds the figure (otherwise the cause shows up here)
   const clickOn = async (i) => {
@@ -75,6 +81,8 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
   await page.mouse.move(x1, y1, { steps: 6 });
   await page.mouse.up();
   await expect(box).toBeHidden();
+  // the screen points still match the picture (nothing moved the camera during the drag)
+  expect(await camera(), 'camera target').toEqual(cam0);
   await expect.poll(selected).toEqual([...ids].sort((a, b) => a - b));
   expect(await page.evaluate(() => window.__md)).toEqual([true]);
 

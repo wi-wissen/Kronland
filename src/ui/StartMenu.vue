@@ -194,7 +194,7 @@ export default {
   content: ''; position: fixed; inset: 0; pointer-events: none;
   background: radial-gradient(ellipse at center, transparent 45%, rgba(10, 6, 3, 0.55));
 }
-.backdrop > :not(.scrim) { position: relative; z-index: 1; }
+.backdrop > * { position: relative; z-index: 1; }
 .backdrop.loading { --backdrop-art: var(--art-loading, var(--art-title, none)); }
 .sm-wrap { max-width: 60rem; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 1.25rem; }
 .sm-brand { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.125rem; }

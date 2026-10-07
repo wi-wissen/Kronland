@@ -31,24 +31,23 @@ async function openBuildMenu(page) {
   await expect(page.getByTestId('build-residence')).toBeVisible(SLOW);
 }
 
-/** Long press: on mobile real touch events via CDP, on desktop pointer events of type "touch". */
-async function longPress(page, locator, isMobile, ms = 700) {
+/** Long press: on mobile real touch events via CDP, on desktop pointer events of type "touch". `during` runs while held. */
+async function longPress(page, locator, isMobile, ms = 700, during = null) {
   const box = await locator.boundingBox();
   const x = box.x + box.width / 2, y = box.y + box.height / 2;
   if (isMobile) {
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
     await page.waitForTimeout(ms);
+    await during?.();
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await cdp.detach();
   } else {
-    await locator.evaluate(async (el, wait) => {
-      const o = { bubbles: true, pointerType: 'touch', isPrimary: true, clientX: 0, clientY: 0 };
-      el.dispatchEvent(new PointerEvent('pointerdown', o));
-      await new Promise((r) => setTimeout(r, wait));
-      el.dispatchEvent(new PointerEvent('pointerup', o));
-      el.click();
-    }, ms);
+    const o = { bubbles: true, pointerType: 'touch', isPrimary: true, clientX: 0, clientY: 0 };
+    await locator.evaluate((el, o) => el.dispatchEvent(new PointerEvent('pointerdown', o)), o);
+    await page.waitForTimeout(ms);
+    await during?.();
+    await locator.evaluate((el, o) => { el.dispatchEvent(new PointerEvent('pointerup', o)); el.click(); }, o);
   }
 }
 
@@ -56,18 +55,19 @@ test('Long press on a build menu icon shows name, costs and explanation without 
   const errors = await boot(page);
   await openBuildMenu(page);
   const item = page.getByTestId('build-residence');
-  await longPress(page, item, isMobile);
-  const tip = page.getByTestId('tooltip');
-  await expect(tip).toBeVisible();
-  await expect(tip).toContainText('Wohnhaus');
-  await expect(tip.locator('.costs')).toBeVisible();
-  await expect(tip.locator('.tt-text')).not.toBeEmpty();
+  // Info strip above the panel while the finger is down (instead of a tooltip), releasing hides it
+  const info = page.getByTestId('build-info');
+  let seen = null;
+  await longPress(page, item, isMobile, 700, async () => {
+    seen = await info.isVisible() ? { text: await info.textContent(), costs: await info.locator('.costs').isVisible() } : null;
+  });
+  expect(seen?.text).toContain('Wohnhaus');
+  expect(seen?.costs).toBe(true);
+  await expect(info).toHaveCount(0);
+  await expect(page.getByTestId('tooltip')).toHaveCount(0);
   // No action: no placement mode
   await expect(page.getByTestId('place-cancel')).toHaveCount(0);
   expect(await page.evaluate(() => window.__kronland.placing ?? null)).toBeNull();
-  // Next tap closes the tooltip
-  await page.getByTestId('build-group-home').locator('.bm-ghead').click();
-  await expect(tip).toHaveCount(0);
   // A short tap still triggers
   await item.click();
   await expect(page.getByTestId('place-cancel')).toBeVisible();

@@ -126,12 +126,12 @@ test('Mobile: build menu right after the selection, tapping starts the build', a
   test.skip(!isMobile, 'mobile only');
   const errors = await boot(page);
   await quick(page, 'all');
-  // No intermediate step any more: tiles are there immediately
+  // Default build view: tiles are there immediately
   await expect(page.getByTestId('build-residence')).toBeVisible();
-  // Jump mark brings a group further right into view
-  await page.getByTestId('build-cat-admin').click();
+  // Tabs switch the group
+  await page.getByTestId('build-tab-admin').click();
   await expect(page.getByTestId('build-university')).toBeInViewport();
-  await page.getByTestId('build-cat-home').click();
+  await page.getByTestId('build-tab-home').click();
   await expect(page.getByTestId('build-residence')).toBeInViewport();
   await page.getByTestId('build-residence').click();
   await expect(page.getByTestId('place-cancel')).toBeVisible();
@@ -413,5 +413,50 @@ test('Objectives: on mobile a compact button with a full-screen view, "Ziel zeig
     const after = await page.evaluate(() => ({ ...window.__kronland.renderer.rig.target }));
     return Math.abs(after.x - before.x) + Math.abs(after.z - before.z);
   }).toBeGreaterThan(3);
+  expect(errors).toEqual([]);
+});
+
+/** Rectangle of the pause banner and the HUD parts it overlaps. */
+async function bannerSpot(page) {
+  return page.evaluate(() => {
+    const b = document.querySelector('[data-testid="pause-banner"]').getBoundingClientRect();
+    const hit = ['.tb-res', '.tb-crest', '.tb-sys', '.cb-units', '.cb-quick', '.context', '.cb-card', '.cmdbar button', '.cmdbar canvas', '.toasts .toast']
+      .flatMap((sel) => [...document.querySelectorAll(sel)].map((el) => [sel, el.getBoundingClientRect()]))
+      .filter(([, r]) => r.width && b.left < r.right - 1 && r.left < b.right - 1 && b.top < r.bottom - 1 && r.top < b.bottom - 1)
+      .map(([sel]) => sel);
+    return { top: b.top, bottom: b.bottom, vh: innerHeight, hit };
+  });
+}
+
+test('Space pauses game and animations, greys the world and shows the pause banner at the bottom', async ({ page }) => {
+  const errors = await boot(page);
+  await page.evaluate(() => window.__kronland.clearSelection());
+  await expect(page.getByTestId('pause-banner')).toHaveCount(0);
+  await page.keyboard.press(' ');
+  await expect(page.getByTestId('pause-banner')).toBeVisible();
+  await expect(page.getByTestId('pause-banner')).toContainText('Pausiert');
+  await expect(page.getByTestId('game-canvas')).toHaveCSS('filter', 'grayscale(1)');
+  // animation clock of the renderer stands still while paused
+  const t0 = await page.evaluate(() => window.__kronland.renderer.time);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => window.__kronland.renderer.time)).toBe(t0);
+  // bottom centre, clear of the HUD; lets clicks through to the map
+  const spot = await bannerSpot(page);
+  expect(spot.bottom).toBeGreaterThan(spot.vh * 0.85);
+  expect(spot.hit).toEqual([]);
+  expect(await page.getByTestId('pause-banner').evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
+  await page.screenshot({ path: `test-results/pause-banner-${test.info().project.name}.png` });
+  // with a selection the context panel takes the bottom: banner moves under the top bar
+  await page.evaluate(() => window.__kronland.selectIdleSerfs());
+  await expect(page.getByTestId('context-panel')).toBeVisible();
+  await expect.poll(async () => (await bannerSpot(page)).bottom).toBeLessThan(spot.vh * 0.3);
+  expect((await bannerSpot(page)).hit.filter((h) => h.startsWith('.tb-'))).toEqual([]);
+  await page.screenshot({ path: `test-results/pause-banner-selected-${test.info().project.name}.png` });
+  // Space again: game, colours and animations continue
+  await page.keyboard.press(' ');
+  await expect(page.getByTestId('pause-banner')).toHaveCount(0);
+  await expect(page.getByTestId('game-canvas')).toHaveCSS('filter', 'none');
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__kronland.renderer.time)).toBeGreaterThan(t0);
   expect(errors).toEqual([]);
 });

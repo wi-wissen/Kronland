@@ -16,6 +16,7 @@ das Spiel statt der Synthese. Fehlt eine Datei oder lässt sie sich nicht dekodi
 | `synth.js` | Bausteine: Rauschen, Hüllkurven, Glocken, Karplus-Strong-Saiten, Hall, Musikinstrumente |
 | `karplus.js` | Saitensynthese als reine Funktion (Puffer je Tonhöhe, zwischengespeichert) |
 | `composer.js` | Generative Musik: komponierte Melodien + Variation, deterministisch je Seed/Abschnitt |
+| `hold.js` | Pausenhalt: wann der Spielton ruht, Überblendung, Stelle im Musikstück (reine Funktionen) |
 | `music.js` | Spielt Themen (Datei oder generativ), Überblendung, Sieg/Niederlage-Melodie |
 | `ambient.js` | Umgebungsschichten (Laub, Regen, Winter, Wasser, Schlacht, Wind) mit Überblendung, seltene Vogelrufe |
 | `workbeat.js` | Arbeitsschläge im Takt der Animation, gemeinsames Tor gegen Salven (reine Funktionen) |
@@ -27,11 +28,29 @@ das Spiel statt der Synthese. Fehlt eine Datei oder lässt sie sich nicht dekodi
 | `settings.js` | Lautstärke-Einstellungen, Speicher, Brücke zur Einstellungs-Oberfläche |
 | `index.js` | Öffentliche Schnittstelle |
 
-Signalweg: Klang → (Panner) → Bus `sfx` / `ui` / `ambient` / `music` → `master` → Begrenzer → Ausgabe.
+Signalweg: Klang → (Panner) → Bus `sfx` / `ui` / `ambient` / `music` → (Ducking) → Haltestufe (nicht `ui`) →
+`master` → Begrenzer → Ausgabe.
 Musik hat einen eigenen Hall (Desktop: Faltungshall, Handy: zwei Verzögerungen), Effekte einen leisen
 gemeinsamen Raum (nur Desktop).
 
 In Node (Vitest) und Browsern ohne Web Audio ist alles ein stilles No-op.
+
+### Pause
+
+Ist das Spiel pausiert – Pause-Knopf/Leertaste, offenes Spielmenü, Halt im Skript-Debugger, Fehlerdialog,
+Ladebildschirm –, blenden Musik, Umgebung und Spielgeräusche in 0,3 s linear aus (Haltestufen der Busse
+`music`, `sfx`, `ambient`, kein Knacken), die Musik hält an ihrer Stelle an: ein Musikstück wird gestoppt und
+setzt beim Fortsetzen an derselben Stelle fort (eine laufende Pause zwischen zwei Stücken behält ihre Restzeit),
+die generative Musik spielt ab der ersten nicht gehörten Note weiter. Themenwechsel (Kampf vorbei, Winter)
+warten aufs Fortsetzen. Ein laufender Dialog (Aufnahme) blendet aus und pausiert, Sprachausgabe des Browsers
+pausiert; Sprüche und Spielgeräusche werden in der Pause nicht gespielt. Oberflächenklänge (Bus `ui`, Klicks
+im Menü) bleiben hörbar. Nach Sieg oder Niederlage hält das Spiel ebenfalls an, der Ton aber nicht (Jingle).
+`GameAudio.frame` setzt den Halt je Bild aus `engine.paused` (`AudioEngine.setHold`, `holdSpeech`); die
+Simulation erfährt davon nichts.
+
+Verborgener Tab: der `AudioContext` wird angehalten (`suspend`) und beim Zurückkehren fortgesetzt – eine
+Spielpause bleibt dabei stumm (Haltestufen auf 0). Dialogaufnahmen laufen außerhalb des `AudioContext` und
+pausieren deshalb im verborgenen Tab eigens (`holdSpeech('hidden')`).
 
 ## Einstellungen
 

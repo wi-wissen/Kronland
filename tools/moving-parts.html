@@ -1,0 +1,95 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Moving parts</title>
+<style>body{margin:0;background:#cfd8c4;font:12px sans-serif}canvas{position:absolute;left:0;top:0}#i{position:fixed;left:6px;top:4px;z-index:2}</style></head>
+<body><div id="i"></div><script type="module">
+// Checks the cut-out moving parts of a building model (src/render/movingParts.js). For scripts/asset-gen/moving-parts.mjs.
+//   ?f=/models/buildings/windwheel.glb  &p=<JSON array of parts, overrides MOVING_PARTS>  &turn=0.6 (radians)
+//   &c=x,y,z (centre of the views) &zoom=2 &az=0.67 (perspective view angle around Y) &tint=0 (original colours)
+// Views: front (from +Z), side (from +X), top (from +Y) with a grid in model units (labels every 0.1), and a
+// perspective view with the parts turned. The part is tinted green.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { MOVING_PARTS, splitMovingParts, findSpinners, turnParts } from '/src/render/movingParts.js';
+const q = new URLSearchParams(location.search);
+const f = q.get('f');
+const key = f.split('/').pop().replace(/\.glb$/, '').replace(/\.lod\d$/, '');
+if (q.get('p')) MOVING_PARTS[key] = JSON.parse(q.get('p'));
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+r.setSize(innerWidth, innerHeight); r.setScissorTest(true); r.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(r.domElement);
+const ov = document.createElement('canvas'); ov.width = innerWidth; ov.height = innerHeight; document.body.appendChild(ov);
+const ctx = ov.getContext('2d');
+const s = new THREE.Scene(); s.background = new THREE.Color(0xcfd8c4);
+s.add(new THREE.HemisphereLight(0xffffff, 0x777766, 1.6));
+const dl = new THREE.DirectionalLight(0xffffff, 1.8); dl.position.set(3, 6, 5); s.add(dl);
+const L = new GLTFLoader(); L.setMeshoptDecoder(MeshoptDecoder);
+const g = await L.loadAsync(f);
+const o = g.scene;
+const n = splitMovingParts(key, o);
+const spinners = findSpinners(o);
+let tris = 0;
+for (const sp of spinners) sp.traverse((m) => {
+  if (!m.isMesh) return;
+  tris += m.geometry.attributes.position.count / 3;
+  if (q.get('tint') !== '0') m.material = m.material.clone(), m.material.color = new THREE.Color(0.35, 1, 0.45);
+});
+s.add(o);
+// &show=part or &show=rest: only that side of the cut
+if (q.get('show')) o.traverse((m) => { if (m.isMesh) m.visible = spinners.some((sp) => sp.children.includes(m)) === (q.get('show') === 'part'); });
+o.updateMatrixWorld(true);
+const b = new THREE.Box3().setFromObject(o), sz = b.getSize(new THREE.Vector3());
+const c = q.get('c') ? new THREE.Vector3(...q.get('c').split(',').map(Number)) : b.getCenter(new THREE.Vector3());
+const W = innerWidth / 2, H = innerHeight / 2;
+const ext = Math.max(sz.x, sz.y, sz.z) * 0.58 / Number(q.get('zoom') ?? 1);
+// [camera direction, horizontal axis, vertical axis]
+const views = [['front', [0, 0, 1], 'x', 'y'], ['side', [1, 0, 0], 'z', 'y'], ['top', [0, 1, 0], 'x', 'z']];
+views.forEach(([name, dir, hx, vy], k) => {
+  const aspect = W / H;
+  const cam = new THREE.OrthographicCamera(-ext * aspect, ext * aspect, ext, -ext, 0.01, 100);
+  cam.position.copy(c).add(new THREE.Vector3(...dir).multiplyScalar(10));
+  if (name === 'top') cam.up.set(0, 0, -1);
+  cam.lookAt(c);
+  const x0 = (k % 2) * W, y0 = Math.floor(k / 2) * H;
+  r.setViewport(x0, innerHeight - y0 - H, W, H); r.setScissor(x0, innerHeight - y0 - H, W, H);
+  r.render(s, cam);
+  // grid: screen position of a model coordinate (side view looks from +X: z grows to the left)
+  const cx = c[hx], cy = c[vy];
+  const hs = name === 'side' ? -1 : 1;
+  const toX = (u) => x0 + W / 2 + hs * ((u - cx) / (ext * aspect)) * (W / 2);
+  const toY = (w) => y0 + H / 2 - ((name === 'top' ? -(w - cy) : w - cy) / ext) * (H / 2);
+  ctx.font = '10px sans-serif';
+  for (let u = Math.ceil((cx - ext * aspect) * 20) / 20; u <= cx + ext * aspect; u += 0.05) {
+    const major = Math.abs(Math.round(u * 10) - u * 10) < 1e-6;
+    ctx.strokeStyle = major ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.12)';
+    ctx.beginPath(); ctx.moveTo(toX(u), y0); ctx.lineTo(toX(u), y0 + H); ctx.stroke();
+    if (major) { ctx.fillStyle = '#000'; ctx.fillText(u.toFixed(1), toX(u) + 2, y0 + H - 4); }
+  }
+  for (let w = Math.ceil((cy - ext) * 20) / 20; w <= cy + ext; w += 0.05) {
+    const major = Math.abs(Math.round(w * 10) - w * 10) < 1e-6;
+    ctx.strokeStyle = major ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.12)';
+    ctx.beginPath(); ctx.moveTo(x0, toY(w)); ctx.lineTo(x0 + W, toY(w)); ctx.stroke();
+    if (major) { ctx.fillStyle = '#000'; ctx.fillText(w.toFixed(1), x0 + 2, toY(w) - 2); }
+  }
+  ctx.fillStyle = '#000'; ctx.font = 'bold 13px sans-serif';
+  ctx.fillText(`${name}: ${hx} → ${name === 'side' ? 'left' : 'right'}, ${vy} ${name === 'top' ? '→ down' : '↑'}`, x0 + 30, y0 + 30);
+});
+// perspective, parts turned
+turnParts(spinners, Number(q.get('turn') ?? 0.6));
+o.updateMatrixWorld(true);
+const cam = new THREE.PerspectiveCamera(30, W / H, 0.01, 100);
+const h = sz.length() / Number(q.get('zoom') ?? 1);
+const az = Number(q.get('az') ?? 0.67);
+cam.position.set(c.x + Math.sin(az) * h * 1.9, c.y + h * 0.7, c.z + Math.cos(az) * h * 1.9); cam.lookAt(c);
+r.setViewport(W, 0, W, H); r.setScissor(W, 0, W, H);
+r.render(s, cam);
+const info = [`${key}: box ${b.min.toArray().map((x) => x.toFixed(2))} … ${b.max.toArray().map((x) => x.toFixed(2))}, parts ${n}, part triangles ${tris}`];
+// unturned box of each part (model space): its centre across the axis should match the pivot, else the part wobbles
+for (const sp of spinners) {
+  const pb = new THREE.Box3();
+  sp.traverse((m) => { if (m.isMesh) { m.geometry.computeBoundingBox(); pb.union(m.geometry.boundingBox); } });
+  pb.translate(sp.position);
+  info.push(`part box ${pb.min.toArray().map((x) => x.toFixed(3))} … ${pb.max.toArray().map((x) => x.toFixed(3))}, centre ${pb.getCenter(new THREE.Vector3()).toArray().map((x) => x.toFixed(3))}`);
+}
+document.getElementById('i').textContent = info.join(' | ');
+window.__info = info; document.title = 'ready';
+</script></body></html>

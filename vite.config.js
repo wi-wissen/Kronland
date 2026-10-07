@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import hashedAssets from './scripts/vite-hashed-assets.js';
 import blogPages from './scripts/vite-blog-pages.js';
 import socialMeta from './scripts/vite-social-meta.js';
+import { freshPages } from './scripts/sw-pages.js';
 
 // Website made of several pages (Vite multi-page): home, game, manual, compendium, scripting reference, blog. All paths relative (base './').
 const PAGES = {
@@ -41,6 +42,8 @@ function pagePaths() {
 
 export default defineConfig({
   base: './',
+  // Build label for the deploy test (e2e/update.spec.js); empty in normal builds
+  define: { __KRONLAND_BUILD__: JSON.stringify(process.env.KRONLAND_BUILD ?? '') },
   plugins: [
     vue(),
     // Game files from public/ with a content hash in the name (models/…/castle.3f2a91c0d7.glb), see docs/PERFORMANCE.md
@@ -48,7 +51,8 @@ export default defineConfig({
     // Link previews (Open Graph) and canonical address on every page, see docs/WEBSITE.md
     socialMeta(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // New workers wait; the page decides when they take over (SKIP_WAITING message, src/pwa.js)
+      registerType: 'prompt',
       // Registration itself (src/main.js, with path to the root): the plugin script would sit relative to the page
       injectRegister: null,
       includeAssets: ['favicon.ico'], // PNG icons are already covered by globPatterns
@@ -78,15 +82,22 @@ export default defineConfig({
         dontCacheBustURLsMatching: /\.[0-9a-f]{10}\.[a-z0-9]+$|(^|\/)assets\//i,
         // Multiple pages: no fallback page for navigations (otherwise /play/ would get the home page)
         navigateFallback: null,
-        // Serve play/?seed=42&dev=1 etc. offline from the precached page (the game reads the parameters itself)
+        // Pages are precached (offline), but a navigation to play/ must not be answered from the precache
+        // (old page + old bundles after a deploy): no directory index, navigations go to `freshPages` below.
+        directoryIndex: null,
+        // URL parameters never select a different precached file (play/?seed=42&dev=1 offline: freshPages ignores them too)
         ignoreURLParametersMatching: [/.*/],
-        skipWaiting: true,
+        // A new worker waits (the old one keeps its precache while an old page runs) until a page sends SKIP_WAITING
+        // (src/pwa.js). clientsClaim only matters for the very first worker: it controls the first page at once.
+        skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // All game files carry a content hash: once loaded, never asked for again (CacheFirst). A changed
         // file has a new name; stale entries are cleaned up by src/cacheCleanup.js after loading.
         runtimeCaching: [
+          // Pages: network first, past the HTTP cache; offline the precached page (see freshPages)
+          { urlPattern: ({ request }) => request.mode === 'navigate', handler: 'NetworkOnly', options: { plugins: [freshPages] } },
           // 4 players load ~200 model files, there are ~340 in total (figure manifest sits in the same folder)
           { urlPattern: /\/models\/.*\.(glb|json)$/, handler: 'CacheFirst', options: { cacheName: 'models', expiration: { maxEntries: 500 } } },
           // painted ground and nature textures: only one size per graphics level, therefore not upfront but on first load

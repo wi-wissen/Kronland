@@ -71,6 +71,11 @@ Die Menüsymbole Sonderkarten und Programmier-Abenteuer (`public/icons/mode-spec
 ebenfalls `google/gemini-3-pro-image-preview` (über OpenRouter) mit dem Symbolbogen als Stilvorlage für dieses Projekt
 erzeugt; freigestellt mit `scripts/art/finish.mjs`. Prompt, Modell, Kosten und Rohbild: `assets-src/art/menu/`.
 
+Die Mauszeiger (Ritterhandschuh, Axt, Spitzhacke, Hammer, Schwert; `public/icons/cursor-*.png`) hat
+`google/gemini-3-pro-image` (über OpenRouter) mit dem Symbolbogen als Stilvorlage für dieses Projekt erzeugt;
+freigestellt und gespiegelt mit `scripts/art/finish.mjs`. Prompt, Modell, Kosten und Rohbilder:
+`assets-src/art/cursors/`, `assets-src/art/gauntlet/`.
+
 ## Titelbild und Ladebild
 
 `public/art/title.webp` (Kulisse von Start-, Kampagnen- und Abenteuermenü und Welteditor) und `public/art/loading.webp`

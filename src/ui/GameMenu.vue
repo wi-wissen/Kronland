@@ -11,6 +11,10 @@
 
         <div v-if="view === 'main'" class="dialog-body scroll-y gm-main">
           <p class="gm-paused"><Icon name="pause" />{{ $t('gmenu.paused') }}</p>
+          <div v-if="update" class="gm-update" role="status" data-testid="gmenu-update">
+            <p class="gm-update-text"><Icon name="info" />{{ $t('update.available') }}</p>
+            <button class="gm-btn" data-testid="gmenu-update-reload" @click="$emit('update')"><Icon name="load" />{{ $t('update.reload') }}</button>
+          </div>
           <button ref="resume" class="primary gm-btn" data-testid="resume" @click="$emit('close')"><Icon name="play" />{{ $t('gmenu.resume') }}</button>
           <button class="gm-btn" data-testid="save" @click="view = 'save'"><Icon name="save" />{{ $t('gmenu.save') }}</button>
           <button class="gm-btn" data-testid="load" @click="view = 'load'"><Icon name="load" />{{ $t('gmenu.load') }}</button>
@@ -60,8 +64,10 @@ export default {
     engine: { type: Object, default: null },
     /** Start link of the running map ({ url, name }) or null (save game, scenario file) */
     share: { type: Object, default: null },
+    /** A newer version is online (src/pwa.js): offer "save and reload" */
+    update: Boolean,
   },
-  emits: ['close', 'saved', 'load', 'quit'],
+  emits: ['close', 'saved', 'load', 'quit', 'update'],
   data() { return { view: 'main', confirmQuit: false, copied: false, showField: false }; },
   computed: {
     /** On phones the system's share menu (navigator.share), otherwise the clipboard */
@@ -135,6 +141,9 @@ export default {
 .gm-link { font-size: var(--fs-md, 1rem); }
 .gm-link-field { width: 100%; min-height: var(--touch); font-size: var(--fs-sm); }
 .gm-map-hint { margin: 0; color: var(--ink-muted); font-size: var(--fs-sm); line-height: 1.4; }
+.gm-update { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.5rem 0.625rem; border: 1px solid rgba(225, 168, 58, 0.4); border-radius: 0.375rem; background: rgba(225, 168, 58, 0.08); }
+.gm-update-text { margin: 0; display: flex; align-items: flex-start; gap: 0.375rem; font-size: var(--fs-sm); line-height: 1.4; }
+.gm-update-text .ico { flex: none; width: 1rem; height: 1rem; margin-top: 0.1rem; }
 .gm-help { font-size: var(--fs-sm); }
 .gm-keys { border-collapse: collapse; width: 100%; }
 .gm-keys th { text-align: left; font-weight: 700; color: var(--ink-muted); padding: 0.375rem 0.75rem 0.375rem 0; vertical-align: top; white-space: nowrap; }

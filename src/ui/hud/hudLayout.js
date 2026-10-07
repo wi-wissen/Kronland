@@ -37,6 +37,26 @@ export function groupBuildOptions(options, categories) {
 }
 
 /**
+ * Do the groups of the two-row build menu wrap into a further line? (measured tops of the groups in px)
+ * @param {number[]} tops
+ */
+export function groupsWrap(tops) {
+  return tops.some((t) => Math.abs(t - tops[0]) > 2);
+}
+
+/**
+ * Layout of the build menu: 'wide' = all groups in two tile rows side by side (large screens),
+ * 'tabs' = one tab per group with only its buildings (medium widths where they would wrap, phone).
+ * Not measured yet (wraps = null) counts as wide so it can be measured.
+ * @param {{ compact: boolean, wraps: boolean|null }} o
+ * @returns {'wide'|'tabs'}
+ */
+export function buildMenuLayout({ compact, wraps }) {
+  if (compact) return 'tabs';
+  return wraps ? 'tabs' : 'wide';
+}
+
+/**
  * Which resources are missing for the cost (for the red marking in the top bar).
  * @param {[string, number][]|null} cost
  * @param {Record<string, number>} have
@@ -194,4 +214,14 @@ export function foreignName(s, t, name) {
   if (s.entity === 'soldier' && s.figure) return t(sexKey('figure.' + s.figure, s.sex));
   if (s.unit) return name.unit(s.unit);
   return t(sexKey('foreign.' + (s.entity === 'unit' ? 'serf' : s.entity in { worker: 1, hero: 1, soldier: 1 } ? s.entity : 'unit'), s.sex));
+}
+
+/**
+ * Show the pause banner? Only for a pause by the player: the game menu, end screens, the crash dialog and the
+ * script debugger (breakpoint) pause too, but bring their own display.
+ * @param {null|{ paused?: boolean, halted?: boolean, gameOver?: unknown, mission?: null|{ result?: unknown } }} ui
+ * @param {{ menuOpen?: boolean, crash?: unknown }} [overlay]
+ */
+export function pauseBannerVisible(ui, overlay = {}) {
+  return !!ui?.paused && !ui.halted && !overlay.menuOpen && !overlay.crash && !ui.gameOver && !ui.mission?.result;
 }

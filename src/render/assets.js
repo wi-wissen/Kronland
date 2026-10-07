@@ -13,6 +13,8 @@ import { siteUrl, assetUrl } from '../paths.js';
 import { playerColorIndex } from './playerColors.js';
 import { SUMMER_NATURE_MODELS, NATURE_MODEL_LODS } from './treeModels.js';
 import { pitShape, pitRect, pitTexture, hangerBeam } from './pit.js';
+import { trackLoad } from './lazyLoads.js';
+import { splitMovingParts } from './movingParts.js';
 
 /** Colour versions of the models in palette order (player → colour: playerColorIndex in playerColors.js). */
 export const ASSET_COLORS = ['blue', 'red', 'green', 'yellow'];
@@ -100,6 +102,13 @@ const cache = new Map();
 let base = './models/';
 
 export const hasAsset = (name) => cache.has(name);
+
+/** Loaded model into the cache: shadows on, moving parts (sails, wheels) cut out into their own groups. */
+function store(name, g) {
+  g.scene.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+  splitMovingParts(name, g.scene);
+  cache.set(name, { scene: g.scene, animations: g.animations });
+}
 /** Cached models (for Renderer.dispose: free GPU data, models stay loaded). */
 export const sharedAssetRoots = () => [...cache.values()].map((a) => a.scene);
 
@@ -143,10 +152,7 @@ export async function loadAssets(players, onProgress = () => {}, baseUrl = siteU
     ground ? loadGroundImages(siteUrl('textures/ground/'), getQuality().textureSize, tick) : null,
     nature ? loadNatureImages(siteUrl('textures/nature/'), tick) : null,
     ...names.map((n) => loader.loadAsync(assetUrl(`${base}${n}${ext}`))
-      .then((g) => {
-        g.scene.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
-        cache.set(n, { scene: g.scene, animations: g.animations });
-      })
+      .then((g) => store(n, g))
       .catch(() => {})
       .finally(tick)),
     manifest ? loadCharacterModels((url) => loader.loadAsync(assetUrl(url.replace(/\.glb$/, ext))), base, tick) : null,
@@ -360,13 +366,12 @@ const pending = new Set();
 function requestAsset(n) {
   if (!lazy || pending.has(n) || cache.has(n)) return;
   pending.add(n);
-  const load = (name) => lazy.loader.loadAsync(assetUrl(`${base}${name}${lazy.ext}`)).then((g) => {
-    g.scene.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
-    cache.set(name, { scene: g.scene, animations: g.animations });
-  });
+  const load = (name) => lazy.loader.loadAsync(assetUrl(`${base}${name}${lazy.ext}`)).then((g) => store(name, g));
   // LOD levels first, so that the original only becomes visible when everything is there
-  const lods = useLods ? Array.from({ length: BUILDING_LODS }, (_, k) => load(`${n}.lod${k + 1}`).catch(() => {})) : [];
-  Promise.all(lods).then(() => load(n)).catch(() => {}).finally(() => pending.delete(n));
+  const lodNames = useLods ? Array.from({ length: BUILDING_LODS }, (_, k) => `${n}.lod${k + 1}`) : [];
+  const done = Promise.all(lodNames.map((f) => load(f).catch(() => {}))).then(() => load(n)).catch(() => {}).finally(() => pending.delete(n));
+  // the loading screen may wait for it (src/render/lazyLoads.js)
+  trackLoad(done, [...lodNames, n].map((f) => assetUrl(`${base}${f}${lazy.ext}`)));
 }
 /** Own bridge model (a whole bridge, models.js stretches the middle part). */
 export const BRIDGE_ASSET = 'bridge';

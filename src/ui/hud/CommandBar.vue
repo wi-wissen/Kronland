@@ -2,7 +2,7 @@
   <!-- Bottom row as a grid: left map panel (quick access and square minimap), middle command panel
        (only as wide as needed, only with a selection), right portrait. The grid prevents any overlap:
        the panel gets the rest of the width and wraps its content. -->
-  <div ref="bar" class="cmdbar" :class="{ compact, narrow, collapsed }">
+  <div ref="bar" class="cmdbar" :class="{ compact, narrow, collapsed }" :style="infoH ? { '--info-h': infoH + 'px' } : null">
     <div class="cb-map" :class="{ open: mapOpen, frame: !compact }">
       <!-- Heroes and control groups: always visible. Hero: click selects it and brings it into view.
            Group: click selects it, second click brings it into view (keys 1–9). -->
@@ -100,12 +100,15 @@
       </template>
     </div>
 
-    <section v-if="open" class="context frame" :class="{ wide: sel?.kind === 'building' && sel.own && !compact && !mid, tall: (sel?.kind === 'serfs' || sel?.kind === 'building') && !compact }" data-testid="context-panel" :aria-label="panelTitle">
+    <section v-if="open" ref="panel" class="context frame" :class="{ wide: sel?.kind === 'building' && sel.own && !compact && !mid, tall: (sel?.kind === 'serfs' || sel?.kind === 'building') && !compact }" data-testid="context-panel" :aria-label="panelLabel">
+      <!-- Info strip of the hovered / long-pressed building tile, attached to the top edge of the panel -->
+      <BuildInfo v-if="infoOpt" ref="info" :opt="infoOpt" :have="ui.res" />
       <header class="cx-head">
         <span v-if="compact" class="cx-mini">
           <img v-if="portrait" :src="portrait" alt="" draggable="false">
           <span v-else class="cx-minipic"><Icon :name="headIcon" /></span>
         </span>
+        <button v-if="serfView === 'build'" v-tip="{ text: $t('build.backTip'), key: ui.touch ? null : 'Esc' }" class="back-btn" data-testid="build-back" @click="setBuildView(false)"><Icon name="back" />{{ $t('build.back') }}</button>
         <h3 class="h-title cx-title">{{ panelTitle }}</h3>
         <span v-if="headSub" class="cx-sub">{{ headSub }}</span>
         <span class="cx-tools">
@@ -137,14 +140,27 @@
         <ArmyPanel v-else-if="sel?.kind === 'army'" :sel="sel" :touch="ui.touch" :hints="hints" :group="ui.group" :details="compact || mid" @action="$emit('action', $event)" />
 
         <BuildMenu
-          v-else-if="sel?.kind === 'serfs'"
+          v-else-if="serfView === 'build'"
           :options="ui.buildOptions"
           :have="ui.res"
           :touch="ui.touch"
-          :compact="compact || mid"
+          :compact="compact"
+          :mid="mid"
+          :hints="hints"
           :hint="hintIds"
           @build="$emit('build', $event)"
           @preview="$emit('preview', $event)"
+          @info="onInfo"
+        />
+
+        <SerfActions
+          v-else-if="serfView === 'actions'"
+          :touch="ui.touch"
+          :compact="compact"
+          :group="ui.group"
+          :types="ui.buildOptions.map((o) => o.type)"
+          @build-view="setBuildView(true)"
+          @action="$emit('action', $event)"
         />
 
         <BuildingPanel
@@ -173,6 +189,9 @@
 <script>
 import Minimap from './Minimap.vue';
 import BuildMenu from './BuildMenu.vue';
+import BuildInfo from './BuildInfo.vue';
+import SerfActions from './SerfActions.vue';
+import { settings, set as setSetting } from '../settings.js';
 import BuildingPanel from './BuildingPanel.vue';
 import ArmyPanel from './ArmyPanel.vue';
 import SelectionCard from './SelectionCard.vue';
@@ -182,7 +201,7 @@ import { siteRoot } from '../../paths.js';
 
 export default {
   name: 'CommandBar',
-  components: { Minimap, BuildMenu, BuildingPanel, ArmyPanel, SelectionCard, RelationTag },
+  components: { Minimap, BuildMenu, BuildInfo, SerfActions, BuildingPanel, ArmyPanel, SelectionCard, RelationTag },
   props: {
     ui: { type: Object, required: true },
     engine: { type: Object, required: true },
@@ -197,27 +216,43 @@ export default {
     code: { type: Object, default: null },
   },
   emits: ['build', 'buy-serf', 'confirm', 'cancel', 'deselect', 'action', 'quick', 'height', 'preview', 'hero', 'group', 'code'],
-  data() { return { collapsed: false, mapOpen: false }; },
+  data() { return { collapsed: false, mapOpen: false, info: null, infoH: 0 }; },
   computed: {
     sel() { return this.ui.selection; },
+    /** Serfs selected: 'build' (build menu) or 'actions' (serf action bar), remembered in the settings */
+    serfView() {
+      if (this.sel?.kind !== 'serfs' || this.ui.placing) return null;
+      return settings.serfBuildView ? 'build' : 'actions';
+    },
+    /** Build option shown in the info strip */
+    infoOpt() {
+      if (!this.info || this.serfView !== 'build' || this.collapsed) return null;
+      return this.ui.buildOptions.find((o) => o.type === this.info.type) ?? null;
+    },
     /** The panel appears only if there is something to do */
     open() { return !!(this.ui.placing || this.sel); },
-    hintIds() { const h = this.ui.mission?.tutorial?.hint?.ui ?? []; return Array.isArray(h) ? h : [h]; },
+    hintIds() { return this.ui.mission?.pointer ?? []; },
     panelTitle() {
       const s = this.sel, p = this.ui.placing;
       if (p) return this.$t('build.place', { building: this.$name.building(p.type) });
       if (!s) return '';
-      if (s.kind === 'serfs') return this.compact ? serfsTitle(s, this.$t) : this.$t('build.title');
+      if (s.kind === 'serfs') return settings.serfBuildView ? this.$t('build.title') : serfsTitle(s, this.$t);
       if (s.kind === 'army') return s.heroes.length === 1 && !s.groups.length ? this.$name.hero(s.heroes[0].hero) : this.$t('army.title');
       if (s.kind === 'building') return this.$name.building(s.type, s.levelIndex);
       if (s.kind === 'foreign' && s.entity === 'ruin') return this.$t('sys.ruin');
       return foreignName(s, this.$t, this.$name);
     },
+    /** Accessible name of the panel: for serfs who is selected (the visible title may say "Bauen") */
+    panelLabel() {
+      return this.sel?.kind === 'serfs' && !this.ui.placing ? serfsTitle(this.sel, this.$t) : this.panelTitle;
+    },
     headSub() {
       const s = this.sel;
       if (this.ui.placing || !s) return '';
       if (s.kind === 'building') return this.$t('common.levelOf', { n: s.level, max: s.maxLevel });
-      if (s.kind === 'serfs') return this.compact ? this.$t('serfs.idle', { n: s.idle }) : serfsTitle(s, this.$t) + ' · ' + this.$t('serfs.idle', { n: s.idle });
+      // Phone build view: back button, title, collapse and close leave room only for who is selected
+      if (s.kind === 'serfs' && settings.serfBuildView && this.compact) return serfsTitle(s, this.$t);
+      if (s.kind === 'serfs') return settings.serfBuildView ? serfsTitle(s, this.$t) + ' · ' + this.$t('serfs.idle', { n: s.idle }) : this.$t('serfs.idle', { n: s.idle });
       if (s.kind === 'army') return s.soldiers ? this.$t('army.soldiers', { n: s.soldiers }) : '';
       return '';
     },
@@ -241,6 +276,8 @@ export default {
     'ui.placing'(v) { if (v) this.collapsed = false; },
     // From phone to desktop: map panel closed again (there it is always visible)
     compact(v) { if (!v) this.mapOpen = false; },
+    // The info strip lifts the hero/map strip on the phone by its height
+    infoOpt() { this.$nextTick(() => { this.infoH = this.$refs.info?.$el?.offsetHeight ?? 0; }); },
   },
   mounted() {
     this.ro = new ResizeObserver(() => this.reportHeight());
@@ -253,11 +290,18 @@ export default {
       const k = e.key.toLowerCase();
       if (k === 'h') this.$emit('quick', 'hq');
       else if (k === 'm' && this.compact) this.mapOpen = !this.mapOpen;
+      else if (k === 'b' && this.serfView === 'actions') this.setBuildView(true);
     };
     window.addEventListener('keydown', this.onKey);
   },
   beforeUnmount() { this.ro?.disconnect(); this.mo?.disconnect(); window.removeEventListener('keydown', this.onKey); },
   methods: {
+    /** Switch between build view and serf action bar (remembered across selections and reloads) */
+    setBuildView(on) {
+      this.info = null;
+      setSetting('serfBuildView', on);
+    },
+    onInfo(v) { this.info = v ? { type: v.type } : null; },
     /** Quick access: on phones the map panel folds shut afterwards so the result lies free */
     quick(k) {
       this.$emit('quick', k);
@@ -337,6 +381,10 @@ button.cb-group.sel { box-shadow: 0 0 0 2px var(--gold-100), 0 0 0 3px var(--woo
 /* Build menu and buildings on desktop: taller (buildings also wider and two-column) instead of scrolling */
 .context.tall { max-height: calc(100vh - var(--top-total, 4rem) - 2rem - var(--safe-b)); }
 .context.wide { min-width: min(48rem, 100%); }
+.context { position: relative; }
+.back-btn { flex: none; display: inline-flex; align-items: center; gap: 0.25rem; min-height: 2.25rem; padding: 0.125rem 0.625rem 0.125rem 0.375rem; font-size: var(--fs-sm); font-weight: 700; }
+.back-btn .ico { width: 1rem; height: 1rem; }
+.cmdbar.compact .back-btn { min-height: var(--touch); }
 .cx-head { display: flex; align-items: center; gap: 0.5rem; min-height: 1.75rem; flex: none; }
 .cx-mini { flex: none; width: 2.75rem; height: 2.75rem; margin-top: -1.375rem; border-radius: 50%; padding: 3px; background: var(--brass); box-shadow: 0 0 0 2px var(--wood-950), 0 4px 10px rgba(0, 0, 0, 0.5); display: grid; place-items: center; overflow: hidden; }
 .cx-mini img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: var(--tile-bg); }
@@ -372,7 +420,7 @@ button.cb-group.sel { box-shadow: 0 0 0 2px var(--gold-100), 0 0 0 3px var(--woo
 .cmdbar.compact { display: block; left: var(--safe-l); right: var(--safe-r); }
 /* Strip above the panel: heroes left (row), map button right */
 .cmdbar.compact .cb-map {
-  position: absolute; left: calc(var(--hud-gap) + var(--safe-l)); right: calc(var(--hud-gap) + var(--safe-r)); bottom: calc(100% + 0.75rem); margin: 0;
+  position: absolute; left: calc(var(--hud-gap) + var(--safe-l)); right: calc(var(--hud-gap) + var(--safe-r)); bottom: calc(100% + 0.75rem + var(--info-h, 0px)); margin: 0;
   width: auto; height: auto; padding: 0; justify-self: stretch; display: flex; flex-wrap: wrap-reverse; align-items: flex-end; justify-content: space-between; gap: 0.625rem;
 }
 .cmdbar.compact .cb-mtools { display: flex; gap: 0.5rem; margin-left: auto; align-items: flex-end; }
