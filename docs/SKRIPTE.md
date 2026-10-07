@@ -194,6 +194,8 @@ dabei als Befehl `{ type: 'script', action: 'run', sections }` in die Simulation
 | 4 | `adv4` | Steine am Wegesrand | eigene Funktionen, Funktionen als Argument (Steine zufällig verteilt) |
 | 5 | `adv5` | Ein Dorf per Programm | Listen, Objekte und Methoden, Befehle wie in der Oberfläche |
 
+Konzept für einen ausgebauten Kurs in Missionsreihen mit Eingangsproben: [Lernpfad](LERNPFAD.md).
+
 Jedes Abenteuer hat eine Musterlösung im Test (`tests/sim/scripting.test.js`). Der Code der Spieler wird pro
 Abenteuer im Browser gemerkt (`kronland-code-<id>`).
 
