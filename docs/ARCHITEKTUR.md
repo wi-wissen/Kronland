@@ -29,7 +29,7 @@ src/
               ui/mission/ für Kampagne und Tutorial, ui/saves/ Spielstandliste und Bestätigungsdialog,
               ui/script/ Code-Panel (geteilter Bildschirm/Handy-Blatt, splitLayout.js) und Debugger, ui/editor/ Welteneditor (mit game/EditorView.js)
 tests/        Vitest (Simulation, KI, Website)
-e2e/          Playwright (Desktop und Handy-Viewport); Adresse des Spiels zentral in e2e/paths.js
+e2e/          Playwright (Desktop und Handy-Viewport, Gruppen und CI-Shards: docs/TESTS.md); Adresse des Spiels zentral in e2e/paths.js
 docs/         Spielregeln und Architektur
 ```
 
@@ -199,14 +199,16 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
   Missionsergebnis, Rückfragen) hängen per `<Teleport to="body">` direkt an `<body>`. Im Startmenü würde
   `.backdrop > *` sie sonst als Inhalt unter das Menü setzen, im Spiel sperrt `.game.split` (`contain: layout`) sie
   auf die Spielfläche neben dem Code-Fenster ein. `e2e/modals.spec.js` prüft, dass sie den Bildschirm bedecken.
+  HUD-Teile (`position: fixed` in `.game`) bemessen Breiten deshalb in `%` der Spielfläche statt `vw`. Die Ziele-Ansicht
+  auf dem Handy liegt wie `.scrim` auf Ebene 30, also über dem Laufstreifen des Code-Fensters (29).
 - Meldungen: `engine.toast(key, params, { icon, tone, pos, ttl, cat })`; mit `pos` springt ein Klick dorthin, das ×
   schließt (`dismissToast`). Logik rein in `src/game/notices.js` (Test `tests/game/notices.test.js`):
   - **Kategorien** mit Vorrang und Grenze (`CATEGORIES`, Zuordnung je Schlüssel `categoryOf`, `err.*` = feedback):
     alarm (Angriff, zerstört, Held) > fire (Brand) > feedback (Antwort auf Eingaben, `err.*`) > system (Speichern) >
     build (fertig, repariert) > research > economy (Handel, Rohstoffe, Lagerfeuer) > military (rekrutiert, befördert)
-    > world (Wetter, Brücke eingestürzt) > info > script (`print()` des Spielerprogramms). Je Kategorie höchstens `limit` flüchtige Einträge, die älteste fällt weg.
+    > world (Wetter, Brücke eingestürzt) > info > script (`notify()` eines Programms). Je Kategorie höchstens `limit` flüchtige Einträge, die älteste fällt weg.
   - **Bündeln** (`addNotice`): gleiche Meldung (Schlüssel + Parameter) zählt hoch („×3“); Schlüssel in `MERGE`
-    (Beförderung, Rekrutiert, Gebäude fertig, Handel, `print()`) bündeln auch mit anderen Parametern zu einem Text mit `{n}`
+    (Beförderung, Rekrutiert, Gebäude fertig, Handel, `notify()`) bündeln auch mit anderen Parametern zu einem Text mit `{n}`
     („12 Beförderungen – zuletzt …“), Ort und Text der neuesten.
   - **Dauermeldungen** baut `Engine.persistentNotices()` bei jedem `uiState` aus dem Zustand (nur kleine Listen, kein
     Entity-Scan): Angriffsstellen aus `alerts.js` (dieselben wie der Minikarten-Puls, höchstens 2, Text nach dem
@@ -404,7 +406,7 @@ Prüfung im Editor, ohne Build-Schritt.
 | Zoomen (bis ganz nah, Blick dann flacher) | Mausrad zum Mauszeiger, Bild↑/↓ zur Bildmitte | 2 Finger spreizen, zur Fingermitte |
 | Bauen | Baumenü, Klick setzt, Rechtsklick bricht ab | Baumenü, Tippen, „Hier bauen“ |
 | Untätige Leibeigene | Taste . | Knopf „Untätige“ |
-| Pause | Leertaste | Knopf |
+| Pause (Spiel und Animationen stehen, Welt in Graustufen, Schild „Pausiert“ unten; Befehle bleiben möglich) | Leertaste | Knopf |
 | Baumenü-Gruppe | Mausrad (schmales Fenster) | Sprungmarken |
 | Heldenfähigkeit | X, C | Knopf |
 | Steuergruppe merken | Umschalt+1–9 (Strg+1–9, wo der Browser es durchlässt) | Knopf „Als Gruppe merken“ |
@@ -417,6 +419,16 @@ Prüfung im Editor, ohne Build-Schritt.
 | Figuren über die Minikarte schicken | Rechtsklick auf die Minikarte (Strg: Angriffsbewegung) | Tippen auf die Minikarte, solange Figuren ausgewählt sind |
 | Menü | Esc | Knopf |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
+
+**Auswahlrahmen** (`src/game/boxSelect.js`, `Input.showBox`): Ab 8 px Zug erscheint der Rahmen. Er ist ein einziges
+Element mit eigener Compositor-Ebene (`will-change: transform`), das dauerhaft in der Seite bleibt; Ziehen verschiebt es
+per `transform` und ändert nur die Größe, Ein-/Ausblenden schaltet eine Klasse. Während des Ziehens wird nichts
+gerechnet – welche eigenen Figuren drin liegen (`unitsInBox`, projiziert nur Leibeigene, Hauptleute und Helden), ermittelt
+`Engine.selectBox` erst beim Loslassen. Ein Zug pro Mausbewegung kostet so unter 1 ms.
+Die Karte bricht den `mousedown` der linken (und mittleren) Taste ab: Firefox verfolgt sonst bei jedem Linksklick eine
+eigene Drag-and-Drop-/Markier-Geste (bis zur Zugschwelle mit erzwungenem Layout je Mausbewegung) und wertet sie nach
+wenigen Pixeln aus – genau dann, wenn der Rahmen startet. Weil damit auch der Fokuswechsel entfällt, gibt `releaseFocus`
+den Fokus aus Eingabefeldern (Code-Editor) selbst ab, damit die Tastenkürzel nach einem Klick auf die Karte wieder greifen.
 
 **Doppelklick/Doppeltippen** (bewusste Abweichung vom Vorbild, übliche RTS-Steuerung): Zwei Klicks bzw.
 Tipper binnen 400 ms und 24 px auf eine eigene Figur wählen alle eigenen Figuren derselben Art, deren Fußpunkt
@@ -444,4 +456,6 @@ mit. Mausrad und Zwei-Finger-Zoom fahren entlang des Strahls durch Zeiger bzw. F
 (wie `OrbitControls.zoomToCursor`). Zwei Finger legen die Geste einmal fest: Neigen nur, wenn beide Finger
 parallel senkrecht gleiten; sonst Zoomen und Verschieben, Drehen erst ab 25 px Drehweg (wie MapLibre), damit
 ein Zoom nicht nebenbei dreht. Randscrollen läuft sanft an und endet, sobald die Maus das Fenster verlässt
-(auch nach oben in die Browserleiste).
+(auch nach oben in die Browserleiste). Es wirkt nur im Spielbereich und nie mit gedrückter Taste; ein Druck
+außerhalb des Spielbereichs (z. B. Trennlinie des Programmfensters) sperrt es, und kommt der Zeiger von dort
+direkt in den Randstreifen, scrollt es erst, nachdem er einmal auf der Karte war (`src/game/edgeScroll.js`).

@@ -74,9 +74,9 @@ Zwei Rechtestufen. Die Stufe entscheidet, welche Namen ein Programm überhaupt k
   Simulation.
 - **mission**: alles – Truppen erzeugen, Rohstoffe geben, Dialoge, Kamera, Ziele, Gelände formen.
 
-Die vollständige Liste steht im Spiel unter **Befehle** (Code-Panel, jeder Eintrag verlinkt auf die Website;
-Antippen der Signatur zeigt die Karte mit Parametern und Beispiel, dazu die Python-Funktionen und -Methoden)
-und ausführlich mit Parametern, Rückgabe, Fehlern und Beispielen in der **Programmier-Referenz** (`scripting/`,
+Im Spiel erklärt die Karte beim Überfahren (Handy: langes Drücken) jeden Befehl im Code, der Knopf **Referenz**
+im Code-Panel öffnet die Website; eine eigene Befehlsliste gibt es nur noch im Welteneditor (`ApiHelp.vue`). Die
+vollständige Liste steht ausführlich mit Parametern, Rückgabe, Fehlern und Beispielen in der **Programmier-Referenz** (`scripting/`,
 siehe [WEBSITE.md](WEBSITE.md)); Quelle ist `API_DOC` (`api.js`). Die wichtigsten:
 
 ```python
@@ -86,7 +86,7 @@ hero.ahead()    # "free", "tree", "pile", "water", "cliff", "building", "edge" �
 hero.can_step()  hero.move_to(ziel)  hero.is_at(ziel)  hero.take()  hero.chop()  hero.say(text)
 place("goal")  tile(x, y)  trees_near(ziel)  stock("wood")  count("farm")  serfs(idle=True)
 hq()  find_spot("residence", hq())  build("residence", x, y)  serf.work_on(baustelle)
-wait(sekunden)  wait_until(lambda: …, timeout=None)  time()  print(…)
+wait(sekunden)  wait_until(lambda: …, timeout=None)  time()  print(…)  notify(text)
 nelia  orrin  taran  malvor        # jeder Held unter seinem Namen (eigener zuerst, sonst None); hero = Haupt-Held
 diplomacy(HUMAN, ENEMY)            # "allied", "neutral" oder "hostile"
 
@@ -213,17 +213,23 @@ Stufe tiefer), Rücktaste löscht eine Einrückstufe. Klick auf eine Zeilennumme
 **Aufteilung** (`src/ui/script/splitLayout.js`, Test `tests/ui/splitLayout.test.js`):
 
 - **Desktop und Tablet quer – geteilter Bildschirm:** Spiel links, Programm rechts (anfangs 46 % der Breite).
-  Die Trennlinie lässt sich mit Maus oder Finger ziehen (auch Pfeiltasten), mindestens 340 px Programm und
-  420 px Spiel. Der Knopf auf der Trennlinie (oder › im Kopf) klappt das Programm zu einer schmalen Leiste
-  „‹ Programm“ ein. Breite und Zustand merkt sich der Browser (`kronland-code-split`). Das Spiel wird wirklich
+  Die Trennlinie lässt sich mit Maus oder Finger ziehen, mindestens 340 px Programm und 420 px Spiel. Beim
+  Ziehen wandert nur eine goldene Vorschaulinie (CSS-Transform, kein Neulayout); Panelbreite und Spiel-Canvas
+  ändern sich einmal beim Loslassen (`Renderer.setSize` genau einmal je Zug). Pfeiltasten auf der Trennlinie
+  verschieben die Linie in 32-px-Schritten, die Breite folgt 250 ms nach dem letzten Tastendruck. › im Kopf
+  klappt das Programm zu einer schmalen Leiste „‹ Programm“ ein. Breite und Zustand merkt sich der Browser (`kronland-code-split`). Das Spiel wird wirklich
   schmaler: `.game` bekommt rechts die Panelbreite und `contain: layout`, damit Leiste, Minimap und Meldungen
-  im Spielbereich bleiben; Canvas, Kamera-Seitenverhältnis und Randscrollen folgen. Die HUD-Stufen
+  im Spielbereich bleiben; Canvas, Kamera-Seitenverhältnis und Randscrollen folgen (Ziehen der Trennlinie scrollt die Karte nicht). Die HUD-Stufen
   (`compact`, `mid`, `narrow`) richten sich nach der Breite des Spielbereichs. Werkzeugleiste: Ausführen,
-  Schritt, Über, Heraus, Stopp | Speichern, Öffnen | Raster; darunter Code (Abschnitte, Fehlerkasten, Variablen)
-  und unten die **Ausgabe**. Der Reiter **Befehle** zeigt die Befehlsliste.
+  Schritt, Über, Heraus, Stopp | Speichern, Öffnen | Raster, **Referenz**; darunter immer der Code (Abschnitte,
+  Fehlerkasten, Variablen) und unten die **Ausgabe** – ohne Reiter. **Referenz** (Buch) öffnet die
+  Programmier-Referenz der Website (`scripting/`) in einem neuen Tab; eine Befehlsliste im Panel gibt es nicht
+  (Erklärungen liefern die Karten beim Überfahren und die Referenz). Eingeklappte Abschnitte (z. B. „Welt aufbauen“) zeigen links Pfeil und Titel, rechts
+  Zeilenzahl und das Schild „gesperrt“, wenn sie nicht bearbeitbar sind. Einen Status-Text im Kopf gibt es nicht
+  – den Zustand zeigen die markierte Zeile und der Knopf Ausführen/Anhalten/Weiter.
 - **Handy (hochkant oder niedrig) – Blatt:** Das Programm füllt den Bildschirm, Reiter **Code**, **Ausgabe**
-  (mit Fehlerzähler) und **Hilfe** (Befehlsliste mit Suche). Unten Ausführen, Schritt, Stopp und „⋯“
-  (Speichern .py, Öffnen, Raster, Vorlage wiederherstellen), darüber beim Tippen die Tastenleiste
+  (mit Fehlerzähler). Unten Ausführen, Schritt, Stopp und „⋯“
+  (Speichern .py, Öffnen, Raster, Vorlage wiederherstellen, Referenz), darüber beim Tippen die Tastenleiste
   (⇥ ⇤ : ( ) " " = == [ ] . _ #). **Ausführen** schaltet auf **Spiel ansehen**: Spiel im Vollbild, unten eine
   Leiste mit der aktuellen Zeile, Anhalten/Weiter, Stopp und „Code“; ist der Held nicht im freien Bildbereich zu
   sehen, rückt ihn die Kamera über die Leiste (`Engine.watchFocus`), sonst bleibt die Ansicht. Bei einem Fehler (oder Haltepunkt) springt
@@ -247,10 +253,12 @@ Fehler: rote Zeile und Kasten mit Python-Namen, Abschnitt, Zeile, Erklärung und
 bearbeitet wird, verschwinden Markierung und Kasten (der Fehler steht dann womöglich nicht mehr im Programm), der
 Status springt auf „bereit“.
 
-**Ausgabe:** `print()` erscheint als Meldung im Spiel (Kategorie `script`, niedrigster Vorrang, höchstens eine;
-weitere Ausgaben ersetzen den Text und zählen mit – „… (12 Ausgaben)“, eine Schleife flutet also nicht) und
-unter „Ausgabe“ im Code-Panel (Desktop unter dem Code, Handy eigener Reiter). Die Simulation meldet jeden Aufruf als Ereignis `scriptPrint` (nur Anzeige);
-das Panel zeigt nur den aktuellen Lauf (`player.since` = Konsolen-Zähler beim Start). Anzeige-Logik:
+**Ausgabe und Meldungen:** `print()` schreibt nur unter „Ausgabe“ im Code-Panel (Desktop unter dem Code, Handy
+eigener Reiter). Eine Meldung im Spiel sendet `notify(text)` („Meldung senden“, Spieler- und Missionsskripte):
+Kategorie `script`, niedrigster Vorrang, höchstens eine; weitere Meldungen ersetzen den Text und zählen mit –
+„… (12 Meldungen)“, eine Schleife flutet also nicht. Die Simulation meldet sie als Ereignis `scriptNotify` (nur
+Anzeige, kein Sim-Zustand; alle Aufrufe eines Ticks werden zu einem Ereignis mit Zähler `n` zusammengefasst).
+`message(text)` (nur Missionen) ist dagegen eine Dialogzeile ohne Sprecher. Das Panel zeigt nur den aktuellen Lauf (`player.since` = Konsolen-Zähler beim Start). Anzeige-Logik:
 `src/ui/script/panelState.js` (Test `tests/ui/scriptPanel.test.js`).
 
 **Dateien:** **Speichern** lädt den Code als `<szenario>.py` herunter (Blob, auch am Handy), **Öffnen** lädt eine

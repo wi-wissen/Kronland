@@ -24,6 +24,7 @@ import { get as setting, applyPlayerColor } from '../ui/settings.js';
 import { Input } from './Input.js';
 import { ControlGroups } from './groups.js';
 import { visibleSameType } from './sameType.js';
+import { dragRect, unitsInBox } from './boxSelect.js';
 import { COMBAT } from '../sim/data/combat.js';
 import { buildingSystemsUi } from './buildingUi.js';
 import { relationOf, showsInterior } from './relation.js';
@@ -84,8 +85,8 @@ export const registerBuildingSection = (fn) => { BUILDING_SECTIONS.push(fn); };
 
 /** Minimum gap (ms) between two alarm bells in the same region (the notice itself stays while the attack lasts) */
 const ATTACK_TOAST_MS = 15000;
-/** How long a print() notice stays (ms; each further print refreshes it) */
-const PRINT_TOAST_MS = 6000;
+/** How long a notify() notice stays (ms; each further notify refreshes it) */
+const NOTIFY_TOAST_MS = 6000;
 /** At most this many notices at once (desktop / touch) */
 const MAX_TOASTS = 5, MAX_TOASTS_TOUCH = 4;
 /** Figures that attack serfs on command (not buildings) */
@@ -239,7 +240,9 @@ export class Engine {
       hint: this.missionView.hint,
       landmarks: this.missionView.landmarks ?? null,
       revealAll: this.fogLifted(),
-      speed: this.paused ? 0 : this.speed,
+      // paused: figures freeze in their current pose (clip and walking speed stay as in the last tick)
+      paused: this.paused,
+      speed: this.speed,
     }), (f) => f && this.fault('render'));
     if (this.dev) g.run('dev', () => this.dev?.frame(dt));
     if (this.audio) g.run('audio', () => this.audio?.frame(dt));
@@ -438,12 +441,12 @@ export class Engine {
       }
       if (ev.type === 'nodeDepleted' && ev.res !== 'wood') this.toast('toast.nodeDepleted', { res: ev.res }, { icon: ev.res, ttl: 3500 });
     }
-    // print() of the player program: one notice, the newest line wins, further prints only count up
-    const prints = events.filter((e) => e.type === 'scriptPrint' && e.level === 'player' && e.player === me);
-    if (prints.length) {
-      const id = this.toast('toast.print', { text: prints[prints.length - 1].text }, { icon: 'scroll', ttl: PRINT_TOAST_MS });
+    // notify() of a program: one notice, the newest text wins, further calls only count up (print() stays in the console)
+    const notes = events.filter((e) => e.type === 'scriptNotify' && e.player === me);
+    if (notes.length) {
+      const id = this.toast('toast.notify', { text: notes[notes.length - 1].text }, { icon: 'scroll', ttl: NOTIFY_TOAST_MS });
       const t = this.toasts.find((x) => x.id === id);
-      if (t) t.count += prints.length - 1;
+      if (t) t.count += notes.reduce((n, e) => n + (e.n ?? 1), 0) - 1;
     }
     // remember positions of buildings so destruction notices can jump
     if (events.some((e) => e.type === 'buildingDone' || e.type === 'buildingPlaced') || !this.lastPos) {
@@ -584,15 +587,14 @@ export class Engine {
 
   selectBox(x1, y1, x2, y2, additive = false) {
     if (!additive) this.selected.clear();
-    const [l, r] = [Math.min(x1, x2), Math.max(x1, x2)], [t, b] = [Math.min(y1, y2), Math.max(y1, y2)];
-    for (const e of this.sim.entities.values()) {
-      if (!(e.kind === 'unit' || e.kind === 'leader' || e.kind === 'hero') || e.owner !== this.player) continue;
-      // drawn position (with rendering offset), otherwise that of the simulation
-      const rec = this.renderer.chars?.records.get(e.id);
+    const r = this.renderer;
+    // drawn position (with rendering offset), otherwise that of the simulation
+    const ids = unitsInBox(this.sim.entities.values(), this.player, (e) => {
+      const rec = r.chars?.records.get(e.id);
       const x = rec ? rec.position.x : e.px / UNIT, z = rec ? rec.position.z : e.py / UNIT;
-      const s = this.renderer.project(x, this.renderer.terrain.heightAt(x, z) + 0.3, z);
-      if (!s.behind && s.x >= l && s.x <= r && s.y >= t && s.y <= b) this.selected.add(e.id);
-    }
+      return r.project(x, r.terrain.heightAt(x, z) + 0.3, z);
+    }, dragRect(x1, y1, x2, y2));
+    for (const id of ids) this.selected.add(id);
     this.emitUi();
   }
 
@@ -1481,6 +1483,8 @@ export class Engine {
       payday: { income: taxIncome(countWorkers(sim, this.player), pl.taxLevel), wages: countLeaders(sim, this.player) * BALANCE.wagePerLeader, last: this.lastPayday ?? null },
       speed: this.speed,
       paused: this.paused,
+      /** paused by the script debugger (breakpoint), not by the player */
+      halted: this.debugHalt,
       selection,
       ...quick,
       buildOptions,

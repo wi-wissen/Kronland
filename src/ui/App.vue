@@ -5,7 +5,7 @@
   <AdventureMenu v-else-if="screen === 'adventures'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @editor="openEditor()" @open="startScenario($event)" />
   <WorldEditor v-else-if="screen === 'editor'" :initial="editorScenario" :touch="touchDevice" @back="closeEditor" @play="startScenario($event, 'editor')" @change="editorScenario = $event" />
 
-  <div v-else-if="screen === 'loading'" class="loading backdrop" data-testid="loading">
+  <div v-else-if="screen === 'loading' || finishing" class="loading backdrop" data-testid="loading">
     <div class="ld-card frame">
       <Icon name="crown" class="ld-crown" />
       <strong class="ld-title">{{ $t('app.title') }}</strong>
@@ -17,7 +17,7 @@
   </div>
 
   <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact, narrow, mid, 'show-labels': settings.labels, split: splitW > 0 }" :style="hudVars">
-    <canvas ref="canvas" data-testid="game-canvas"></canvas>
+    <canvas ref="canvas" data-testid="game-canvas" :class="{ 'paused-gray': showPause }"></canvas>
 
     <template v-if="ui && engine">
       <TopBar ref="top" :ui="ui" :need="need" @speed="engine.setSpeed($event)" @pause="engine.togglePause()" @menu="openMenu" />
@@ -43,6 +43,8 @@
         @hero="onHero"
         @group="engine.selectGroup($event)"
       />
+
+      <PauseBanner :show="showPause" :touch="!!ui.touch" :top="!!(ui.selection || ui.placing)" />
 
       <ToastFeed :toasts="ui.toasts" @jump="jump" @dismiss="(t) => engine?.dismissToast(t.id)" />
 
@@ -99,7 +101,7 @@
         </div>
       </Teleport>
 
-      <GameMenu v-if="menuOpen" :engine="engine" :touch="ui.touch" :share="share" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" />
+      <GameMenu v-if="menuOpen" :engine="engine" :touch="ui.touch" :share="share" :update="appUpdate.available" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" @update="installUpdate" />
     </template>
   </div>
 
@@ -125,9 +127,11 @@ import { markRaw, toRaw, defineAsyncComponent } from 'vue';
 import { mergeUi } from './uiMerge.js';
 import { Engine } from '../game/Engine.js';
 import { loadAssets } from '../render/assets.js';
+import { settleLazyLoads } from '../render/lazyLoads.js';
 import TopBar from './TopBar.vue';
 import CommandBar from './hud/CommandBar.vue';
 import ToastFeed from './hud/ToastFeed.vue';
+import PauseBanner from './hud/PauseBanner.vue';
 import StartMenu from './StartMenu.vue';
 import GameMenu from './GameMenu.vue';
 import Tooltip from './Tooltip.vue';
@@ -146,23 +150,26 @@ import { defaultSaveName } from '../save/format.js';
 import { makeThumb } from './saves/thumb.js';
 import { t } from '../i18n/index.js';
 import { devState, setDevMode, isDevHotkey } from '../dev/state.js';
-import { missing } from './hud/hudLayout.js';
+import { missing, pauseBannerVisible } from './hud/hudLayout.js';
 import { buildStartLink, parseStartLink, normalizeFree, addressFor, shareUrl } from './startLink.js';
 import { siteUrl } from '../paths.js';
 import { layoutMode } from './script/splitLayout.js';
+import { update as appUpdate, setReloadPolicy, updateIfIdle, applyUpdate } from '../pwa.js';
 /** Levels by window width (CSS px at UI size 100 %), as classes on .game:
  *  compact – phone/narrow: panel across the full width, map as a button;
  *  mid – smaller map and tiles; narrow – portrait without shield, key figures in the panel. */
 const COMPACT = 760;
 /** sessionStorage: page was reloaded from the error dialog */
 const CRASH_FLAG = 'kronland-crash';
+/** Screens on which a new version may reload the page by itself (nothing running, nothing unsaved) */
+const IDLE_SCREENS = ['menu', 'campaign', 'adventures', 'special'];
 const MID = 1100;
 const NARROW = 1500;
 
 export default {
   name: 'App',
   components: {
-    TopBar, CommandBar, ToastFeed, StartMenu, GameMenu, Tooltip, CampaignMenu, SpecialMapsMenu, MissionHud, MissionResult, AdventureMenu,
+    TopBar, CommandBar, ToastFeed, PauseBanner, StartMenu, GameMenu, Tooltip, CampaignMenu, SpecialMapsMenu, MissionHud, MissionResult, AdventureMenu,
     // Code panel and world editor: loaded only on demand
     ScriptPanel: defineAsyncComponent(() => import('./script/ScriptPanel.vue')),
     WorldEditor: defineAsyncComponent(() => import('./editor/WorldEditor.vue')),
@@ -178,6 +185,8 @@ export default {
       engine: null,
       ui: null,
       progress: 0,
+      /** Game built, loading screen still up while cached on-demand models arrive (boot) */
+      finishing: false,
       menuOpen: false,
       /** Latest save game (entry) for "Continue" */
       latest: null,
@@ -213,6 +222,8 @@ export default {
       codeW: 0,
       /** Start of the running game ({ kind: 'free'|'mission', … }, src/ui/startLink.js) or null (save game, scenario file) */
       start: null,
+      /** A newer version is online (src/pwa.js): notice in the game menu */
+      appUpdate,
     };
   },
   computed: {
@@ -229,6 +240,7 @@ export default {
       return { url, name: st.seed ? `${title} · ${st.seed}` : title, title };
     },
     need() { return this.preview && this.ui ? missing(this.preview, this.ui.res) : null; },
+    showPause() { return pauseBannerVisible(this.ui, { menuOpen: this.menuOpen, crash: this.crash }); },
     hudVars() {
       const v = { '--bottom-h': `${this.bottomH}px`, '--top-total': `${this.topH}px` };
       // Split screen: the game (canvas and HUD) only fills the area left of the code panel
@@ -252,7 +264,16 @@ export default {
     splitW() { this.$nextTick(() => this.layout?.()); },
     showScriptPanel() { this.$nextTick(() => this.layout?.()); },
     // Menu music on start and campaign screens (plays after the first click; in-game GameAudio takes over)
-    screen: { immediate: true, handler(s) { if (['menu', 'campaign', 'adventures', 'special', 'editor'].includes(s)) setMenuMusic(true); else if (s === 'loading') setMenuMusic(false); } },
+    screen: {
+      immediate: true,
+      handler(s) {
+        if (['menu', 'campaign', 'adventures', 'special', 'editor'].includes(s)) setMenuMusic(true); else if (s === 'loading') setMenuMusic(false);
+        // Back in the menus after a game: a pending update loads now
+        if (IDLE_SCREENS.includes(s)) updateIfIdle();
+      },
+    },
+    // New version while a game is running: notice once (the game menu offers "save and reload")
+    'appUpdate.available'(on) { if (on && this.engine && this.screen === 'game') this.engine.toast('update.toast', null, { icon: 'info', ttl: 10_000, cat: 'system' }); },
     // Autosave every 2 game minutes, the first shortly after the start (setting "Save automatically")
     'ui.tick'(tick) {
       if (tick !== undefined && settings.autosave && autosaveDue(tick, this.lastAutoTick ?? tick)) this.autosave({ idle: true });
@@ -270,6 +291,8 @@ export default {
     },
   },
   mounted() {
+    // Reload for a new version only where nothing is lost: menus, no editor draft, no error dialog
+    setReloadPolicy(() => IDLE_SCREENS.includes(this.screen) && !this.editorScenario && !this.crash);
     this.layout = () => {
       this.winW = window.innerWidth;
       this.winH = window.innerHeight;
@@ -327,6 +350,7 @@ export default {
       this.engine = null;
       this.ui = null;
       this.watching = false;
+      this.finishing = false;
       this.screen = 'loading';
       this.progress = 0;
       this.tipNo = 1 + Math.floor(Math.random() * 6);
@@ -340,12 +364,28 @@ export default {
       this.recovered = false;
       this.engine = markRaw(new Engine(this.$refs.canvas, { ...opts, onUi: (state) => this.applyUi(state), onCrash: (c) => this.onCrash(c) }));
       this.lastAutoTick = autosaveStart(this.engine.sim.tick);
-      this.engine.start();
-      if (devState.on) this.engine.setDevMode(true);
+      const e = this.engine;
+      e.start();
+      if (devState.on) e.setDevMode(true);
       this.screen = 'game';
       this.$nextTick(this.layout);
+      if (!opts.noAssets) {
+        // Models the first frames request on demand (hero, workers, other buildings): if they are all cached
+        // already, keep the loading screen up (game paused) until they are there – no placeholders at the start.
+        // On a first visit nothing waits (src/render/lazyLoads.js).
+        this.finishing = true;
+        const paused = e.paused;
+        e.paused = true;
+        const t0 = performance.now();
+        const result = await settleLazyLoads();
+        // measurement for E2E and docs/PERFORMANCE.md
+        e.startupWait = { result, ms: Math.round(performance.now() - t0) };
+        if (this.engine !== e) return;
+        e.paused = paused;
+        this.finishing = false;
+      }
       // For E2E tests and debugging
-      window.__kronland = this.engine;
+      window.__kronland = e;
     },
     newGame(opts) {
       // Bring values from the start menu or address to valid ones; exactly this is what the link starts
@@ -426,11 +466,12 @@ export default {
      * copy (snapshotText), compression and storage run afterwards asynchronously. The store queues
      * the writes one after another (store.serial), so the most recent
      * state always wins – even if an autosave is still running when leaving.
-     * @param {{ idle?: boolean }} [opts] idle: only when the browser has air between two frames (regular autosave)
+     * @param {{ idle?: boolean, force?: boolean }} [opts] idle: only when the browser has air between two frames (regular autosave);
+     *   force: also with the setting "Save automatically" switched off (before reloading for an update)
      */
-    async autosave({ idle = false } = {}) {
+    async autosave({ idle = false, force = false } = {}) {
       const e = this.engine;
-      if (!e || !settings.autosave || this.screen !== 'game') return;
+      if (!e || (!settings.autosave && !force) || this.screen !== 'game') return;
       // Never save after a crash: the state may be broken, the last good save is kept
       if (e.crash) return;
       this.lastAutoTick = e.sim.tick;
@@ -494,6 +535,11 @@ export default {
       try { sessionStorage.setItem(CRASH_FLAG, '1'); } catch { /* notice is missing then */ }
       location.href = location.pathname;
     },
+    /** Game menu "Save and reload": autosave slot first, then the new version; "Continue" in the start menu resumes. */
+    async installUpdate() {
+      try { await this.autosave({ force: true }); } catch { /* reload anyway: the user asked for it */ }
+      applyUpdate();
+    },
     crashMenu() {
       this.quit();
       this.recovered = true;
@@ -502,6 +548,7 @@ export default {
     closeMenu() { this.menuOpen = false; if (this.engine) { this.engine.paused = !!this.wasPaused; this.engine.emitUi(); } },
     quit() {
       this.menuOpen = false;
+      this.finishing = false;
       // Save automatically on leaving (before halting: the state is copied synchronously)
       if (this.engine) Promise.resolve(this.autosave()).finally(() => this.refreshLatest());
       this.engine?.stop();

@@ -74,6 +74,23 @@ test('Blog article: enlarge images, step with arrow keys, close with Escape', as
   await page.getByTestId('lightbox-close').click();
   await expect(box).toBeHidden();
 
+  // Closing and opening again at once: the late close event must not empty the new image
+  // (Escape and at once Enter on the next image; input is handled before the queued close event)
+  await imgs.nth(1).click();
+  await expect(box).toBeVisible();
+  const late = await page.evaluate(() => new Promise((res) => {
+    const dlg = document.querySelector('[data-testid="lightbox"]');
+    const next = document.querySelectorAll('[data-testid="blog-article"] figure:not(.code) > img')[2];
+    dlg.addEventListener('close', () => setTimeout(() => res({ open: dlg.open, count: dlg.querySelector('.lb-count')?.textContent }), 0), { once: true });
+    dlg.close();
+    next.focus();
+    next.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  }));
+  expect(late).toEqual({ open: true, count: '3 / 5' });
+  await expect(page.getByTestId('lightbox-img')).toBeVisible();
+  await page.getByTestId('lightbox-close').click();
+  await expect(box).toBeHidden();
+
   // Click on the backdrop closes
   await imgs.nth(3).click();
   await expect(box).toBeVisible();

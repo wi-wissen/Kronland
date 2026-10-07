@@ -41,8 +41,8 @@ automatische Tests vergleichen das.
 
 Ein Tipp auf eine **Zeilennummer** setzt einen [Haltepunkt](https://de.wikipedia.org/wiki/Haltepunkt_%28Programmierung%29).
 Hält das Programm, ist die Zeile grün, und du siehst globale, übergebene und lokale Variablen und den Aufrufstapel –
-ein kleiner [Debugger](https://de.wikipedia.org/wiki/Debugger). Der Reiter **Befehle** listet alle Befehle kurz; jeder
-Eintrag verlinkt auf die ausführliche Erklärung hier. Der Knopf **# Raster** blendet die Kacheln ein, damit du Schritte
+ein kleiner [Debugger](https://de.wikipedia.org/wiki/Debugger). Bleibst du mit der Maus auf einem Befehl (am Handy:
+lange drücken), erklärt ihn eine Karte; der Knopf **Referenz** öffnet diese Seite. Der Knopf **# Raster** blendet die Kacheln ein, damit du Schritte
 abzählen kannst. Dein Code wird im Browser gemerkt. Mehr zur Bedienung im [Handbuch](manual/#coding).
 
 Im **Welteneditor** (Programmier-Abenteuer → Welteneditor) gibt es den Reiter **Code** mit allen Abschnitten eines

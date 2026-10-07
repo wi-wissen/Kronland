@@ -14,7 +14,7 @@ import {
 } from './lod.js';
 import { CharacterSystem, sharedCharacterRoots, cavalryGait } from './characters.js';
 import { Effects, HealthBars, GroundMarks, sharedPuffTexture } from './effects.js';
-import { CameraRig, nearFactor } from './CameraRig.js';
+import { CameraRig, nearFactor, buildingTop } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT, TICKS_PER_SECOND } from '../sim/fixed.js';
 import { WATER, CLIFF, OCCUPIED, RESERVED, BRIDGE } from '../sim/map.js';
@@ -795,7 +795,8 @@ export class Renderer {
    * @param {number} alpha 0…1 between last and current tick
    * @param {number} dt seconds since last frame
    * @param {Map<number,{px:number,py:number}>} prev positions before the last tick
-   * @param {{ selected: Set<number>, ghost: null|{type:string,x:number,y:number,valid:boolean} }} view
+   * @param {{ selected: Set<number>, ghost: null|{type:string,x:number,y:number,valid:boolean}, paused?: boolean, speed?: number }} view
+   *   paused: world animations (figures, fire, water, wind, projectiles) freeze; camera, fog and markers keep running
    */
   frame(alpha, dt, prev, view) {
     if (!this.warmed) {
@@ -810,10 +811,13 @@ export class Renderer {
     }
     const sim = this.sim;
     if (this.natureDirty) { this.natureDirty = false; this.rebuildNature(); }
+    // animation time stands still while paused (the camera keeps using the real dt)
+    const realDt = dt;
+    if (view.paused) dt = 0;
     this.frameDt = dt;
     this.time = (this.time ?? 0) + dt;
     // camera first: LOD levels and visibility check refer to the current frame
-    this.rig.update(dt);
+    this.rig.update(realDt);
     this.camera.updateMatrixWorld();
     cameraFrustum(this.camera, this.frustum);
     this.chars.begin(this.time);
@@ -826,7 +830,7 @@ export class Renderer {
     // fog of war: game end or eliminated player sees everything
     const fog = this.fog;
     if (view.revealAll) fog.revealAll();
-    fog.update(dt);
+    fog.update(realDt);
     const fogOn = fog.active, me = this.viewer;
     const mine = (o) => o !== undefined && o >= 0 && !!sim.players[o] && sim.allied(o, me);
     const talkers = [];
@@ -897,8 +901,8 @@ export class Renderer {
     this.updateEffects(dt);
     this.syncSelection(view.selected);
     this.syncGhost(view.ghost);
-    (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, dt);
-    (this.npcMarks ??= new NpcMarks(this.scene, this.terrain)).update(talkers, dt);
+    (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, realDt);
+    (this.npcMarks ??= new NpcMarks(this.scene, this.terrain)).update(talkers, realDt);
     this.syncLandmarks(view.landmarks, fog, sim.map);
 
     this.syncTerrain();
@@ -933,11 +937,7 @@ export class Renderer {
       const r = g.userData.rect;
       if (!r) continue;
       const h = (g.userData.height ?? 2) * (g.userData.body?.scale.y ?? 1);
-      const edge = 0.8 + 0.35 * h;
-      const dx = Math.max(r.x - x, 0, x - (r.x + r.w)), dz = Math.max(r.y - z, 0, z - (r.y + r.h));
-      if (dx >= edge || dz >= edge) continue;
-      const s = Math.min(1, Math.hypot(dx, dz) / edge);
-      top = Math.max(top, g.position.y + h * (1 - s * s * (3 - 2 * s)));
+      top = Math.max(top, buildingTop(r, g.position.y, h, x, z));
     }
     return top;
   }

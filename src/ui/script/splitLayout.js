@@ -1,5 +1,6 @@
 // Layout of the code panel (ScriptPanel.vue) – pure, testable (tests/ui/splitLayout.test.js).
-//   split: desktop/tablet landscape – game left, program right, draggable divider, collapsible to a strip.
+//   split: desktop/tablet landscape – game left, program right, draggable divider (preview line, width applied
+//          on drop), collapsible to a strip.
 //   sheet: phone (portrait or small) – program as a full-screen sheet, "watch game" mode while it runs.
 
 /** localStorage key: { frac, collapsed } */
@@ -41,11 +42,19 @@ export function panelWidth(split, total) {
 }
 
 /**
- * Share of the window after dragging the divider to clientX (panel is on the right).
- * @param {number} clientX @param {number} total
+ * Panel width after dragging the divider to clientX (panel is on the right), within limits.
+ * @param {number} clientX @param {number} total window width
  */
-export function fracFromPointer(clientX, total) {
-  return clampWidth(total - clientX, total) / Math.max(1, total);
+export function widthFromPointer(clientX, total) {
+  return clampWidth(total - clientX, total);
+}
+
+/**
+ * Horizontal offset of the drag guide line from the current panel edge (negative = to the left, panel wider).
+ * @param {number} current panel width now @param {number} next panel width after the drop
+ */
+export function guideOffset(current, next) {
+  return current - next;
 }
 
 /** Read stored split settings (broken or missing values → defaults). */

@@ -58,9 +58,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   speichert der Browser. Direktstart: `play/?mission=c1` … `play/?mission=c6`, `play/?mission=tutorial`.
 - **Programmier-Abenteuer**: Nelia mit Python steuern – fünf Lernabenteuer (Schleifen, Bedingungen, Funktionen,
   Listen), Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
-  mit Einzelschritt, Haltepunkten und Variablenansicht, Befehlserklärung beim Überfahren (Strg+Klick öffnet die
+  mit Einzelschritt, Haltepunkten und Variablenansicht, Knopf „Referenz“ zur Website, Befehlserklärung beim Überfahren (Strg+Klick öffnet die
   Referenz, am Handy langes Drücken), Fehlermeldungen mit Vorschlag,
-  `print()` als Meldung im Spiel, Programm als `.py` speichern und öffnen.
+  `print()` in die Konsole, `notify()` als Meldung im Spiel, Programm als `.py` speichern und öffnen.
   Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Orte, Missionen programmieren,
   Welt aus Code erzeugen, als JSON speichern, testspielen) und eigene Szenario-Dateien.
   Direktstart: `play/?mission=adv1` … `adv5`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
@@ -130,7 +130,7 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
 - Sprache Deutsch/Englisch, Grafikstufe, Lautstärken, Pausen zwischen Musikstücken, Häufigkeit der Sprüche der Figuren, Oberflächengröße, Randscrollen, Beschriftungen, „Dialoge vorlesen“ und „Kamera bei Dialogen“ (fährt nah an die sprechende Figur) im Menü „Einstellungen“ (Startmenü und Spielmenü).
 - **Spieloberfläche** aus freistehenden Schildern mit Abstand zum Bildrand, jedes nur so breit wie sein Inhalt – die Mitte gehört
   der Karte: oben Rohstoffe, Wappen genau in der Bildschirmmitte mit Zahltag-Medaillon (Sekunden erst kurz vorher, ein Lichtimpuls am
-  Zahltag) und Münzknöpfe für Pause, Tempo (Ausklappmenü 1× · 2× · 4×), Ton (stumm, Musik, Effekte, Gesamt) und Menü; unten links die Kartentafel: eckige Minikarte (Rechtsklick bzw. Tippen mit Auswahl schickt die Figuren dorthin), links daneben der Schnellzugriff
+  Zahltag) und Münzknöpfe für Pause (hält auch alle Animationen an, Welt in Graustufen, Schild „Pausiert“ unten mittig, bei offener Auswahl klein unter der Kopfleiste), Tempo (Ausklappmenü 1× · 2× · 4×), Ton (stumm, Musik, Effekte, Gesamt) und Menü; unten links die Kartentafel: eckige Minikarte (Rechtsklick bzw. Tippen mit Auswahl schickt die Figuren dorthin), links daneben der Schnellzugriff
   als eckige Knöpfe ohne Namen (Burg, Untätige mit Zahl, Alle Leibeigenen, Truppen), darüber die Heldenporträts übereinander (Klick wählt den Helden und holt ihn ins Bild; bewusstlos: grau mit Restzeit bis zum Aufwachen) und die
   **Steuergruppen** (Umschalt+1–9 merkt die Auswahl, 1–9 ruft sie ab, zweimal holt sie ins Bild; am Handy über
   „Als Gruppe merken“),

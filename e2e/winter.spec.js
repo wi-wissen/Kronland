@@ -21,7 +21,9 @@ test('Ice in winter stands still and is blue instead of white', async ({ page },
   test.setTimeout(180_000); // "high" level with software WebGL is slow
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  // "high": waves and gloss are only active there (even with software WebGL)
+  // "high": waves and gloss are only active there (even with software WebGL). The comparison reads only the middle
+  // of the picture: a small window keeps the frames of the software renderer short
+  await page.setViewportSize({ width: 640, height: 360 });
   await page.goto(playUrl('?seed=42&quality=high&fog=off'));
   await page.waitForFunction(() => !!window.__kronland?.renderer?.water);
   await page.evaluate(() => {
@@ -77,13 +79,13 @@ test('Trees in winter: deciduous bare, conifers snowy - swap without rebuild', a
   // own models loaded (five kinds), at first summer
   expect(summer.map((s) => s.model)).toEqual(['tree_oak', 'tree_beech', 'tree_birch', 'tree_spruce', 'tree_pine']);
   expect(summer.every((s) => !s.winter)).toBe(true);
-  const groups = await page.evaluate(() => window.__kronland.renderer.treeGroups);
+  const groups = await page.evaluate(() => window.__kronland.renderer.treeGroups.length);
   await page.evaluate(() => window.__kronland.renderer.applyWeather('winter'));
   // Winter versions are loaded later at the first winter
   await page.waitForFunction(() => window.__kronland.renderer.treeGroups.every((g) => g.meshes[0].material !== g.userData.summer.material), null, { timeout: 90_000 });
   const winter = await state();
   expect(winter.map((s) => s.chunks)).toEqual(summer.map((s) => s.chunks)); // same chunk groups, only swapped
-  expect(await page.evaluate((n) => window.__kronland.renderer.treeGroups.length === n, groups.length)).toBe(true);
+  expect(await page.evaluate(() => window.__kronland.renderer.treeGroups.length)).toBe(groups);
   await page.waitForTimeout(800);
   await page.screenshot({ path: `test-results/trees-winter-${info.project.name}.png`, timeout: 90_000 });
   await page.evaluate(() => window.__kronland.renderer.applyWeather('summer'));

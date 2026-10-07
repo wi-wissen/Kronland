@@ -78,21 +78,23 @@ test('Error message with line and suggestion, single step with variables', async
   await page.getByTestId('script-run').click();
   await expect(page.getByTestId('script-error')).toContainText('NameError', SLOW);
   await expect(page.getByTestId('script-error')).toContainText('wood');
-  await expect(page.getByTestId('script-status')).toHaveText('Fehler');
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'error');
 
   await ta.fill('a = 1\nb = a + 41\nprint(b)\n');
   await page.getByTestId('script-step').click();
-  await expect(page.getByTestId('script-status')).toHaveText('angehalten', SLOW);
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'paused', SLOW);
+  // One step at a time: two step commands within the same tick count as one (the script only runs in the tick)
   await page.getByTestId('script-step').click();
+  await expect(page.getByTestId('script-vars')).toContainText(/a\s*1/, SLOW); // a = 1
   await page.getByTestId('script-step').click();
   await expect(page.getByTestId('script-vars')).toContainText('42', SLOW);
   await page.getByTestId('script-continue').click();
   await expect(page.getByTestId('script-console')).toContainText('42', SLOW);
-  await expect(page.getByTestId('script-status')).toHaveText('fertig');
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'done');
   expect(errors).toEqual([]);
 });
 
-test('print() as a notice, error clears after editing, save and open .py', async ({ page }) => {
+test('print() to the console, notify() as a notice, error clears after editing, save and open .py', async ({ page }) => {
   const errors = await fresh(page);
   await page.goto(playUrl('?mission=adv1&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
@@ -109,25 +111,32 @@ test('print() as a notice, error clears after editing, save and open .py', async
   await ta.fill('wood = 3\nprint(wood)\n');
   await expect(page.getByTestId('script-error')).toHaveCount(0);
   await expect(sec.locator('.ce-ln.error')).toHaveCount(0);
-  await expect(page.getByTestId('script-status')).toHaveText('bereit');
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'idle');
   await expect(page.getByTestId('script-console')).toHaveCount(0);
 
-  // print(): notice in the game (newest wins, bundled) and output in the panel, only of the current run
+  // print(): only output in the panel (current run), no notice in the game
+  const note = page.locator('[data-testid="toast"][data-cat="script"]');
   await ta.fill('print("Hallo Kronland")\nfor i in range(3):\n    print("Runde", i)\n');
   await page.getByTestId('script-run').click();
-  const note = page.locator('[data-testid="toast"][data-cat="script"]');
-  await expect(note).toHaveCount(1, SLOW);
-  await expect(note).toContainText('Runde 2', SLOW);
   await expect(page.getByTestId('script-console')).toContainText('Hallo Kronland', SLOW);
   await expect(page.getByTestId('script-console')).toContainText('Runde 2');
   await expect(page.getByTestId('script-console')).not.toContainText('NameError');
-  await page.screenshot({ path: test.info().outputPath('print.png') });
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'done', SLOW);
+  await expect(note).toHaveCount(0);
+  // notify(): one notice in the game (newest wins, bundled), not in the console
+  await ta.fill('print("Hallo Kronland")\nfor i in range(3):\n    notify(f"Meldung {i}")\n    wait(0.1)\n');
+  await page.getByTestId('script-run').click();
+  await expect(note).toHaveCount(1, SLOW);
+  await expect(note).toContainText('Meldung 2', SLOW);
+  await expect(page.getByTestId('script-console')).toContainText('Hallo Kronland');
+  await expect(page.getByTestId('script-console')).not.toContainText('Meldung');
+  await page.screenshot({ path: test.info().outputPath('notify.png') });
 
   // Save as .py
   const [dl] = await Promise.all([page.waitForEvent('download'), tool(page, 'script-download')]);
   expect(dl.suggestedFilename()).toBe('adv1.py');
   const fs = await import('node:fs/promises');
-  expect(await fs.readFile(await dl.path(), 'utf8')).toContain('print("Runde", i)');
+  expect(await fs.readFile(await dl.path(), 'utf8')).toContain('notify(f"Meldung {i}")');
 
   // Open a .py file from the device
   await page.getByTestId('script-file').setInputFiles({ name: 'weg.py', mimeType: 'text/x-python', buffer: Buffer.from('\uFEFFfor i in range(2):\r\n    hero.step()\r\n') });
