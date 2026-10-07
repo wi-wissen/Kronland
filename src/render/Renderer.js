@@ -14,7 +14,8 @@ import {
 } from './lod.js';
 import { CharacterSystem, sharedCharacterRoots, cavalryGait } from './characters.js';
 import { Effects, HealthBars, GroundMarks, sharedPuffTexture } from './effects.js';
-import { OrderMarkers } from './orderMarker.js';
+import { OrderMarkers, WALKMARK_IMAGE } from './orderMarker.js';
+import { siteUrl } from '../paths.js';
 import { CameraRig, nearFactor } from './CameraRig.js';
 import { BUILDINGS } from '../sim/data/buildings.js';
 import { UNIT, TICKS_PER_SECOND } from '../sim/fixed.js';
@@ -124,7 +125,7 @@ export class Renderer {
     this.fx = new Effects(this.scene, q);
     this.bars = new HealthBars(this.scene);
     this.marks = new GroundMarks(this.scene);
-    this.orderMarks = new OrderMarkers(this.scene, (x, z) => this.groundY(x, z));
+    this.orderMarks = new OrderMarkers(this.scene, (x, z) => this.groundY(x, z), this.walkmarkTexture());
     /** Destroyed buildings as ruins (rendering only) */
     this.ruins = [];
     /** Construction values from the last frame (dust clouds on progress) */
@@ -203,7 +204,7 @@ export class Renderer {
       this.chars.prewarm(true);
       for (const lv of this.buildingLods?.values() ?? []) for (const m of lv) if (!m.visible) { hidden.push(m); m.visible = true; }
       for (const c of this.chunked) for (const m of c.meshes) if (!m.visible) { hidden.push(m); m.visible = true; }
-      for (const m of [this.fx.smoke.mesh, this.fx.fire.mesh, this.fx.flames.mesh, this.bars.mesh, this.marks.mesh, ...this.orderMarks.pool.map((p) => p.group)]) if (!m.visible) { hidden.push(m); m.visible = true; }
+      for (const m of [this.fx.smoke.mesh, this.fx.fire.mesh, this.fx.flames.mesh, this.bars.mesh, this.marks.mesh, ...this.orderMarks.pool.map((p) => p.mesh)]) if (!m.visible) { hidden.push(m); m.visible = true; }
       // Models that only appear in the middle of the game (campfire, construction site, scaffolding, ruin): draw once along,
       // so that their shaders are compiled now and do not later stop the running game for seconds
       // (measured on a crowd: new shader "campfire" in the middle of the game, see docs/PERFORMANCE.md)
@@ -1494,6 +1495,15 @@ export class Renderer {
     if (!m.inBounds(tx, tz) || !(m.flags[m.idx(tx, tz)] & BRIDGE)) return h;
     const b = this.sim.entities.get(m.owner[m.idx(tx, tz)]) ?? (this.sim.bridgeSites ?? []).find((s) => tx >= s.x && tz >= s.y && tx < s.x + s.w && tz < s.y + s.h);
     return Math.max(h, b ? this.bridgeDeckY(b) : this.terrain.waterLevelY + 0.25);
+  }
+
+  /** Painted marker for walk commands (loads in the background). */
+  walkmarkTexture() {
+    try {
+      const tex = new THREE.TextureLoader().load(siteUrl(WALKMARK_IMAGE));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    } catch { return null; }
   }
 
   /** Click confirmation at a walk target. @param {number} x @param {number} z world coordinates (tiles) */

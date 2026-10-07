@@ -830,7 +830,7 @@ export class Engine {
     }
   }
 
-  /** Cursor over the map: announces what a right click would do with the selection (desktop, mouse only). */
+  /** Cursor over the map (glove): announces what a right click would do with the selection (desktop, mouse only). */
   updateCursor(cx, cy) {
     const now = performance.now();
     if (now - (this.cursorAt ?? 0) < 60) return;

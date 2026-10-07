@@ -39,6 +39,8 @@ node scripts/art/finish.mjs menu           # Menüsymbole (Sonderkarten, Program
 |---|---|---|
 | `symbols` | `public/icons/ab-farsight.webp`, `ab-bribe.webp`, `ab-intimidate.webp` (128 px, Alpha) | `IMAGE_ICONS` in `src/ui/icons/index.js` |
 | `menu` | `public/icons/mode-special.webp` (Sonderkarten), `mode-adventure.webp` (Programmier-Abenteuer), 128 px, Alpha | `IMAGE_ICONS`; Startmenü, Spielstände (freies Spiel ohne Vorschaubild) |
+| `cursors` | `public/icons/cursor-hand.png` (Handschuh, normaler Zeiger), `cursor-chop`, `-mine`, `-build`, `-attack` (40 px, Alpha) und `src/game/cursorHotspots.js` (erzeugt) | `src/game/cursors.js` |
+| `walkmark` | `public/icons/walkmark.webp` (256 px, Alpha): vier nach innen kreisende Pfeile, von oben | `src/render/orderMarker.js` |
 | `herald` | `public/portraits/sp-herald.webp` (256 px, Cremegrund `#f1ece4`) | `SPEAKER_PORTRAITS` |
 | `title`, `loading` | `public/art/title.webp` (2560 px), `loading.webp` (1920 px), je < 400 KB | `src/ui/art.js` → `.backdrop` |
 
@@ -53,6 +55,12 @@ node scripts/art/finish.mjs menu           # Menüsymbole (Sonderkarten, Program
   ragt über ihr Drittel, darum steht statt `slot` ein Ausschnitt `crop: [x, y, b, h]`. Für die Tafel gilt
   `innerWhite: false`, sonst würde die Kreide als eingeschlossenes Weiß ausgestanzt; Kreidestück und Zahnrad vor der
   Tafel liegen außerhalb des Ausschnitts.
+- **Mauszeiger** (`"kind": "cursors"`, `finish.out: "cursor"`): sechs Gegenstände im Raster 3×2 auf Weiß (Gemini, 0,14 $),
+  je Feld ein Ausschnitt `crop`. Gemini kippt die Werkzeuge nach rechts oben, darum `flip: true` (gespiegelt, Spitze
+  links oben). `finish.mjs` passt in 40 px ein (links oben bündig) und nimmt als Hotspot das deckende Pixel am
+  weitesten links oben; die Werte landen in `src/game/cursorHotspots.js`. Der Kompass aus Feld 6 wird nicht genutzt.
+- **Laufmarkierung** (`walkmark`, `finish.out: "decal"`): drei Entwürfe nebeneinander (21:9), genommen ist der linke
+  (vier nach innen kreisende Pfeile, dunkel mit warmem Rand). 256 px, mittig.
 - **Herold:** Malvors Herold aus Mission 5 (Morvale). Neutrale Farben (Grau, Creme, Ocker), keine Spielerfarbe.
   Wichtig im Prompt: dieselbe Überzeichnung wie die Vorlagen (große Augen, Knollennase), sonst wird er zu realistisch.
 - **Kulissen:** Burg auf dem Hügel in der Bildmitte (bleibt beim hochkant zugeschnittenen Handy sichtbar), ruhiger

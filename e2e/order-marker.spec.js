@@ -46,8 +46,8 @@ test('walk command shows a marker at the target spot', async ({ page }, info) =>
   const marks = await page.evaluate(() => window.__markers);
   expect(marks).toHaveLength(1);
   expect(Math.hypot(marks[0].x - target.x, marks[0].z - target.z)).toBeLessThan(1);
-  // arrows flowing into the spot
-  for (const [name, age] of [['early', 0.15], ['late', 0.38]]) {
+  // marker swirling into the spot
+  for (const [name, age] of [['early', 0.15], ['late', 0.45]]) {
     await page.evaluate((age) => { for (const p of window.__kronland.renderer.orderMarks.pool) if (p.active) p.age = age; }, age);
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => window.__kronland.renderer.orderMarks.active)).toBe(1);
@@ -78,5 +78,5 @@ test('cursor shows an axe over a tree with serfs selected', async ({ page }, inf
   await page.mouse.move(tree.sx - 20, tree.sy);
   await page.mouse.move(tree.sx, tree.sy, { steps: 3 });
   await expect.poll(() => page.evaluate(() => window.__kronland.cursorKind), { timeout: 10_000 }).toBe('chop');
-  expect(await page.evaluate(() => window.__kronland.renderer.renderer.domElement.style.cursor)).toContain('data:image/svg+xml');
+  expect(await page.evaluate(() => window.__kronland.renderer.renderer.domElement.style.cursor)).toContain('cursor-chop');
 });

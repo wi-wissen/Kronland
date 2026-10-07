@@ -54,9 +54,9 @@ describe('planCommandAt', () => {
 });
 
 describe('cursorCss', () => {
-  it('own SVG cursor with hot spot per kind, normal pointer otherwise', () => {
-    expect(CURSOR_KINDS).toEqual(['attack', 'chop', 'mine', 'build']);
-    for (const k of CURSOR_KINDS) expect(cursorCss(k)).toMatch(/^url\("data:image\/svg\+xml,.+"\) \d+ \d+, pointer$/);
-    expect(cursorCss(null)).toBe('');
+  it('painted cursor with hot spot per kind, glove otherwise', () => {
+    const url = (p) => '/' + p;
+    for (const k of CURSOR_KINDS) expect(cursorCss(k, url)).toMatch(new RegExp(`^url\\("/icons/cursor-${k}\\.png"\\) \\d+ \\d+, pointer$`));
+    expect(cursorCss(null, url)).toMatch(/^url\("\/icons\/cursor-hand\.png"\) \d+ \d+, default$/);
   });
 });

@@ -418,13 +418,14 @@ Prüfung im Editor, ohne Build-Schritt.
 | Menü | Esc | Knopf |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
 
-**Mauszeiger und Klickbestätigung** (wie im Vorbild): Mit ausgewählten Figuren zeigt der Mauszeiger über der Karte,
-was ein Rechtsklick bewirkt: Axt über einem Baum, Spitzhacke über einem Haufen, Hammer über einer eigenen Baustelle oder
-einem beschädigten Gebäude, Schwert über einem Gegner und im Angriffsmodus; sonst der normale Zeiger (`src/game/cursors.js`,
-eigene SVG-Zeichnungen). Zeiger und Befehl kommen aus derselben Planung (`Engine.planCommandAt`). Nur ein Laufbefehl
-bekommt am Ziel eine Bestätigung: dunkle Pfeile fließen von vier Seiten in den Punkt und verblassen (0,7 s,
-`src/render/orderMarker.js`, prozedural, wächst mit dem Kameraabstand), auch bei Befehlen über die Minikarte.
-Auf Touch-Geräten gibt es keinen Zeiger, die Bestätigung beim Laufen bleibt.
+**Mauszeiger und Klickbestätigung** (wie im Vorbild): Über der Karte ist der Zeiger ein gemalter Handschuh. Mit
+ausgewählten Figuren zeigt er, was ein Rechtsklick bewirkt: Axt über einem Baum, Spitzhacke über einem Haufen, Hammer
+über einer eigenen Baustelle oder einem beschädigten Gebäude, Schwert über einem Gegner und im Angriffsmodus
+(`src/game/cursors.js`, Bilder aus `scripts/art/`, siehe docs/SYMBOLE.md). Zeiger und Befehl kommen aus derselben
+Planung (`Engine.planCommandAt`). Nur ein Laufbefehl bekommt am Ziel eine Bestätigung: eine gemalte Markierung aus
+vier nach innen kreisenden Pfeilen liegt am Boden, dreht sich, zieht sich in den Punkt zusammen und verblasst
+(0,8 s, `src/render/orderMarker.js`, wächst mit dem Kameraabstand), auch bei Befehlen über die Minikarte. Auf
+Touch-Geräten gibt es keinen Zeiger, die Bestätigung beim Laufen bleibt.
 
 **Doppelklick/Doppeltippen** (bewusste Abweichung vom Vorbild, übliche RTS-Steuerung): Zwei Klicks bzw.
 Tipper binnen 400 ms und 24 px auf eine eigene Figur wählen alle eigenen Figuren derselben Art, deren Fußpunkt
