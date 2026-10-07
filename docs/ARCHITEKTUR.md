@@ -195,14 +195,18 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
   Fehlt ein Schlüssel für neue Daten, erscheint der deutsche Name aus der Datendatei.
 - Sprache: reaktiv (`i18n.lang`), gespeichert in `localStorage['kronland-lang']`; in Komponenten
   `$t`, `$tr`, `$reason`, `$name.building(…)` (globales Plugin `src/ui/plugin.js`).
+- **Modale Dialoge** (`.scrim` + `.dialog`: Spielstände, Einstellungen, Spielmenü, Spielende, Absturz,
+  Missionsergebnis, Rückfragen) hängen per `<Teleport to="body">` direkt an `<body>`. Im Startmenü würde
+  `.backdrop > *` sie sonst als Inhalt unter das Menü setzen, im Spiel sperrt `.game.split` (`contain: layout`) sie
+  auf die Spielfläche neben dem Code-Fenster ein. `e2e/modals.spec.js` prüft, dass sie den Bildschirm bedecken.
 - Meldungen: `engine.toast(key, params, { icon, tone, pos, ttl, cat })`; mit `pos` springt ein Klick dorthin, das ×
   schließt (`dismissToast`). Logik rein in `src/game/notices.js` (Test `tests/game/notices.test.js`):
   - **Kategorien** mit Vorrang und Grenze (`CATEGORIES`, Zuordnung je Schlüssel `categoryOf`, `err.*` = feedback):
     alarm (Angriff, zerstört, Held) > fire (Brand) > feedback (Antwort auf Eingaben, `err.*`) > system (Speichern) >
     build (fertig, repariert) > research > economy (Handel, Rohstoffe, Lagerfeuer) > military (rekrutiert, befördert)
-    > world (Wetter, Brücke eingestürzt) > info > script (`print()` des Spielerprogramms). Je Kategorie höchstens `limit` flüchtige Einträge, die älteste fällt weg.
+    > world (Wetter, Brücke eingestürzt) > info > script (`notify()` eines Programms). Je Kategorie höchstens `limit` flüchtige Einträge, die älteste fällt weg.
   - **Bündeln** (`addNotice`): gleiche Meldung (Schlüssel + Parameter) zählt hoch („×3“); Schlüssel in `MERGE`
-    (Beförderung, Rekrutiert, Gebäude fertig, Handel, `print()`) bündeln auch mit anderen Parametern zu einem Text mit `{n}`
+    (Beförderung, Rekrutiert, Gebäude fertig, Handel, `notify()`) bündeln auch mit anderen Parametern zu einem Text mit `{n}`
     („12 Beförderungen – zuletzt …“), Ort und Text der neuesten.
   - **Dauermeldungen** baut `Engine.persistentNotices()` bei jedem `uiState` aus dem Zustand (nur kleine Listen, kein
     Entity-Scan): Angriffsstellen aus `alerts.js` (dieselben wie der Minikarten-Puls, höchstens 2, Text nach dem
@@ -413,6 +417,12 @@ Prüfung im Editor, ohne Build-Schritt.
 | Figuren über die Minikarte schicken | Rechtsklick auf die Minikarte (Strg: Angriffsbewegung) | Tippen auf die Minikarte, solange Figuren ausgewählt sind |
 | Menü | Esc | Knopf |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
+
+**Auswahlrahmen** (`src/game/boxSelect.js`, `Input.showBox`): Ab 8 px Zug erscheint der Rahmen. Er ist ein einziges
+Element mit eigener Compositor-Ebene (`will-change: transform`), das dauerhaft in der Seite bleibt; Ziehen verschiebt es
+per `transform` und ändert nur die Größe, Ein-/Ausblenden schaltet eine Klasse. Während des Ziehens wird nichts
+gerechnet – welche eigenen Figuren drin liegen (`unitsInBox`, projiziert nur Leibeigene, Hauptleute und Helden), ermittelt
+`Engine.selectBox` erst beim Loslassen. Ein Zug pro Mausbewegung kostet so unter 1 ms.
 
 **Doppelklick/Doppeltippen** (bewusste Abweichung vom Vorbild, übliche RTS-Steuerung): Zwei Klicks bzw.
 Tipper binnen 400 ms und 24 px auf eine eigene Figur wählen alle eigenen Figuren derselben Art, deren Fußpunkt

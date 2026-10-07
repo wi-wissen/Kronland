@@ -83,22 +83,50 @@ test.describe('desktop split screen', () => {
     await page.waitForTimeout(1500);
     await shot(page, 'split');
 
-    // Drag the divider to the left: panel wider, game narrower, width stays after reload
+    // Drag the divider to the left: while dragging only the guide line moves (panel and canvas unchanged),
+    // on drop the panel gets wider and the canvas is resized once; the width stays after reload
+    await page.evaluate(() => {
+      const r = window.__kronland.renderer, orig = r.setSize.bind(r);
+      window.__sizes = 0;
+      r.setSize = (w, h) => { window.__sizes++; orig(w, h); };
+    });
     const div = page.getByTestId('script-divider');
+    const guide = page.getByTestId('script-guide');
+    await expect(page.getByTestId('script-fold')).toHaveCount(0);
+    await expect(guide).toBeHidden();
     const d = await div.boundingBox();
     await page.mouse.move(d.x + d.width / 2, d.y + 40);
     await page.mouse.down();
     await page.mouse.move(d.x - 200, d.y + 40, { steps: 8 });
+    await expect(guide).toBeVisible();
+    await expect.poll(async () => (await guide.boundingBox()).x).toBeLessThan(d.x - 150);
+    expect((await panel.boundingBox()).width).toBe(box.width);
+    expect(await page.evaluate(() => window.__sizes)).toBe(0);
+    await shot(page, 'split-drag-preview');
     await page.mouse.up();
+    await expect(guide).toBeHidden();
     const wide = await panel.boundingBox();
     expect(wide.width).toBeGreaterThan(box.width + 150);
     await expect.poll(() => canvasWidth(page)).toBe(Math.round(vw - wide.width));
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => window.__sizes)).toBe(1);
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('kronland-code-split')));
     expect(stored.frac).toBeCloseTo(wide.width / vw, 2);
     await shot(page, 'split-dragged');
 
-    // Collapse to the strip and back
-    await page.getByTestId('script-fold').click();
+    // Arrow keys on the divider: the width follows after the last key press, the canvas is resized once
+    await page.evaluate(() => { window.__sizes = 0; });
+    await div.focus();
+    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+    await expect.poll(async () => (await panel.boundingBox()).width).toBe(wide.width - 96);
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => window.__sizes)).toBe(1);
+    await expect.poll(() => canvasWidth(page)).toBe(Math.round(vw - wide.width + 96));
+    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowLeft');
+    await expect.poll(async () => (await panel.boundingBox()).width).toBe(wide.width);
+
+    // Collapse (button in the header) to the strip and back
+    await page.getByTestId('script-collapse').click();
     await expect(page.getByTestId('script-expand')).toBeVisible();
     expect((await panel.boundingBox()).width).toBeLessThan(50);
     await expect.poll(() => canvasWidth(page)).toBeGreaterThan(vw - 50);
@@ -109,6 +137,35 @@ test.describe('desktop split screen', () => {
     await page.getByTestId('script-expand').click();
     await expect(page.getByTestId('script-divider')).toBeVisible();
     expect(Math.abs((await panel.boundingBox()).width - wide.width)).toBeLessThan(3);
+    expect(errors).toEqual([]);
+  });
+
+  test('No tabs: the code stays visible, "Reference" opens the website, locked section header', async ({ page }) => {
+    const errors = await start(page);
+    const panel = page.getByTestId('script-panel');
+    await expect(page.getByTestId('script-tab-code')).toHaveCount(0);
+    await expect(page.getByTestId('script-status')).toHaveCount(0);
+    await expect(page.getByTestId('api-help')).toHaveCount(0);
+    await expect(panel).toHaveAttribute('data-status', 'idle');
+    // Locked, folded world section: chevron and title on the left, badge on the right edge
+    const fold = page.getByTestId('fold-world');
+    const fb = await fold.boundingBox();
+    const title = await fold.locator('.sp-fold-title').boundingBox();
+    const badge = await fold.getByTestId('section-locked').boundingBox();
+    expect(title.x - fb.x).toBeLessThan(40);
+    expect(fb.x + fb.width - (badge.x + badge.width)).toBeLessThan(16);
+    await expect(fold.getByTestId('section-locked')).toHaveText('gesperrt');
+
+    // "Reference" in the toolbar: scripting reference of the website in a new tab
+    const ref = page.getByTestId('script-reference');
+    await expect(ref).toBeVisible();
+    await expect(ref).toHaveAttribute('href', '../scripting/');
+    await expect(ref).toHaveAttribute('target', '_blank');
+    await shot(page, 'toolbar');
+    const [popup] = await Promise.all([page.waitForEvent('popup'), ref.click()]);
+    await popup.waitForLoadState('domcontentloaded').catch(() => {});
+    expect(popup.url()).toMatch(/\/scripting\/$/);
+    await popup.close();
     expect(errors).toEqual([]);
   });
 
@@ -171,14 +228,12 @@ test.describe('phone sheet', () => {
     expect(b.width).toBeGreaterThanOrEqual(vp.width - 1);
     expect(b.height).toBeGreaterThanOrEqual(vp.height - 1);
     await shot(page, 'sheet-code');
-    await page.getByTestId('script-tab-help').click();
-    await page.getByTestId('api-search').fill('split');
-    await page.getByTestId('api-sig-str.split').click();
-    await expect(page.getByTestId('doc-card')).toContainText('split');
-    await shot(page, 'sheet-help');
-    await page.getByTestId('script-tab-code').click();
+    // Tabs Code and Output only (no command list), the reference sits in the "⋯" menu
+    await expect(page.getByTestId('script-tab-help')).toHaveCount(0);
+    await expect(page.getByTestId('api-help')).toHaveCount(0);
     await page.getByTestId('script-menu').click();
     await expect(page.getByTestId('script-menu-list')).toBeVisible();
+    await expect(page.getByTestId('script-menu-list').getByTestId('script-reference')).toHaveAttribute('href', '../scripting/');
     await shot(page, 'sheet-menu');
     await page.getByTestId('script-menu').click();
 

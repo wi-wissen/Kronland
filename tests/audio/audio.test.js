@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { parseManifest, resolvePath, lookup, pickFile, allFiles, emptyManifest } from '../../src/audio/manifest.js';
 import { VoiceLimiter } from '../../src/audio/voices.js';
 import { distanceGain, audibleRadius, viewRadius, screenPan, spatialize, zoomGain } from '../../src/audio/spatial.js';
@@ -8,7 +8,7 @@ import { karplusStrong, midiToFreq } from '../../src/audio/karplus.js';
 import { BattleMeter } from '../../src/audio/battle.js';
 import { ambientTargets } from '../../src/audio/ambient.js';
 import { mulberry32 } from '../../src/audio/rng.js';
-import { AudioEngine, getAudio } from '../../src/audio/AudioEngine.js';
+import { AudioEngine, getAudio, afterGesture } from '../../src/audio/AudioEngine.js';
 import { SFX, SFX_NAMES } from '../../src/audio/sfx.js';
 
 describe('Manifest', () => {
@@ -412,6 +412,26 @@ describe('Without Web Audio (Node)', () => {
       expect(typeof d.play, name).toBe('function');
       expect(d.dur, name).toBeGreaterThan(0);
       expect(d.dur, name).toBeLessThan(5);
+    }
+  });
+});
+
+describe('afterGesture', () => {
+  it('runs the work later, not inside the input event, and swallows errors', () => {
+    vi.useFakeTimers();
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const log = [];
+      afterGesture(() => log.push('a'));
+      afterGesture(() => { throw new Error('boom'); });
+      afterGesture(() => log.push('b'));
+      expect(log).toEqual([]);
+      vi.runAllTimers();
+      expect(log).toEqual(['a', 'b']);
+      expect(err).toHaveBeenCalledTimes(1);
+    } finally {
+      err.mockRestore();
+      vi.useRealTimers();
     }
   });
 });

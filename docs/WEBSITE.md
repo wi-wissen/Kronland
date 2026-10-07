@@ -85,7 +85,7 @@ Kapitel `#intro`, `#language` …, Sprachgrundlagen `#lang-for` …, Spielobjekt
 
 - **Eine Quelle:** Liste der Spielbefehle `API_DOC` (`src/sim/scripting/api.js`), Python-Teil `PY_DOC`, Beispiele
   `EXAMPLES`, Fehler `ERRORS`, längere Beispiele `WORKED` (`src/ui/script/reference.js` – auch die Befehlshilfe im
-  Spiel liest sie und verlinkt jeden Eintrag mit `refUrl()` hierher). Lange Texte: `src/ui/script/docs/de.js`
+  Welteneditor und die Karten im Code-Panel lesen sie und verlinken mit `refUrl()` hierher). Lange Texte: `src/ui/script/docs/de.js`
   und `en.js` (gleiche Schlüssel); `src/ui/script/commandDocs.js` liefert je Befehl Signatur, Kurztext, Parameter,
   Rückgabe, Beispiel, Fehler, Anker und Adresse als Daten (`commandDoc(name, lang)`) – für Seite und Code-Editor, Kapitel: `intro.de.md`/`intro.en.md`, Kurztexte: `script.api.*` in
   `src/i18n/script.js`. Englischer Wortlaut deutscher Beispieltexte steht in `EN_TEXT` (`reference.js`).

@@ -46,20 +46,23 @@
 
       <ToastFeed :toasts="ui.toasts" @jump="jump" @dismiss="(t) => engine?.dismissToast(t.id)" />
 
-      <div v-if="ui.gameOver && !watching" class="scrim endscreen" data-testid="game-over">
-        <div class="end-card parchment" :class="ui.gameOver.won ? 'won' : 'lost'" role="dialog" aria-modal="true" :aria-label="ui.gameOver.won ? $t('end.victory') : $t('end.defeat')">
-          <div class="end-banner">
-            <Icon :name="ui.gameOver.won ? 'crown' : 'skull'" class="end-crest" />
-            <h2 data-testid="game-over-title">{{ ui.gameOver.won ? $t('end.victory') : $t('end.defeat') }}</h2>
-          </div>
-          <p class="end-text">{{ ui.gameOver.won ? $t('end.victoryText') : $t('end.defeatText') }}</p>
-          <p class="end-time num">{{ $t('end.time', { t: clock(ui.tick) }) }}</p>
-          <div class="end-actions">
-            <button class="primary" data-testid="game-over-menu" @click="quit">{{ $t('end.toMenu') }}</button>
-            <button data-testid="game-over-watch" @click="watching = true">{{ $t('end.watch') }}</button>
+      <!-- Modals under <body>: .game.split (contain: layout) would confine them to the game area -->
+      <Teleport to="body">
+        <div v-if="ui.gameOver && !watching" class="scrim endscreen" data-testid="game-over">
+          <div class="end-card parchment" :class="ui.gameOver.won ? 'won' : 'lost'" role="dialog" aria-modal="true" :aria-label="ui.gameOver.won ? $t('end.victory') : $t('end.defeat')">
+            <div class="end-banner">
+              <Icon :name="ui.gameOver.won ? 'crown' : 'skull'" class="end-crest" />
+              <h2 data-testid="game-over-title">{{ ui.gameOver.won ? $t('end.victory') : $t('end.defeat') }}</h2>
+            </div>
+            <p class="end-text">{{ ui.gameOver.won ? $t('end.victoryText') : $t('end.defeatText') }}</p>
+            <p class="end-time num">{{ $t('end.time', { t: clock(ui.tick) }) }}</p>
+            <div class="end-actions">
+              <button class="primary" data-testid="game-over-menu" @click="quit">{{ $t('end.toMenu') }}</button>
+              <button data-testid="game-over-watch" @click="watching = true">{{ $t('end.watch') }}</button>
+            </div>
           </div>
         </div>
-      </div>
+      </Teleport>
 
       <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" :compact="compact" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog()" @line="engine.dialogFocus($event)" @focus="engine.focusHint($event)" @tribute="engine.payTribute($event)" />
       <MissionResult
@@ -78,21 +81,23 @@
 
       <DevPanel v-if="dev.on" :engine="engine" :touch="!!ui.touch" />
 
-      <div v-if="crash" class="scrim crash-scrim" data-testid="crash-dialog">
-        <div class="crash-card parchment" role="alertdialog" aria-modal="true" :aria-label="$t('crash.title')">
-          <h2><Icon name="warning" />{{ $t('crash.title') }}</h2>
-          <p>{{ $t('crash.text') }}</p>
-          <p v-if="latest" class="crash-latest" data-testid="crash-latest">{{ $t('crash.latest', { name: latest.name }) }}</p>
-          <p v-else class="crash-latest">{{ $t('crash.noSave') }}</p>
-          <p v-if="crashError" class="sm-error" role="alert" data-testid="crash-error">{{ crashError }}</p>
-          <details class="crash-detail"><summary>{{ $t('crash.detail') }}</summary><code data-testid="crash-message">{{ crash.area }}: {{ crash.message }}</code></details>
-          <div class="crash-actions">
-            <button class="primary" data-testid="crash-load" :disabled="!latest || crashBusy" @click="crashLoad"><Icon name="load" />{{ $t('crash.load') }}</button>
-            <button data-testid="crash-reload" @click="crashReload">{{ $t('crash.reload') }}</button>
-            <button data-testid="crash-menu" @click="crashMenu">{{ $t('end.toMenu') }}</button>
+      <Teleport to="body">
+        <div v-if="crash" class="scrim crash-scrim" data-testid="crash-dialog">
+          <div class="crash-card parchment" role="alertdialog" aria-modal="true" :aria-label="$t('crash.title')">
+            <h2><Icon name="warning" />{{ $t('crash.title') }}</h2>
+            <p>{{ $t('crash.text') }}</p>
+            <p v-if="latest" class="crash-latest" data-testid="crash-latest">{{ $t('crash.latest', { name: latest.name }) }}</p>
+            <p v-else class="crash-latest">{{ $t('crash.noSave') }}</p>
+            <p v-if="crashError" class="sm-error" role="alert" data-testid="crash-error">{{ crashError }}</p>
+            <details class="crash-detail"><summary>{{ $t('crash.detail') }}</summary><code data-testid="crash-message">{{ crash.area }}: {{ crash.message }}</code></details>
+            <div class="crash-actions">
+              <button class="primary" data-testid="crash-load" :disabled="!latest || crashBusy" @click="crashLoad"><Icon name="load" />{{ $t('crash.load') }}</button>
+              <button data-testid="crash-reload" @click="crashReload">{{ $t('crash.reload') }}</button>
+              <button data-testid="crash-menu" @click="crashMenu">{{ $t('end.toMenu') }}</button>
+            </div>
           </div>
         </div>
-      </div>
+      </Teleport>
 
       <GameMenu v-if="menuOpen" :engine="engine" :touch="ui.touch" :share="share" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" />
     </template>

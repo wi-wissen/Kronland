@@ -48,6 +48,7 @@ export const API_DOC = [
   { name: 'wait_until', sig: 'wait_until(condition, timeout=None)', level: 'player', group: 'flow' },
   { name: 'time', sig: 'time()', level: 'player', group: 'flow' },
   { name: 'print', sig: 'print(*values)', level: 'player', group: 'flow' },
+  { name: 'notify', sig: 'notify(text)', level: 'player', group: 'flow' },
   // Hero (coding adventure)
   { name: 'hero', sig: 'hero', level: 'player', group: 'hero' },
   { name: 'hero.step', sig: 'hero.step(n=1)', level: 'player', group: 'hero' },
@@ -352,6 +353,11 @@ export function makeApi(host, level) {
     return new Suspend({ k: 'until', fn, until: timeout === undefined || timeout === null ? -1 : sim().tick + secondsArg(timeout, 'timeout') });
   });
   def('time', () => new PyFloat(sim().tick / T));
+  def('notify', (ctx, a, kw) => {
+    const [text] = args('notify', a, kw, ['text']);
+    host.notify(level, ctx.vm.str(text));
+    return null;
+  });
 
   // ---------- Places and reading the world ----------
 

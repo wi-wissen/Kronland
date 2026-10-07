@@ -161,17 +161,19 @@
     </aside>
 
     <!-- New world -->
-    <div v-if="newOpen" class="scrim" @click.self="newOpen = false">
-      <div class="dialog frame ed-new" role="dialog" aria-modal="true" :aria-label="$t('editor.new')" data-testid="editor-new-dialog">
-        <h2 class="h-title">{{ $t('editor.new') }}</h2>
-        <div class="seg"><button v-for="b in ['flat', 'generate']" :key="b" :class="{ active: newBase === b }" @click="newBase = b">{{ $t('editor.base.' + b) }}</button></div>
-        <label>{{ $t('editor.mapSize') }}
-          <select v-model.number="newSize"><option v-for="n in (newBase === 'flat' ? [24, 32, 48, 64, 96] : [64, 96, 128])" :key="n" :value="n">{{ n }} × {{ n }}</option></select>
-        </label>
-        <label v-if="newBase === 'generate'">{{ $t('menu.mapNumber') }}<input v-model.number="newSeed" type="number" min="1"></label>
-        <div class="ed-row"><button @click="newOpen = false">{{ $t('common.cancel') }}</button><button class="primary" data-testid="editor-new-create" @click="createNew">{{ $t('editor.create') }}</button></div>
+    <Teleport to="body">
+      <div v-if="newOpen" class="scrim" @click.self="newOpen = false">
+        <div class="dialog frame ed-new" role="dialog" aria-modal="true" :aria-label="$t('editor.new')" data-testid="editor-new-dialog">
+          <h2 class="h-title">{{ $t('editor.new') }}</h2>
+          <div class="seg"><button v-for="b in ['flat', 'generate']" :key="b" :class="{ active: newBase === b }" @click="newBase = b">{{ $t('editor.base.' + b) }}</button></div>
+          <label>{{ $t('editor.mapSize') }}
+            <select v-model.number="newSize"><option v-for="n in (newBase === 'flat' ? [24, 32, 48, 64, 96] : [64, 96, 128])" :key="n" :value="n">{{ n }} × {{ n }}</option></select>
+          </label>
+          <label v-if="newBase === 'generate'">{{ $t('menu.mapNumber') }}<input v-model.number="newSeed" type="number" min="1"></label>
+          <div class="ed-row"><button @click="newOpen = false">{{ $t('common.cancel') }}</button><button class="primary" data-testid="editor-new-create" @click="createNew">{{ $t('editor.create') }}</button></div>
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 

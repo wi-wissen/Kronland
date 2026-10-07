@@ -1,8 +1,8 @@
-// Scripting reference: language-neutral part, shared by the in-game command help (ApiHelp.vue) and the
+// Scripting reference: language-neutral part, shared by the command help of the world editor (ApiHelp.vue) and the
 // website section scripting/ (src/site/scripting/). Texts (descriptions, parameters, return values) live in
 // src/ui/script/docs/de.js / en.js so the game bundle stays small.
 //
-// - BASICS: Python basics shown in the in-game help.
+// - BASICS: Python basics shown in the command help of the world editor.
 // - PY_DOC: built-in Python functions, math, random and the methods of str/list/tuple/dict
 //   (same shape as API_DOC in src/sim/scripting/api.js; `also` = further names explained in the same entry).
 // - EXAMPLES: one example per entry (string, or { de, en } when the example contains readable text).
@@ -12,7 +12,7 @@
 
 import { siteUrl } from '../../paths.js';
 
-/** Python basics (no game API) for the in-game help. */
+/** Python basics (no game API) for the command help of the world editor. */
 export const BASICS = [
   { name: 'py.print', sig: 'print("Hallo", x)', example: 'print("Hallo!")' },
   { name: 'py.var', sig: 'x = 5', example: 'count = 0' },
@@ -133,6 +133,7 @@ export const EXAMPLES = {
   ),
   time: 'start = time()\nhero.step(3)\nprint("Drei Schritte dauerten", round(time() - start, 1), "s")',
   print: 'wood = stock("wood")\nprint("Holz:", wood)\nprint(1, 2, 3, sep=" - ")',
+  notify: L('wood = stock("wood")\nif wood >= 100:\n    notify(f"Genug Holz: {wood}")\nprint("Holz:", wood)', 'wood = stock("wood")\nif wood >= 100:\n    notify(f"Enough wood: {wood}")\nprint("Wood:", wood)'),
   // ---------- Hero ----------
   hero: 'print(hero, hero.name, hero.x, hero.y)\nprint(nelia is hero)',
   'hero.step': 'hero.step()\nhero.step(2)',
@@ -331,6 +332,7 @@ export const EXAMPLES = {
 /** Typical errors per entry: error codes (err.script.…, script.game.…) with the variant after a dot. */
 export const ERRORS = {
   wait: ['err.script.type.numberNeeded'],
+  notify: ['err.script.argMissing'],
   wait_until: ['err.script.type.callableNeeded', 'err.script.type.waitInSync'],
   'hero.step': ['script.game.blocked', 'script.game.heroDown'],
   'hero.turn_to': ['script.game.dirUnknown'],
