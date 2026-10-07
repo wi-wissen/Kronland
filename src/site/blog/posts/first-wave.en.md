@@ -37,7 +37,7 @@ The solution is simple: a file in the root directory that every session reads fi
 contains only what really applies to everyone – the tech stack, the most important commands and a list of fixed
 rules. An excerpt:
 
-```
+```text CLAUDE.md (translated)
 - Simulation (src/sim) is deterministic: integers only (milli-tiles, isqrt),
   seeded RNG, no Math.random, no Date, fixed 100 ms tick. …
 - All texts bilingual via src/i18n (de.js, en.js, t()) …
@@ -62,7 +62,7 @@ How characters find their way is explained in [article 1](blog/simulation-core/)
 [A\* algorithm](https://en.wikipedia.org/wiki/A%2A_search_algorithm) searches it for the shortest path. A quick
 reminder: A\* rates each tile with
 
-```
+```pseudo
 f = g + h
 g = cost so far from the start (straight steps 10, diagonal 14)
 h = estimated remaining cost to the goal (octile distance)
@@ -85,8 +85,7 @@ computers with and without developer mode would no longer be in the same state. 
 **a second time** with exactly the same function `findPath` and passes it an *observer*: a function that is called
 at every step and takes notes.
 
-```js
-// src/dev/astar.js (trimmed)
+```js src/dev/astar.js
 export function recordSearch(map, sx, sy, goals, maxNodes = 20000) {
   …
   const observer = (kind, i, gv, hv, p) => {
@@ -107,7 +106,7 @@ The recording is a list of events in [typed arrays](https://developer.mozilla.or
 (`Uint8Array`, `Int32Array`). For playback, `SearchPlayback` rebuilds the state of every tile up to any step: forwards
 step by step, backwards simply from the start again. Instead of storing the state at every moment, you store the
 events and recompute the state when needed. This pattern is called
-[event sourcing](https://en.wikipedia.org/wiki/Event_sourcing).
+event sourcing.
 
 ### Ideas for lessons
 
@@ -138,8 +137,7 @@ Heights are stored as integers in centimetres in an array, one number per tile. 
 
 The code is short:
 
-```js
-// src/sim/systems/terrain.js (trimmed)
+```js src/sim/systems/terrain.js
 export function padHeight(map, x, y, w, h) {
   let sum = 0, n = 0;
   for (…) { sum += map.heights[map.idx(i, j)]; n++; }
@@ -198,8 +196,7 @@ hand, is exactly what `saveGame()` returns from the simulation.
 When the format changes, `formatVersion` goes up. For each step there is a small function that lifts a document from
 version *v* to *v + 1*. When loading, they are applied in order:
 
-```js
-// src/save/format.js (trimmed)
+```js src/save/format.js
 export const MIGRATIONS = {
   // version 0: the earlier "bare" save without an envelope
   0: (state) => ({ format: FORMAT, formatVersion: 1, gameVersion: 'unknown',
@@ -208,7 +205,7 @@ export const MIGRATIONS = {
 };
 ```
 
-```
+```pseudo
 // when loading, as pseudocode:
 v = detectVersion(doc)
 while v < FORMAT_VERSION:

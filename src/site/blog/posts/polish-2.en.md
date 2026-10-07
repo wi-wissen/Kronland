@@ -34,8 +34,7 @@ among the unimportant. “Your village is under attack” must not disappear beh
 Every notice now belongs to a **category**. Each category has a priority (smaller = more important) and a limit on how
 many of its notices may be visible at once:
 
-```js
-// src/game/notices.js (trimmed)
+```js src/game/notices.js
 export const CATEGORIES = {
   alarm:    { prio: 0, limit: 2 },  // attack, building destroyed, hero unconscious
   fire:     { prio: 1, limit: 1 },  // burning buildings
@@ -77,15 +76,14 @@ played a harp chime – a constant ringing. A cooldown of 0.4 seconds per sound 
 less often than that. The fix is a quiet period **per event kind**: after an arrival chime, all further arrivals stay
 silent for eight seconds, after a promotion for five.
 
-```js
-// src/audio/notify.js (trimmed)
+```js src/audio/notify.js
 export const NOTIFY_REST = { workerArrived: 8, promoted: 5 };
 
 admit(kind, now) {
   const r = this.rest[kind];
   if (!r) return true;                                 // no rule: always
-  const t = this.last.get(kind);
-  if (t !== undefined && now >= t && now - t < r) return false;
+  const t = this.last.get(kind) ?? -Infinity;         // time of the last sound
+  if (now >= t && now - t < r) return false;
   return true;
 }
 ```
@@ -104,8 +102,7 @@ A circle needs sine and cosine. But the simulation must not use `Math.sin`, beca
 computer (see [article 1](blog/simulation-core/)). For surrounding in melee (see [article 15](blog/polish/)) there was
 already a table with 24 directions in a 15° grid. For the circle spots it gets finer and moves into a file of its own:
 
-```js
-// src/sim/dirs.js
+```js src/sim/dirs.js
 /** sin(0°, 5°, …, 90°) × 1000, rounded. */
 const SIN5 = [0, 87, 174, 259, 342, 423, 500, 574, 643, 707, 766, 819, 866, 906, 940, 966, 985, 996, 1000];
 
@@ -130,8 +127,7 @@ size. The inner circle lies half a diagonal plus 0.4 tiles from the centre, a se
 spots a circle gets is computed by the simulation: the largest divisor of 72 at which neighbouring spots are still at
 least one tile apart.
 
-```js
-// src/sim/systems/spots.js
+```js src/sim/systems/spots.js
 function ringSize(radius, spacing) {
   const circ = idiv(radius * 6283, 1000);            // circumference = 2π · r, as an integer
   for (const n of RING_SIZES) if (idiv(circ, n) >= spacing) return n;
@@ -180,8 +176,7 @@ an enormous pick radius.
 The fix is short. After projection every point is in *normalised device coordinates*; z values between −1 and 1 are
 exactly what lies between the camera's near and far plane. Everything else does not count:
 
-```js
-// src/render/pick.js (trimmed)
+```js src/render/pick.js
 export function inDepth(z) { return Number.isFinite(z) && z >= -1 && z <= 1; }
 
 export function figurePickDistance(f, px, py, view) {

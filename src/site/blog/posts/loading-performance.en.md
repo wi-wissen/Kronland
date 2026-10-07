@@ -76,7 +76,7 @@ version immediately when it changes?
 
 ### The cache dilemma
 
-Browsers have a [cache](https://en.wikipedia.org/wiki/Cache_(computing)): they remember loaded files. Next time they at
+Browsers have a [cache](https://en.wikipedia.org/wiki/Cache_%28computing%29): they remember loaded files. Next time they at
 most ask the server “has `castle.lod1.glb` changed?”. Even that question costs a round trip over the network – with 100
 files, 100 round trips. If instead you tell the browser “this file never changes”, it never asks again – and never
 sees a changed version either.
@@ -87,12 +87,11 @@ The solution: the file name contains a **fingerprint of its content**. At build 
 [SHA-256 hash](https://en.wikipedia.org/wiki/SHA-2) for every file and appends its first ten hexadecimal digits to the
 name:
 
-```
+```text
 public/models/buildings/castle.lod1.glb  →  dist/models/buildings/castle.lod1.6792949877.glb
 ```
 
-```js
-// scripts/vite-hashed-assets.js (trimmed)
+```js scripts/vite-hashed-assets.js
 export function buildAssetMap(publicDir) {
   const map = {};
   for (const f of listFiles(publicDir)) {
@@ -118,8 +117,7 @@ The game code of course does not know the hashed names – it wants to load `mod
 plugin writes the mapping “logical path → file” into the code as a constant `__KRONLAND_ASSETS__` (about 15 KB
 compressed). Every file access goes through a small function:
 
-```js
-// src/paths.js (trimmed)
+```js src/paths.js
 export function assetPath(path, map = ASSETS) {
   const p = clean(path);
   return map?.[p] ?? p;     // in the build: hashed name; in the dev server: unchanged
@@ -188,8 +186,7 @@ measure that? The foot that is on the ground glides backwards relative to the bo
 each frame of the baked animation the game looks for the lowest points of the mesh (the bottom 3 % of the height, the
 sole) and tracks how fast they move:
 
-```js
-// src/render/characters.js (trimmed)
+```js src/render/characters.js
 export function strideSpeed(geo, bake, clip) {
   const feet = [];
   for (let f = 0; f < clip.frames; f++) {

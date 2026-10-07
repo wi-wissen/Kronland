@@ -35,7 +35,7 @@ Auf dieser Karte hing das Spiel immer wieder für Sekunden. Aber woran lag es?
 Weil Simulation und Darstellung getrennt sind (siehe [Artikel 1](blog/simulation-core/)), kann man die Simulation
 allein laufen lassen, in Node, ohne Browser. Das Skript `scripts/stress-run.js` spielt das Gewimmel so schnell es
 geht und misst je Spielminute die Rechenzeit pro Takt, die Zahl der Figuren und die Kosten eines Spielstands. Ein
-[Profiler](https://de.wikipedia.org/wiki/Profiler_(Programmierung)) zeigt dazu, in welcher Funktion die Zeit steckt.
+[Profiler](https://de.wikipedia.org/wiki/Profiler_%28Programmierung%29) zeigt dazu, in welcher Funktion die Zeit steckt.
 
 Das Ergebnis war deutlich: **42 % der gesamten Rechenzeit** verbrachte das Spiel in einer einzigen Funktion,
 `nearestEnemy` – der Suche nach dem nächsten Feind. Jeder Soldat ruft sie in jedem Takt auf.
@@ -57,16 +57,14 @@ Das Raster war also nicht das Problem. Das Problem war, was *innerhalb* der Zell
 Zelle wurde zuerst geprüft, ob sie ein Feind ist (eine Abfrage über die Diplomatie), dann der genaue Abstand
 gerechnet, dann ob sie angreifbar ist. Die Lösung: **billige Prüfungen zuerst**.
 
-```js
-// src/sim/systems/military.js (gekürzt)
+```js src/sim/systems/military.js
 export function nearestEnemy(sim, e, radius, opts) {
   const foe = [];                                   // Feindschaft je Besitzer – nur einmal je Aufruf
   const far = (radius + 1) * (radius + 1);
   for (/* jede Zelle im Quadrat um den Suchkreis */) {
     for (const t of sim.grid.get(cy * 4096 + cx)) {
-      let f = foe[t.owner];
-      if (f === undefined) f = foe[t.owner] = isEnemy(sim, e.owner, t.owner);
-      if (!f) continue;                               // billig: kein Feind
+      if (!(t.owner in foe)) foe[t.owner] = isEnemy(sim, e.owner, t.owner);
+      if (!foe[t.owner]) continue;                               // billig: kein Feind
       const dx = q.x - p.x, dy = q.y - p.y;
       if (dx * dx + dy * dy >= far) continue;         // billig: sicher zu weit (ohne Wurzel)
       const d = distTo(e, t);                         // teurer: genauer Abstand
@@ -115,8 +113,7 @@ wieder hinterher. Man nennt das die **Todesspirale**.
 
 Die neue Schleife hat ein **Zeitbudget**:
 
-```js
-// src/game/loop.js
+```js src/game/loop.js
 export const TICK_MS = 100, MAX_STEPS = 8, STEP_BUDGET_MS = 45;
 
 export function runSteps(acc, step, { now = () => performance.now(), budget = STEP_BUDGET_MS, maxSteps = MAX_STEPS } = {}) {
@@ -174,8 +171,7 @@ links und rechts, dann den äußeren Ring. So läuft niemand quer um das Ziel he
 Die Simulation darf aber kein `Math.sin` benutzen – das ist nicht auf jedem Rechner bitgleich. Deshalb stehen die
 Richtungen als Ganzzahlen in einer Tabelle:
 
-```js
-// src/sim/systems/military.js (gekürzt)
+```js src/sim/systems/military.js
 /** 24 Richtungen im 15°-Raster als Ganzzahl-Vektoren (Länge 1000) – keine Kommazahl-Winkel in der Sim. */
 const SIN15 = [0, 259, 500, 707, 866, 966, 1000];     // sin(0°), sin(15°), … sin(90°) · 1000
 const DIR24 = Array.from({ length: 24 }, (_, k) => {
@@ -226,8 +222,7 @@ Wie läuft ein Pferd? Jedes Bein wechselt zwischen **Standphase** (Huf am Boden,
 und **Schwungphase** (Huf in der Luft, schwingt nach vorn). Eine Gangart legt fest, wie lange die Standphase dauert
 (der *Duty-Faktor*) und wann jedes Bein aufsetzt:
 
-```js
-// scripts/asset-gen/gait.mjs
+```js scripts/asset-gen/gait.mjs
 export const GAITS = {
   // Schritt: Viertakt (links hinten, links vorn, rechts hinten, rechts vorn), immer 2–3 Hufe am Boden
   walk:   { period: 0.75, stride: 0.75, duty: 0.62, touch: { LH: 0, LF: 0.25, RH: 0.5, RF: 0.75 }, lift: 0.1, flex: 0.75 },
@@ -250,7 +245,7 @@ ist der Huf?) und heißt deshalb [inverse Kinematik](https://de.wikipedia.org/wi
 Für ein Bein mit vier Gelenken gibt es unendlich viele Lösungen. Das Skript wählt die, die einer *bevorzugten Haltung*
 am nächsten kommt (ein Pferdeknie knickt nun einmal nach hinten), und löst das Schritt für Schritt:
 
-```
+```pseudo
 wiederhole bis zu 80-mal:
     berechne aus den aktuellen Winkeln, wo der Huf ist      (Vorwärtskinematik)
     r = Ziel − Huf                                          (wie weit daneben?)

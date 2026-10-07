@@ -35,8 +35,7 @@ verschwinden.
 Jede Meldung gehört jetzt zu einer **Kategorie**. Jede Kategorie hat einen Vorrang (kleiner = wichtiger) und eine
 Grenze, wie viele ihrer Meldungen gleichzeitig zu sehen sein dürfen:
 
-```js
-// src/game/notices.js (gekürzt)
+```js src/game/notices.js
 export const CATEGORIES = {
   alarm:    { prio: 0, limit: 2 },  // Angriff, Gebäude zerstört, Held bewusstlos
   fire:     { prio: 1, limit: 1 },  // brennende Gebäude
@@ -80,15 +79,14 @@ einen Harfenklang – ein Dauer-Klingeln. Eine Abklingzeit von 0,4 Sekunden je K
 seltener als das. Die Lösung ist eine Ruhezeit **je Ereignisart**: Nach einem Einzugsklang sind acht Sekunden lang alle
 weiteren Einzüge still, nach einer Beförderung fünf.
 
-```js
-// src/audio/notify.js (gekürzt)
+```js src/audio/notify.js
 export const NOTIFY_REST = { workerArrived: 8, promoted: 5 };
 
 admit(kind, now) {
   const r = this.rest[kind];
   if (!r) return true;                                 // keine Regel: immer
-  const t = this.last.get(kind);
-  if (t !== undefined && now >= t && now - t < r) return false;
+  const t = this.last.get(kind) ?? -Infinity;         // Zeitpunkt des letzten Klangs
+  if (now >= t && now - t < r) return false;
   return true;
 }
 ```
@@ -108,8 +106,7 @@ Rechner bitgleich ist (siehe [Artikel 1](blog/simulation-core/)). Schon beim Umz
 [Artikel 15](blog/polish/)) gab es deshalb eine Tabelle mit 24 Richtungen im 15°-Raster. Für die Kreisplätze wird sie
 feiner und wandert in eine eigene Datei:
 
-```js
-// src/sim/dirs.js
+```js src/sim/dirs.js
 /** sin(0°, 5°, …, 90°) × 1000, gerundet. */
 const SIN5 = [0, 87, 174, 259, 342, 423, 500, 574, 643, 707, 766, 819, 866, 906, 940, 966, 985, 996, 1000];
 
@@ -135,8 +132,7 @@ Größe ab. Der innere Kreis liegt eine halbe Diagonale plus 0,4 Kacheln vom Mit
 Kacheln weiter außen. Wie viele Plätze ein Kreis bekommt, berechnet die Simulation: den größten Teiler von 72, bei dem
 benachbarte Plätze noch mindestens eine Kachel Abstand haben.
 
-```js
-// src/sim/systems/spots.js
+```js src/sim/systems/spots.js
 function ringSize(radius, spacing) {
   const circ = idiv(radius * 6283, 1000);            // Umfang = 2π · r, als Ganzzahl
   for (const n of RING_SIZES) if (idiv(circ, n) >= spacing) return n;
@@ -186,8 +182,7 @@ gewaltigen Fangradius.
 Die Korrektur ist kurz. Nach der Projektion liegt jeder Punkt in *normierten Gerätekoordinaten*; die z-Werte
 zwischen −1 und 1 sind genau das, was zwischen Nah- und Fernebene der Kamera liegt. Alles andere zählt nicht:
 
-```js
-// src/render/pick.js (gekürzt)
+```js src/render/pick.js
 export function inDepth(z) { return Number.isFinite(z) && z >= -1 && z <= 1; }
 
 export function figurePickDistance(f, px, py, view) {

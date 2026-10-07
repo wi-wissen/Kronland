@@ -62,8 +62,7 @@ der kleinsten Zahl von Einfügungen, Löschungen und Ersetzungen, mit der man ei
 Bausteine sind hier ganze Wörter, und zwei Wörter gelten als gleich, wenn sie sich höchstens in einem Buchstaben
 unterscheiden.
 
-```js
-// scripts/asset-gen/voice.mjs (gekürzt)
+```js scripts/asset-gen/voice.mjs
 export function similarity(a, b) {
   const x = words(a), y = words(b);
   if (x.join('') === y.join('')) return 1;          // "Alder Farm" = "Alderfarm"
@@ -112,7 +111,7 @@ die Simulation wäre nicht mehr deterministisch (siehe [Artikel 1](blog/simulati
 
 Wer Aufnahmen aus verschiedenen Quellen mischt, merkt schnell: Die eine ist doppelt so laut wie die andere. Das
 Maß dafür heißt **Lautheit** und wird in LUFS gemessen (*Loudness Units relative to Full Scale*, nach der Norm
-[EBU R 128](https://de.wikipedia.org/wiki/EBU_R_128)). 0 ist das technische Maximum, die Werte sind darum negativ:
+[EBU R 128](https://de.wikipedia.org/wiki/EBU_R128)). 0 ist das technische Maximum, die Werte sind darum negativ:
 −11 LUFS ist lauter als −22 LUFS. Anders als ein einfacher Spitzenpegel berücksichtigt LUFS, wie empfindlich das Ohr für
 verschiedene Tonhöhen ist, und mittelt über die ganze Aufnahme.
 
@@ -138,7 +137,7 @@ Lyria 3 Pro erzeugt aus einem Text ein Musikstück von bis zu zweieinhalb Minute
 Aufbaumusik“) liefert Beliebiges. Gut funktioniert dagegen, was ein Arrangeur aufschreiben würde: Instrumente, Tempo,
 Tonart, Stimmung und Form. Ein Prompt aus `scripts/asset-gen/music.mjs`:
 
-```
+```text scripts/asset-gen/music.mjs
 Instrumental only, absolutely no vocals, no choir, no spoken words. Background music for a calm
 medieval settlement-building strategy game … Mood: sunny morning in a green valley village,
 peaceful and hopeful. Warm orchestral folk: soft string ensemble, solo wooden recorder carrying a

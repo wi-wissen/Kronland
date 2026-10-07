@@ -50,8 +50,7 @@ los ist. Kronland macht es anders: Eine Mission ist im Wesentlichen eine **Besch
 Spielern, Zielen und Ereignissen. Eine gemeinsame Laufzeit (`src/sim/missions/runtime.js`) arbeitet diese
 Beschreibung ab. So sieht der Kopf von Mission 1 aus:
 
-```js
-// src/sim/missions/campaign/c1-lindgrund.js (gekürzt)
+```js src/sim/missions/campaign/c1-lindgrund.js
 export default {
   id: 'c1', seed: 1101, size: 96,
   title: t('Lindgrund', 'Lindgrund'),
@@ -126,8 +125,7 @@ den Zustands-Hash.
 
 Ein Tribut ist ein Angebot im Missionsfenster. Zwei Angebote mit derselben `group` schließen einander aus:
 
-```js
-// src/sim/missions/campaign/c4-eisenhain.js (gekürzt)
+```js src/sim/missions/campaign/c4-eisenhain.js
 tributes: {
   mercs:    { group: 'help', cost: { gold: 1400 },
               text: t('Söldner anheuern: 4 kampfbereite Truppen', …),
@@ -173,8 +171,7 @@ senkrecht. In jedem Durchgang:
 
 ![Ein Durchgang: Das Original (A|B) hat am Rand eine Naht, die verschobene Kopie (B|A) in der Mitte. Die Gewichtskurve unten nimmt von jedem Bild nur die gute Stelle.](blog/campaign/seamless-steps-de.svg)
 
-```js
-// scripts/asset-gen/groundtex.mjs (gekürzt)
+```js scripts/asset-gen/groundtex.mjs
 const smooth = (t) => t * t * (3 - 2 * t);           // weiche S-Kurve
 export function edgeWeight(i, n, band) {              // 0 am Rand, 1 in der Mitte
   const d = Math.min(i + 0.5, n - i - 0.5) / Math.max(1, band * n);

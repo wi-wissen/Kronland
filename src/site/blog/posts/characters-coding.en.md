@@ -43,7 +43,7 @@ A mesh alone cannot move. So the character gets a **skeleton** (a *rig*): a hier
 root, the spine and thighs hang from them, the neck and shoulders from the spine, the upper arms from the shoulders,
 and so on. The serf has 24 bones:
 
-```
+```text
 Hips → Spine02 → Spine01 → Spine → neck → Head
                                  → LeftShoulder → LeftArm → LeftForeArm → LeftHand
                                  → RightShoulder → …
@@ -66,7 +66,7 @@ So every vertex gets up to **four bones with weights** that add up to 1. This is
 
 For each vertex the program then computes:
 
-```
+```pseudo
 new_position = Σ  weight[i] · Matrix(bone[i]) · rest_position
               i=1..4
 ```
@@ -89,7 +89,7 @@ image above they are hidden.
 
 11,429 triangles for a single serf are a lot when a hundred of them walk around. At the same time a character is only
 about 25 pixels tall at normal zoom – you cannot see fine facial features there. The solution is called
-[level of detail](https://en.wikipedia.org/wiki/Level_of_detail_(computer_graphics)) (LOD): several versions of the
+[level of detail](https://en.wikipedia.org/wiki/Level_of_detail_%28computer_graphics%29) (LOD): several versions of the
 same model, depending on how large it appears on screen right now.
 
 Every character therefore has two meshes with the same skeleton:
@@ -133,8 +133,7 @@ Kronland does it differently:
 The shader code for this (in [GLSL](https://en.wikipedia.org/wiki/OpenGL_Shading_Language), the language for graphics
 card programs) is surprisingly short:
 
-```glsl
-// src/render/characters.js (trimmed)
+```glsl src/render/characters.js
 uniform highp sampler2D uBones;   // the baked bone texture
 attribute vec4 aBoneIdx;           // up to four bones per vertex …
 attribute vec4 aBoneW;             // … and their weights
@@ -180,7 +179,7 @@ You might ask why not simply run JavaScript in the browser. Three reasons:
 
 This is how a program travels through the machine:
 
-```
+```text
 source → lexer → tokens → parser → syntax tree → compiler → bytecode → VM
 ```
 
@@ -199,14 +198,14 @@ hero.say("There!")
 
 it produces this sequence (real output of `tokenize`):
 
-```
+```text
 kw:while  name:hero  op:.  name:can_step  op:(  op:)  op::  newline
 indent  name:hero  op:.  name:step  op:(  op:)  newline
 dedent  name:hero  op:.  name:say  op:(  str:"There!"  op:)  newline  eof
 ```
 
 Note `indent` and `dedent`. In Python, indentation decides which lines belong to the loop. For this the lexer keeps a
-[stack](https://en.wikipedia.org/wiki/Stack_(abstract_data_type)) of the current indentation depths: if a line is
+[stack](https://en.wikipedia.org/wiki/Stack_%28abstract_data_type%29) of the current indentation depths: if a line is
 indented deeper, it pushes the new depth and emits `indent`; when the code goes back, it pops depths and emits a
 `dedent` for each one. After that, the parser sees indentation like curly braces in other languages.
 
@@ -223,7 +222,7 @@ tree than the `+` and is computed first.
 The [compiler](https://en.wikipedia.org/wiki/Compiler) walks the tree and produces **bytecode**: a list of simple
 instructions for an imaginary machine. For the `while` loop above it looks like this (real output):
 
-```
+```text
  0 LOAD_GLOBAL  hero
  1 LOAD_ATTR    can_step
  2 CALL         0          ← call a function without arguments
@@ -249,8 +248,7 @@ all names. Write `hero.stpe()` and it reports the error before anything runs and
 The VM is a [stack machine](https://en.wikipedia.org/wiki/Stack_machine): `LOAD_CONST` pushes a value onto the stack,
 `BINARY` pops two and pushes the result. At its core it is one big loop:
 
-```js
-// src/script/vm.js (trimmed)
+```js src/script/vm.js
 execute(task, budget) {
   for (;;) {
     if (used >= budget) break;                 // budget used up: continue later

@@ -38,7 +38,7 @@ Die Lösung ist schlicht: eine Datei im Wurzelverzeichnis, die jede Sitzung zu B
 enthält nur, was wirklich für alle gilt – den Technik-Stack, die wichtigsten Befehle und eine Liste fester Regeln.
 Ein Ausschnitt:
 
-```
+```text CLAUDE.md
 - Simulation (src/sim) ist deterministisch: nur Ganzzahlen (Milli-Kacheln, isqrt),
   seeded RNG, kein Math.random, kein Date, fester 100-ms-Tick. …
 - Alle Texte zweisprachig über src/i18n (de.js, en.js, t()) …
@@ -63,7 +63,7 @@ Wie Figuren ihren Weg finden, erklärt [Artikel 1](blog/simulation-core/): Die K
 [A\*-Algorithmus](https://de.wikipedia.org/wiki/A%2A-Algorithmus) sucht darauf den kürzesten Weg. Kurz zur
 Erinnerung: A\* bewertet jedes Feld mit
 
-```
+```pseudo
 f = g + h
 g = bisherige Kosten vom Start (gerade Schritte 10, schräge 14)
 h = geschätzte Restkosten bis zum Ziel (Oktil-Abstand)
@@ -86,8 +86,7 @@ und ohne Entwicklermodus nicht mehr im gleichen Zustand. Deshalb rechnet der Ent
 Mal** mit genau derselben Funktion `findPath` und gibt ihr einen *Beobachter* mit: eine Funktion, die bei jedem
 Schritt aufgerufen wird und mitschreibt.
 
-```js
-// src/dev/astar.js (gekürzt)
+```js src/dev/astar.js
 export function recordSearch(map, sx, sy, goals, maxNodes = 20000) {
   …
   const observer = (kind, i, gv, hv, p) => {
@@ -109,7 +108,7 @@ Die Aufzeichnung ist eine Liste von Ereignissen in
 `Int32Array`). Zum Abspielen baut `SearchPlayback` den Zustand jedes Feldes bis zu einem beliebigen Schritt auf:
 vorwärts Schritt für Schritt, rückwärts einfach neu von vorn. Statt den Zustand zu jedem Zeitpunkt zu speichern,
 speichert man also die Ereignisse und rechnet den Zustand bei Bedarf nach. Dieses Muster heißt
-[Event Sourcing](https://en.wikipedia.org/wiki/Event_sourcing).
+Event Sourcing.
 
 ### Ideen für den Unterricht
 
@@ -141,8 +140,7 @@ Schritten:
 
 Der Code dazu ist kurz:
 
-```js
-// src/sim/systems/terrain.js (gekürzt)
+```js src/sim/systems/terrain.js
 export function padHeight(map, x, y, w, h) {
   let sum = 0, n = 0;
   for (…) { sum += map.heights[map.idx(i, j)]; n++; }
@@ -203,8 +201,7 @@ genau das, was `saveGame()` aus der Simulation liefert.
 Ändert sich das Format, steigt `formatVersion`. Für jeden Schritt gibt es eine kleine Funktion, die ein Dokument
 von Version *v* auf *v + 1* hebt. Beim Laden werden sie der Reihe nach angewendet:
 
-```js
-// src/save/format.js (gekürzt)
+```js src/save/format.js
 export const MIGRATIONS = {
   // Version 0: der frühere „nackte“ Spielstand ohne Umschlag
   0: (state) => ({ format: FORMAT, formatVersion: 1, gameVersion: 'unknown',
@@ -213,7 +210,7 @@ export const MIGRATIONS = {
 };
 ```
 
-```
+```pseudo
 // beim Laden, als Pseudocode:
 v = detectVersion(doc)
 solange v < FORMAT_VERSION:
@@ -237,7 +234,7 @@ das auch. Abgelegt wird alles komprimiert.
 
 - **Spielstände** brauchten sechs Nachbesserungen. Eine Frist für IndexedDB schlug zu, wenn das Spiel den
   Hauptfaden gerade voll auslastete. Änderungen in mehreren offenen Tabs mussten *atomar* werden – Lesen, Ändern und
-  Schreiben in einer einzigen [Transaktion](https://de.wikipedia.org/wiki/Transaktion_(Informatik)) –, sonst
+  Schreiben in einer einzigen [Transaktion](https://de.wikipedia.org/wiki/Transaktion_%28Informatik%29) –, sonst
   überschreibt ein Tab die Änderung des anderen. Und das Ziehen einer Datei auf die Seite öffnete sie versehentlich im
   Browser, statt sie zu importieren.
 - **Symbol-Atlas:** Gemini lieferte einen schönen Bogen, aber im falschen Raster (14 × 7), mit erfundenen und

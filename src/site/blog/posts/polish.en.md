@@ -35,7 +35,7 @@ On this map the game kept hanging for seconds at a time. But why?
 Because simulation and rendering are separate (see [article 1](blog/simulation-core/)), you can run the simulation on
 its own, in Node, without a browser. The script `scripts/stress-run.js` plays the Crowd map as fast as possible and
 measures, per game minute, the computing time per tick, the number of characters and the cost of a save. A
-[profiler](https://en.wikipedia.org/wiki/Profiling_(computer_programming)) shows in addition which function the time
+[profiler](https://en.wikipedia.org/wiki/Profiling_%28computer_programming%29) shows in addition which function the time
 is spent in.
 
 The result was clear: **42 % of all computing time** went into a single function, `nearestEnemy` – the search for the
@@ -58,16 +58,14 @@ So the grid was not the problem. The problem was what happened *inside* the cell
 it first checked whether it was an enemy (a query through diplomacy), then computed the exact distance, then whether it
 could be attacked. The fix: **cheap checks first**.
 
-```js
-// src/sim/systems/military.js (trimmed)
+```js src/sim/systems/military.js
 export function nearestEnemy(sim, e, radius, opts) {
   const foe = [];                                   // hostility per owner – only once per call
   const far = (radius + 1) * (radius + 1);
   for (/* every cell in the square around the search circle */) {
     for (const t of sim.grid.get(cy * 4096 + cx)) {
-      let f = foe[t.owner];
-      if (f === undefined) f = foe[t.owner] = isEnemy(sim, e.owner, t.owner);
-      if (!f) continue;                               // cheap: not an enemy
+      if (!(t.owner in foe)) foe[t.owner] = isEnemy(sim, e.owner, t.owner);
+      if (!foe[t.owner]) continue;                               // cheap: not an enemy
       const dx = q.x - p.x, dy = q.y - p.y;
       if (dx * dx + dy * dy >= far) continue;         // cheap: surely too far (no square root)
       const d = distTo(e, t);                         // pricier: exact distance
@@ -115,8 +113,7 @@ is called the **death spiral**.
 
 The new loop has a **time budget**:
 
-```js
-// src/game/loop.js
+```js src/game/loop.js
 export const TICK_MS = 100, MAX_STEPS = 8, STEP_BUDGET_MS = 45;
 
 export function runSteps(acc, step, { now = () => performance.now(), budget = STEP_BUDGET_MS, maxSteps = MAX_STEPS } = {}) {
@@ -174,8 +171,7 @@ alternately, then the outer ring. That way nobody runs across around the target.
 But the simulation must not use `Math.sin` – it is not bit-identical on every computer. So the directions are stored as
 integers in a table:
 
-```js
-// src/sim/systems/military.js (trimmed)
+```js src/sim/systems/military.js
 /** 24 directions in a 15° grid as integer vectors (length 1000) – no floating-point angles in the sim. */
 const SIN15 = [0, 259, 500, 707, 866, 966, 1000];     // sin(0°), sin(15°), … sin(90°) · 1000
 const DIR24 = Array.from({ length: 24 }, (_, k) => {
@@ -228,8 +224,7 @@ How does a horse walk? Each leg alternates between the **stance phase** (hoof on
 to the body) and the **swing phase** (hoof in the air, swinging forward). A gait defines how long the stance phase lasts
 (the *duty factor*) and when each leg touches down:
 
-```js
-// scripts/asset-gen/gait.mjs
+```js scripts/asset-gen/gait.mjs
 export const GAITS = {
   // walk: four-beat (left hind, left front, right hind, right front), always 2–3 hooves on the ground
   walk:   { period: 0.75, stride: 0.75, duty: 0.62, touch: { LH: 0, LF: 0.25, RH: 0.5, RF: 0.75 }, lift: 0.1, flex: 0.75 },

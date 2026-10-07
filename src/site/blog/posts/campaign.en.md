@@ -49,8 +49,7 @@ does it differently: a mission is essentially a **description** – a JavaScript
 events. A shared runtime (`src/sim/missions/runtime.js`) works through that description. This is the head of
 mission 1:
 
-```js
-// src/sim/missions/campaign/c1-lindgrund.js (trimmed)
+```js src/sim/missions/campaign/c1-lindgrund.js
 export default {
   id: 'c1', seed: 1101, size: 96,
   title: t('Lindgrund', 'Lindgrund'),
@@ -123,8 +122,7 @@ in the state hash.
 
 A tribute is an offer in the mission panel. Two offers with the same `group` exclude each other:
 
-```js
-// src/sim/missions/campaign/c4-eisenhain.js (trimmed)
+```js src/sim/missions/campaign/c4-eisenhain.js
 tributes: {
   mercs:    { group: 'help', cost: { gold: 1400 },
               text: t(…, 'Hire mercenaries: 4 battle-ready troops'),
@@ -170,8 +168,7 @@ vertically. In each pass:
 
 ![One pass: the original (A|B) has a seam at the edge, the shifted copy (B|A) in the middle. The weight curve below takes only the good part of each.](blog/campaign/seamless-steps-en.svg)
 
-```js
-// scripts/asset-gen/groundtex.mjs (trimmed)
+```js scripts/asset-gen/groundtex.mjs
 const smooth = (t) => t * t * (3 - 2 * t);           // soft S-curve
 export function edgeWeight(i, n, band) {              // 0 at the edge, 1 in the middle
   const d = Math.min(i + 0.5, n - i - 0.5) / Math.max(1, band * n);

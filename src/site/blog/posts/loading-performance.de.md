@@ -87,12 +87,11 @@ Die Lösung: Der Dateiname enthält einen **Fingerabdruck des Inhalts**. Im Buil
 Datei einen [SHA-256-Hash](https://de.wikipedia.org/wiki/SHA-2) und hängt die ersten zehn Hexadezimalziffern an den
 Namen:
 
-```
+```text
 public/models/buildings/castle.lod1.glb  →  dist/models/buildings/castle.lod1.6792949877.glb
 ```
 
-```js
-// scripts/vite-hashed-assets.js (gekürzt)
+```js scripts/vite-hashed-assets.js
 export function buildAssetMap(publicDir) {
   const map = {};
   for (const f of listFiles(publicDir)) {
@@ -118,8 +117,7 @@ Der Spielcode kennt die gehashten Namen natürlich nicht – er will `models/bui
 schreibt das Plugin die Zuordnung „logischer Pfad → Datei“ als Konstante `__KRONLAND_ASSETS__` in den Code (rund
 15 KB, gepackt). Jeder Zugriff auf eine Datei geht über eine kleine Funktion:
 
-```js
-// src/paths.js (gekürzt)
+```js src/paths.js
 export function assetPath(path, map = ASSETS) {
   const p = clean(path);
   return map?.[p] ?? p;     // im Build: gehashter Name; im Entwicklungsserver: unverändert
@@ -190,8 +188,7 @@ Figur sich bewegt. Wie misst man das? Der Fuß, der gerade am Boden steht, gleit
 Laufgeschwindigkeit nach hinten. Das Spiel sucht deshalb in jedem Bild der gebackenen Animation die tiefsten Punkte
 des Netzes (die untersten 3 % der Höhe, die Sohle) und verfolgt, wie schnell sie sich bewegen:
 
-```js
-// src/render/characters.js (gekürzt)
+```js src/render/characters.js
 export function strideSpeed(geo, bake, clip) {
   const feet = [];
   for (let f = 0; f < clip.frames; f++) {

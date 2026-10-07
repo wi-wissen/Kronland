@@ -35,7 +35,7 @@ Heraus kommt ein **Polygonnetz**: Tausende kleiner Dreiecke, deren Ecken im Raum
 das wie Geschenkpapier über die Dreiecke gelegt wird. Welche Stelle der Textur auf welches Dreieck kommt, steht in
 den UV-Koordinaten jeder Ecke. Grafikkarten können nur Dreiecke zeichnen; jede gekrümmte Fläche im Spiel ist in
 Wahrheit aus vielen flachen Dreiecken zusammengesetzt. Mehr dazu unter
-[Polygonnetz](https://de.wikipedia.org/wiki/Polygonnetz) und [UV-Mapping](https://de.wikipedia.org/wiki/UV-Mapping).
+[Polygonnetz](https://de.wikipedia.org/wiki/Polygonnetz) und [UV-Mapping](https://en.wikipedia.org/wiki/UV_mapping).
 
 ![Der Leibeigene aus diesem Meilenstein: links das Nahmodell mit Textur, daneben dasselbe Netz als Drahtgitter (11 429 Dreiecke), das vereinfachte Spielmodell (2 087 Dreiecke) und rechts das Skelett in einer Laufpose.](blog/characters-coding/serf-lod-de.webp)
 
@@ -45,7 +45,7 @@ Ein Netz allein kann sich nicht bewegen. Dafür bekommt die Figur ein **Skelett*
 von Knochen. Die Hüfte ist die Wurzel, an ihr hängen Wirbelsäule und Oberschenkel, an der Wirbelsäule Hals und
 Schultern, an den Schultern die Oberarme und so weiter. Der Leibeigene hat 24 Knochen:
 
-```
+```text
 Hips → Spine02 → Spine01 → Spine → neck → Head
                                  → LeftShoulder → LeftArm → LeftForeArm → LeftHand
                                  → RightShoulder → …
@@ -68,7 +68,7 @@ Deshalb bekommt jede Ecke bis zu **vier Knochen mit Gewichten**, die zusammen 1 
 
 Für jede Ecke rechnet das Programm dann:
 
-```
+```pseudo
 neue_Lage = Σ  gewicht[i] · Matrix(knochen[i]) · ruhelage
            i=1..4
 ```
@@ -135,8 +135,7 @@ Kronland macht es anders:
 Der Shader-Code dafür (in [GLSL](https://de.wikipedia.org/wiki/OpenGL_Shading_Language), der Sprache für
 Grafikkarten-Programme) ist erstaunlich kurz:
 
-```glsl
-// src/render/characters.js (gekürzt)
+```glsl src/render/characters.js
 uniform highp sampler2D uBones;   // die gebackene Knochen-Textur
 attribute vec4 aBoneIdx;           // bis zu vier Knochen je Ecke …
 attribute vec4 aBoneW;             // … und ihre Gewichte
@@ -182,7 +181,7 @@ Man könnte fragen, warum nicht einfach JavaScript im Browser ausführen. Drei G
 
 So läuft ein Programm durch die Maschine:
 
-```
+```text
 Quelltext → Lexer → Tokens → Parser → Syntaxbaum → Compiler → Bytecode → VM
 ```
 
@@ -201,7 +200,7 @@ hero.say("Da!")
 
 macht er diese Folge (echte Ausgabe von `tokenize`):
 
-```
+```text
 kw:while  name:hero  op:.  name:can_step  op:(  op:)  op::  newline
 indent  name:hero  op:.  name:step  op:(  op:)  newline
 dedent  name:hero  op:.  name:say  op:(  str:"Da!"  op:)  newline  eof
@@ -226,7 +225,7 @@ tiefer im Baum als das `+` und wird zuerst ausgerechnet.
 Der [Compiler](https://de.wikipedia.org/wiki/Compiler) läuft durch den Baum und erzeugt **Bytecode**: eine Liste
 einfacher Befehle für eine gedachte Maschine. Für die `while`-Schleife oben sieht das so aus (echte Ausgabe):
 
-```
+```text
  0 LOAD_GLOBAL  hero
  1 LOAD_ATTR    can_step
  2 CALL         0          ← Funktion ohne Argumente aufrufen
@@ -253,8 +252,7 @@ schlägt das ähnlichste bekannte Wort vor („Meintest du `step`?“) – berec
 Die VM ist eine [Stapelmaschine](https://de.wikipedia.org/wiki/Stapelspeicher): `LOAD_CONST` legt einen Wert auf den
 Stapel, `BINARY` nimmt zwei herunter und legt das Ergebnis drauf. Im Kern ist sie eine einzige große Schleife:
 
-```js
-// src/script/vm.js (gekürzt)
+```js src/script/vm.js
 execute(task, budget) {
   for (;;) {
     if (used >= budget) break;                 // Zeitbudget aufgebraucht: später weiter

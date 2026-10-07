@@ -105,8 +105,7 @@ biegt sich die Klinge wie Gummi.
 Das Skript `rigid.mjs` repariert das geometrisch: Alle Ecken, die in einem Zylinder von der Hand bis zur Klingenspitze
 liegen, werden zu 100 % an den Handknochen gebunden.
 
-```js
-// scripts/asset-gen/rigid.mjs (gekürzt)
+```js scripts/asset-gen/rigid.mjs
 export function bindCylinder(pos, joints, weights, a, b, radius, joint, start = 0.08) {
   const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   const L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2;
@@ -141,7 +140,7 @@ Textur weg und behält nur Spuren und Knochennamen – 20 bis 50 KB je Clip. Dan
 wörtlich gemeint: Das fertige Spielmodell, das die Nachbearbeitung aus den gekürzten Dateien baut, ist Bit für Bit
 gleich.
 
-Das Dateiformat dahinter heißt [glTF](https://de.wikipedia.org/wiki/GlTF) (in der binären Form `.glb`): ein offenes
+Das Dateiformat dahinter heißt [glTF](https://en.wikipedia.org/wiki/GlTF) (in der binären Form `.glb`): ein offenes
 Format für 3D-Szenen, das Netze, Materialien, Skelette und Animationen in einer Datei speichert – gewissermaßen das
 JPEG für 3D.
 

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300" role="img"><title>Loudness</title><style>
-.bg{fill:#fbf7ef;stroke:#e2d6c0}
+.bg{fill:#fffaf0;stroke:#e2d6c0}
 .t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
 .s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
 .h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
@@ -19,20 +19,6 @@
 .grid{stroke:#e2d6c0;stroke-width:1;fill:none}
 .fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
 .ah{fill:#6b5a43}
-@media (prefers-color-scheme: dark){
-.bg{fill:#231c15;stroke:#4a3d2c}
-.t,.h,.m{fill:#f1e8d8}.s{fill:#cbbda4}
-.box{fill:#2f261c;stroke:#a8936f}
-.box2{fill:#3a2f22;stroke:#a8936f}
-.hl{fill:#4a3220;stroke:#e08a43}
-.blue{fill:#1d2f47;stroke:#5a9be8}
-.green{fill:#1d3a2a;stroke:#4cb87c}
-.red{fill:#45201c;stroke:#e06a5c}
-.ln{stroke:#cbbda4}.ah{fill:#cbbda4}
-.lnb{stroke:#5a9be8}.lnr{stroke:#e06a5c}.lno{stroke:#e08a43}.lng{stroke:#4cb87c}
-.dash{stroke:#a8936f}.grid{stroke:#3d3226}
-.fo{fill:#e08a43}.fb{fill:#5a9be8}.fr{fill:#e06a5c}.fg{fill:#4cb87c}.fm{fill:#cbbda4}
-}
 </style><rect x="0.5" y="0.5" width="899" height="299" rx="12" class="bg"/>
 <text x="30" y="38" class="h" text-anchor="start" >Integrated loudness in LUFS (closer to 0 = louder)</text>
 <line x1="60" y1="230" x2="840" y2="230" class="ln"/>

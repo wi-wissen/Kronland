@@ -60,8 +60,7 @@ mistake. So the script compares **word sequences** using the [Levenshtein distan
 the smallest number of insertions, deletions and substitutions that turns one sequence into the other. The building
 blocks here are whole words, and two words count as equal if they differ in at most one letter.
 
-```js
-// scripts/asset-gen/voice.mjs (trimmed)
+```js scripts/asset-gen/voice.mjs
 export function similarity(a, b) {
   const x = words(a), y = words(b);
   if (x.join('') === y.join('')) return 1;          // "Alder Farm" = "Alderfarm"
@@ -134,7 +133,7 @@ Lyria 3 Pro creates a piece of music of up to two and a half minutes from a text
 music”) delivers something arbitrary. What works well is what an arranger would write down: instruments, tempo, key,
 mood and form. A prompt from `scripts/asset-gen/music.mjs`:
 
-```
+```text scripts/asset-gen/music.mjs
 Instrumental only, absolutely no vocals, no choir, no spoken words. Background music for a calm
 medieval settlement-building strategy game … Mood: sunny morning in a green valley village,
 peaceful and hopeful. Warm orchestral folk: soft string ensemble, solo wooden recorder carrying a

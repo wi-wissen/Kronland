@@ -103,8 +103,7 @@ bends like rubber.
 The script `rigid.mjs` fixes this geometrically: all vertices inside a cylinder from the hand to the blade tip are bound
 100 % to the hand bone.
 
-```js
-// scripts/asset-gen/rigid.mjs (trimmed)
+```js scripts/asset-gen/rigid.mjs
 export function bindCylinder(pos, joints, weights, a, b, radius, joint, start = 0.08) {
   const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   const L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2;
