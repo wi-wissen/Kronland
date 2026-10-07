@@ -418,6 +418,11 @@ Prüfung im Editor, ohne Build-Schritt.
 | Menü | Esc | Knopf |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
 
+**Klickbestätigung** (`src/render/orderMarker.js`): Jeder Befehl zeigt am Ziel kurz eine Markierung wie im Vorbild:
+drei Pfeile drehen sich auf den Punkt herab, dann breitet sich ein Ring am Boden aus (0,9 s). Farbe nach Befehl:
+grün laufen, orange Angriffsbewegung, rot angreifen, gelb arbeiten (Baum, Haufen, Baustelle, Reparatur). Prozedural
+(kein Asset), sechs Markierungen im Vorrat, wächst mit dem Kameraabstand; auch für Befehle über die Minikarte.
+
 **Doppelklick/Doppeltippen** (bewusste Abweichung vom Vorbild, übliche RTS-Steuerung): Zwei Klicks bzw.
 Tipper binnen 400 ms und 24 px auf eine eigene Figur wählen alle eigenen Figuren derselben Art, deren Fußpunkt
 im sichtbaren Kartenausschnitt liegt (Bild ohne die von Leisten verdeckten Ränder oben/unten). Gleiche Art:

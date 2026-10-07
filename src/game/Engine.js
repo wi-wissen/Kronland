@@ -17,6 +17,7 @@ import { createMissionSim, createScenarioSim } from '../sim/missions/runtime.js'
 import { resetSpeech, stopSpeech } from '../audio/speech.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
+import { orderPoint } from '../render/orderMarker.js';
 import { characterManifest } from '../render/characters.js';
 import { figureRole, figureSex } from '../render/variants.js';
 import { getQuality } from '../render/quality.js';
@@ -761,11 +762,12 @@ export class Engine {
     const id = this.renderer.pickEntity(cx, cy);
     const hit = id ? this.sim.entities.get(id) : null;
     if (hit?.kind === 'building') {
-      if (hit.owner === this.player && (!hit.done || isDamaged(this.sim, hit))) { this.issue({ type: 'assignWork', units, target: hit.id }); return true; }
+      if (hit.owner === this.player && (!hit.done || isDamaged(this.sim, hit))) { this.issue({ type: 'assignWork', units, target: hit.id }); this.orderFeedback('work', hit); return true; }
     }
     // Enemy instead of tree: the serfs attack it (as in the model, with bare fists)
     if (hit && FIGHT_TARGETS.has(hit.kind) && isEnemy(this.sim, this.player, hit.owner) && targetable(this.sim, hit)) {
       this.issue({ type: 'assignWork', units, target: hit.id });
+      this.orderFeedback('attack', hit);
       return true;
     }
     const g = this.renderer.pickGround(cx, cy);
@@ -783,10 +785,10 @@ export class Engine {
         if (d < best) { best = d; node = e; }
       }
     }
-    if (node) { this.issue({ type: 'assignWork', units, target: node.id }); return true; }
+    if (node) { this.issue({ type: 'assignWork', units, target: node.id }); this.orderFeedback('work', node); return true; }
     const occ = this.sim.entities.get(m.owner[m.idx(tx, ty)]);
-    if (occ?.kind === 'building' && occ.owner === this.player && (!occ.done || isDamaged(this.sim, occ))) { this.issue({ type: 'assignWork', units, target: occ.id }); return true; }
-    if (m.walkable(tx, ty)) { this.issue({ type: 'move', units, x: tx, y: ty }); return true; }
+    if (occ?.kind === 'building' && occ.owner === this.player && (!occ.done || isDamaged(this.sim, occ))) { this.issue({ type: 'assignWork', units, target: occ.id }); this.orderFeedback('work', occ); return true; }
+    if (m.walkable(tx, ty)) { this.issue({ type: 'move', units, x: tx, y: ty }); this.orderFeedback('move', { x: g.x, y: g.z }); return true; }
     return false;
   }
 
@@ -807,6 +809,7 @@ export class Engine {
     if (army.length) { this.issue({ type: 'order', units: army, order: attackMove ? 'attackMove' : 'move', x: tx, y: ty }); done = true; }
     const serfs = this.ownSerfIds();
     if (serfs.length) { this.issue({ type: 'move', units: serfs, x: tx, y: ty }); done = true; }
+    if (done) this.orderFeedback(army.length && attackMove ? 'attackMove' : 'move', { x: tx + 0.5, y: ty + 0.5 });
     this.emitUi();
     return done ? t : null;
   }
@@ -819,18 +822,32 @@ export class Engine {
     if (hit && hit.owner !== this.player && hit.owner !== undefined && targetable(this.sim, hit.kind === 'leader' && hit.soldiers.length ? this.sim.entities.get(hit.soldiers[0]) : hit)) {
       const target = hit.kind === 'leader' && hit.soldiers.length ? hit.soldiers[0] : hit.id;
       this.issue({ type: 'order', units, order: 'attack', target });
+      this.orderFeedback('attack', this.sim.entities.get(target));
       return true;
     }
     // Last seen building in the fog: attack-move there (the target itself is unknown)
     const ghost = !hit && !this.fogLifted() ? this.renderer.pickGhost(cx, cy) : null;
     if (ghost) {
       this.issue({ type: 'order', units, order: 'attackMove', x: Math.floor(ghost.x), y: Math.floor(ghost.y) });
+      this.orderFeedback('attackMove', ghost);
       return true;
     }
     const g = this.renderer.pickGround(cx, cy);
     if (!g) return false;
     this.issue({ type: 'order', units, order: attackMove ? 'attackMove' : 'move', x: Math.floor(g.x), y: Math.floor(g.z) });
+    this.orderFeedback(attackMove ? 'attackMove' : 'move', { x: g.x, y: g.z });
     return true;
+  }
+
+  /**
+   * Click confirmation at the target of a command (renderer marker, display only).
+   * @param {'move'|'attackMove'|'attack'|'work'} kind
+   * @param {{x:number, y:number}|{px:number, py:number}|{x:number, y:number, w:number, h:number}|null|undefined} at
+   *   world point, figure (milli-tiles) or building/tree (tile with size)
+   */
+  orderFeedback(kind, at) {
+    const p = orderPoint(at);
+    if (p) this.renderer?.orderMarker?.(kind, p.x, p.y);
   }
 
   /** Military commands from the UI. */
