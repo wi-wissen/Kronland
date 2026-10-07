@@ -6,6 +6,7 @@ import hashedAssets from './scripts/vite-hashed-assets.js';
 import blogPages from './scripts/vite-blog-pages.js';
 import socialMeta from './scripts/vite-social-meta.js';
 import { freshPages } from './scripts/sw-pages.js';
+import swLegacy, { legacyReloadFile } from './scripts/sw-legacy.js';
 
 // Website made of several pages (Vite multi-page): home, game, manual, compendium, scripting reference, blog. All paths relative (base './').
 const PAGES = {
@@ -87,6 +88,8 @@ export default defineConfig({
         // URL parameters never select a different precached file (play/?seed=42&dev=1 offline: freshPages ignores them too)
         ignoreURLParametersMatching: [/.*/],
         // A new worker takes over at once; tabs still running the old version notice it and reload (src/pwa.js)
+        // Reload pages from before the update handling once after activation (scripts/sw-legacy.js)
+        importScripts: [legacyReloadFile()],
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
@@ -111,6 +114,8 @@ export default defineConfig({
       },
     }),
     pagePaths(),
+    // Answer script in every page, worker file that reloads pages from before the update handling
+    swLegacy(),
     blogPages(),
   ],
   build: {

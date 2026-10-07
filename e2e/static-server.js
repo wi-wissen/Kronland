@@ -16,15 +16,23 @@ const TYPES = {
 
 /**
  * @param {{ root: string, port: number }} opts
- * @returns {Promise<{ setRoot: (dir: string) => void, sent: Map<string, number>, reset: () => void, close: () => Promise<void> }>}
+ * @returns {Promise<{ setRoot: (dir: string) => void, setOverride: (fn: ((url: URL, dir: string) => string|null)|null) => void, sent: Map<string, number>, reset: () => void, close: () => Promise<void> }>}
  */
 export async function startStaticServer({ root, port }) {
   let dir = root;
+  /** @type {((url: URL, dir: string) => string|null)|null} test hook: own HTML for some addresses */
+  let override = null;
   /** bytes of response bodies per path (304 and HEAD count 0) */
   const sent = new Map();
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
     const path = decodeURIComponent(url.pathname);
+    const own = override?.(url, dir);
+    if (own != null) {
+      sent.set(path + url.search, (sent.get(path + url.search) ?? 0) + own.length);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'max-age=600' }).end(own);
+      return;
+    }
     let file = normalize(join(dir, path));
     if (!file.startsWith(normalize(dir))) { res.writeHead(403).end(); return; }
     let st;
@@ -48,6 +56,7 @@ export async function startStaticServer({ root, port }) {
   await new Promise((resolve, reject) => server.once('error', reject).listen(port, resolve));
   return {
     setRoot: (d) => { dir = d; },
+    setOverride: (fn) => { override = fn; },
     sent,
     reset: () => sent.clear(),
     close: () => new Promise((r) => { server.closeAllConnections?.(); server.close(() => r()); }),

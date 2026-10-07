@@ -102,12 +102,33 @@ Außerdem räumte `cacheCleanup.js` auf so einer alten Seite die Dateien der *ne
     Seite liefert, keine Schleife auslöst.
 - Das Aufräumen alter Cache-Einträge (`cacheCleanup.js`) läuft nur, wenn die Seite nachweislich aktuell ist.
 
-**Übergang:** Geräte mit dem alten Service-Worker bekommen beim ersten Neuladen nach diesem Deploy noch einmal die
-alte Seite aus dem Vorab-Cache (der alte Worker entscheidet das); ab dann gilt das Neue.
+**Übergang – Seiten von vorher (`scripts/sw-legacy.js`):** Geräte mit dem alten Service-Worker bekommen beim
+ersten Neuladen nach dem Update noch einmal die alte Seite aus dem Vorab-Cache (das entscheidet der alte Worker).
+Solche Seiten können ein Update nicht selbst bemerken. Darum grüßt der neue Worker beim Aktivieren jedes Fenster
+seines Bereichs (`postMessage`). Seiten ab diesem Stand antworten sofort – ein kleines Skript im `<head>` jeder
+Seite, noch vor dem Spielcode – und regeln Updates selbst (laufende Spiele bleiben unangetastet, siehe oben). Wer
+1,5 s schweigt, ist eine alte Seite und wird per `client.navigate` neu geladen – auf die neue Fassung:
+
+- Startseite, Handbuch, Kompendium, Blog, Code-Referenz: immer (kein Spielstand, nichts zu verlieren).
+- Das Spiel (`play/`): nur in einem **sichtbaren** Tab. Der neue Worker aktiviert sich während eines Seitenaufrufs;
+  der sichtbare Spiel-Tab ist darum fast immer der, den man gerade neu geladen hat (Menü oder ein Start-Link, der
+  eben erst losging). Ein **verborgener** Spiel-Tab kann dagegen ein langes Spiel enthalten; ob, verrät eine alte
+  Seite nicht (die Adresse hilft nicht: geladene Spielstände haben keinen Start-Link in der Adresse). Er bleibt
+  stehen und bekommt die neue Fassung beim nächsten Neuladen.
+- Abwägung: Spielt jemand genau in dem sichtbaren Tab ein altes Spiel, während ein anderer Tab das Update
+  auslöst, wird es neu geladen. Die alte Fassung speichert alle 2 Spielminuten und beim Verlassen der Seite
+  automatisch („Weiterspielen“); verloren gehen höchstens die Minuten seit dem letzten Autosave – einmalig, nur
+  beim Übergang.
+- Keine Schleife: Eine Adresse, die der Worker neu geladen hat, lädt er 60 s lang nicht noch einmal (Eintrag im
+  Cache `kronland-sw`); aktiviert wird ein Worker ohnehin nur einmal je Fassung.
+
+Der Worker-Teil kommt per Workbox `importScripts` als `sw-legacy.<hash>.js` in die `sw.js`, das Antwortskript per
+Vite-Plugin in jede Seite (auch die Blog-Artikel).
 
 **Prüfen:** `tests/build/update.test.js` (Erkennung, Antwort des Workers), `e2e/update.spec.js` (echter Deploy:
 Build A ausliefern, Service-Worker installieren, auf Build B mit `KRONLAND_BUILD=b` umschalten – Neuladen zeigt B,
-ein Tab im Menü lädt sich selbst neu, ein laufendes Spiel zeigt den Hinweis). Der Testserver
+ein Tab im Menü lädt sich selbst neu, ein laufendes Spiel zeigt den Hinweis, eine alte Seite ohne Antwortskript wird
+genau einmal neu geladen), `tests/build/swLegacy.test.js` (Auswahl, Schleifenschutz). Der Testserver
 (`e2e/static-server.js`) schickt dieselben Kopfzeilen wie GitHub Pages. Von Hand: Seite offen lassen, deployen,
 einmal neu laden → neue Fassung (in den Entwicklerwerkzeugen unter „Application → Service Workers“ ist der neue
 Worker aktiv, im Netzwerk-Reiter kommt `play/` vom Server).
