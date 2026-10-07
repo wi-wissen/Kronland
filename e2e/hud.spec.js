@@ -415,3 +415,24 @@ test('Objectives: on mobile a compact button with a full-screen view, "Ziel zeig
   }).toBeGreaterThan(3);
   expect(errors).toEqual([]);
 });
+
+test('Space pauses game and animations and shows the pause banner', async ({ page }) => {
+  const errors = await boot(page);
+  await expect(page.getByTestId('pause-banner')).toHaveCount(0);
+  await page.keyboard.press(' ');
+  await expect(page.getByTestId('pause-banner')).toBeVisible();
+  await expect(page.getByTestId('pause-banner')).toContainText('Pausiert');
+  // animation clock of the renderer stands still while paused
+  const t0 = await page.evaluate(() => window.__kronland.renderer.time);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => window.__kronland.renderer.time)).toBe(t0);
+  await page.screenshot({ path: `test-results/pause-banner-${test.info().project.name}.png` });
+  // banner lets clicks through to the map
+  expect(await page.getByTestId('pause-banner').evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
+  // Space again: game and animations continue
+  await page.keyboard.press(' ');
+  await expect(page.getByTestId('pause-banner')).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__kronland.renderer.time)).toBeGreaterThan(t0);
+  expect(errors).toEqual([]);
+});
