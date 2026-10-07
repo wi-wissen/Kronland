@@ -482,6 +482,29 @@ node scripts/asset-gen/building.mjs build house     # → public/models/building
   Dorfzentrum stehen) zeigen die Dorfzentrum-Ruine – wie im Vorbild ein verlassenes Dorfzentrum zum Wiederaufbau; Lagerfeuer (`campfire`) mit Flammen als
   Partikel. Alle werden bei Bedarf nachgeladen.
 
+### Bewegliche Teile (Flügel, Räder, Wetterhahn)
+
+Meshy liefert jedes Gebäude als **ein** Netz. `src/render/movingParts.js` schneidet beim Laden die Dreiecke in einem
+Zylinder um eine Achse heraus (`MOVING_PARTS`: Drehpunkt, Achse, Radius, Bereich entlang der Achse, Tempo,
+Ausschlusskästen) und hängt sie als eigene Gruppe an den Drehpunkt; Original und Detailstufen teilen die
+Modellkoordinaten, darum gilt ein Eintrag für alle drei. Lange Splitter, die über die Schnittgrenze reichen (Meshy
+verbindet Flügel und Turm oft mit einem Dreieck), fallen weg (`bridge`, Standard 0,08). Der Renderer dreht die Gruppen
+mit der Animationszeit – bei Pause und auf Baustellen stehen sie, bei zuletzt gesehenen Feindgebäuden auch.
+
+| Modell | Teil |
+|---|---|
+| `windwheel` | beide Windräder auf der Turmspitze |
+| `weather_tower` | Wetterhahn (langsam), Schalenkreuz darunter (schnell) |
+| `farm2`, `farm3` | Mühlenflügel (Holzgerüst bzw. Steinturm) |
+| `sawmill2` | Wasserrad (seine Rückseite ist auf die Wand gemalt und bleibt stehen) |
+| `stonemason2` | Rad auf dem Gestell hinter dem Haus |
+
+Bewusst ohne: Seilräder der Fördertürme (klein und mit dem Gerüst verwachsen) und die Uhr (Zeiger nur gemalt).
+Werte finden und prüfen: `node scripts/asset-gen/moving-parts.mjs out.png farm2 [--c x,y,z --zoom 3] [--p '<JSON>']
+[--show part|rest] [--turn 0.8 --az 1.2]` zeigt Vorder-, Seiten- und Draufsicht mit Raster in Modelleinheiten
+(Teil grün) und eine Schrägansicht mit gedrehtem Teil; `--show part|rest` zeigt nur eine Seite des Schnitts, so
+fallen mitgeschnittene Wandstücke und zurückgebliebene Flügelreste auf. Ein neu erzeugtes Modell braucht neue Werte.
+
 ## Pferd (Reittier)
 
 Alle Reiter (leichte und schwere Reiterei, Hauptleute) sitzen auf `Horse` (Rolle `mount.horse`, als `attach` der
