@@ -92,7 +92,9 @@ test('Reference is linked from the home page, the adventure menu and the in-game
   await expect(page.getByTestId('script-panel')).toBeAttached({ timeout: 30_000 });
   const fab = page.getByTestId('script-open');
   if (await fab.isVisible()) await fab.click();
-  await page.getByTestId('script-tab-help').click();
+  // Desktop: "Commands" button in the toolbar (drawer); phone: "Help" tab of the sheet
+  const helpBtn = page.getByTestId('script-help');
+  await (await helpBtn.isVisible() ? helpBtn : page.getByTestId('script-tab-help')).click();
   await expect(page.getByTestId('api-more-hero.step')).toHaveAttribute('href', '../scripting/#hero.step');
   await expect(page.getByTestId('api-more-py.for')).toHaveAttribute('href', '../scripting/#lang-for');
   await expect(page.getByTestId('api-reference')).toHaveAttribute('href', '../scripting/');

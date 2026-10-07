@@ -12,6 +12,7 @@
       :style="split ? { width: occupied + 'px' } : null"
       data-testid="script-panel"
       :data-layout="layout"
+      :data-status="status"
       :aria-label="$t('script.panel')"
     >
       <template v-if="split">
@@ -31,23 +32,22 @@
           data-testid="script-divider"
           @pointerdown="dragStart"
           @keydown="dividerKey"
-        >
-          <button class="sp-foldbtn" :aria-label="$t('script.collapse')" data-testid="script-fold" @pointerdown.stop @click="setCollapsed(true)"><Icon name="next" /></button>
-        </div>
+        ></div>
+        <!-- Drag preview: a guide line moved by CSS transform only (no layout, no canvas resize until the drop) -->
+        <div v-show="dragging" ref="guide" class="sp-guide" aria-hidden="true" data-testid="script-guide"></div>
       </template>
 
       <div v-show="!isCollapsed" class="sp-inner">
         <header class="sp-head">
           <strong class="sp-title">{{ $tr(scenario.title) }}</strong>
-          <span class="sp-status" :class="status" data-testid="script-status">{{ $t('script.status.' + status) }}</span>
           <button v-if="split" v-tip="$t('script.collapse')" class="icon-btn ghost" :aria-label="$t('script.collapse')" data-testid="script-collapse" @click="setCollapsed(true)"><Icon name="next" /></button>
           <button v-else class="sp-watchbtn" :aria-label="$t('script.watchTip')" data-testid="script-watch" @click="watchGame"><Icon name="map" />{{ $t('script.watch') }}</button>
         </header>
 
         <div v-if="split" class="sp-tools" role="toolbar" :aria-label="$t('script.tools')">
-          <button v-if="!busy" class="primary sp-run" data-testid="script-run" @click="run(false)"><Icon name="play" />{{ $t('script.run') }}</button>
-          <button v-else-if="paused" class="primary sp-run" data-testid="script-continue" @click="debug('continue')"><Icon name="play" />{{ $t('script.continue') }}</button>
-          <button v-else class="sp-run" data-testid="script-pause" @click="debug('pause')"><Icon name="pause" />{{ $t('script.pause') }}</button>
+          <button v-if="!busy" class="primary sp-run" :aria-label="$t('script.run')" data-testid="script-run" @click="run(false)"><Icon name="play" /><span class="sp-run-lbl">{{ $t('script.run') }}</span></button>
+          <button v-else-if="paused" class="primary sp-run" :aria-label="$t('script.continue')" data-testid="script-continue" @click="debug('continue')"><Icon name="play" /><span class="sp-run-lbl">{{ $t('script.continue') }}</span></button>
+          <button v-else class="sp-run" :aria-label="$t('script.pause')" data-testid="script-pause" @click="debug('pause')"><Icon name="pause" /><span class="sp-run-lbl">{{ $t('script.pause') }}</span></button>
           <button v-tip="$t('script.stepTip')" :aria-label="$t('script.step')" data-testid="script-step" @click="step('into')"><span class="sp-glyph" aria-hidden="true">⤵</span><span class="sp-lbl">{{ $t('script.step') }}</span></button>
           <button v-tip="$t('script.overTip')" :aria-label="$t('script.over')" :disabled="!paused" data-testid="script-over" @click="step('over')"><span class="sp-glyph" aria-hidden="true">↷</span><span class="sp-lbl sp-lbl-dbg">{{ $t('script.over') }}</span></button>
           <button v-tip="$t('script.outTip')" :aria-label="$t('script.out')" :disabled="!paused" data-testid="script-out" @click="step('out')"><span class="sp-glyph" aria-hidden="true">↥</span><span class="sp-lbl sp-lbl-dbg">{{ $t('script.out') }}</span></button>
@@ -57,80 +57,100 @@
           <button v-tip="$t('script.openTip')" class="ghost" :disabled="!fileSection" :aria-label="$t('script.open')" data-testid="script-open-file" @click="$refs.file.click()"><Icon name="upload" /><span class="sp-lbl sp-lbl-file">{{ $t('script.open') }}</span></button>
           <span class="sp-grow"></span>
           <button v-tip="$t('script.gridTip')" class="ghost sp-grid" :aria-pressed="grid" :class="{ on: grid }" data-testid="script-grid" @click="toggleGrid"><span class="sp-glyph" aria-hidden="true">#</span><span class="sp-lbl sp-lbl-file">{{ $t('script.grid') }}</span></button>
+          <button v-tip="$t('script.helpTip')" class="sp-helpbtn" :aria-label="$t('script.tab.help')" :aria-expanded="helpOpen" aria-controls="sp-help" :class="{ on: helpOpen }" data-testid="script-help" @click="helpOpen = !helpOpen"><Icon name="scroll" /><span class="sp-lbl">{{ $t('script.tab.help') }}</span></button>
         </div>
 
-        <nav class="seg sp-tabs" role="tablist">
+        <nav v-if="!split" class="seg sp-tabs" role="tablist">
           <button v-for="t in tabs" :key="t" role="tab" :aria-selected="tab === t" :class="{ active: tab === t }" :data-testid="'script-tab-' + t" @click="tab = t">
-            {{ $t(t === 'help' && !split ? 'script.tab.docs' : 'script.tab.' + t) }}<i v-if="t === 'output' && errCount" class="sp-badge" data-testid="script-err-count">{{ errCount }}</i>
+            {{ $t(t === 'help' ? 'script.tab.docs' : 'script.tab.' + t) }}<i v-if="t === 'output' && errCount" class="sp-badge" data-testid="script-err-count">{{ errCount }}</i>
           </button>
         </nav>
 
-        <div v-show="tab === 'code'" ref="body" class="sp-body scroll-y">
-          <p v-if="scenario.briefing && showBriefing" class="sp-brief parchment">
-            {{ $tr(scenario.briefing) }}
-            <button class="ghost sp-brief-x" :aria-label="$t('common.close')" @click="showBriefing = false"><Icon name="close" /></button>
-          </p>
-          <section v-for="s in sections" :key="s.id" class="sp-sec" :data-testid="'section-' + s.id">
-            <button v-if="foldable(s)" class="sp-fold" :aria-expanded="!!unfolded[s.id]" :data-testid="'fold-' + s.id" @click="unfolded[s.id] = !unfolded[s.id]">
-              <Icon :name="unfolded[s.id] ? 'chevronDown' : 'next'" />
-              <span>{{ $tr(s.title) }}</span>
-              <small>{{ $t('script.lines', { n: lineCount(s) }) }}</small>
-              <Icon v-if="!s.editable" name="lock" class="sp-lock" />
-            </button>
-            <h3 v-else-if="sections.length > 1" class="sp-sec-title">{{ $tr(s.title) }}<Icon v-if="!s.editable" name="lock" class="sp-lock" /></h3>
-            <CodeEditor
-              v-if="!foldable(s) || unfolded[s.id]"
-              :ref="(el) => setEditor(s.id, el)"
-              v-model="codes[s.id]"
-              :readonly="!s.editable"
-              :running-line="runningLine(s)"
-              :error-line="errorLine(s)"
-              :breakpoints="bps[s.id] ?? []"
-              :label="$tr(s.title)"
-              @update:model-value="edited(s.id)"
-              @update:breakpoints="setBps(s.id, $event)"
-              @focus="focused = s.id"
-              @blur="blurred"
-            />
+        <div class="sp-main">
+          <div v-show="split || tab === 'code'" ref="body" class="sp-body scroll-y">
+            <p v-if="scenario.briefing && showBriefing" class="sp-brief parchment">
+              {{ $tr(scenario.briefing) }}
+              <button class="ghost sp-brief-x" :aria-label="$t('common.close')" @click="showBriefing = false"><Icon name="close" /></button>
+            </p>
+            <section v-for="s in sections" :key="s.id" class="sp-sec" :data-testid="'section-' + s.id">
+              <button v-if="foldable(s)" class="sp-fold" :class="{ open: unfolded[s.id] }" :aria-expanded="!!unfolded[s.id]" :data-testid="'fold-' + s.id" @click="unfolded[s.id] = !unfolded[s.id]">
+                <Icon :name="unfolded[s.id] ? 'chevronDown' : 'next'" class="sp-fold-chev" />
+                <span class="sp-fold-title">{{ $tr(s.title) }}</span>
+                <span class="sp-fold-meta">
+                  <small class="sp-fold-lines">{{ $t('script.lines', { n: lineCount(s) }) }}</small>
+                  <span v-if="!s.editable" class="sp-locked" data-testid="section-locked"><Icon name="lock" />{{ $t('script.locked') }}</span>
+                </span>
+              </button>
+              <h3 v-else-if="sections.length > 1" class="sp-sec-title">
+                <span class="sp-fold-title">{{ $tr(s.title) }}</span>
+                <span v-if="!s.editable" class="sp-locked"><Icon name="lock" />{{ $t('script.locked') }}</span>
+              </h3>
+              <CodeEditor
+                v-if="!foldable(s) || unfolded[s.id]"
+                :ref="(el) => setEditor(s.id, el)"
+                v-model="codes[s.id]"
+                :readonly="!s.editable"
+                :running-line="runningLine(s)"
+                :error-line="errorLine(s)"
+                :breakpoints="bps[s.id] ?? []"
+                :label="$tr(s.title)"
+                @update:model-value="edited(s.id)"
+                @update:breakpoints="setBps(s.id, $event)"
+                @focus="focused = s.id"
+                @blur="blurred"
+              />
+            </section>
+            <div v-if="error" ref="error" class="sp-error" role="alert" data-testid="script-error">
+              <b>{{ errorText.title }}</b>
+              <p>{{ errorText.text }}</p>
+            </div>
+            <div v-if="vars" class="sp-vars" data-testid="script-vars">
+              <div class="sp-var-col">
+                <h4>{{ $t('script.vars.globals') }}</h4>
+                <p v-for="v in vars.globals" :key="'g' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
+                <p v-if="!vars.globals.length" class="sp-none">{{ $t('script.vars.none') }}</p>
+              </div>
+              <div v-if="vars.frames.length > 1" class="sp-var-col">
+                <h4>{{ $t('script.vars.args') }}</h4>
+                <p v-for="v in vars.args" :key="'a' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
+                <p v-if="!vars.args.length" class="sp-none">{{ $t('script.vars.none') }}</p>
+                <h4>{{ $t('script.vars.locals') }}</h4>
+                <p v-for="v in vars.locals" :key="'l' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
+                <p v-if="!vars.locals.length" class="sp-none">{{ $t('script.vars.none') }}</p>
+                <h4>{{ $t('script.vars.stack') }}</h4>
+                <p v-for="(f, i) in vars.frames" :key="'f' + i" class="sp-frame">{{ f.name === '<module>' ? $t('script.vars.main') : f.name + '()' }}</p>
+              </div>
+            </div>
+            <button v-if="split" class="ghost sp-reset" data-testid="script-reset" @click="resetCode">{{ $t('script.reset') }}</button>
+          </div>
+
+          <!-- Output: in the split screen below the code, on phones its own tab -->
+          <div v-show="split || tab === 'output'" class="sp-output" :class="{ tabbed: !split }" data-testid="script-output">
+            <h4 class="sp-console-title">{{ $t('script.output') }}</h4>
+            <div ref="console" class="sp-console scroll-y" aria-live="polite">
+              <div v-if="!split && error" class="sp-out err">{{ errorText.title }}: {{ errorText.text }}</div>
+              <div v-if="consoleLines.length" data-testid="script-console">
+                <div v-for="c in consoleLines" :key="c.seq" class="sp-out" :class="{ err: c.err, mission: c.level === 'mission' }">{{ c.err ? errText(c.err) : c.text }}</div>
+              </div>
+              <p v-else-if="split || !error" class="sp-none">{{ $t('script.noOutput') }}</p>
+            </div>
+          </div>
+
+          <div v-if="!split && tab === 'help'" class="sp-body scroll-y">
+            <ApiHelp :level="mode === 'editor' ? 'mission' : 'player'" @insert="insertExample" />
+          </div>
+
+          <!-- Split screen: command help as a drawer over the code (toolbar button "Commands"), Escape or × closes it -->
+          <section v-if="split && helpOpen" id="sp-help" class="sp-help" :aria-label="$t('script.tab.help')" data-testid="script-help-panel" @keydown.esc.stop="closeHelp">
+            <header class="sp-help-head">
+              <Icon name="scroll" />
+              <strong>{{ $t('script.tab.help') }}</strong>
+              <button class="icon-btn ghost" :aria-label="$t('common.close')" data-testid="script-help-close" @click="closeHelp"><Icon name="close" /></button>
+            </header>
+            <div class="sp-help-body scroll-y">
+              <ApiHelp :level="mode === 'editor' ? 'mission' : 'player'" @insert="insertExample" />
+            </div>
           </section>
-          <div v-if="error" ref="error" class="sp-error" role="alert" data-testid="script-error">
-            <b>{{ errorText.title }}</b>
-            <p>{{ errorText.text }}</p>
-          </div>
-          <div v-if="vars" class="sp-vars" data-testid="script-vars">
-            <div class="sp-var-col">
-              <h4>{{ $t('script.vars.globals') }}</h4>
-              <p v-for="v in vars.globals" :key="'g' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
-              <p v-if="!vars.globals.length" class="sp-none">{{ $t('script.vars.none') }}</p>
-            </div>
-            <div v-if="vars.frames.length > 1" class="sp-var-col">
-              <h4>{{ $t('script.vars.args') }}</h4>
-              <p v-for="v in vars.args" :key="'a' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
-              <p v-if="!vars.args.length" class="sp-none">{{ $t('script.vars.none') }}</p>
-              <h4>{{ $t('script.vars.locals') }}</h4>
-              <p v-for="v in vars.locals" :key="'l' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
-              <p v-if="!vars.locals.length" class="sp-none">{{ $t('script.vars.none') }}</p>
-              <h4>{{ $t('script.vars.stack') }}</h4>
-              <p v-for="(f, i) in vars.frames" :key="'f' + i" class="sp-frame">{{ f.name === '<module>' ? $t('script.vars.main') : f.name + '()' }}</p>
-            </div>
-          </div>
-          <button v-if="split" class="ghost sp-reset" data-testid="script-reset" @click="resetCode">{{ $t('script.reset') }}</button>
-        </div>
-
-        <!-- Output: in the split screen below the code, on phones its own tab -->
-        <div v-show="split ? tab === 'code' : tab === 'output'" class="sp-output" :class="{ tabbed: !split }" data-testid="script-output">
-          <h4 class="sp-console-title">{{ $t('script.output') }}</h4>
-          <div ref="console" class="sp-console scroll-y" aria-live="polite">
-            <div v-if="!split && error" class="sp-out err">{{ errorText.title }}: {{ errorText.text }}</div>
-            <div v-if="consoleLines.length" data-testid="script-console">
-              <div v-for="c in consoleLines" :key="c.seq" class="sp-out" :class="{ err: c.err, mission: c.level === 'mission' }">{{ c.err ? errText(c.err) : c.text }}</div>
-            </div>
-            <p v-else-if="split || !error" class="sp-none">{{ $t('script.noOutput') }}</p>
-          </div>
-        </div>
-
-        <div v-if="tab === 'help'" class="sp-body scroll-y">
-          <ApiHelp :level="mode === 'editor' ? 'mission' : 'player'" @insert="insertExample" />
         </div>
 
         <template v-if="!split">
@@ -184,7 +204,10 @@ import KeyBar from './KeyBar.vue';
 import ApiHelp from './ApiHelp.vue';
 import { scriptErrorText, tr } from '../../i18n/index.js';
 import { shownError, shownStatus, consoleView, fileName, sourceFromFile, MAX_FILE_BYTES } from './panelState.js';
-import { loadSplit, saveSplit, panelWidth, fracFromPointer, clampWidth } from './splitLayout.js';
+import { loadSplit, saveSplit, panelWidth, widthFromPointer, guideOffset, clampWidth } from './splitLayout.js';
+
+/** Arrow keys on the divider: the width is applied this long after the last key press (ms) */
+const KEY_DELAY = 250;
 
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k) ?? 'null'); } catch { return null; } },
@@ -218,7 +241,10 @@ export default {
       /** Split screen: share of the window and collapsed state (localStorage) */
       splitState: loadSplit(),
       winW: window.innerWidth,
+      /** Divider drag (or arrow keys): only the guide line moves, the width is applied once on drop */
       dragging: false,
+      /** Split screen: command help drawer open */
+      helpOpen: false,
       /** Sheet: "⋯" menu open; run strip hidden by the player (until the next run) */
       menu: false,
       stripHidden: false,
@@ -229,7 +255,7 @@ export default {
     isCollapsed() { return this.split && this.splitState.collapsed; },
     /** Width the panel takes up on the right (split screen), 0 on phones */
     occupied() { return this.split ? panelWidth(this.splitState, this.winW) : 0; },
-    tabs() { return this.split ? ['code', 'help'] : ['code', 'output', 'help']; },
+    tabs() { return ['code', 'output', 'help']; },
     sections() {
       // In the adventure hidden sections (mission logic) stay invisible, in the editor you see everything
       return (this.scenario.sections ?? []).filter((s) => this.mode === 'editor' || (s.visibility ?? 'open') !== 'hidden');
@@ -265,8 +291,9 @@ export default {
     occupied: { immediate: true, handler(w) { this.$emit('width', w); } },
     'error.seq'(seq) {
       if (!seq) return;
-      // New error: phones jump back from the game to the code; the line and the box come into view
+      // New error: phones jump back from the game to the code, the help drawer closes; line and box come into view
       this.tab = 'code';
+      this.helpOpen = false;
       if (!this.split && !this.open) this.$emit('update:open', true);
       this.revealError();
     },
@@ -275,6 +302,8 @@ export default {
       if (s === 'paused' && before !== 'paused' && !this.split && !this.open) { this.tab = 'code'; this.$emit('update:open', true); }
     },
     open(o) { if (o) this.menu = false; },
+    /** Help drawer opened: straight into the search field (desktop) */
+    helpOpen(o) { if (o && !this.touch) this.$nextTick(() => this.$el?.querySelector?.('.sp-help .api-search')?.focus()); },
     consoleLines(now, before) {
       // New output: keep the end of the console in view
       const last = now[now.length - 1]?.seq ?? 0;
@@ -292,6 +321,7 @@ export default {
   beforeUnmount() {
     this.engine?.setGrid?.(false);
     window.removeEventListener('resize', this.onResize);
+    clearTimeout(this.keyTimer);
     this.$emit('width', 0);
   },
   methods: {
@@ -389,37 +419,73 @@ export default {
     },
     // ---------- Split screen: divider and strip ----------
     setCollapsed(on) {
+      if (on) { clearTimeout(this.keyTimer); this.keyWidth = null; this.dragging = false; }
       this.splitState = { ...this.splitState, collapsed: on };
       saveSplit(this.splitState);
     },
-    /** Drag the divider (mouse, pen, finger): pointer capture keeps the drag even over the canvas. */
+    /** Move the guide line to where the panel edge would be at width px (direct style, no re-render). */
+    showGuide(px) {
+      const g = this.$refs.guide;
+      if (g) g.style.transform = `translateX(${guideOffset(this.occupied, px)}px)`;
+    },
+    /** Apply a new panel width: one layout change, so the game canvas is resized once. */
+    applyWidth(px) {
+      const W = window.innerWidth;
+      this.splitState = { ...this.splitState, frac: clampWidth(px, W) / W };
+      saveSplit(this.splitState);
+    },
+    /**
+     * Drag the divider (mouse, pen, finger): pointer capture keeps the drag even over the canvas. While dragging
+     * only the guide line follows the pointer (once per frame); panel width and canvas change on pointerup.
+     */
     dragStart(e) {
       if (e.button > 0) return;
       e.preventDefault();
       const el = e.currentTarget;
       try { el.setPointerCapture?.(e.pointerId); } catch { /* synthetic events */ }
+      this.flushKeyWidth();
+      let px = this.occupied, frame = 0;
+      this.showGuide(px);
       this.dragging = true;
-      const move = (ev) => { this.splitState = { ...this.splitState, frac: fracFromPointer(ev.clientX, window.innerWidth) }; };
-      const up = () => {
+      const move = (ev) => {
+        px = widthFromPointer(ev.clientX, window.innerWidth);
+        if (!frame) frame = requestAnimationFrame(() => { frame = 0; this.showGuide(px); });
+      };
+      const end = (ev) => {
         el.removeEventListener('pointermove', move);
-        el.removeEventListener('pointerup', up);
-        el.removeEventListener('pointercancel', up);
+        el.removeEventListener('pointerup', end);
+        el.removeEventListener('pointercancel', end);
+        cancelAnimationFrame(frame);
         this.dragging = false;
-        saveSplit(this.splitState);
+        if (ev.type === 'pointerup' && px !== this.occupied) this.applyWidth(px);
       };
       el.addEventListener('pointermove', move);
-      el.addEventListener('pointerup', up);
-      el.addEventListener('pointercancel', up);
+      el.addEventListener('pointerup', end);
+      el.addEventListener('pointercancel', end);
     },
-    /** Keyboard on the divider: arrows change the width, Enter collapses. */
+    /** Keyboard on the divider: arrows move the guide, the width follows after a short pause; Enter collapses. */
     dividerKey(e) {
-      const W = window.innerWidth;
       const d = e.key === 'ArrowLeft' ? 32 : e.key === 'ArrowRight' ? -32 : 0;
       if (d) {
         e.preventDefault();
-        this.splitState = { ...this.splitState, frac: clampWidth(this.occupied + d, W) / W };
-        saveSplit(this.splitState);
-      } else if (e.key === 'Enter') this.setCollapsed(true);
+        this.keyWidth = clampWidth((this.keyWidth ?? this.occupied) + d, window.innerWidth);
+        this.showGuide(this.keyWidth);
+        this.dragging = true;
+        clearTimeout(this.keyTimer);
+        this.keyTimer = setTimeout(() => this.flushKeyWidth(), KEY_DELAY);
+      } else if (e.key === 'Enter') { this.flushKeyWidth(); this.setCollapsed(true); }
+    },
+    /** Apply a pending keyboard width now. */
+    flushKeyWidth() {
+      clearTimeout(this.keyTimer);
+      const px = this.keyWidth;
+      this.keyWidth = null;
+      this.dragging = false;
+      if (px != null && px !== this.occupied) this.applyWidth(px);
+    },
+    closeHelp() {
+      this.helpOpen = false;
+      this.$nextTick(() => this.$el?.querySelector?.('[data-testid="script-help"]')?.focus());
     },
     /** Save the program as a .py file (download; works on phones too). */
     download() {
@@ -491,11 +557,15 @@ export default {
 }
 .sp-divider::before { content: ''; width: 3px; height: 2.75rem; border-radius: 2px; background: var(--gold-500); opacity: 0.7; }
 .sp-divider:hover::before, .sp-divider:focus-visible::before, .dragging .sp-divider::before { opacity: 1; background: var(--gold-300); }
-.sp-foldbtn {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, 2.25rem); width: 1.5rem; min-width: 0; height: 2.5rem; min-height: 0 !important;
-  padding: 0; display: grid; place-items: center; border-radius: var(--r-sm);
+/* Drag preview: guide line at the future panel edge, moved only by transform */
+.sp-guide {
+  position: absolute; top: 0; bottom: 0; left: -2px; width: 4px; z-index: 2; pointer-events: none; will-change: transform; border-radius: 2px;
+  background: rgba(243, 200, 94, 0.85); box-shadow: 0 0 0 1px rgba(10, 6, 2, 0.5), 0 0 14px rgba(243, 200, 94, 0.55);
 }
-.sp-foldbtn .ico { width: 0.875rem; height: 0.875rem; }
+.sp-guide::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2.5rem;
+  background: linear-gradient(90deg, rgba(243, 200, 94, 0.18), transparent);
+}
 .sp-strip {
   position: relative; flex: 1; min-height: 0; width: 100%; padding: 0; border-radius: 0; border: 0; display: flex; flex-direction: column; gap: 0.375rem; align-items: center; justify-content: center;
   background: linear-gradient(90deg, var(--wood-950), var(--wood-800)); color: var(--gold-200); box-shadow: inset 1px 0 0 rgba(225, 168, 58, 0.45);
@@ -507,11 +577,6 @@ export default {
 .sp-head { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; }
 .sp-title { flex: 1; min-width: 0; font-family: var(--display); color: var(--gold-200); font-size: var(--fs-lg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sp-head .icon-btn { min-height: 2rem; width: 2rem; min-width: 2rem; }
-.sp-status { font-size: var(--fs-xs); padding: 0.125rem 0.5rem; border-radius: 999px; background: var(--inset-bg); color: var(--ink-muted); white-space: nowrap; }
-.sp-status.running { color: var(--good); }
-.sp-status.paused { color: var(--warn); }
-.sp-status.error { color: var(--bad); }
-.sp-status.done { color: var(--gold-300); }
 .sp-tools { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; container-type: inline-size; }
 .sp-tools button { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 2.375rem; padding: 0 0.5rem; }
 .sp-run { min-width: 6.5rem; justify-content: center; }
@@ -519,26 +584,44 @@ export default {
 .sp-sep { width: 1px; height: 1.5rem; background: rgba(225, 168, 58, 0.25); margin: 0 0.125rem; }
 .sp-grow { flex: 1; }
 .sp-grid .sp-glyph { font-family: ui-monospace, Menlo, monospace; font-weight: 800; }
-.sp-grid.on { color: var(--gold-200); background: rgba(243, 200, 94, 0.14); box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.45); }
+.sp-helpbtn .ico { width: 1.125rem; height: 1.125rem; }
+.sp-grid.on, .sp-helpbtn.on { color: var(--gold-200); background: rgba(243, 200, 94, 0.14); box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.45); }
 /* Narrow panel: icons only for the debugger steps, then for everything but "Run" */
-@container (max-width: 44rem) { .sp-lbl-dbg { display: none; } }
-@container (max-width: 37rem) { .sp-lbl-file { display: none; } }
-@container (max-width: 30rem) { .sp-lbl { display: none; } .sp-run { min-width: 0; } .sp-grow, .sp-sep { display: none; } }
+@container (max-width: 50rem) { .sp-lbl-dbg { display: none; } }
+@container (max-width: 44rem) { .sp-lbl-file { display: none; } }
+@container (max-width: 34.5rem) { .sp-lbl { display: none; } .sp-run { min-width: 0; } .sp-grow, .sp-sep { display: none; } }
+/* Minimum width: everything in one row, "Run" as ▶ only (name stays as label for screen readers) */
+@container (max-width: 25rem) { .sp-run-lbl { display: none; } .sp-tools button { padding: 0 0.3125rem; } }
 .sp-file { display: none; }
 .sp-tabs { align-self: flex-start; }
 .sp-tabs > button { min-height: 2rem; padding: 0 0.875rem; gap: 0.375rem; display: inline-flex; align-items: center; justify-content: center; }
 .sp-badge { display: inline-grid; place-items: center; min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem; border-radius: 999px; background: var(--bad-deep, #a3321f); color: #fff; font: 700 0.6875rem/1 var(--body); font-style: normal; }
+.sp-main { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .sp-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.625rem; padding-right: 0.125rem; }
 /* The body scrolls; its blocks keep their height */
 .sp-body > * { flex-shrink: 0; }
 .sp-brief { position: relative; margin: 0; padding: 0.625rem 2.25rem 0.625rem 0.75rem; font-size: var(--fs-sm); line-height: 1.45; }
 .sp-brief-x { position: absolute; top: 0.25rem; right: 0.25rem; min-height: 1.75rem !important; min-width: 1.75rem; padding: 0; color: var(--parch-ink); }
-.sp-sec { display: flex; flex-direction: column; gap: 0.25rem; }
-.sp-sec-title { margin: 0; font-size: var(--fs-sm); color: var(--ink-muted); display: flex; align-items: center; gap: 0.375rem; }
-.sp-fold { display: flex; align-items: center; gap: 0.5rem; text-align: left; min-height: 2.25rem; background: var(--inset-bg); box-shadow: var(--inset-edge); border-color: transparent; }
-.sp-fold span { flex: 1; }
-.sp-fold small { color: var(--ink-dim); }
-.sp-lock { width: 0.9rem !important; height: 0.9rem !important; opacity: 0.7; }
+.sp-sec { display: flex; flex-direction: column; gap: 0.25rem; container-type: inline-size; }
+/* Section header: chevron and title on the left, line count and lock badge on the right edge */
+.sp-sec-title { margin: 0; min-height: 1.75rem; font-size: var(--fs-sm); color: var(--ink-muted); display: flex; align-items: center; gap: 0.5rem; }
+.sp-fold {
+  display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; width: 100%; min-height: 2.25rem; padding: 0.25rem 0.5rem 0.25rem 0.375rem;
+  text-align: left; color: var(--ink); background: var(--inset-bg); box-shadow: var(--inset-edge); border-color: transparent;
+}
+.sp-fold.open { border-radius: var(--r-md) var(--r-md) var(--r-sm) var(--r-sm); }
+.sp-fold-chev { width: 1rem !important; height: 1rem !important; color: var(--gold-300); }
+.sp-fold-title { min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-fold-meta { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+.sp-fold-lines { color: var(--ink-dim); font-size: var(--fs-xs); white-space: nowrap; }
+.sp-sec-title .sp-locked { margin-left: auto; }
+.sp-locked {
+  flex: none; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.0625rem 0.5rem 0.0625rem 0.375rem; border-radius: 999px;
+  font-size: var(--fs-xs); font-weight: 400; line-height: 1.4; color: var(--ink-muted); background: rgba(0, 0, 0, 0.28); box-shadow: inset 0 0 0 1px rgba(225, 168, 58, 0.22); white-space: nowrap;
+}
+.sp-locked .ico { width: 0.75rem; height: 0.75rem; opacity: 0.8; }
+/* Narrow panel: the badge keeps only its lock */
+@container (max-width: 22rem) { .sp-fold-lines { display: none; } }
 .sp-error { padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: rgba(163, 50, 31, 0.28); box-shadow: inset 3px 0 0 var(--bad); }
 .sp-error b { color: #ffc2b5; font-size: var(--fs-sm); }
 .sp-error p { margin: 0.125rem 0 0; font-size: var(--fs-sm); line-height: 1.4; }
@@ -560,6 +643,16 @@ export default {
 .sp-none { color: var(--ink-dim); font-style: italic; }
 .sp-frame { font-family: ui-monospace, Menlo, Consolas, monospace; }
 .sp-reset { align-self: flex-start; font-size: var(--fs-sm); min-height: 2rem; }
+/* Command help (split screen): drawer over the code on the right, full width in a narrow panel */
+.sp-help {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(28rem, 100%); display: flex; flex-direction: column;
+  border-radius: var(--r-lg); background: var(--panel-bg), var(--wood-900); box-shadow: var(--panel-edge), -8px 0 24px rgba(10, 6, 2, 0.55);
+}
+.sp-help-head { flex: none; display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.375rem 0.375rem 0.75rem; border-bottom: 1px solid rgba(225, 168, 58, 0.18); }
+.sp-help-head > .ico { width: 1.125rem; height: 1.125rem; }
+.sp-help-head strong { flex: 1; font-family: var(--display); color: var(--gold-200); font-size: var(--fs-md); }
+.sp-help-head .icon-btn { min-height: 2rem; width: 2rem; min-width: 2rem; padding: 0; }
+.sp-help-body { flex: 1; min-height: 0; padding: 0.625rem 0.75rem; }
 
 /* ---------- Sheet (phones): full screen over the game ---------- */
 .script-panel.sheet { inset: 0; z-index: 30; flex-direction: column; }

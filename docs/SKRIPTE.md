@@ -213,14 +213,20 @@ Stufe tiefer), Rücktaste löscht eine Einrückstufe. Klick auf eine Zeilennumme
 **Aufteilung** (`src/ui/script/splitLayout.js`, Test `tests/ui/splitLayout.test.js`):
 
 - **Desktop und Tablet quer – geteilter Bildschirm:** Spiel links, Programm rechts (anfangs 46 % der Breite).
-  Die Trennlinie lässt sich mit Maus oder Finger ziehen (auch Pfeiltasten), mindestens 340 px Programm und
-  420 px Spiel. Der Knopf auf der Trennlinie (oder › im Kopf) klappt das Programm zu einer schmalen Leiste
-  „‹ Programm“ ein. Breite und Zustand merkt sich der Browser (`kronland-code-split`). Das Spiel wird wirklich
+  Die Trennlinie lässt sich mit Maus oder Finger ziehen, mindestens 340 px Programm und 420 px Spiel. Beim
+  Ziehen wandert nur eine goldene Vorschaulinie (CSS-Transform, kein Neulayout); Panelbreite und Spiel-Canvas
+  ändern sich einmal beim Loslassen (`Renderer.setSize` genau einmal je Zug). Pfeiltasten auf der Trennlinie
+  verschieben die Linie in 32-px-Schritten, die Breite folgt 250 ms nach dem letzten Tastendruck. › im Kopf
+  klappt das Programm zu einer schmalen Leiste „‹ Programm“ ein. Breite und Zustand merkt sich der Browser (`kronland-code-split`). Das Spiel wird wirklich
   schmaler: `.game` bekommt rechts die Panelbreite und `contain: layout`, damit Leiste, Minimap und Meldungen
   im Spielbereich bleiben; Canvas, Kamera-Seitenverhältnis und Randscrollen folgen. Die HUD-Stufen
   (`compact`, `mid`, `narrow`) richten sich nach der Breite des Spielbereichs. Werkzeugleiste: Ausführen,
-  Schritt, Über, Heraus, Stopp | Speichern, Öffnen | Raster; darunter Code (Abschnitte, Fehlerkasten, Variablen)
-  und unten die **Ausgabe**. Der Reiter **Befehle** zeigt die Befehlsliste.
+  Schritt, Über, Heraus, Stopp | Speichern, Öffnen | Raster, **Befehle**; darunter immer der Code (Abschnitte,
+  Fehlerkasten, Variablen) und unten die **Ausgabe** – ohne Reiter. **Befehle** öffnet die Befehlsliste (Suche,
+  Erklärkarten, Beispiele einfügen) als Schublade rechts über dem Code; × oder Esc schließt sie, ein neuer
+  Fehler ebenfalls. Eingeklappte Abschnitte (z. B. „Welt aufbauen“) zeigen links Pfeil und Titel, rechts
+  Zeilenzahl und das Schild „gesperrt“, wenn sie nicht bearbeitbar sind. Einen Status-Text im Kopf gibt es nicht
+  – den Zustand zeigen die markierte Zeile und der Knopf Ausführen/Anhalten/Weiter.
 - **Handy (hochkant oder niedrig) – Blatt:** Das Programm füllt den Bildschirm, Reiter **Code**, **Ausgabe**
   (mit Fehlerzähler) und **Hilfe** (Befehlsliste mit Suche). Unten Ausführen, Schritt, Stopp und „⋯“
   (Speichern .py, Öffnen, Raster, Vorlage wiederherstellen), darüber beim Tippen die Tastenleiste

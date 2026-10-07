@@ -78,17 +78,17 @@ test('Error message with line and suggestion, single step with variables', async
   await page.getByTestId('script-run').click();
   await expect(page.getByTestId('script-error')).toContainText('NameError', SLOW);
   await expect(page.getByTestId('script-error')).toContainText('wood');
-  await expect(page.getByTestId('script-status')).toHaveText('Fehler');
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'error');
 
   await ta.fill('a = 1\nb = a + 41\nprint(b)\n');
   await page.getByTestId('script-step').click();
-  await expect(page.getByTestId('script-status')).toHaveText('angehalten', SLOW);
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'paused', SLOW);
   await page.getByTestId('script-step').click();
   await page.getByTestId('script-step').click();
   await expect(page.getByTestId('script-vars')).toContainText('42', SLOW);
   await page.getByTestId('script-continue').click();
   await expect(page.getByTestId('script-console')).toContainText('42', SLOW);
-  await expect(page.getByTestId('script-status')).toHaveText('fertig');
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'done');
   expect(errors).toEqual([]);
 });
 
@@ -109,7 +109,7 @@ test('print() as a notice, error clears after editing, save and open .py', async
   await ta.fill('wood = 3\nprint(wood)\n');
   await expect(page.getByTestId('script-error')).toHaveCount(0);
   await expect(sec.locator('.ce-ln.error')).toHaveCount(0);
-  await expect(page.getByTestId('script-status')).toHaveText('bereit');
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'idle');
   await expect(page.getByTestId('script-console')).toHaveCount(0);
 
   // print(): notice in the game (newest wins, bundled) and output in the panel, only of the current run
