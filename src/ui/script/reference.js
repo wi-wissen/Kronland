@@ -133,6 +133,7 @@ export const EXAMPLES = {
   ),
   time: 'start = time()\nhero.step(3)\nprint("Drei Schritte dauerten", round(time() - start, 1), "s")',
   print: 'wood = stock("wood")\nprint("Holz:", wood)\nprint(1, 2, 3, sep=" - ")',
+  notify: L('wood = stock("wood")\nif wood >= 100:\n    notify(f"Genug Holz: {wood}")\nprint("Holz:", wood)', 'wood = stock("wood")\nif wood >= 100:\n    notify(f"Enough wood: {wood}")\nprint("Wood:", wood)'),
   // ---------- Hero ----------
   hero: 'print(hero, hero.name, hero.x, hero.y)\nprint(nelia is hero)',
   'hero.step': 'hero.step()\nhero.step(2)',
@@ -331,6 +332,7 @@ export const EXAMPLES = {
 /** Typical errors per entry: error codes (err.script.…, script.game.…) with the variant after a dot. */
 export const ERRORS = {
   wait: ['err.script.type.numberNeeded'],
+  notify: ['err.script.argMissing'],
   wait_until: ['err.script.type.callableNeeded', 'err.script.type.waitInSync'],
   'hero.step': ['script.game.blocked', 'script.game.heroDown'],
   'hero.turn_to': ['script.game.dirUnknown'],
