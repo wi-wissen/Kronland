@@ -92,27 +92,30 @@
       <p class="sm-credits">{{ $t('menu.credits') }}</p>
     </div>
 
-    <div v-if="savesOpen" class="scrim" @click.self="savesOpen = false">
-      <div class="dialog frame sm-saves" role="dialog" aria-modal="true" :aria-label="$t('saves.title.manage')" data-testid="saves-dialog">
-        <header class="dialog-head">
-          <h2 class="h-title">{{ $t('saves.title.manage') }}</h2>
-          <button class="icon-btn ghost" :aria-label="$t('common.close')" data-testid="saves-close" @click="savesOpen = false"><Icon name="close" /></button>
-        </header>
-        <div class="dialog-body scroll-y">
-          <SaveBrowser ref="saves" mode="load" :touch="touch" @load="$emit('load', $event)" @changed="$emit('saves-changed')" />
+    <!-- Modal dialogs live under <body>: inside .backdrop they would be laid out as content below the menu -->
+    <Teleport to="body">
+      <div v-if="savesOpen" class="scrim" @click.self="savesOpen = false">
+        <div class="dialog frame sm-saves" role="dialog" aria-modal="true" :aria-label="$t('saves.title.manage')" data-testid="saves-dialog">
+          <header class="dialog-head">
+            <h2 class="h-title">{{ $t('saves.title.manage') }}</h2>
+            <button class="icon-btn ghost" :aria-label="$t('common.close')" data-testid="saves-close" @click="savesOpen = false"><Icon name="close" /></button>
+          </header>
+          <div class="dialog-body scroll-y">
+            <SaveBrowser ref="saves" mode="load" :touch="touch" @load="$emit('load', $event)" @changed="$emit('saves-changed')" />
+          </div>
         </div>
       </div>
-    </div>
 
-    <div v-if="settingsOpen" class="scrim" @click.self="settingsOpen = false">
-      <div class="dialog frame" role="dialog" aria-modal="true" :aria-label="$t('set.title')">
-        <header class="dialog-head">
-          <h2 class="h-title">{{ $t('set.title') }}</h2>
-          <button class="icon-btn ghost" :aria-label="$t('common.close')" @click="settingsOpen = false"><Icon name="close" /></button>
-        </header>
-        <div class="dialog-body scroll-y"><SettingsPanel @close="settingsOpen = false" /></div>
+      <div v-if="settingsOpen" class="scrim" @click.self="settingsOpen = false">
+        <div class="dialog frame" role="dialog" aria-modal="true" :aria-label="$t('set.title')" data-testid="settings-dialog">
+          <header class="dialog-head">
+            <h2 class="h-title">{{ $t('set.title') }}</h2>
+            <button class="icon-btn ghost" :aria-label="$t('common.close')" @click="settingsOpen = false"><Icon name="close" /></button>
+          </header>
+          <div class="dialog-body scroll-y"><SettingsPanel @close="settingsOpen = false" /></div>
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -191,7 +194,7 @@ export default {
   content: ''; position: fixed; inset: 0; pointer-events: none;
   background: radial-gradient(ellipse at center, transparent 45%, rgba(10, 6, 3, 0.55));
 }
-.backdrop > * { position: relative; z-index: 1; }
+.backdrop > :not(.scrim) { position: relative; z-index: 1; }
 .backdrop.loading { --backdrop-art: var(--art-loading, var(--art-title, none)); }
 .sm-wrap { max-width: 60rem; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 1.25rem; }
 .sm-brand { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.125rem; }

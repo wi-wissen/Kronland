@@ -1,48 +1,51 @@
 <template>
-  <div class="scrim" @click.self="$emit('close')">
-    <div class="dialog frame gmenu" :class="{ wide: view === 'save' || view === 'load' }" role="dialog" aria-modal="true" :aria-label="title" data-testid="game-menu">
-      <header class="dialog-head">
-        <button v-if="view !== 'main'" class="icon-btn ghost" :aria-label="$t('common.back')" data-testid="gmenu-back" @click="view = 'main'"><Icon name="back" /></button>
-        <h2 class="h-title">{{ title }}</h2>
-        <button class="icon-btn ghost" :aria-label="$t('common.close')" @click="$emit('close')"><Icon name="close" /></button>
-      </header>
+  <!-- Under <body>, so that it covers the whole screen including the code panel (.game.split has contain: layout) -->
+  <Teleport to="body">
+    <div class="scrim" @click.self="$emit('close')">
+      <div class="dialog frame gmenu" :class="{ wide: view === 'save' || view === 'load' }" role="dialog" aria-modal="true" :aria-label="title" data-testid="game-menu">
+        <header class="dialog-head">
+          <button v-if="view !== 'main'" class="icon-btn ghost" :aria-label="$t('common.back')" data-testid="gmenu-back" @click="view = 'main'"><Icon name="back" /></button>
+          <h2 class="h-title">{{ title }}</h2>
+          <button class="icon-btn ghost" :aria-label="$t('common.close')" @click="$emit('close')"><Icon name="close" /></button>
+        </header>
 
-      <div v-if="view === 'main'" class="dialog-body scroll-y gm-main">
-        <p class="gm-paused"><Icon name="pause" />{{ $t('gmenu.paused') }}</p>
-        <button class="primary gm-btn" data-testid="resume" @click="$emit('close')"><Icon name="play" />{{ $t('gmenu.resume') }}</button>
-        <button class="gm-btn" data-testid="save" @click="view = 'save'"><Icon name="save" />{{ $t('gmenu.save') }}</button>
-        <button class="gm-btn" data-testid="load" @click="view = 'load'"><Icon name="load" />{{ $t('gmenu.load') }}</button>
-        <button class="gm-btn" data-testid="open-settings" @click="view = 'settings'"><Icon name="settings" />{{ $t('gmenu.settings') }}</button>
-        <button class="gm-btn" data-testid="open-controls" @click="view = 'controls'"><Icon name="keyboard" />{{ $t('gmenu.controls') }}</button>
-        <div v-if="share" class="gm-map" data-testid="gmenu-map">
-          <p class="gm-map-line"><Icon name="map" /><span>{{ $t('gmenu.map') }}:</span> <b class="num" data-testid="gmenu-map-name">{{ share.name }}</b></p>
-          <button class="gm-btn gm-link" data-testid="copy-link" @click="shareLink"><Icon :name="copied ? 'check' : 'link'" />{{ copied ? $t('gmenu.linkCopied') : $t(canShare ? 'gmenu.shareLink' : 'gmenu.copyLink') }}</button>
-          <input v-if="showField" ref="field" class="gm-link-field" readonly :value="share.url" :aria-label="$t('gmenu.linkLabel')" data-testid="link-field" @focus="$event.target.select()">
-          <p class="gm-map-hint" role="status">{{ showField ? $t('gmenu.linkSelect') : $t('gmenu.linkHint') }}</p>
+        <div v-if="view === 'main'" class="dialog-body scroll-y gm-main">
+          <p class="gm-paused"><Icon name="pause" />{{ $t('gmenu.paused') }}</p>
+          <button class="primary gm-btn" data-testid="resume" @click="$emit('close')"><Icon name="play" />{{ $t('gmenu.resume') }}</button>
+          <button class="gm-btn" data-testid="save" @click="view = 'save'"><Icon name="save" />{{ $t('gmenu.save') }}</button>
+          <button class="gm-btn" data-testid="load" @click="view = 'load'"><Icon name="load" />{{ $t('gmenu.load') }}</button>
+          <button class="gm-btn" data-testid="open-settings" @click="view = 'settings'"><Icon name="settings" />{{ $t('gmenu.settings') }}</button>
+          <button class="gm-btn" data-testid="open-controls" @click="view = 'controls'"><Icon name="keyboard" />{{ $t('gmenu.controls') }}</button>
+          <div v-if="share" class="gm-map" data-testid="gmenu-map">
+            <p class="gm-map-line"><Icon name="map" /><span>{{ $t('gmenu.map') }}:</span> <b class="num" data-testid="gmenu-map-name">{{ share.name }}</b></p>
+            <button class="gm-btn gm-link" data-testid="copy-link" @click="shareLink"><Icon :name="copied ? 'check' : 'link'" />{{ copied ? $t('gmenu.linkCopied') : $t(canShare ? 'gmenu.shareLink' : 'gmenu.copyLink') }}</button>
+            <input v-if="showField" ref="field" class="gm-link-field" readonly :value="share.url" :aria-label="$t('gmenu.linkLabel')" data-testid="link-field" @focus="$event.target.select()">
+            <p class="gm-map-hint" role="status">{{ showField ? $t('gmenu.linkSelect') : $t('gmenu.linkHint') }}</p>
+          </div>
+          <div class="gm-sep"></div>
+          <button class="gm-btn" :class="{ danger: confirmQuit }" data-testid="quit" @click="quit"><Icon name="quit" />{{ confirmQuit ? $t('gmenu.quitConfirm') : $t('gmenu.quit') }}</button>
         </div>
-        <div class="gm-sep"></div>
-        <button class="gm-btn" :class="{ danger: confirmQuit }" data-testid="quit" @click="quit"><Icon name="quit" />{{ confirmQuit ? $t('gmenu.quitConfirm') : $t('gmenu.quit') }}</button>
-      </div>
 
-      <div v-else-if="view === 'save' || view === 'load'" class="dialog-body scroll-y">
-        <SaveBrowser ref="saves" :key="view" :mode="view" :engine="engine" :touch="touch" in-game @load="$emit('load', $event)" @saved="$emit('saved', $event)" />
-      </div>
+        <div v-else-if="view === 'save' || view === 'load'" class="dialog-body scroll-y">
+          <SaveBrowser ref="saves" :key="view" :mode="view" :engine="engine" :touch="touch" in-game @load="$emit('load', $event)" @saved="$emit('saved', $event)" />
+        </div>
 
-      <div v-else-if="view === 'settings'" class="dialog-body scroll-y">
-        <SettingsPanel in-game @close="view = 'main'" />
-      </div>
+        <div v-else-if="view === 'settings'" class="dialog-body scroll-y">
+          <SettingsPanel in-game @close="view = 'main'" />
+        </div>
 
-      <div v-else class="dialog-body scroll-y gm-help">
-        <table class="gm-keys">
-          <tr v-for="row in controls" :key="row[0]">
-            <th scope="row">{{ $t('help.' + row[0]) }}</th>
-            <td>{{ row[1] }}</td>
-          </tr>
-        </table>
-        <p class="gm-tip"><Icon name="worker" />{{ $t('help.workers') }}</p>
+        <div v-else class="dialog-body scroll-y gm-help">
+          <table class="gm-keys">
+            <tr v-for="row in controls" :key="row[0]">
+              <th scope="row">{{ $t('help.' + row[0]) }}</th>
+              <td>{{ row[1] }}</td>
+            </tr>
+          </table>
+          <p class="gm-tip"><Icon name="worker" />{{ $t('help.workers') }}</p>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script>
