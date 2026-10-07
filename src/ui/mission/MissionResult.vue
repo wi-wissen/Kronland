@@ -1,33 +1,35 @@
 <template>
-  <div class="scrim mresult" data-testid="mission-result">
-    <div class="mr-card parchment" :class="result.won ? 'won' : 'lost'" role="dialog" aria-modal="true" :aria-label="heading">
-      <div class="mr-banner">
-        <Icon :name="result.won ? 'crown' : 'skull'" class="mr-crest" />
-        <h2 data-testid="mission-result-title">{{ heading }}</h2>
-        <span class="mr-mission">{{ $tr(result.title) }}</span>
-      </div>
-      <p class="mr-text">{{ $tr(result.text) }}</p>
-      <p v-if="result.debrief" class="mr-debrief" data-testid="debrief">{{ $tr(result.debrief) }}</p>
-      <ul v-if="objectives.length" class="mr-goals">
-        <li v-for="o in objectives" :key="o.id" :class="'st-' + o.status">
-          <Icon :name="o.status === 'done' ? 'objectiveDone' : o.status === 'failed' ? 'objectiveFailed' : 'objective'" />
-          <span>{{ $tr(o.text) }}<em v-if="!o.primary"> · {{ $t('mission.optional') }}</em></span>
-        </li>
-      </ul>
-      <p class="mr-stats num">
-        <span><Icon name="time" />{{ $t('mission.time', { t: time }) }}</span>
-        <span v-if="optional.total"><Icon name="scroll" />{{ $t('mission.optionalDone', { a: optional.done, b: optional.total }) }}</span>
-        <span v-if="record" class="mr-record"><Icon name="crown" />{{ $t('mission.newRecord') }}</span>
-      </p>
-      <p v-if="result.won && isCampaign && origin === 'campaign' && !result.next" class="mr-end">{{ $t('mission.campaignEnd') }}</p>
-      <div class="mr-actions">
-        <button v-if="result.won && result.next" class="mr-primary" data-testid="next-mission" @click="$emit('next', result.next)">{{ $t('mission.nextMission') }}<Icon name="next" /></button>
-        <button v-if="!result.won" class="mr-primary" data-testid="retry-mission" @click="$emit('retry')">{{ $t('mission.retry') }}</button>
-        <button v-if="isCampaign || result.won" data-testid="to-campaign" @click="$emit('campaign')">{{ $t(backKey) }}</button>
-        <button data-testid="to-menu" @click="$emit('menu')">{{ $t('mission.toMenu') }}</button>
+  <Teleport to="body">
+    <div class="scrim mresult" data-testid="mission-result">
+      <div class="mr-card parchment" :class="result.won ? 'won' : 'lost'" role="dialog" aria-modal="true" :aria-label="heading">
+        <div class="mr-banner">
+          <Icon :name="result.won ? 'crown' : 'skull'" class="mr-crest" />
+          <h2 data-testid="mission-result-title">{{ heading }}</h2>
+          <span class="mr-mission">{{ $tr(result.title) }}</span>
+        </div>
+        <p class="mr-text">{{ $tr(result.text) }}</p>
+        <p v-if="result.debrief" class="mr-debrief" data-testid="debrief">{{ $tr(result.debrief) }}</p>
+        <ul v-if="objectives.length" class="mr-goals">
+          <li v-for="o in objectives" :key="o.id" :class="'st-' + o.status">
+            <Icon :name="o.status === 'done' ? 'objectiveDone' : o.status === 'failed' ? 'objectiveFailed' : 'objective'" />
+            <span>{{ $tr(o.text) }}<em v-if="!o.primary"> · {{ $t('mission.optional') }}</em></span>
+          </li>
+        </ul>
+        <p class="mr-stats num">
+          <span><Icon name="time" />{{ $t('mission.time', { t: time }) }}</span>
+          <span v-if="optional.total"><Icon name="scroll" />{{ $t('mission.optionalDone', { a: optional.done, b: optional.total }) }}</span>
+          <span v-if="record" class="mr-record"><Icon name="crown" />{{ $t('mission.newRecord') }}</span>
+        </p>
+        <p v-if="result.won && isCampaign && origin === 'campaign' && !result.next" class="mr-end">{{ $t('mission.campaignEnd') }}</p>
+        <div class="mr-actions">
+          <button v-if="result.won && result.next" class="mr-primary" data-testid="next-mission" @click="$emit('next', result.next)">{{ $t('mission.nextMission') }}<Icon name="next" /></button>
+          <button v-if="!result.won" class="mr-primary" data-testid="retry-mission" @click="$emit('retry')">{{ $t('mission.retry') }}</button>
+          <button v-if="isCampaign || result.won" data-testid="to-campaign" @click="$emit('campaign')">{{ $t(backKey) }}</button>
+          <button data-testid="to-menu" @click="$emit('menu')">{{ $t('mission.toMenu') }}</button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script>
