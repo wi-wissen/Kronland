@@ -74,8 +74,9 @@ Zwei Rechtestufen. Die Stufe entscheidet, welche Namen ein Programm überhaupt k
   Simulation.
 - **mission**: alles – Truppen erzeugen, Rohstoffe geben, Dialoge, Kamera, Ziele, Gelände formen.
 
-Die vollständige Liste mit Erklärungen steht im Spiel unter **Befehle** (Code-Panel) und in `API_DOC`
-(`api.js`). Die wichtigsten:
+Die vollständige Liste steht im Spiel unter **Befehle** (Code-Panel, jeder Eintrag verlinkt auf die Website)
+und ausführlich mit Parametern, Rückgabe, Fehlern und Beispielen in der **Programmier-Referenz** (`scripting/`,
+siehe [WEBSITE.md](WEBSITE.md)); Quelle ist `API_DOC` (`api.js`). Die wichtigsten:
 
 ```python
 # Held (player)
@@ -211,7 +212,19 @@ Am Handy: Tastenleiste (⇥ ⇤ : ( ) " " = == [ ] . _ #) und das Panel als Blat
 
 Knöpfe: **Ausführen**, **Schritt** (hinein; startet auch im Schrittmodus), **Über**, **Heraus**, **Stopp**,
 **Weiter**/**Anhalten**. Beim Halt: aktuelle Zeile grün, Variablen (global, übergeben, lokal) und Aufrufstapel.
-Fehler: rote Zeile und Kasten mit Python-Namen, Abschnitt, Zeile, Erklärung und Vorschlag.
+Fehler: rote Zeile und Kasten mit Python-Namen, Abschnitt, Zeile, Erklärung und Vorschlag. Sobald der Abschnitt
+bearbeitet wird, verschwinden Markierung und Kasten (der Fehler steht dann womöglich nicht mehr im Programm), der
+Status springt auf „bereit“.
+
+**Ausgabe:** `print()` erscheint als Meldung im Spiel (Kategorie `script`, niedrigster Vorrang, höchstens eine;
+weitere Ausgaben ersetzen den Text und zählen mit – „… (12 Ausgaben)“, eine Schleife flutet also nicht) und
+unter „Ausgabe“ im Code-Panel. Die Simulation meldet jeden Aufruf als Ereignis `scriptPrint` (nur Anzeige);
+das Panel zeigt nur den aktuellen Lauf (`player.since` = Konsolen-Zähler beim Start). Anzeige-Logik:
+`src/ui/script/panelState.js` (Test `tests/ui/scriptPanel.test.js`).
+
+**Dateien:** **Speichern** lädt den Code als `<szenario>.py` herunter (Blob, auch am Handy), **Öffnen** lädt eine
+`.py`- oder `.txt`-Datei vom Gerät in den Abschnitt (den fokussierten bearbeitbaren, sonst das Spielerprogramm;
+höchstens 200 KB, Windows-Zeilenenden und BOM werden bereinigt).
 
 ## Welteneditor
 

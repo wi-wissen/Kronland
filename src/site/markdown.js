@@ -1,7 +1,7 @@
 // Small Markdown renderer for manual and compendium texts (own, trusted content).
 // Supports: headings (# … ####, anchor via {#id}), paragraphs, lists (also nested, 2 spaces),
 // tables (|…|), quotes/notes (> …), horizontal rule (---), images (alone on a line → <figure>),
-// code blocks (```), **bold**, *italic*, `code`, [link](target), [[key]] → <kbd>, placeholders {{name}} from `vars`, \* escaped.
+// code blocks (```, optionally ```lang file/path: language for simple highlighting, path as a label), **bold**, *italic*, `code`, [link](target), [[key]] → <kbd>, placeholders {{name}} from `vars`, \* escaped.
 // Relative image and link targets are resolved against the website root (`base`), anchors (#…) stay.
 
 import { assetPath } from '../paths.js';
@@ -38,6 +38,36 @@ function inline(s, opt) {
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?!\w)/g, '$1<em>$2</em>');
   return s.replace(/\u0000(\d+)\u0000/g, (m, i) => out[Number(i)]);
+}
+
+// Simple syntax highlighting for code blocks with a language (```js, ```python, ```pseudo, ```bash):
+// comments, strings, numbers and keywords become <span class="tk-…">. Without a language nothing changes.
+const KEYWORDS = {
+  js: 'async await break case catch class const continue default do else export extends false for from function if import in let new null of return static switch this throw true try typeof undefined while yield',
+  python: 'and as break class continue def elif else False for from if import in is lambda None not or pass return True while with yield',
+  pseudo: 'and bis do else end for function if not or repeat return then until while solange wenn dann sonst für jede jeden jedes in gib zurück funktion ende und oder nicht wiederhole',
+  bash: 'cd do done echo export fi for if in then while',
+};
+const LANG_ALIAS = { javascript: 'js', mjs: 'js', py: 'python', sh: 'bash', shell: 'bash', pseudocode: 'pseudo' };
+const COMMENT = { js: String.raw`\/\/[^\n]*|\/\*[\s\S]*?\*\/`, python: '#[^\\n]*', bash: '#[^\\n]*', pseudo: String.raw`\/\/[^\n]*|#[^\n]*` };
+const STRING = String.raw`"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|` + '`(?:[^`\\\\]|\\\\.)*`';
+const NUMBER = String.raw`\b(?:0x[0-9a-f]+|\d[\d_]*(?:\.\d+)?)\b`;
+const WORD = String.raw`[A-Za-zÄÖÜäöüß_$][\wÄÖÜäöüß$]*`;
+
+/** Code → HTML with token spans (unknown language: only escaped). @param {string} code @param {string} lang */
+export function highlight(code, lang) {
+  const l = LANG_ALIAS[lang] ?? lang;
+  if (!KEYWORDS[l]) return escapeHtml(code);
+  const kw = new Set(KEYWORDS[l].split(' '));
+  const re = new RegExp(`(${COMMENT[l]})|(${STRING})|(${NUMBER})|(${WORD})`, 'gi');
+  let out = '', last = 0;
+  for (const m of code.matchAll(re)) {
+    out += escapeHtml(code.slice(last, m.index));
+    last = m.index + m[0].length;
+    const cls = m[1] ? 'c' : m[2] ? 's' : m[3] ? 'n' : kw.has(m[4]) ? 'k' : null;
+    out += cls ? `<span class="tk-${cls}">${escapeHtml(m[0])}</span>` : escapeHtml(m[0]);
+  }
+  return out + escapeHtml(code.slice(last));
 }
 
 const cells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
@@ -80,9 +110,13 @@ export function renderMarkdown(src, opt = {}) {
     // Code block: literal, indentation stays (Python)
     if (/^\s*```/.test(line)) {
       flush();
+      const [, lang = '', file = ''] = /^\s*```\s*([\w-]*)\s*(.*?)\s*$/.exec(line) ?? [];
       const code = [];
       for (i++; i < lines.length && !/^\s*```/.test(lines[i]); i++) code.push(lines[i]);
-      html.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+      const pre = lang
+        ? `<pre class="lang-${escapeHtml(lang)}"><code>${highlight(code.join('\n'), lang.toLowerCase())}</code></pre>`
+        : `<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`;
+      html.push(file ? `<figure class="code"><figcaption>${escapeHtml(file)}</figcaption>${pre}</figure>` : pre);
       continue;
     }
 

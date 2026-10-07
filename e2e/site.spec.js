@@ -145,6 +145,22 @@ test('Compendium: building table from the game data, deep link, search', async (
   expect(problems).toEqual([]);
 });
 
+test('Compendium explains the computer opponents (guide and state diagram)', async ({ page }, info) => {
+  const problems = watch(page);
+  await page.goto('/compendium/#ai-attack');
+  await expect(page.locator('#ai-attack h3')).toBeInViewport();
+  const diagram = page.getByTestId('ai-states');
+  await expect(diagram).toBeVisible();
+  await expect(diagram).toContainText('Verteidigen');
+  await expect(page.locator('#ai-counter')).toContainText('Rückzug erzwingen');
+  await expect(page.locator('#ai-rules a[href^="https://de.wikipedia.org/wiki/"]').first()).toBeVisible();
+  // the sidebar lists the entries of the current section
+  await expect(page.getByTestId('compendium-nav').locator('a[href="#ai-counter"]')).toBeAttached();
+  await diagram.scrollIntoViewIfNeeded();
+  if (process.env.SHOT_DIR) await page.screenshot({ path: `${process.env.SHOT_DIR}/compendium-ai-${info.project.name}.png` });
+  expect(problems).toEqual([]);
+});
+
 test('Language switch applies to all pages and the game', async ({ page }) => {
   const problems = watch(page);
   await page.goto('/compendium/');

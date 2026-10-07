@@ -86,6 +86,24 @@ for (const lang of ['de', 'en']) {
   });
 }
 
+test('Blog article: figures load, code blocks are highlighted', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  const problems = watch(page);
+  await page.goto('/blog/simulation-core/');
+  const article = page.getByTestId('blog-article');
+  await expect(article.locator('figure.code figcaption').first()).toHaveText('src/sim/sim.js');
+  await expect(article.locator('pre.lang-js .tk-k').first()).toBeVisible();
+  const figures = article.locator('figure:not(.code) img');
+  expect(await figures.count()).toBeGreaterThanOrEqual(3);
+  for (const img of await figures.all()) {
+    await img.scrollIntoViewIfNeeded();
+    await expect.poll(() => img.evaluate((i) => (i.complete ? i.naturalWidth : 0)), { timeout: 30_000 }).toBeGreaterThan(0);
+  }
+  await article.locator('h2#pathfinding').scrollIntoViewIfNeeded();
+  await shot(page, testInfo, 'blog-figures');
+  expect(problems).toEqual([]);
+});
+
 test('Blog is reachable from the home page and the start menu', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/');

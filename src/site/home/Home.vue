@@ -1,5 +1,5 @@
 <template>
-  <SiteLayout page="home" overlay>
+  <SiteLayout ref="layout" page="home" overlay>
     <section class="hero" data-testid="home-hero">
       <picture class="hero-bg">
         <img :src="img('hero')" :srcset="img('hero') + ' 1440w, ' + img('hero-wide') + ' 2880w'" sizes="100vw" :alt="$s('home.heroAlt')" width="1440" height="900" fetchpriority="high">
@@ -92,6 +92,12 @@
           <p>{{ $s('home.learn.compendium') }}</p>
           <span class="lc-go">{{ $s('home.learn.toCompendium') }} →</span>
         </a>
+        <a class="learn-card parchment" :href="$links.scripting" data-testid="home-scripting">
+          <Icon name="mode-adventure" class="lc-ico" />
+          <h3>{{ $s('scripting.title') }}</h3>
+          <p>{{ $s('home.learn.scripting') }}</p>
+          <span class="lc-go">{{ $s('home.learn.toScripting') }} →</span>
+        </a>
         <a class="learn-card parchment" :href="$links.blog" data-testid="home-blog">
           <Icon name="time" class="lc-ico" />
           <h3>{{ $s('nav.blog') }}</h3>
@@ -109,17 +115,6 @@
       <a class="btn primary big" :href="$links.play"><Icon name="play" />{{ $s('home.play') }}</a>
     </section>
 
-    <dialog ref="box" class="lightbox" :aria-label="current !== null ? $s('home.shot.' + shots[current]) : ''" @click.self="close" @close="current = null">
-      <figure v-if="current !== null">
-        <img :src="img(shots[current])" :alt="$s('home.shot.' + shots[current])">
-        <figcaption>{{ $s('home.shot.' + shots[current]) }}</figcaption>
-      </figure>
-      <div class="lb-ctl">
-        <button type="button" class="icon-btn" :aria-label="$s('home.gallery.prev')" @click="step(-1)"><Icon name="back" /></button>
-        <button type="button" class="icon-btn" :aria-label="$s('home.gallery.next')" @click="step(1)"><Icon name="next" /></button>
-        <button type="button" class="icon-btn" :aria-label="$s('home.gallery.close')" @click="close"><Icon name="close" /></button>
-      </div>
-    </dialog>
   </SiteLayout>
 </template>
 
@@ -143,7 +138,6 @@ export default {
       // Gallery rows; width per image by aspect ratio (equal-height images per row)
       rows: [['settlement', 'phone'], ['combat', 'winter'], ['fog', 'slope']],
       ratio: { settlement: 1.6, combat: 1.6, winter: 1.6, fog: 1.6, slope: 1.6, developer: 1.6, phone: 412 / 915 },
-      current: null,
       // What makes the game – from the player's point of view, numbers from the game data
       features: [
         { id: 'serfs', icon: 'serf' },
@@ -171,9 +165,10 @@ export default {
   },
   methods: {
     img(name) { return siteUrl(`site/${name}.webp`); },
-    open(i) { this.current = i; this.$refs.box.showModal?.(); },
-    close() { this.$refs.box.close?.(); },
-    step(d) { this.current = (this.current + d + this.shots.length) % this.shots.length; },
+    open(i) {
+      const items = this.shots.map((g) => ({ src: this.img(g), alt: this.$s('home.shot.' + g), caption: this.$s('home.shot.' + g), ratio: this.ratio[g] }));
+      this.$refs.layout.showImages(items, i);
+    },
   },
 };
 </script>
@@ -232,12 +227,6 @@ export default {
   .g-row li.g-phone { flex: 0 1 60%; margin-inline: auto; }
 }
 
-.lightbox { padding: 0; border: 0; background: transparent; max-width: min(96vw, 1440px); max-height: 96vh; color: var(--ink); }
-.lightbox::backdrop { background: rgba(10, 6, 3, 0.88); }
-.lightbox figure { margin: 0; }
-.lightbox img { display: block; max-width: 100%; max-height: calc(96vh - 5rem); margin: 0 auto; border-radius: var(--r-md); box-shadow: var(--panel-edge); }
-.lightbox figcaption { text-align: center; margin-top: 0.5rem; color: var(--ink-muted); }
-.lb-ctl { display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.5rem; }
 
 /* ---------- For schools ---------- */
 .school { display: grid; grid-template-columns: 5fr 6fr; gap: 2.5rem; align-items: center; }
@@ -252,7 +241,7 @@ export default {
 @media (max-width: 860px) { .school { grid-template-columns: 1fr; } }
 
 /* ---------- Manual / compendium ---------- */
-.learn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
+.learn-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
 @media (max-width: 1000px) and (min-width: 701px) { .learn-grid { grid-template-columns: 1fr 1fr; } }
 .learn-card { display: block; padding: 1.5rem 1.5rem 1.25rem; text-decoration: none; color: var(--parch-ink) !important; transition: filter 0.15s; }
 .learn-card:hover { filter: brightness(1.05); }

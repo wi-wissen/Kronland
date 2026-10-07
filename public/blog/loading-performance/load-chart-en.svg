@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 470" width="940" height="470" role="img"><title>Data on the first visit</title><style>
+.bg{fill:#fffaf0;stroke:#e2d6c0}
+.t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
+.s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
+.h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
+.m{fill:#3a2d1c;font:13px ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace}
+.box{fill:#fff;stroke:#8a7556;stroke-width:1.5}
+.box2{fill:#f3e6cf;stroke:#8a7556;stroke-width:1.5}
+.hl{fill:#fde3c4;stroke:#b5651d;stroke-width:1.8}
+.blue{fill:#d7e6fb;stroke:#2a78d6;stroke-width:1.5}
+.green{fill:#d4efdf;stroke:#2e8b57;stroke-width:1.5}
+.red{fill:#f8d7d3;stroke:#c0392b;stroke-width:1.5}
+.ln{stroke:#6b5a43;stroke-width:1.6;fill:none}
+.lnb{stroke:#2a78d6;stroke-width:2.2;fill:none}
+.lnr{stroke:#c0392b;stroke-width:2.2;fill:none}
+.lno{stroke:#b5651d;stroke-width:2.2;fill:none}
+.lng{stroke:#2e8b57;stroke-width:2.2;fill:none}
+.dash{stroke:#8a7556;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+.grid{stroke:#e2d6c0;stroke-width:1;fill:none}
+.fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
+.ah{fill:#6b5a43}
+</style><rect x="0.5" y="0.5" width="939" height="469" rx="12" class="bg"/>
+<text x="30" y="38" class="h" text-anchor="start" >Data loaded on the first visit (MB)</text>
+<rect x="560" y="54" width="14" height="14" rx="3" class="blue"/>
+<text x="580" y="66" class="s" text-anchor="start" >before (close-up models at once)</text>
+<rect x="560" y="76" width="14" height="14" rx="3" class="hl"/>
+<text x="580" y="88" class="s" text-anchor="start" >after</text>
+<line x1="230.0" y1="106" x2="230.0" y2="456" class="grid"/>
+<text x="230.0" y="474" class="s" text-anchor="middle" >0</text>
+<line x1="387.5" y1="106" x2="387.5" y2="456" class="grid"/>
+<text x="387.5" y="474" class="s" text-anchor="middle" >50</text>
+<line x1="545.0" y1="106" x2="545.0" y2="456" class="grid"/>
+<text x="545.0" y="474" class="s" text-anchor="middle" >100</text>
+<line x1="702.5" y1="106" x2="702.5" y2="456" class="grid"/>
+<text x="702.5" y="474" class="s" text-anchor="middle" >150</text>
+<line x1="860.0" y1="106" x2="860.0" y2="456" class="grid"/>
+<text x="860.0" y="474" class="s" text-anchor="middle" >200</text>
+<text x="218" y="144" class="t" text-anchor="end" >Free game, desktop</text>
+<rect x="230" y="116" width="110.25" height="22" rx="3" class="blue"/>
+<text x="348.25" y="132" class="s" text-anchor="start" >35</text>
+<rect x="230" y="142" width="59.85000000000002" height="22" rx="3" class="hl"/>
+<text x="297.85" y="158" class="m" text-anchor="start" >19</text>
+<text x="218" y="214" class="t" text-anchor="end" >Free game, phone</text>
+<rect x="230" y="186" width="59.85000000000002" height="22" rx="3" class="blue"/>
+<text x="297.85" y="202" class="s" text-anchor="start" >19</text>
+<rect x="230" y="212" width="45.67500000000001" height="22" rx="3" class="hl"/>
+<text x="283.675" y="228" class="m" text-anchor="start" >14.5</text>
+<text x="218" y="284" class="t" text-anchor="end" >Campaign mission 1</text>
+<rect x="230" y="256" width="135.45" height="22" rx="3" class="blue"/>
+<text x="373.45" y="272" class="s" text-anchor="start" >43</text>
+<rect x="230" y="282" width="78.75" height="22" rx="3" class="hl"/>
+<text x="316.75" y="298" class="m" text-anchor="start" >25</text>
+<text x="218" y="354" class="t" text-anchor="end" >Crowd stress test</text>
+<rect x="230" y="326" width="516.6" height="22" rx="3" class="blue"/>
+<text x="754.6" y="342" class="s" text-anchor="start" >164</text>
+<rect x="230" y="352" width="248.85000000000002" height="22" rx="3" class="hl"/>
+<text x="486.85" y="368" class="m" text-anchor="start" >79</text>
+<text x="218" y="424" class="t" text-anchor="end" >Showcase</text>
+<rect x="230" y="396" width="604.8" height="22" rx="3" class="blue"/>
+<text x="842.8" y="412" class="s" text-anchor="start" >192</text>
+<rect x="230" y="422" width="365.4" height="22" rx="3" class="hl"/>
+<text x="603.4" y="438" class="m" text-anchor="start" >116</text>
+</svg>

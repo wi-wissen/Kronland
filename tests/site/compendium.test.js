@@ -14,6 +14,7 @@ import { BUILDING_TECHS as BT } from '../../src/sim/data/buildingTechs.js';
 import { DIFFICULTY } from '../../src/ai/AiPlayer.js';
 import { EXPERIENCE } from '../../src/sim/data/experience.js';
 import { LABELS, KEYS, INTROS } from '../../src/site/compendium/texts.js';
+import { AI_GUIDE_ENTRIES, AI_LABELS } from '../../src/site/compendium/aiGuide.js';
 
 /** All blocks (area and entries) of a model. */
 const blocksOf = (m) => m.sections.flatMap((s) => [...s.blocks, ...s.entries.flatMap((e) => e.blocks)]);
@@ -90,7 +91,8 @@ describe.each(['de', 'en'])('Compendium (%s)', (lang) => {
   });
 
   it('internal links point to existing anchors', () => {
-    const ids = new Set([...rows, ...entries, ...m.sections.map((s) => s.id)]);
+    // tables with an id are anchors as well (tableHtml sets id on the <table>)
+    const ids = new Set([...rows, ...entries, ...m.sections.map((s) => s.id), ...blocksOf(m).filter((b) => b.type === 'table' && b.id).map((b) => b.id)]);
     const hrefs = [];
     const walk = (c) => {
       if (!c || typeof c !== 'object') return;
@@ -203,6 +205,37 @@ describe('Compendium: new content appears without code changes', () => {
       }
     } finally {
       remove();
+    }
+  });
+});
+
+describe('Compendium: computer opponents guide', () => {
+  const de = compendiumModel('de'), en = compendiumModel('en');
+  const ai = (m) => m.sections.find((s) => s.id === 'ai');
+
+  it('same entries in both languages, placeholders filled, state diagram included', () => {
+    expect(ai(de).entries.map((e) => e.id)).toEqual(AI_GUIDE_ENTRIES);
+    expect(ai(en).entries.map((e) => e.id)).toEqual(AI_GUIDE_ENTRIES);
+    for (const m of [de, en]) for (const e of ai(m).entries) {
+      const text = e.blocks.filter((b) => b.type === 'md').map((b) => b.text).join('\n');
+      expect(text, e.id).not.toMatch(/\{\{?\w+\}?\}/);
+      expect(e.title, e.id).toBeTruthy();
+    }
+    expect(ai(de).entries.flatMap((e) => e.blocks).some((b) => b.type === 'aiStates')).toBe(true);
+    for (const k of Object.keys(AI_LABELS.de)) expect(AI_LABELS.en[k], k).toBeTruthy();
+  });
+
+  it('numbers come from DIFFICULTY', () => {
+    const text = ai(de).entries.map((e) => e.blocks[0].text).join('\n');
+    expect(text).toContain(`${DIFFICULTY.hard.bonusGold} Taler`);
+    expect(text).toContain(`${DIFFICULTY.easy.attackSize} / ${DIFFICULTY.normal.attackSize} / ${DIFFICULTY.hard.attackSize} Hauptleute`);
+  });
+
+  it('Wikipedia links in the language of the text', () => {
+    for (const [lang, m] of [['de', de], ['en', en]]) {
+      const links = ai(m).entries.flatMap((e) => [...e.blocks[0].text.matchAll(/\]\((https?:[^)]+)\)/g)].map((x) => x[1]));
+      expect(links.length).toBeGreaterThan(2);
+      for (const l of links) expect(l.startsWith(`https://${lang}.wikipedia.org/wiki/`), l).toBe(true);
     }
   });
 });
