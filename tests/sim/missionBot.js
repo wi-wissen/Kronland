@@ -14,7 +14,7 @@
 import { UNIT } from '../../src/sim/fixed.js';
 import { createMissionSim } from '../../src/sim/missions/runtime.js';
 import { AiPlayer } from '../../src/ai/AiPlayer.js';
-import { BUILDINGS } from '../../src/sim/data/buildings.js';
+import { BUILDINGS, buildersOf, isUpgrading } from '../../src/sim/data/buildings.js';
 import { TECHS } from '../../src/sim/data/technologies.js';
 import { UNITS, unitOf, fullCost, LINE_UPGRADE_COST, HEROES } from '../../src/sim/data/units.js';
 import { BUILDING_TECHS } from '../../src/sim/data/buildingTechs.js';
@@ -551,9 +551,7 @@ export class MissionBot {
     if (free < 14 && !this.sites.some((b) => b.type === 'villageCenter')) {
       const vc = this.buildings.find((b) => b.type === 'villageCenter' && b.done && !this.sim.checkUpgrade(P, b));
       if (vc && this.canAfford(BUILDINGS.villageCenter.levels[vc.level + 1].cost, this.s.reserve)) {
-        const units = this.idleSerfs().slice(0, 4).map((u) => u.id);
-        this.cmd({ type: 'upgradeBuilding', building: vc.id, units });
-        units.forEach((id) => this.reserved.add(id));
+        this.cmd({ type: 'upgradeBuilding', building: vc.id }); // runs on its own, no serfs
         return;
       }
       if (this.place('villageCenter') === true) return;
@@ -584,9 +582,7 @@ export class MissionBot {
       const b = this.buildings.find((x) => x.type === type && x.done && x.level < lvl);
       if (!b || this.sim.checkUpgrade(P, b)) continue;
       if (!this.canAfford(BUILDINGS[type].levels[b.level + 1].cost, this.s.reserve)) continue;
-      const units = this.idleSerfs().slice(0, 4).map((u) => u.id);
-      this.cmd({ type: 'upgradeBuilding', building: b.id, units });
-      units.forEach((id) => this.reserved.add(id));
+      this.cmd({ type: 'upgradeBuilding', building: b.id }); // runs on its own, no serfs
       return;
     }
   }
@@ -618,7 +614,7 @@ export class MissionBot {
   assignSerfs() {
     if (this.serfList.some((u) => u.militia)) return;
     for (const b of this.sites) {
-      if (!b.id || b.builders.length >= 4) continue;
+      if (!b.id || isUpgrading(b) || b.builders.length >= buildersOf(b.type)) continue;
       if (this.isDangerous(api.centerOf(b)) || this.enemies.some((e) => d2(tile(e), api.centerOf(b)) < 7 * 7)) continue;
       // idle ones first; if a construction site is completely empty, also pull away gatherers (piles otherwise hold them forever)
       let pool = this.idleSerfs();
@@ -627,7 +623,7 @@ export class MissionBot {
       // do not send more than there are free spots around
       const room = pool.length ? siteRoom(this.sim, b, pool[0]) : 0;
       if (pool.length && !room) continue;
-      const ids = pool.slice(0, Math.min(room, Math.min(2, 4 - b.builders.length) + (this.idleSerfs().length ? 2 : 0))).map((u) => u.id);
+      const ids = pool.slice(0, Math.min(room, Math.min(2, buildersOf(b.type) - b.builders.length) + (this.idleSerfs().length ? 2 : 0))).map((u) => u.id);
       if (!ids.length) break;
       this.cmd({ type: 'assignWork', units: ids, target: b.id });
       ids.forEach((id) => this.reserved.add(id));

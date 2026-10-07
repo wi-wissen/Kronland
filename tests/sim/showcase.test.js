@@ -93,7 +93,7 @@ describe('Showcase', () => {
     }
   });
 
-  it('runs peacefully: campfire burns, no combat, no end, construction sites stay put', () => {
+  it('runs peacefully: campfire burns, no combat, no end, construction sites stay put, upgrade finishes', () => {
     const s = createMissionSim(SHOWCASE_ID);
     const hp = new Map(all(s, (e) => e.kind === 'leader' || e.kind === 'hero').map((e) => [e.id, e.hp]));
     let shots = 0;
@@ -104,7 +104,8 @@ describe('Showcase', () => {
     for (const [id, v] of hp) expect(s.entities.get(id)?.hp, `#${id}`).toBe(v);
     // campfire of the second player (workers without house and farm)
     expect(all(s, (e) => e.kind === 'camp' && e.owner === 1).length).toBeGreaterThanOrEqual(1);
-    expect(all(s, (e) => e.kind === 'building' && !e.done).length).toBe(SITES.length + 1);
+    // construction sites stay put without serfs; the upgrade runs on its own and is done after 2 min
+    expect(all(s, (e) => e.kind === 'building' && !e.done).length).toBe(SITES.length);
     expect(Object.values(s.mission.state.npcs).every((n) => n.state === 'open')).toBe(true);
   });
 

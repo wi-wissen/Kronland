@@ -209,8 +209,8 @@ export default {
       id: 'upgrade',
       title: { de: 'Ausbauen', en: 'Upgrade' },
       text: {
-        de: 'Gebäude lassen sich ausbauen. Wähle dein fertiges Wohnhaus und baue es aus – mehr Betten!',
-        en: 'Buildings can be upgraded. Select your finished residence and upgrade it – more beds!',
+        de: 'Gebäude lassen sich ausbauen. Wähle dein fertiges Wohnhaus und baue es aus – mehr Betten! Der Ausbau läuft von selbst, ohne Leibeigene.',
+        en: 'Buildings can be upgraded. Select your finished residence and upgrade it – more beds! The upgrade runs on its own, no serfs needed.',
       },
       hint: { ui: 'upgrade', entity: 'home' },
       onEnter: [refOwn('residence', 'home')],

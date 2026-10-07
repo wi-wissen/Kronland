@@ -4,7 +4,7 @@
 
 import { Sim } from '../../src/sim/sim.js';
 import { createMissionSim } from '../../src/sim/missions/runtime.js';
-import { BUILDINGS } from '../../src/sim/data/buildings.js';
+import { BUILDINGS, isUpgrading } from '../../src/sim/data/buildings.js';
 import { TECHS } from '../../src/sim/data/technologies.js';
 import { BUILDING_TECHS } from '../../src/sim/data/buildingTechs.js';
 import { BLESSINGS } from '../../src/sim/data/professions.js';
@@ -174,7 +174,8 @@ export function checkInvariants(sim) {
       }
       if (new Set(e.builders).size !== e.builders.length) bad.push(`${tag} duplicate builders`);
       for (const id of e.builders) { const u = get(id); if (u && u.job?.target !== e.id) bad.push(`${tag} builder ${id} works elsewhere`); }
-      if (e.builders.length > 4) bad.push(`${tag} ${e.builders.length} Bauarbeiter`);
+      if (e.builders.length > BUILDINGS[e.type].builders) bad.push(`${tag} ${e.builders.length} builders > ${BUILDINGS[e.type].builders}`);
+      if (isUpgrading(e) && e.builders.length) bad.push(`${tag} builders at an upgrade`);
     } else if (e.kind === 'leader') {
       for (const id of e.soldiers) if (get(id)?.leader !== e.id) bad.push(`${tag} soldier ${id} missing`);
     } else if (e.kind === 'soldier') {

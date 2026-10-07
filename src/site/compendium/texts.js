@@ -11,7 +11,7 @@ export const LABELS = {
     'sec.ai': 'Computergegner', 'sec.mapgen': 'Kartengenerator',
     // Columns
     'col.name': 'Name', 'col.level': 'Stufe', 'col.size': 'Größe', 'col.placement': 'Platzierung', 'col.levels': 'Stufen',
-    'col.requires': 'Voraussetzung', 'col.cost': 'Kosten', 'col.buildTime': 'Bauzeit', 'col.hp': 'LP', 'col.workers': 'Arbeiter',
+    'col.requires': 'Voraussetzung', 'col.cost': 'Kosten', 'col.buildTime': 'Bauzeit', 'col.buildUpgradeTime': 'Bau-/Ausbauzeit', 'col.builders': 'Bauplätze', 'col.hp': 'LP', 'col.workers': 'Arbeiter',
     'col.upgradeReq': 'Ausbau braucht', 'col.sight': 'Sicht', 'col.armor': 'Rüstung', 'col.attack': 'Angriff',
     'col.tier': 'Stufe', 'col.soldierHp': 'LP Soldat', 'col.soldiers': 'Soldaten', 'col.attackType': 'Angriffsart',
     'col.armorType': 'Rüstungsart', 'col.range': 'Reichweite', 'col.cooldown': 'Abklingzeit', 'col.speed': 'Tempo',
@@ -28,7 +28,7 @@ export const LABELS = {
     'col.difficulty': 'Stärke', 'col.key': 'Eigenschaft', 'col.vs': 'gegen', 'col.attacker': 'Angreifer',
     'col.order': 'Reihenfolge', 'col.count': 'Anzahl', 'col.percent': 'Faktor',
     // Field names
-    'f.size': 'Größe', 'f.placement': 'Platzierung', 'f.armor': 'Rüstung', 'f.requires': 'Voraussetzung', 'f.profession': 'Beruf',
+    'f.size': 'Größe', 'f.builders': 'Leibeigene je Baustelle', 'f.placement': 'Platzierung', 'f.armor': 'Rüstung', 'f.requires': 'Voraussetzung', 'f.profession': 'Beruf',
     'f.motivationEffect': 'Motivation (Höchstwert und einmalig)', 'f.notBuildable': 'Nicht baubar', 'f.shaftResource': 'Schacht',
     'f.research': 'Forschung hier', 'f.trains': 'Bildet aus', 'f.towerAttack': 'Turmangriff', 'f.refiner': 'Veredler für Stufe 2',
     'f.building': 'Ausgebildet in', 'f.title': 'Titel', 'f.revive': 'Wiederbelebung',
@@ -73,7 +73,7 @@ export const LABELS = {
     'sec.experience': 'Experience', 'sec.damage': 'Fire & repair', 'sec.market': 'Marketplace', 'sec.vision': 'Sight & fog',
     'sec.ai': 'Computer opponents', 'sec.mapgen': 'Map generator',
     'col.name': 'Name', 'col.level': 'Level', 'col.size': 'Size', 'col.placement': 'Placement', 'col.levels': 'Levels',
-    'col.requires': 'Requires', 'col.cost': 'Cost', 'col.buildTime': 'Build time', 'col.hp': 'HP', 'col.workers': 'Workers',
+    'col.requires': 'Requires', 'col.cost': 'Cost', 'col.buildTime': 'Build time', 'col.buildUpgradeTime': 'Build/upgrade time', 'col.builders': 'Builder spots', 'col.hp': 'HP', 'col.workers': 'Workers',
     'col.upgradeReq': 'Upgrade needs', 'col.sight': 'Sight', 'col.armor': 'Armour', 'col.attack': 'Attack',
     'col.tier': 'Tier', 'col.soldierHp': 'Soldier HP', 'col.soldiers': 'Soldiers', 'col.attackType': 'Attack type',
     'col.armorType': 'Armour type', 'col.range': 'Range', 'col.cooldown': 'Cooldown', 'col.speed': 'Speed',
@@ -89,7 +89,7 @@ export const LABELS = {
     'col.source2': 'Sight source', 'col.ability': 'Ability', 'col.description': 'Description', 'col.params': 'Values',
     'col.difficulty': 'Strength', 'col.key': 'Property', 'col.vs': 'vs.', 'col.attacker': 'Attacker',
     'col.order': 'Order', 'col.count': 'Count', 'col.percent': 'Factor',
-    'f.size': 'Size', 'f.placement': 'Placement', 'f.armor': 'Armour', 'f.requires': 'Requires', 'f.profession': 'Profession',
+    'f.size': 'Size', 'f.builders': 'Serfs per site', 'f.placement': 'Placement', 'f.armor': 'Armour', 'f.requires': 'Requires', 'f.profession': 'Profession',
     'f.motivationEffect': 'Motivation (maximum and once)', 'f.notBuildable': 'Not buildable', 'f.shaftResource': 'Shaft',
     'f.research': 'Research here', 'f.trains': 'Trains', 'f.towerAttack': 'Tower attack', 'f.refiner': 'Refiner for tier 2',
     'f.building': 'Trained at', 'f.title': 'Title', 'f.revive': 'Revival',
@@ -161,7 +161,7 @@ export const KEYS = {
     updateTicks: 'Sicht neu berechnet alle … Takte', startReveal: 'erkundet um jede Burg (Kacheln)', minRadius: 'Sicht mindestens (Kacheln)',
     building: 'übrige Gebäude', site: 'Baustelle',
     // BALANCE.serf
-    hp: 'Lebenspunkte', attack: 'Angriff', armor: 'Rüstung', maxBuildersPerSite: 'Bauarbeiter je Baustelle', chopTicks: 'Hieb-Zyklus Holz (Takte)',
+    hp: 'Lebenspunkte', attack: 'Angriff', armor: 'Rüstung', chopTicks: 'Hieb-Zyklus Holz (Takte)',
     chopYield: 'Holz je Zyklus', mineTicks: 'Abbau-Zyklus Haufen (Takte)', mineYield: 'Rohstoff je Zyklus', searchRadius: 'Umkreis für Anschlussarbeit (Kacheln)',
     // Hero abilities
     WATER_PERCENT: 'Wasseranteil im Flachland (%)', CLIFF_SLOPE: 'Klippe ab Höhenunterschied je Kachel (cm)', PEAK_HEIGHT: 'Gipfel ab Höhe über Wasser (cm)',
@@ -192,7 +192,7 @@ export const KEYS = {
     meleeArmorBonus: '5 ★: melee armour',
     updateTicks: 'Sight recomputed every … ticks', startReveal: 'Explored around each castle (tiles)', minRadius: 'Minimum sight (tiles)',
     building: 'other buildings', site: 'building site',
-    hp: 'Hit points', attack: 'Attack', armor: 'Armour', maxBuildersPerSite: 'Builders per site', chopTicks: 'Wood chopping cycle (ticks)',
+    hp: 'Hit points', attack: 'Attack', armor: 'Armour', chopTicks: 'Wood chopping cycle (ticks)',
     chopYield: 'Wood per cycle', mineTicks: 'Pile mining cycle (ticks)', mineYield: 'Resource per cycle', searchRadius: 'Radius for follow-up work (tiles)',
     WATER_PERCENT: 'Water share in lowlands (%)', CLIFF_SLOPE: 'Cliff from height difference per tile (cm)', PEAK_HEIGHT: 'Peak from height above water (cm)',
     radius: 'Radius', damage: 'Damage', amount: 'Healing (HP)', attackPercent: 'Attack (%)', fuse: 'Fuse', shots: 'Shots', range: 'Range',
@@ -202,7 +202,9 @@ export const KEYS = {
 /** Introductions per section (Markdown). Placeholders {{…}} are filled by generate.js from the data. */
 export const INTROS = {
   de: {
-    buildings: `Alle Gebäude mit Kosten je Ausbaustufe. **Bauzeit** gilt bei {{builders}} Leibeigenen; mit weniger dauert es entsprechend länger.
+    buildings: `Alle Gebäude mit Kosten je Ausbaustufe. **Bauzeit** gilt für **einen** Leibeigenen; n Leibeigene brauchen ein n-tel davon,
+höchstens so viele, wie das Gebäude **Bauplätze** hat ({{builderList}}) – etwa ein Wohnhaus: 80 s allein, 20 s zu viert.
+**Ausbauten** laufen von selbst ohne Leibeigene in der angegebenen Zeit (Stufe 2 und höher in der Stufentabelle); das Gebäude ruht so lange.
 Gebaut wird frei, auch am Hang (Höhenunterschied unter dem Gebäude höchstens {{maxSlope}} cm, siehe [Bauen am Hang](#slope)), Dorfzentren nur auf Siedlungsplätzen,
 Minen nur auf Schächten. Abriss erstattet die Hälfte der Baukosten. Rüstung: Burg {{hqArmor}}, sonst wie angegeben (Standard 3).`,
     units: `Truppen bestehen aus einem **Hauptmann** und seinen **Soldaten**. Angriff, Rüstung und LP in der Tabelle gelten für den Hauptmann;
@@ -239,7 +241,7 @@ Ziergebäude heben den Höchstwert der Motivation um ihren Wert.`,
 Mit dem **Wetterkraftwerk** wechselt man das Wetter selbst; danach läuft der Zyklus mit dem nächsten Eintrag weiter.`,
     experience: `Hauptleute sammeln Erfahrung: Jeder Treffer der Truppe zählt 1 Punkt. Die Wirkungen gelten für die ganze Truppe und sind kumulativ.`,
     damage: `Ein fertiges Gebäude unter {{burn}} % LP **brennt** und verliert {{burnPerS}} LP/s, bis es repariert ist oder zerfällt.
-Leibeigene reparieren kostenlos ({{repair}} LP je Leibeigenem und Takt, höchstens {{builders}} gleichzeitig). Zerstörte Gebäude hinterlassen
+Leibeigene reparieren kostenlos ({{repair}} LP je Leibeigenem und Takt, höchstens so viele wie Bauplätze, 1 bis 8). Zerstörte Gebäude hinterlassen
 {{ruinS}} s eine Ruine, die den Platz blockiert.`,
     market: `Der **Marktplatz** (Lager Stufe 2) tauscht in Schritten von {{step}}, höchstens {{max}} je Handel. Preise gelten für alle Spieler:
 Nach jedem Handel steigt der Preis der gekauften Ware um {{change}} % des Grundwerts je Schritt, die bezahlte Ware wird ebenso billiger
@@ -266,7 +268,9 @@ Flüsse mit Furten, Seen und Küsten an, verteilt Bäume, Rohstoffhaufen, Schäc
 Hänge steiler als {{cliff}} cm je Kachel und Gipfel über {{peak}} cm sind unpassierbar. Probier es aus:`,
   },
   en: {
-    buildings: `All buildings with costs per upgrade level. **Build time** applies with {{builders}} serfs; with fewer it takes correspondingly longer.
+    buildings: `All buildings with costs per upgrade level. **Build time** applies to **one** serf; n serfs need an n-th of it,
+at most as many as the building has **builder spots** ({{builderList}}) – e.g. a residence: 80 s alone, 20 s with four.
+**Upgrades** run on their own without serfs in the listed time (level 2 and up in the level table); the building rests meanwhile.
 You build freely, also on slopes (height difference under the building at most {{maxSlope}} cm, see [building on slopes](#slope)), village centres only on settlement spots,
 mines only on shafts. Demolishing refunds half the cost. Armour: castle {{hqArmor}}, otherwise as listed (default 3).`,
     units: `Troops consist of a **captain** and his **soldiers**. Attack, armour and HP in the table apply to the captain; he is invulnerable as long
@@ -301,7 +305,7 @@ Ornamental buildings raise the motivation maximum by their value.`,
 The **weather power plant** lets you change the weather yourself; afterwards the cycle continues with the next entry.`,
     experience: `Captains gain experience: every hit of the troop counts 1 point. The effects apply to the whole troop and stack.`,
     damage: `A finished building below {{burn}} % HP **burns** and loses {{burnPerS}} HP/s until repaired or destroyed.
-Serfs repair for free ({{repair}} HP per serf and tick, at most {{builders}} at once). Destroyed buildings leave a ruin for {{ruinS}} s that blocks the spot.`,
+Serfs repair for free ({{repair}} HP per serf and tick, at most as many as builder spots, 1 to 8). Destroyed buildings leave a ruin for {{ruinS}} s that blocks the spot.`,
     market: `The **marketplace** (storehouse level 2) trades in steps of {{step}}, at most {{max}} per trade. Prices are shared by all players:
 after each trade, the price of the bought good rises by {{change}} % of its base value per step and the paid good becomes cheaper the same way
 (limits {{min}} … {{maxP}} %). Each step is already charged at the changed price – trading back and forth never pays.

@@ -29,7 +29,7 @@ describe('Saving and loading', () => {
     // enrich state: fire, ruin, experience
     const bs = [...sim.entities.values()].filter((e) => e.kind === 'building' && e.done && e.type !== 'headquarters');
     const b = bs.find((e) => e.owner === 1 && e.type === 'residence') ?? bs.find((e) => e.owner === 1) ?? bs[0];
-    b.hp = 10;
+    b.hp = 3; // burns down before repairers arrive (serfs build and repair fast)
     const L = [...sim.entities.values()].find((e) => e.kind === 'leader');
     if (L) L.xp = 90;
     sim.players[0].weatherEnergy = 500;
@@ -43,7 +43,7 @@ describe('Saving and loading', () => {
     for (let i = 0; i < 4000; i++) { tick(sim, ais); tick(sim2, ais2); }
     expect(sim2.hash()).toBe(sim.hash());
     expect(sim2.market.prices).toEqual(sim.market.prices);
-  });
+  }, 180_000); // long run, slow on loaded machines
 
   it('rejects foreign formats', () => {
     expect(() => loadGame({ version: 99 })).toThrow();

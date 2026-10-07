@@ -12,7 +12,7 @@
 //   Military: raise troops, gather the army, attack, withdraw, defend home.
 
 import { Rng } from '../sim/rng.js';
-import { BUILDINGS } from '../sim/data/buildings.js';
+import { BUILDINGS, buildersOf, isUpgrading } from '../sim/data/buildings.js';
 import { TECHS } from '../sim/data/technologies.js';
 import { UNITS, unitOf, fullCost, LINE_UPGRADE_COST, HEROES } from '../sim/data/units.js';
 import { workerSlots, averageMotivation } from '../sim/systems/workers.js';
@@ -21,7 +21,8 @@ import { BUILDING_TECHS } from '../sim/data/buildingTechs.js';
 import { checkBuildingResearch } from '../sim/systems/techs.js';
 import { checkTrade, tradeCost } from '../sim/systems/market.js';
 import { isDamaged } from '../sim/systems/damage.js';
-import { siteRoom } from '../sim/systems/serfs.js';
+import { siteRoom, hasFreeSpot } from '../sim/systems/serfs.js';
+import { takenSpots } from '../sim/systems/spots.js';
 import { MARKET } from '../sim/data/market.js';
 import { WATER, OCCUPIED, CLIFF, BRIDGE } from '../sim/map.js';
 import { canSee, knownBuildings } from '../sim/systems/vision.js';
@@ -464,7 +465,7 @@ export class AiPlayer {
     if (this.starved) {
       const st = this.buildings.find((b) => b.type === 'storehouse' && b.done && b.level === 0 && !sim.checkUpgrade(this.player, b));
       if (st) {
-        this.issue({ type: 'upgradeBuilding', building: st.id, units: this.idleSerfs().slice(0, 4).map((u) => u.id) });
+        this.issue({ type: 'upgradeBuilding', building: st.id });
         this.sites++;
         return;
       }
@@ -477,7 +478,7 @@ export class AiPlayer {
         if (sim.checkUpgrade(this.player, b)) continue;
         const next = BUILDINGS[type].levels[b.level + 1];
         if (!this.affordable(next.cost, type === 'headquarters' ? 1 : 1.3)) continue;
-        this.issue({ type: 'upgradeBuilding', building: b.id, units: this.idleSerfs().slice(0, 4).map((u) => u.id) });
+        this.issue({ type: 'upgradeBuilding', building: b.id }); // runs on its own, no serfs
         this.sites++;
         return;
       }
@@ -506,7 +507,7 @@ export class AiPlayer {
     // Fill construction sites with serfs first. Demolish new construction sites that have become unreachable (walled in,
     // cut off) – the build plan then looks for a new spot.
     for (const b of this.buildings) {
-      if (b.done || b.builders.length >= 4) continue;
+      if (b.done || isUpgrading(b) || b.builders.length >= buildersOf(b.type)) continue;
       if (!this.reachableRect(b.x, b.y, b.w, b.h)) {
         if (b.level === 0 && b.type !== 'headquarters') this.issue({ type: 'demolish', building: b.id });
         continue;
@@ -534,14 +535,16 @@ export class AiPlayer {
 
   /** Nearest tree/pile; first within 45 tiles around the castle, otherwise up to 70 tiles. */
   nearestNode(res, from) {
-    let best = null, bd = Infinity, far = null, fd = Infinity;
+    let best = null, bd = Infinity, far = null, fd = Infinity, taken = null;
     const fx = from.px / UNIT, fy = from.py / UNIT;
     for (const e of this.sim.entities.values()) {
       if ((e.kind !== 'tree' && e.kind !== 'pile') || e.res !== res || e.amount <= 0) continue;
       const d = (e.x - fx) ** 2 + (e.y - fy) ** 2;
       const home = (e.x - this.home.x) ** 2 + (e.y - this.home.y) ** 2;
-      // check reachability only if the node would otherwise be chosen (saves queries)
-      if (home <= 45 * 45) { if (d < bd && this.reachableRect(e.x, e.y, 1, 1)) { bd = d; best = e; } } else if (home <= 70 * 70 && home < fd && this.reachableRect(e.x, e.y, 1, 1)) { fd = home; far = e; }
+      // check reachability and a free spot only if the node would otherwise be chosen (saves queries);
+      // without a free spot the command would be rejected (err.noWork)
+      const ok = () => this.reachableRect(e.x, e.y, 1, 1) && hasFreeSpot(this.sim, from, e, taken ??= takenSpots(this.sim, from.id));
+      if (home <= 45 * 45) { if (d < bd && ok()) { bd = d; best = e; } } else if (home <= 70 * 70 && home < fd && ok()) { fd = home; far = e; }
     }
     return best ?? far;
   }

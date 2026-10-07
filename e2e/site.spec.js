@@ -128,6 +128,12 @@ test('Compendium: building table from the game data, deep link, search', async (
   for (const type of types) {
     await expect(table.locator(`tr#row-${type}`)).toContainText(de[`building.${type}.0`] ?? BUILDINGS[type].levels[0].name);
   }
+  // build time with one serf and builder spots (original values): chapel 140 s, 8 spots
+  await expect(table.locator('thead')).toContainText('Bauplätze');
+  await expect(table.locator('tr#row-chapel')).toContainText('140');
+  const col = await table.locator('thead th').evaluateAll((ths) => ths.findIndex((th) => th.textContent.includes('Bauplätze')));
+  await expect(table.locator('tr#row-chapel').locator('th, td').nth(col)).toHaveText('8');
+  await expect(page.getByTestId('compendium')).toContainText('Bauzeit gilt für einen Leibeigenen');
   // Deep link to an entry
   await page.goto('/compendium/#b-farm');
   await expect(page.locator('#b-farm h3')).toBeInViewport();

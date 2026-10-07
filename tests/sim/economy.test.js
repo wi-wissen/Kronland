@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { newSim, serfsOf, hqOf, nearestNode, runUntil, placeNearHq } from './helpers.js';
+import { newSim, serfsOf, hqOf, nearestNode, runUntil, placeNearHq, quickBuild } from './helpers.js';
 import { START_RESOURCES } from '../../src/sim/data/resources.js';
 import { BUILDINGS } from '../../src/sim/data/buildings.js';
 import { BALANCE } from '../../src/sim/data/balance.js';
@@ -73,25 +73,41 @@ describe('Building', () => {
     expect(ev.some((e) => e.type === 'buildingPlaced')).toBe(true);
   });
 
-  it('4 serfs finish building a house in about the build time', () => {
+  it('1 serf builds a house in about the build time (original: ConstructionInfo/Time with one serf)', () => {
     const sim = newSim();
-    const units = serfsOf(sim).map((u) => u.id);
-    const id = placeNearHq(sim, 'residence', 0, units);
+    const [u] = serfsOf(sim);
+    const id = placeNearHq(sim, 'residence', 0, [u.id]);
     const buildTicks = BUILDINGS.residence.levels[0].buildTime * 10;
+    expect(sim.entities.get(id).work).toBe(buildTicks);
     const t = runUntil(sim, (s) => s.entities.get(id).done, buildTicks * 2);
     expect(t).toBeGreaterThan(buildTicks);
     expect(t).toBeLessThan(buildTicks + 150); // plus walking distance
     expect(sim.entities.get(id).hp).toBe(BUILDINGS.residence.levels[0].hp);
   });
 
-  it('1 serf needs about 4 times as long', () => {
+  it('4 serfs need about a quarter of the build time', () => {
     const sim = newSim();
-    const [u] = serfsOf(sim);
-    const id = placeNearHq(sim, 'residence', 0, [u.id]);
+    const units = serfsOf(sim).slice(0, 4).map((u) => u.id);
+    const id = placeNearHq(sim, 'residence', 0, units);
     const buildTicks = BUILDINGS.residence.levels[0].buildTime * 10;
-    const t = runUntil(sim, (s) => s.entities.get(id).done, buildTicks * 6);
-    expect(t).toBeGreaterThan(buildTicks * 4);
-    expect(t).toBeLessThan(buildTicks * 4 + 150);
+    const t = runUntil(sim, (s) => s.entities.get(id).done, buildTicks);
+    expect(t).toBeGreaterThan(buildTicks / 4);
+    expect(t).toBeLessThan(buildTicks / 4 + 150);
+  });
+
+  it('6 serfs at a sawmill (6 builder spots) need a sixth of the build time', () => {
+    const sim = newSim();
+    sim.step([{ type: 'buySerf', player: 0, count: 2 }]);
+    sim.run(5);
+    sim.players[0].techs.add('construction');
+    const units = serfsOf(sim).slice(0, 6).map((u) => u.id);
+    expect(BUILDINGS.sawmill.builders).toBe(6);
+    const id = placeNearHq(sim, 'sawmill', 0, units);
+    expect(sim.entities.get(id).builders.length).toBe(6);
+    const buildTicks = BUILDINGS.sawmill.levels[0].buildTime * 10;
+    const t = runUntil(sim, (s) => s.entities.get(id).done, buildTicks);
+    expect(t).toBeGreaterThan(buildTicks / 6);
+    expect(t).toBeLessThan(buildTicks / 6 + 150);
   });
 
   it('at most 4 serfs per construction site', () => {
@@ -101,6 +117,24 @@ describe('Building', () => {
     expect(units.length).toBe(7);
     const id = placeNearHq(sim, 'residence', 0, units);
     expect(sim.entities.get(id).builders.length).toBe(4);
+  });
+
+  it('builder spots per building type: chapel 8, ornament 1 (original BuilderSlots)', () => {
+    const sim = newSim();
+    sim.step([{ type: 'buySerf', player: 0, count: 6 }]);
+    sim.run(5);
+    const units = serfsOf(sim).map((u) => u.id);
+    expect(units.length).toBe(10);
+    // construction site at level 0 without tech and cost locks
+    const site = (type) => { const b = quickBuild(sim, type); b.done = false; b.progress = 0; return b; };
+    const chapel = site('chapel');
+    sim.step([{ type: 'assignWork', player: 0, units, target: chapel.id }]);
+    expect(chapel.builders.length).toBe(BUILDINGS.chapel.builders);
+    expect(chapel.builders.length).toBe(8);
+    const statue = site('statue');
+    const rest = units.filter((id) => !chapel.builders.includes(id));
+    sim.step([{ type: 'assignWork', player: 0, units: rest, target: statue.id }]);
+    expect(statue.builders.length).toBe(1);
   });
 
   it('builders then look for the next construction site nearby', () => {

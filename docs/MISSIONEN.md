@@ -47,7 +47,8 @@ zeichnen kann. Kein Nebel (`fog: false`), alle Parteien neutral, keine Hauptziel
   Wohnhaus/Hof, darum Lagerfeuer) · freie Schächte, Siedlungsplätze, Rohstoffhaufen jeder Art, Wald mit Leibeigenen.
   Außerhalb der Fläche: fertige Brücke und freie Brückenstelle am natürlichen Fluss, Räuberlager, Felsen/Berge.
 - Die Simulation läuft normal weiter (Arbeiter ziehen ein, weitere Lagerfeuer entstehen, wo Betten fehlen);
-  Baustellen bleiben stehen, solange niemand Leibeigene schickt.
+  Baustellen bleiben stehen, solange niemand Leibeigene schickt; der Ausbau läuft dagegen von selbst und ist nach
+  rund 25 s fertig (Ausbauten brauchen keine Leibeigenen).
 - Test: `tests/sim/showcase.test.js` (Vollständigkeit, Frieden, Determinismus), `e2e/showcase.spec.js`
   (Bildschirmfotos aller Felder nach `test-results/showcase/`).
 

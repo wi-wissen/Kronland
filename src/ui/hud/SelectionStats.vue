@@ -2,9 +2,10 @@
   <!-- Key figures of a building as small bars: construction, hit points, workers, beds, dining spots, motivation -->
   <div class="sstats">
     <div v-if="!sel.done" class="ss-row ss-build">
-      <span class="ss-label"><Icon name="serf" />{{ sel.level > 1 ? $t('bld.upgrading') : $t('bld.underConstruction') }}</span>
+      <span class="ss-label"><Icon :name="sel.level > 1 ? 'upgrade' : 'serf'" />{{ sel.level > 1 ? $t('bld.upgrading') : $t('bld.underConstruction') }}</span>
       <span class="meter"><i :style="{ width: sel.progress + '%' }"></i></span>
-      <b class="num">{{ $t('bld.progress', { p: sel.progress, n: sel.builders }) }}</b>
+      <!-- Upgrade runs on its own (remaining time); construction: serfs present / builder spots -->
+      <b class="num" data-testid="stat-progress">{{ sel.level > 1 ? $t('bld.upgradeLeft', { p: sel.progress, s: sel.remaining }) : $t('bld.progress', { p: sel.progress, n: sel.builders, max: sel.maxBuilders }) }}</b>
     </div>
     <div class="ss-row" :class="{ 'ss-burning': sel.burning }" data-testid="stat-hp">
       <span v-tip="sel.burning ? $t('sys.burning') : null" class="ss-label"><Icon :name="sel.burning ? 'fire' : 'hp'" />{{ $t('bld.hp') }}</span>
