@@ -1,7 +1,7 @@
 // Game loop (src/game/loop.js): ticks with a time budget without a death spiral, fault guard.
 
 import { describe, it, expect } from 'vitest';
-import { runSteps, FaultGuard, TICK_MS, MAX_STEPS } from '../../src/game/loop.js';
+import { runSteps, frameTimes, FaultGuard, TICK_MS, MAX_STEPS, MAX_FRAME_DT, MAX_FRAME_MS } from '../../src/game/loop.js';
 import { wrapAngle } from '../../src/render/angle.js';
 
 /** Clock that advances by `cost` ms on every tick */
@@ -46,6 +46,30 @@ describe('runSteps', () => {
       acc = r.acc;
       expect(acc).toBeLessThan(TICK_MS);
     }
+  });
+});
+
+describe('frameTimes', () => {
+  it('clamps animation time short, game time only after MAX_STEPS ticks; never negative', () => {
+    expect(frameTimes(1016, 1000)).toEqual({ dt: 0.016, simMs: 16 });
+    expect(frameTimes(1600, 1000)).toEqual({ dt: MAX_FRAME_DT, simMs: 600 });
+    expect(frameTimes(60_000, 1000)).toEqual({ dt: MAX_FRAME_DT, simMs: MAX_FRAME_MS });
+    expect(frameTimes(900, 1000)).toEqual({ dt: 0, simMs: 0 });
+  });
+
+  it('regression: slow frames (2 fps, cheap ticks) keep the game in real time instead of one tick per frame', () => {
+    // Adventure on desktop under software WebGL: ~600 ms per frame. 60 s must be ~600 ticks, not 100.
+    const c = fakeClock(1);
+    let acc = 0, ticks = 0, now = 0, last = 0;
+    for (let f = 0; f < 100; f++) {
+      now += 600;
+      acc += frameTimes(now, last).simMs;
+      last = now;
+      const r = runSteps(acc, () => { ticks++; c.step(); }, { now: c.now });
+      acc = r.acc;
+      expect(r.dropped).toBe(0);
+    }
+    expect(ticks).toBe(600);
   });
 });
 

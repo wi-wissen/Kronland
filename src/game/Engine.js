@@ -36,7 +36,7 @@ import { GameAudio } from '../audio/GameAudio.js';
 import { canSee, isExplored, isVisible, knownBuildings, fogEnabled } from '../sim/systems/vision.js';
 import { Vector3 } from 'three';
 import { padPreview } from '../sim/systems/terrain.js';
-import { TICK_MS, runSteps, FaultGuard } from './loop.js';
+import { TICK_MS, runSteps, frameTimes, FaultGuard } from './loop.js';
 
 /** Entity kinds with a figure (sex in the selection) */
 const FIGURE_KINDS = new Set(['unit', 'worker', 'soldier', 'leader', 'hero', 'npc']);
@@ -217,11 +217,11 @@ export class Engine {
   }
 
   frame(now) {
-    // never negative: the rAF timestamp can lie before the start time (long warm-up) – otherwise the game would stand still for seconds
-    const dt = Math.max(0, Math.min(0.1, (now - this.last) / 1000));
+    // dt for animations, simMs for game time (clamped separately: slow frames must not slow down the game)
+    const { dt, simMs } = frameTimes(now, this.last);
     this.last = now;
     if (this.crash) this.paused = true;
-    if (!this.paused) this.acc += dt * 1000 * this.speed;
+    if (!this.paused) this.acc += simMs * this.speed;
     if (this.acc >= TICK_MS) {
       // ticks with a time budget; if the simulation is too slow, the game runs slower (no snowballing)
       const r = runSteps(this.acc, () => {
