@@ -148,10 +148,14 @@ test('Mission 2: later buildings are greyed out, the pointer shows the farm, the
   // Objective "3 farms" points at the farm tile; buildings of later missions are locked
   await expect(farm).toHaveClass(/hint/);
   await expect(page.getByTestId('ui-pointer')).toBeVisible(SLOW);
+  // Narrow build menu: one category per tab
+  const tab = async (id) => { if (await page.getByTestId('build-tab-' + id).isVisible()) await page.getByTestId('build-tab-' + id).click(); };
+  await tab('refine');
+  await expect(page.getByTestId('build-smithy')).toHaveClass(/locked/);
+  await tab('military');
   const barracks = page.getByTestId('build-barracks');
   await expect(barracks).toHaveClass(/locked/);
   await expect(barracks).toHaveAttribute('aria-label', /In dieser Mission nicht verfügbar/);
-  await expect(page.getByTestId('build-smithy')).toHaveClass(/locked/);
   await page.screenshot({ path: testInfo.outputPath('c2-locked.png') });
   // Milestone: first trade – the herald comes, the barracks is free
   await page.evaluate(() => { window.__kronland.sim.mission.state.flags.traded = true; });
