@@ -16,7 +16,7 @@
     </div>
   </div>
 
-  <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact, narrow, mid, 'show-labels': settings.labels, 'with-code': showScriptPanel && !compact }" :style="hudVars">
+  <div v-if="screen === 'game' || screen === 'loading'" v-show="screen === 'game'" class="game" :class="{ compact, narrow, mid, 'show-labels': settings.labels, split: splitW > 0 }" :style="hudVars">
     <canvas ref="canvas" data-testid="game-canvas"></canvas>
 
     <template v-if="ui && engine">
@@ -29,7 +29,7 @@
         :narrow="narrow"
         :mid="mid"
         :hints="settings.hints"
-        :code="showScriptPanel ? { open: scriptOpen, running: ui.mission.script.player?.status === 'running' } : null"
+        :code="showScriptPanel && scriptLayout === 'sheet' ? { open: scriptOpen, running: ui.mission.script.player?.status === 'running' } : null"
         @code="scriptOpen = !scriptOpen"
         @build="engine.startPlacement($event)"
         @buy-serf="engine.buySerf($event)"
@@ -76,18 +76,6 @@
         @menu="quit"
       />
 
-      <ScriptPanel
-        v-if="showScriptPanel"
-        :key="'sp-' + scenarioOf.id"
-        :engine="engine"
-        :scenario="scenarioOf"
-        :script="ui.mission.script"
-        :mode="origin === 'editor' ? 'editor' : 'adventure'"
-        v-model:open="scriptOpen"
-        :compact="compact"
-        :touch="!!ui.touch"
-      />
-
       <DevPanel v-if="dev.on" :engine="engine" :touch="!!ui.touch" />
 
       <div v-if="crash" class="scrim crash-scrim" data-testid="crash-dialog">
@@ -109,6 +97,20 @@
       <GameMenu v-if="menuOpen" :engine="engine" :touch="ui.touch" :share="share" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" />
     </template>
   </div>
+
+  <!-- Code panel next to the game (split screen) or as a sheet over it (phone); see src/ui/script/splitLayout.js -->
+  <ScriptPanel
+    v-if="screen === 'game' && ui && engine && showScriptPanel"
+    :key="'sp-' + scenarioOf.id"
+    :engine="engine"
+    :scenario="scenarioOf"
+    :script="ui.mission.script"
+    :mode="origin === 'editor' ? 'editor' : 'adventure'"
+    v-model:open="scriptOpen"
+    :layout="scriptLayout"
+    :touch="!!ui.touch"
+    @width="codeW = $event"
+  />
 
   <Tooltip :touch="!!ui?.touch" />
 </template>
@@ -142,6 +144,7 @@ import { devState, setDevMode, isDevHotkey } from '../dev/state.js';
 import { missing } from './hud/hudLayout.js';
 import { buildStartLink, parseStartLink, normalizeFree, addressFor, shareUrl } from './startLink.js';
 import { siteUrl } from '../paths.js';
+import { layoutMode } from './script/splitLayout.js';
 /** Levels by window width (CSS px at UI size 100 %), as classes on .game:
  *  compact – phone/narrow: panel across the full width, map as a button;
  *  mid – smaller map and tiles; narrow – portrait without shield, key figures in the panel. */
@@ -198,6 +201,11 @@ export default {
       crashError: '',
       /** The page was reloaded after an error or the game was left after an error (notice in the start menu) */
       recovered: false,
+      /** Window size (CSS px) for the layout of the code panel */
+      winW: window.innerWidth,
+      winH: window.innerHeight,
+      /** Width the code panel takes up on the right (split screen), reported by ScriptPanel */
+      codeW: 0,
       /** Start of the running game ({ kind: 'free'|'mission', … }, src/ui/startLink.js) or null (save game, scenario file) */
       start: null,
     };
@@ -216,7 +224,16 @@ export default {
       return { url, name: st.seed ? `${title} · ${st.seed}` : title, title };
     },
     need() { return this.preview && this.ui ? missing(this.preview, this.ui.res) : null; },
-    hudVars() { return { '--bottom-h': `${this.bottomH}px`, '--top-total': `${this.topH}px` }; },
+    hudVars() {
+      const v = { '--bottom-h': `${this.bottomH}px`, '--top-total': `${this.topH}px` };
+      // Split screen: the game (canvas and HUD) only fills the area left of the code panel
+      if (this.splitW) v.right = `${this.splitW}px`;
+      return v;
+    },
+    /** Code panel: 'split' (next to the game) or 'sheet' (phone) */
+    scriptLayout() { return layoutMode(this.winW, this.winH); },
+    /** Width taken from the game by the code panel */
+    splitW() { return this.showScriptPanel && this.scriptLayout === 'split' && this.screen === 'game' ? this.codeW : 0; },
     /** Scenario JSON of the running game (coding adventure, script mission, editor) or null */
     scenarioOf() { return this.ui?.mission?.script ? this.engine?.sim.mission?.def.scenario ?? null : null; },
     showScriptPanel() {
@@ -226,6 +243,9 @@ export default {
   },
   watch: {
     'dev.on'(on) { this.engine?.setDevMode(on); },
+    // Panel width changed (dragging, collapsing): HUD levels for the new game area
+    splitW() { this.$nextTick(() => this.layout?.()); },
+    showScriptPanel() { this.$nextTick(() => this.layout?.()); },
     // Menu music on start and campaign screens (plays after the first click; in-game GameAudio takes over)
     screen: { immediate: true, handler(s) { if (['menu', 'campaign', 'adventures', 'special', 'editor'].includes(s)) setMenuMusic(true); else if (s === 'loading') setMenuMusic(false); } },
     // Autosave every 2 game minutes, the first shortly after the start (setting "Save automatically")
@@ -246,8 +266,12 @@ export default {
   },
   mounted() {
     this.layout = () => {
-      const w = window.innerWidth / settings.uiScale;
-      this.compact = w < COMPACT || window.innerHeight < 560;
+      this.winW = window.innerWidth;
+      this.winH = window.innerHeight;
+      // HUD levels by the width of the game area (split screen: left of the code panel)
+      const w = (window.innerWidth - this.splitW) / settings.uiScale;
+      // Code panel as a sheet (phones, portrait tablets): phone HUD with the code button
+      this.compact = w < COMPACT || window.innerHeight < 560 || (this.showScriptPanel && this.scriptLayout === 'sheet');
       this.mid = w < MID;
       this.narrow = w < NARROW;
       const tb = document.querySelector('.topbar');

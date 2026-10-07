@@ -57,7 +57,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   (Diplomatie), Gesprächsfiguren. Story und Mechanik: [Kampagne](docs/KAMPAGNE.md). Fortschritt und Bestzeiten
   speichert der Browser. Direktstart: `play/?mission=c1` … `play/?mission=c6`, `play/?mission=tutorial`.
 - **Programmier-Abenteuer**: Nelia mit Python steuern – fünf Lernabenteuer (Schleifen, Bedingungen, Funktionen,
-  Listen), Code-Panel mit Einzelschritt, Haltepunkten und Variablenansicht, Fehlermeldungen mit Vorschlag,
+  Listen), Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
+  mit Einzelschritt, Haltepunkten und Variablenansicht, Befehlserklärung beim Überfahren (Strg+Klick öffnet die
+  Referenz, am Handy langes Drücken), Fehlermeldungen mit Vorschlag,
   `print()` als Meldung im Spiel, Programm als `.py` speichern und öffnen.
   Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Orte, Missionen programmieren,
   Welt aus Code erzeugen, als JSON speichern, testspielen) und eigene Szenario-Dateien.

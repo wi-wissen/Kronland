@@ -74,7 +74,8 @@ Zwei Rechtestufen. Die Stufe entscheidet, welche Namen ein Programm überhaupt k
   Simulation.
 - **mission**: alles – Truppen erzeugen, Rohstoffe geben, Dialoge, Kamera, Ziele, Gelände formen.
 
-Die vollständige Liste steht im Spiel unter **Befehle** (Code-Panel, jeder Eintrag verlinkt auf die Website)
+Die vollständige Liste steht im Spiel unter **Befehle** (Code-Panel, jeder Eintrag verlinkt auf die Website;
+Antippen der Signatur zeigt die Karte mit Parametern und Beispiel, dazu die Python-Funktionen und -Methoden)
 und ausführlich mit Parametern, Rückgabe, Fehlern und Beispielen in der **Programmier-Referenz** (`scripting/`,
 siehe [WEBSITE.md](WEBSITE.md)); Quelle ist `API_DOC` (`api.js`). Die wichtigsten:
 
@@ -197,8 +198,8 @@ Jedes Abenteuer hat eine Musterlösung im Test (`tests/sim/scripting.test.js`). 
 Abenteuer im Browser gemerkt (`kronland-code-<id>`).
 
 Die Abenteuer spielen auf offenen Wiesen; Hindernisse sind Landschaft mit Sinn (Fluss, See, Wäldchen,
-Mauerreste), keine Baumgänge. Die Kamera zeigt ruhig die ganze Karte (Norden oben, am Desktop links vom
-Code-Panel) und läuft dem Helden nicht hinterher. Das **Raster** (Knopf „# Raster“ im Panel, Vorliebe bleibt im
+Mauerreste), keine Baumgänge. Die Kamera zeigt ruhig die ganze Karte (Norden oben, am Desktop im Spielbereich
+links vom Code-Panel) und läuft dem Helden nicht hinterher. Das **Raster** (Knopf „# Raster“ im Panel, Vorliebe bleibt im
 Browser; auch im Welteneditor) zeigt die Kacheln, jede fünfte Linie kräftiger – so lassen sich Schritte
 abzählen. Der Held startet mit Blick nach Osten; `hero.step()` geht immer in Blickrichtung und dreht die Figur
 dabei nicht zur Laufrichtung.
@@ -208,7 +209,36 @@ dabei nicht zur Laufrichtung.
 Editor nach dem Vorbild von python.jetzt: ein echtes `<textarea>` über einem eingefärbten `<pre>` (gleicher
 Lexer wie die VM). Tab/Umschalt+Tab rücken ein und aus, Enter übernimmt die Einrückung (nach `:` eine
 Stufe tiefer), Rücktaste löscht eine Einrückstufe. Klick auf eine Zeilennummer setzt einen Haltepunkt.
-Am Handy: Tastenleiste (⇥ ⇤ : ( ) " " = == [ ] . _ #) und das Panel als Blatt von unten; geöffnet wird es über die goldene Münze „Code“ im Schnellzugriff (mit grünem Punkt, solange das Programm läuft).
+
+**Aufteilung** (`src/ui/script/splitLayout.js`, Test `tests/ui/splitLayout.test.js`):
+
+- **Desktop und Tablet quer – geteilter Bildschirm:** Spiel links, Programm rechts (anfangs 46 % der Breite).
+  Die Trennlinie lässt sich mit Maus oder Finger ziehen (auch Pfeiltasten), mindestens 340 px Programm und
+  420 px Spiel. Der Knopf auf der Trennlinie (oder › im Kopf) klappt das Programm zu einer schmalen Leiste
+  „‹ Programm“ ein. Breite und Zustand merkt sich der Browser (`kronland-code-split`). Das Spiel wird wirklich
+  schmaler: `.game` bekommt rechts die Panelbreite und `contain: layout`, damit Leiste, Minimap und Meldungen
+  im Spielbereich bleiben; Canvas, Kamera-Seitenverhältnis und Randscrollen folgen. Die HUD-Stufen
+  (`compact`, `mid`, `narrow`) richten sich nach der Breite des Spielbereichs. Werkzeugleiste: Ausführen,
+  Schritt, Über, Heraus, Stopp | Speichern, Öffnen | Raster; darunter Code (Abschnitte, Fehlerkasten, Variablen)
+  und unten die **Ausgabe**. Der Reiter **Befehle** zeigt die Befehlsliste.
+- **Handy (hochkant oder niedrig) – Blatt:** Das Programm füllt den Bildschirm, Reiter **Code**, **Ausgabe**
+  (mit Fehlerzähler) und **Hilfe** (Befehlsliste mit Suche). Unten Ausführen, Schritt, Stopp und „⋯“
+  (Speichern .py, Öffnen, Raster, Vorlage wiederherstellen), darüber beim Tippen die Tastenleiste
+  (⇥ ⇤ : ( ) " " = == [ ] . _ #). **Ausführen** schaltet auf **Spiel ansehen**: Spiel im Vollbild, unten eine
+  Leiste mit der aktuellen Zeile, Anhalten/Weiter, Stopp und „Code“. Bei einem Fehler (oder Haltepunkt) springt
+  das Blatt zurück zum Code, die Fehlerzeile ist sichtbar. Geöffnet wird das Blatt auch über die goldene Münze
+  „Code“ im Schnellzugriff (mit grünem Punkt, solange das Programm läuft) oder „Spiel“ im Kopf geschlossen.
+
+**Befehlshilfe im Code** (`hoverDoc.js`, `docCards.js`, `DocCard.vue`, Test `tests/ui/hoverDoc.test.js`): Bleibt
+die Maus etwa eine halbe Sekunde auf einem Befehl, erscheint eine Karte mit Signatur, Kurzbeschreibung, Parametern
+und Rückgabe (Texte aus `commandDocs.js`, erst beim ersten Bedarf nachgeladen, ~60 kB je Sprache). Sie
+verschwindet beim Verlassen, Tippen oder mit Escape. **Strg+Klick** (Mac: **⌘+Klick**) öffnet die
+Programmier-Referenz am Eintrag (`scripting/#<name>`) in einem neuen Tab; solange Strg/⌘ gedrückt ist, ist der
+Befehl unterstrichen und der Zeiger eine Hand. Erkannt werden Punktketten (`hero.step`, `math.sqrt`), Methoden
+an Literalen (`"a b".split` → `str.split`), Methoden an unbekannten Werten nach Name (`xs.append` →
+`list.append`) und eingebaute Funktionen (`len`); Strings und Kommentare nicht. Grundlage ist der Highlighter
+des Editors (`highlightRanges`). Am Handy ersetzt **langes Drücken** auf einen Befehl das Überfahren: Die Karte
+zeigt die ausführliche Erklärung, ein Beispiel und „In der Referenz öffnen“.
 
 Knöpfe: **Ausführen**, **Schritt** (hinein; startet auch im Schrittmodus), **Über**, **Heraus**, **Stopp**,
 **Weiter**/**Anhalten**. Beim Halt: aktuelle Zeile grün, Variablen (global, übergeben, lokal) und Aufrufstapel.
@@ -218,7 +248,7 @@ Status springt auf „bereit“.
 
 **Ausgabe:** `print()` erscheint als Meldung im Spiel (Kategorie `script`, niedrigster Vorrang, höchstens eine;
 weitere Ausgaben ersetzen den Text und zählen mit – „… (12 Ausgaben)“, eine Schleife flutet also nicht) und
-unter „Ausgabe“ im Code-Panel. Die Simulation meldet jeden Aufruf als Ereignis `scriptPrint` (nur Anzeige);
+unter „Ausgabe“ im Code-Panel (Desktop unter dem Code, Handy eigener Reiter). Die Simulation meldet jeden Aufruf als Ereignis `scriptPrint` (nur Anzeige);
 das Panel zeigt nur den aktuellen Lauf (`player.since` = Konsolen-Zähler beim Start). Anzeige-Logik:
 `src/ui/script/panelState.js` (Test `tests/ui/scriptPanel.test.js`).
 
