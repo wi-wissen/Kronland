@@ -242,7 +242,9 @@ Schwertkämpfer, Speerträger, Bogenschützen, leichte und schwere Reiterei, Kan
 - Jede Gattung hat Stärken und Schwächen: Speere gegen Reiter, Schwerter gegen Speere, Kanonen gegen Gebäude.
   Die genaue Schadenstabelle steht im [Kompendium](compendium/#units).
 
-![Truppen ausgewählt: Hauptleute, Held und Befehle](site/hud-army.webp)
+![Truppen ausgewählt: Befehle und Fähigkeiten des Helden](site/hud-army.webp)
+
+![Auswahlkarte rechts: Held und Hauptleute mit Rang, Truppstärke und Lebenspunkten](site/hud-selection.webp)
 
 ### Befehle
 
@@ -444,7 +446,8 @@ Ein Klick auf eine **Zeilennummer** setzt einen **Haltepunkt**. Hält das Progra
 markiert, und du siehst alle Variablen und den Aufrufstapel. Bei einem Fehler wird die Zeile rot; ein Kasten erklärt,
 was schiefging, und macht oft einen Vorschlag („Meintest du `turn_left`?“).
 
-Unter **Befehle** stehen alle Befehle mit Erklärung und Beispiel, das du mit einem Tipp einfügst. Die wichtigsten:
+Unter **Befehle** stehen alle Befehle mit Erklärung und Beispiel, das du mit einem Tipp einfügst. Ausführlich –
+mit Parametern, Rückgabewerten, Fehlern und vielen Beispielen – erklärt sie die [Programmier-Referenz](scripting/). Die wichtigsten:
 `hero.step()`, `hero.turn_left()`, `hero.turn_right()`, `hero.ahead()`, `hero.chop()`, `hero.take()` und `print()`.
 
 ```

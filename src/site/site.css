@@ -75,8 +75,8 @@ a.btn .ico { width: 1.25rem; height: 1.25rem; }
   .site-head .sh-play { display: none; }
   .sh-nav { order: 3; flex-basis: 100%; overflow-x: auto; scrollbar-width: none; margin: 0 -0.5rem; }
   .sh-nav::-webkit-scrollbar { display: none; }
-  /* five pages fit side by side (Pixel 7), even with "Kompendium"; otherwise the bar has to be swiped */
-  .sh-link { padding-inline: 0.5rem; font-size: 0.9375rem; }
+  /* six pages fit side by side (Pixel 7), even with "Kompendium"; otherwise the bar has to be swiped */
+  .sh-link { padding-inline: 0.375rem; font-size: 0.875rem; }
 }
 
 /* ---------- Footer ---------- */
@@ -110,14 +110,24 @@ a.btn .ico { width: 1.25rem; height: 1.25rem; }
 .prose ul, .prose ol { padding-left: 1.4rem; }
 .prose li { margin: 0.25rem 0; }
 .prose code { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.875em; background: rgba(90, 60, 20, 0.1); padding: 0.05em 0.3em; border-radius: 0.25rem; }
-.prose pre { margin: 0.875rem 0; padding: 0.75rem 1rem; overflow-x: auto; background: #2b1d12; color: #f3e3c0; border-radius: var(--r-md); line-height: 1.45; }
+.prose pre { text-align: left; margin: 0.875rem 0; padding: 0.75rem 1rem; overflow-x: auto; background: #2b1d12; color: #f3e3c0; border-radius: var(--r-md); line-height: 1.45; }
 .prose pre code { background: none; padding: 0; font-size: 0.875rem; color: inherit; }
+.prose pre .tk-c { color: #a8987a; font-style: italic; }
+.prose pre .tk-s { color: #b5d68a; }
+.prose pre .tk-n { color: #f0b46a; }
+.prose pre .tk-k { color: #f7d27a; font-weight: 700; }
+/* Code block with a file label (```js src/sim/rng.js) */
+.prose figure.code { margin: 0.875rem 0; text-align: left; }
+.prose figure.code figcaption { margin: 0; padding: 0.3rem 1rem; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-style: normal; font-size: 0.8125rem; color: #e9d3a3; background: #4a3220; border-radius: var(--r-md) var(--r-md) 0 0; overflow-wrap: anywhere; }
+.prose figure.code pre { margin: 0; border-radius: 0 0 var(--r-md) var(--r-md); }
 .prose kbd { font-size: 0.8125rem; }
 .prose strong { color: #3b2408; }
 .prose blockquote { margin: 1rem 0; padding: 0.625rem 1rem; border-left: 4px solid var(--gold-500); background: rgba(225, 168, 58, 0.13); border-radius: 0 var(--r-md) var(--r-md) 0; }
 .prose blockquote p { margin: 0.25rem 0; }
-.prose figure { margin: 1.25rem 0; }
-.prose figure img { display: block; max-width: 100%; height: auto; border-radius: var(--r-md); box-shadow: 0 0 0 1px rgba(90, 60, 20, 0.35), 0 6px 18px rgba(40, 25, 5, 0.25); background: var(--wood-900); }
+.prose figure { margin: 1.25rem auto; text-align: center; }
+.prose figure img { display: block; margin: 0 auto; max-width: 100%; height: auto; border-radius: var(--r-md); box-shadow: 0 0 0 1px rgba(90, 60, 20, 0.35), 0 6px 18px rgba(40, 25, 5, 0.25); background: var(--wood-900); }
+/* Diagrams (SVG) on a light ground instead of the dark photo frame */
+.prose figure img[src$=".svg"] { background: #fffaf0; width: 100%; }
 .prose figcaption { font-size: 0.9375rem; color: var(--parch-ink-muted); margin-top: 0.375rem; font-style: italic; }
 .prose hr { border: 0; border-top: 1px solid rgba(155, 108, 28, 0.35); margin: 2rem 0; }
 

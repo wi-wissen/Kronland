@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 470" width="940" height="470" role="img"><title>Suchraster</title><style>
+.bg{fill:#fffaf0;stroke:#e2d6c0}
+.t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
+.s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
+.h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
+.m{fill:#3a2d1c;font:13px ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace}
+.box{fill:#fff;stroke:#8a7556;stroke-width:1.5}
+.box2{fill:#f3e6cf;stroke:#8a7556;stroke-width:1.5}
+.hl{fill:#fde3c4;stroke:#b5651d;stroke-width:1.8}
+.blue{fill:#d7e6fb;stroke:#2a78d6;stroke-width:1.5}
+.green{fill:#d4efdf;stroke:#2e8b57;stroke-width:1.5}
+.red{fill:#f8d7d3;stroke:#c0392b;stroke-width:1.5}
+.ln{stroke:#6b5a43;stroke-width:1.6;fill:none}
+.lnb{stroke:#2a78d6;stroke-width:2.2;fill:none}
+.lnr{stroke:#c0392b;stroke-width:2.2;fill:none}
+.lno{stroke:#b5651d;stroke-width:2.2;fill:none}
+.lng{stroke:#2e8b57;stroke-width:2.2;fill:none}
+.dash{stroke:#8a7556;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+.grid{stroke:#e2d6c0;stroke-width:1;fill:none}
+.fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
+.ah{fill:#6b5a43}
+</style><rect x="0.5" y="0.5" width="939" height="469" rx="12" class="bg"/>
+<text x="30" y="38" class="h" text-anchor="start" >Feindsuche mit Raster: nur Zellen im Quadrat um den Suchkreis zählen</text>
+<line x1="40" y1="60" x2="40" y2="444" class="grid"/>
+<line x1="40" y1="60" x2="424" y2="60" class="grid"/>
+<line x1="88" y1="60" x2="88" y2="444" class="grid"/>
+<line x1="40" y1="108" x2="424" y2="108" class="grid"/>
+<line x1="136" y1="60" x2="136" y2="444" class="grid"/>
+<line x1="40" y1="156" x2="424" y2="156" class="grid"/>
+<line x1="184" y1="60" x2="184" y2="444" class="grid"/>
+<line x1="40" y1="204" x2="424" y2="204" class="grid"/>
+<line x1="232" y1="60" x2="232" y2="444" class="grid"/>
+<line x1="40" y1="252" x2="424" y2="252" class="grid"/>
+<line x1="280" y1="60" x2="280" y2="444" class="grid"/>
+<line x1="40" y1="300" x2="424" y2="300" class="grid"/>
+<line x1="328" y1="60" x2="328" y2="444" class="grid"/>
+<line x1="40" y1="348" x2="424" y2="348" class="grid"/>
+<line x1="376" y1="60" x2="376" y2="444" class="grid"/>
+<line x1="40" y1="396" x2="424" y2="396" class="grid"/>
+<line x1="424" y1="60" x2="424" y2="444" class="grid"/>
+<line x1="40" y1="444" x2="424" y2="444" class="grid"/>
+<rect x="137" y="157" width="46" height="46" rx="2" class="hl"/>
+<rect x="137" y="205" width="46" height="46" rx="2" class="hl"/>
+<rect x="137" y="253" width="46" height="46" rx="2" class="hl"/>
+<rect x="137" y="301" width="46" height="46" rx="2" class="hl"/>
+<rect x="185" y="157" width="46" height="46" rx="2" class="hl"/>
+<rect x="185" y="205" width="46" height="46" rx="2" class="hl"/>
+<rect x="185" y="253" width="46" height="46" rx="2" class="hl"/>
+<rect x="185" y="301" width="46" height="46" rx="2" class="hl"/>
+<rect x="233" y="157" width="46" height="46" rx="2" class="hl"/>
+<rect x="233" y="205" width="46" height="46" rx="2" class="hl"/>
+<rect x="233" y="253" width="46" height="46" rx="2" class="hl"/>
+<rect x="233" y="301" width="46" height="46" rx="2" class="hl"/>
+<rect x="281" y="157" width="46" height="46" rx="2" class="hl"/>
+<rect x="281" y="205" width="46" height="46" rx="2" class="hl"/>
+<rect x="281" y="253" width="46" height="46" rx="2" class="hl"/>
+<rect x="281" y="301" width="46" height="46" rx="2" class="hl"/>
+<circle cx="212.8" cy="266.4" r="72.0" class="dash"/>
+<circle cx="130.6" cy="99.6" r="4.5" class="fr"/>
+<circle cx="99.5" cy="85.5" r="4.5" class="fr"/>
+<circle cx="392.5" cy="367.4" r="4.5" class="fb"/>
+<circle cx="125.2" cy="266.1" r="4.5" class="fr"/>
+<circle cx="106.3" cy="100.8" r="4.5" class="fr"/>
+<circle cx="396.2" cy="378.3" r="4.5" class="fb"/>
+<circle cx="347.4" cy="134.3" r="4.5" class="fr"/>
+<circle cx="280.8" cy="341.0" r="4.5" class="fb"/>
+<circle cx="377.9" cy="93.3" r="4.5" class="fb"/>
+<circle cx="297.9" cy="254.3" r="4.5" class="fr"/>
+<circle cx="221.9" cy="94.3" r="4.5" class="fb"/>
+<circle cx="372.3" cy="270.3" r="4.5" class="fr"/>
+<circle cx="389.0" cy="279.8" r="4.5" class="fb"/>
+<circle cx="365.6" cy="255.2" r="4.5" class="fr"/>
+<circle cx="270.0" cy="225.5" r="4.5" class="fr"/>
+<circle cx="157.2" cy="372.0" r="4.5" class="fr"/>
+<circle cx="57.8" cy="300.5" r="4.5" class="fr"/>
+<circle cx="245.3" cy="241.0" r="4.5" class="fr"/>
+<circle cx="423.0" cy="135.1" r="4.5" class="fr"/>
+<circle cx="117.8" cy="302.9" r="4.5" class="fr"/>
+<circle cx="176.6" cy="346.8" r="4.5" class="fr"/>
+<circle cx="254.5" cy="407.3" r="4.5" class="fr"/>
+<circle cx="63.7" cy="147.9" r="4.5" class="fb"/>
+<circle cx="276.3" cy="151.2" r="4.5" class="fr"/>
+<circle cx="108.2" cy="236.3" r="4.5" class="fr"/>
+<circle cx="307.8" cy="404.0" r="4.5" class="fb"/>
+<circle cx="322.2" cy="428.6" r="4.5" class="fr"/>
+<circle cx="151.0" cy="430.9" r="4.5" class="fb"/>
+<circle cx="197.6" cy="422.2" r="4.5" class="fb"/>
+<circle cx="354.1" cy="172.7" r="4.5" class="fr"/>
+<circle cx="210.6" cy="112.4" r="4.5" class="fr"/>
+<circle cx="409.3" cy="187.2" r="4.5" class="fr"/>
+<circle cx="57.2" cy="125.1" r="4.5" class="fb"/>
+<circle cx="179.3" cy="171.5" r="4.5" class="fr"/>
+<circle cx="417.0" cy="222.8" r="4.5" class="fr"/>
+<circle cx="62.8" cy="81.2" r="4.5" class="fr"/>
+<circle cx="299.9" cy="117.5" r="4.5" class="fr"/>
+<circle cx="228.4" cy="155.6" r="4.5" class="fb"/>
+<circle cx="87.0" cy="263.2" r="4.5" class="fb"/>
+<circle cx="197.2" cy="439.3" r="4.5" class="fr"/>
+<circle cx="132.9" cy="217.7" r="4.5" class="fr"/>
+<circle cx="201.7" cy="155.5" r="4.5" class="fb"/>
+<circle cx="359.1" cy="251.5" r="4.5" class="fr"/>
+<circle cx="137.7" cy="153.1" r="4.5" class="fr"/>
+<circle cx="128.9" cy="394.0" r="4.5" class="fr"/>
+<circle cx="59.7" cy="416.4" r="4.5" class="fb"/>
+<circle cx="212.8" cy="266.4" r="7" class="fg"/>
+<text x="222.8" y="256.4" class="h" text-anchor="start" >Kämpfer</text>
+<circle cx="464" cy="96" r="5" class="fr"/>
+<text x="476" y="101" class="s" text-anchor="start" >Feind</text>
+<circle cx="464" cy="120" r="5" class="fb"/>
+<text x="476" y="125" class="s" text-anchor="start" >eigene/verbündete</text>
+<rect x="458" y="136" width="14" height="14" rx="2" class="hl"/>
+<text x="476" y="148" class="s" text-anchor="start" >Zellen, die geprüft werden</text>
+<text x="458" y="196" class="t" text-anchor="start" >Ohne Raster: jede Figur prüft alle</text>
+<text x="458" y="218" class="s" text-anchor="start" >~2 500 Figuren → ~6 Mio. Paare je Takt.</text>
+<text x="458" y="240" class="s" text-anchor="start" ></text>
+<text x="458" y="262" class="t" text-anchor="start" >Mit Raster (8 × 8 Kacheln je Zelle):</text>
+<text x="458" y="284" class="s" text-anchor="start" >nur die Figuren in wenigen Zellen.</text>
+<text x="458" y="306" class="s" text-anchor="start" ></text>
+<text x="458" y="328" class="t" text-anchor="start" >Dazu billige Tests zuerst:</text>
+<text x="458" y="350" class="s" text-anchor="start" >Feind? → Abstand² &lt; r²? → erst dann</text>
+<text x="458" y="372" class="s" text-anchor="start" >genauer Abstand und „angreifbar?“</text>
+</svg>

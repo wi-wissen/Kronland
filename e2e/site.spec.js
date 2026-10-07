@@ -51,6 +51,11 @@ test('Home page loads with title image, features, gallery and footer', async ({ 
   await expect(page.locator('.features')).toContainText('Leibeigene packen an');
   await expect(page.locator('.features')).toContainText('Kaufen oder kämpfen');
   await expect(page.locator('.features .ico.atlas').first()).toBeVisible();
+  // all feature icons stand free; heroes too (cut-out portrait, not the portrait with its cream ground)
+  await expect(page.locator('.features .ico.portrait')).toHaveCount(0);
+  const heroIco = page.locator('.features img.ico[src*="icons/heroes"]');
+  await expect(heroIco).toHaveCount(1);
+  await expect.poll(() => heroIco.evaluate((el) => el.complete && el.naturalWidth > 0)).toBe(true);
   // Gallery: hovering brightens but moves nothing
   const shot = gallery.locator('img').first();
   await shot.scrollIntoViewIfNeeded();
@@ -146,6 +151,22 @@ test('Compendium: building table from the game data, deep link, search', async (
   expect(problems).toEqual([]);
 });
 
+test('Compendium explains the computer opponents (guide and state diagram)', async ({ page }, info) => {
+  const problems = watch(page);
+  await page.goto('/compendium/#ai-attack');
+  await expect(page.locator('#ai-attack h3')).toBeInViewport();
+  const diagram = page.getByTestId('ai-states');
+  await expect(diagram).toBeVisible();
+  await expect(diagram).toContainText('Verteidigen');
+  await expect(page.locator('#ai-counter')).toContainText('Rückzug erzwingen');
+  await expect(page.locator('#ai-rules a[href^="https://de.wikipedia.org/wiki/"]').first()).toBeVisible();
+  // the sidebar lists the entries of the current section
+  await expect(page.getByTestId('compendium-nav').locator('a[href="#ai-counter"]')).toBeAttached();
+  await diagram.scrollIntoViewIfNeeded();
+  if (process.env.SHOT_DIR) await page.screenshot({ path: `${process.env.SHOT_DIR}/compendium-ai-${info.project.name}.png` });
+  expect(problems).toEqual([]);
+});
+
 test('Language switch applies to all pages and the game', async ({ page }) => {
   const problems = watch(page);
   await page.goto('/compendium/');
@@ -182,4 +203,5 @@ test('Compendium: deep link with anchor', async ({ page }) => {
   await expect(page.getByTestId('nav-compendium')).toHaveText('Kompendium');
   // Compendium shows the icons from the game's atlas
   await expect(page.getByTestId('compendium').locator('.ico.atlas').first()).toBeVisible();
+  await expect(page.getByTestId('compendium').locator('img.ico[src*="icons/heroes"]').first()).toBeAttached();
 });

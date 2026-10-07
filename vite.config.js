@@ -6,12 +6,13 @@ import hashedAssets from './scripts/vite-hashed-assets.js';
 import blogPages from './scripts/vite-blog-pages.js';
 import socialMeta from './scripts/vite-social-meta.js';
 
-// Website made of several pages (Vite multi-page): home, game, manual, compendium, blog. All paths relative (base './').
+// Website made of several pages (Vite multi-page): home, game, manual, compendium, scripting reference, blog. All paths relative (base './').
 const PAGES = {
   main: 'index.html',
   play: 'play/index.html',
   manual: 'manual/index.html',
   compendium: 'compendium/index.html',
+  scripting: 'scripting/index.html',
   // Blog: overview; the article pages blog/<name>/ are written by scripts/vite-blog-pages.js
   blog: 'blog/index.html',
 };
@@ -72,7 +73,7 @@ export default defineConfig({
         // Upfront (on first visit, ~3 MB): code, pages and the small UI images (icons, portraits,
         // menu backdrops). Models, textures, sound and website images only when they are needed.
         globPatterns: ['**/*.{js,css,html,png,webp}'],
-        globIgnores: ['models/**', 'site/**', 'textures/**'],
+        globIgnores: ['models/**', 'site/**', 'textures/**', 'blog/*/*.{png,jpg,webp,svg}'],
         // Files with a content hash (Vite bundles, hashed game files) need no checksum in the cache key
         dontCacheBustURLsMatching: /\.[0-9a-f]{10}\.[a-z0-9]+$|(^|\/)assets\//i,
         // Multiple pages: no fallback page for navigations (otherwise /play/ would get the home page)
@@ -94,6 +95,8 @@ export default defineConfig({
           { urlPattern: /\/audio\/.*\.(json|ogg|mp3|m4a|wav|webm|opus)$/, handler: 'CacheFirst', options: { cacheName: 'audio', expiration: { maxEntries: 800 } } },
           // Website images (screenshots) only on demand
           { urlPattern: /\/site\/.*\.(webp|jpg|png)$/, handler: 'CacheFirst', options: { cacheName: 'site-images', expiration: { maxEntries: 60 } } },
+          // Blog images and diagrams (public/blog/<article>/…) likewise
+          { urlPattern: /\/blog\/[^/]+\/[^/]+\.(webp|jpg|png|svg)$/, handler: 'CacheFirst', options: { cacheName: 'blog-images', expiration: { maxEntries: 120 } } },
           { urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/, handler: 'CacheFirst', options: { cacheName: 'fonts', expiration: { maxEntries: 20 } } },
         ],
       },

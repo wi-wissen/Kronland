@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 550" width="900" height="550" role="img"><title>Surrounding</title><style>
+.bg{fill:#fffaf0;stroke:#e2d6c0}
+.t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
+.s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
+.h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
+.m{fill:#3a2d1c;font:13px ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace}
+.box{fill:#fff;stroke:#8a7556;stroke-width:1.5}
+.box2{fill:#f3e6cf;stroke:#8a7556;stroke-width:1.5}
+.hl{fill:#fde3c4;stroke:#b5651d;stroke-width:1.8}
+.blue{fill:#d7e6fb;stroke:#2a78d6;stroke-width:1.5}
+.green{fill:#d4efdf;stroke:#2e8b57;stroke-width:1.5}
+.red{fill:#f8d7d3;stroke:#c0392b;stroke-width:1.5}
+.ln{stroke:#6b5a43;stroke-width:1.6;fill:none}
+.lnb{stroke:#2a78d6;stroke-width:2.2;fill:none}
+.lnr{stroke:#c0392b;stroke-width:2.2;fill:none}
+.lno{stroke:#b5651d;stroke-width:2.2;fill:none}
+.lng{stroke:#2e8b57;stroke-width:2.2;fill:none}
+.dash{stroke:#8a7556;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+.grid{stroke:#e2d6c0;stroke-width:1;fill:none}
+.fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
+.ah{fill:#6b5a43}
+</style><rect x="0.5" y="0.5" width="899" height="549" rx="12" class="bg"/>
+<text x="30" y="38" class="h" text-anchor="start" >Spots around a target in melee (values in milli-tiles)</text>
+<circle cx="260" cy="290" r="208.0" class="dash"/>
+<text x="260" y="520.0" class="s" text-anchor="middle" >melee range 1300</text>
+<circle cx="260" cy="290" r="128.0" class="grid"/>
+<circle cx="388.0" cy="290.0" r="6" class="fo"/>
+<circle cx="350.5" cy="380.5" r="6" class="fo"/>
+<circle cx="260.0" cy="418.0" r="6" class="fo"/>
+<circle cx="169.5" cy="380.5" r="6" class="fo"/>
+<circle cx="132.0" cy="290.0" r="6" class="fo"/>
+<circle cx="169.5" cy="199.5" r="6" class="fo"/>
+<circle cx="260.0" cy="162.0" r="6" class="fo"/>
+<circle cx="350.5" cy="199.5" r="6" class="fo"/>
+<circle cx="260" cy="290" r="184.0" class="grid"/>
+<circle cx="437.7" cy="337.6" r="6" class="fb"/>
+<circle cx="390.1" cy="420.1" r="6" class="fb"/>
+<circle cx="307.6" cy="467.7" r="6" class="fb"/>
+<circle cx="212.4" cy="467.7" r="6" class="fb"/>
+<circle cx="129.9" cy="420.1" r="6" class="fb"/>
+<circle cx="82.3" cy="337.6" r="6" class="fb"/>
+<circle cx="82.3" cy="242.4" r="6" class="fb"/>
+<circle cx="129.9" cy="159.9" r="6" class="fb"/>
+<circle cx="212.4" cy="112.3" r="6" class="fb"/>
+<circle cx="307.6" cy="112.3" r="6" class="fb"/>
+<circle cx="390.1" cy="159.9" r="6" class="fb"/>
+<circle cx="437.7" cy="242.4" r="6" class="fb"/>
+<circle cx="260" cy="290" r="12" class="fr"/>
+<text x="276" y="295" class="h" text-anchor="start" >target</text>
+<circle cx="70" cy="90" r="7" class="fg"/>
+<line x1="76" y1="96" x2="161.4903320081219" y2="191.49033200812192" class="lng"/>
+<polygon points="161.4903320081219,191.49033200812192 153.3,187.7 158.6,183.0" class="ah"/>
+<text x="82" y="80" class="s" text-anchor="start" >attacker</text>
+<circle cx="520" cy="96" r="6" class="fo"/>
+<text x="534" y="101" class="s" text-anchor="start" >inner ring: 8 spots, radius 800</text>
+<circle cx="520" cy="122" r="6" class="fb"/>
+<text x="534" y="127" class="s" text-anchor="start" >outer ring: 12 spots, radius 1150,</text>
+<text x="534" y="145" class="s" text-anchor="start" >offset by 15°</text>
+<text x="520" y="200" class="t" text-anchor="start" >1. spot in the direction of approach:</text>
+<text x="520" y="224" class="t" text-anchor="start" >   largest dot product direction · offset</text>
+<text x="520" y="248" class="t" text-anchor="start" >2. taken? → neighbours alternately</text>
+<text x="520" y="272" class="t" text-anchor="start" >   left/right, then the outer ring</text>
+<text x="520" y="296" class="t" text-anchor="start" >3. the spot must be walkable</text>
+<text x="520" y="320" class="t" text-anchor="start" ></text>
+<text x="520" y="344" class="s" text-anchor="start" >Directions from an integer table</text>
+<text x="520" y="368" class="s" text-anchor="start" >(sin 15° · 1000 = 259 …): no Math.sin</text>
+<text x="520" y="392" class="s" text-anchor="start" >in the simulation, same everywhere.</text>
+</svg>

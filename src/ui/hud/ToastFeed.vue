@@ -108,6 +108,8 @@ button.toast-main:hover { filter: brightness(1.15); }
 .toast-leave-active { transition: opacity 0.3s; }
 .toast-enter-from { opacity: 0; transform: translateX(16px); }
 .toast-leave-to { opacity: 0; }
+/* Desktop with the code panel on the right (ScriptPanel.vue, width --code-w): notices to the left of it, not behind */
+.with-code .toasts { right: calc(var(--code-w, min(30rem, 42vw)) + var(--hud-gap) * 2 + var(--safe-r)); }
 /* Phone: right-aligned, the goals button of the missions stays free on the left */
 .compact .toasts { right: calc(var(--hud-gap) + var(--safe-r)); width: min(22rem, calc(100vw - 10.5rem)); }
 @media (max-width: 760px), (max-height: 480px) and (orientation: landscape) {

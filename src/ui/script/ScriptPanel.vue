@@ -18,6 +18,11 @@
       <button v-tip="$t('script.overTip')" :disabled="!paused" data-testid="script-over" @click="step('over')"><span class="sp-glyph">↷</span><span class="sp-lbl">{{ $t('script.over') }}</span></button>
       <button v-tip="$t('script.outTip')" :disabled="!paused" data-testid="script-out" @click="step('out')"><span class="sp-glyph">↥</span><span class="sp-lbl">{{ $t('script.out') }}</span></button>
       <button v-tip="$t('script.stopTip')" :disabled="!busy" data-testid="script-stop" @click="stop"><span class="sp-glyph">■</span><span class="sp-lbl">{{ $t('script.stop') }}</span></button>
+      <span class="sp-files">
+        <button v-tip="$t('script.downloadTip')" :disabled="!fileSection" :aria-label="$t('script.download')" data-testid="script-download" @click="download"><Icon name="download" /><span class="sp-lbl">{{ $t('script.download') }}</span></button>
+        <button v-tip="$t('script.openTip')" :disabled="!fileSection" :aria-label="$t('script.open')" data-testid="script-open-file" @click="$refs.file.click()"><Icon name="upload" /><span class="sp-lbl">{{ $t('script.open') }}</span></button>
+        <input ref="file" class="sp-file" type="file" :accept="touch ? null : '.py,.txt,text/plain,text/x-python'" tabindex="-1" aria-hidden="true" data-testid="script-file" @change="openFile" />
+      </span>
     </div>
 
     <nav class="seg sp-tabs" role="tablist">
@@ -53,11 +58,12 @@
             @blur="blurred"
           />
         </section>
-        <div v-if="error" class="sp-error" role="alert" data-testid="script-error">
+        <div v-if="error" ref="error" class="sp-error" role="alert" data-testid="script-error">
           <b>{{ errorText.title }}</b>
           <p>{{ errorText.text }}</p>
         </div>
-        <div v-if="consoleLines.length" class="sp-console" data-testid="script-console" aria-live="polite">
+        <div v-if="consoleLines.length" ref="console" class="sp-console" data-testid="script-console" aria-live="polite">
+          <h4 class="sp-console-title">{{ $t('script.output') }}</h4>
           <div v-for="c in consoleLines" :key="c.seq" class="sp-out" :class="{ err: c.err, mission: c.level === 'mission' }">{{ c.err ? errText(c.err) : c.text }}</div>
         </div>
         <div v-if="vars" class="sp-vars" data-testid="script-vars">
@@ -90,6 +96,7 @@ import CodeEditor from './CodeEditor.vue';
 import KeyBar from './KeyBar.vue';
 import ApiHelp from './ApiHelp.vue';
 import { scriptErrorText, tr } from '../../i18n/index.js';
+import { shownError, shownStatus, consoleView, fileName, sourceFromFile, MAX_FILE_BYTES } from './panelState.js';
 
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k) ?? 'null'); } catch { return null; } },
@@ -128,24 +135,39 @@ export default {
       return (this.scenario.sections ?? []).filter((s) => this.mode === 'editor' || (s.visibility ?? 'open') !== 'hidden');
     },
     player() { return this.script.player; },
-    status() { return this.player?.status ?? 'idle'; },
+    status() { return shownStatus(this.player, this.dirty); },
     busy() { return this.status === 'running' || this.status === 'paused'; },
     paused() { return this.status === 'paused'; },
     vars() { return this.paused ? this.player.vars : null; },
-    error() {
-      const e = this.player?.status === 'error' ? this.player.error : null;
-      return e && !this.dirty[e.section] ? e : null;
-    },
+    error() { return shownError(this.player, this.dirty); },
     errorText() { return this.error ? this.errText(this.error, true) : { title: '', text: '' }; },
     consoleLines() {
-      // The current error is already in the error box above
-      const shown = this.error?.seq;
-      return (this.script.console ?? []).filter((c) => (this.mode === 'editor' || c.level === 'player') && !(c.err && c.err.seq === shown)).slice(-60);
+      // Only the current run; the current error is already in the error box above
+      return consoleView(this.script.console, { mode: this.mode, since: this.player?.since ?? 0, error: this.error, dirty: this.dirty });
+    },
+    /** Section that download and open work on: the focused editable one, otherwise the player program */
+    fileSection() {
+      const all = this.scenario.sections ?? [];
+      return all.find((s) => s.id === this.focused && s.editable) ?? all.find((s) => s.editable && s.level === 'player') ?? all.find((s) => s.editable) ?? null;
     },
   },
   watch: {
     'player.line'(l) { if (l && this.compact && this.status !== 'idle' && !this.open) this.$emit('update:open', true); },
-    consoleLines() { this.$nextTick(() => { const b = this.$refs.body; if (b && this.tab === 'code' && this.busy) b.scrollTop = b.scrollHeight; }); },
+    'error.seq'(seq) {
+      // New error: box into view (the gutter marker scrolls itself, CodeEditor.reveal)
+      if (seq) this.$nextTick(() => { if (this.tab === 'code') this.$refs.error?.scrollIntoView?.({ block: 'nearest' }); });
+    },
+    consoleLines(now, before) {
+      // New output: keep the console in view (also when a short program is already finished)
+      const last = now[now.length - 1]?.seq ?? 0;
+      if (!last || last === before?.[before.length - 1]?.seq) return;
+      this.$nextTick(() => {
+        const c = this.$refs.console;
+        if (!c || this.tab !== 'code') return;
+        c.scrollTop = c.scrollHeight;
+        c.scrollIntoView?.({ block: 'nearest' });
+      });
+    },
   },
   mounted() {
     this.engine?.setGrid?.(this.grid);
@@ -220,8 +242,42 @@ export default {
       } else if (this.busy) this.engine.scriptBreakpoints('player', this.playerBps());
     },
     resetCode() {
-      for (const s of this.scenario.sections ?? []) if (s.editable) this.codes[s.id] = s.code;
+      for (const s of this.scenario.sections ?? []) if (s.editable) { this.codes[s.id] = s.code; this.dirty = { ...this.dirty, [s.id]: true }; }
       this.persist();
+    },
+    /** Save the program as a .py file (download; works on phones too). */
+    download() {
+      const sec = this.fileSection;
+      if (!sec) return;
+      const text = (this.codes[sec.id] ?? '').replace(/\n*$/, '\n');
+      const editable = (this.scenario.sections ?? []).filter((s) => s.editable);
+      const name = fileName(editable.length > 1 ? `${this.scenario.id}-${sec.id}` : this.scenario.id);
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/x-python;charset=utf-8' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    },
+    /** Load a .py/.txt file from the device into the editor (replaces the section). */
+    async openFile(e) {
+      const input = e.target, file = input.files?.[0];
+      input.value = '';
+      const sec = this.fileSection;
+      if (!file || !sec) return;
+      const warn = (key, params = null) => this.engine?.toast?.(key, params, { icon: 'warning', tone: 'warn', cat: 'feedback' });
+      if (file.size > MAX_FILE_BYTES) { warn('script.fileTooBig', { kb: Math.round(MAX_FILE_BYTES / 1000) }); return; }
+      let text = null;
+      try { text = sourceFromFile(await file.text()); } catch { text = null; }
+      if (text === null) { warn('script.fileUnreadable'); return; }
+      this.tab = 'code';
+      this.unfolded[sec.id] = true;
+      this.codes[sec.id] = text;
+      this.edited(sec.id);
+      if (!this.touch) this.$nextTick(() => this.editors[sec.id]?.focus?.()); // phones: no keyboard popping up
     },
     blurred() { setTimeout(() => { if (!this.$el?.parentNode || !document.activeElement?.closest?.('.script-panel')) this.focused = null; }, 150); },
     key(k) {
@@ -244,11 +300,13 @@ export default {
 </script>
 
 <style>
+/* Panel width; ToastFeed.vue moves the notices to the left of it (.with-code) */
+.game { --code-w: min(30rem, 42vw); }
 .script-panel {
   position: fixed; z-index: 6; display: flex; flex-direction: column;
   right: calc(var(--hud-gap) + var(--safe-r)); top: calc(var(--top-total, 4rem) + var(--hud-gap));
   bottom: calc(var(--bottom-h, 13rem) + var(--hud-gap) * 2);
-  width: min(30rem, 42vw); padding: 0.625rem; gap: 0.5rem;
+  width: var(--code-w, min(30rem, 42vw)); padding: 0.625rem; gap: 0.5rem;
 }
 .script-panel.compact {
   left: var(--safe-l); right: var(--safe-r); bottom: 0; top: auto; width: auto;
@@ -269,9 +327,14 @@ export default {
 .sp-tools button { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 2.375rem; padding: 0 0.5rem; }
 .sp-run { min-width: 6rem; justify-content: center; }
 .sp-glyph { font-size: 1.05em; line-height: 1; }
+.sp-files { display: inline-flex; gap: 0.25rem; margin-left: auto; }
+.sp-file { display: none; }
+.sp-console-title { margin: 0 0 0.125rem; font: 600 var(--fs-xs) var(--body, inherit); color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em; }
 .sp-tabs { align-self: flex-start; }
 .sp-tabs > button { min-height: 2rem; padding: 0 0.875rem; }
 .sp-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.625rem; padding-right: 0.125rem; }
+/* The body scrolls; its blocks keep their height (otherwise the console shrinks to a sliver under long code) */
+.sp-body > * { flex-shrink: 0; }
 .sp-brief { position: relative; margin: 0; padding: 0.625rem 2.25rem 0.625rem 0.75rem; font-size: var(--fs-sm); line-height: 1.45; }
 .sp-brief-x { position: absolute; top: 0.25rem; right: 0.25rem; min-height: 1.75rem !important; min-width: 1.75rem; padding: 0; color: var(--parch-ink); }
 .sp-sec { display: flex; flex-direction: column; gap: 0.25rem; }

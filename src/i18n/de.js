@@ -73,6 +73,7 @@ export default {
   'site.home': 'Startseite',
   'site.manual': 'Handbuch',
   'site.compendium': 'Kompendium',
+  'site.scripting': 'Programmieren',
   'site.blog': 'Blog',
 
   // ---------- Loading ----------
@@ -323,6 +324,8 @@ export default {
   'toast.workerLeft': 'Ein Arbeiter hat die Siedlung verlassen',
   'toast.recruited': '{unit} bereit',
   'toast.noMoreNodes': 'Kein {res} mehr in der Nähe – Leibeigene stehen untätig',
+  'toast.print': '{text}',
+  'toast.printMany': '{text} ({n} Ausgaben)',
   'toast.nodeDepleted': 'Ein Haufen {res} ist erschöpft',
   'toast.attackBuilding': 'Angriff auf {building}!',
   'toast.attackSettlers': 'Eure Siedler werden angegriffen!',

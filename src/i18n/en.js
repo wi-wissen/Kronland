@@ -72,6 +72,7 @@ export default {
   'site.home': 'Home page',
   'site.manual': 'Manual',
   'site.compendium': 'Compendium',
+  'site.scripting': 'Scripting',
   'site.blog': 'Blog',
 
   // ---------- Loading ----------
@@ -322,6 +323,8 @@ export default {
   'toast.workerLeft': 'A worker has left the settlement',
   'toast.recruited': '{unit} ready',
   'toast.noMoreNodes': 'No {res} left nearby – serfs are idle',
+  'toast.print': '{text}',
+  'toast.printMany': '{text} ({n} outputs)',
   'toast.nodeDepleted': 'A pile of {res} is exhausted',
   'toast.attackBuilding': '{building} under attack!',
   'toast.attackSettlers': 'Your settlers are under attack!',

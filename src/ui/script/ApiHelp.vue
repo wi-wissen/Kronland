@@ -8,54 +8,32 @@
       <div v-for="e in g.entries" :key="e.name" class="api-entry">
         <code class="api-sig">{{ e.sig }}</code>
         <button v-if="e.example" class="ghost api-add" :aria-label="$t('script.help.insert')" @click="$emit('insert', e.example)"><Icon name="plus" /></button>
-        <p>{{ $t(e.key) }}</p>
+        <p>{{ $t(e.key) }} <a class="api-more" :href="e.href ?? refUrl(e.name)" target="_blank" rel="noopener" :title="$t('script.help.more')" :aria-label="$t('script.help.more')" :data-testid="'api-more-' + e.name">→</a></p>
       </div>
     </section>
     <p v-if="!groups.length" class="sp-none">{{ $t('script.help.nothing') }}</p>
+    <a class="api-ref" :href="refUrl()" target="_blank" rel="noopener" data-testid="api-reference"><Icon name="scroll" />{{ $t('script.help.reference') }}</a>
   </div>
 </template>
 
 <script>
 import { API_DOC } from '../../sim/scripting/api.js';
-import { has, t } from '../../i18n/index.js';
-
-/** Python basics (no game API) with example. */
-const BASICS = [
-  { name: 'py.print', sig: 'print("Hallo", x)', example: 'print("Hallo!")' },
-  { name: 'py.var', sig: 'x = 5', example: 'count = 0' },
-  { name: 'py.if', sig: 'if …: … elif …: … else: …', example: 'if hero.can_step():\n    hero.step()\nelse:\n    hero.turn_left()' },
-  { name: 'py.for', sig: 'for i in range(10):', example: 'for i in range(3):\n    hero.step()' },
-  { name: 'py.while', sig: 'while …:', example: 'while hero.can_step():\n    hero.step()' },
-  { name: 'py.def', sig: 'def name(a, b):', example: 'def turn_around():\n    hero.turn_left()\n    hero.turn_left()' },
-  { name: 'py.list', sig: '[1, 2, 3], xs.append(4), len(xs)', example: 'trees = trees_near(hero)\nprint(len(trees))' },
-  { name: 'py.dict', sig: '{"wood": 5}, d["wood"]', example: 'found = {}' },
-  { name: 'py.fstring', sig: 'f"x = {x}"', example: 'print(f"Nelia steht bei {hero.x}, {hero.y}")' },
-];
-
-const EXAMPLES = {
-  wait: 'wait(1)', wait_until: 'wait_until(lambda: hero.is_at(place("goal")))',
-  'hero.step': 'hero.step()', 'hero.turn_left': 'hero.turn_left()', 'hero.turn_right': 'hero.turn_right()', 'hero.turn_to': 'hero.turn_to("north")',
-  'hero.ahead': 'print(hero.ahead())', 'hero.can_step': 'if hero.can_step():\n    hero.step()', 'hero.move_to': 'hero.move_to(place("goal"))',
-  'hero.is_at': 'print(hero.is_at(place("goal")))', 'hero.take': 'hero.take()', 'hero.chop': 'hero.chop()', 'hero.say': 'hero.say("Hallo!")',
-  place: 'goal = place("goal")', tile: 'print(tile(5, 5))', trees_near: 'print(len(trees_near(hero)))', stock: 'print(stock("wood"))',
-  serfs: 'for s in serfs(idle=True):\n    print(s)', build: 'spot = find_spot("residence", hq())\nsite = build("residence", spot[0], spot[1])',
-  say: 'say("nelia", "Hallo!")', 'camera.fly_to': 'camera.fly_to(hero, seconds=2)', objective: 'objective("goal", "Erreiche das Ziel", lambda: hero.is_at(place("goal")))',
-  on_start: '@on_start\ndef intro():\n    say("nelia", "Los geht\'s!")', every: '@every(10)\ndef tick():\n    print(time())',
-  spawn: 'spawn(BANDITS, "sword1", place("gate"), count=2)', plant_trees: 'plant_trees((10, 10), 12)', make_place: 'make_place("goal", 10, 10, 1)',
-};
+import { has, t, i18n } from '../../i18n/index.js';
+import { BASICS, refExample, refUrl } from './reference.js';
 
 export default {
   name: 'ApiHelp',
   props: { level: { type: String, default: 'player' } },
   emits: ['insert'],
   data() { return { query: '' }; },
+  methods: { refUrl },
   computed: {
     groups() {
       const q = this.query.trim().toLowerCase();
       const entries = [
-        ...BASICS.map((b) => ({ ...b, group: 'basics', key: `script.api.${b.name}` })),
+        ...BASICS.map((b) => ({ ...b, group: 'basics', key: `script.api.${b.name}`, href: refUrl(b.name) })),
         ...API_DOC.filter((e) => this.level === 'mission' || e.level === 'player')
-          .map((e) => ({ ...e, key: `script.api.${e.name}`, example: EXAMPLES[e.name] ?? null })),
+          .map((e) => ({ ...e, key: `script.api.${e.name}`, example: refExample(e.name, i18n.lang) })),
       ].filter((e) => has(e.key) && (!q || e.sig.toLowerCase().includes(q) || t(e.key).toLowerCase().includes(q)));
       const order = ['basics', 'flow', 'hero', 'world', 'village', 'story', 'events', 'goals', 'power', 'terrain', 'const'];
       return order.map((id) => ({ id, entries: entries.filter((e) => e.group === id) })).filter((g) => g.entries.length);
@@ -71,5 +49,8 @@ export default {
 .api-entry { display: grid; grid-template-columns: 1fr auto; gap: 0 0.375rem; padding: 0.375rem 0; border-bottom: 1px solid rgba(225, 168, 58, 0.1); }
 .api-sig { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8125rem; color: var(--gold-100); word-break: break-word; }
 .api-entry p { grid-column: 1 / -1; margin: 0.125rem 0 0; font-size: var(--fs-sm); color: var(--ink-muted); line-height: 1.4; }
+.api-more { color: var(--gold-300); text-decoration: none; padding: 0 0.25rem; }
+.api-ref { display: flex; align-items: center; gap: 0.375rem; color: var(--gold-200); font-size: var(--fs-sm); padding: 0.375rem 0; }
+.api-ref .ico { width: 1.125rem; height: 1.125rem; }
 .api-add { min-height: 1.75rem !important; min-width: 1.75rem; padding: 0; }
 </style>

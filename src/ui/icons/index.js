@@ -511,6 +511,8 @@ export const ICONS = {
   ...Object.fromEntries(Object.entries(UNIT).map(([k, v]) => [`u-${k}`, v])),
   ...Object.fromEntries(Object.entries(HERO).map(([k, v]) => [`hero-${k}`, v])),
   ...Object.fromEntries(Object.entries(ABILITY).map(([k, v]) => [`ab-${k}`, v])),
+  // Category "heroes" (start page, compendium): drawn fallback; painted as a cut-out portrait (IMAGE_ICONS)
+  heroes: HERO.nelia,
 };
 
 // Bridge and decorations (own file)
@@ -528,12 +530,13 @@ export const PORTRAITS = {
 };
 /**
  * Painted icons without an atlas field: buildings (cut-out concept images, scripts/portraits.py) and
- * abilities and menu icons (painted individually, scripts/art/, see docs/SYMBOLE.md).
+ * abilities and menu icons (painted individually, scripts/art/, see docs/SYMBOLE.md) and the hero category icon.
  */
 export const IMAGE_ICONS = {
   'b-fountain': 'icons/b-fountain.webp', 'b-statue': 'icons/b-statue.webp', 'b-bridge': 'icons/b-bridge.webp',
   'ab-farsight': 'icons/ab-farsight.webp', 'ab-bribe': 'icons/ab-bribe.webp', 'ab-intimidate': 'icons/ab-intimidate.webp',
   'mode-special': 'icons/mode-special.webp', 'mode-adventure': 'icons/mode-adventure.webp',
+  heroes: 'icons/heroes.webp', // Nelia's portrait without its ground (scripts/icons/hero-icon.py)
 };
 const SPEAKER_PORTRAITS = new Set(['elder', 'villager', 'collector', 'merchant', 'bandit', 'miner', 'scholar', 'prisoner', 'herald']);
 /** Portrait of a figure speaking in missions (SPEAKERS key), or null (narrator, unknown). */

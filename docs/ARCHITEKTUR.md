@@ -200,9 +200,9 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
   - **Kategorien** mit Vorrang und Grenze (`CATEGORIES`, Zuordnung je Schlüssel `categoryOf`, `err.*` = feedback):
     alarm (Angriff, zerstört, Held) > fire (Brand) > feedback (Antwort auf Eingaben, `err.*`) > system (Speichern) >
     build (fertig, repariert) > research > economy (Handel, Rohstoffe, Lagerfeuer) > military (rekrutiert, befördert)
-    > world (Wetter, Brücke eingestürzt) > info. Je Kategorie höchstens `limit` flüchtige Einträge, die älteste fällt weg.
+    > world (Wetter, Brücke eingestürzt) > info > script (`print()` des Spielerprogramms). Je Kategorie höchstens `limit` flüchtige Einträge, die älteste fällt weg.
   - **Bündeln** (`addNotice`): gleiche Meldung (Schlüssel + Parameter) zählt hoch („×3“); Schlüssel in `MERGE`
-    (Beförderung, Rekrutiert, Gebäude fertig, Handel) bündeln auch mit anderen Parametern zu einem Text mit `{n}`
+    (Beförderung, Rekrutiert, Gebäude fertig, Handel, `print()`) bündeln auch mit anderen Parametern zu einem Text mit `{n}`
     („12 Beförderungen – zuletzt …“), Ort und Text der neuesten.
   - **Dauermeldungen** baut `Engine.persistentNotices()` bei jedem `uiState` aus dem Zustand (nur kleine Listen, kein
     Entity-Scan): Angriffsstellen aus `alerts.js` (dieselben wie der Minikarten-Puls, höchstens 2, Text nach dem
@@ -312,6 +312,9 @@ nicht mehr für immer anhalten. `src/game/loop.js`:
 - `runSteps()` rechnet die fälligen Takte eines Bildes mit Zeitbudget (45 ms, höchstens 8 Takte, mindestens
   einer). Was danach aufgelaufen ist, wird verworfen (`engine.droppedTicks`): Ist die Simulation langsamer als die
   Uhr, läuft das Spiel langsamer, statt mit immer mehr Nachholtakten je Bild in eine Todesspirale zu geraten.
+- `frameTimes()` begrenzt die Bildzeit getrennt: Animationen höchstens 0,1 s je Bild, Spielzeit erst nach 0,8 s
+  (8 Takte). Bei langsamer Darstellung (unter 10 Bildern/s, etwa Software-WebGL) bleibt das Spiel so in Echtzeit,
+  statt nur einen Takt je Bild zu rechnen; nur längere Lücken (Tab im Hintergrund) werden abgeschnitten.
 - `FaultGuard` fängt Fehler je Bereich ab (`sim`, `ai`, `render`, `audio`, `ui`, `dev`), protokolliert gedrosselt
   und zählt Fehler in Folge. KI, Ton und Entwicklermodus geben nie auf (die Partie läuft weiter); die Simulation
   nach 3 fehlgeschlagenen Takten in Folge, Darstellung und Oberfläche nach 30 Bildern. Dann hält die Engine das

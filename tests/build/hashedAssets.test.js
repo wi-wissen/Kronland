@@ -33,6 +33,8 @@ describe('Content hash in the build', () => {
     const map = buildAssetMap(fixture());
     expect(Object.keys(map).sort()).toEqual(['models/buildings/castle.glb', 'models/buildings/castle.lod1.glb', 'models/characters/manifest.json']);
     expect(isHashed('favicon.ico')).toBe(false);
+    expect(isHashed('blog/rendering/first-3d.webp')).toBe(true);
+    expect(isHashed('blog/simulation-core/astar-de.svg')).toBe(true);
     expect(EXCLUDE.test('audio/voice/de/x.wav')).toBe(true);
     // same content → same name, different content → different name
     expect(map['models/buildings/castle.glb']).not.toBe(map['models/buildings/castle.lod1.glb'].replace('.lod1', ''));

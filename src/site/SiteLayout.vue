@@ -43,16 +43,20 @@
       </div>
     </div>
   </footer>
+
+  <ImageLightbox ref="lightbox" />
 </template>
 
 <script>
 import { LANGS } from '../i18n/index.js';
 import { chooseLang } from './site.js';
+import ImageLightbox from './ImageLightbox.vue';
 
 export default {
   name: 'SiteLayout',
+  components: { ImageLightbox },
   props: {
-    /** active page: home | play | manual | compendium | blog */
+    /** active page: home | play | manual | compendium | scripting | blog */
     page: { type: String, default: 'home' },
     /** header transparent over the title image (home page) */
     overlay: { type: Boolean, default: false },
@@ -66,6 +70,7 @@ export default {
         { id: 'play', href: L.play, label: 'nav.play' },
         { id: 'manual', href: L.manual, label: 'nav.manual' },
         { id: 'compendium', href: L.compendium, label: 'nav.compendium' },
+        { id: 'scripting', href: L.scripting, label: 'nav.scripting' },
         { id: 'blog', href: L.blog, label: 'nav.blog' },
       ];
     },
@@ -78,6 +83,10 @@ export default {
     window.addEventListener('scroll', this.onScroll, { passive: true });
   },
   beforeUnmount() { if (this.onScroll) window.removeEventListener('scroll', this.onScroll); },
-  methods: { choose(l) { chooseLang(l); } },
+  methods: {
+    choose(l) { chooseLang(l); },
+    /** Enlarged view for images outside of articles (home gallery): [{ src, alt, caption }]. */
+    showImages(items, index = 0) { this.$refs.lightbox.show(items, index); },
+  },
 };
 </script>
