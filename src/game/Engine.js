@@ -84,8 +84,8 @@ export const registerBuildingSection = (fn) => { BUILDING_SECTIONS.push(fn); };
 
 /** Minimum gap (ms) between two alarm bells in the same region (the notice itself stays while the attack lasts) */
 const ATTACK_TOAST_MS = 15000;
-/** How long a print() notice stays (ms; each further print refreshes it) */
-const PRINT_TOAST_MS = 6000;
+/** How long a notify() notice stays (ms; each further notify refreshes it) */
+const NOTIFY_TOAST_MS = 6000;
 /** At most this many notices at once (desktop / touch) */
 const MAX_TOASTS = 5, MAX_TOASTS_TOUCH = 4;
 /** Figures that attack serfs on command (not buildings) */
@@ -440,12 +440,12 @@ export class Engine {
       }
       if (ev.type === 'nodeDepleted' && ev.res !== 'wood') this.toast('toast.nodeDepleted', { res: ev.res }, { icon: ev.res, ttl: 3500 });
     }
-    // print() of the player program: one notice, the newest line wins, further prints only count up
-    const prints = events.filter((e) => e.type === 'scriptPrint' && e.level === 'player' && e.player === me);
-    if (prints.length) {
-      const id = this.toast('toast.print', { text: prints[prints.length - 1].text }, { icon: 'scroll', ttl: PRINT_TOAST_MS });
+    // notify() of a program: one notice, the newest text wins, further calls only count up (print() stays in the console)
+    const notes = events.filter((e) => e.type === 'scriptNotify' && e.player === me);
+    if (notes.length) {
+      const id = this.toast('toast.notify', { text: notes[notes.length - 1].text }, { icon: 'scroll', ttl: NOTIFY_TOAST_MS });
       const t = this.toasts.find((x) => x.id === id);
-      if (t) t.count += prints.length - 1;
+      if (t) t.count += notes.reduce((n, e) => n + (e.n ?? 1), 0) - 1;
     }
     // remember positions of buildings so destruction notices can jump
     if (events.some((e) => e.type === 'buildingDone' || e.type === 'buildingPlaced') || !this.lastPos) {

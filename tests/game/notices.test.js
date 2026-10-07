@@ -13,6 +13,7 @@ describe('Notices: categories', () => {
     expect(categoryOf('toast.buildingBurning')).toBe('fire');
     expect(categoryOf('toast.promoted')).toBe('military');
     expect(categoryOf('toast.buildingDone')).toBe('build');
+    expect(categoryOf('toast.notify')).toBe('script');
     expect(categoryOf('err.popLimit')).toBe('feedback');
     expect(categoryOf('saves.saved')).toBe('system');
     expect(categoryOf('whatever')).toBe('info');
