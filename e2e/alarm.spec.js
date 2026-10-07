@@ -37,6 +37,11 @@ test('Ranged attack alerts as well; serfs attack an enemy like a tree (right cli
   await page.goto(playUrl('?seed=42&no-models&fog=off'));
   await page.waitForFunction(() => !!window.__kronland);
   await expect(page.getByTestId('res-gold')).toHaveText('500', SLOW);
+  // Park the pointer on the map: Playwright's mouse starts at (0, 0), inside the edge-scroll strip, and a synthetic
+  // pointermove there (Chromium sends them after layout changes, e.g. when the build panel opens) pans the camera
+  // away from the enemy while the test waits for the click point (docs/TESTS.md)
+  const vp = page.viewportSize();
+  await page.mouse.move(vp.width / 2, vp.height / 2);
   // Enemy archer shoots at our castle (event as from combat)
   await page.evaluate(() => {
     const e = window.__kronland, s = e.sim, hq = s.findBuilding(0, 'headquarters');
@@ -76,15 +81,18 @@ test('Ranged attack alerts as well; serfs attack an enemy like a tree (right cli
         if (free(p)) break search;
       }
     }
-    return { x: p.x, y: p.y, foe: foe.id };
+    const t = e.renderer.rig.target;
+    return { x: p.x, y: p.y, foe: foe.id, cam: [t.x, t.z] };
   });
   // Picking uses the figures as drawn in the last rendered frame (position, visibility, detail level). Under software
   // WebGL the first frame after the camera jump can take seconds, so a fixed wait is not enough: wait until the click
-  // point is free of panels and actually picks the enemy.
+  // point is free of panels and actually picks the enemy. The camera must not move meanwhile (else the cause shows here).
   await expect.poll(() => page.evaluate((p) => {
-    const e = window.__kronland;
-    return document.elementFromPoint(p.x, p.y)?.tagName === 'CANVAS' && e.renderer.pickEntity(p.x, p.y) === p.foe;
-  }, pos), SLOW).toBe(true);
+    const e = window.__kronland, t = e.renderer.rig.target;
+    if (t.x !== p.cam[0] || t.z !== p.cam[1]) return `camera moved to ${t.x},${t.z}`;
+    if (document.elementFromPoint(p.x, p.y)?.tagName !== 'CANVAS') return 'click point covered';
+    return e.renderer.pickEntity(p.x, p.y) === p.foe ? 'ok' : 'enemy not picked yet';
+  }, pos), SLOW).toBe('ok');
   if (info.project.name === 'mobile') await page.touchscreen.tap(pos.x, pos.y);
   else await page.mouse.click(pos.x, pos.y, { button: 'right' });
   await page.evaluate(() => { window.__kronland.paused = false; });
