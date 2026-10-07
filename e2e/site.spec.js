@@ -28,7 +28,7 @@ test('Title image of the home page moves: recorded loop over the still, still wi
   // Chromium without proprietary codecs takes the AV1 file; it plays silently, loops and fades in over the still
   await expect(video).toHaveClass(/playing/, { timeout: 30_000 });
   const v = await video.evaluate((el) => ({ src: el.currentSrc, muted: el.muted, loop: el.loop, paused: el.paused, w: el.videoWidth }));
-  expect(v).toMatchObject({ muted: true, loop: true, paused: false, w: 1920 });
+  expect(v).toMatchObject({ muted: true, loop: true, paused: false, w: 1440 });
   expect(v.src).toMatch(/site\/hero-loop\.av1(\.[0-9a-f]{10})?\.mp4$/);
   await expect(page.locator('.hero-bg img')).toBeVisible();
   await page.waitForTimeout(1200);

@@ -181,22 +181,28 @@ Motive: `hero` (Titelbild der Startseite, doppelte Pixeldichte: `hero.webp` 1440
 ## Bewegtes Titelbild
 
 Über dem Titelbild der Startseite läuft dieselbe Szene als stummer, nahtloser Loop aus dem Spiel (Karte 11,
-gleiche Siedlung und Kamera wie `hero`): Leibeigene laufen, die Mühle dreht sich, Wimpel und Bäume wehen.
+gleiche Siedlung und Kamera wie `hero`): Leibeigene laufen durchs Bild, Mühle und Windrad drehen sich, Rauch und
+Bäume bewegen sich.
 
 ```bash
-python3 scripts/site-video.py http://localhost:4301      # Bild für Bild aufnehmen → assets-src/site/hero-loop/raw.mp4 (~40 min)
+python3 scripts/site-video.py http://localhost:4301      # aufnehmen → assets-src/site/hero-loop/raw.mp4 (~25 min)
 node scripts/video-loop.mjs assets-src/site/hero-loop/raw.mp4 --out site/hero-loop --loop 201 --fade 24 [--compare]
 ```
 
-- **Aufnahme** (`site-video.py`): baut die Szene wie `site-screens.py` auf, hält dann die Spielschleife an und
-  treibt sie mit fester Uhr (`Engine.frame()` mit je 1/24 s): Spielzeit und Animationen laufen wie in Echtzeit,
-  egal wie langsam SwiftShader zeichnet. Jedes Bild kommt direkt aus der Leinwand (1920×1200, ohne HUD).
-- **Länge:** zwei volle Umdrehungen des Mühlenrads (Renderer: 1,5 rad/s → 201 Bilder = 8,375 s) plus eine
-  Sekunde. **Schnitt** (`video-loop.mjs`): Die Sekunde nach dem Loop wird in seinen Anfang überblendet; die Mühle
-  steht dabei in beiden Bildern gleich, nur laufende Figuren blenden kurz ineinander.
-- **Format:** MP4 als AV1 (Chrome, Edge, Firefox, Safari mit AV1-Hardware) und H.264 für alle anderen, je mit
-  `faststart` und einem Schlüsselbild; Video dekodiert in Hardware. Animiertes WebP wäre ein Vielfaches größer
-  und wird auf der CPU entpackt (Vergleich mit `--compare`).
+- **Choreografie** (`site-video.py`): Ein aufgezeichnetes Spiel kehrt nie zu seinem ersten Bild zurück (Figuren
+  verschwinden in Gebäuden, neue tauchen auf). Darum: Leibeigene starten knapp außerhalb des Bildes und laufen zur
+  Gegenseite, jeder zweite über den Platz vor der Burg; die Bewegung samt Wegsuche macht das Spiel, jeder Tick wird
+  mitgeschrieben. Danach steht die Simulation still: Figuren, die laufen, verschwinden oder auftauchen würden,
+  werden entfernt, arbeitende Leibeigene bleiben. Die Läufer folgen den Wegen nach einem Fahrplan, der sich nach
+  genau einer Looplänge wiederholt (ein längerer Weg bekommt mehrere Läufer im Abstand einer Looplänge). Sie
+  betreten und verlassen das Bild nur am Rand.
+- **Aufnahme:** feste Uhr (1/24 s je Bild für Animationen, Flügel, Rauch), jedes Bild direkt aus der Leinwand
+  (1440×900, ohne HUD), egal wie langsam SwiftShader zeichnet.
+- **Länge und Schnitt:** zwei volle Umdrehungen der Mühle (1,5 rad/s → 201 Bilder = 8,375 s) plus eine Sekunde.
+  `video-loop.mjs` blendet diese Sekunde in den Anfang über; Läufer und Mühle stehen dabei in beiden Bildern gleich.
+- **Format:** 1440×900, MP4 als AV1 (CRF 50, ~0,6 MB; Chrome, Edge, Firefox, Safari mit AV1-Hardware) und H.264
+  (CRF 29, ~0,8 MB) für alle anderen; der Browser lädt nur eine davon. `faststart`, ein Schlüsselbild; Video
+  dekodiert in Hardware. Animiertes WebP wäre ein Vielfaches größer (Vergleich mit `--compare`).
 - **Einbindung:** `src/site/home/heroVideo.js` (`HERO_VIDEO`), `<video>` in `Home.vue` über dem Standbild; es
   blendet erst ein, wenn es wirklich läuft. Kein Video bei „Bewegung reduzieren“ und „Datensparmodus“; verweigert der
   Browser den Autostart (iOS-Stromsparmodus), bleibt das Standbild. Die PWA legt die Videos nicht in den Cache.

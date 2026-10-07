@@ -1,6 +1,6 @@
 // Recorded clip → seamless loop for the web (title video of the start page, scripts/site-video.py).
 //
-//   node scripts/video-loop.mjs <raw.mp4> --out site/hero-loop [--loop 201] [--fade 24] [--period x,y,w,h] [--width 1920] [--compare]
+//   node scripts/video-loop.mjs <raw.mp4> --out site/hero-loop [--loop 201] [--fade 24] [--period x,y,w,h] [--width 1440] [--av1-crf 50] [--h264-crf 29] [--compare]
 //
 // Loop: the clip holds `--loop` frames plus `--fade` frames after them. The frames after the loop are cross-faded
 // into the first ones: the result starts at frame `--fade`, ends on the frame just before it and is `--loop` frames
@@ -18,11 +18,12 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(n); if (i < 0) return d; const v = args[i + 1]; args.splice(i, 2); return v; };
 const flag = (n) => { const i = args.indexOf(n); if (i >= 0) args.splice(i, 1); return i >= 0; };
-const outName = opt('--out'), period = opt('--period'), width = Number(opt('--width', 1920)), compare = flag('--compare');
+const av1Crf = opt('--av1-crf', '50'), h264Crf = opt('--h264-crf', '29');
+const outName = opt('--out'), period = opt('--period'), width = Number(opt('--width', 1440)), compare = flag('--compare');
 let loop = Number(opt('--loop', 0)), fadeN = Number(opt('--fade', 24));
 const [src] = args;
 if (!src || !outName || !fs.existsSync(src)) {
-  console.error('Usage: video-loop.mjs <raw.mp4> --out site/hero-loop [--loop N] [--fade 24] [--period x,y,w,h] [--width 1920] [--compare]');
+  console.error('Usage: video-loop.mjs <raw.mp4> --out site/hero-loop [--loop N] [--fade 24] [--period x,y,w,h] [--width 1440] [--av1-crf 50] [--h264-crf 29] [--compare]');
   process.exit(1);
 }
 
@@ -62,8 +63,8 @@ const out = (ext) => path.join(ROOT, 'public', `${outName}.${ext}`);
 fs.mkdirSync(path.dirname(out('x')), { recursive: true });
 // Keyframe only at the start: the clip is short and always played from the beginning
 const gop = ['-g', '9999', '-keyint_min', '9999', '-pix_fmt', 'yuv420p'];
-ff(['-i', master, '-an', '-c:v', 'libsvtav1', '-preset', '4', '-crf', '46', ...gop, '-svtav1-params', 'tune=0', '-movflags', '+faststart', out('av1.mp4')]);
-ff(['-i', master, '-an', '-c:v', 'libx264', '-preset', 'veryslow', '-crf', '27', '-profile:v', 'main', '-level', '4.0', ...gop, '-movflags', '+faststart', out('h264.mp4')]);
+ff(['-i', master, '-an', '-c:v', 'libsvtav1', '-preset', '4', '-crf', av1Crf, ...gop, '-svtav1-params', 'tune=0', '-movflags', '+faststart', out('av1.mp4')]);
+ff(['-i', master, '-an', '-c:v', 'libx264', '-preset', 'veryslow', '-crf', h264Crf, '-profile:v', 'main', '-level', '4.0', ...gop, '-movflags', '+faststart', out('h264.mp4')]);
 
 const kb = (f) => `${Math.round(fs.statSync(f).size / 1024)} KB`;
 console.log(`loop: ${loop} frames = ${(loop / fps).toFixed(3)} s, fade ${fadeN} frames, ${width}x${height}`);
