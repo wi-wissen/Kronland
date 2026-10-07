@@ -94,20 +94,41 @@ test.describe('desktop split screen', () => {
     const guide = page.getByTestId('script-guide');
     await expect(page.getByTestId('script-fold')).toHaveCount(0);
     await expect(guide).toBeHidden();
+    // The divider sits at the game area's right edge: dragging it must not edge-scroll the map – neither while
+    // the pointer passes the old canvas edge nor after the drop, when the pointer rests at the new canvas edge
+    // (counted at rig.pan, the only camera move edge scrolling makes; the target itself may shift on the resize)
+    await page.evaluate(() => {
+      const rig = window.__kronland.renderer.rig, orig = rig.pan.bind(rig);
+      window.__pans = 0;
+      rig.pan = (...a) => { window.__pans++; orig(...a); };
+    });
+    const pans = () => page.evaluate(() => window.__pans);
     const d = await div.boundingBox();
     await page.mouse.move(d.x + d.width / 2, d.y + 40);
     await page.mouse.down();
-    await page.mouse.move(d.x - 200, d.y + 40, { steps: 8 });
+    await page.mouse.move(d.x - 3, d.y + 40, { steps: 2 });
+    await page.waitForTimeout(600);
+    await page.mouse.move(d.x - 200.4, d.y + 40, { steps: 8 });
     await expect(guide).toBeVisible();
     await expect.poll(async () => (await guide.boundingBox()).x).toBeLessThan(d.x - 150);
     expect((await panel.boundingBox()).width).toBe(box.width);
     expect(await page.evaluate(() => window.__sizes)).toBe(0);
+    expect(await pans()).toBe(0);
     await shot(page, 'split-drag-preview');
     await page.mouse.up();
     await expect(guide).toBeHidden();
     const wide = await panel.boundingBox();
     expect(wide.width).toBeGreaterThan(box.width + 150);
     await expect.poll(() => canvasWidth(page)).toBe(Math.round(vw - wide.width));
+    // pointer twitches inside the new canvas edge strip right after the drop: still no scrolling
+    await page.mouse.move(vw - wide.width - 3, d.y + 42, { steps: 2 });
+    await page.waitForTimeout(800);
+    expect(await pans()).toBe(0);
+    // edge scrolling itself still works once the pointer was back on the map
+    await page.mouse.move(vw - wide.width - 200, d.y + 42, { steps: 4 });
+    await page.mouse.move(vw - wide.width - 3, d.y + 42, { steps: 4 });
+    await expect.poll(pans).toBeGreaterThan(0);
+    await page.mouse.move(vw - wide.width - 200, d.y + 42, { steps: 4 });
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.__sizes)).toBe(1);
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('kronland-code-split')));

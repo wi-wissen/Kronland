@@ -111,6 +111,9 @@ export default {
   'top.lastPayday': 'Last payday: +{income} / −{wages}',
   'top.pause': 'Pause',
   'top.resume': 'Resume',
+  'pause.title': 'Paused',
+  'pause.hint': '{key} to resume',
+  'pause.hintTouch': 'Tap ▶ at the top to resume',
   'top.speed': 'Speed {n}×',
   'top.speedTip': 'Click to choose: normal, double or fourfold',
   'top.sound': 'Sound',
@@ -358,6 +361,9 @@ export default {
 
   // ---------- Game menu ----------
   'gmenu.title': 'Menu',
+  'update.available': 'A new version of Kronland is available. It loads when you return to the main menu – or now: your game is saved first.',
+  'update.reload': 'Save and reload',
+  'update.toast': 'New version available – reload from the menu',
   'gmenu.paused': 'The game is paused',
   'gmenu.resume': 'Resume',
   'gmenu.save': 'Save game',

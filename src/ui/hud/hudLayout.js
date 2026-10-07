@@ -215,3 +215,13 @@ export function foreignName(s, t, name) {
   if (s.unit) return name.unit(s.unit);
   return t(sexKey('foreign.' + (s.entity === 'unit' ? 'serf' : s.entity in { worker: 1, hero: 1, soldier: 1 } ? s.entity : 'unit'), s.sex));
 }
+
+/**
+ * Show the pause banner? Only for a pause by the player: the game menu, end screens, the crash dialog and the
+ * script debugger (breakpoint) pause too, but bring their own display.
+ * @param {null|{ paused?: boolean, halted?: boolean, gameOver?: unknown, mission?: null|{ result?: unknown } }} ui
+ * @param {{ menuOpen?: boolean, crash?: unknown }} [overlay]
+ */
+export function pauseBannerVisible(ui, overlay = {}) {
+  return !!ui?.paused && !ui.halted && !overlay.menuOpen && !overlay.crash && !ui.gameOver && !ui.mission?.result;
+}

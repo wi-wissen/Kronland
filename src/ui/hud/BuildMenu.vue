@@ -74,7 +74,7 @@ export default {
     /** Controls the tutorial is currently pointing at (data-testids) */
     hint: { type: Array, default: () => [] },
   },
-  // info: { type, x } of the building whose details the info strip shows (x = tile centre in px), or null
+  // info: { type } of the building whose details the info strip shows, or null
   emits: ['build', 'preview', 'info'],
   data() { return { info: null, wraps: null }; },
   computed: {
@@ -90,7 +90,7 @@ export default {
   },
   created() {
     // Touch: long press shows the info strip while the finger stays down; the click afterwards is swallowed
-    this.lp = createLongPress({ onFire: () => { if (this.pressed) this.show(this.pressed.b, this.pressed.el); try { navigator.vibrate?.(15); } catch { /* never mind */ } } });
+    this.lp = createLongPress({ onFire: () => { if (this.pressed) this.show(this.pressed.b); try { navigator.vibrate?.(15); } catch { /* never mind */ } } });
     this.pressed = null;
   },
   mounted() {
@@ -135,24 +135,22 @@ export default {
       this.$emit('build', b.type);
     },
     /** Show the info strip for a tile (null hides it) */
-    show(b, el) {
+    show(b) {
       const type = b?.type ?? null;
       if (type === this.info && type) return;
       this.info = type;
-      if (!b) { this.$emit('info', null); return; }
-      const r = el?.getBoundingClientRect?.();
-      this.$emit('info', { type, x: r ? r.left + r.width / 2 : null });
+      this.$emit('info', type ? { type } : null);
     },
     enter(b, e) {
       this.$emit('preview', b.reason && this.isTech(b) ? null : b.cost);
-      if (e.pointerType === 'mouse' || e.pointerType === 'pen') this.show(b, e.currentTarget);
+      if (e.pointerType === 'mouse' || e.pointerType === 'pen') this.show(b);
     },
     tileLeave(e) { if (e.pointerType !== 'touch') this.show(null); },
     leave() { this.$emit('preview', null); this.show(null); },
-    focus(b, e) { if (e.currentTarget.matches(':focus-visible')) this.show(b, e.currentTarget); },
+    focus(b, e) { if (e.currentTarget.matches(':focus-visible')) this.show(b); },
     down(b, e) {
       if (e.pointerType === 'mouse') return;
-      this.pressed = { b, el: e.currentTarget };
+      this.pressed = { b };
       this.lp.down({ x: e.clientX, y: e.clientY });
     },
     /** Releasing the finger hides the info strip again */

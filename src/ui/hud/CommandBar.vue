@@ -102,7 +102,7 @@
 
     <section v-if="open" ref="panel" class="context frame" :class="{ wide: sel?.kind === 'building' && sel.own && !compact && !mid, tall: (sel?.kind === 'serfs' || sel?.kind === 'building') && !compact }" data-testid="context-panel" :aria-label="panelLabel">
       <!-- Info strip of the hovered / long-pressed building tile, attached to the top edge of the panel -->
-      <BuildInfo v-if="infoOpt" ref="info" :opt="infoOpt" :have="ui.res" :notch="info.x" />
+      <BuildInfo v-if="infoOpt" ref="info" :opt="infoOpt" :have="ui.res" />
       <header class="cx-head">
         <span v-if="compact" class="cx-mini">
           <img v-if="portrait" :src="portrait" alt="" draggable="false">
@@ -301,11 +301,7 @@ export default {
       this.info = null;
       setSetting('serfBuildView', on);
     },
-    onInfo(v) {
-      if (!v) { this.info = null; return; }
-      const r = this.$refs.panel?.getBoundingClientRect();
-      this.info = { type: v.type, x: r && v.x !== null ? Math.round(v.x - r.left) : null };
-    },
+    onInfo(v) { this.info = v ? { type: v.type } : null; },
     /** Quick access: on phones the map panel folds shut afterwards so the result lies free */
     quick(k) {
       this.$emit('quick', k);

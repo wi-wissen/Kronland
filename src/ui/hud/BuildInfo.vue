@@ -1,7 +1,7 @@
 <template>
   <!-- Info strip of the build menu: extension of the command panel along its top edge (same width and frame),
-       shown while a building tile is hovered (phone: long pressed). The notch points at the tile. -->
-  <section class="binfo frame" :style="notch !== null ? { '--notch': notch + 'px' } : null" role="tooltip" data-testid="build-info">
+       shown while a building tile is hovered (phone: long pressed). -->
+  <section class="binfo frame" role="tooltip" data-testid="build-info">
     <div class="bi-main">
       <span class="bi-pic"><Icon :name="'b-' + opt.type" /></span>
       <div class="bi-title">
@@ -32,8 +32,6 @@ export default {
     /** Entry of uiState().buildOptions */
     opt: { type: Object, required: true },
     have: { type: Object, required: true },
-    /** x of the notch relative to the strip (px), null = none */
-    notch: { type: Number, default: null },
   },
   computed: {
     rows() {
@@ -50,7 +48,6 @@ export default {
   display: flex; flex-direction: column; gap: 0.3125rem; padding: 0.5rem 0.75rem 0.625rem; border-radius: var(--r-lg) var(--r-lg) 0 0;
   box-shadow: inset 0 0 0 1px rgba(225, 168, 58, 0.38), inset 0 1px 0 1px rgba(255, 225, 170, 0.12), 0 0 0 1px var(--wood-950), 0 -4px 14px rgba(10, 6, 2, 0.35);
 }
-.binfo::after { content: ''; position: absolute; left: var(--notch, 50%); bottom: -7px; width: 14px; height: 14px; margin-left: -7px; transform: rotate(45deg); background: var(--wood-800); box-shadow: 1px 1px 0 rgba(225, 168, 58, 0.45); }
 .bi-main { display: flex; align-items: center; gap: 0.625rem; }
 .bi-pic { flex: none; width: 2.5rem; height: 2.5rem; display: grid; place-items: center; border-radius: var(--r-md); background: var(--tile-bg); box-shadow: var(--tile-edge); }
 .bi-pic .ico { width: 2.125rem; height: 2.125rem; }

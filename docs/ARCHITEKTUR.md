@@ -199,6 +199,8 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
   Missionsergebnis, Rückfragen) hängen per `<Teleport to="body">` direkt an `<body>`. Im Startmenü würde
   `.backdrop > *` sie sonst als Inhalt unter das Menü setzen, im Spiel sperrt `.game.split` (`contain: layout`) sie
   auf die Spielfläche neben dem Code-Fenster ein. `e2e/modals.spec.js` prüft, dass sie den Bildschirm bedecken.
+  HUD-Teile (`position: fixed` in `.game`) bemessen Breiten deshalb in `%` der Spielfläche statt `vw`. Die Ziele-Ansicht
+  auf dem Handy liegt wie `.scrim` auf Ebene 30, also über dem Laufstreifen des Code-Fensters (29).
 - Meldungen: `engine.toast(key, params, { icon, tone, pos, ttl, cat })`; mit `pos` springt ein Klick dorthin, das ×
   schließt (`dismissToast`). Logik rein in `src/game/notices.js` (Test `tests/game/notices.test.js`):
   - **Kategorien** mit Vorrang und Grenze (`CATEGORIES`, Zuordnung je Schlüssel `categoryOf`, `err.*` = feedback):
@@ -420,7 +422,7 @@ Prüfung im Editor, ohne Build-Schritt.
 | Bauen | Leibeigene: Aktionsleiste „Bauen“ (B) → Baumenü, Klick setzt, Rechtsklick bricht ab | „Bauen“ → Baumenü, Tippen, „Hier bauen“ |
 | Gebäude-Infos (Infoleiste über der Tafel) | Maus über die Kachel | Kachel lang drücken, Loslassen blendet aus |
 | Untätige Leibeigene | Taste . | Knopf „Untätige“ |
-| Pause | Leertaste | Knopf |
+| Pause (Spiel und Animationen stehen, Welt in Graustufen, Schild „Pausiert“ unten; Befehle bleiben möglich) | Leertaste | Knopf |
 | Baumenü-Gruppe | Reiter (nur wenn nicht alle Gruppen nebeneinander passen) | Reiter |
 | Heldenfähigkeit | X, C | Knopf |
 | Steuergruppe merken | Umschalt+1–9 (Strg+1–9, wo der Browser es durchlässt) | Knopf „Als Gruppe merken“ |
@@ -439,6 +441,10 @@ Element mit eigener Compositor-Ebene (`will-change: transform`), das dauerhaft i
 per `transform` und ändert nur die Größe, Ein-/Ausblenden schaltet eine Klasse. Während des Ziehens wird nichts
 gerechnet – welche eigenen Figuren drin liegen (`unitsInBox`, projiziert nur Leibeigene, Hauptleute und Helden), ermittelt
 `Engine.selectBox` erst beim Loslassen. Ein Zug pro Mausbewegung kostet so unter 1 ms.
+Die Karte bricht den `mousedown` der linken (und mittleren) Taste ab: Firefox verfolgt sonst bei jedem Linksklick eine
+eigene Drag-and-Drop-/Markier-Geste (bis zur Zugschwelle mit erzwungenem Layout je Mausbewegung) und wertet sie nach
+wenigen Pixeln aus – genau dann, wenn der Rahmen startet. Weil damit auch der Fokuswechsel entfällt, gibt `releaseFocus`
+den Fokus aus Eingabefeldern (Code-Editor) selbst ab, damit die Tastenkürzel nach einem Klick auf die Karte wieder greifen.
 
 **Doppelklick/Doppeltippen** (bewusste Abweichung vom Vorbild, übliche RTS-Steuerung): Zwei Klicks bzw.
 Tipper binnen 400 ms und 24 px auf eine eigene Figur wählen alle eigenen Figuren derselben Art, deren Fußpunkt
@@ -466,4 +472,6 @@ mit. Mausrad und Zwei-Finger-Zoom fahren entlang des Strahls durch Zeiger bzw. F
 (wie `OrbitControls.zoomToCursor`). Zwei Finger legen die Geste einmal fest: Neigen nur, wenn beide Finger
 parallel senkrecht gleiten; sonst Zoomen und Verschieben, Drehen erst ab 25 px Drehweg (wie MapLibre), damit
 ein Zoom nicht nebenbei dreht. Randscrollen läuft sanft an und endet, sobald die Maus das Fenster verlässt
-(auch nach oben in die Browserleiste).
+(auch nach oben in die Browserleiste). Es wirkt nur im Spielbereich und nie mit gedrückter Taste; ein Druck
+außerhalb des Spielbereichs (z. B. Trennlinie des Programmfensters) sperrt es, und kommt der Zeiger von dort
+direkt in den Randstreifen, scrollt es erst, nachdem er einmal auf der Karte war (`src/game/edgeScroll.js`).
