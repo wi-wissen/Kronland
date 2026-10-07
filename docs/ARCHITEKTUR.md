@@ -29,7 +29,7 @@ src/
               ui/mission/ für Kampagne und Tutorial, ui/saves/ Spielstandliste und Bestätigungsdialog,
               ui/script/ Code-Panel (geteilter Bildschirm/Handy-Blatt, splitLayout.js) und Debugger, ui/editor/ Welteneditor (mit game/EditorView.js)
 tests/        Vitest (Simulation, KI, Website)
-e2e/          Playwright (Desktop und Handy-Viewport); Adresse des Spiels zentral in e2e/paths.js
+e2e/          Playwright (Desktop und Handy-Viewport, Gruppen und CI-Shards: docs/TESTS.md); Adresse des Spiels zentral in e2e/paths.js
 docs/         Spielregeln und Architektur
 ```
 

@@ -11,7 +11,9 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(playUrl('?seed=42&fog=off&no-models'));
-  await page.waitForFunction(() => !!window.__kronland);
+  // Ready only after the first frames: the world is built at the first frame and the canvas takes its final size,
+  // screen points computed before that no longer match the picture
+  await page.waitForFunction(() => window.__kronland?.renderer.frameNo > 2, null, { timeout: 60_000 });
   await expect(page.getByTestId('res-gold')).toHaveText('500');
 
   // three serfs in a row south of the castle, camera on them
@@ -24,9 +26,11 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
     r.lookAt(cx, cz); r.dist = Math.min(r.dist, 16); r.update(0);
     e.paused = true;
     e.selected.clear(); e.emitUi();
+    window.__placedAt = e.renderer.frameNo;
     return own.map((u) => u.id);
   });
-  await page.waitForFunction((ids) => ids.every((id) => {
+  // drawn at the new spots (two frames after placing)
+  await page.waitForFunction((ids) => window.__kronland.renderer.frameNo > window.__placedAt + 1 && ids.every((id) => {
     const k = window.__kronland, e = k.sim.entities.get(id), r = k.renderer.chars.records.get(id);
     return r && Math.hypot(r.position.x - e.px / 1000, r.position.z - e.py / 1000) < 0.3;
   }), ids, { timeout: 60_000 });
