@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300" role="img"><title>Lautheit</title><style>
+.bg{fill:#fffaf0;stroke:#e2d6c0}
+.t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
+.s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
+.h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
+.m{fill:#3a2d1c;font:13px ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace}
+.box{fill:#fff;stroke:#8a7556;stroke-width:1.5}
+.box2{fill:#f3e6cf;stroke:#8a7556;stroke-width:1.5}
+.hl{fill:#fde3c4;stroke:#b5651d;stroke-width:1.8}
+.blue{fill:#d7e6fb;stroke:#2a78d6;stroke-width:1.5}
+.green{fill:#d4efdf;stroke:#2e8b57;stroke-width:1.5}
+.red{fill:#f8d7d3;stroke:#c0392b;stroke-width:1.5}
+.ln{stroke:#6b5a43;stroke-width:1.6;fill:none}
+.lnb{stroke:#2a78d6;stroke-width:2.2;fill:none}
+.lnr{stroke:#c0392b;stroke-width:2.2;fill:none}
+.lno{stroke:#b5651d;stroke-width:2.2;fill:none}
+.lng{stroke:#2e8b57;stroke-width:2.2;fill:none}
+.dash{stroke:#8a7556;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+.grid{stroke:#e2d6c0;stroke-width:1;fill:none}
+.fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
+.ah{fill:#6b5a43}
+</style><rect x="0.5" y="0.5" width="899" height="299" rx="12" class="bg"/>
+<text x="30" y="38" class="h" text-anchor="start" >Integrierte Lautheit in LUFS (näher an 0 = lauter)</text>
+<line x1="60" y1="230" x2="840" y2="230" class="ln"/>
+<line x1="60.0" y1="230" x2="60.0" y2="236" class="ln"/>
+<text x="60.0" y="254" class="s" text-anchor="middle" >-30</text>
+<line x1="125.0" y1="230" x2="125.0" y2="236" class="ln"/>
+<text x="125.0" y="254" class="s" text-anchor="middle" >-28</text>
+<line x1="190.0" y1="230" x2="190.0" y2="236" class="ln"/>
+<text x="190.0" y="254" class="s" text-anchor="middle" >-26</text>
+<line x1="255.0" y1="230" x2="255.0" y2="236" class="ln"/>
+<text x="255.0" y="254" class="s" text-anchor="middle" >-24</text>
+<line x1="320.0" y1="230" x2="320.0" y2="236" class="ln"/>
+<text x="320.0" y="254" class="s" text-anchor="middle" >-22</text>
+<line x1="385.0" y1="230" x2="385.0" y2="236" class="ln"/>
+<text x="385.0" y="254" class="s" text-anchor="middle" >-20</text>
+<line x1="450.0" y1="230" x2="450.0" y2="236" class="ln"/>
+<text x="450.0" y="254" class="s" text-anchor="middle" >-18</text>
+<line x1="515.0" y1="230" x2="515.0" y2="236" class="ln"/>
+<text x="515.0" y="254" class="s" text-anchor="middle" >-16</text>
+<line x1="580.0" y1="230" x2="580.0" y2="236" class="ln"/>
+<text x="580.0" y="254" class="s" text-anchor="middle" >-14</text>
+<line x1="645.0" y1="230" x2="645.0" y2="236" class="ln"/>
+<text x="645.0" y="254" class="s" text-anchor="middle" >-12</text>
+<line x1="710.0" y1="230" x2="710.0" y2="236" class="ln"/>
+<text x="710.0" y="254" class="s" text-anchor="middle" >-10</text>
+<line x1="775.0" y1="230" x2="775.0" y2="236" class="ln"/>
+<text x="775.0" y="254" class="s" text-anchor="middle" >-8</text>
+<line x1="840.0" y1="230" x2="840.0" y2="236" class="ln"/>
+<text x="840.0" y="254" class="s" text-anchor="middle" >-6</text>
+<line x1="320.0" y1="108" x2="320.0" y2="230" class="dash"/>
+<circle cx="320.0" cy="230" r="7" class="fb"/>
+<text x="312.0" y="100" class="t" text-anchor="end" >Musik: Frieden, Menü</text>
+<text x="312.0" y="118" class="m" text-anchor="end" >-22 LUFS</text>
+<line x1="385.0" y1="128" x2="385.0" y2="230" class="dash"/>
+<circle cx="385.0" cy="230" r="7" class="fr"/>
+<text x="393.0" y="120" class="t" text-anchor="start" >Musik: Kampf</text>
+<text x="393.0" y="138" class="m" text-anchor="start" >-20 LUFS</text>
+<line x1="450.0" y1="168" x2="450.0" y2="230" class="dash"/>
+<circle cx="450.0" cy="230" r="7" class="fg"/>
+<text x="458.0" y="160" class="t" text-anchor="start" >Stimmen</text>
+<text x="458.0" y="178" class="m" text-anchor="start" >-18 LUFS</text>
+<line x1="677.5" y1="80" x2="677.5" y2="230" class="dash"/>
+<circle cx="677.5" cy="230" r="7" class="fo"/>
+<text x="669.5" y="72" class="t" text-anchor="end" >Lyria-Rohfassung (wie Popmusik)</text>
+<text x="669.5" y="90" class="m" text-anchor="end" >-11 LUFS</text>
+</svg>

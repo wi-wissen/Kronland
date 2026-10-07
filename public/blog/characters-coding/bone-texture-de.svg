@@ -1,0 +1,234 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 420" width="980" height="420" role="img"><title>Animation als Textur</title><style>
+.bg{fill:#fffaf0;stroke:#e2d6c0}
+.t{fill:#3a2d1c;font:15px system-ui,-apple-system,'Segoe UI',sans-serif}
+.s{fill:#6b5a43;font:13px system-ui,-apple-system,'Segoe UI',sans-serif}
+.h{fill:#3a2d1c;font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif}
+.m{fill:#3a2d1c;font:13px ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace}
+.box{fill:#fff;stroke:#8a7556;stroke-width:1.5}
+.box2{fill:#f3e6cf;stroke:#8a7556;stroke-width:1.5}
+.hl{fill:#fde3c4;stroke:#b5651d;stroke-width:1.8}
+.blue{fill:#d7e6fb;stroke:#2a78d6;stroke-width:1.5}
+.green{fill:#d4efdf;stroke:#2e8b57;stroke-width:1.5}
+.red{fill:#f8d7d3;stroke:#c0392b;stroke-width:1.5}
+.ln{stroke:#6b5a43;stroke-width:1.6;fill:none}
+.lnb{stroke:#2a78d6;stroke-width:2.2;fill:none}
+.lnr{stroke:#c0392b;stroke-width:2.2;fill:none}
+.lno{stroke:#b5651d;stroke-width:2.2;fill:none}
+.lng{stroke:#2e8b57;stroke-width:2.2;fill:none}
+.dash{stroke:#8a7556;stroke-width:1.2;fill:none;stroke-dasharray:5 4}
+.grid{stroke:#e2d6c0;stroke-width:1;fill:none}
+.fo{fill:#b5651d}.fb{fill:#2a78d6}.fr{fill:#c0392b}.fg{fill:#2e8b57}.fm{fill:#6b5a43}
+.ah{fill:#6b5a43}
+</style><rect x="0.5" y="0.5" width="979" height="419" rx="12" class="bg"/>
+<text x="30" y="38" class="h" text-anchor="start" >Gebackene Knochen-Textur: eine Zeile je Bild, vier Texel je Knochen</text>
+<text x="184" y="80" class="s" text-anchor="middle" >Knochen 0</text>
+<rect x="140" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="162" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="184" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="206" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="140" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="162" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="184" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="206" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="140" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="162" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="184" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="206" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="140" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="162" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="184" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="206" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="140" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="162" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="184" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="206" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="140" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="162" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="184" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="206" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="140" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="162" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="184" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="206" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="140" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="162" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="184" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="206" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="140" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="162" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="184" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="206" y="266" width="20" height="20" rx="2" class="green"/>
+<text x="272" y="80" class="s" text-anchor="middle" >Knochen 1</text>
+<rect x="228" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="250" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="272" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="294" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="228" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="250" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="272" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="294" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="228" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="250" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="272" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="294" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="228" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="250" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="272" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="294" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="228" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="250" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="272" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="294" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="228" y="200" width="20" height="20" rx="2" class="hl"/>
+<rect x="250" y="200" width="20" height="20" rx="2" class="hl"/>
+<rect x="272" y="200" width="20" height="20" rx="2" class="hl"/>
+<rect x="294" y="200" width="20" height="20" rx="2" class="hl"/>
+<rect x="228" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="250" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="272" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="294" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="228" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="250" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="272" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="294" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="228" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="250" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="272" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="294" y="266" width="20" height="20" rx="2" class="green"/>
+<text x="360" y="80" class="s" text-anchor="middle" >Knochen 2</text>
+<rect x="316" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="338" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="360" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="382" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="316" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="338" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="360" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="382" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="316" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="338" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="360" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="382" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="316" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="338" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="360" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="382" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="316" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="338" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="360" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="382" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="316" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="338" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="360" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="382" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="316" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="338" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="360" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="382" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="316" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="338" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="360" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="382" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="316" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="338" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="360" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="382" y="266" width="20" height="20" rx="2" class="green"/>
+<text x="448" y="80" class="s" text-anchor="middle" >Knochen 3</text>
+<rect x="404" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="426" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="448" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="470" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="404" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="426" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="448" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="470" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="404" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="426" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="448" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="470" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="404" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="426" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="448" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="470" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="404" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="426" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="448" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="470" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="404" y="200" width="20" height="20" rx="2" class="hl"/>
+<rect x="426" y="200" width="20" height="20" rx="2" class="hl"/>
+<rect x="448" y="200" width="20" height="20" rx="2" class="hl"/>
+<rect x="470" y="200" width="20" height="20" rx="2" class="hl"/>
+<rect x="404" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="426" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="448" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="470" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="404" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="426" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="448" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="470" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="404" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="426" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="448" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="470" y="266" width="20" height="20" rx="2" class="green"/>
+<text x="536" y="80" class="s" text-anchor="middle" >Knochen 4</text>
+<rect x="492" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="514" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="536" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="558" y="90" width="20" height="20" rx="2" class="blue"/>
+<rect x="492" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="514" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="536" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="558" y="112" width="20" height="20" rx="2" class="blue"/>
+<rect x="492" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="514" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="536" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="558" y="134" width="20" height="20" rx="2" class="blue"/>
+<rect x="492" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="514" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="536" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="558" y="156" width="20" height="20" rx="2" class="blue"/>
+<rect x="492" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="514" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="536" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="558" y="178" width="20" height="20" rx="2" class="green"/>
+<rect x="492" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="514" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="536" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="558" y="200" width="20" height="20" rx="2" class="green"/>
+<rect x="492" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="514" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="536" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="558" y="222" width="20" height="20" rx="2" class="green"/>
+<rect x="492" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="514" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="536" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="558" y="244" width="20" height="20" rx="2" class="green"/>
+<rect x="492" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="514" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="536" y="266" width="20" height="20" rx="2" class="green"/>
+<rect x="558" y="266" width="20" height="20" rx="2" class="green"/>
+<text x="590" y="148" class="h" text-anchor="start" >…</text>
+<text x="130" y="106" class="s" text-anchor="end" >Bild 0</text>
+<text x="130" y="128" class="s" text-anchor="end" >Bild 1</text>
+<text x="130" y="150" class="s" text-anchor="end" >Bild 2</text>
+<text x="130" y="172" class="s" text-anchor="end" >Bild 3</text>
+<text x="130" y="194" class="s" text-anchor="end" >Bild 4</text>
+<text x="130" y="216" class="s" text-anchor="end" >Bild 5</text>
+<text x="130" y="238" class="s" text-anchor="end" >Bild 6</text>
+<text x="130" y="260" class="s" text-anchor="end" >Bild 7</text>
+<text x="130" y="282" class="s" text-anchor="end" >Bild 8</text>
+<text x="24" y="138" class="m" text-anchor="start" >idle</text>
+<text x="24" y="237.0" class="m" text-anchor="start" >walk</text>
+<text x="140" y="314" class="s" text-anchor="start" >1 Texel = RGBA = eine Spalte der 4×4-Matrix eines Knochens</text>
+<rect x="610" y="90" width="340" height="300" rx="8" class="box2"/>
+<text x="626" y="116" class="h" text-anchor="start" >Eine Ecke des Netzes kennt:</text>
+<text x="626" y="146" class="m" text-anchor="start" >aBoneIdx = (1, 3, 0, 0)</text>
+<text x="626" y="170" class="m" text-anchor="start" >aBoneW   = (0.7, 0.3, 0, 0)</text>
+<text x="626" y="194" class="m" text-anchor="start" >aAnim    = (Bild 5, …)</text>
+<text x="626" y="232" class="h" text-anchor="start" >Grafikkarte, je Ecke:</text>
+<text x="626" y="260" class="m" text-anchor="start" >M = 0.7·Bone(5,1) + 0.3·Bone(5,3)</text>
+<text x="626" y="284" class="m" text-anchor="start" >Lage = M · Ruhelage</text>
+<text x="626" y="324" class="s" text-anchor="start" >Je Figur schickt die CPU nur</text>
+<text x="626" y="344" class="s" text-anchor="start" >Lage, Bildnummer und Farben.</text>
+<line x1="610" y1="230" x2="512" y2="210" class="lno"/>
+<polygon points="512,210 520.8,208.2 519.4,215.1" class="ah"/>
+</svg>
