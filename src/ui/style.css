@@ -119,6 +119,8 @@ body {
 * { box-sizing: border-box; }
 
 .game { position: fixed; inset: 0; }
+/* Split screen with the code panel (App.vue sets right): the HUD (fixed) is placed within the game area */
+.game.split { contain: layout; }
 .game canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 
 /* ---------- Panels ---------- */

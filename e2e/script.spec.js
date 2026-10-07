@@ -29,6 +29,17 @@ async function openPanel(page) {
   await expect(page.getByTestId('script-panel')).toBeVisible(SLOW);
 }
 
+/** Button of the code panel; on phones some sit in the "⋯" menu, and after a run the sheet must be reopened. */
+async function tool(page, id) {
+  const back = page.getByTestId('script-watch-code');
+  if (await back.isVisible()) await back.click();
+  const menu = page.getByTestId('script-menu');
+  if (!(await page.getByTestId(id).isVisible()) && await menu.isVisible()) await menu.click();
+  await page.getByTestId(id).click();
+}
+
+const gridAttr = (page) => (page.viewportSize().width < 760 ? 'aria-checked' : 'aria-pressed');
+
 test('Adventure from the menu: write a program, run it, win', async ({ page }) => {
   const errors = await fresh(page);
   await page.goto(playUrl());
@@ -55,11 +66,12 @@ test('Error message with line and suggestion, single step with variables', async
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
   // Grid is on in the adventure and can be switched off; the hero looks east (view = step direction)
-  await expect(page.getByTestId('script-grid')).toHaveAttribute('aria-pressed', 'true');
+  if (page.viewportSize().width < 760) await page.getByTestId('script-menu').click();
+  await expect(page.getByTestId('script-grid')).toHaveAttribute(gridAttr(page), 'true');
   expect(await page.evaluate(() => !!window.__kronland.renderer.grid)).toBe(true);
-  await page.getByTestId('script-grid').click();
+  await tool(page, 'script-grid');
   expect(await page.evaluate(() => !!window.__kronland.renderer.grid)).toBe(false);
-  await page.getByTestId('script-grid').click();
+  await tool(page, 'script-grid');
   expect(await page.evaluate(() => [...window.__kronland.sim.entities.values()].find((e) => e.kind === 'hero').face)).toBe(1);
   const ta = page.getByTestId('section-player').getByTestId('code-input');
   await ta.fill('wood = 3\nprint(wod)\n');
@@ -112,7 +124,7 @@ test('print() as a notice, error clears after editing, save and open .py', async
   await page.screenshot({ path: test.info().outputPath('print.png') });
 
   // Save as .py
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('script-download').click()]);
+  const [dl] = await Promise.all([page.waitForEvent('download'), tool(page, 'script-download')]);
   expect(dl.suggestedFilename()).toBe('adv1.py');
   const fs = await import('node:fs/promises');
   expect(await fs.readFile(await dl.path(), 'utf8')).toContain('print("Runde", i)');

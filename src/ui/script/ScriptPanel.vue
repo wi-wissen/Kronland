@@ -1,94 +1,181 @@
 <template>
   <!-- Code panel in the game (coding adventures, test play from the world editor):
-       sections (collapsible, locked or editable), run/debugger, console, variables, help. -->
-  <aside v-show="!compact || open" ref="panel" class="script-panel frame" :class="{ compact, full }" data-testid="script-panel" :aria-label="$t('script.panel')">
-    <header class="sp-head">
-      <strong class="sp-title">{{ $tr(scenario.title) }}</strong>
-      <button v-tip="$t('script.gridTip')" class="ghost sp-grid" :aria-pressed="grid" :class="{ on: grid }" data-testid="script-grid" @click="toggleGrid"><span class="sp-glyph" aria-hidden="true">#</span>{{ $t('script.grid') }}</button>
-      <span class="sp-status" :class="status" data-testid="script-status">{{ $t('script.status.' + status) }}</span>
-      <button v-if="compact" class="icon-btn ghost" :aria-label="$t(full ? 'script.shrink' : 'script.grow')" @click="full = !full"><Icon :name="full ? 'chevronDown' : 'chevronUp'" /></button>
-      <button v-if="compact" class="icon-btn ghost" :aria-label="$t('common.close')" data-testid="script-close" @click="$emit('update:open', false)"><Icon name="close" /></button>
-    </header>
-
-    <div class="sp-tools" role="toolbar" :aria-label="$t('script.tools')">
-      <button v-if="!busy" class="primary sp-run" data-testid="script-run" @click="run(false)"><Icon name="play" />{{ $t('script.run') }}</button>
-      <button v-else-if="paused" class="primary sp-run" data-testid="script-continue" @click="debug('continue')"><Icon name="play" />{{ $t('script.continue') }}</button>
-      <button v-else class="sp-run" data-testid="script-pause" @click="debug('pause')"><Icon name="pause" />{{ $t('script.pause') }}</button>
-      <button v-tip="$t('script.stepTip')" data-testid="script-step" @click="step('into')"><span class="sp-glyph">⤵</span>{{ $t('script.step') }}</button>
-      <button v-tip="$t('script.overTip')" :disabled="!paused" data-testid="script-over" @click="step('over')"><span class="sp-glyph">↷</span><span class="sp-lbl">{{ $t('script.over') }}</span></button>
-      <button v-tip="$t('script.outTip')" :disabled="!paused" data-testid="script-out" @click="step('out')"><span class="sp-glyph">↥</span><span class="sp-lbl">{{ $t('script.out') }}</span></button>
-      <button v-tip="$t('script.stopTip')" :disabled="!busy" data-testid="script-stop" @click="stop"><span class="sp-glyph">■</span><span class="sp-lbl">{{ $t('script.stop') }}</span></button>
-      <span class="sp-files">
-        <button v-tip="$t('script.downloadTip')" :disabled="!fileSection" :aria-label="$t('script.download')" data-testid="script-download" @click="download"><Icon name="download" /><span class="sp-lbl">{{ $t('script.download') }}</span></button>
-        <button v-tip="$t('script.openTip')" :disabled="!fileSection" :aria-label="$t('script.open')" data-testid="script-open-file" @click="$refs.file.click()"><Icon name="upload" /><span class="sp-lbl">{{ $t('script.open') }}</span></button>
-        <input ref="file" class="sp-file" type="file" :accept="touch ? null : '.py,.txt,text/plain,text/x-python'" tabindex="-1" aria-hidden="true" data-testid="script-file" @change="openFile" />
-      </span>
-    </div>
-
-    <nav class="seg sp-tabs" role="tablist">
-      <button v-for="t in tabs" :key="t" role="tab" :aria-selected="tab === t" :class="{ active: tab === t }" :data-testid="'script-tab-' + t" @click="tab = t">{{ $t('script.tab.' + t) }}</button>
-    </nav>
-
-    <div ref="body" class="sp-body scroll-y">
-      <template v-if="tab === 'code'">
-        <p v-if="scenario.briefing && showBriefing" class="sp-brief parchment">
-          {{ $tr(scenario.briefing) }}
-          <button class="ghost sp-brief-x" :aria-label="$t('common.close')" @click="showBriefing = false"><Icon name="close" /></button>
-        </p>
-        <section v-for="s in sections" :key="s.id" class="sp-sec" :data-testid="'section-' + s.id">
-          <button v-if="foldable(s)" class="sp-fold" :aria-expanded="!!unfolded[s.id]" :data-testid="'fold-' + s.id" @click="unfolded[s.id] = !unfolded[s.id]">
-            <Icon :name="unfolded[s.id] ? 'chevronDown' : 'next'" />
-            <span>{{ $tr(s.title) }}</span>
-            <small>{{ $t('script.lines', { n: lineCount(s) }) }}</small>
-            <Icon v-if="!s.editable" name="lock" class="sp-lock" />
-          </button>
-          <h3 v-else-if="sections.length > 1" class="sp-sec-title">{{ $tr(s.title) }}<Icon v-if="!s.editable" name="lock" class="sp-lock" /></h3>
-          <CodeEditor
-            v-if="!foldable(s) || unfolded[s.id]"
-            :ref="(el) => setEditor(s.id, el)"
-            v-model="codes[s.id]"
-            :readonly="!s.editable"
-            :running-line="runningLine(s)"
-            :error-line="errorLine(s)"
-            :breakpoints="bps[s.id] ?? []"
-            :label="$tr(s.title)"
-            @update:model-value="edited(s.id)"
-            @update:breakpoints="setBps(s.id, $event)"
-            @focus="focused = s.id"
-            @blur="blurred"
-          />
-        </section>
-        <div v-if="error" ref="error" class="sp-error" role="alert" data-testid="script-error">
-          <b>{{ errorText.title }}</b>
-          <p>{{ errorText.text }}</p>
+       sections (collapsible, locked or editable), run/debugger, output, variables, help.
+       Layout (splitLayout.js): 'split' – game left, program right with a draggable divider, collapsible to a strip;
+       'sheet' – phones: full-screen sheet with tabs, while a program runs the game is shown with a run strip. -->
+  <div class="sp-host">
+    <aside
+      v-show="split || open"
+      ref="panel"
+      class="script-panel"
+      :class="[layout, { collapsed: isCollapsed, dragging }]"
+      :style="split ? { width: occupied + 'px' } : null"
+      data-testid="script-panel"
+      :data-layout="layout"
+      :aria-label="$t('script.panel')"
+    >
+      <template v-if="split">
+        <button v-if="isCollapsed" class="sp-strip" :aria-label="$t('script.expand')" data-testid="script-expand" @click="setCollapsed(false)">
+          <Icon name="back" class="sp-strip-ico" />
+          <span class="sp-strip-lbl">{{ $t('script.panel') }}</span>
+          <i v-if="busy" class="sp-strip-run" aria-hidden="true"></i>
+        </button>
+        <div
+          v-else
+          class="sp-divider"
+          role="separator"
+          aria-orientation="vertical"
+          tabindex="0"
+          :aria-label="$t('script.divider')"
+          :aria-valuenow="occupied"
+          data-testid="script-divider"
+          @pointerdown="dragStart"
+          @keydown="dividerKey"
+        >
+          <button class="sp-foldbtn" :aria-label="$t('script.collapse')" data-testid="script-fold" @pointerdown.stop @click="setCollapsed(true)"><Icon name="next" /></button>
         </div>
-        <div v-if="consoleLines.length" ref="console" class="sp-console" data-testid="script-console" aria-live="polite">
-          <h4 class="sp-console-title">{{ $t('script.output') }}</h4>
-          <div v-for="c in consoleLines" :key="c.seq" class="sp-out" :class="{ err: c.err, mission: c.level === 'mission' }">{{ c.err ? errText(c.err) : c.text }}</div>
-        </div>
-        <div v-if="vars" class="sp-vars" data-testid="script-vars">
-          <div class="sp-var-col">
-            <h4>{{ $t('script.vars.globals') }}</h4>
-            <p v-for="v in vars.globals" :key="'g' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
-            <p v-if="!vars.globals.length" class="sp-none">{{ $t('script.vars.none') }}</p>
-          </div>
-          <div v-if="vars.frames.length > 1" class="sp-var-col">
-            <h4>{{ $t('script.vars.args') }}</h4>
-            <p v-for="v in vars.args" :key="'a' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
-            <p v-if="!vars.args.length" class="sp-none">{{ $t('script.vars.none') }}</p>
-            <h4>{{ $t('script.vars.locals') }}</h4>
-            <p v-for="v in vars.locals" :key="'l' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
-            <p v-if="!vars.locals.length" class="sp-none">{{ $t('script.vars.none') }}</p>
-            <h4>{{ $t('script.vars.stack') }}</h4>
-            <p v-for="(f, i) in vars.frames" :key="'f' + i" class="sp-frame">{{ f.name === '<module>' ? $t('script.vars.main') : f.name + '()' }}</p>
-          </div>
-        </div>
-        <button class="ghost sp-reset" data-testid="script-reset" @click="resetCode">{{ $t('script.reset') }}</button>
       </template>
-      <ApiHelp v-else :level="mode === 'editor' ? 'mission' : 'player'" @insert="insertExample" />
+
+      <div v-show="!isCollapsed" class="sp-inner">
+        <header class="sp-head">
+          <strong class="sp-title">{{ $tr(scenario.title) }}</strong>
+          <span class="sp-status" :class="status" data-testid="script-status">{{ $t('script.status.' + status) }}</span>
+          <button v-if="split" v-tip="$t('script.collapse')" class="icon-btn ghost" :aria-label="$t('script.collapse')" data-testid="script-collapse" @click="setCollapsed(true)"><Icon name="next" /></button>
+          <button v-else class="sp-watchbtn" :aria-label="$t('script.watchTip')" data-testid="script-watch" @click="watchGame"><Icon name="map" />{{ $t('script.watch') }}</button>
+        </header>
+
+        <div v-if="split" class="sp-tools" role="toolbar" :aria-label="$t('script.tools')">
+          <button v-if="!busy" class="primary sp-run" data-testid="script-run" @click="run(false)"><Icon name="play" />{{ $t('script.run') }}</button>
+          <button v-else-if="paused" class="primary sp-run" data-testid="script-continue" @click="debug('continue')"><Icon name="play" />{{ $t('script.continue') }}</button>
+          <button v-else class="sp-run" data-testid="script-pause" @click="debug('pause')"><Icon name="pause" />{{ $t('script.pause') }}</button>
+          <button v-tip="$t('script.stepTip')" :aria-label="$t('script.step')" data-testid="script-step" @click="step('into')"><span class="sp-glyph" aria-hidden="true">⤵</span><span class="sp-lbl">{{ $t('script.step') }}</span></button>
+          <button v-tip="$t('script.overTip')" :aria-label="$t('script.over')" :disabled="!paused" data-testid="script-over" @click="step('over')"><span class="sp-glyph" aria-hidden="true">↷</span><span class="sp-lbl sp-lbl-dbg">{{ $t('script.over') }}</span></button>
+          <button v-tip="$t('script.outTip')" :aria-label="$t('script.out')" :disabled="!paused" data-testid="script-out" @click="step('out')"><span class="sp-glyph" aria-hidden="true">↥</span><span class="sp-lbl sp-lbl-dbg">{{ $t('script.out') }}</span></button>
+          <button v-tip="$t('script.stopTip')" :aria-label="$t('script.stop')" :disabled="!busy" data-testid="script-stop" @click="stop"><span class="sp-glyph" aria-hidden="true">■</span><span class="sp-lbl">{{ $t('script.stop') }}</span></button>
+          <span class="sp-sep" aria-hidden="true"></span>
+          <button v-tip="$t('script.downloadTip')" class="ghost" :disabled="!fileSection" :aria-label="$t('script.download')" data-testid="script-download" @click="download"><Icon name="download" /><span class="sp-lbl sp-lbl-file">{{ $t('script.download') }}</span></button>
+          <button v-tip="$t('script.openTip')" class="ghost" :disabled="!fileSection" :aria-label="$t('script.open')" data-testid="script-open-file" @click="$refs.file.click()"><Icon name="upload" /><span class="sp-lbl sp-lbl-file">{{ $t('script.open') }}</span></button>
+          <span class="sp-grow"></span>
+          <button v-tip="$t('script.gridTip')" class="ghost sp-grid" :aria-pressed="grid" :class="{ on: grid }" data-testid="script-grid" @click="toggleGrid"><span class="sp-glyph" aria-hidden="true">#</span><span class="sp-lbl sp-lbl-file">{{ $t('script.grid') }}</span></button>
+        </div>
+
+        <nav class="seg sp-tabs" role="tablist">
+          <button v-for="t in tabs" :key="t" role="tab" :aria-selected="tab === t" :class="{ active: tab === t }" :data-testid="'script-tab-' + t" @click="tab = t">
+            {{ $t(t === 'help' && !split ? 'script.tab.docs' : 'script.tab.' + t) }}<i v-if="t === 'output' && errCount" class="sp-badge" data-testid="script-err-count">{{ errCount }}</i>
+          </button>
+        </nav>
+
+        <div v-show="tab === 'code'" ref="body" class="sp-body scroll-y">
+          <p v-if="scenario.briefing && showBriefing" class="sp-brief parchment">
+            {{ $tr(scenario.briefing) }}
+            <button class="ghost sp-brief-x" :aria-label="$t('common.close')" @click="showBriefing = false"><Icon name="close" /></button>
+          </p>
+          <section v-for="s in sections" :key="s.id" class="sp-sec" :data-testid="'section-' + s.id">
+            <button v-if="foldable(s)" class="sp-fold" :aria-expanded="!!unfolded[s.id]" :data-testid="'fold-' + s.id" @click="unfolded[s.id] = !unfolded[s.id]">
+              <Icon :name="unfolded[s.id] ? 'chevronDown' : 'next'" />
+              <span>{{ $tr(s.title) }}</span>
+              <small>{{ $t('script.lines', { n: lineCount(s) }) }}</small>
+              <Icon v-if="!s.editable" name="lock" class="sp-lock" />
+            </button>
+            <h3 v-else-if="sections.length > 1" class="sp-sec-title">{{ $tr(s.title) }}<Icon v-if="!s.editable" name="lock" class="sp-lock" /></h3>
+            <CodeEditor
+              v-if="!foldable(s) || unfolded[s.id]"
+              :ref="(el) => setEditor(s.id, el)"
+              v-model="codes[s.id]"
+              :readonly="!s.editable"
+              :running-line="runningLine(s)"
+              :error-line="errorLine(s)"
+              :breakpoints="bps[s.id] ?? []"
+              :label="$tr(s.title)"
+              @update:model-value="edited(s.id)"
+              @update:breakpoints="setBps(s.id, $event)"
+              @focus="focused = s.id"
+              @blur="blurred"
+            />
+          </section>
+          <div v-if="error" ref="error" class="sp-error" role="alert" data-testid="script-error">
+            <b>{{ errorText.title }}</b>
+            <p>{{ errorText.text }}</p>
+          </div>
+          <div v-if="vars" class="sp-vars" data-testid="script-vars">
+            <div class="sp-var-col">
+              <h4>{{ $t('script.vars.globals') }}</h4>
+              <p v-for="v in vars.globals" :key="'g' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
+              <p v-if="!vars.globals.length" class="sp-none">{{ $t('script.vars.none') }}</p>
+            </div>
+            <div v-if="vars.frames.length > 1" class="sp-var-col">
+              <h4>{{ $t('script.vars.args') }}</h4>
+              <p v-for="v in vars.args" :key="'a' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
+              <p v-if="!vars.args.length" class="sp-none">{{ $t('script.vars.none') }}</p>
+              <h4>{{ $t('script.vars.locals') }}</h4>
+              <p v-for="v in vars.locals" :key="'l' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
+              <p v-if="!vars.locals.length" class="sp-none">{{ $t('script.vars.none') }}</p>
+              <h4>{{ $t('script.vars.stack') }}</h4>
+              <p v-for="(f, i) in vars.frames" :key="'f' + i" class="sp-frame">{{ f.name === '<module>' ? $t('script.vars.main') : f.name + '()' }}</p>
+            </div>
+          </div>
+          <button v-if="split" class="ghost sp-reset" data-testid="script-reset" @click="resetCode">{{ $t('script.reset') }}</button>
+        </div>
+
+        <!-- Output: in the split screen below the code, on phones its own tab -->
+        <div v-show="split ? tab === 'code' : tab === 'output'" class="sp-output" :class="{ tabbed: !split }" data-testid="script-output">
+          <h4 class="sp-console-title">{{ $t('script.output') }}</h4>
+          <div ref="console" class="sp-console scroll-y" aria-live="polite">
+            <div v-if="!split && error" class="sp-out err">{{ errorText.title }}: {{ errorText.text }}</div>
+            <div v-if="consoleLines.length" data-testid="script-console">
+              <div v-for="c in consoleLines" :key="c.seq" class="sp-out" :class="{ err: c.err, mission: c.level === 'mission' }">{{ c.err ? errText(c.err) : c.text }}</div>
+            </div>
+            <p v-else-if="split || !error" class="sp-none">{{ $t('script.noOutput') }}</p>
+          </div>
+        </div>
+
+        <div v-if="tab === 'help'" class="sp-body scroll-y">
+          <ApiHelp :level="mode === 'editor' ? 'mission' : 'player'" @insert="insertExample" />
+        </div>
+
+        <template v-if="!split">
+          <KeyBar v-if="touch && focused && tab === 'code'" @key="key" />
+          <div class="sp-actbar" role="toolbar" :aria-label="$t('script.tools')">
+            <button v-if="!busy" class="primary sp-run" data-testid="script-run" @click="run(false)"><Icon name="play" />{{ $t('script.run') }}</button>
+            <button v-else-if="paused" class="primary sp-run" data-testid="script-continue" @click="debug('continue')"><Icon name="play" />{{ $t('script.continue') }}</button>
+            <button v-else class="sp-run" data-testid="script-pause" @click="debug('pause')"><Icon name="pause" />{{ $t('script.pause') }}</button>
+            <button :aria-label="$t('script.step')" data-testid="script-step" @click="step('into')"><span class="sp-glyph" aria-hidden="true">⤵</span></button>
+            <template v-if="paused">
+              <button :aria-label="$t('script.over')" data-testid="script-over" @click="step('over')"><span class="sp-glyph" aria-hidden="true">↷</span></button>
+              <button :aria-label="$t('script.out')" data-testid="script-out" @click="step('out')"><span class="sp-glyph" aria-hidden="true">↥</span></button>
+            </template>
+            <button :aria-label="$t('script.stop')" :disabled="!busy" data-testid="script-stop" @click="stop"><span class="sp-glyph" aria-hidden="true">■</span></button>
+            <button :aria-label="$t('script.more')" :aria-expanded="menu" data-testid="script-menu" @click="menu = !menu"><span class="sp-glyph" aria-hidden="true">⋯</span></button>
+            <div v-if="menu" class="sp-menu" role="menu" data-testid="script-menu-list">
+              <button role="menuitem" :disabled="!fileSection" data-testid="script-download" @click="menu = false; download()"><Icon name="download" />{{ $t('script.download') }}<small>.py</small></button>
+              <button role="menuitem" :disabled="!fileSection" data-testid="script-open-file" @click="menu = false; $refs.file.click()"><Icon name="upload" />{{ $t('script.open') }}<small>.py</small></button>
+              <button role="menuitemcheckbox" :aria-checked="grid" :class="{ on: grid }" data-testid="script-grid" @click="toggleGrid"><span class="sp-glyph sp-menu-glyph" aria-hidden="true">#</span>{{ $t('script.grid') }}<small>{{ grid ? '✓' : '' }}</small></button>
+              <button role="menuitem" data-testid="script-reset" @click="menu = false; resetCode()"><Icon name="back" />{{ $t('script.reset') }}</button>
+            </div>
+          </div>
+        </template>
+      </div>
+      <input ref="file" class="sp-file" type="file" :accept="touch ? null : '.py,.txt,text/plain,text/x-python'" tabindex="-1" aria-hidden="true" data-testid="script-file" @change="openFile" />
+    </aside>
+
+    <!-- Phone, "watch game": the game in full, below the current line and the controls -->
+    <div v-if="showStrip" ref="strip" class="sp-watch frame" data-testid="script-watch-strip">
+      <div class="sp-watch-line" :class="status">
+        <i v-if="watchLine" class="num">{{ watchLine.n }}</i>
+        <code data-testid="script-watch-line">{{ watchLine?.text ?? '' }}</code>
+        <span class="sp-watch-status">{{ $t('script.status.' + status) }}</span>
+      </div>
+      <div class="sp-watch-row">
+        <template v-if="busy">
+          <button v-if="paused" data-testid="script-watch-continue" @click="debug('continue')"><Icon name="play" />{{ $t('script.continue') }}</button>
+          <button v-else data-testid="script-watch-pause" @click="debug('pause')"><Icon name="pause" />{{ $t('script.pause') }}</button>
+          <button data-testid="script-watch-stop" @click="stop"><span class="sp-glyph" aria-hidden="true">■</span>{{ $t('script.stop') }}</button>
+        </template>
+        <button v-else class="ghost" data-testid="script-watch-hide" @click="stripHidden = true"><Icon name="close" />{{ $t('script.hide') }}</button>
+        <button class="primary" data-testid="script-watch-code" @click="toCode"><span class="sp-code-ico" aria-hidden="true">&lt;/&gt;</span>{{ $t('script.code') }}</button>
+      </div>
     </div>
-    <KeyBar v-if="touch && focused" @key="key" />
-  </aside>
+  </div>
 </template>
 
 <script>
@@ -97,6 +184,7 @@ import KeyBar from './KeyBar.vue';
 import ApiHelp from './ApiHelp.vue';
 import { scriptErrorText, tr } from '../../i18n/index.js';
 import { shownError, shownStatus, consoleView, fileName, sourceFromFile, MAX_FILE_BYTES } from './panelState.js';
+import { loadSplit, saveSplit, panelWidth, fracFromPointer, clampWidth } from './splitLayout.js';
 
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k) ?? 'null'); } catch { return null; } },
@@ -113,23 +201,35 @@ export default {
     script: { type: Object, required: true },
     /** 'adventure': player sections; 'editor': all sections, debug mission script */
     mode: { type: String, default: 'adventure' },
-    compact: Boolean,
-    /** On phones: sheet open (button sits in the quick access of the command bar) */
+    /** 'split' (desktop, tablet landscape) or 'sheet' (phone), see splitLayout.js */
+    layout: { type: String, default: 'split' },
+    /** Sheet: open (otherwise the game is shown, "watch game") */
     open: Boolean,
     touch: Boolean,
   },
-  emits: ['update:open'],
+  emits: ['update:open', 'width'],
   data() {
     const saved = store.get(this.storeKey()) ?? {};
     const codes = {};
     for (const s of this.scenario.sections ?? []) codes[s.id] = s.editable && typeof saved[s.id] === 'string' ? saved[s.id] : s.code;
     return {
-      codes, bps: {}, unfolded: {}, tab: 'code', full: false, grid: store.get('kronland-grid') ?? true, focused: null,
+      codes, bps: {}, unfolded: {}, tab: 'code', grid: store.get('kronland-grid') ?? true, focused: null,
       showBriefing: true, dirty: {}, editors: {},
+      /** Split screen: share of the window and collapsed state (localStorage) */
+      splitState: loadSplit(),
+      winW: window.innerWidth,
+      dragging: false,
+      /** Sheet: "⋯" menu open; run strip hidden by the player (until the next run) */
+      menu: false,
+      stripHidden: false,
     };
   },
   computed: {
-    tabs() { return ['code', 'help']; },
+    split() { return this.layout === 'split'; },
+    isCollapsed() { return this.split && this.splitState.collapsed; },
+    /** Width the panel takes up on the right (split screen), 0 on phones */
+    occupied() { return this.split ? panelWidth(this.splitState, this.winW) : 0; },
+    tabs() { return this.split ? ['code', 'help'] : ['code', 'output', 'help']; },
     sections() {
       // In the adventure hidden sections (mission logic) stay invisible, in the editor you see everything
       return (this.scenario.sections ?? []).filter((s) => this.mode === 'editor' || (s.visibility ?? 'open') !== 'hidden');
@@ -145,36 +245,55 @@ export default {
       // Only the current run; the current error is already in the error box above
       return consoleView(this.script.console, { mode: this.mode, since: this.player?.since ?? 0, error: this.error, dirty: this.dirty });
     },
+    /** Errors for the badge of the output tab (phones) */
+    errCount() { return (this.error ? 1 : 0) + this.consoleLines.filter((c) => c.err).length; },
     /** Section that download and open work on: the focused editable one, otherwise the player program */
     fileSection() {
       const all = this.scenario.sections ?? [];
       return all.find((s) => s.id === this.focused && s.editable) ?? all.find((s) => s.editable && s.level === 'player') ?? all.find((s) => s.editable) ?? null;
     },
+    /** Phone, sheet closed: run strip while a program runs (and after it, until hidden) */
+    showStrip() { return !this.split && !this.open && !this.stripHidden && ['running', 'paused', 'done', 'stopped'].includes(this.status); },
+    /** Current line of the player program for the run strip */
+    watchLine() {
+      const l = this.player?.line;
+      if (!l || !this.busy) return null;
+      return { n: l.line, text: ((this.codes[l.section] ?? '').split('\n')[l.line - 1] ?? '').trim() };
+    },
   },
   watch: {
-    'player.line'(l) { if (l && this.compact && this.status !== 'idle' && !this.open) this.$emit('update:open', true); },
+    occupied: { immediate: true, handler(w) { this.$emit('width', w); } },
     'error.seq'(seq) {
-      // New error: box into view (the gutter marker scrolls itself, CodeEditor.reveal)
-      if (seq) this.$nextTick(() => { if (this.tab === 'code') this.$refs.error?.scrollIntoView?.({ block: 'nearest' }); });
+      if (!seq) return;
+      // New error: phones jump back from the game to the code; the line and the box come into view
+      this.tab = 'code';
+      if (!this.split && !this.open) this.$emit('update:open', true);
+      this.revealError();
     },
+    status(s, before) {
+      // Breakpoint or step while watching the game on the phone: back to the code
+      if (s === 'paused' && before !== 'paused' && !this.split && !this.open) { this.tab = 'code'; this.$emit('update:open', true); }
+    },
+    open(o) { if (o) this.menu = false; },
     consoleLines(now, before) {
-      // New output: keep the console in view (also when a short program is already finished)
+      // New output: keep the end of the console in view
       const last = now[now.length - 1]?.seq ?? 0;
       if (!last || last === before?.[before.length - 1]?.seq) return;
-      this.$nextTick(() => {
-        const c = this.$refs.console;
-        if (!c || this.tab !== 'code') return;
-        c.scrollTop = c.scrollHeight;
-        c.scrollIntoView?.({ block: 'nearest' });
-      });
+      this.$nextTick(() => { const c = this.$refs.console; if (c) c.scrollTop = c.scrollHeight; });
     },
   },
   mounted() {
     this.engine?.setGrid?.(this.grid);
-    // Whole map into view, on desktop to the left of the panel (not behind it)
-    this.$nextTick(() => { const w = this.compact ? 0 : this.$refs.panel?.getBoundingClientRect().width ?? 0; this.engine?.frameOverview?.(w ? w + 16 : 0); });
+    this.onResize = () => { this.winW = window.innerWidth; };
+    window.addEventListener('resize', this.onResize);
+    // Whole map into view: after the game area has shrunk to the left part (split screen)
+    this.$nextTick(() => requestAnimationFrame(() => { this.engine?.resize?.(); this.engine?.frameOverview?.(0); }));
   },
-  beforeUnmount() { this.engine?.setGrid?.(false); },
+  beforeUnmount() {
+    this.engine?.setGrid?.(false);
+    window.removeEventListener('resize', this.onResize);
+    this.$emit('width', 0);
+  },
   methods: {
     /** Tile grid on/off (for counting steps); preference stays in the browser. */
     toggleGrid() {
@@ -196,6 +315,18 @@ export default {
       const sec = (this.scenario.sections ?? []).find((x) => x.id === e.section);
       const r = scriptErrorText(e, { section: sec && this.sections.length > 1 ? tr(sec.title) : undefined, line: e.sline || undefined });
       return full ? r : `${r.title}: ${r.text}`;
+    },
+    /** Error line and box into view (also after the sheet has just opened). */
+    revealError() {
+      this.$nextTick(() => requestAnimationFrame(() => {
+        const e = this.error;
+        if (!e) return;
+        if (!this.unfolded[e.section] && this.sections.find((s) => s.id === e.section && this.foldable(s))) this.unfolded[e.section] = true;
+        this.$nextTick(() => {
+          this.$refs.error?.scrollIntoView?.({ block: 'nearest' });
+          if (e.sline > 0) this.editors[e.section]?.reveal?.(e.sline);
+        });
+      }));
     },
     edited(id) {
       this.dirty = { ...this.dirty, [id]: true };
@@ -220,7 +351,11 @@ export default {
     run(stepMode) {
       this.dirty = {};
       this.persist();
+      this.menu = false;
+      this.stripHidden = false;
       this.engine.scriptRun(this.editable(), { mode: stepMode ? 'step' : 'run', bps: this.playerBps() });
+      // Phone: watch the game while the program runs (step mode stays in the code); hero into view above the strip
+      if (!this.split && !stepMode) this.watchGame();
     },
     step(kind) {
       if (this.mode === 'editor' && this.script.mission?.paused) { this.engine.scriptDebug(kind, 'mission'); return; }
@@ -232,6 +367,13 @@ export default {
       this.engine.scriptDebug(cmd, 'player');
     },
     stop() { this.engine.scriptStop(); },
+    /** Phone: close the sheet and show the game; the hero comes into view above the run strip if it is not visible. */
+    watchGame() {
+      this.$emit('update:open', false);
+      this.$nextTick(() => requestAnimationFrame(() => this.engine?.watchFocus?.(this.$refs.strip?.getBoundingClientRect().height ?? 0)));
+    },
+    /** Run strip → back to the code */
+    toCode() { this.tab = 'code'; this.$emit('update:open', true); },
     setBps(id, list) {
       this.bps = { ...this.bps, [id]: list };
       const sec = this.scenario.sections.find((s) => s.id === id);
@@ -244,6 +386,40 @@ export default {
     resetCode() {
       for (const s of this.scenario.sections ?? []) if (s.editable) { this.codes[s.id] = s.code; this.dirty = { ...this.dirty, [s.id]: true }; }
       this.persist();
+    },
+    // ---------- Split screen: divider and strip ----------
+    setCollapsed(on) {
+      this.splitState = { ...this.splitState, collapsed: on };
+      saveSplit(this.splitState);
+    },
+    /** Drag the divider (mouse, pen, finger): pointer capture keeps the drag even over the canvas. */
+    dragStart(e) {
+      if (e.button > 0) return;
+      e.preventDefault();
+      const el = e.currentTarget;
+      try { el.setPointerCapture?.(e.pointerId); } catch { /* synthetic events */ }
+      this.dragging = true;
+      const move = (ev) => { this.splitState = { ...this.splitState, frac: fracFromPointer(ev.clientX, window.innerWidth) }; };
+      const up = () => {
+        el.removeEventListener('pointermove', move);
+        el.removeEventListener('pointerup', up);
+        el.removeEventListener('pointercancel', up);
+        this.dragging = false;
+        saveSplit(this.splitState);
+      };
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+    },
+    /** Keyboard on the divider: arrows change the width, Enter collapses. */
+    dividerKey(e) {
+      const W = window.innerWidth;
+      const d = e.key === 'ArrowLeft' ? 32 : e.key === 'ArrowRight' ? -32 : 0;
+      if (d) {
+        e.preventDefault();
+        this.splitState = { ...this.splitState, frac: clampWidth(this.occupied + d, W) / W };
+        saveSplit(this.splitState);
+      } else if (e.key === 'Enter') this.setCollapsed(true);
     },
     /** Save the program as a .py file (download; works on phones too). */
     download() {
@@ -279,7 +455,7 @@ export default {
       this.edited(sec.id);
       if (!this.touch) this.$nextTick(() => this.editors[sec.id]?.focus?.()); // phones: no keyboard popping up
     },
-    blurred() { setTimeout(() => { if (!this.$el?.parentNode || !document.activeElement?.closest?.('.script-panel')) this.focused = null; }, 150); },
+    blurred() { setTimeout(() => { if (!this.$el?.isConnected || !document.activeElement?.closest?.('.script-panel')) this.focused = null; }, 150); },
     key(k) {
       const ed = this.editors[this.focused];
       if (!ed) return;
@@ -300,40 +476,60 @@ export default {
 </script>
 
 <style>
-/* Panel width; ToastFeed.vue moves the notices to the left of it (.with-code) */
-.game { --code-w: min(30rem, 42vw); }
-.script-panel {
-  position: fixed; z-index: 6; display: flex; flex-direction: column;
-  right: calc(var(--hud-gap) + var(--safe-r)); top: calc(var(--top-total, 4rem) + var(--hud-gap));
-  bottom: calc(var(--bottom-h, 13rem) + var(--hud-gap) * 2);
-  width: var(--code-w, min(30rem, 42vw)); padding: 0.625rem; gap: 0.5rem;
+/* ---------- Split screen (desktop, tablet landscape): program on the right, the game (App.vue .game.split) left of it ---------- */
+.sp-host { display: contents; }
+.script-panel { position: fixed; z-index: 6; display: flex; color: var(--ink); background: var(--panel-bg), var(--wood-900); }
+.script-panel.split {
+  top: 0; right: 0; bottom: 0; flex-direction: row;
+  box-shadow: inset 1px 0 0 rgba(225, 168, 58, 0.38), -6px 0 18px rgba(10, 6, 2, 0.45);
+  padding-right: var(--safe-r);
 }
-.script-panel.compact {
-  left: var(--safe-l); right: var(--safe-r); bottom: 0; top: auto; width: auto;
-  height: min(62dvh, 32rem); border-radius: var(--r-lg) var(--r-lg) 0 0; z-index: 30; padding-bottom: max(0.5rem, var(--safe-b));
+.script-panel.split.dragging { user-select: none; }
+.sp-divider {
+  position: relative; flex: none; width: 0.75rem; cursor: col-resize; touch-action: none; display: grid; place-items: center;
+  background: linear-gradient(90deg, var(--wood-950), var(--wood-800), var(--wood-950));
 }
-.script-panel.compact.full { height: calc(100dvh - var(--safe-t)); }
+.sp-divider::before { content: ''; width: 3px; height: 2.75rem; border-radius: 2px; background: var(--gold-500); opacity: 0.7; }
+.sp-divider:hover::before, .sp-divider:focus-visible::before, .dragging .sp-divider::before { opacity: 1; background: var(--gold-300); }
+.sp-foldbtn {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, 2.25rem); width: 1.5rem; min-width: 0; height: 2.5rem; min-height: 0 !important;
+  padding: 0; display: grid; place-items: center; border-radius: var(--r-sm);
+}
+.sp-foldbtn .ico { width: 0.875rem; height: 0.875rem; }
+.sp-strip {
+  position: relative; flex: 1; min-height: 0; width: 100%; padding: 0; border-radius: 0; border: 0; display: flex; flex-direction: column; gap: 0.375rem; align-items: center; justify-content: center;
+  background: linear-gradient(90deg, var(--wood-950), var(--wood-800)); color: var(--gold-200); box-shadow: inset 1px 0 0 rgba(225, 168, 58, 0.45);
+}
+.sp-strip-ico { width: 1rem !important; height: 1rem !important; }
+.sp-strip-lbl { writing-mode: vertical-rl; font-family: var(--display); font-size: var(--fs-md); letter-spacing: 0.04em; white-space: nowrap; }
+.sp-strip-run { position: absolute; top: 0.75rem; left: 50%; margin-left: -0.3125rem; width: 0.625rem; height: 0.625rem; border-radius: 50%; background: var(--good); box-shadow: 0 0 6px var(--good); }
+.sp-inner { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 0.5rem; padding: calc(0.625rem + var(--safe-t)) 0.75rem calc(0.625rem + var(--safe-b)) 0.625rem; position: relative; }
 .sp-head { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; }
 .sp-title { flex: 1; min-width: 0; font-family: var(--display); color: var(--gold-200); font-size: var(--fs-lg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sp-grid { display: inline-flex; align-items: center; gap: 0.25rem; min-height: 1.875rem; padding: 0 0.5rem; font-size: var(--fs-sm); color: var(--ink-muted); }
-.sp-grid.on { color: var(--gold-200); background: rgba(243, 200, 94, 0.14); box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.45); }
-.sp-grid .sp-glyph { font-family: ui-monospace, Menlo, monospace; font-weight: 800; }
-.sp-status { font-size: var(--fs-xs); padding: 0.125rem 0.5rem; border-radius: 999px; background: var(--inset-bg); color: var(--ink-muted); }
+.sp-head .icon-btn { min-height: 2rem; width: 2rem; min-width: 2rem; }
+.sp-status { font-size: var(--fs-xs); padding: 0.125rem 0.5rem; border-radius: 999px; background: var(--inset-bg); color: var(--ink-muted); white-space: nowrap; }
 .sp-status.running { color: var(--good); }
 .sp-status.paused { color: var(--warn); }
 .sp-status.error { color: var(--bad); }
 .sp-status.done { color: var(--gold-300); }
-.sp-tools { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+.sp-tools { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; container-type: inline-size; }
 .sp-tools button { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 2.375rem; padding: 0 0.5rem; }
-.sp-run { min-width: 6rem; justify-content: center; }
+.sp-run { min-width: 6.5rem; justify-content: center; }
 .sp-glyph { font-size: 1.05em; line-height: 1; }
-.sp-files { display: inline-flex; gap: 0.25rem; margin-left: auto; }
+.sp-sep { width: 1px; height: 1.5rem; background: rgba(225, 168, 58, 0.25); margin: 0 0.125rem; }
+.sp-grow { flex: 1; }
+.sp-grid .sp-glyph { font-family: ui-monospace, Menlo, monospace; font-weight: 800; }
+.sp-grid.on { color: var(--gold-200); background: rgba(243, 200, 94, 0.14); box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.45); }
+/* Narrow panel: icons only for the debugger steps, then for everything but "Run" */
+@container (max-width: 44rem) { .sp-lbl-dbg { display: none; } }
+@container (max-width: 37rem) { .sp-lbl-file { display: none; } }
+@container (max-width: 30rem) { .sp-lbl { display: none; } .sp-run { min-width: 0; } .sp-grow, .sp-sep { display: none; } }
 .sp-file { display: none; }
-.sp-console-title { margin: 0 0 0.125rem; font: 600 var(--fs-xs) var(--body, inherit); color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em; }
 .sp-tabs { align-self: flex-start; }
-.sp-tabs > button { min-height: 2rem; padding: 0 0.875rem; }
+.sp-tabs > button { min-height: 2rem; padding: 0 0.875rem; gap: 0.375rem; display: inline-flex; align-items: center; justify-content: center; }
+.sp-badge { display: inline-grid; place-items: center; min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem; border-radius: 999px; background: var(--bad-deep, #a3321f); color: #fff; font: 700 0.6875rem/1 var(--body); font-style: normal; }
 .sp-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.625rem; padding-right: 0.125rem; }
-/* The body scrolls; its blocks keep their height (otherwise the console shrinks to a sliver under long code) */
+/* The body scrolls; its blocks keep their height */
 .sp-body > * { flex-shrink: 0; }
 .sp-brief { position: relative; margin: 0; padding: 0.625rem 2.25rem 0.625rem 0.75rem; font-size: var(--fs-sm); line-height: 1.45; }
 .sp-brief-x { position: absolute; top: 0.25rem; right: 0.25rem; min-height: 1.75rem !important; min-width: 1.75rem; padding: 0; color: var(--parch-ink); }
@@ -346,7 +542,11 @@ export default {
 .sp-error { padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: rgba(163, 50, 31, 0.28); box-shadow: inset 3px 0 0 var(--bad); }
 .sp-error b { color: #ffc2b5; font-size: var(--fs-sm); }
 .sp-error p { margin: 0.125rem 0 0; font-size: var(--fs-sm); line-height: 1.4; }
-.sp-console { background: #0a0806; border-radius: var(--r-md); padding: 0.375rem 0.625rem; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8125rem; max-height: 12rem; overflow-y: auto; box-shadow: var(--inset-edge); }
+.sp-output { flex: none; display: flex; flex-direction: column; min-height: 0; height: clamp(6.5rem, 24%, 13rem); background: #0a0806; border-radius: var(--r-md); box-shadow: var(--inset-edge); }
+.sp-output.tabbed { flex: 1; height: auto; }
+.sp-console-title { margin: 0; padding: 0.3125rem 0.75rem; font: 600 var(--fs-xs) var(--body, inherit); color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(225, 168, 58, 0.12); }
+.sp-console { flex: 1; min-height: 0; padding: 0.375rem 0.75rem; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8125rem; line-height: 1.5; }
+.sp-console .sp-none { margin: 0; font-family: var(--body); font-size: var(--fs-sm); }
 .sp-out { white-space: pre-wrap; word-break: break-word; color: #e6dbc3; }
 .sp-out.mission { color: var(--ink-dim); }
 .sp-out.err { color: #ff9f8c; }
@@ -360,8 +560,42 @@ export default {
 .sp-none { color: var(--ink-dim); font-style: italic; }
 .sp-frame { font-family: ui-monospace, Menlo, Consolas, monospace; }
 .sp-reset { align-self: flex-start; font-size: var(--fs-sm); min-height: 2rem; }
-@media (max-width: 420px) {
-  .sp-lbl { display: none; }
-  .sp-run { min-width: 0; }
+
+/* ---------- Sheet (phones): full screen over the game ---------- */
+.script-panel.sheet { inset: 0; z-index: 30; flex-direction: column; }
+.script-panel.sheet .sp-inner { padding: calc(0.625rem + var(--safe-t)) calc(0.625rem + var(--safe-r)) 0 calc(0.625rem + var(--safe-l)); gap: 0.5rem; }
+.script-panel.sheet .sp-tabs { align-self: stretch; }
+.script-panel.sheet .sp-tabs > button { flex: 1; min-height: 2.5rem; }
+.sp-watchbtn { display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.5rem; padding: 0 0.75rem; }
+.sp-actbar {
+  position: relative; flex: none; display: flex; gap: 0.375rem; margin: 0 calc(-0.625rem - var(--safe-r)) 0 calc(-0.625rem - var(--safe-l));
+  padding: 0.5rem calc(0.625rem + var(--safe-r)) calc(0.5rem + var(--safe-b)) calc(0.625rem + var(--safe-l));
+  background: rgba(10, 6, 3, 0.55); border-top: 1px solid rgba(225, 168, 58, 0.2);
 }
+.sp-actbar > button { min-height: var(--touch); min-width: var(--touch); justify-content: center; display: inline-flex; align-items: center; gap: 0.375rem; padding: 0 0.5rem; }
+.sp-actbar > .sp-run { flex: 1; }
+.script-panel.sheet .keybar { margin: 0 calc(-0.625rem - var(--safe-r)) -0.5rem calc(-0.625rem - var(--safe-l)); }
+.sp-menu {
+  position: absolute; right: calc(0.625rem + var(--safe-r)); bottom: calc(100% + 0.25rem); z-index: 5; min-width: 14rem; padding: 0.375rem; display: flex; flex-direction: column; gap: 2px;
+  border-radius: var(--r-lg); background: var(--panel-bg); box-shadow: var(--panel-edge), 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+.sp-menu > button { justify-content: flex-start; display: flex; align-items: center; gap: 0.5rem; background: transparent; border-color: transparent; box-shadow: none; min-height: var(--touch); text-align: left; }
+.sp-menu > button small { margin-left: auto; color: var(--ink-dim); font-family: ui-monospace, Menlo, monospace; }
+.sp-menu > button.on small { color: var(--gold-300); }
+.sp-menu-glyph { width: 1.25rem; text-align: center; font-family: ui-monospace, Menlo, monospace; font-weight: 800; }
+/* "Watch game": run strip at the bottom over the command bar */
+.sp-watch {
+  position: fixed; z-index: 29; left: var(--safe-l); right: var(--safe-r); bottom: 0; border-radius: var(--r-lg) var(--r-lg) 0 0;
+  padding: 0.5rem 0.625rem calc(0.625rem + var(--safe-b)); display: flex; flex-direction: column; gap: 0.5rem;
+}
+.sp-watch-line { display: flex; align-items: center; gap: 0.5rem; min-height: 2.25rem; padding: 0.25rem 0.625rem; border-radius: var(--r-md); background: #0f0b07; box-shadow: inset 3px 0 0 var(--gold-500); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.875rem; }
+.sp-watch-line.running { box-shadow: inset 3px 0 0 var(--good); }
+.sp-watch-line.paused { box-shadow: inset 3px 0 0 var(--warn); }
+.sp-watch-line i { font-style: normal; color: #7d6d55; }
+.sp-watch-line code { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #efe3c8; }
+.sp-watch-status { font-family: var(--body); font-size: var(--fs-xs); color: var(--ink-muted); }
+.sp-watch-line.running .sp-watch-status { color: var(--good); }
+.sp-watch-row { display: flex; gap: 0.375rem; }
+.sp-watch-row > button { flex: 1; min-height: var(--touch); justify-content: center; display: inline-flex; align-items: center; gap: 0.375rem; }
+.sp-code-ico { font: 800 0.9375rem/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: -0.06em; }
 </style>

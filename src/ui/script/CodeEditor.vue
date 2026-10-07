@@ -2,7 +2,7 @@
   <!-- Code editor modelled on python.jetzt: a real <textarea> (keyboard, selection, undo,
        on-screen keyboard on phones) with transparent text above a coloured <pre>.
        Colouring uses the same lexer the VM uses (src/script/lexer.js). -->
-  <div class="code-editor" :class="{ readonly }" :style="{ '--lines': lineCount }" data-testid="code-editor">
+  <div class="code-editor" :class="{ readonly, linking: !!link }" :style="{ '--lines': lineCount }" data-testid="code-editor">
     <div ref="gutter" class="ce-gutter" aria-hidden="true">
       <div
         v-for="n in lineCount"
@@ -38,19 +38,77 @@
         @keydown="onKey"
         @focus="$emit('focus', this)"
         @blur="$emit('blur')"
+        @mousemove="onMouseMove"
+        @mouseleave="onMouseLeave"
+        @mousedown="onMouseDown"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="cancelPress"
+        @pointercancel="pressCancelled"
+        @touchmove.passive="onTouchMove"
+        @touchend.passive="cancelPress"
+        @contextmenu="onContextMenu"
       ></textarea>
     </div>
+    <!-- Documentation of the command under the mouse (after a short delay) or after a long press on phones -->
+    <Teleport to="body">
+      <div v-if="doc?.mode === 'touch'" class="ce-doc-scrim" data-testid="doc-card-scrim" @click="scrimClick"></div>
+      <div v-if="doc" class="ce-doc" :class="doc.mode" :style="doc.style" @mouseenter="docHovered = true" @mouseleave="docHovered = false; hideDocSoon()">
+        <DocCard :card="doc.card" :full="doc.mode === 'touch'" :closable="doc.mode === 'touch'" :hint="doc.mode === 'hover' ? ctrlHint : ''" @close="hideDoc" />
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script>
 import { highlightRanges } from '../../script/index.js';
+import DocCard from './DocCard.vue';
+import { commandAt, offsetAt } from './hoverDoc.js';
+import { docs, loadDocs } from './docsLoader.js';
+import { refUrl } from './reference.js';
 
 const INDENT = '    ';
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** Delay before the doc card appears under the mouse (ms) */
+const HOVER_MS = 500;
+/** Long press on touch devices (ms) and allowed finger movement (px) */
+const PRESS_MS = 550;
+const PRESS_SLOP = 10;
+const IS_MAC = /Mac|iPhone|iPad/.test(globalThis.navigator?.platform ?? '');
+/** Ctrl (Cmd on the Mac) held: command links to the reference */
+const modifier = (e) => (IS_MAC ? e.metaKey : e.ctrlKey);
+
+/**
+ * Highlighted text as HTML; the range `link` (command under the mouse with Ctrl/Cmd) gets the class ce-link.
+ * @param {string} src @param {{ from: number, to: number }|null} link
+ */
+function paint(src, link) {
+  const segs = [];
+  let at = 0;
+  for (const r of highlightRanges(src)) {
+    if (r.from > at) segs.push({ from: at, to: r.from, cls: null });
+    segs.push({ from: r.from, to: r.to, cls: r.cls });
+    at = r.to;
+  }
+  if (at < src.length) segs.push({ from: at, to: src.length, cls: null });
+  let out = '';
+  for (const g of segs) {
+    const cuts = [g.from];
+    if (link) for (const c of [link.from, link.to]) if (c > g.from && c < g.to) cuts.push(c);
+    cuts.push(g.to);
+    for (let i = 0; i < cuts.length - 1; i++) {
+      const a = cuts[i], b = cuts[i + 1];
+      const cls = [g.cls ? `tk-${g.cls}` : '', link && a >= link.from && b <= link.to ? 'ce-link' : ''].filter(Boolean).join(' ');
+      const text = esc(src.slice(a, b));
+      out += cls ? `<span class="${cls}">${text}</span>` : text;
+    }
+  }
+  return out;
+}
 
 export default {
   name: 'CodeEditor',
+  components: { DocCard },
   props: {
     modelValue: { type: String, default: '' },
     readonly: Boolean,
@@ -62,27 +120,176 @@ export default {
     firstLine: { type: Number, default: 1 },
     label: { type: String, default: 'Python' },
   },
-  emits: ['update:modelValue', 'update:breakpoints', 'focus', 'blur'],
+  emits: ['update:modelValue', 'update:breakpoints', 'focus', 'blur', 'insert'],
+  data() {
+    return {
+      /** Doc card shown: { mode: 'hover'|'touch', name, from, to, card, style } */
+      doc: null,
+      docHovered: false,
+      /** Command under the mouse while Ctrl/Cmd is held: { name, from, to } */
+      link: null,
+    };
+  },
   computed: {
     lineCount() { return Math.max(1, this.modelValue.split('\n').length); },
-    html() {
-      const src = this.modelValue;
-      let out = '', at = 0;
-      for (const r of highlightRanges(src)) {
-        if (r.from > at) out += esc(src.slice(at, r.from));
-        out += `<span class="tk-${r.cls}">${esc(src.slice(r.from, r.to))}</span>`;
-        at = r.to;
-      }
-      // Empty line at the end so the height matches the text field
-      return out + esc(src.slice(at)) + '\n';
-    },
+    // Empty line at the end so the height matches the text field
+    html() { return paint(this.modelValue, this.link) + '\n'; },
+    ctrlHint() { return this.$t('script.doc.ctrlClick', { key: IS_MAC ? '⌘' : this.$t('script.doc.ctrl') }); },
   },
   watch: {
     runningLine(n) { if (n > 0) this.$nextTick(() => this.reveal(n)); },
     errorLine(n) { if (n > 0) this.$nextTick(() => this.reveal(n)); },
   },
+  mounted() {
+    this.onModKey = (e) => {
+      if (e.key !== 'Control' && e.key !== 'Meta') return;
+      const m = this.mouse;
+      this.link = m && modifier(e) ? this.commandAtPoint(m.x, m.y) : null;
+    };
+    this.onWinBlur = () => { this.link = null; };
+    window.addEventListener('keydown', this.onModKey);
+    window.addEventListener('keyup', this.onModKey);
+    window.addEventListener('blur', this.onWinBlur);
+  },
+  beforeUnmount() {
+    window.removeEventListener('keydown', this.onModKey);
+    window.removeEventListener('keyup', this.onModKey);
+    window.removeEventListener('blur', this.onWinBlur);
+    clearTimeout(this.hoverTimer);
+    clearTimeout(this.hideTimer);
+    clearTimeout(this.pressTimer);
+  },
   methods: {
-    onInput(e) { this.$emit('update:modelValue', e.target.value); },
+    onInput(e) { this.hideDoc(); this.$emit('update:modelValue', e.target.value); },
+
+    /** Character offset under a screen point (−1: no text there). Monospace: column = x / character width. */
+    offsetAtPoint(x, y) {
+      const ta = this.$refs.ta;
+      if (!ta) return -1;
+      const cs = getComputedStyle(ta);
+      const r = ta.getBoundingClientRect();
+      const lh = parseFloat(cs.lineHeight) || 20;
+      const cw = this.charWidth(cs);
+      const row = Math.floor((y - r.top - parseFloat(cs.paddingTop) + ta.scrollTop) / lh);
+      const col = Math.floor((x - r.left - parseFloat(cs.paddingLeft) + ta.scrollLeft) / cw);
+      return offsetAt(this.modelValue, row, col);
+    },
+    /** Width of one character of the editor font (measured once per font). */
+    charWidth(cs) {
+      const font = cs.font;
+      if (this.cw?.font === font) return this.cw.w;
+      const span = document.createElement('span');
+      span.textContent = 'M'.repeat(40);
+      Object.assign(span.style, { position: 'absolute', visibility: 'hidden', whiteSpace: 'pre', font, letterSpacing: 'normal', fontVariantLigatures: 'none' });
+      this.$el.appendChild(span);
+      const w = span.getBoundingClientRect().width / 40 || 8;
+      span.remove();
+      this.cw = { font, w };
+      return w;
+    },
+    /** Documented command under a screen point, or null (loads the docs on first use). */
+    commandAtPoint(x, y) {
+      const d = docs();
+      if (!d) { loadDocs(); return null; }
+      const off = this.offsetAtPoint(x, y);
+      return off < 0 ? null : commandAt(this.modelValue, off, d.isKnown);
+    },
+    onMouseMove(e) {
+      this.mouse = { x: e.clientX, y: e.clientY };
+      if (e.buttons) { this.link = null; return; }
+      const hit = this.commandAtPoint(e.clientX, e.clientY);
+      this.link = hit && modifier(e) ? hit : null;
+      const cur = this.doc;
+      if (hit && cur?.mode === 'hover' && cur.name === hit.name && cur.from === hit.from) { clearTimeout(this.hideTimer); return; }
+      clearTimeout(this.hoverTimer);
+      if (cur?.mode === 'hover') this.hideDocSoon();
+      if (!hit && !docs()) {
+        // Docs still loading: try again at this point once they are there
+        loadDocs().then(() => { if (this.mouse?.x === e.clientX && this.mouse?.y === e.clientY) this.onMouseMove(e); });
+        return;
+      }
+      if (hit) this.hoverTimer = setTimeout(() => this.showDoc(hit, 'hover'), HOVER_MS);
+    },
+    onMouseLeave() {
+      this.mouse = null;
+      this.link = null;
+      clearTimeout(this.hoverTimer);
+      this.hideDocSoon();
+    },
+    /** Ctrl/Cmd+click on a command: reference at its entry in a new tab. */
+    onMouseDown(e) {
+      if (e.button !== 0 || !modifier(e)) return;
+      const hit = this.commandAtPoint(e.clientX, e.clientY);
+      if (!hit) return;
+      e.preventDefault();
+      this.hideDoc();
+      window.open(refUrl(hit.name), '_blank', 'noopener');
+    },
+    /** Touch: long press on a command shows its card. */
+    onPointerDown(e) {
+      if (e.pointerType === 'mouse') return;
+      loadDocs();
+      this.press = { x: e.clientX, y: e.clientY };
+      clearTimeout(this.pressTimer);
+      this.pressTimer = setTimeout(async () => {
+        const p = this.press;
+        if (!p) return;
+        await loadDocs();
+        const hit = this.commandAtPoint(p.x, p.y);
+        if (hit) { this.pressedAt = Date.now(); this.showDoc(hit, 'touch'); }
+      }, PRESS_MS);
+    },
+    onPointerMove(e) {
+      const p = this.press;
+      if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > PRESS_SLOP) this.cancelPress();
+    },
+    // After a pointercancel (scrolling, selection) only touch events report the finger
+    onTouchMove(e) { const t = e.touches?.[0]; if (t) this.onPointerMove(t); },
+    cancelPress() {
+      // Lifting the finger after the card appeared: the browser's click follows – it must not close the card
+      if (this.doc?.mode === 'touch' && this.press) this.releasedAt = Date.now();
+      this.press = null;
+      clearTimeout(this.pressTimer);
+    },
+    scrimClick() { if (Date.now() - (this.releasedAt ?? 0) > 400) this.hideDoc(); },
+    // The browser may take over a held finger (text selection): the press still counts unless the finger moved
+    pressCancelled() { if (this.press) this.press.cancelled = true; },
+    /** The browser's own long-press menu would cover the card; on touch it also opens the card itself. */
+    onContextMenu(e) {
+      if (this.doc?.mode === 'touch' || Date.now() - (this.pressedAt ?? 0) < 1000) { e.preventDefault(); return; }
+      const p = this.press;
+      if (!p) return;
+      const hit = docs() && this.commandAtPoint(p.x, p.y);
+      if (hit) { e.preventDefault(); this.cancelPress(); this.pressedAt = Date.now(); this.showDoc(hit, 'touch'); }
+    },
+    showDoc(hit, mode) {
+      const d = docs();
+      const card = d?.cardFor(hit.name, this.$i18n?.lang ?? 'de');
+      if (!card) return;
+      clearTimeout(this.hideTimer);
+      this.docHovered = false;
+      this.doc = { mode, name: hit.name, from: hit.from, to: hit.to, card, style: mode === 'hover' ? this.hoverStyle(hit) : null };
+    },
+    /** Card below the hovered line (above it if there is no room), within the window. */
+    hoverStyle(hit) {
+      const ta = this.$refs.ta;
+      const cs = getComputedStyle(ta);
+      const r = ta.getBoundingClientRect();
+      const lh = parseFloat(cs.lineHeight) || 20;
+      const cw = this.charWidth(cs);
+      const before = this.modelValue.slice(0, hit.from);
+      const row = before.split('\n').length - 1;
+      const col = hit.from - (before.lastIndexOf('\n') + 1);
+      const top = r.top + parseFloat(cs.paddingTop) + row * lh - ta.scrollTop;
+      const left = Math.max(8, Math.min(window.innerWidth - 8 - Math.min(416, window.innerWidth - 16), r.left + parseFloat(cs.paddingLeft) + col * cw - ta.scrollLeft - 12));
+      const below = window.innerHeight - (top + lh) > 260 || top < 260;
+      return below ? { left: left + 'px', top: top + lh + 4 + 'px' } : { left: left + 'px', bottom: window.innerHeight - top + 4 + 'px' };
+    },
+    hideDoc() { clearTimeout(this.hideTimer); clearTimeout(this.hoverTimer); this.doc = null; },
+    hideDocSoon() {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = setTimeout(() => { if (!this.docHovered && this.doc?.mode === 'hover') this.doc = null; }, 250);
+    },
 
     syncScroll() {
       const ta = this.$refs.ta;
@@ -138,6 +345,11 @@ export default {
     },
 
     onKey(e) {
+      if (this.doc || this.link) {
+        // Escape only closes the card (not also the game menu); typing hides it
+        if (e.key === 'Escape' && this.doc) { e.stopPropagation(); this.hideDoc(); return; }
+        if (e.key !== 'Control' && e.key !== 'Meta') this.hideDoc();
+      }
       if (this.readonly) return;
       const ta = e.target;
       if (e.key === 'Tab') {
@@ -218,6 +430,12 @@ export default {
 .tk-builtin { color: #78d6c6; }
 .tk-call { color: #f5d9a0; }
 .tk-deco { color: #e886b5; }
+/* Ctrl/Cmd held over a documented command: link to the reference, like in an IDE */
+.code-editor.linking .ce-input { cursor: pointer; }
+.ce-link { text-decoration: underline; text-decoration-color: var(--gold-300); text-underline-offset: 3px; color: var(--gold-100); }
+.ce-doc { position: fixed; z-index: 70; width: min(26rem, calc(100vw - 16px)); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55); border-radius: 0.5rem 0.75rem; }
+.ce-doc.touch { left: 0.75rem; right: 0.75rem; width: auto; bottom: calc(5rem + var(--safe-b, 0px)); max-height: 60dvh; overflow-y: auto; }
+.ce-doc-scrim { position: fixed; inset: 0; z-index: 69; background: rgba(10, 6, 3, 0.35); }
 @media (pointer: coarse) {
   .code-editor { font-size: 0.9375rem; --ce-lh: 1.6rem; }
   .ce-gutter { width: 2.75rem; }

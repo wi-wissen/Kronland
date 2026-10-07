@@ -27,7 +27,7 @@ src/
   dev/        Entwicklermodus (nur lesen, nachgeladen): Drahtgitter, A*-Aufnahme, Raster-Overlays, Statistik
   ui/         Vue 3 (Options API): Menüs, Leisten, Panels; ui/hud/ Befehlsleiste, ui/icons/ Symbole,
               ui/mission/ für Kampagne und Tutorial, ui/saves/ Spielstandliste und Bestätigungsdialog,
-              ui/script/ Code-Panel und Debugger, ui/editor/ Welteneditor (mit game/EditorView.js)
+              ui/script/ Code-Panel (geteilter Bildschirm/Handy-Blatt, splitLayout.js) und Debugger, ui/editor/ Welteneditor (mit game/EditorView.js)
 tests/        Vitest (Simulation, KI, Website)
 e2e/          Playwright (Desktop und Handy-Viewport); Adresse des Spiels zentral in e2e/paths.js
 docs/         Spielregeln und Architektur

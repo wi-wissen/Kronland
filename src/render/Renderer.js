@@ -287,6 +287,8 @@ export class Renderer {
   }
 
   setSize(w, h) {
+    // Same size again (ResizeObserver, layout passes of the code panel): no new buffers, no projection update
+    if (this.viewport && this.viewport.w === w && this.viewport.h === h) return;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.fov = w < h ? 55 : 40;

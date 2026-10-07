@@ -495,6 +495,31 @@ export class Engine {
     this.pendingFocus = small ? { x, z, bottom, until: performance.now() + 1500, tx: rig.target.x, tz: rig.target.z } : null;
   }
 
+  /**
+   * Phone, "watch game" of the code panel: keep the own hero in view. If it is already visible in the free area
+   * (below the header, above the run strip of `bottomPx` pixels), the view stays; otherwise the camera centres on it.
+   * @param {number} [bottomPx] covered height at the bottom (run strip)
+   * @returns {boolean} true if the camera moved
+   */
+  watchFocus(bottomPx = 0) {
+    const r = this.renderer, vp = r?.viewport;
+    if (!vp) return false;
+    let hero = null;
+    for (const e of this.sim.entities.values()) if (e.kind === 'hero' && e.owner === this.player) { hero = e; break; }
+    if (!hero) return false;
+    const rec = r.chars?.records.get(hero.id);
+    const x = rec ? rec.position.x : hero.px / UNIT, z = rec ? rec.position.z : hero.py / UNIT;
+    const top = Math.min(this.hudInsets().top, vp.h * 0.3);
+    const bottom = vp.h - Math.max(bottomPx, 0);
+    const s = r.project(x, r.terrain.heightAt(x, z) + 0.3, z);
+    const c = r.renderer.domElement.getBoundingClientRect();
+    const sx = s.x - c.left, sy = s.y - c.top, m = 24;
+    if (!s.behind && sx >= m && sx <= vp.w - m && sy >= top + m && sy <= bottom - m) return false;
+    r.rig.lookAtScreen(x, z, (top + bottom) / 2, vp.h);
+    this.pendingFocus = null;
+    return true;
+  }
+
   /** After a camera jump: if the panel height changes, place the target in the free area again. */
   followFocus(now) {
     const f = this.pendingFocus, rig = this.renderer.rig;

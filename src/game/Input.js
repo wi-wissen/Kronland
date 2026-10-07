@@ -73,12 +73,15 @@ export class Input {
    */
   edgeScroll(dt) {
     const m = this.mouse;
+    // Edges of the canvas (split screen with the code panel: only the left part of the window)
+    const r = this.canvas.getBoundingClientRect?.() ?? { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
     const W = window.innerWidth, H = window.innerHeight;
     let dx = 0, dy = 0;
     if (m && !m.buttons && !this.engine.touch && setting('edgeScroll')
-      && !(typeof document !== 'undefined' && !document.hasFocus())) {
-      if (m.x <= EDGE_PX) dx = 1; else if (m.x >= W - 1 - EDGE_PX) dx = -1;
-      if (m.y <= EDGE_PX) dy = 1; else if (m.y >= H - 1 - EDGE_PX) dy = -1;
+      && !(typeof document !== 'undefined' && !document.hasFocus())
+      && m.x >= r.left && m.x < r.right && m.y >= r.top && m.y < r.bottom) {
+      if (m.x <= r.left + EDGE_PX) dx = 1; else if (m.x >= Math.min(W, r.right) - 1 - EDGE_PX) dx = -1;
+      if (m.y <= r.top + EDGE_PX) dy = 1; else if (m.y >= Math.min(H, r.bottom) - 1 - EDGE_PX) dy = -1;
     }
     // gentle ramp-up (0.25 s) instead of full speed at once
     this.edgeT = dx || dy ? Math.min(1, (this.edgeT ?? 0) + dt * 4) : 0;

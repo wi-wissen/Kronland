@@ -24,8 +24,8 @@ Stand: alle Gebäudetypen und Figuren haben eigene Modelle; KayKit liefert nur n
 - Symbole für die Fähigkeiten `ab-farsight`, `ab-bribe`, `ab-intimidate` sind noch gezeichnete SVGs (Atlas hat nur
   4 freie Felder – Bogen nach docs/SYMBOLE.md neu erzeugen).
 - Herold (Dialog) ohne Porträt; Titel-/Ladebild, Kampagnenbilder fehlen. Website-Bilder (`public/site/*.webp`) sind
-  im Oktober 2026 mit Meshy-Pferd und neuer Oberfläche neu aufgenommen; nur `programming.webp` zeigt noch die alte
-  Oberfläche – das Motiv in `scripts/site-screens.py` erreicht den Haltepunkt nicht mehr (Zustand „angehalten“ bleibt aus).
+  im Oktober 2026 mit Meshy-Pferd und neuer Oberfläche neu aufgenommen (`programming.webp` mit dem geteilten
+  Programmierfenster).
 - Bäume: Prototyp mit gemalter Struktur (`?nature=off` zum Vergleich) wirkt nur dezent – Entscheidung offen:
   eigene Blatttextur oder Meshy-Bäume (~5 Arten, ~150 Credits).
 
