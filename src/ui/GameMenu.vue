@@ -11,7 +11,7 @@
 
         <div v-if="view === 'main'" class="dialog-body scroll-y gm-main">
           <p class="gm-paused"><Icon name="pause" />{{ $t('gmenu.paused') }}</p>
-          <button class="primary gm-btn" data-testid="resume" @click="$emit('close')"><Icon name="play" />{{ $t('gmenu.resume') }}</button>
+          <button ref="resume" class="primary gm-btn" data-testid="resume" @click="$emit('close')"><Icon name="play" />{{ $t('gmenu.resume') }}</button>
           <button class="gm-btn" data-testid="save" @click="view = 'save'"><Icon name="save" />{{ $t('gmenu.save') }}</button>
           <button class="gm-btn" data-testid="load" @click="view = 'load'"><Icon name="load" />{{ $t('gmenu.load') }}</button>
           <button class="gm-btn" data-testid="open-settings" @click="view = 'settings'"><Icon name="settings" />{{ $t('gmenu.settings') }}</button>
@@ -89,7 +89,7 @@ export default {
       if (this.view !== 'main') this.view = 'main'; else this.$emit('close');
     };
     window.addEventListener('keydown', this.onKey, true);
-    this.$nextTick(() => this.$el.querySelector('[data-testid="resume"]')?.focus({ preventScroll: true }));
+    this.$nextTick(() => this.$refs.resume?.focus({ preventScroll: true }));
   },
   beforeUnmount() { window.removeEventListener('keydown', this.onKey, true); clearTimeout(this.copyTimer); },
   methods: {
