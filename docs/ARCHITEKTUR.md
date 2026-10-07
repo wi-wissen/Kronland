@@ -206,9 +206,9 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
   - **Kategorien** mit Vorrang und Grenze (`CATEGORIES`, Zuordnung je Schlüssel `categoryOf`, `err.*` = feedback):
     alarm (Angriff, zerstört, Held) > fire (Brand) > feedback (Antwort auf Eingaben, `err.*`) > system (Speichern) >
     build (fertig, repariert) > research > economy (Handel, Rohstoffe, Lagerfeuer) > military (rekrutiert, befördert)
-    > world (Wetter, Brücke eingestürzt) > info > script (`print()` des Spielerprogramms). Je Kategorie höchstens `limit` flüchtige Einträge, die älteste fällt weg.
+    > world (Wetter, Brücke eingestürzt) > info > script (`notify()` eines Programms). Je Kategorie höchstens `limit` flüchtige Einträge, die älteste fällt weg.
   - **Bündeln** (`addNotice`): gleiche Meldung (Schlüssel + Parameter) zählt hoch („×3“); Schlüssel in `MERGE`
-    (Beförderung, Rekrutiert, Gebäude fertig, Handel, `print()`) bündeln auch mit anderen Parametern zu einem Text mit `{n}`
+    (Beförderung, Rekrutiert, Gebäude fertig, Handel, `notify()`) bündeln auch mit anderen Parametern zu einem Text mit `{n}`
     („12 Beförderungen – zuletzt …“), Ort und Text der neuesten.
   - **Dauermeldungen** baut `Engine.persistentNotices()` bei jedem `uiState` aus dem Zustand (nur kleine Listen, kein
     Entity-Scan): Angriffsstellen aus `alerts.js` (dieselben wie der Minikarten-Puls, höchstens 2, Text nach dem

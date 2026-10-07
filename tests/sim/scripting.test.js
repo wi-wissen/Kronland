@@ -69,7 +69,7 @@ describe('Scenarios', () => {
     expect(e).toMatchObject({ kind: 'ZeroDivisionError', line: 4, section: 'b', sline: 2 });
   });
 
-  it('print() emits a display event per call and marks where the current run starts', () => {
+  it('print() only writes to the console (no notice event) and marks where the current run starts', () => {
     const sim = createScenarioSim(scenario([playerSection()]));
     runCode(sim, 'print(wod)\n');
     sim.step();
@@ -78,13 +78,36 @@ describe('Scenarios', () => {
     runCode(sim, 'print("a", end="")\nprint("b")\nprint("x\\ny")\n');
     const events = [];
     for (let i = 0; i < 5; i++) events.push(...sim.step());
-    const prints = events.filter((e) => e.type === 'scriptPrint');
-    expect(prints.map((e) => e.text)).toEqual(['a', 'ab', 'x\ny']);
-    expect(prints.every((e) => e.level === 'player' && e.player === 0)).toBe(true);
+    expect(events.filter((e) => e.type === 'scriptNotify' || e.type === 'scriptPrint')).toEqual([]);
     const st = sim.mission.script.uiState();
     expect(st.player.since).toBe(before);
     // Everything after `since` belongs to this run: the old NameError is not part of it
     expect(st.console.filter((c) => c.seq > st.player.since).map((c) => c.text)).toEqual(['ab', 'x', 'y']);
+  });
+
+  it('notify() emits a display event, folds a loop within one tick and leaves the console alone', () => {
+    const sim = createScenarioSim(scenario([playerSection()]));
+    runCode(sim, 'notify("Hallo")\nwait(0.1)\nfor i in range(500):\n    notify(i)\nwait(0.1)\nnotify(hero)\nnotify(None)\n');
+    const events = [];
+    for (let i = 0; i < 6; i++) events.push(...sim.step());
+    const notes = events.filter((e) => e.type === 'scriptNotify');
+    expect(notes.map((e) => [e.text, e.n])).toEqual([['Hallo', 1], ['499', 500], ['None', 2]]);
+    expect(notes.every((e) => e.level === 'player' && e.player === 0)).toBe(true);
+    expect(consoleText(sim)).toBe('');
+    expect(sim.mission.script.state.player.status).toBe('done');
+    // Error: missing text
+    runCode(sim, 'notify()\n');
+    sim.step();
+    expect(sim.mission.script.state.errors.at(-1)).toMatchObject({ code: 'err.script.argMissing' });
+  });
+
+  it('notify() is also available to mission scripts and does not change the saved state', () => {
+    const sim = createScenarioSim(scenario([{ id: 'm', level: 'mission', code: '@on_start\ndef s():\n    notify("Start")\n' }, playerSection()]));
+    const events = [];
+    for (let i = 0; i < 3; i++) events.push(...sim.step());
+    expect(events.filter((e) => e.type === 'scriptNotify')).toMatchObject([{ text: 'Start', level: 'mission', n: 1 }]);
+    const copy = loadGame(saveGame(sim));
+    expect(copy.hash()).toBe(sim.hash());
   });
 
   it('hero: turning, facing direction, obstacles, take() and chop()', () => {
