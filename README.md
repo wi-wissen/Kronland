@@ -100,6 +100,7 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   ([Spielregeln §3](docs/SPIELREGELN.md#3-leibeigene), [§4](docs/SPIELREGELN.md#4-arbeiter-motivation-steuern)).
 - Kamera wie ein Kartenprogramm: Ziehen (mittlere Maustaste, ein Finger) greift den Boden, Mausrad und
   Zwei-Finger-Zoom zoomen zum Zeiger bzw. zur Fingermitte, nichts gleitet oder wippt nach.
+- **Bewegte Gebäude**: Mühlenflügel, Windrad, Wasserrad und Wetterhahn drehen sich ([Modelle](docs/MODELLE.md#bewegliche-teile-flügel-räder-wetterhahn)).
 - Nahzoom bis dicht an Figuren und Gebäude; ganz nah wird der Blick flacher, Figuren und Gebäude bleiben in
   voller Detailstufe ([Architektur](docs/ARCHITEKTUR.md#steuerung)).
 - **Doppelklick bzw. Doppeltippen** auf eine eigene Figur wählt alle eigenen Figuren derselben Art im Bild
@@ -135,7 +136,10 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   **Steuergruppen** (Umschalt+1–9 merkt die Auswahl, 1–9 ruft sie ab, zweimal holt sie ins Bild; am Handy über
   „Als Gruppe merken“),
   Befehlstafel nur bei Auswahl und Porträt der Auswahl (Titel und Porträt passend zur gezeichneten Figur: „1 Leibeigene“,
-  „Schmiedin“ …, siehe docs/MODELLE.md#varianten-und-geschlecht). Das Baumenü zeigt alle Gruppen ohne Reiter.
+  „Schmiedin“ …, siehe docs/MODELLE.md#varianten-und-geschlecht). Das Baumenü zeigt alle Gruppen nebeneinander, wo das nicht passt (mittlere Fenster, Handy) als Reiter.
+  Leibeigene: Aktionsleiste (Bauen [B], Zu den Waffen, Gruppe) oder Baumenü mit „‹ Zurück“ – die letzte Ansicht
+  bleibt gemerkt; Gebäude-Infos (Kosten, Bauzeit, Arbeiter, fehlende Forschung) als Infoleiste über der Tafel
+  (Maus darüber, Handy lang drücken); Esc geht schrittweise zurück.
   Nichts überlappt: bei weniger Breite brechen Leisten um, Karte und Kacheln werden kleiner, am Handy wird die
   Tafel zur Schublade. Große Rohstoffmengen erscheinen ab 10 000 gekürzt („50k“, genauer Wert im Tooltip); reicht der
   Platz trotzdem nicht, wird die Rohstoffleiste zweizeilig, das Wappen bleibt in der Zeile. Am Handy: unten rechts nur

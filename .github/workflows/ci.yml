@@ -2,14 +2,19 @@ name: Tests
 
 # Cheap checks (Vitest + build, a few minutes) on every push to a pull request.
 # The slow browser tests (Playwright, desktop + phone) only once a pull request is ready for review
-# (not as a draft) and on demand via "Run workflow"; on main the Pages build checks the build.
+# (not as a draft), on demand via "Run workflow" and nightly on main; on main the Pages build checks the build.
+# A ready pull request skips them when it only touches documentation or Vitest tests, or carries the label
+# "skip-e2e" (small fixes whose affected specs ran locally, rules in docs/TESTS.md).
 # Browser tests run in parallel jobs: one build job shares dist/ (artifact), the light specs are split into
 # shards, the heavy specs (high graphics level, showcase) form their own shards, a final job merges the
 # reports. Organisation: docs/TESTS.md.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   workflow_dispatch:
+  # Full browser suite on main every night: catches what a skipped pull request let through
+  schedule:
+    - cron: '0 3 * * *'
 
 # A new push cancels the run of the previous one on the same pull request
 concurrency:
@@ -29,9 +34,37 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # Decide whether the browser tests run: always on "Run workflow" and at night, for a ready pull request unless
+  # it only touches documentation or Vitest tests or carries the label "skip-e2e"
+  e2e-plan:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          SKIP_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'skip-e2e') }}
+        run: |
+          run=true; why='full suite'
+          if [ "$EVENT" = pull_request ]; then
+            # the checkout is the merge commit: its first parent is the base branch
+            other=$(git diff --name-only HEAD^1 HEAD | grep -Ev '^(README\.md|CLAUDE\.md|docs/[^/]+\.md|tests/.*|\.claude/.*)$' || true)
+            if [ "$SKIP_LABEL" = true ]; then run=false; why='label skip-e2e'
+            elif [ -z "$other" ]; then run=false; why='only documentation or Vitest tests changed'
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "Browser tests: $run ($why)" | tee -a "$GITHUB_STEP_SUMMARY"
+
   # Build once for all browser test shards (parallel to the unit job, so the shards do not wait for Vitest)
   build:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    needs: e2e-plan
+    if: needs.e2e-plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
