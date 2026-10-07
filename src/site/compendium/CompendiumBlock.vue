@@ -3,16 +3,18 @@
   <dl v-else-if="block.type === 'facts'" class="w-facts" v-html="html"></dl>
   <div v-else-if="block.type === 'table'" class="tbl-wrap" tabindex="0" role="region" :aria-label="block.caption || context || null" v-html="html"></div>
   <MapPreview v-else-if="block.type === 'mapPreview'" />
+  <AiStates v-else-if="block.type === 'aiStates'" />
 </template>
 
 <script>
 import MapPreview from './MapPreview.vue';
+import AiStates from './AiStates.vue';
 import { renderMarkdown } from '../markdown.js';
 import { tableHtml, factsHtml } from './render.js';
 
 export default {
   name: 'CompendiumBlock',
-  components: { MapPreview },
+  components: { MapPreview, AiStates },
   props: {
     block: { type: Object, required: true },
     /** Name functions of the language (generate.js namesFor) */

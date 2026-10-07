@@ -118,6 +118,9 @@ Gebäudestufe) bekommen eine eigene Spalte; ihren Anzeigenamen trägt man in `KE
 - Neuer Bereich: Funktion `xyzSection(lang, names, f)` in `generate.js` schreiben und in `SECTIONS` eintragen;
   Titel `sec.xyz` und Einleitung in `texts.js` (DE und EN).
 - Bausteine: `{ type: 'table', id, caption, cols, rows }`, `{ type: 'facts', items }`, `{ type: 'md', text }`.
+- „Computergegner“ erklärt zusätzlich das Verhalten der KI für Spielende (Bauen, Angriff, Verteidigung, Gegenmittel): Texte in
+  `aiGuide.js` (DE/EN, Platzhalter aus `DIFFICULTY`), Zustandsdiagramm `AiStates.vue` (Baustein `{ type: 'aiStates' }`).
+  Feste Schwellen aus `AiPlayer.js` (22 Kacheln, 35 %, Sammelpunkt 8 Kacheln …) stehen dort im Text – bei Änderungen nachziehen.
   Zellen: Text, `{ t, href, icon, cls }`, `{ cost }` (Rohstoffe mit Symbolen), `{ list }`.
 - Anker: Bereich `#buildings`, Gebäude `#b-<typ>`, Gattung `#u-<linie>`, Einheit `#unit-<id>`, Held `#h-<id>`,
   Technologie `#t-<id>`, Rohstoff `#r-<id>`, Beruf `#p-<id>` – Tabellenzeilen mit Anker werden beim Anspringen markiert.

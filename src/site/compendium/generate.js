@@ -6,6 +6,7 @@
 //   Section { id, title, icon, intro (Markdown), blocks: Block[], entries: Entry[] }
 //   Entry   { id, title, icon, sub, blocks: Block[] }              – subpage with anchor (#b-farm, #u-sword …)
 //   Block   { type: 'table', id?, caption?, cols: Col[], rows: Row[] } | { type: 'md', text } | { type: 'facts', items: [label, Cell][] }
+//           | { type: 'mapPreview' | 'aiStates' }   (figures, CompendiumBlock.vue)
 //   Col     { label, num? }   Row { id?, cells: Cell[] }
 //   Cell    string | number | { t, href?, icon?, cls? } | { cost } | { list: Cell[] }
 
@@ -33,6 +34,7 @@ import { TileMap } from '../../sim/map.js';
 import { levelSite, padPreview } from '../../sim/systems/terrain.js';
 import { t, has } from '../../i18n/index.js';
 import { LABELS, KEYS, INTROS } from './texts.js';
+import { AI_GUIDE, AI_GUIDE_ENTRIES, AI_GUIDE_FIGURES } from './aiGuide.js';
 
 // ---------- Names and formats ----------
 
@@ -530,7 +532,28 @@ function aiSection(lang, names, f) {
   };
   const research = { type: 'md', text: `**${f.L('ai.research')}:** ${AI_RESEARCH.map((id) => `[${names.tech(id)}](#${anchor.tech(id)})`).join(' → ')}\n\n`
     + `**${f.L('ai.buildingResearch')}:** ${AI_BUILDING_RESEARCH.filter((id) => BUILDING_TECHS[id]).map((id) => `[${names.tech(id)}](#${anchor.tech(id)})`).join(' → ')}` };
-  return { id: 'ai', icon: 'attack', blocks: [table, plan, research], entries: [] };
+  const per = (fn) => Object.fromEntries(diffs.map((d) => [d, fn(DIFFICULTY[d])]));
+  const cap = (s) => s[0].toUpperCase() + s.slice(1);
+  const vars = {};
+  for (const [name, fn] of Object.entries({
+    think: (c) => f.ticks(c.think), sites: (c) => c.maxSites, share: (c) => c.militaryShare,
+    size: (c) => c.attackSize, first: (c) => f.L('u.min', { n: f.n(c.firstAttack / 600) }),
+  })) for (const [d, v] of Object.entries(per(fn))) vars[`${name}${cap(d)}`] = v;
+  vars.bonusGold = DIFFICULTY.hard.bonusGold;
+  return { id: 'ai', icon: 'attack', blocks: [table, plan, research], entries: aiGuideEntries(lang, vars), vars };
+}
+
+/**
+ * Player guide to the computer opponents (texts in aiGuide.js), placeholders filled with `vars`.
+ * @returns {{ id: string, title: string, blocks: object[] }[]}
+ */
+function aiGuideEntries(lang, vars) {
+  return AI_GUIDE_ENTRIES.map((id) => {
+    const e = AI_GUIDE[lang]?.[id] ?? AI_GUIDE.de[id];
+    const blocks = [{ type: 'md', text: fill(e.text, vars) }];
+    if (AI_GUIDE_FIGURES[id]) blocks.push({ type: AI_GUIDE_FIGURES[id] });
+    return { id, title: e.title, blocks };
+  });
 }
 
 function mapgenSection(lang, names, f) {
