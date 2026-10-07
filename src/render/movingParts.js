@@ -14,15 +14,18 @@ import * as THREE from 'three';
  * @property {number[]} span [from, to] along the axis, measured from the pivot
  * @property {number} speed radians per second (sign = direction)
  * @property {number[][]} [exclude] boxes [minX, minY, minZ, maxX, maxY, maxZ] that stay with the building
+ * @property {number[]} [half] direction across the axis: only the half on this side is kept and copied, turned by 180°,
+ *   onto the other side (for a rotor whose one half Meshy got wrong)
  * @property {number} [bridge] triangles whose corners lie on both sides of the cut and whose longest edge is longer
  *   than this are dropped (Meshy slivers that join e.g. a sail to the tower; default 0.08)
  */
 
 /** @type {Record<string, MovingPart[]>} model name (without folder and LOD suffix) → parts */
 export const MOVING_PARTS = {
-  // wind wheel: two wheels on one axle across the tower top (without stone top, flag pole and flag)
+  // wind wheel: two wheels on one axle across the tower top (without stone top, flag pole and flag); their lower half
+  // is flattened and frayed in the model, so the upper half is used twice
   windwheel: [{
-    pivot: [0, 0.445, 0.044], axis: [1, 0, 0], radius: 0.31, span: [-0.33, 0.33], speed: 1.5,
+    pivot: [0, 0.455, 0.028], axis: [1, 0, 0], radius: 0.31, span: [-0.33, 0.33], speed: 1.5, half: [0, 1, 0],
     exclude: [[-0.13, -1, -0.16, 0.13, 0.335, 0.2], [-0.09, 0.55, -0.06, -0.01, 1, 0.04], [-0.12, 0.74, -0.4, 0.05, 1, 0.03]],
   }],
   // weather tower: weathercock turns slowly, the cup anemometer below it fast
@@ -132,6 +135,44 @@ export function splitGeometry(geo, parts) {
   return { rest: out[0]?.g ?? new THREE.BufferGeometry(), parts: out.slice(1).map((o) => o?.g ?? null) };
 }
 
+/**
+ * Keeps the triangles on the `half` side of the axis (centre test) and adds a copy of them turned by 180° around it.
+ * Geometry relative to the pivot, non-indexed with float attributes (output of splitGeometry).
+ * @param {THREE.BufferGeometry} geo @param {number[]} axis @param {number[]} half
+ */
+export function doubleHalf(geo, axis, half) {
+  const pos = geo.attributes.position, h = new THREE.Vector3().fromArray(half);
+  const keep = [];
+  for (let t = 0; t < pos.count / 3; t++) {
+    v.set(0, 0, 0);
+    for (let k = 0; k < 3; k++) v.x += pos.getX(t * 3 + k), v.y += pos.getY(t * 3 + k), v.z += pos.getZ(t * 3 + k);
+    if (v.dot(h) >= 0) keep.push(t);
+  }
+  const turn = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3().fromArray(axis).normalize(), Math.PI);
+  const out = new THREE.BufferGeometry();
+  for (const [name, attr] of Object.entries(geo.attributes)) {
+    const n = attr.itemSize, f = new Float32Array(keep.length * 2 * 3 * n);
+    keep.forEach((t, j) => {
+      f.set(attr.array.subarray(t * 3 * n, (t + 1) * 3 * n), j * 3 * n);
+      f.set(attr.array.subarray(t * 3 * n, (t + 1) * 3 * n), (keep.length + j) * 3 * n);
+    });
+    const a = new THREE.BufferAttribute(f, n);
+    out.setAttribute(name, a);
+  }
+  // turn the copy: positions and directions (normal, tangent)
+  for (const name of ['position', 'normal', 'tangent']) {
+    const a = out.attributes[name];
+    if (!a) continue;
+    for (let i = keep.length * 3; i < a.count; i++) {
+      v.set(a.getX(i), a.getY(i), a.getZ(i));
+      if (name === 'position') v.applyMatrix4(turn); else v.transformDirection(turn);
+      a.setXYZ(i, v.x, v.y, v.z);
+    }
+  }
+  out.computeBoundingSphere();
+  return out;
+}
+
 /** Copy with float attributes (meshopt quantises; transforming normalised ints would clip values outside [-1, 1]). */
 function floatGeometry(src) {
   const g = new THREE.BufferGeometry();
@@ -173,6 +214,7 @@ export function splitMovingParts(name, scene) {
     cut.forEach((g, i) => {
       if (!g) return;
       g.translate(-parts[i].pivot[0], -parts[i].pivot[1], -parts[i].pivot[2]);
+      if (parts[i].half) g = doubleHalf(g, parts[i].axis, parts[i].half);
       const pm = new THREE.Mesh(g, m.material);
       pm.name = m.name; // detail levels take the material of the original by mesh name
       pm.castShadow = m.castShadow; pm.receiveShadow = m.receiveShadow;

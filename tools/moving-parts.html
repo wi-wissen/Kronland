@@ -3,7 +3,7 @@
 <body><div id="i"></div><script type="module">
 // Checks the cut-out moving parts of a building model (src/render/movingParts.js). For scripts/asset-gen/moving-parts.mjs.
 //   ?f=/models/buildings/windwheel.glb  &p=<JSON array of parts, overrides MOVING_PARTS>  &turn=0.6 (radians)
-//   &c=x,y,z (centre of the views) &zoom=2 &az=0.67 (perspective view angle around Y)
+//   &c=x,y,z (centre of the views) &zoom=2 &az=0.67 (perspective view angle around Y) &tint=0 (original colours)
 // Views: front (from +Z), side (from +X), top (from +Y) with a grid in model units (labels every 0.1), and a
 // perspective view with the parts turned. The part is tinted green.
 import * as THREE from 'three';
@@ -31,7 +31,7 @@ let tris = 0;
 for (const sp of spinners) sp.traverse((m) => {
   if (!m.isMesh) return;
   tris += m.geometry.attributes.position.count / 3;
-  m.material = m.material.clone(); m.material.color = new THREE.Color(0.35, 1, 0.45);
+  if (q.get('tint') !== '0') m.material = m.material.clone(), m.material.color = new THREE.Color(0.35, 1, 0.45);
 });
 s.add(o);
 // &show=part or &show=rest: only that side of the cut
