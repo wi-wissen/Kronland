@@ -1,5 +1,6 @@
 <template>
-  <!-- Command help: game API (English names) with explanations in the UI language, Python basics and – once the
+  <!-- Command help of the world editor (mission scripts; the game's code panel links to the website reference
+       instead): game API (English names) with explanations in the UI language, Python basics and – once the
        docs are loaded (docsLoader.js) – the Python functions and methods. Tapping a signature opens the doc card
        (commandDocs.js), "+" inserts an example into your own program. -->
   <div class="api-help" data-testid="api-help">

@@ -1,6 +1,6 @@
 // Layout of the code panel: split screen or sheet, width limits, stored settings – src/ui/script/splitLayout.js.
 import { describe, it, expect } from 'vitest';
-import { layoutMode, clampWidth, panelWidth, fracFromPointer, loadSplit, saveSplit, SPLIT_KEY, SPLIT_DEFAULT, PANEL_MIN, GAME_MIN, STRIP_W } from '../../src/ui/script/splitLayout.js';
+import { layoutMode, clampWidth, panelWidth, widthFromPointer, guideOffset, loadSplit, saveSplit, SPLIT_KEY, SPLIT_DEFAULT, PANEL_MIN, GAME_MIN, STRIP_W } from '../../src/ui/script/splitLayout.js';
 
 const memory = (init = {}) => {
   const m = new Map(Object.entries(init));
@@ -34,10 +34,17 @@ describe('clampWidth', () => {
     expect(panelWidth({ frac: 0.5, collapsed: true }, 1440)).toBe(STRIP_W);
   });
 
-  it('share after dragging the divider', () => {
-    expect(fracFromPointer(720, 1440)).toBeCloseTo(0.5);
-    expect(fracFromPointer(10, 1440)).toBeCloseTo((1440 - GAME_MIN) / 1440);
-    expect(fracFromPointer(1430, 1440)).toBeCloseTo(PANEL_MIN / 1440);
+  it('width after dragging the divider, within limits', () => {
+    expect(widthFromPointer(720, 1440)).toBe(720);
+    expect(widthFromPointer(800.6, 1440)).toBe(639);
+    expect(widthFromPointer(10, 1440)).toBe(1440 - GAME_MIN);
+    expect(widthFromPointer(1430, 1440)).toBe(PANEL_MIN);
+  });
+
+  it('guide line offset from the current edge while dragging', () => {
+    expect(guideOffset(600, 800)).toBe(-200); // wider: line moves left
+    expect(guideOffset(600, 400)).toBe(200);
+    expect(guideOffset(600, 600)).toBe(0);
   });
 });
 
