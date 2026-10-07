@@ -219,7 +219,7 @@ Stufe tiefer), Rücktaste löscht eine Einrückstufe. Klick auf eine Zeilennumme
   verschieben die Linie in 32-px-Schritten, die Breite folgt 250 ms nach dem letzten Tastendruck. › im Kopf
   klappt das Programm zu einer schmalen Leiste „‹ Programm“ ein. Breite und Zustand merkt sich der Browser (`kronland-code-split`). Das Spiel wird wirklich
   schmaler: `.game` bekommt rechts die Panelbreite und `contain: layout`, damit Leiste, Minimap und Meldungen
-  im Spielbereich bleiben; Canvas, Kamera-Seitenverhältnis und Randscrollen folgen. Die HUD-Stufen
+  im Spielbereich bleiben; Canvas, Kamera-Seitenverhältnis und Randscrollen folgen (Ziehen der Trennlinie scrollt die Karte nicht). Die HUD-Stufen
   (`compact`, `mid`, `narrow`) richten sich nach der Breite des Spielbereichs. Werkzeugleiste: Ausführen,
   Schritt, Über, Heraus, Stopp | Speichern, Öffnen | Raster, **Referenz**; darunter immer der Code (Abschnitte,
   Fehlerkasten, Variablen) und unten die **Ausgabe** – ohne Reiter. **Referenz** (Buch) öffnet die
