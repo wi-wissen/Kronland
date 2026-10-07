@@ -41,6 +41,7 @@ node scripts/art/finish.mjs menu           # Menüsymbole (Sonderkarten, Program
 | `menu` | `public/icons/mode-special.webp` (Sonderkarten), `mode-adventure.webp` (Programmier-Abenteuer), 128 px, Alpha | `IMAGE_ICONS`; Startmenü, Spielstände (freies Spiel ohne Vorschaubild) |
 | `herald` | `public/portraits/sp-herald.webp` (256 px, Cremegrund `#f1ece4`) | `SPEAKER_PORTRAITS` |
 | `title`, `loading` | `public/art/title.webp` (2560 px), `loading.webp` (1920 px), je < 400 KB | `src/ui/art.js` → `.backdrop` |
+| `title-loop` | `public/art/title-loop.av1.mp4`, `title-loop.h264.mp4` (Loop, 1920×1080, je < 1,5 MB) | `ART_LOOP` → `MenuBackdrop.vue` |
 
 - **Symbole:** drei Gegenstände nebeneinander auf Weiß, Stilvorlage sind zwei Streifen aus `sheet.webp` und ein
   Figurenbogen. `finish.mjs` wählt je Symbol Rohbild und Drittel (`finish`), stellt frei wie `slice.mjs`
@@ -58,6 +59,42 @@ node scripts/art/finish.mjs menu           # Menüsymbole (Sonderkarten, Program
 - **Kulissen:** Burg auf dem Hügel in der Bildmitte (bleibt beim hochkant zugeschnittenen Handy sichtbar), ruhiger
   Himmel oben hinter dem Titel, ruhige Ränder. Der Ladebildschirm hat ein helleres, ruhigeres Morgenbild.
   Im Spiel liegt ein abdunkelnder Verlauf darüber; lädt das Bild nicht, bleiben die CSS-Verläufe.
+
+### Bewegte Menükulisse
+
+In den Menüs (Start, Kampagne, Sonderkarten, Abenteuer) läuft über dem Titelbild ein stummer, nahtloser Loop:
+Mühle, Wimpel, Rauch, Wolken, Gras. `src/ui/MenuBackdrop.vue` liegt als Geschwister vor dem Menü, das dann nur
+noch abdunkelt (`.menu-anim ~ .backdrop`); das Standbild liegt unter dem Video und bleibt, bis der Clip wirklich
+läuft (Überblendung 0,8 s). Aus mit der Einstellung „Bewegter Menühintergrund“, mit „Bewegung reduzieren“
+(`prefers-reduced-motion`) und mit „Datensparmodus“ (`navigator.connection.saveData`); verweigert der Browser den
+Autostart (iOS-Stromsparmodus), bleibt das Standbild. Die PWA legt die Videos nicht in den Cache (offline: Standbild).
+
+```bash
+node scripts/art/video.mjs title-loop [--model kwaivgi/kling-v3.0-pro] [--duration 10]  # raw-N.mp4, 2–4 min
+node scripts/art/loop.mjs title-loop raw-N.mp4 [--fade 1] [--compare]   # → public/art/title-loop.{av1,h264}.mp4
+```
+
+- **Erzeugung** (`video.mjs`): Bild-zu-Video über die Video-API von OpenRouter (`/api/v1/videos`, asynchron);
+  das Titelbild (auf 16:9 zugeschnitten) ist erstes **und** letztes Bild, die Kamera steht im Prompt fest.
+- **Schnitt** (`loop.mjs`): Auch mit gleichem Anfangs- und Endbild enden die Modelle nicht genau dort, wo sie
+  anfangen (die Mühlenflügel stehen anders). Die letzte Sekunde wird darum in die erste überblendet; der Loop
+  beginnt bei Sekunde 1 und endet auf dem Bild davor – kein sichtbarer Schnitt.
+- **Format:** MP4 in zwei Fassungen, der Browser nimmt die erste, die er kann: **AV1** (Chrome, Edge, Firefox,
+  Safari mit AV1-Hardware ab iPhone 15 Pro/M3) und **H.264** für alle anderen. Video dekodiert in Hardware und
+  komprimiert über die Zeit; ein animiertes WebP wäre bei gemaltem Bild mit leichter Bewegung ein Vielfaches
+  größer und wird auf der CPU entpackt. Gemessen am Loop (7 s, Ähnlichkeit SSIM zum verlustfreien Zwischenstand):
+
+  | Format | Größe | SSIM |
+  |---|---|---|
+  | AV1 1080p (CRF 46) – ausgeliefert | 972 KB | 0,982 |
+  | H.264 1080p (CRF 27) – ausgeliefert | 1 252 KB | 0,977 |
+  | VP9-WebM 1080p (CRF 40) | 1 056 KB | 0,974 |
+  | animiertes WebP 720p, 15 Bilder/s | 2 128 KB | – |
+
+- **Läufe** (`job.json`, je mit Prompt): Veo 3.1 Fast (8 s, 0,80 $), Kling 3.0 Pro (10 s, 1,12 $), Seedance 2.0
+  (10 s, 3,76 $). Ein ruhiger Prompt bewegt nur Mühle, Wimpel und Rauch; „wuselig“ wurde es erst mit einem
+  Prompt, der kleine Figuren, Karren und Vögel ausdrücklich nennt. Gewählt: Lauf 4 (Veo, Dorfleben). Kling
+  trifft das Endbild am genauesten, bewegt aber wenig.
 
 ### Rubrik „Helden“
 

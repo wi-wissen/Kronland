@@ -430,6 +430,8 @@ export default {
   'set.labels': 'Show labels',
   'set.labelsNote': 'Names below the quick-access buttons. The build menu and commands are always labelled; long-press shows the full explanation.',
   'set.speech': 'Read dialogues aloud',
+  'set.menuMotion': 'Moving menu backdrop',
+  'set.menuMotionNote': 'In the main menu the windmill turns and smoke rises. With the device set to reduce motion or save data, the picture stays still.',
   'set.dialogCamera': 'Camera during dialogues',
   'set.dialogCameraNote': 'When a character speaks, the camera moves in close and back afterwards. Moving it yourself cancels the move.',
   'set.speechNote': 'Missions and adventures speak their dialogues – with their own recording or the browser’s speech output.',

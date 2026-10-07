@@ -177,12 +177,14 @@ export default {
 <style>
 /* Shared background of the menus: painted title image (public/art/title.webp, loading screen loading.webp; addresses
    set by src/ui/art.js as --art-title/--art-loading), above it a darkening gradient for legibility.
-   Below it as a fallback (image still loading or missing) the evening sky over hills made of gradients. */
+   Below it as a fallback (image still loading or missing) the evening sky over hills made of gradients.
+   With the moving title backdrop (MenuBackdrop.vue, sibling before the menu) only the darkening stays here. */
 .backdrop {
   --backdrop-art: var(--art-title, none);
+  --backdrop-shade: linear-gradient(180deg, rgba(14, 10, 6, 0.5) 0%, rgba(14, 10, 6, 0.18) 30%, rgba(14, 10, 6, 0.32) 60%, rgba(14, 10, 6, 0.62) 100%);
   position: fixed; inset: 0; overflow-y: auto; padding: max(1rem, var(--safe-t)) 1rem max(1rem, var(--safe-b));
   background:
-    linear-gradient(180deg, rgba(14, 10, 6, 0.5) 0%, rgba(14, 10, 6, 0.18) 30%, rgba(14, 10, 6, 0.32) 60%, rgba(14, 10, 6, 0.62) 100%),
+    var(--backdrop-shade),
     var(--backdrop-art) center 40% / cover no-repeat,
     radial-gradient(ellipse 60% 40% at 72% 18%, rgba(255, 214, 140, 0.55), transparent 70%),
     radial-gradient(ellipse 120% 60% at 30% 118%, #2f4a2a 0 40%, transparent 41%),
@@ -196,6 +198,7 @@ export default {
 }
 .backdrop > :not(.scrim) { position: relative; z-index: 1; }
 .backdrop.loading { --backdrop-art: var(--art-loading, var(--art-title, none)); }
+.menu-anim ~ .backdrop:not(.loading) { background: var(--backdrop-shade); }
 .sm-wrap { max-width: 60rem; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 1.25rem; }
 .sm-brand { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.125rem; }
 .sm-crown { width: 3.25rem !important; height: 3.25rem !important; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5)); }

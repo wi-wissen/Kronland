@@ -431,6 +431,8 @@ export default {
   'set.labels': 'Beschriftungen anzeigen',
   'set.labelsNote': 'Namen unter den Schnellzugriff-Knöpfen. Baumenü und Befehle sind immer beschriftet; langes Drücken zeigt die volle Erklärung.',
   'set.speech': 'Dialoge vorlesen',
+  'set.menuMotion': 'Bewegter Menühintergrund',
+  'set.menuMotionNote': 'Im Hauptmenü dreht sich die Mühle und Rauch steigt auf. Bei „Bewegung reduzieren“ oder Datensparmodus des Geräts bleibt das Bild still.',
   'set.dialogCamera': 'Kamera bei Dialogen',
   'set.dialogCameraNote': 'Spricht eine Figur, fährt die Kamera nah an sie heran und danach zurück. Selbst bewegen bricht die Fahrt ab.',
   'set.speechNote': 'Missionen und Abenteuer sprechen ihre Dialoge – mit eigener Aufnahme oder der Sprachausgabe des Browsers.',

@@ -258,7 +258,8 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
 - Dateien aus `public/` (Modelle, Ton) nie mit festen Pfaden laden, sondern über `siteUrl()` aus `src/paths.js` –
   das Spiel liegt unter `play/`, die Dateien in der Wurzel. In CSS geht das über Variablen: `src/ui/art.js` setzt
   `--art-title`/`--art-loading` (gemalte Menükulissen `public/art/*.webp`), die `.backdrop` in `StartMenu.vue`
-  über einen abdunkelnden Verlauf legt; die alten Verläufe bleiben als Rückfall darunter.
+  über einen abdunkelnden Verlauf legt; die alten Verläufe bleiben als Rückfall darunter. In den Menüs liegt
+  darunter die bewegte Kulisse `MenuBackdrop.vue` (Videos aus `ART_LOOP`, [SYMBOLE.md](SYMBOLE.md#bewegte-menükulisse)).
 - Spielsysteme im HUD (`src/ui/hud/systems/`): Gebäude-Technologien, Marktplatz, Wetterturm/-kraftwerk,
   Reparatur/Brand. Daten liefert `src/game/buildingUi.js` (nur IDs, Zahlen und `err.*`-Codes, z. B.
   `selection.techs`, `selection.market`, `selection.weather`, `selection.repair`); Hauptleute mit
