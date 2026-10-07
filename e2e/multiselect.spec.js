@@ -46,6 +46,9 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
   const box = page.locator('.selbox');
   await expect(box).toHaveCount(1); // stays in the page (own layer), only shown while dragging
   await expect(box).toBeHidden();
+  // The map cancels the primary mousedown: no native drag/selection gesture (Firefox evaluates it after a few
+  // pixels, right when the box starts)
+  await page.evaluate(() => { window.__md = []; window.addEventListener('mousedown', (e) => window.__md.push(e.defaultPrevented)); });
   await page.mouse.move(x0, y0);
   await page.mouse.down();
   // The box follows the pointer from the first moves on (after the drag threshold of 8 px)
@@ -62,6 +65,7 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
   await page.mouse.up();
   await expect(box).toBeHidden();
   await expect.poll(selected).toEqual([...ids].sort((a, b) => a - b));
+  expect(await page.evaluate(() => window.__md)).toEqual([true]);
 
   // Click: only one; Ctrl click adds, Shift click adds, Ctrl click again removes
   await page.mouse.click(pts[0].x, pts[0].y);
@@ -81,5 +85,11 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
   await page.mouse.click(pts[1].x, pts[1].y);
   await page.keyboard.up('Control');
   await expect.poll(selected).toEqual([ids[0], ids[2]].sort((a, b) => a - b));
+
+  // A click on the map still takes the focus out of a field (the mousedown default is cancelled)
+  await page.evaluate(() => { const i = document.createElement('input'); i.id = 'focus-probe'; document.body.appendChild(i); i.focus(); });
+  await expect(page.locator('#focus-probe')).toBeFocused();
+  await page.mouse.click(x1 + 120, y1 + 60);
+  await expect(page.locator('#focus-probe')).not.toBeFocused();
   expect(errors).toEqual([]);
 });
