@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { playUrl } from './paths.js';
+import { quick } from './quick.js';
 
 // Building on slopes: preview yellow (gets levelled) or red (too steep), after placing the terrain is flat.
-const SHOTS = process.env.SHOT_DIR ?? '/tmp/claude-0/-home-claude/507a1adc-dbb4-5a8a-b008-6e4014dac886/scratchpad/shots2';
+const SHOTS = process.env.SHOT_DIR ?? 'test-results';
 
 async function boot(page) {
   const errors = [];
@@ -41,8 +42,9 @@ async function findSite(page, steep) {
   }, steep);
 }
 
-async function openResidence(page, mobile) {
-  await page.getByRole('button', { name: 'Alle' }).click();
+async function openResidence(page) {
+  // Quick access "Alle": on the phone in the map panel (opens it if necessary)
+  await quick(page, 'all');
   await page.getByTestId('build-residence').click();
 }
 
@@ -63,7 +65,7 @@ test('Building on slopes: yellow preview, afterwards the ground is flat', async 
   expect(before.simSlope).toBeGreaterThan(0);
   if (!mobile) await page.screenshot({ path: `${SHOTS}/slope-1-before.png` });
 
-  await openResidence(page, mobile);
+  await openResidence(page);
   await page.waitForTimeout(200);
   await hoverAt(page, mobile, site);
   // Preview: spot fits, terrain gets levelled (yellow)
@@ -95,7 +97,7 @@ test('Steep slope: red preview with notice "zu steil"', async ({ page }, info) =
   await boot(page);
   const site = await findSite(page, true);
   test.skip(!site, 'no steep slope in the explored region');
-  await openResidence(page, mobile);
+  await openResidence(page);
   await page.waitForTimeout(200);
   await hoverAt(page, mobile, site);
   await expect(page.getByTestId('place-state')).toContainText('zu steil');

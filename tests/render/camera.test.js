@@ -2,7 +2,7 @@
 // graphics level in a running game (QA finding E) – pure logic without WebGL.
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { CameraRig, MIN_DIST, MAX_DIST, NEAR_PITCH, viewPitch, grabRange } from '../../src/render/CameraRig.js';
+import { CameraRig, MIN_DIST, MAX_DIST, NEAR_PITCH, viewPitch, grabRange, buildingTop, buildingEdge, BUILDING_EDGE_MAX } from '../../src/render/CameraRig.js';
 import { Environment } from '../../src/render/environment.js';
 import { QUALITY_PRESETS } from '../../src/render/quality.js';
 import { CharacterSystem } from '../../src/render/characters.js';
@@ -306,12 +306,7 @@ describe('CameraRig: direct like a map app (no lag, grabbing, zoom to pointer)',
 describe('CameraRig: never into buildings', () => {
   // house 5×5 tiles, 6 high, with soft edge like Renderer.buildingTopAt
   const house = { x: 60, z: 60, w: 5, h: 5, top: 6 };
-  const obstacleAt = (x, z) => {
-    const edge = 0.8 + 0.35 * house.top;
-    const dx = Math.max(house.x - x, 0, x - (house.x + house.w)), dz = Math.max(house.z - z, 0, z - (house.z + house.h));
-    const s = Math.min(1, Math.hypot(dx, dz) / edge);
-    return s >= 1 ? -Infinity : house.top * (1 - s * s * (3 - 2 * s));
-  };
+  const obstacleAt = (x, z) => buildingTop({ x: house.x, y: house.z, w: house.w, h: house.h }, 0, house.top, x, z);
   const inside = (c) => c.x > house.x && c.x < house.x + house.w && c.z > house.z && c.z < house.z + house.h && c.y < house.top + 0.2;
 
   it('zooming in on the house centre: camera rises steadily over the roof instead of into it', () => {
@@ -342,6 +337,28 @@ describe('CameraRig: never into buildings', () => {
       y = cam.position.y;
     }
     expect(worst).toBeLessThan(0.8);
+  });
+});
+
+describe('CameraRig: tall buildings', () => {
+  // castle 5×5 tiles with an 11-tile tower (like the headquarters model)
+  const castle = { x: 14, y: 14, w: 5, h: 5 };
+  const obstacleAt = (x, z) => buildingTop(castle, 0, 11, x, z);
+
+  it('the soft edge is limited: 3 tiles in front of the wall nothing lifts the camera', () => {
+    expect(buildingEdge(2)).toBeCloseTo(1.5);
+    expect(buildingEdge(11)).toBe(BUILDING_EDGE_MAX);
+    expect(obstacleAt(16.5, 19 + BUILDING_EDGE_MAX)).toBe(-Infinity);
+    expect(obstacleAt(16.5, 19)).toBe(11);
+  });
+
+  it('close zoom in front of the castle keeps the flat view', () => {
+    const { cam, rig } = rigFor(W, H);
+    rig.groundAt = () => 0; rig.obstacleAt = obstacleAt;
+    // look-at point 1.6 tiles in front of the wall, camera behind it (away from the castle)
+    rig.yaw = 0.7; rig.dist = MIN_DIST; rig.lookAt(17.6, 20.6); rig.update(0);
+    const dir = cam.getWorldDirection(new THREE.Vector3());
+    expect(Math.asin(-dir.y)).toBeLessThan(NEAR_PITCH + 0.05);
   });
 });
 
