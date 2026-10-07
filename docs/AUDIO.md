@@ -474,6 +474,8 @@ noch zu hören, mehrere klangen wie ein Wald voller Äxte.
   Kämpfe im Bild bringen nur Schlachtlärm, keine Kampfmusik.
 - **Wieder an**: Bis `rearm` = 120 s nach dem Ende des Kampfthemas reicht schon Intensität ≥ 0,15 (`reenter`)
   bei eigener Beteiligung – flammt der Kampf wieder auf, weicht die gerade begonnene Friedensmusik sofort.
+- **Nachsehen**: Entwicklermodus → „Statistik“, Zeile „Kampfmusik“ (Modus, Intensität/Schwelle, Beteiligung,
+  gewünschtes → spielendes Thema).
 - **Kampf aus**: `grace` = 16 s ohne Beteiligung des Spielers (frühestens `minHold` = 9 s nach Beginn) – oder
   die Kamera ist weg: Intensität ≤ 0,12 (`exit`) seit `hold` = 12 s. Danach klingt die restliche Hitze mit
   2,5 s statt 4 s Halbwertszeit ab (`releaseHalfLife`), der Schlachtlärm verstummt mit.

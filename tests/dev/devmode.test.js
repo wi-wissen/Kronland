@@ -350,6 +350,7 @@ describe('Options, stats, wireframe', () => {
       heap: { used: 52.3, limit: 4096 }, entities: { tree: 900, unit: 6, building: 3 }, chars: { drawn: 5, culled: 2 },
       lod: { building: [2, 1], tree: [100, 50, 20] }, width: 1280, height: 720, dpr: 1.5, tier: 'high', gpu: 'TestGPU',
       camera: { x: 10, z: 20, yaw: Math.PI / 2, pitch: 0.95, dist: 28 },
+      music: { mode: 'build', intensity: 0.3, need: 0.45, engaged: true, want: 'build', playing: 'build' },
     };
     const rows = statsRows(s, (k) => t(k, null, 'de'));
     expect(rows.length).toBeGreaterThan(14);
@@ -361,6 +362,7 @@ describe('Options, stats, wireframe', () => {
     expect(text).toContain('909: unit 6, building 3, tree 900');
     expect(text).toContain('TestGPU');
     expect(text).toContain('yaw 90°');
+    expect(text).toContain('build · 0.30/0.45 · Spieler kämpft · build → build');
     expect(fmtNum(2_500_000)).toBe('2.50 M');
     expect(fmtNum(950)).toBe('950');
   });

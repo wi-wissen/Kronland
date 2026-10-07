@@ -1,7 +1,9 @@
 name: Tests
 
+# Pull requests and main; a push to a PR branch runs only once (via pull_request)
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:

@@ -535,6 +535,7 @@ export class DevTools {
       camera: { x: r.rig.target.x, z: r.rig.target.z, yaw: r.rig.yaw, pitch: r.rig.pitch, dist: r.rig.dist },
       lod: structuredClone(r.lodCounter.groups),
       chars: r.chars.info(),
+      music: eng.audio?.musicInfo?.() ?? null,
     };
   }
 

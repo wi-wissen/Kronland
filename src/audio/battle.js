@@ -49,6 +49,9 @@ export class BattleMeter {
   /** The player fights (own unit hits or is hit). @param {number} now seconds */
   combat(now) { this.lastCombat = now; }
 
+  /** Intensity needed for the combat theme (lower shortly after a fight). */
+  need(now) { return now - this.left < this.rearm ? this.reenter : this.enter; }
+
   /** Is the player currently fighting (hit within the grace period)? */
   engaged(now) { return now - this.lastCombat < this.grace; }
 
@@ -84,7 +87,7 @@ export class BattleMeter {
     const engaged = this.engaged(now);
     if (intensity >= this.enter) this.hot = now;
     if (this.mode === 'build') {
-      const need = now - this.left < this.rearm ? this.reenter : this.enter;
+      const need = this.need(now);
       if (intensity >= need && engaged) { this.mode = 'battle'; this.since = now; }
     } else if (now - this.since >= this.minHold && (!engaged || (intensity <= this.exit && now - this.hot >= this.hold))) {
       this.mode = 'build';

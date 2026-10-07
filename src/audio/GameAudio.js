@@ -284,6 +284,12 @@ export class GameAudio {
     for (const h of due) this.strike(h.snd, h.x, h.z, h.snd === 'hammer' ? 0.6 : 0.7);
   }
 
+  /** Combat music state for the developer mode (stats): why the combat theme plays or not. */
+  musicInfo() {
+    const now = this.now(), m = this.audio.music;
+    return { mode: this.battle.mode, intensity: this.intensity ?? 0, need: this.battle.need(now), engaged: this.battle.engaged(now), want: m.want, playing: m.track?.theme ?? null };
+  }
+
   /** Per frame: listener, combat intensity, music theme, ambience. */
   frame(dt) {
     const rig = this.engine.renderer?.rig;
@@ -300,6 +306,7 @@ export class GameAudio {
     if (this.sceneTimer > 0) return;
     this.sceneTimer = 0.25;
     const intensity = this.battle.intensity(l);
+    this.intensity = intensity;
     if (!this.ended) {
       const mode = this.battle.theme(intensity, now);
       this.audio.music.setTheme(musicTheme(mode, this.audio.ambient.weather));
