@@ -65,8 +65,10 @@ E2E_GROUP=heavy E2E_PORT=4310 npx playwright test --workers=1     # nur die schw
   Autosave abschalten, wenn Spielstand-Listen gezählt werden.
 - Kein `quality=high`, wenn nicht Modelle oder Effekte dieser Stufe geprüft werden; kleines Fenster
   (`page.setViewportSize`), wenn nur der Bildmittelpunkt oder der Zustand zählt.
-- Bildschirmpunkte (Klick, Auswahlrahmen) gelten nur, solange die Kamera steht: vorher die Maus auf die Karte setzen
-  (`page.mouse.move(Mitte)`). Playwrights Maus startet bei (0, 0) im Randscroll-Streifen; ein vom Browser
-  erzeugtes `pointermove` dort schiebt die Kamera nach links oben (`e2e/multiselect.spec.js`).
+- `test` und `expect` immer aus `e2e/fixtures.js` importieren, nicht aus `@playwright/test`: dessen `page` parkt die
+  Maus vor jedem Test in der Fenstermitte (Desktop; Touch-Geräte bleiben unberührt). Playwrights Maus startet bei
+  (0, 0) im Randscroll-Streifen; ein vom Browser erzeugtes `pointermove` dort schiebt die Kamera nach links oben und
+  verschiebt Bildschirmpunkte (Klick, Auswahlrahmen). Die Position übersteht Navigationen; zusätzliche Seiten
+  (`context.newPage()`) bekommen sie nicht.
 - Auf Zustände warten (`waitForFunction`, `expect.poll`), nicht auf feste Zeiten; Befehle, die erst im nächsten Tick
   wirken (Debugger-Schritte), einzeln abwarten.

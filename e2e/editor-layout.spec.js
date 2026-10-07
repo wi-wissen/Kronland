@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Programming window: split screen on the desktop (divider, collapse, hover docs, Ctrl+click → reference),

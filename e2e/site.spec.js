@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { BUILDINGS } from '../src/sim/data/buildings.js';
 import de from '../src/i18n/de.js';
 import en from '../src/i18n/en.js';

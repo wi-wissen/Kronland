@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { API_DOC } from '../src/sim/scripting/api.js';

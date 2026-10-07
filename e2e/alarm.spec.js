@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Attack alarm: notice, red pulse on the minimap, on mobile the map button pulses; the bell runs without errors.

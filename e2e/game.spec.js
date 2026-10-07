@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 import { UNITS } from '../src/sim/data/units.js';
 import { quick } from './quick.js';

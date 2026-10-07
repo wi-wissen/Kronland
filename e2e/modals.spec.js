@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Modal dialogs (save games, settings, game menu) lie over the whole screen as an overlay – not below the start

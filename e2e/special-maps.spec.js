@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Special maps: menu on the start screen and the stress test "Gewimmel" (many figures, two battles).

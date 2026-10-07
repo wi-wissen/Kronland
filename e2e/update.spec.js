@@ -2,7 +2,7 @@
 // installed service worker, then the server switches to build B (built here with KRONLAND_BUILD=b). A normal reload
 // must show B at once; an open tab in the menu reloads itself; a running game gets a notice instead
 // (src/pwa.js, scripts/sw-pages.js, docs/PERFORMANCE.md#updates-nach-einem-deploy). Desktop only (one build B).
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
