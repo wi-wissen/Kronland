@@ -76,7 +76,7 @@ test('In game: build music, ambience, spatial sounds, events', async ({ page }) 
 
   // Game keeps running for a few seconds with sound, without errors
   await page.evaluate(() => window.__kronland.setSpeed(4));
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(4000);
   expect(errors).toEqual([]);
 });
 
@@ -307,7 +307,7 @@ test('Pause: music, ambience and game sounds fade out and continue on resume, UI
   await page.waitForFunction(() => window.__kronlandAudio.ctx?.state === 'running' && !!window.__kronlandAudio.music.track, null, { timeout: 30_000 });
   const pos = () => page.evaluate(() => {
     const a = window.__kronlandAudio, t = a.music.track;
-    return t?.kind === 'file' && t.src ? a.ctx.currentTime - t.startsAt : null;
+    return { at: a.ctx.currentTime, pos: t?.kind === 'file' && t.src ? a.ctx.currentTime - t.startsAt : null };
   });
   // bundled build music as a file, already playing for a moment
   await page.waitForFunction(() => { const a = window.__kronlandAudio, t = a.music.track; return t?.kind === 'file' && !!t.src && a.ctx.currentTime - t.startsAt > 1; }, null, { timeout: 60_000 });
@@ -322,15 +322,16 @@ test('Pause: music, ambience and game sounds fade out and continue on resume, UI
   const l = await page.evaluate(() => window.__kronlandAudio.listener);
   expect(await page.evaluate(({ x, z }) => window.__kronlandAudio.play('clash', { x, z }), l)).toBe(false);
   expect(await page.evaluate(() => window.__kronlandAudio.play('click'))).toBe(true);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(4000);
 
   // Resume: fade back in, the music file continues at its position (not from the start)
   await page.getByTestId('pause').click();
   await page.waitForFunction(() => !window.__kronlandAudio.held && window.__kronlandAudio.holds.music.gain.value > 0.99, null, { timeout: 5000 });
   const after = await pos();
-  expect(before).toBeGreaterThan(1);
-  expect(after - before).toBeGreaterThan(0);
-  expect(after - before).toBeLessThan(1.5); // continued, not from the start and not run on during the pause
+  // continued, not from the start, and did not run on during the pause (≥ 4 s audio time passed)
+  expect(before.pos).toBeGreaterThan(1);
+  expect(after.pos - before.pos).toBeGreaterThan(0);
+  expect(after.pos - before.pos).toBeLessThan(after.at - before.at - 3);
 
   // Game menu pauses the game as well → audio held; closing it continues
   await page.getByTestId('menu').click();
