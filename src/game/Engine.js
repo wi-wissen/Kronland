@@ -241,7 +241,9 @@ export class Engine {
       hint: this.missionView.hint,
       landmarks: this.missionView.landmarks ?? null,
       revealAll: this.fogLifted(),
-      speed: this.paused ? 0 : this.speed,
+      // paused: figures freeze in their current pose (clip and walking speed stay as in the last tick)
+      paused: this.paused,
+      speed: this.speed,
     }), (f) => f && this.fault('render'));
     if (this.dev) g.run('dev', () => this.dev?.frame(dt));
     if (this.audio) g.run('audio', () => this.audio?.frame(dt));
@@ -1516,6 +1518,8 @@ export class Engine {
       payday: { income: taxIncome(countWorkers(sim, this.player), pl.taxLevel), wages: countLeaders(sim, this.player) * BALANCE.wagePerLeader, last: this.lastPayday ?? null },
       speed: this.speed,
       paused: this.paused,
+      /** paused by the script debugger (breakpoint), not by the player */
+      halted: this.debugHalt,
       selection,
       ...quick,
       buildOptions,

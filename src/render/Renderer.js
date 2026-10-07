@@ -797,7 +797,8 @@ export class Renderer {
    * @param {number} alpha 0…1 between last and current tick
    * @param {number} dt seconds since last frame
    * @param {Map<number,{px:number,py:number}>} prev positions before the last tick
-   * @param {{ selected: Set<number>, ghost: null|{type:string,x:number,y:number,valid:boolean} }} view
+   * @param {{ selected: Set<number>, ghost: null|{type:string,x:number,y:number,valid:boolean}, paused?: boolean, speed?: number }} view
+   *   paused: world animations (figures, fire, water, wind, projectiles) freeze; camera, fog and markers keep running
    */
   frame(alpha, dt, prev, view) {
     if (!this.warmed) {
@@ -812,10 +813,13 @@ export class Renderer {
     }
     const sim = this.sim;
     if (this.natureDirty) { this.natureDirty = false; this.rebuildNature(); }
+    // animation time stands still while paused (the camera keeps using the real dt)
+    const realDt = dt;
+    if (view.paused) dt = 0;
     this.frameDt = dt;
     this.time = (this.time ?? 0) + dt;
     // camera first: LOD levels and visibility check refer to the current frame
-    this.rig.update(dt);
+    this.rig.update(realDt);
     this.camera.updateMatrixWorld();
     cameraFrustum(this.camera, this.frustum);
     this.chars.begin(this.time);
@@ -828,7 +832,7 @@ export class Renderer {
     // fog of war: game end or eliminated player sees everything
     const fog = this.fog;
     if (view.revealAll) fog.revealAll();
-    fog.update(dt);
+    fog.update(realDt);
     const fogOn = fog.active, me = this.viewer;
     const mine = (o) => o !== undefined && o >= 0 && !!sim.players[o] && sim.allied(o, me);
     const talkers = [];
@@ -899,9 +903,10 @@ export class Renderer {
     this.updateEffects(dt);
     this.syncSelection(view.selected);
     this.syncGhost(view.ghost);
-    (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, dt);
-    (this.npcMarks ??= new NpcMarks(this.scene, this.terrain)).update(talkers, dt);
-    this.orderMarks.update(dt, this.rig.dist, this.marks, (x, z) => this.groundY(x, z));
+    (this.hintMarker ??= new HintMarker(this.scene, this.terrain)).update(view.hint, realDt);
+    (this.npcMarks ??= new NpcMarks(this.scene, this.terrain)).update(talkers, realDt);
+    // click confirmation is UI feedback: it runs on while paused, like the camera
+    this.orderMarks.update(realDt, this.rig.dist, this.marks, (x, z) => this.groundY(x, z));
     this.syncLandmarks(view.landmarks, fog, sim.map);
 
     this.syncTerrain();

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { PORTRAITS, IMAGE_ICONS, speakerPortrait } from '../../src/ui/icons/index.js';
 import { SPEAKERS } from '../../src/sim/missions/speakers.js';
-import { fitMap, toTile, groupBuildOptions, missing, softHyphens, selectionIcon, selectionPortrait, MAP_FILL, shortAmount, resBarWidth, topbarMode } from '../../src/ui/hud/hudLayout.js';
+import { fitMap, toTile, groupBuildOptions, missing, softHyphens, selectionIcon, selectionPortrait, MAP_FILL, shortAmount, resBarWidth, topbarMode, pauseBannerVisible } from '../../src/ui/hud/hudLayout.js';
 
 describe('Minimap', () => {
   it('fits the map in the centre and converts pixels back to tiles', () => {
@@ -99,5 +99,21 @@ describe('Resource bar', () => {
     expect(topbarMode({ ...base, widths: Array(6).fill(70), width: 1408 })).toBe('one');
     expect(topbarMode({ ...base, widths: Array(6).fill(95), width: 1408 })).toBe('two');
     expect(topbarMode({ ...base, widths: Array(6).fill(95), width: 900 })).toBe('tight');
+  });
+});
+
+describe('pauseBannerVisible', () => {
+  it('shows only for a pause by the player', () => {
+    expect(pauseBannerVisible({ paused: true })).toBe(true);
+    expect(pauseBannerVisible({ paused: false })).toBe(false);
+    expect(pauseBannerVisible(null)).toBe(false);
+  });
+  it('hides behind game menu, crash, end screens and the script debugger', () => {
+    expect(pauseBannerVisible({ paused: true }, { menuOpen: true })).toBe(false);
+    expect(pauseBannerVisible({ paused: true }, { crash: { area: 'sim' } })).toBe(false);
+    expect(pauseBannerVisible({ paused: true, gameOver: { won: true } })).toBe(false);
+    expect(pauseBannerVisible({ paused: true, mission: { result: 'won' } })).toBe(false);
+    expect(pauseBannerVisible({ paused: true, mission: { result: null } })).toBe(true);
+    expect(pauseBannerVisible({ paused: true, halted: true })).toBe(false);
   });
 });
