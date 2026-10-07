@@ -71,25 +71,28 @@ Autostart (iOS-Stromsparmodus), bleibt das Standbild. Die PWA legt die Videos ni
 
 ```bash
 node scripts/art/video.mjs title-loop [--model kwaivgi/kling-v3.0-pro] [--duration 10]  # raw-N.mp4, 2–4 min
-node scripts/art/loop.mjs title-loop raw-N.mp4 [--fade 1] [--compare]   # → public/art/title-loop.{av1,h264}.mp4
+node scripts/art/loop.mjs title-loop raw-4.mp4 --period 1300,400,200,200   # → public/art/title-loop.{av1,h264}.mp4
 ```
 
 - **Erzeugung** (`video.mjs`): Bild-zu-Video über die Video-API von OpenRouter (`/api/v1/videos`, asynchron);
   das Titelbild (auf 16:9 zugeschnitten) ist erstes **und** letztes Bild, die Kamera steht im Prompt fest.
 - **Schnitt** (`loop.mjs`): Auch mit gleichem Anfangs- und Endbild enden die Modelle nicht genau dort, wo sie
-  anfangen (die Mühlenflügel stehen anders). Die letzte Sekunde wird darum in die erste überblendet; der Loop
-  beginnt bei Sekunde 1 und endet auf dem Bild davor – kein sichtbarer Schnitt.
+  anfangen (die Mühlenflügel stehen anders). Das Ende wird darum in den Anfang überblendet (`--fade`); der Loop
+  beginnt nach der Überblendzeit und endet auf dem Bild davor – kein sichtbarer Schnitt. `--period x,y,w,h` (hier
+  die Mühle) legt das Ende auf das Bild, in dem der Bereich am meisten Bild 0 gleicht: Der Loop zeigt dann
+  **eine volle Umdrehung der Mühle** (184 Bilder = 7,67 s) und die kurze Überblendung (8 Bilder) mischt Flügel
+  in gleicher Stellung statt Geisterflügel.
 - **Format:** MP4 in zwei Fassungen, der Browser nimmt die erste, die er kann: **AV1** (Chrome, Edge, Firefox,
   Safari mit AV1-Hardware ab iPhone 15 Pro/M3) und **H.264** für alle anderen. Video dekodiert in Hardware und
   komprimiert über die Zeit; ein animiertes WebP wäre bei gemaltem Bild mit leichter Bewegung ein Vielfaches
-  größer und wird auf der CPU entpackt. Gemessen am Loop (7 s, Ähnlichkeit SSIM zum verlustfreien Zwischenstand):
+  größer und wird auf der CPU entpackt. Gemessen am Loop (7,67 s, Ähnlichkeit SSIM zum verlustfreien Zwischenstand):
 
   | Format | Größe | SSIM |
   |---|---|---|
-  | AV1 1080p (CRF 46) – ausgeliefert | 972 KB | 0,982 |
-  | H.264 1080p (CRF 27) – ausgeliefert | 1 252 KB | 0,977 |
-  | VP9-WebM 1080p (CRF 40) | 1 056 KB | 0,974 |
-  | animiertes WebP 720p, 15 Bilder/s | 2 128 KB | – |
+  | AV1 1080p (CRF 46) – ausgeliefert | 1 046 KB | 0,983 |
+  | H.264 1080p (CRF 27) – ausgeliefert | 1 302 KB | 0,978 |
+  | VP9-WebM 1080p (CRF 40, 7-s-Fassung) | 1 056 KB | 0,974 |
+  | animiertes WebP 720p, 15 Bilder/s (7-s-Fassung) | 2 128 KB | – |
 
 - **Läufe** (`job.json`, je mit Prompt): Veo 3.1 Fast (8 s, 0,80 $), Kling 3.0 Pro (10 s, 1,12 $), Seedance 2.0
   (10 s, 3,76 $). Ein ruhiger Prompt bewegt nur Mühle, Wimpel und Rauch; „wuselig“ wurde es erst mit einem
