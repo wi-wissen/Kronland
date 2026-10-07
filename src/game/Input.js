@@ -21,6 +21,16 @@ import { edgeScrollDir, nextArmed } from './edgeScroll.js';
 
 const DRAG_PX = 8;
 
+/**
+ * Take the keyboard focus away from a field (code editor, input) as a click on the page would, so the
+ * map shortcuts work again after a click on the map whose mousedown was cancelled.
+ * @param {Document} doc
+ */
+export function releaseFocus(doc) {
+  const el = /** @type {HTMLElement|null} */ (doc.activeElement);
+  if (el && el !== doc.body && typeof el.blur === 'function') el.blur();
+}
+
 export class Input {
   /** @param {import('./Engine.js').Engine} engine @param {HTMLCanvasElement} canvas */
   constructor(engine, canvas) {
@@ -44,8 +54,16 @@ export class Input {
     this.on(window, 'pointercancel', this.up);
     this.on(canvas, 'wheel', this.wheel, { passive: false });
     this.on(canvas, 'contextmenu', (e) => e.preventDefault());
-    // Middle button grabs the map (no automatic scrolling of the browser)
-    this.on(canvas, 'mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
+    // Primary and middle button: no native default action on the map. An uncancelled primary mousedown lets
+    // Firefox track a drag-and-drop/selection gesture that it evaluates after a few pixels – right when the
+    // selection box starts; the middle button would start the browser's auto scrolling. Cancelling the
+    // mousedown also skips the focus change, so the primary button hands the focus back itself.
+    this.on(canvas, 'mousedown', (e) => {
+      if (e.button !== 0 && e.button !== 1) return;
+      e.preventDefault();
+      if (e.button === 0) releaseFocus(document);
+    });
+    this.on(canvas, 'dragstart', (e) => e.preventDefault());
     this.on(window, 'keydown', this.keydown);
     this.on(window, 'keyup', (e) => this.rig.keys.delete(e.key.toLowerCase()));
     this.on(window, 'blur', () => { this.rig.keys.clear(); this.mouse = null; });

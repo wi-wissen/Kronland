@@ -423,6 +423,10 @@ Element mit eigener Compositor-Ebene (`will-change: transform`), das dauerhaft i
 per `transform` und ändert nur die Größe, Ein-/Ausblenden schaltet eine Klasse. Während des Ziehens wird nichts
 gerechnet – welche eigenen Figuren drin liegen (`unitsInBox`, projiziert nur Leibeigene, Hauptleute und Helden), ermittelt
 `Engine.selectBox` erst beim Loslassen. Ein Zug pro Mausbewegung kostet so unter 1 ms.
+Die Karte bricht den `mousedown` der linken (und mittleren) Taste ab: Firefox verfolgt sonst bei jedem Linksklick eine
+eigene Drag-and-Drop-/Markier-Geste (bis zur Zugschwelle mit erzwungenem Layout je Mausbewegung) und wertet sie nach
+wenigen Pixeln aus – genau dann, wenn der Rahmen startet. Weil damit auch der Fokuswechsel entfällt, gibt `releaseFocus`
+den Fokus aus Eingabefeldern (Code-Editor) selbst ab, damit die Tastenkürzel nach einem Klick auf die Karte wieder greifen.
 
 **Doppelklick/Doppeltippen** (bewusste Abweichung vom Vorbild, übliche RTS-Steuerung): Zwei Klicks bzw.
 Tipper binnen 400 ms und 24 px auf eine eigene Figur wählen alle eigenen Figuren derselben Art, deren Fußpunkt
