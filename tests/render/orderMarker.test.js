@@ -3,12 +3,14 @@ import { describe, it, expect } from 'vitest';
 import { OrderMarkers, orderMarkerPose, orderMarkerScale, ORDER_MARKER_TIME, ORDER_MARKER_COLOR } from '../../src/render/orderMarker.js';
 
 describe('orderMarkerPose', () => {
-  it('snaps together, flickers, then fades', () => {
-    expect(orderMarkerPose(0.02).r).toBeGreaterThan(orderMarkerPose(0.3).r);
-    expect(orderMarkerPose(0.3).r).toBeCloseTo(0.4);
-    const alphas = [0.25, 0.3, 0.36, 0.42, 0.48, 0.54].map((a) => orderMarkerPose(a).alpha);
-    expect(Math.max(...alphas) - Math.min(...alphas)).toBeGreaterThan(0.4); // flicker
-    expect(orderMarkerPose(ORDER_MARKER_TIME * 0.99).alpha).toBeLessThan(0.05);
+  it('spreads outwards like a drop and fades evenly, without going back', () => {
+    const ages = [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.44];
+    const poses = ages.map(orderMarkerPose);
+    for (let i = 1; i < poses.length; i++) {
+      expect(poses[i].r).toBeGreaterThan(poses[i - 1].r);
+      expect(poses[i].alpha).toBeLessThan(poses[i - 1].alpha);
+    }
+    expect(poses.at(-1).alpha).toBeLessThan(0.1);
   });
   it('is over after its duration', () => {
     expect(orderMarkerPose(ORDER_MARKER_TIME)).toBeNull();

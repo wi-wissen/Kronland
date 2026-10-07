@@ -1,29 +1,23 @@
-// Click confirmation for walk commands: at the target a ring like the selection ring under the figures snaps
-// together and flickers twice, then fades. Dark instead of the light selection colour, so it reads as "goal", not
-// "selected". Work and attack targets are announced by the cursor instead. Drawn through GroundMarks (one draw call
-// with the selection rings, tilted on slopes).
+// Click confirmation for walk commands: at the target a ring like the selection ring under the figures spreads out
+// once, like a drop falling into water, and fades. Dark instead of the light selection colour, so it reads as "goal",
+// not "selected". Work and attack targets are announced by the cursor instead. Drawn through GroundMarks (one draw
+// call with the selection rings, tilted on slopes).
 
 /** Duration of one marker in seconds. */
-export const ORDER_MARKER_TIME = 0.9;
+export const ORDER_MARKER_TIME = 0.45;
 /** Ring colour: the dark outline brown of the icons and cursors. */
 export const ORDER_MARKER_COLOR = 0x241a10;
 const MAX = 4;
-const SNAP = 0.22;
 
 /**
  * Animation state at a given age (seconds): ring radius (tiles) and opacity; null when it is over.
- * Snaps together from a wider ring, then flickers twice (dimmer, brighter) and fades out.
+ * Grows outwards with an easing out and fades evenly.
  * @param {number} age
  */
 export function orderMarkerPose(age) {
   if (age < 0 || age >= ORDER_MARKER_TIME) return null;
   const t = age / ORDER_MARKER_TIME;
-  const s = Math.min(1, age / SNAP);
-  const r = 0.4 + 0.32 * (1 - s) * (1 - s);
-  let alpha = 0.9 * Math.min(1, age / 0.06);
-  if (age > SNAP) alpha *= Math.floor((age - SNAP) / 0.11) % 2 ? 0.3 : 1;
-  if (t > 0.75) alpha *= 1 - (t - 0.75) / 0.25;
-  return { r, alpha };
+  return { r: 0.15 + 0.5 * (1 - (1 - t) ** 2), alpha: 0.9 * (1 - t) };
 }
 
 /** Size factor by camera distance: when zoomed out the ring stays readable. */
@@ -65,7 +59,7 @@ export class OrderMarkers {
       // slope from the height field over the ring diameter, like the selection rings
       const sx = (groundY(m.x + r, m.z) - groundY(m.x - r, m.z)) / (2 * r);
       const sz = (groundY(m.x, m.z + r) - groundY(m.x, m.z - r)) / (2 * r);
-      marks.ring(m.x, y + 0.05, m.z, r, ORDER_MARKER_COLOR, p.alpha, 0.07 * s, 0.35, sx, sz);
+      marks.ring(m.x, y + 0.05, m.z, r, ORDER_MARKER_COLOR, p.alpha, 0.07 * s, 0, sx, sz);
     }
   }
 }

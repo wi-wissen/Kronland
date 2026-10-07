@@ -60,7 +60,8 @@ node scripts/art/finish.mjs menu           # Menüsymbole (Sonderkarten, Program
   weitesten links oben; die Werte landen in `src/game/cursorHotspots.js`. Glänzender Stahl hat rein weiße Lichter,
   darum stanzt `finish.mjs` bei Zeigern kein eingeschlossenes Weiß aus. Der braune Lederhandschuh aus Feld 1 ging auf
   Gras unter: der Handschuh kommt aus dem Auftrag `gauntlet` (drei silberne Ritterhandschuhe, genommen der rechte mit
-  kräftiger Kontur, `raw: "../gauntlet/raw-1.webp"`). Der Kompass aus Feld 6 wird nicht genutzt.
+  kräftiger Kontur, `raw: "../gauntlet/raw-1.webp"`). Gemini malt ihn kühl bläulich; `steel: [r, g, b, Verstärkung]`
+  färbt bläuliche Pixel bei gleicher Helligkeit (mal Verstärkung) ins warme Grau des Schwerts um, Messingnieten bleiben. Der Kompass aus Feld 6 wird nicht genutzt.
 - **Herold:** Malvors Herold aus Mission 5 (Morvale). Neutrale Farben (Grau, Creme, Ocker), keine Spielerfarbe.
   Wichtig im Prompt: dieselbe Überzeichnung wie die Vorlagen (große Augen, Knollennase), sonst wird er zu realistisch.
 - **Kulissen:** Burg auf dem Hügel in der Bildmitte (bleibt beim hochkant zugeschnittenen Handy sichtbar), ruhiger

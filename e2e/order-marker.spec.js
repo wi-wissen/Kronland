@@ -46,8 +46,8 @@ test('walk command shows a marker at the target spot', async ({ page }, info) =>
   const marks = await page.evaluate(() => window.__markers);
   expect(marks).toHaveLength(1);
   expect(Math.hypot(marks[0].x - target.x, marks[0].z - target.z)).toBeLessThan(1);
-  // ring snapping together, then standing (flickering)
-  for (const [name, age] of [['snap', 0.1], ['ring', 0.3]]) {
+  // ring spreading out like a drop
+  for (const [name, age] of [['start', 0.05], ['spread', 0.2]]) {
     await page.evaluate((age) => { for (const m of window.__kronland.renderer.orderMarks.list) m.age = age; }, age);
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => window.__kronland.renderer.orderMarks.active)).toBe(1);

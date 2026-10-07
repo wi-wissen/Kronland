@@ -138,11 +138,21 @@ if (name === 'symbols' || job.kind === 'symbols') {
   // decal: 256 px WebP, centred square (ground marker, seen from above)
   const decal = fin.out === 'decal', SIZE = decal ? 256 : 40, PAD = decal ? 4 : 1;
   const hot = {};
-  for (const [item, { raw, crop, flip, innerWhite }] of Object.entries(fin.items)) {
+  for (const [item, { raw, crop, flip, innerWhite, steel }] of Object.entries(fin.items)) {
     const { data, info } = await sharp(path.join(dir, raw)).removeAlpha()
       .extract({ left: crop[0], top: crop[1], width: crop[2], height: crop[3] }).raw().toBuffer({ resolveWithObject: true });
     // shiny steel has pure-white highlights: only cut out enclosed white where asked
     const rgba = cutout(data, info.width, info.height, innerWhite === true);
+    // steel: [r, g, b, gain] – regrade cool (bluish) pixels to the warm grey of the other cursors' steel, keeping their
+    // brightness (times gain); warm parts (brass rivets, leather) stay as they are
+    if (steel) {
+      for (let k = 0; k < info.width * info.height; k++) {
+        const o = k * 4, r = rgba[o], g = rgba[o + 1], b = rgba[o + 2];
+        if (b < r) continue;
+        const l = (0.3 * r + 0.59 * g + 0.11 * b) * steel[3];
+        for (let c = 0; c < 3; c++) rgba[o + c] = Math.min(255, Math.round(l * steel[c]));
+      }
+    }
     let x0 = info.width, y0 = info.height, x1 = 0, y1 = 0;
     for (let k = 0; k < info.width * info.height; k++) {
       if (rgba[k * 4 + 3] < 40) continue;

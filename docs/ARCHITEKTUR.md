@@ -418,12 +418,12 @@ Prüfung im Editor, ohne Build-Schritt.
 | Menü | Esc | Knopf |
 | Symbol erklären | Maus darüber halten | lang drücken (löst nichts aus) |
 
-**Mauszeiger und Klickbestätigung** (wie im Vorbild): Über der Karte ist der Zeiger ein gemalter silberner
-Ritterhandschuh. Mit ausgewählten Figuren zeigt er, was ein Rechtsklick bewirkt: Axt über einem Baum, Spitzhacke über
+**Mauszeiger und Klickbestätigung** (wie im Vorbild): Über der Karte ist der Zeiger ein gemalter Ritterhandschuh
+im warmen Silber der übrigen Werkzeuge. Mit ausgewählten Figuren zeigt er, was ein Rechtsklick bewirkt: Axt über einem Baum, Spitzhacke über
 einem Haufen, Hammer über einer eigenen Baustelle oder einem beschädigten Gebäude, Schwert über einem Gegner und im
 Angriffsmodus (`src/game/cursors.js`, Bilder aus `scripts/art/`, siehe docs/SYMBOLE.md). Zeiger und Befehl kommen aus
 derselben Planung (`Engine.planCommandAt`). Nur ein Laufbefehl bekommt am Ziel eine Bestätigung: ein Ring wie der
-Auswahlring, aber dunkel, zieht sich zusammen, flackert zweimal und verblasst (0,9 s, `src/render/orderMarker.js`, über
+Auswahlring, aber dunkel, breitet sich wie ein Tropfen im Wasser einmal nach außen aus und verblasst (0,45 s, `src/render/orderMarker.js`, über
 `GroundMarks`, am Hang geneigt, wächst mit dem Kameraabstand), auch bei Befehlen über die Minikarte. Auf
 Touch-Geräten gibt es keinen Zeiger, die Bestätigung beim Laufen bleibt.
 
