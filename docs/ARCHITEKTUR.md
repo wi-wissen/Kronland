@@ -312,6 +312,9 @@ nicht mehr für immer anhalten. `src/game/loop.js`:
 - `runSteps()` rechnet die fälligen Takte eines Bildes mit Zeitbudget (45 ms, höchstens 8 Takte, mindestens
   einer). Was danach aufgelaufen ist, wird verworfen (`engine.droppedTicks`): Ist die Simulation langsamer als die
   Uhr, läuft das Spiel langsamer, statt mit immer mehr Nachholtakten je Bild in eine Todesspirale zu geraten.
+- `frameTimes()` begrenzt die Bildzeit getrennt: Animationen höchstens 0,1 s je Bild, Spielzeit erst nach 0,8 s
+  (8 Takte). Bei langsamer Darstellung (unter 10 Bildern/s, etwa Software-WebGL) bleibt das Spiel so in Echtzeit,
+  statt nur einen Takt je Bild zu rechnen; nur längere Lücken (Tab im Hintergrund) werden abgeschnitten.
 - `FaultGuard` fängt Fehler je Bereich ab (`sim`, `ai`, `render`, `audio`, `ui`, `dev`), protokolliert gedrosselt
   und zählt Fehler in Folge. KI, Ton und Entwicklermodus geben nie auf (die Partie läuft weiter); die Simulation
   nach 3 fehlgeschlagenen Takten in Folge, Darstellung und Oberfläche nach 30 Bildern. Dann hält die Engine das

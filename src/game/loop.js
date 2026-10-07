@@ -8,6 +8,24 @@ export const TICK_MS = 100;
 export const MAX_STEPS = 8;
 /** Time budget per frame for ticks (ms): after it no further tick in this frame */
 export const STEP_BUDGET_MS = 45;
+/** Longest frame for animations (s): bigger gaps would make figures and camera jump */
+export const MAX_FRAME_DT = 0.1;
+/** Longest frame for game time (ms): as many ticks as one frame may run at most */
+export const MAX_FRAME_MS = MAX_STEPS * TICK_MS;
+
+/**
+ * Elapsed time of a frame, clamped separately for animations and for game time. Game time must not use the
+ * short animation clamp: below 10 frames per second every frame would then advance at most one tick and the game
+ * would run at frame-rate speed (at 2 fps only a fifth as fast) although the ticks themselves are cheap. Up to
+ * MAX_FRAME_MS it keeps real time; larger gaps (tab in the background, debugger) are cut off.
+ * Never negative: the rAF timestamp can lie before the start time (long warm-up).
+ * @param {number} now @param {number} last timestamps (ms)
+ * @returns {{ dt: number, simMs: number }} dt: animation time (s), simMs: game time (ms, before the speed factor)
+ */
+export function frameTimes(now, last) {
+  const ms = Math.max(0, now - last);
+  return { dt: Math.min(MAX_FRAME_DT, ms / 1000), simMs: Math.min(MAX_FRAME_MS, ms) };
+}
 
 /**
  * Run the due ticks of a frame. At most MAX_STEPS ticks and, once the time budget has elapsed, none

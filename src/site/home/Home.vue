@@ -1,5 +1,5 @@
 <template>
-  <SiteLayout page="home" overlay>
+  <SiteLayout ref="layout" page="home" overlay>
     <section class="hero" data-testid="home-hero">
       <picture class="hero-bg">
         <img :src="img('hero')" :srcset="img('hero') + ' 1440w, ' + img('hero-wide') + ' 2880w'" sizes="100vw" :alt="$s('home.heroAlt')" width="1440" height="900" fetchpriority="high">
@@ -115,17 +115,6 @@
       <a class="btn primary big" :href="$links.play"><Icon name="play" />{{ $s('home.play') }}</a>
     </section>
 
-    <dialog ref="box" class="lightbox" :aria-label="current !== null ? $s('home.shot.' + shots[current]) : ''" @click.self="close" @close="current = null">
-      <figure v-if="current !== null">
-        <img :src="img(shots[current])" :alt="$s('home.shot.' + shots[current])">
-        <figcaption>{{ $s('home.shot.' + shots[current]) }}</figcaption>
-      </figure>
-      <div class="lb-ctl">
-        <button type="button" class="icon-btn" :aria-label="$s('home.gallery.prev')" @click="step(-1)"><Icon name="back" /></button>
-        <button type="button" class="icon-btn" :aria-label="$s('home.gallery.next')" @click="step(1)"><Icon name="next" /></button>
-        <button type="button" class="icon-btn" :aria-label="$s('home.gallery.close')" @click="close"><Icon name="close" /></button>
-      </div>
-    </dialog>
   </SiteLayout>
 </template>
 
@@ -137,7 +126,7 @@ import { UNITS, HEROES } from '../../sim/data/units.js';
 import { TECHS } from '../../sim/data/technologies.js';
 import { BUILDING_TECHS } from '../../sim/data/buildingTechs.js';
 import { CAMPAIGN } from '../../sim/missions/registry.js';
-import { iconForLine, iconForHero, iconForWeather } from '../../ui/icons/index.js';
+import { iconForLine, iconForWeather } from '../../ui/icons/index.js';
 
 export default {
   name: 'HomePage',
@@ -149,7 +138,6 @@ export default {
       // Gallery rows; width per image by aspect ratio (equal-height images per row)
       rows: [['settlement', 'phone'], ['combat', 'winter'], ['fog', 'slope']],
       ratio: { settlement: 1.6, combat: 1.6, winter: 1.6, fog: 1.6, slope: 1.6, developer: 1.6, phone: 412 / 915 },
-      current: null,
       // What makes the game – from the player's point of view, numbers from the game data
       features: [
         { id: 'serfs', icon: 'serf' },
@@ -158,7 +146,7 @@ export default {
         { id: 'economy', icon: 'gold' },
         { id: 'research', icon: 'research' },
         { id: 'military', icon: iconForLine('sword'), n: new Set(Object.values(UNITS).map((u) => u.line)).size },
-        { id: 'heroes', icon: iconForHero('nelia'), n: Object.keys(HEROES).length },
+        { id: 'heroes', icon: 'heroes', n: Object.keys(HEROES).length },
         { id: 'weather', icon: iconForWeather('winter') },
         { id: 'choices', icon: 'gold' },
         { id: 'campaign', icon: 'scroll', n: CAMPAIGN.length },
@@ -177,9 +165,10 @@ export default {
   },
   methods: {
     img(name) { return siteUrl(`site/${name}.webp`); },
-    open(i) { this.current = i; this.$refs.box.showModal?.(); },
-    close() { this.$refs.box.close?.(); },
-    step(d) { this.current = (this.current + d + this.shots.length) % this.shots.length; },
+    open(i) {
+      const items = this.shots.map((g) => ({ src: this.img(g), alt: this.$s('home.shot.' + g), caption: this.$s('home.shot.' + g), ratio: this.ratio[g] }));
+      this.$refs.layout.showImages(items, i);
+    },
   },
 };
 </script>
@@ -238,12 +227,6 @@ export default {
   .g-row li.g-phone { flex: 0 1 60%; margin-inline: auto; }
 }
 
-.lightbox { padding: 0; border: 0; background: transparent; max-width: min(96vw, 1440px); max-height: 96vh; color: var(--ink); }
-.lightbox::backdrop { background: rgba(10, 6, 3, 0.88); }
-.lightbox figure { margin: 0; }
-.lightbox img { display: block; max-width: 100%; max-height: calc(96vh - 5rem); margin: 0 auto; border-radius: var(--r-md); box-shadow: var(--panel-edge); }
-.lightbox figcaption { text-align: center; margin-top: 0.5rem; color: var(--ink-muted); }
-.lb-ctl { display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.5rem; }
 
 /* ---------- For schools ---------- */
 .school { display: grid; grid-template-columns: 5fr 6fr; gap: 2.5rem; align-items: center; }

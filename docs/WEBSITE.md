@@ -25,6 +25,11 @@ Eine neue Seite: HTML-Datei anlegen (Kopf wie die vorhandenen, `window.KRONLAND_
   Sprache wie im Spiel aus `localStorage['kronland-lang']`, sonst Browsersprache (nicht gespeichert); die
   Umschaltung in der Kopfzeile speichert und gilt damit auch fürs Spiel.
 - `SiteLayout.vue` – Kopfzeile (Startseite · Spielen · Handbuch · Kompendium · Code · Blog · DE/EN) und Fußzeile mit Danksagung.
+- `ImageLightbox.vue`, `lightbox.js` – Bildvergrößerung, einmal in `SiteLayout` eingehängt: Bilder in `.prose`-Abbildungen
+  (Blog, Handbuch, Kompendium, Code) öffnen per Klick/Tippen oder Enter/Leertaste einen `<dialog>` mit größter
+  `srcset`-Fassung und Bildunterschrift; Pfeiltasten, Knöpfe oder Wischen blättern durch die Bilder desselben Artikels,
+  Escape/Hintergrund schließt. Ereignisdelegation am Dokument plus `MutationObserver` – greift auch nach neu
+  gezeichnetem `v-html`. Die Startseiten-Galerie nutzt dieselbe Komponente (`showImages(items, i)` am Layout).
 - `strings.js` – Texte der Website (DE/EN, gleiche Schlüssel; Test in `tests/site/site.test.js`).
 - `site.css` – baut auf den Tokens aus `src/ui/style.css` auf; Lesetext auf Pergament (`.prose`), Druckansicht.
 - `markdown.js` – kleiner Markdown-Umsetzer (Überschriften mit `{#id}`, Listen, Tabellen, `> Hinweis`,
@@ -165,8 +170,10 @@ Technologie wie aus einem Addon hinzu und prüft, dass sie ohne Codeänderung er
 `python3 scripts/site-screens.py http://localhost:4301 [filter]` nimmt die Bilder für Startseite und Handbuch
 aus dem laufenden Spiel auf (Vorschau-Server mit aktuellem Build; Desktop 1440×900, Grafikstufe hoch, plus
 Handy) und legt sie als WebP unter `public/site/` ab (`<name>.webp`, Galerie zusätzlich `<name>-small.webp`,
-HUD-Ausschnitte `hud-*.webp`). Mit SwiftShader dauert das einige Minuten. Filter z. B. `combat,winter`.
-Motive: `hero` (Titelbild der Startseite, doppelte Pixeldichte: `hero.webp` 1440 px und `hero-wide.webp` 2880 px per `srcset` für große Bildschirme), `settlement`, `hud-*`, `combat`, `hud-army`, `winter`, `fog`, `slope` (gelbe Bauvorschau),
+HUD-Ausschnitte `hud-*.webp`). Mit SwiftShader dauert das einige Minuten. Filter z. B. `combat,winter`. Figurenmodelle (Reiter, Pferd …) lädt das
+Spiel nach; vor jeder Aufnahme wartet das Skript, bis keine sichtbare Figur mehr ihren Platzhalter zeigt.
+Python-Playwright fehlt in der Cloud-Umgebung: `pip install playwright`, Browser über `PW_CHROMIUM=/opt/pw-browsers/chromium-<version>/chrome-linux/chrome`.
+Motive: `hero` (Titelbild der Startseite, doppelte Pixeldichte: `hero.webp` 1440 px und `hero-wide.webp` 2880 px per `srcset` für große Bildschirme), `settlement`, `hud-*`, `combat`, `hud-army` (Befehle), `hud-selection` (Auswahlkarte mit Held und Hauptleuten), `winter`, `fog`, `slope` (gelbe Bauvorschau),
 `developer` (A*-Suche), `programming` (Code-Panel am Haltepunkt), `phone`. Ein Test begrenzt die Dateigröße (Galerie ≤ 120 kB, groß ≤ 300 kB).
 
 ## Linkvorschau (Open Graph)

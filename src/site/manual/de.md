@@ -239,7 +239,9 @@ Schwertkämpfer, Speerträger, Bogenschützen, leichte und schwere Reiterei, Kan
 - Jede Gattung hat Stärken und Schwächen: Speere gegen Reiter, Schwerter gegen Speere, Kanonen gegen Gebäude.
   Die genaue Schadenstabelle steht im [Kompendium](compendium/#units).
 
-![Truppen ausgewählt: Hauptleute, Held und Befehle](site/hud-army.webp)
+![Truppen ausgewählt: Befehle und Fähigkeiten des Helden](site/hud-army.webp)
+
+![Auswahlkarte rechts: Held und Hauptleute mit Rang, Truppstärke und Lebenspunkten](site/hud-selection.webp)
 
 ### Befehle
 
