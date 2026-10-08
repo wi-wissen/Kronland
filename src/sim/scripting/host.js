@@ -62,7 +62,9 @@ export class ScriptHost {
       places: { ...(scenario.world?.places ?? {}) },
       console: [], seq: 0, errors: [],
       started: false, every: {}, enter: {},
-      player: { code: null, runs: 0, status: 'idle', bps: [] },
+      player: { code: null, runs: 0, status: 'idle', bps: [], every: {}, enter: {}, listening: false },
+      /** Note of a figure in the code panel (note()): { seq, speaker, code, title, editable } or null */
+      note: null,
       missionDebug: !!scenario.debug, missionBps: [],
       skipSeq: 0,
     };
@@ -77,6 +79,8 @@ export class ScriptHost {
     this.focus = 0;
     /** Did the player program act in this tick (sim command or waiting)? For the busy-loop hint (transient). */
     this.acted = false;
+    /** Task of the player program that ran last – the panel shows its line (transient, display only) */
+    this.shownTask = 0;
   }
 
   /** Remember the figure a program just steered (display only, not part of the state). */
@@ -183,20 +187,48 @@ export class ScriptHost {
     for (const level of ['mission', 'player']) if (this.vms[level]) this.vms[level].syncBudget = SYNC_BUDGET[level];
   }
 
+  /**
+   * One tick: first the mission program (on_start, events, @every/@on_enter, tasks), then the player program with
+   * its own event handlers – both in fixed order, so everything stays deterministic.
+   */
   update(sim) {
     this.sim = sim;
-    const mvm = this.vms.mission;
-    if (mvm) {
-      if (!this.state.started) { this.state.started = true; this.fire('on_start', {}, []); }
-      for (const ev of sim.events) {
-        const f = EVENT_HANDLERS[ev.type];
-        if (f) { const [kind, info, args] = f(ev, (id) => this.handleOf(id)); this.fire(kind, info, args); }
-      }
-      this.poll(sim);
+    if (this.vms.mission) {
+      if (!this.state.started) { this.state.started = true; this.fire('on_start', {}, [], 'mission'); }
+      this.dispatch(sim, 'mission');
       this.runVm('mission', BUDGET.mission);
     }
-    if (this.vms.player) this.runVm('player', BUDGET.player);
+    if (this.vms.player) {
+      // While the debugger holds the player program, no new event tasks start (they would run past the halt)
+      if (this.playerListens() && !this.playerHeld()) this.dispatch(sim, 'player');
+      this.runVm('player', BUDGET.player);
+    }
     this.flush();
+  }
+
+  /** Sim events of this tick to the handlers of one program, then the timed and region handlers. */
+  dispatch(sim, level) {
+    for (const ev of sim.events) {
+      const f = EVENT_HANDLERS[ev.type];
+      if (f) { const [kind, info, args] = f(ev, (id) => this.handleOf(id)); this.fire(kind, info, args, level); }
+    }
+    this.poll(sim, level);
+  }
+
+  /** Does the player program still take events (not ended by an error or stop)? */
+  playerListens() {
+    return !!this.vms.player && !['error', 'stopped'].includes(this.state.player.status);
+  }
+
+  /**
+   * Is the player program held by the debugger? A paused task – or one that is stepping – holds all others, so that
+   * no other task moves a figure in the background (all tasks of the player program halt together).
+   */
+  playerHeld() {
+    const vm = this.vms.player;
+    if (!vm) return false;
+    for (const t of vm.tasks.values()) if (t.state === 'paused' || (t.debug?.mode === 'step' && (t.state === 'ready' || t.state === 'waiting'))) return true;
+    return false;
   }
 
   handleOf(id) {
@@ -207,12 +239,12 @@ export class ScriptHost {
 
   /** A hero arrived at a talk figure of the script: start @on_talk(id) with the hero. */
   talk(id, hero) {
-    this.fire('on_talk', { id }, [this.handleOf(hero.id)]);
+    this.fire('on_talk', { id }, [this.handleOf(hero.id)], 'mission');
   }
 
-  /** Registered handlers: VM variable `.handlers` = [(kind, function, filter), …] */
-  handlers() {
-    const list = this.vms.mission?.globals.get('.handlers');
+  /** Registered handlers of a program: VM variable `.handlers` = [(kind, function, filter), …] */
+  handlers(level = 'mission') {
+    const list = this.vms[level]?.globals.get('.handlers');
     return list instanceof PyList ? list.items : [];
   }
 
@@ -225,14 +257,13 @@ export class ScriptHost {
     list.items.push(new PyTuple([kind, fn, d]));
   }
 
-  /** Start handlers of a kind whose filters match. */
-  fire(kind, info, args) {
-    const vm = this.vms.mission;
-    if (!vm) return;
-    this.handlers().forEach((h, i) => {
+  /** Start the handlers of a kind whose filters match (one program). */
+  fire(kind, info, args, level = 'mission') {
+    if (!this.vms[level]) return;
+    this.handlers(level).forEach((h, i) => {
       const [k, fn, filt] = h.items;
       if (k !== kind || !this.matches(filt, info)) return;
-      this.spawnHandler(fn, args, { kind, handler: i });
+      this.spawnHandler(fn, args, { kind, handler: i, level }, level);
     });
   }
 
@@ -247,20 +278,26 @@ export class ScriptHost {
     return true;
   }
 
-  spawnHandler(fn, args, meta) {
-    const vm = this.vms.mission;
+  spawnHandler(fn, args, meta, level = 'mission') {
+    const vm = this.vms[level];
     let list = args;
     if (fn instanceof PyFunction) {
       const c = vm.codes[fn.code];
       if (!c.vararg) list = args.slice(0, c.params.length);
     }
-    vm.spawn(fn, list, meta, this.debugOpts('mission'));
+    // Event functions of the player program stop at its breakpoints too
+    const debug = level === 'mission' ? this.debugOpts('mission') : { mode: 'run', bps: this.moduleLines('player', this.state.player.bps) };
+    vm.spawn(fn, list, meta, debug);
   }
 
-  /** Check timed (@every) and region handlers (@on_enter). */
-  poll(sim) {
-    const st = this.state;
-    const list = this.handlers();
+  /** Check timed (@every) and region handlers (@on_enter) of one program. */
+  poll(sim, level = 'mission') {
+    const vm = this.vms[level];
+    // Mission: state.every/enter (as in older save games); player program: its own, reset on every run
+    const st = level === 'mission' ? this.state : this.state.player;
+    st.every ??= {};
+    st.enter ??= {};
+    const list = this.handlers(level);
     list.forEach((h, i) => {
       const [kind, fn, filt] = h.items;
       if (kind === 'every') {
@@ -270,21 +307,22 @@ export class ScriptHost {
         if (sim.tick < st.every[i]) return;
         st.every[i] = sim.tick + period;
         // Do not pile up: if the last run is still going, this one is skipped
-        const busy = [...this.vms.mission.tasks.values()].some((t) => t.meta?.handler === i && (t.state === 'ready' || t.state === 'waiting' || t.state === 'paused'));
-        if (!busy) this.spawnHandler(fn, [], { kind, handler: i });
+        const busy = [...vm.tasks.values()].some((t) => t.meta?.handler === i && (t.state === 'ready' || t.state === 'waiting' || t.state === 'paused'));
+        if (!busy) this.spawnHandler(fn, [], { kind, handler: i, level }, level);
       } else if (kind === 'on_enter' && (sim.tick + i) % 5 === 0) {
         let inside = false;
         try {
-          const api = this.apis.mission;
           const target = filt.get('target');
           const who = filt.get('who') ?? 'any';
           const player = filt.get('player') ?? this.runtime.state.human;
-          const units = api.natives.units_in({ vm: this.vms.mission, task: null }, [target, player, who], Object.create(null));
-          inside = units.items.length > 0;
-          if (inside && !st.enter[i]) this.spawnHandler(fn, [units.items[0]], { kind, handler: i });
+          // Player programs only notice figures their player sees (fog of war)
+          const units = this.apis[level].inArea(target, player, who);
+          inside = units.length > 0;
+          if (inside && !st.enter[i]) this.spawnHandler(fn, [units[0]], { kind, handler: i, level }, level);
         } catch (e) {
           if (!(e instanceof ScriptError)) throw e;
-          this.reportError('mission', e.toJSON());
+          this.reportError(level, e.toJSON());
+          if (level === 'player') this.failPlayer();
         }
         st.enter[i] = inside;
       }
@@ -297,22 +335,37 @@ export class ScriptHost {
     if (!vm) return;
     let left = budget;
     this.acted = false;
+    const player = level === 'player';
     for (const task of [...vm.tasks.values()]) {
       if (task.state === 'waiting') this.checkWait(vm, task);
-      if (task.state === 'ready' && left > 0) {
+      // Player program held by the debugger: only the stepping task goes on
+      const held = player && task.debug?.mode !== 'step' && this.playerHeld();
+      if (task.state === 'ready' && left > 0 && !held) {
         const r = vm.run(task, left);
         left -= r.used;
+        if (player && (r.used || task.state === 'paused')) this.shownTask = task.id;
       }
       if (task.state === 'error' && !task.reported) {
         task.reported = true;
         this.reportError(level, task.error);
       }
     }
-    if (level === 'player') {
+    if (player) {
       this.updatePlayerStatus();
+      if (this.state.player.status === 'error') this.failPlayer();
       this.checkBusy(vm, left);
     }
     vm.prune();
+  }
+
+  /** An error in one task ends the whole player program: the other tasks stop, no more events. */
+  failPlayer() {
+    const vm = this.vms.player;
+    if (!vm) return;
+    for (const t of vm.tasks.values()) if (t.state !== 'error' && t.state !== 'done') vm.kill(t);
+    this.state.player.status = 'error';
+    this.state.player.listening = false;
+    this.state.player.error = this.state.errors[this.state.errors.length - 1] ?? null;
   }
 
   /**
@@ -469,6 +522,11 @@ export class ScriptHost {
     if (st.messages.length > 30) st.messages.shift();
     this.sim.events.push({ type: 'dialog', seq: st.seq, player: st.human });
     return dur;
+  }
+
+  /** note(): a figure hands over code; the code panel shows it with the figure's seal (display, saved with the state). */
+  note(speaker, code, title, editable) {
+    this.state.note = { seq: ++this.state.seq, speaker, code: code.replace(/\r\n?/g, '\n'), title, editable };
   }
 
   camera(x, y, fly) {
@@ -659,6 +717,10 @@ export class ScriptHost {
     st.player.error = null;
     st.player.hints = [];
     st.player.busy = 0;
+    st.player.every = {};
+    st.player.enter = {};
+    st.player.listening = false;
+    this.shownTask = 0;
     try {
       const { prog, opts } = this.makeVm('player', mod.source, (sim.seed * 131 + st.player.runs * 7919) >>> 0);
       if (!st.hintsOff) this.addHints('player', prog.hints);
@@ -688,6 +750,7 @@ export class ScriptHost {
       vm.prune();
     }
     this.vms.player = null;
+    this.state.player.listening = false;
     if (this.state.player.status === 'running' || this.state.player.status === 'paused') this.state.player.status = 'stopped';
     if (!this.sim) return;
     const human = this.runtime.state.human;
@@ -705,15 +768,22 @@ export class ScriptHost {
     }
   }
 
+  /**
+   * Status of the player program over all its tasks: an error in any task → "error", a halt → "paused", tasks
+   * running → "running", main program finished with event handlers registered → still "running" but `listening`
+   * ("waits for events"), otherwise "done".
+   */
   updatePlayerStatus() {
     const vm = this.vms.player, st = this.state.player;
-    if (!vm) return;
-    const main = [...vm.tasks.values()].find((t) => t.meta?.kind === 'main');
-    if (!main) return;
-    if (main.state === 'paused') st.status = 'paused';
-    else if (main.state === 'done') st.status = 'done';
-    else if (main.state === 'error') { st.status = 'error'; st.error = this.state.errors[this.state.errors.length - 1] ?? null; }
-    else st.status = 'running';
+    if (!vm || st.status === 'error' || st.status === 'stopped') return;
+    const tasks = [...vm.tasks.values()];
+    if (tasks.some((t) => t.state === 'error')) { st.status = 'error'; st.listening = false; st.error = this.state.errors[this.state.errors.length - 1] ?? null; return; }
+    const live = tasks.filter((t) => t.state !== 'done');
+    const handlers = this.handlers('player').length > 0;
+    if (live.some((t) => t.state === 'paused')) st.status = 'paused';
+    else if (live.length || handlers) st.status = 'running';
+    else st.status = 'done';
+    st.listening = st.status === 'running' && handlers && !live.length;
   }
 
   debugCommand(cmd) {
@@ -724,9 +794,16 @@ export class ScriptHost {
     if (!vm) return true;
     const bps = cmd.bps ? this.moduleLines(level, cmd.bps) : null;
     const ok = ['continue', 'into', 'over', 'out', 'pause'].includes(cmd.cmd) ? cmd.cmd : null;
-    for (const t of vm.tasks.values()) {
+    // Player program: a step applies to the halted task shown in the panel (the others stay held)
+    const tasks = [...vm.tasks.values()];
+    const stepper = level === 'player' && ['into', 'over', 'out'].includes(ok) && cmd.task === undefined
+      ? tasks.find((t) => t.state === 'paused' && t.id === this.shownTask) ?? tasks.find((t) => t.state === 'paused') ?? null
+      : null;
+    for (const t of tasks) {
       if (cmd.task !== undefined && t.id !== cmd.task) continue;
-      if (ok && (t.state === 'paused' || cmd.cmd === 'pause' || cmd.task !== undefined)) vm.debugCommand(t, ok, bps);
+      // Continue releases every task (also those a pause sent into step mode); pause halts all of them
+      const applies = ok && (ok === 'continue' || ok === 'pause' || cmd.task !== undefined || (stepper ? t === stepper : t.state === 'paused'));
+      if (applies) vm.debugCommand(t, ok, bps);
       else if (bps) { t.debug ??= { mode: 'run', kind: 'into', depth: 0, bps: [], skip: null }; t.debug.bps = bps; }
     }
     if (level === 'player') this.updatePlayerStatus();
@@ -775,7 +852,8 @@ export class ScriptHost {
   /** Mix into the state hash. */
   hash(h) {
     const s = this.save();
-    h.str(JSON.stringify([s.mission, s.player, s.state.places, s.state.every, s.state.enter, s.state.player.status]));
+    const p = s.state.player;
+    h.str(JSON.stringify([s.mission, s.player, s.state.places, s.state.every, s.state.enter, p.status, p.every ?? {}, p.enter ?? {}, s.state.note?.seq ?? 0, s.state.reset ?? null]));
   }
 
   // ---------- UI ----------
@@ -786,14 +864,17 @@ export class ScriptHost {
     const player = {
       status: st.player.status, runs: st.player.runs, since: st.player.since ?? 0, error: st.player.error ?? null, line: null, vars: null,
       hints: st.hintsOff ? [] : st.player.hints ?? [],
+      listening: !!st.player.listening, tasks: 0,
     };
     const pvm = this.vms.player;
     if (pvm) {
-      const main = [...pvm.tasks.values()].find((t) => t.meta?.kind === 'main');
-      if (main && (main.state === 'paused' || main.state === 'waiting' || main.state === 'ready')) {
-        const ml = pvm.lineOf(main);
-        player.line = this.sectionLine('player', ml);
-        if (main.state === 'paused') player.vars = pvm.inspect(main);
+      // The halted task, otherwise the one that ran last, otherwise the main program
+      const live = [...pvm.tasks.values()].filter((t) => t.state === 'paused' || t.state === 'waiting' || t.state === 'ready');
+      player.tasks = live.length;
+      const shown = live.find((t) => t.state === 'paused') ?? live.find((t) => t.id === this.shownTask) ?? live.find((t) => t.meta?.kind === 'main') ?? live[0];
+      if (shown) {
+        player.line = this.sectionLine('player', pvm.lineOf(shown));
+        if (shown.state === 'paused') player.vars = pvm.inspect(shown);
       }
     }
     const mission = { tasks: [], paused: null };
@@ -805,6 +886,9 @@ export class ScriptHost {
         if (t.state === 'paused' && !mission.paused) mission.paused = { id: t.id, line, vars: mvm.inspect(t) };
       }
     }
-    return { console: st.console.slice(-120), errors: st.errors.slice(-5), player, mission, missionHints: st.missionHints ?? [], places: { ...st.places }, focus: this.focus };
+    return {
+      console: st.console.slice(-120), errors: st.errors.slice(-5), player, mission, missionHints: st.missionHints ?? [], places: { ...st.places }, focus: this.focus,
+      note: st.note ? { ...st.note } : null,
+    };
   }
 }

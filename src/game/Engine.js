@@ -15,6 +15,7 @@ import { countWorkers, countLeaders, taxIncome } from '../sim/systems/payday.js'
 import { AiPlayer } from '../ai/AiPlayer.js';
 import { saveGame, loadGame } from '../sim/serialize.js';
 import { createMissionSim, createScenarioSim } from '../sim/missions/runtime.js';
+import { StageSnapshot } from '../sim/stage.js';
 import { resetSpeech, stopSpeech } from '../audio/speech.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
@@ -181,6 +182,10 @@ export class Engine {
     this.dialogCam = null;
     /** Halt of the mission script in the debugger has paused the game */
     this.debugHalt = false;
+    /** Snapshot of the current stage: "Run" starts it over (src/sim/stage.js); travels in the save game envelope */
+    this.stage = new StageSnapshot(opts.load?.extra?.stage ?? null);
+    /** Number of stage restarts (the UI resets what it remembers of the old world) */
+    this.restarts = 0;
     resetSpeech();
   }
 
@@ -1023,7 +1028,47 @@ export class Engine {
    * @param {{ clone?: boolean }} [opts] clone: false – without deep copy, convert to text immediately (saveGame)
    */
   save({ clone = true } = {}) {
-    return saveGame(this.sim, { ais: this.ais.map((a) => a.getState()), camera: { ...this.renderer.rig.target, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist, pitch: this.renderer.rig.pitch } }, { clone });
+    const stage = this.stage?.toJSON() ?? null;
+    return saveGame(this.sim, {
+      ais: this.ais.map((a) => a.getState()),
+      camera: { ...this.renderer.rig.target, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist, pitch: this.renderer.rig.pitch },
+      ...(stage ? { stage } : {}),
+    }, { clone });
+  }
+
+  /**
+   * Swap the simulation without a loading screen (stage restart, src/sim/stage.js): renderer and computer opponents
+   * are built anew for the new world; camera, grid, code panel, code and breakpoints stay.
+   * @param {import('../sim/sim.js').Sim} sim @param {{ ais?: any[] }} [extra] extra data of the save game
+   */
+  restart(sim, extra = {}) {
+    const rig = this.renderer.rig;
+    const cam = { x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist, pitch: rig.pitch };
+    const grid = !!this.renderer.grid;
+    try { this.renderer.dispose(); } catch { /* disposal must never prevent the restart */ }
+    this.sim = sim;
+    this.ais = (extra.ais ?? []).map((st) => AiPlayer.fromState(sim, st));
+    this.renderer = new Renderer(this.canvas, sim, { player: this.player });
+    const r = this.renderer.rig;
+    r.lookAt(cam.x, cam.z); r.yaw = cam.yaw; r.dist = cam.dist; r.pitch = cam.pitch; r.clamp();
+    this.input.rig = r;
+    this.resize();
+    if (grid) this.renderer.setGrid(true);
+    if (sim.weather.state !== 'summer') this.renderer.applyWeather(sim.weather.state);
+    this.prev = new Map();
+    this.acc = 0;
+    this.placing = null;
+    this.selected = new Set([...this.selected].filter((id) => sim.entities.has(id)));
+    this.burning = null;
+    this.mmCache = null;
+    this.mmFog = null;
+    // The remembered camera of the old world is no order to jump
+    this.missionView = { ...this.missionView, cameraSeq: sim.mission?.state.camera?.seq ?? 0, hint: null };
+    this.camFly = null;
+    this.debugHalt = false;
+    this.restarts++;
+    if (this.dev) { this.dev.dispose(); this.dev = null; this.setDevMode(true); }
+    this.emitUi();
   }
   togglePause() { this.paused = !this.paused; this.emitUi(); }
 
@@ -1259,6 +1304,9 @@ export class Engine {
    * @param {{ mode?: 'run'|'step', bps?: Record<string, number[]> }} [debug]
    */
   scriptRun(sections, debug = null) {
+    // "Run" starts the stage over: the first run of a stage remembers the world, every further one restores it
+    const next = this.stage.beforeRun(this.sim, { ais: this.ais.map((a) => a.getState()) });
+    if (next) this.restart(next, this.stage.data?.extra ?? {});
     this.issue({ type: 'script', action: 'run', sections, ...(debug ? { debug } : {}) });
     if (this.debugHalt) { this.paused = false; this.debugHalt = false; }
     this.emitUi();
@@ -1394,6 +1442,8 @@ export class Engine {
    */
   scriptCamera(x, z, fly = 0) {
     const rig = this.renderer.rig, view = this.viewTurn(x, z, rig.dist);
+    // A running dialogue camera returns to the scripted target afterwards, not to where the view was before
+    if (this.dialogCam && !this.dialogCam.taken) { this.dialogCam.x = x; this.dialogCam.z = z; }
     if (fly > 0) {
       // camera move: duration in game time (ticks), shorter accordingly at faster speed
       this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: x, tz: z, view, t0: performance.now(), ms: (fly * 100) / Math.max(0.25, this.speed) };
@@ -1649,6 +1699,8 @@ export class Engine {
       paused: this.paused,
       /** paused by the script debugger (breakpoint), not by the player */
       halted: this.debugHalt,
+      /** stage restarts so far (src/sim/stage.js) */
+      restarts: this.restarts,
       selection,
       ...quick,
       buildOptions,

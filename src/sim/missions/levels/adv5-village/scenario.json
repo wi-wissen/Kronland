@@ -5,6 +5,7 @@
   "kind": "adventure",
   "end": "script",
   "order": 5,
+  "reset": false,
   "title": { "de": "Ein Dorf per Programm", "en": "A Village by Program" },
   "summary": {
     "de": "Baue mit Listen und Befehlen Wohnhaus und Bauernhof.",

@@ -126,6 +126,9 @@ objective("homes", lambda: (count("residence"), 2), de="Baue 2 Wohnhäuser", en=
 complete(id)  fail(id)  show_objective(id)  victory("gold")  defeat("hq")
 alchemist = npc("alchemist", look="worker.alchemist", at=place("tower"))   alchemist.stop_talking()
 program.status  program.runs  program.get("guess")   # das Spielerprogramm lesen (Kopie)
+program.stop()                     # Spielerprogramm anhalten (vor dem Wechsel in den nächsten Abschnitt)
+note("maid", code, de="Zettel der Magd", en="The maid's note", editable=True)   # Zettel einer Figur ins Code-Panel
+reset(False)                       # Ausführen startet die Etappe nicht neu (Aufbau-Missionen); reset() wieder an
 spawn(BANDITS, "sword1", place("gate"), count=3)   attack(truppen, hq())   give(HUMAN, wood=200)
 hero_of(HUMAN, "orrin")   set_diplomacy(HUMAN, ENEMY, "neutral")   orrin.teleport((6, 8))   orrin.kill()
 place_building(BANDITS, "banditCamp", ort)   make_place("name", x, y, r)   find_open(nahe)   toward(a, b, d)
@@ -134,7 +137,7 @@ add_item("coin", x, y)  remove_item(x, y)  items("coin")  world.set_track(x, y) 
 world.width  world.height_at(x, y)  world.set_height(x, y, h)  world.set_water(x, y)  world.noise(x, y, 16)
 units_in(ziel, HUMAN, who="hero")  # ältere Form von figures_near (sieht durch den Nebel)
 
-# Ereignisse (Dekoratoren)
+# Ereignisse (Dekoratoren) – außer @on_start und @on_talk auch im Spielerprogramm
 @on_start  @every(10)  @on_building_done("farm")  @on_building_placed  @on_destroyed("headquarters")
 @on_killed  @on_recruited  @on_research("conscription")  @on_enter(place("camp"), who="hero")
 @on_objective("goal")  @on_weather("winter")  @on_talk("alchemist")
@@ -315,6 +318,58 @@ Alle Missionsabschnitte bilden ein Programm (Zeilen laufen über die Abschnitte 
 Abschnitt und seiner Zeile zugeordnet). Spielerabschnitte laufen erst auf **Ausführen**; ihr Code kommt
 dabei als Befehl `{ type: 'script', action: 'run', sections }` in die Simulation – Lockstep-tauglich.
 
+## Ereignisse im Spielerprogramm
+
+Auch das Spielerprogramm kennt die Ereignisse, die seine Oberfläche sieht: `@every`, `@on_enter`,
+`@on_building_done`, `@on_building_placed`, `@on_destroyed`, `@on_killed`, `@on_recruited`, `@on_research`,
+`@on_objective`, `@on_weather` und `@on_event` (nicht `start` und `talk`). Der Host bedient beide Programme mit
+derselben Mechanik (`.handlers` je VM), erst die Mission, dann den Spieler, beide in fester Reihenfolge aus
+`sim.events`; `@every`/`@on_enter` des Spielers stehen in `state.player.every/enter` und beginnen mit jedem Lauf neu.
+
+- **Nur Eigenes:** Filter `player`/`owner` gelten im Spielerprogramm immer für HUMAN; `@on_enter` sieht nur Figuren,
+  die der Spieler sieht (Nebel, `api.inArea`).
+- **Wartet auf Ereignisse:** Ist das Hauptprogramm fertig und sind Ereignisfunktionen angemeldet, bleibt der Status
+  `running` mit `listening` – das Panel zeigt „wartet auf Ereignisse“ (am Handy in der Laufleiste), Stopp beendet es.
+- **Debugger:** Haltepunkte gelten auch in Ereignisfunktionen. Hält eine Aufgabe an (oder geht sie im Einzelschritt),
+  halten alle anderen Aufgaben des Spielerprogramms mit, neue Ereignisse starten erst danach; Schritt/Über/Heraus
+  gelten der angezeigten Aufgabe, Weiter gibt alle frei. Das Panel zeigt die Zeile der angehaltenen bzw. zuletzt
+  gelaufenen Aufgabe.
+- **Beschäftigt:** Will eine zweite Aufgabe eine Figur bewegen, drehen oder etwas aufheben lassen, auf die eine andere
+  gerade wartet, gibt es `GameError` „… ist beschäftigt“. Ein Fehler in einer Aufgabe beendet das ganze Programm.
+
+## Neustart je Etappe
+
+Etappen sind Unterziele. **Ausführen startet die Etappe neu** (`src/sim/stage.js`, Test `tests/sim/stage.test.js`):
+Beim ersten Ausführen nach einem neuen aktiven Unterziel merkt sich die Engine die Welt als normalen Spielstand
+(`saveGame`, Schlüssel = die aktiven Ziele), jedes weitere Ausführen – auch „Schritt“ – lädt ihn wieder
+(`loadGame`) und tauscht die Simulation mit `Engine.restart` ohne Ladebildschirm: Renderer und KI neu, Kamera,
+Raster, Code und Haltepunkte bleiben. Der wiederhergestellte Stand hat denselben State-Hash wie beim Merken; nur die
+Zähler für die Anzeige (`seq` von Dialog, Konsole, Zettel) laufen weiter, damit Panel und Dialogbox alles Neue als neu
+erkennen. Auch `program.runs` und damit die Zufallszahlen des Spielerprogramms kommen aus dem Schnappschuss – dasselbe
+Programm gibt denselben Lauf. Der Schnappschuss reist im Umschlag des Spielstands mit (`extra.stage`).
+
+Abschalten: `"reset": false` in scenario.json (z. B. `adv5`) oder `reset(False)` im Missionsprogramm.
+
+**Lockstep:** Schnappschuss und Wiederherstellen nutzen nur das Speicherformat und geschehen zwischen zwei Takten,
+unmittelbar bevor der `run`-Befehl angewandt wird. Im Mehrspieler würde jeder Teilnehmer beim ersten `run` einer
+Etappe den Stand merken und bei jedem weiteren `run` seine eigene Kopie einsetzen – alle haben in diesem Takt denselben
+Stand, also tauschen alle auf dieselbe Welt. Einzige Eingabe bleibt der Befehl.
+
+## Zettel
+
+`note(speaker, code, title/de/en, editable=True)` im Missionsprogramm: Eine Figur steckt dem Spieler Code zu
+(`state.note` im Script-Zustand, `uiState().note`). Das Panel ersetzt damit den Code des ersten bearbeitbaren
+Spielerabschnitts und zeigt darüber das **Siegel** der Figur (Porträt oder Anfangsbuchstabe in ihrer Farbe, wie in
+der Dialogbox) mit „Zettel der Magd“ bzw. „Zettel von …“. **Zurück zu meinem Code** holt den eigenen Code zurück,
+„Zum Zettel“ wieder den (womöglich geänderten) Zettel; der Browser merkt sich den eigenen Code. Mit
+`editable=False` lässt sich der Zettel nur ausführen. Ob eine Vorhersage stimmt, prüft die Mission mit
+`program.get("guess")` und `program.status`.
+
+## Auftrag im Panel
+
+Oben im Code-Panel (am Handy im Blatt, Reiter Code) steht das aktive Hauptziel wie in der Zielliste, mit Fortschritt
+und „2 von 3 geschafft“ bei mehreren Etappen.
+
 ## In der Simulation
 
 `MissionRuntime` (runtime.js) erzeugt für Szenarien einen `ScriptHost`:
@@ -352,7 +407,19 @@ dabei als Befehl `{ type: 'script', action: 'run', sections }` in die Simulation
 | 2 | `adv2` | Der Weg zur Ruine | `while`, `if/else`, Bedingungen |
 | 3 | `adv3` | Taler für den Winter | `while` mit Bedingung, Rückgabewerte, Zähler (Talerreihe zufällig lang, `take()`) |
 | 4 | `adv4` | Taler am Wegesrand | eigene Funktionen, Funktionen als Argument (Taler links und rechts, `left()`/`right()`) |
-| 5 | `adv5` | Ein Dorf per Programm | Listen, Objekte und Methoden, Befehle wie in der Oberfläche |
+| 5 | `adv5` | Ein Dorf per Programm | Listen, Objekte und Methoden, Befehle wie in der Oberfläche (`reset: false`) |
+| I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen, Vorhersagen (Kursmission, siehe unten) |
+
+**I.4 „Im Schneetreiben“** (`levels/r1-4-blizzard/`, Musterlösung `tests/levels/blizzard.test.js`): eine Karte im
+Winter mit drei Abschnitten, getrennt durch Felsbänder (Reihen 8–9 und 18–19). Jede Etappe ist ein Unterziel; die
+Mission bringt Nelia mit `program.stop()`, `teleport` und `camera.fly_to` in den nächsten Abschnitt.
+1. Die Magd Hedda steckt einen **Zettel** mit Zählschleife zu (`while nelia.can_step(): … steps = steps + 1`). Wie
+   viele Schritte bis zum Waldrand? Die Vermutung kommt in `guess`; die Mission prüft nach dem Lauf
+   `program.get("guess")` gegen die gegangenen Schritte und sagt sonst, wie weit es war – Ausführen beginnt von vorn.
+2. Ein Taler im Schnee: den Zettel ändern, damit Nelia auf ihm stehen bleibt (`while nelia.here() != "coin"`) und
+   ihn aufhebt.
+3. Der Spur der Geflohenen folgen, durch alle Kurven bis zur Hütte (`front()/left()/right() == "track"`); im Schnee
+   hinterlässt auch Nelia Fußabdrücke (`world.tracks.fade: 0`).
 
 Jedes Abenteuer hat eine Musterlösung im Test (`tests/sim/scripting.test.js`). Der Code der Spieler wird pro
 Abenteuer im Browser gemerkt (`kronland-code-<id>`).
@@ -372,7 +439,9 @@ Taler und Blumen liegen sichtbar auf ihren Kacheln, Spuren erscheinen im Geländ
 
 Editor nach dem Vorbild von python.jetzt: ein echtes `<textarea>` über einem eingefärbten `<pre>` (gleicher
 Lexer wie die VM). Tab/Umschalt+Tab rücken ein und aus, Enter übernimmt die Einrückung (nach `:` eine
-Stufe tiefer), Rücktaste löscht eine Einrückstufe. Klick auf eine Zeilennummer setzt einen Haltepunkt.
+Stufe tiefer), Rücktaste löscht eine Einrückstufe. **Alt+↑/↓** verschiebt die Zeile (oder die markierten Zeilen) –
+für Parsons-Aufgaben, in denen die Zeilen stimmen, aber nicht ihre Reihenfolge; am Handy dasselbe mit ⇡ ⇣ in der
+Tastenleiste (`editText.js`, Test `tests/ui/editText.test.js`). Klick auf eine Zeilennummer setzt einen Haltepunkt.
 
 **Aufteilung** (`src/ui/script/splitLayout.js`, Test `tests/ui/splitLayout.test.js`):
 
@@ -394,7 +463,7 @@ Stufe tiefer), Rücktaste löscht eine Einrückstufe. Klick auf eine Zeilennumme
 - **Handy (hochkant oder niedrig) – Blatt:** Das Programm füllt den Bildschirm, Reiter **Code**, **Ausgabe**
   (mit Fehlerzähler). Unten Ausführen, Schritt, Stopp und „⋯“
   (Speichern .py, Öffnen, Raster, Vorlage wiederherstellen, Referenz), darüber beim Tippen die Tastenleiste
-  (⇥ ⇤ : ( ) " " = == [ ] . _ #). **Ausführen** schaltet auf **Spiel ansehen**: Spiel im Vollbild, unten eine
+  (⇥ ⇤ ⇡ ⇣ : ( ) " " = == [ ] . _ #). **Ausführen** schaltet auf **Spiel ansehen**: Spiel im Vollbild, unten eine
   Leiste mit der aktuellen Zeile, Anhalten/Weiter, Stopp und „Code“; ist der Held nicht im freien Bildbereich zu
   sehen, rückt ihn die Kamera über die Leiste (`Engine.watchFocus`), sonst bleibt die Ansicht. Bei einem Fehler (oder Haltepunkt) springt
   das Blatt zurück zum Code, die Fehlerzeile ist sichtbar. Geöffnet wird das Blatt auch über die goldene Münze
@@ -459,7 +528,8 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
 npx vitest run tests/script      # Sprache: CPython-Vergleich, Fehler, Debugger, Speichern mitten im Lauf
 npx vitest run tests/sim/scripting.test.js tests/sim/scenarioV2.test.js tests/sim/editor.test.js tests/levels
 npx vitest run tests/sim/ground.test.js tests/sim/figures.test.js tests/script/hints.test.js
-E2E_PORT=4310 npx playwright test e2e/script.spec.js
+npx vitest run tests/sim/stage.test.js tests/sim/playerEvents.test.js tests/levels/blizzard.test.js tests/ui/editText.test.js
+E2E_PORT=4310 npx playwright test e2e/script.spec.js e2e/stage.spec.js
 ```
 
 `tests/script/cases/*.py` laufen in der VM und müssen dieselbe Ausgabe liefern wie `*.out` (mit `python3`
