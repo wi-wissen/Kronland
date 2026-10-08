@@ -714,6 +714,6 @@ export class ScriptHost {
         if (t.state === 'paused' && !mission.paused) mission.paused = { id: t.id, line, vars: mvm.inspect(t) };
       }
     }
-    return { console: st.console.slice(-120), errors: st.errors.slice(-5), player, mission, places: st.places };
+    return { console: st.console.slice(-120), errors: st.errors.slice(-5), player, mission, places: { ...st.places } };
   }
 }

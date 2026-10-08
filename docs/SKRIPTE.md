@@ -12,13 +12,16 @@ Bezeichner sind englisch, Oberfläche, Erklärungen und Fehlermeldungen deutsch 
 | Sprache | `src/script/` | Lexer, Parser, Compiler, Bytecode-VM, Grundfunktionen, Speichern – ohne DOM, ohne Simulation |
 | Spiel-API | `src/sim/scripting/api.js` | englische Funktionen und Spielobjekte, zwei Rechtestufen |
 | Gastgeber | `src/sim/scripting/host.js` | führt die Abschnitte eines Szenarios in der Simulation aus |
-| Szenario | `src/sim/scripting/scenario.js` | JSON-Format, Prüfung, Umwandlung in eine Missionsdefinition |
+| Szenario | `src/sim/scripting/scenario.js` | Format, Prüfung, Ordner packen/entpacken, Umwandlung in eine Missionsdefinition |
+| Überblick | `src/sim/scripting/outline.js` | liest Ziele aus dem Code, ohne ihn auszuführen (Menüs) |
+| Pakete | `src/levels/` | `.zip` lesen und schreiben, Level per Link, Dateien des laufenden Levels (`levelAssetUrl`) |
 | Welten | `src/sim/world.js` | flache Grundkarte, gespeicherte Editor-Karte, Zufallskarte |
 | Editor-Werkzeuge | `src/sim/editor/edit.js` | Heben, Senken, Wasser, Wald … auf einer Vorschau-Simulation |
 | Oberfläche | `src/ui/script/`, `src/ui/editor/`, `src/game/EditorView.js` | Code-Panel, Debugger, Abenteuer-Menü, Welteneditor |
-| Szenarien | `src/sim/missions/scenarios/` | Lernabenteuer 1–5, Skript-Mission „Der Überfall“ |
+| Level | `src/sim/missions/levels/<ordner>/` | ein Ordner je Level: Lernabenteuer 1–5, Skript-Mission „Der Überfall“ |
 
-Spielen: Startmenü → **Programmier-Abenteuer**. Direktstart: `?mission=adv1` … `?mission=adv5`, `?mission=m1`.
+Spielen: Startmenü → **Programmier-Abenteuer**. Direktstart: `?mission=adv1` … `?mission=adv5`, `?mission=m1`,
+ein Level von einem anderen Server mit `?level=https://…/lindgrund.zip` (siehe [Level-Ordner](#level-ordner)).
 
 ## Die Sprache
 
@@ -114,10 +117,12 @@ nelia  orrin  taran  malvor        # jeder Held unter seinem Namen (eigener zuer
 diplomacy(HUMAN, ENEMY)            # "allied", "neutral" oder "hostile"
 
 # Mission (zusätzlich)
-say("nelia", "intro")              # Text oder Schlüssel aus der Texttabelle; wartet, bis der Dialog vorbei ist
-camera.fly_to(place("camp"), seconds=3)   camera.jump_to(hero)   reveal(ort)   message(text)
-objective("id", "text", lambda: count("barracks") >= 1)   complete(id)  fail(id)  show_objective(id)
-victory()  defeat()
+say("nelia", de="Da hinten!", en="Over there!")   # zweisprachig oder ein Text; wartet, bis der Dialog vorbei ist
+camera.fly_to(place("camp"), seconds=3)   camera.jump_to(hero)   reveal(ort)   message(de=…, en=…)
+objective("homes", lambda: (count("residence"), 2), de="Baue 2 Wohnhäuser", en="Build 2 residences")
+complete(id)  fail(id)  show_objective(id)  victory("gold")  defeat("hq")
+alchemist = npc("alchemist", look="worker.alchemist", at=place("tower"))   alchemist.stop_talking()
+program.status  program.runs  program.get("guess")   # das Spielerprogramm lesen (Kopie)
 spawn(BANDITS, "sword1", place("gate"), count=3)   attack(truppen, hq())   give(HUMAN, wood=200)
 hero_of(HUMAN, "orrin")   set_diplomacy(HUMAN, ENEMY, "neutral")   orrin.teleport((6, 8))   orrin.kill()
 place_building(BANDITS, "banditCamp", ort)   make_place("name", x, y, r)   find_open(nahe)   toward(a, b, d)
@@ -127,38 +132,76 @@ world.width  world.height_at(x, y)  world.set_height(x, y, h)  world.set_water(x
 # Ereignisse (Dekoratoren)
 @on_start  @every(10)  @on_building_done("farm")  @on_building_placed  @on_destroyed("headquarters")
 @on_killed  @on_recruited  @on_research("conscription")  @on_enter(place("camp"), who="hero")
-@on_objective("goal")  @on_weather("winter")
+@on_objective("goal")  @on_weather("winter")  @on_talk("alchemist")
+@on_event("talk", id="alchemist")    # ein Dekorator für jedes Ereignis, die Namen oben sind Kurzformen
 ```
 
-Spielobjekte sind Handles (`Hero`, `Serf`, `Troop`, `Building`, `Tree`, `Pile`, `Place`) mit Eigenschaften
+Spielobjekte sind Handles (`Hero`, `Serf`, `Troop`, `Building`, `Tree`, `Pile`, `Npc`, `Place`) mit Eigenschaften
 wie `x`, `y`, `alive`, `type`, `level` und Methoden je Klasse; gespeichert wird nur Klasse + ID.
 Ziele akzeptieren Orte, Spielobjekte, Tupel `(x, y)` oder Ortsnamen.
 
 **Dialoge** dauern eine feste Zeit (aus der Textlänge der deutschen Fassung oder `voiceLength`) – das
 Vorlesen beeinflusst den Ablauf nie. Wegklicken schickt `skipDialog` und beendet das Warten sofort.
-Vorgelesen wird eine Aufnahme (`voice` im Szenario, Pfad unter `public/`) oder die Sprachausgabe des
-Browsers (Einstellung „Dialoge vorlesen“).
+Vorgelesen wird eine Aufnahme des Levels (`say(…, voice="assets/hallo.mp3")`), eine vertonte Zeile der Kampagne
+oder die Sprachausgabe des Browsers (Einstellung „Dialoge vorlesen“). Lädt eine Aufnahme nicht, liest die
+Sprachausgabe den Text (`src/audio/speech.js`).
 
-## Szenario-Format
+**Ziele:** `objective(id, Bedingung, de=…, en=…)`. Die Bedingung liefert wahr/falsch oder ein Paar
+`(geschafft, nötig)` – dann zeigt die Zielliste „1/2“. Nur ein Tupel ist ein Paar; eine Liste mit zwei Figuren
+gilt als „wahr“. Die alte Reihenfolge `objective(id, text, Bedingung)` funktioniert weiter. Menüs lesen die
+Zieltexte direkt aus dem Code, ohne ihn auszuführen (`scenarioGoals`, `outline.js`): nur wörtliche Texte, sonst
+erscheint die Kennung.
 
-Missionen, Lernabenteuer und eigene Welten sind dasselbe JSON-Format (mitgelieferte als JS-Modul, damit der
-Code lesbar bleibt; Inhalt ist reines JSON).
+**Gesprächsfiguren:** `npc(id, look=…, at=…, name=None)` stellt eine Figur mit Ausrufezeichen auf, etwa einen
+Alchemisten. Wählt man einen Helden und tippt die Figur an (Rechtsklick), geht er hin (Sim-Befehl `order`
+`talk`, nur Helden, Feld `talkTo`); steht er daneben, läuft `@on_talk(id)` mit dem Helden. Bloßes Vorbeilaufen
+löst nichts aus, ein anderer Befehl bricht das Gespräch ab. Was passiert, entscheidet das Missionsprogramm – auch,
+ob es der richtige Held ist. `stop_talking()`/`start_talking()` schalten das Ausrufezeichen. Das Aussehen ist eine
+Rolle des Figuren-Manifests (`"serf"`, `"worker.alchemist"`, `"hero.orrin"`) oder ein eigenes Modell des Levels
+(`"assets/alchemist.glb"`, `src/render/levelModels.js`, auf Figurengröße skaliert, Animation „idle“ wenn
+vorhanden); bis es geladen ist oder wenn es fehlt, steht die normale Figur da. Mit `name` oder `speakers` in
+scenario.json bekommt die Figur einen Namen im Dialogfenster. Figuren aus Missionsdateien (Kampagne) sprechen bis
+zu ihrem Umzug noch beim Herankommen.
+
+**Das Spielerprogramm lesen:** `program.status` (`"idle"`, `"running"`, `"paused"`, `"done"`, `"error"`,
+`"stopped"`), `program.runs` und `program.get(name, default)` – eine Kopie der Variablen (Zahlen, Texte, Listen,
+Wörterbücher, Spielobjekte; Funktionen werden `None`). Damit prüft eine Mission Vorhersage- und Variablen-Aufgaben.
+
+## Level-Ordner
+
+Ein Level ist ein **Ordner**: `scenario.json` (was es gibt), `.py`-Dateien (was passiert) und `assets/`
+(Bilder, Aufnahmen, 3D-Modelle). So liegen die mitgelieferten Level im Repo (`src/sim/missions/levels/`, neue
+Ordner werden von selbst gefunden: `levels/index.js` über Vite-Glob, in Node-Skripten über das Dateisystem). Zum
+Weitergeben wird derselbe Ordner eine ganz normale **.zip** – der Welteneditor speichert und öffnet sie, jedes Kind
+kann sie im Explorer öffnen, die `.py`-Dateien ändern und wieder zippen (ein umschließender Ordner in der .zip
+stört nicht). Ein Level lässt sich auch **per Link** öffnen: `play/?level=https://…/lindgrund.zip` oder der
+entpackte Ordner (`…/lindgrund/` bzw. seine `scenario.json`) auf einem statischen Host; der Host muss Abrufe
+anderer Seiten erlauben (CORS, GitHub Pages tut das). Im Abenteuer-Menü gibt es dafür „Level öffnen“ und ein Feld
+für den Link.
+
+```
+lindgrund/
+  scenario.json
+  world.py        # Weltaufbau
+  mission.py      # Ablauf: Ereignisse, Dialoge, Ziele
+  player.py       # Startcode des Spielerprogramms (Lernabenteuer)
+  assets/alchemist.glb  assets/hallo.mp3  assets/alchemist.png
+```
 
 ```json
 {
-  "format": "kronland-scenario", "version": 1,
-  "id": "adv1", "kind": "adventure",
+  "format": "kronland-scenario", "version": 2,
+  "id": "adv1", "kind": "adventure", "end": "script",
   "title": { "de": "Der Weg zum Schatz", "en": "The Path to the Treasure" },
   "summary": { "de": "…", "en": "…" }, "briefing": { "de": "…", "en": "…" },
   "world": { "base": "flat", "width": 24, "height": 13, "fog": false, "starts": [{ "x": 4, "y": 6 }],
              "places": { "treasure": { "x": 14, "y": 6, "r": 0 } } },
   "players": [{ "kind": "human", "hero": "nelia", "hq": false }],
-  "texts": { "intro": { "de": "Da hinten glänzt etwas!", "en": "Something is glittering!" } },
-  "voice": { "intro": "audio/voice/intro.mp3" }, "voiceLength": { "intro": 3.5 },
+  "speakers": { "alchemist": { "name": { "de": "Alchemist", "en": "Alchemist" }, "portrait": "assets/alchemist.png" } },
   "sections": [
-    { "id": "world",   "level": "mission", "visibility": "collapsed", "editable": false, "code": "…" },
-    { "id": "mission", "level": "mission", "visibility": "hidden",    "editable": false, "code": "…" },
-    { "id": "player",  "level": "player",  "visibility": "open",      "editable": true,  "code": "hero.step()\n" }
+    { "id": "world",   "file": "world.py",   "level": "mission", "visibility": "collapsed", "editable": false },
+    { "id": "mission", "file": "mission.py", "level": "mission", "visibility": "hidden",    "editable": false },
+    { "id": "player",  "file": "player.py",  "level": "player",  "visibility": "open",      "editable": true }
   ]
 }
 ```
@@ -166,27 +209,30 @@ Code lesbar bleibt; Inhalt ist reines JSON).
 | Feld | Bedeutung |
 |---|---|
 | `kind` | `adventure` (Code-Panel sichtbar) oder `mission` (Code unsichtbar, normales Spiel) |
+| `end` | `objectives` (Standard): gewonnen, wenn alle Hauptziele erfüllt sind; verloren mit der Burg oder einem gescheiterten Hauptziel. `script`: nur `victory()`/`defeat()` |
 | `world.base` | `flat` (Wiese, `width`/`height`), `generate` (Zufallskarte, `seed`/`size`) oder `terrain` (Editor-Karte in `world.terrain`) |
-| `world.places` | benannte Orte (Kreise), im Code `place("name")` |
+| `world.places` | benannte Orte (Kreise), im Code `place("name")`; mit `make_place` eine gemeinsame Tabelle |
 | `players[i].hq` | `false`: ohne Burg, Dorfzentrum und Leibeigene – nur der Held (Lernabenteuer) |
 | `players[i].stock/techs/serfs` | wie in Missionsdateien (`docs/MISSIONEN.md`) |
-| `sections` | Python-Abschnitte. `level` mission/player, `visibility` open/collapsed/hidden, `editable` |
-| `texts` | zweisprachige Texte für `say`, `message`, `objective` (Schlüssel statt Text) |
-| `objectives`, `events`, `start` | optional deklarativ wie in Missionsdateien |
+| `available` | Freischaltungen zu Beginn: `{ "buildings": […], "techs": […] }` (sonst alles) |
+| `shafts`, `landmarks`, `weatherCycle` | wie in Missionsdateien |
+| `victoryText`, `defeatText` | Text am Ende; `victoryTexts`, `defeatTexts`, `debriefs` je Grund (`victory("gold")`) |
+| `speakers` | eigene Sprecher: Name, Farbe `#rrggbb`, Porträt `assets/….png` |
+| `sections` | Python-Abschnitte: `file` (Name im Ordner), `level` mission/player, `visibility` open/collapsed/hidden, `editable`. Gepackt (Spielstand, Editor) trägt jeder Abschnitt seinen `code` |
 
-**Ende nur per Funktion:** Ein Szenario endet ausschließlich mit `victory()` oder `defeat()` im Skript –
-auch der Verlust der Burg beendet es nicht von selbst. So kann eine Karte beliebig viele Ziele haben, und
-im Code steht eindeutig, wann gewonnen ist:
+**Texte stehen im Code:** `say("orrin", de="Bei allen Märkten!", en="By all markets!")`; einsprachige Level
+schreiben einfach `say("orrin", "Hallo!")`. Version 1 (Texttabelle `texts` mit Schlüsseln, `voice`/`voiceLength`
+je Schlüssel, Ende nur per Skript) lädt weiter.
 
-```python
-@on_objective("camp")
-def won(id, status):
-    victory()
+**Dateien eines Levels** (`assets/`, nur PNG, JPG, WebP, MP3, OGG, GLB, je höchstens 15 MB, zusammen 60 MB, 300
+Dateien) dienen nur der Darstellung; die Simulation kennt nur ihren Pfad, ein Spielstand braucht sie nicht.
+Verweise gehen immer relativ zum Level (`assets/…`): aus der .zip (im Speicher), vom selben Server wie der Link
+oder bei mitgelieferten Leveln aus ihrem Ordner (mit Inhalts-Hash). Fremde Adressen gibt es nicht. Für jede Datei
+gibt es einen Ersatz: fehlt ein 3D-Modell, steht die normale Figur da; fehlt eine Aufnahme oder lädt sie nicht,
+liest die Sprachausgabe; fehlt ein Porträt, zeigt das Siegel den Anfangsbuchstaben.
 
-@on_destroyed("headquarters", HUMAN)
-def lost(kind, owner):
-    defeat("hq")
-```
+**Grenzen für Pakete** (`src/levels/package.js`): `scenario.json` bis 1 MB, `.py` bis 200 000 Zeichen,
+andere Dateien werden einfach nicht benutzt. Ein Link darf nur `http(s)` sein.
 
 Alle Missionsabschnitte bilden ein Programm (Zeilen laufen über die Abschnitte durch, Fehler werden dem
 Abschnitt und seiner Zeile zugeordnet). Spielerabschnitte laufen erst auf **Ausführen**; ihr Code kommt
@@ -216,7 +262,9 @@ dabei als Befehl `{ type: 'script', action: 'run', sections }` in die Simulation
 - **Befehle** `type: 'script'`: `run`, `stop`, `debug` (`into`/`over`/`out`/`continue`/`pause`, Haltepunkte
   je Abschnitt), `skipDialog`.
 - **Speichern/Hash:** VM-Zustände, Orte und Zähler stecken in `mission.script` im Spielstand und im
-  State-Hash. Eigene Szenarien (Editor, Datei) werden komplett mitgespeichert.
+  State-Hash. Das Szenario mit allem Code steckt immer im Spielstand (`mission.scenario`, dazu `mission.custom`
+  für eigene Level) – eine Korrektur an einem Level bricht alte Spielstände nicht. Dateien (`assets/`) werden nicht
+  gespeichert; nach dem Laden kommen sie aus dem Ordner bzw. dem noch offenen Paket, sonst springt der Ersatz ein.
 - Gelände- und Naturänderungen eines Takts gehen gesammelt als `terrainChanged`/`natureChanged` an den Renderer.
 
 ## Lernabenteuer
@@ -309,11 +357,13 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
   und Felsen folgen aus der Höhe wie im Kartengenerator), Wald, Radierer, Rohstoffhaufen, Schacht,
   Siedlungsplatz, Startplatz, Ort. Pinselgröße und Stärke. Rückgängig/Wiederholen (Strg+Z/Strg+Y), Raster (`#`).
 - **Panel:** Szenario (Titel, Art, Auftrag zweisprachig, Spieler mit/ohne Burg, Nebel), Orte,
-  Code (Abschnitte mit Stufe, Sichtbarkeit, bearbeitbar; Befehlsreferenz), Texte, Beispiele (mitgelieferte
-  Szenarien als Vorlage).
+  Code (Abschnitte mit Stufe, Sichtbarkeit, bearbeitbar; Befehlsreferenz), Dateien (Bilder, Töne, 3D-Modelle
+  hinzufügen und entfernen; sie gelten, solange die Seite offen ist, und reisen in der .zip), Beispiele
+  (mitgelieferte Level als Vorlage). Den Reiter Texte gibt es nur noch für Szenarien der Version 1.
 - **Welt aus Code:** „Weltaufbau ausführen“ zeigt das Ergebnis der Missionsabschnitte als Vorschau;
   „Ins Gelände übernehmen“ macht es zur Karte (und kommentiert den Abschnitt `world` aus).
-- **Speichern/Öffnen** als `.kronland.json`; ein Entwurf wird im Browser gemerkt. **Testspielen** startet das
+- **Speichern/Öffnen** als `.zip` (Level-Ordner mit Dateien; Öffnen nimmt auch eine `.json`); ein Entwurf wird im
+  Browser gemerkt (ohne Dateien). **Testspielen** startet das
   Szenario mit allen Abschnitten im Code-Panel und Debugger fürs Missionsskript (Haltepunkte halten das Spiel an);
   danach geht es zurück in den Editor.
 - Gespeichert wird die Karte als `world.terrain` (Höhen und Flags Base64, Bäume/Haufen/Plätze/Schächte, Startplätze).
@@ -322,7 +372,7 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
 
 ```bash
 npx vitest run tests/script      # Sprache: CPython-Vergleich, Fehler, Debugger, Speichern mitten im Lauf
-npx vitest run tests/sim/scripting.test.js tests/sim/editor.test.js
+npx vitest run tests/sim/scripting.test.js tests/sim/scenarioV2.test.js tests/sim/editor.test.js tests/levels
 E2E_PORT=4310 npx playwright test e2e/script.spec.js
 ```
 

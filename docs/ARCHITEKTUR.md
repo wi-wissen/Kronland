@@ -10,7 +10,7 @@ src/
     data/     Balancing-Werte (Gebäude, Rohstoffe, Einheiten, Techs)
     systems/  Ablauf pro Takt (Bauen, Ausbau ohne Leibeigene, Abbau, Zahltag, Gebäude-Forschung, Markt, Wetter, Brand/Reparatur, …)
     reasons.js Ablehnungsgründe der neuen Systeme in einer Tabelle (für i18n-Umstellung)
-    missions/ Missionslaufzeit, Tutorial, Kampagne (siehe docs/MISSIONEN.md), scenarios/ (Lernabenteuer)
+    missions/ Missionslaufzeit, Tutorial, Kampagne (siehe docs/MISSIONEN.md), levels/ (ein Ordner je Level: Lernabenteuer, Skript-Missionen)
     scripting/ Python-Skripte in der Simulation: ScriptHost, Spiel-API, Szenario-Format (docs/SKRIPTE.md)
     editor/   Werkzeuge des Welteneditors auf einer Vorschau-Simulation
     world.js  Welten: Zufallskarte, flache Grundkarte, gespeicherte Editor-Karte
@@ -177,12 +177,14 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
 | `hero` | `nelia`, `orrin`, `taran`, `malvor` | `nelia` | ja |
 | `fog` | `off` (auch `0`, `no`, `false`) | an | nur `fog=off` |
 | `mission` | Kennung aus `src/sim/missions/registry.js` (Kampagne, Tutorial, Lernabenteuer, Sonderkarten) | unbekannt: freies Spiel, falls `seed` da, sonst Startmenü | ja |
+| `level` | Adresse einer Level-`.zip` oder eines Level-Ordners (`http(s)` oder Pfad dieser Seite, docs/SKRIPTE.md#level-ordner); geht vor `mission`/`seed` | nicht ladbar: Abenteuer-Menü mit Grund | ja |
 | `quality` (`low`/`medium`/`high`), `nature` (`off`), `dev`/`debug`, `no-models` | Darstellung, Fehlersuche | – | nein (bleiben nur in der Adresszeile) |
 
 - Freies Spiel: `?seed=62921&ai=hard&players=3&hero=orrin&fog=off`. Missionen haben einen festen Seed
   (`def.seed`), ihr Link ist nur `?mission=<id>`.
-- **Kein Link** für geladene Spielstände (nicht aus einem Seed nachbaubar) und Szenario-Dateien/Welteneditor
-  (in keinem Verzeichnis): die Abfrage wird geleert, das Spielmenü zeigt keine Karte.
+- **Kein Link** für geladene Spielstände (nicht aus einem Seed nachbaubar) und Level-Dateien/Welteneditor
+  (in keinem Verzeichnis): die Abfrage wird geleert, das Spielmenü zeigt keine Karte. Ein per `?level=` geöffnetes
+  Level behält seinen Link.
 - Freischaltung: `?mission=c5` startet ein Kampagnenkapitel auch ohne die Vorgänger gewonnen zu haben (wie schon
   bisher). Bewusst so belassen – ein geteilter Link soll für jeden funktionieren; der Fortschritt wird nur durch
   einen Sieg eingetragen, spätere Kapitel bleiben im Kampagnenmenü gesperrt, bis die Vorgänger gewonnen sind.

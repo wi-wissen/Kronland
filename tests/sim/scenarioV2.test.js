@@ -271,6 +271,10 @@ describe('Talk figures', () => {
     expect(talk(sim)).toBe(true);
     for (let i = 0; i < 150 && !out(sim).length; i++) sim.step();
     expect(out(sim)).toEqual(['talk nelia 1']);
+    // The UI gets snapshots: a dialogue line added later must show up as a change (uiMerge compares snapshots)
+    const a = sim.mission.uiState(sim), b = sim.mission.uiState(sim);
+    expect(a.messages).not.toBe(sim.mission.state.messages);
+    expect(a.messages).not.toBe(b.messages);
     const h = heroOf(sim);
     expect(h.talkTo).toBeUndefined();
     expect(Math.max(Math.abs(h.px - n.px), Math.abs(h.py - n.py))).toBeLessThanOrEqual(2500);
