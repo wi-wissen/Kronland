@@ -8,20 +8,31 @@ Gesprächsfiguren, Zeiger); Abweichungen sind mit **⚠ Änderung:** markiert un
 
 **Schreibweisen in diesem Dokument**
 
-- **Sprecher: Zeile** – gesprochener, vertonter Satz (höchstens ~20 Wörter, höchstens ~6 Zeilen am Stück; ein neuer
-  Block beginnt erst nach einer Spielhandlung oder einer Pause).
-- *(Hilfe)* vor einer Zeile: Steuerungshinweis. Er kommt wenige Sekunden nach dem Ziel und **entfällt**, wenn der
-  Spieler die Handlung schon begonnen hat (Auslöser mit `not`-Bedingung). Wer die Steuerung kennt, hört nur die
-  Geschichte.
-- **Maus / Handy:** Befehle heißen am Rechner „Rechtsklick“, am Handy „antippen“; Auswählen heißt „anklicken“ bzw.
-  „antippen“. Gesprochene Zeilen nennen beides; Zieltexte nennen es in Klammern („Maus: … · Handy: …“).
-- **Zeiger:** Was leuchtet (Knopf, Gebäudekachel) oder wo ein Ring auf der Karte steht. Die technischen Kennungen
-  (`data-testid`) stehen gesammelt in der Prüfliste.
-- **Orrin spricht Steuerungshinweise an „dich da oben“** – den Spieler –, wie in der Übungsmission. Das passt zu
-  ihm (er redet mit jedem, auch mit dem Himmel) und trennt Bedienung von Geschichte. Nelia und Taran erklären ihre
-  eigenen Fähigkeiten selbst.
+- **Sprecher: Zeile** – gesprochener, vertonter Satz (höchstens ~20 Wörter, höchstens ~6 Zeilen am Stück).
+- **Zeit:** Ein Block aus 4–6 Zeilen läuft im Dialogfenster 15–30 Sekunden. Folgeblöcke stehen deshalb „nach dem
+  Block“: Anker-Auslöser + `delay` von mindestens 20–30 Spielsekunden (oder, mit E6, „Dialog ist still“). Kürzere
+  Abstände würden die Sätze nur hintereinander stapeln.
+- **Hilfe-Zeilen** sind mit **[Hilfe: …]** markiert, dahinter steht ihre Bedingung:
+  - **[Hilfe, entfällt wenn …]** – die Simulation sieht die Handlung (Bau gesetzt, Rohstoff abgebaut, Fähigkeit
+    benutzt, Tribut bezahlt, Handel begonnen, Miliz, Heldenposition …); dann wird die Zeile nicht gesprochen.
+  - **[Hilfe, kommt immer]** – reine Oberflächenhandlungen (Kamera bewegen, auswählen, Ziele-Liste öffnen,
+    Steuergruppen) sieht die Simulation nicht. Dort verspricht das Drehbuch nichts; die Zeile ist so geschrieben,
+    dass sie auch für Kundige nicht stört.
+- **Gesprochen geräteneutral:** Figuren sagen *was* zu tun ist, im Gespräch miteinander („Ruf alle zusammen und
+  lass sie bauen“, „Wähl mich allein, dann mach ich ihnen Mut“). Niemand spricht den Spieler direkt an. Die
+  Handgriffe für Maus und Handy stehen **im Zieltext**: „Ziel (Maus)“ und „Ziel (Handy)“ – die Handy-Fassung braucht
+  Erweiterung E2; ohne E2 gilt die Maus-Fassung mit angehängtem „· Handy: …“.
+- **Ein Zeiger zur Zeit:** Es leuchtet immer nur ein Knopf – der des ersten offenen Ziels (Hauptziele zuerst). Folgen
+  stehen als **Zeiger-Phasen** („1. … solange …, 2. …“, Erweiterung E3); Zeiger aus Auslösern (Zahltag, Überfall)
+  brauchen E4. Ringe auf der Karte sind davon unabhängig.
+- **Bausteine** in Klammern nennen, womit ein Auslöser gebaut wird (`event payday`, Merker `confessed`, E5 …). Die
+  Erweiterungen E1–E12 sind in [PRUEFUNG.md](PRUEFUNG.md#nötige-erweiterungen-der-technik) beschrieben und in der
+  Prüfliste (Teil 3) zusammengefasst.
 - **Kronstücke immer mit Zahl:** „das erste Kronstück“, „drei von fünf Kronstücken“. Das Wort fällt zum ersten Mal
-  beim Fund in Mission 1 und wird dort sofort erklärt.
+  beim Fund in Mission 1 und wird dort sofort erklärt. Fremde Figuren zählen nicht aus Nelias Sicht: Sie sagen „das
+  Kronstück in Beaucroix“, nicht „das zweite“.
+- **Ohne Entscheidung spielbar:** Wo eine offene Frage besteht (Teil 3), ist die Fassung geschrieben, die ohne
+  Entscheidung funktioniert (K1 neutral, Malvor gefangen).
 
 ---
 
@@ -99,7 +110,7 @@ Stein darin, ohne Zauberkraft.
 | Nr. | Provinz | Wie Nelia es bekommt | Was Malvor dort will |
 |---|---|---|---|
 | 1 | Lindgrund (M1) | Unter dem alten Baum am Waldrand, wo ihr Vater immer die Familiensachen versteckt hat. Wie es dorthin kam, weiß niemand. Gegen Malvors Eintreiber verteidigt. | Routine-Abgaben – bis das Gerücht von einer „Prinzessin mit Gold aus dem Boden“ seine Eintreiber erreicht. Dann will er es billig einsammeln. |
-| 2 | Beaucroix (M2) | Räuber haben es aus der Stadtkasse geraubt und verkaufen es an den Meistbietenden. Freikaufen (über den Markt verdient) **oder** das Lager im Flusswald stürmen. | Kaufen statt kämpfen: Sein Herold bietet tausend Taler und verkauft der hungrigen Stadt Korn zum halben Preis. |
+| 2 | Beaucroix (M2) | Räuber haben es aus der Stadtkasse geraubt und verkaufen es an den Meistbietenden. Freikaufen (über den Markt verdient) **oder** das Lager im Flusswald stürmen. | Kaufen statt kämpfen: Sein Herold bietet tausend Taler und verspricht der hungrigen Stadt Kornwagen (nur Erzählung). |
 | – | Tal des Wetterwerks (M3) | Kein Kronstück. Dafür Hrimgars Pläne – und die Nachricht, dass Malvor das Kronstück von Hagenfurt an einer Kette um den Hals trägt. | Sein Wetterwerk schützen: Solange Winter ist, wächst Korn nur bei ihm. |
 | 3 | Eisenhain (M4) | Der Bergmeister holt es aus dem tiefsten Stollen und gibt es „der Prinzessin“, nachdem Nelia Tarans Belagerung gebrochen hat. | Eisen für ein Heer, Schwefel für ein neues Wetterkraftwerk – und das Kronstück. Darum lässt er belagern. |
 | 4 | Morvale (M5) | Die Dorfälteste von Erlenhof gibt es Nelia, nachdem die Lüge aufgeflogen ist – wegen ihrer Taten. | Morvale unterwerfen: erst Nelia entzaubern, dann die Höfe verbrennen, damit die Dörfer nur noch von seinem Korn leben. Das Kronstück verlangt er gleich mit. |
@@ -129,17 +140,17 @@ Stein darin, ohne Zauberkraft.
 
 | Mission | Wahl | Folge in der Mission | Spätere Erwähnung |
 |---|---|---|---|
-| M1 | Wer spricht mit der Dorfältesten nebenan? **A** Orrin (mit der Prinzessinnen-Geschichte) · **B** Nelia (mit der Wahrheit) | A: 3 Leibeigene + 300 Holz. B: 3 Leibeigene, kein Holz, aber ein Versprechen. Abschlusstext je Weg. | M5, nach dem Herold: Nelia erinnert sich (B) bzw. bereut (A). |
-| M2 | Steuern: **hoch** (Malvors Weg) · **niedrig** (Nelias Weg) · normal (keine Wahl) | Hoch: schneller Taler, sinkende Stimmung, Lagerfeuer leeren sich nicht. Niedrig: langsamer, aber mehr Arbeiter bleiben. Reaktionen von Nelia/Orrin, Abschlusstext. | M5, Dorfälteste von Erlenhof. |
-| M2 | Kronstück **freikaufen** · **stürmen** | Wer den Hinweis aufs Wetterwerk gibt (Räuberhauptmann oder Gefangener). | M3, Einleitung („Taler“ oder „Schwert“). |
-| M3 | **Tor** · **Schlucht**; dort **bestechen** · **kämpfen** | Verluste, Orrins Börse. | M3, Abschluss. |
-| M4 | **Söldner** · **Geflohene Leibeigene** | Sofort kampfbereit vs. stärkere Wirtschaft; Bergmeister reagiert. | M5, Start (wer in Nelias Lager steht). |
-| M5 | Nelia sagt die Wahrheit **selbst**, bevor der Herold kommt · der **Herold** sagt sie | Selbst: Moorbrook bleibt verbündet, seine Speerträger bleiben. Herold: alle drei Dörfer neutral. | M6, Krönung. |
+| M1 | Wer spricht mit der Dorfältesten nebenan? Nur einer darf gehen. **A** Orrin (mit der Prinzessinnen-Geschichte) · **B** Nelia (mit der Wahrheit) · **C** niemand | A: 3 Leibeigene + 300 Holz. B: 3 Leibeigene, kein Holz, aber ein Versprechen. Abschlusstext je Weg (drei Fassungen). | M5, Dark Night (K1, eine Zeile). |
+| M2 | Steuern: **hoch** (Malvors Weg) · **niedrig** (Nelias Weg) · normal (keine Wahl); zählt der Stand beim Sieg | Im Spiel klein: hoch ≈ 2,5 Taler mehr je Arbeiter und Zahltag, die Stimmung sinkt langsam; niedrig umgekehrt. Spürbar vor allem in den Reaktionen und im Abschluss. | M5, Dorfälteste von Erlenhof (K1). |
+| M2 | Kronstück **freikaufen** · **stürmen** | Wer den Hinweis aufs Wetterwerk gibt (Räuberhauptmann oder Gefangener). | M3, Einleitung (K1, ein Satz). |
+| M3 | **Tor** · **Schlucht**; unabhängig davon **bestechen** oder nicht | Verluste, Orrins Börse. | M3, Abschluss (Merker `bribed`). |
+| M4 | **Söldner** · **Geflohene Leibeigene** | Sofort kampfbereit vs. stärkere Wirtschaft; Bergmeister reagiert. | M5, Start (K1, eine Zeile). |
+| M5 | Nelia sagt die Wahrheit **selbst**, bevor der Herold kommt · der **Herold** sagt sie | Selbst: Moorbrook bleibt verbündet, sein Speertrupp bleibt im Lager (der von Schilfheim geht). Herold: alle drei Dörfer neutral, beide Speertrupps gehen. | M6, Abschluss (K1). |
 | M6 | **Wissen kaufen** · **selbst forschen** | Zeit gegen Taler/Schwefel. | M6, Abschluss (ein Satz). |
 | M6 | Malvor mit Leuten auf dem Eis **zum Tauen verleiten** · sein Kraftwerk **vom Ufer zerstören** | Wer auf dem Eis steht, ertrinkt; Nelia reagiert. | M6, Abschluss: Nelias erste Worte als Königin. |
 
-Spätere Erwähnungen über Missionsgrenzen hinweg brauchen eine kleine Erweiterung (⚠ siehe Prüfliste, Punkt K1);
-jede Zeile hat deshalb eine neutrale Fassung, die ohne sie funktioniert.
+Spätere Erwähnungen über Missionsgrenzen hinweg brauchen Kampagnen-Merker (K1 = Erweiterung E1). Ohne E1 entfallen
+diese Zeilen ersatzlos; jede Mission funktioniert in der neutralen Fassung.
 
 ---
 # Teil 2 – Die Missionen
@@ -165,10 +176,10 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
 
 | Was | Wo erklärt |
 |---|---|
-| Kamera bewegen | Start (Orrin, Hilfe) |
+| Kamera bewegen | Schritt 1 (Zieltext) |
 | Helden auswählen und laufen lassen | Schritt 1 |
 | Gesprächsfiguren (Ausrufezeichen) | Schritt 1 |
-| Ziele-Liste, Knopf „Ziel zeigen“, goldener Ring | Schritt 2 |
+| Ziele-Liste, Knopf „Ziel zeigen“, goldener Ring | Schritt 3 |
 | Leibeigene auswählen („Alle“, Rahmen) | Schritt 4 |
 | Holz abbauen (Balken, Bäume), Vorrat oben | Schritt 4 |
 | Baumenü öffnen, Gebäude setzen („Hier bauen“), Siedlungsplatz | Schritt 5 |
@@ -182,7 +193,7 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
 | Zahltag, Steuern, Taler | Auslöser „Zahltag“ |
 | Burg auswählen, Leibeigene kaufen | Auslöser „Zahltag“, Nebenziel |
 | Zweiten Helden auswählen; nur ein bestimmter Held spricht mit einer Figur; Verbündete | Nebenziel „Nachbardorf“ |
-| „Zu den Waffen!“, Miliz, Angreifen, „Entwarnung“ | Schritt 9 |
+| „Zu den Waffen!“, Miliz, angreifen, „Entwarnung“ | Schritt 9 |
 | Heldenfähigkeit („Mut machen“) | Schritt 9 |
 | Helden werden bewusstlos, nicht getötet | Schritt 9 |
 
@@ -208,22 +219,22 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
   > **Orrin:** He! Du da, mit dem Bündel! Hier drüben, am Dorfplatz! Ich beiße nicht, ich handle nur.
   >
   > **Nelia:** Ein Fremder? Hier wohnen ja nicht mal mehr Mäuse.
+  >
+  > **Nelia:** Vielleicht weiß er, wo alle hin sind. Ich geh hin.
 
 #### Schritt 1 – Der Fremde auf dem Dorfplatz
 
 - *Auslöser:* direkt nach dem Startdialog.
-- *Ziel:* „Schick Nelia zum Fremden auf dem Dorfplatz (Maus: Nelia anklicken, dann Rechtsklick neben ihn · Handy:
-  Nelia antippen, dann neben ihn tippen)“
-- *Warum:* Er ist das einzige lebende Wesen in Lindgrund. Wer allein im Schnee steht, hört sich an, was ein Fremder
-  zu sagen hat – vielleicht weiß er, wo die Leute geblieben sind.
-- *Erklärung:* Helden auswählen und laufen lassen; Kamera schieben. Zeiger: Nelias rundes Bild im Schnellzugriff
-  unten links; Ring und Ausrufezeichen am Fremden.
-- *Dialog (Hilfe, nach 5 s ohne Bewegung):*
-  > **Orrin:** Und du da oben, der zuschaut: Wähl Nelia aus – anklicken oder antippen. Ihr Bild unten links geht auch.
-  >
-  > **Orrin:** Dann Rechtsklick auf den Boden neben mir. Am Handy tippst du einfach dorthin.
-  >
-  > **Orrin:** Siehst du mich nicht? Karte schieben: WASD oder mittlere Maustaste, am Handy mit einem Finger ziehen.
+- *Ziel (Maus):* „Schick Nelia zum Fremden auf dem Dorfplatz: Nelia anklicken (oder ihr Bild unten links), dann
+  Rechtsklick neben ihn. Karte schieben: WASD oder mittlere Maustaste.“
+- *Ziel (Handy):* „Schick Nelia zum Fremden: Nelia oder ihr Bild antippen, dann neben ihn tippen. Karte mit einem
+  Finger schieben.“
+- *Warum (im Dialog):* Er ist das einzige lebende Wesen in Lindgrund – vielleicht weiß er, wo die Leute geblieben sind.
+- *Erklärung:* Helden auswählen und laufen lassen; Kamera schieben. Zeiger: Nelias Bild im Schnellzugriff
+  (solange Nelia an ihrer Startposition steht); Ring und Ausrufezeichen am Fremden.
+- *Dialog (Hilfe):*
+  > **Orrin:** *[Hilfe, 25 s nach dem Startdialog, entfällt wenn Nelia sich von der Startposition entfernt hat]*
+  > Na komm schon! Hierher, zum Dorfplatz! Da, wo ich winke!
 
 #### Schritt 2 – Orrin
 
@@ -243,9 +254,9 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
   >
   > **Orrin:** Die fragen nie, was einer tut. Nur, wessen Kind er ist.
 
-  Orrin schließt sich als zweiter Held an. Das Ziel „alter Baum“ erscheint, der Baum wird kurz aufgedeckt.
+  Orrin schließt sich als zweiter Held an (Merker `orrin`).
 
-- *Dialog (Block 2, 4 s später – Nelia läuft schon oder steht noch):*
+- *Dialog (Block 2, nach dem Block: Merker `orrin` + 30 s):*
   > **Nelia:** Ich bin das Kind eines Leibeigenen. Mich fragt keiner was.
   >
   > **Nelia:** Vater schlägt Holz in Malvors Kornlager. Bevor er ging, hat er unter dem alten Baum versteckt, was wir hatten.
@@ -254,21 +265,25 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
   >
   > **Orrin:** Saatkorn wäre mehr wert als alles in meinem Karren. Geh nachsehen.
 
+  Erst jetzt erscheint das Ziel „alter Baum“; der Baum wird kurz aufgedeckt.
+
 #### Schritt 3 – Der alte Baum (Catalyst)
 
-- *Auslöser:* nach Block 2 von Schritt 2.
-- *Ziel:* „Schick Nelia zum alten Baum am Waldrand (Knopf ‚Ziel zeigen‘ neben dem Ziel fährt die Karte hin)“
-- *Warum:* Nelia will, was ihr Vater für die Familie versteckt hat – Saatkorn hieße: Lindgrund könnte im Frühjahr
-  wieder säen. Mehr erhofft sie nicht.
-- *Erklärung:* Ziele-Liste, „Ziel zeigen“, goldener Ring. Zeiger: der Knopf „Ziel zeigen“ an diesem Ziel (am Handy
-  zuerst der Knopf „Ziele“).
-- *Dialog (Hilfe, 6 s nach Erscheinen des Ziels):*
-  > **Orrin:** Links steht jetzt euer Ziel. Am Handy hinter dem Knopf „Ziele“.
-  >
-  > **Orrin:** Der kleine Knopf daneben fährt die Karte hin. Der goldene Ring zeigt die Stelle.
+- *Auslöser:* Ende von Block 2 (Anker + 20 s).
+- *Ziel (Maus):* „Schick Nelia zum alten Baum am Waldrand. Der Knopf ‚Ziel zeigen‘ neben diesem Ziel fährt die
+  Karte hin, der goldene Ring zeigt die Stelle.“
+- *Ziel (Handy):* „Schick Nelia zum alten Baum am Waldrand. Unter ‚Ziele‘ fährt ‚Ziel zeigen‘ die Karte hin, der
+  goldene Ring zeigt die Stelle.“
+- *Warum (im Dialog):* Nelia will, was ihr Vater für die Familie versteckt hat – Saatkorn hieße: Lindgrund könnte im
+  Frühjahr wieder säen.
+- *Erklärung:* Ziele-Liste, „Ziel zeigen“, goldener Ring. Zeiger: „Ziel zeigen“ an diesem Ziel (Handy: zuerst
+  „Ziele“).
+- *Dialog (Hilfe):*
+  > **Orrin:** *[Hilfe, kommt immer – 25 s nach dem Ziel, entfällt nur, wenn Nelia schon nah am Baum ist]*
+  > Siehst du den goldenen Schimmer am Waldrand? Dort steht dein Baum.
 
-- *Fund (Nelia erreicht den Ring):*
-  > **Nelia:** Kein Korn. Ein Tuch … und darin Gold. Eine Spitze mit einem roten Stein.
+- *Fund (Nelia erreicht den Ring), Block 1:*
+  > **Nelia:** Kein Korn. Ein Tuch … und darin Gold. Eine Spitze mit einem Stein darin.
   >
   > **Orrin:** Bei allen Märkten. Weißt du, was du da hältst? Ein Kronstück.
   >
@@ -276,8 +291,10 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
   >
   > **Nelia:** Unter Vaters Baum? Wie kommt das dahin?
 
-  Drei Leibeigene treten aus dem Wald (sie hatten sich dort vor den Eintreibern versteckt; `give serfs: 3`).
+  Drei Leibeigene treten aus dem Wald; sie hatten sich dort vor den Eintreibern versteckt. (Baustein: Funktionsaktion
+  setzt sie an den Baum, oder E9 `give` mit `at`.)
 
+- *Fund, Block 2 (sobald die drei da sind):*
   > **Dorfbewohnerin:** Gold mit Stein? Gehört ihr zu Malvors Leuten? Dann sind wir weg!
   >
   > **Orrin:** Malvors Leute? Seht ihr nicht, wer da steht? Edrian hatte keine *bekannten* Kinder!
@@ -293,44 +310,43 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
 #### Schritt 4 – Balken aus den Trümmern
 
 - *Auslöser:* Fund am Baum.
-- *Ziel:* „Schick die Leibeigenen an die Balken bei den Trümmern (Maus: ‚Alle‘ unten links, dann Rechtsklick auf die
-  Balken · Handy: ‚Alle‘ antippen, dann die Balken antippen)“
-- *Warum:* Die drei wollen helfen, und Nelia will ein Dorf, in das die Leute aus dem Kornlager heimkehren können.
-  Holz ist knapp: 600 im Vorrat, für Dorfzentrum, Häuser, Höfe und Grube braucht man doppelt so viel. Die Balken der
-  eingestürzten Häuser sind trocken und liegen schon da.
-- *Erklärung:* Leibeigene auswählen, Rohstoffe abbauen. Zeiger: Knopf „Alle“ (am Handy hinter dem Kartenknopf);
-  Ring an den Balkenhaufen. Bäume gehen auch.
-- *Dialog (Hilfe, 4 s nach dem Ziel):*
-  > **Orrin:** Leibeigene tun, was man ihnen zeigt. Du da oben: „Alle“ unten links wählt alle Leibeigenen.
+- *Ziel (Maus):* „Schick die Leibeigenen an die Balken bei den Trümmern: ‚Alle‘ unten links (oder Rahmen ziehen),
+  dann Rechtsklick auf die Balken.“
+- *Ziel (Handy):* „Schick die Leibeigenen an die Balken: ‚Alle‘ antippen (hinter dem Kartenknopf), dann die Balken
+  antippen.“
+- *Warum (im Dialog):* Nelia will ein Dorf, in das die Leute aus dem Kornlager heimkehren können. Holz ist knapp:
+  600 im Vorrat, für Dorfzentrum, Häuser, Höfe und Grube braucht man doppelt so viel. Die Balken liegen schon da.
+- *Erklärung:* Leibeigene auswählen, Rohstoffe abbauen. Zeiger: „Alle“ (Handy: Kartenknopf); Ring an den Balken.
+- *Dialog (Hilfe):*
+  > **Orrin:** *[Hilfe, 25 s nach dem Ziel, entfällt wenn Leibeigene Holz abbauen]*
+  > Ruf die drei zusammen und schick sie an die Balken bei den eingestürzten Häusern. Leibeigene tun, was man ihnen zeigt.
   >
-  > **Orrin:** Oder zieh mit der Maus einen Rahmen um sie. Dann Rechtsklick auf die Balken.
-  >
-  > **Orrin:** Am Handy: „Alle“ antippen, dann die Balken antippen. Oben siehst du, wie das Holz wächst.
+  > **Orrin:** *[Hilfe, wie oben]* Bäume tun's auch. Aber die Balken sind schon trocken.
 
 #### Schritt 5 – Das Dorfzentrum
 
-- *Auslöser:* Leibeigene tragen Holz (Balken oder Baum).
-- *Ziel:* „Bau das Dorfzentrum auf den alten Grundmauern wieder auf (Leibeigene wählen → ‚Bauen‘ → Dorfzentrum →
-  Grundmauern anklicken · Handy: … antippen, ‚Hier bauen‘)“
-- *Warum:* Freie Leute – Bauern, Bergleute, Handwerker – ziehen nur dorthin, wo ein Dorfzentrum steht. Ohne es kommt
-  niemand aus dem Kornlager zurück, auch Vater nicht. Die Grundmauern sind ein **Siedlungsplatz**: nur dort darf ein
-  Dorfzentrum stehen.
-- *Erklärung:* Baumenü öffnen, Gebäude setzen. Zeiger: Knopf „Bauen“, dann die Kachel „Dorfzentrum“; Ring auf den
-  Grundmauern.
+- *Auslöser:* Leibeigene tragen Holz (Balken oder Baum; `job wood`).
+- *Ziel (Maus):* „Bau das Dorfzentrum auf den alten Grundmauern wieder auf: Leibeigene wählen → ‚Bauen‘ (B) →
+  Dorfzentrum → Grundmauern anklicken.“
+- *Ziel (Handy):* „Bau das Dorfzentrum auf den alten Grundmauern: Leibeigene wählen → ‚Bauen‘ → Dorfzentrum →
+  Grundmauern antippen → ‚Hier bauen‘.“
+- *Warum (im Dialog):* Freie Leute ziehen nur dorthin, wo ein Dorfzentrum steht. Ohne es kommt niemand aus dem
+  Kornlager zurück. Die Grundmauern sind ein **Siedlungsplatz**: nur dort darf ein Dorfzentrum stehen.
+- *Erklärung:* Baumenü öffnen, Gebäude setzen. Zeiger (Liste, der erste sichtbare gewinnt): „Hier bauen“ →
+  Kachel „Dorfzentrum“ → „Alle“; am Handy leuchten „Bauen“ bzw. der Kartenknopf mit. Ring auf den Grundmauern.
 - *Dialog:*
   > **Orrin:** Gut. Jetzt der Dorfplatz. Freie Leute ziehen nur her, wo ein Dorfzentrum steht.
   >
   > **Nelia:** Die aus Lindgrund sitzen in Malvors Kornlager. Mit einem Dorfzentrum kommen sie heim?
   >
   > **Orrin:** Wenn es hier Arbeit, Betten und Essen gibt. Eins nach dem anderen.
+- *Dialog (Hilfe, nach dem Block: 25 s):*
+  > **Orrin:** *[Hilfe, entfällt wenn die Baustelle des Dorfzentrums steht]*
+  > Lass die drei das Dorfzentrum auf die alten Grundmauern setzen. Nur dort passt es hin.
   >
-  > **Orrin:** *(Hilfe)* Leibeigene wählen, dann „Bauen“ – oder Taste B. Im Baumenü das Dorfzentrum, dann auf die Grundmauern klicken.
-  >
-  > **Orrin:** *(Hilfe)* Am Handy: „Bauen“, Dorfzentrum antippen, Grundmauern antippen, dann „Hier bauen“.
-  >
-  > **Orrin:** *(Hilfe)* Wer ausgewählt ist, fängt sofort an. Je mehr Hände am Bau, desto schneller.
+  > **Orrin:** *[Hilfe, wie oben]* Wer mitbaut, fängt sofort an. Je mehr Hände am Bau, desto schneller.
 
-- *Während des Baus (Auslöser: Baustelle gesetzt, 5 s später) – was ein Kronstück wert ist:*
+- *Während des Baus, Block 1 (Baustelle gesetzt + 15 s):*
   > **Nelia:** Orrin. Das Kronstück. Davon wird keiner satt.
   >
   > **Orrin:** Davon nicht. Aber damit. Es gibt ein altes Recht, Kind.
@@ -343,7 +359,8 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
   >
   > **Nelia:** Dann bekommt er dieses nicht. Und warum hast du den dreien eine Prinzessin erzählt?
 
-- *Block 2 (nach 3 s Pause):*
+- *Während des Baus, Block 2 (nach dem Block: + 30 s, nur solange das Dorfzentrum noch nicht fertig ist; sonst
+  gleich nach Schritt 6):*
   > **Orrin:** Weil sie sonst weitergelaufen wären. Drei Paar Hände für einen Satz – guter Handel.
   >
   > **Nelia:** Und wenn sie merken, dass es nicht stimmt?
@@ -353,10 +370,11 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
 #### Schritt 6 – Betten
 
 - *Auslöser:* Dorfzentrum fertig.
-- *Ziel:* „Baue 2 Wohnhäuser – Arbeiter brauchen ein Bett“
-- *Warum:* Wer heimkehrt, will nicht wieder in einer Scheune schlafen wie im Kornlager. Ohne Bett hockt ein
-  Arbeiter am Lagerfeuer und schafft kaum ein Siebtel.
-- *Erklärung:* freier Bauplatz (kein Siedlungsplatz nötig); ausgegraute Gebäude. Zeiger: Kachel „Wohnhaus“.
+- *Ziel (Maus/Handy gleich):* „Baue 2 Wohnhäuser – Arbeiter brauchen ein Bett (Baumenü → ‚Wohnen‘ → Wohnhaus, freier
+  Boden genügt)“
+- *Warum (im Dialog):* Wer heimkehrt, will nicht wieder in einer Scheune schlafen. Ohne Bett hockt ein Arbeiter am
+  Lagerfeuer und schafft kaum ein Siebtel.
+- *Erklärung:* freier Bauplatz; ausgegraute Gebäude. Zeiger: Kachel „Wohnhaus“.
 - *Dialog:*
   > **Nelia:** Das Dorfzentrum steht. Wie früher. Nur leerer.
   >
@@ -364,15 +382,19 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
   >
   > **Nelia:** Im Kornlager schliefen wir zu dreißig in einer Scheune. Hier bekommt jeder ein Bett.
   >
-  > **Orrin:** *(Hilfe)* Wohnhaus steht im Baumenü unter „Wohnen“. Freier Boden genügt.
+  > **Orrin:** Ein Wohnhaus braucht keinen alten Grund. Freier Boden genügt.
   >
-  > **Orrin:** Was grau ist, gibt's hier noch nicht. Erst das Nötige, dann das Schöne.
+  > **Orrin:** Mehr können wir uns noch nicht leisten. Erst das Nötige, dann das Schöne.
+
+  (Die letzte Zeile begleitet die ausgegrauten Gebäude; der Grund „in dieser Mission nicht verfügbar“ steht im
+  Menü selbst.)
 
 #### Schritt 7 – Essen
 
 - *Auslöser:* zwei Wohnhäuser fertig.
-- *Ziel:* „Baue 2 Bauernhöfe – Arbeiter brauchen Essen“
-- *Warum:* Essen ist das, womit Malvor das Land in der Hand hat. Wer in Lindgrund satt wird, muss nicht zu ihm.
+- *Ziel:* „Baue 2 Bauernhöfe – Arbeiter brauchen Essen (Baumenü → ‚Wohnen‘ → Bauernhof)“
+- *Warum (im Dialog):* Essen ist das, womit Malvor das Land in der Hand hat. Wer in Lindgrund satt wird, muss nicht
+  zu ihm.
 - *Erklärung:* wie Schritt 6. Zeiger: Kachel „Bauernhof“.
 - *Dialog:*
   > **Orrin:** Wer geschlafen hat, will essen. Und Essen ist alles, womit Malvor das Land festhält.
@@ -381,7 +403,7 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
   >
   > **Orrin:** Acht Plätze am Tisch hat ein Hof. Und der Bauer ist gleich unser erster Arbeiter.
 
-- *Auslöser „Erster Arbeiter“ (erster Arbeiter erscheint):*
+- *Auslöser „Erster Arbeiter“ (`workers 1`):*
   > **Nelia:** Da kommt einer! Den hat keiner gerufen.
   >
   > **Orrin:** Arbeiter kann man nicht rufen, Kind. Man kann ihnen nur einen Grund geben.
@@ -389,31 +411,31 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
 #### Schritt 8 – Arbeit für sechs
 
 - *Auslöser:* zwei Bauernhöfe fertig.
-- *Ziel:* „Gib 6 Arbeitern Arbeit, Bett und Essen – bau eine Lehmgrube auf dem Schacht“
-- *Warum:* Zwei Bauern sind noch kein Dorf. Mehr Leute kommen nur, wenn es mehr Arbeit gibt; eine Lehmgrube gibt
-  fünf Bergleuten Arbeit. Lehm braucht man für jedes Haus und jeden Hof, und wer heimkehrt, braucht Häuser. Und wer
-  arbeitet, zahlt Steuern – Lindgrund hat seit Jahren keinen Taler gesehen.
-- *Erklärung:* Schacht und Grube. Zeiger: Kachel „Lehmgrube“ (Gruppe „Rohstoffe“), Ring auf dem Schacht; der
-  Kachelzeiger verschwindet, sobald die Baustelle steht.
+- *Ziel:* „Gib 6 Arbeitern Arbeit, Bett und Essen – bau eine Lehmgrube auf dem Schacht (Baumenü → ‚Rohstoffe‘)“
+- *Warum (im Dialog):* Mehr Leute kommen nur, wenn es mehr Arbeit gibt; eine Lehmgrube gibt fünf Bergleuten Arbeit.
+  Und wer arbeitet, zahlt Steuern – Lindgrund hat seit Jahren keinen Taler gesehen. (Lehm liegt genug im Vorrat; die
+  Grube ist um der Arbeit willen da, nicht um des Lehms willen – siehe offene Frage 3.)
+- *Erklärung:* Schacht und Grube. Zeiger: Kachel „Lehmgrube“, solange keine Baustelle steht; Ring auf dem Schacht.
 - *Dialog:*
   > **Orrin:** Zwei Bauern haben wir. Mehr kommen nur, wenn es mehr Arbeit gibt.
   >
   > **Orrin:** Dort drüben tritt Lehm zutage – ein Schacht. Darauf passt eine Lehmgrube.
   >
-  > **Nelia:** Fünf Bergleute, die Lehm graben. Und Lehm brauchen wir für jedes Haus, das noch kommt.
+  > **Nelia:** Fünf Bergleute, die dort graben. Und Lehm für jedes Haus, das noch kommt.
   >
   > **Orrin:** Und wer arbeitet, zahlt Steuern. Dann klimpert es endlich mal in Lindgrund.
-  >
-  > **Orrin:** *(Hilfe)* Die Lehmgrube steht im Baumenü unter „Rohstoffe“. Sie passt nur auf den Schacht im Ring.
+- *Dialog (Hilfe, nach dem Block: 25 s):*
+  > **Orrin:** *[Hilfe, entfällt wenn die Baustelle der Lehmgrube steht]*
+  > Die Grube passt nur auf den Schacht, dort, wo der Lehm aus dem Boden tritt.
 
-- *Auslöser „Erstes Lagerfeuer“ (ein Arbeiter entzündet ein Lagerfeuer, einmalig):*
+- *Auslöser „Erstes Lagerfeuer“ (`event campLit`, einmalig):*
   > **Orrin:** Siehst du das Feuer? Da sitzt einer, dem ein Bett oder ein Platz am Tisch fehlt.
   >
   > **Nelia:** Dann bauen wir, bis keins mehr brennt.
   >
   > **Orrin:** Lagerfeuer sind die ehrlichsten Boten im Dorf. Sie sagen immer, was fehlt.
 
-- *Auslöser „Zahltag“ (erster Zahltag mit mindestens einem Arbeiter):*
+- *Auslöser „Zahltag“ (`event payday` + `workers 1`):*
   > **Orrin:** Hörst du das? Zahltag. Alle zwei Minuten zahlt jeder Arbeiter seine Steuern.
   >
   > **Orrin:** Für Taler kauft man in der Burg Leibeigene. Fünfzig das Stück, und das Dorf hat mehr Hände.
@@ -421,23 +443,24 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
   > **Nelia:** Menschen kaufen. Wie Mehl. Mich hat auch mal einer gekauft.
   >
   > **Orrin:** So ist das im Kronland. Willst du's ändern, brauchst du erst ein Dorf, das überlebt.
-  >
-  > **Orrin:** *(Hilfe)* Burg anklicken oder antippen – oder der Knopf „Burg“, Taste H. Dann „Leibeigenen kaufen“.
 
   Nebenziel „Leibeigene kaufen“ erscheint (siehe unten).
 
 #### Schritt 9 – Malvors Eintreiber (Break into Two)
 
-- *Auslöser:* Die Lehmgrube ist fertig – Rauch steigt über Lindgrund auf –, spätestens nach 25 Minuten.
-  ⚠ Änderung: bisher kamen die Eintreiber, sobald die zwei Höfe stehen. Begründung: So überlagert der Kampf nicht
-  die Erklärung der Grube, und der Rauch (Gegenbild zum „kein Rauch“ der Einleitung) ist der sichtbare Grund, warum
-  sie kommen.
-- *Ziel:* „Vertreibe Malvors Eintreiber (Burg → ‚Zu den Waffen!‘, dann Rechtsklick bzw. Tippen auf die Eintreiber)“
-- *Warum:* Die Eintreiber wollen den Zehnten von einem Dorf, das gerade erst wieder isst – und das Kronstück.
-  Gibt Nelia es her, hat Malvor das erste von fünf. Das Gerücht, das die Leute zurückgebracht hat, hat auch sie
-  hergeführt.
-- *Erklärung:* Miliz, Angriff, Heldenfähigkeit, Bewusstlosigkeit, „Entwarnung“. Zeiger: erst Knopf „Burg“, dann
-  „Zu den Waffen!“; später Nelias Fähigkeit „Mut machen“. Kamera springt zu den Eintreibern.
+- *Auslöser:* Die Lehmgrube ist fertig – Rauch steigt über Lindgrund auf –, spätestens nach 25 Minuten
+  (`any: [built clayMine, time 1500]`). ⚠ Änderung: bisher kamen die Eintreiber, sobald die zwei Höfe stehen.
+  Begründung: Der Kampf überlagert nicht die Erklärung der Grube, und der Rauch (Gegenbild zum „kein Rauch“ der
+  Einleitung) ist der sichtbare Grund, warum sie kommen.
+- *Ziel (Maus):* „Vertreibe Malvors Eintreiber: Burg wählen → ‚Zu den Waffen!‘, dann die Miliz wählen und Rechtsklick
+  auf die Eintreiber. Nelia allein wählen → ‚Mut machen‘ (C).“
+- *Ziel (Handy):* „Vertreibe Malvors Eintreiber: ‚Burg‘ → ‚Zu den Waffen!‘, Miliz wählen, Eintreiber antippen. Nelia
+  antippen → ‚Mut machen‘.“
+- *Warum (im Dialog):* Die Eintreiber wollen den Zehnten von einem Dorf, das gerade erst wieder isst – und das
+  Kronstück. Gibt Nelia es her, hat Malvor das erste von fünf.
+- *Erklärung:* Miliz, Angriff, Heldenfähigkeit, Bewusstlosigkeit, „Entwarnung“. Zeiger-Phasen (E3): 1. „Burg“ bzw.
+  „Zu den Waffen!“, solange es keine Miliz gibt; 2. Nelias Bild bzw. „Mut machen“, bis die Fähigkeit benutzt ist;
+  3. „Entwarnung“ nach dem Sieg. Ohne E3: nur Phase 1. Kamera springt zu den Eintreibern.
 - *Dialog (Block 1):*
   > **Nelia:** Rauch über Lindgrund. Das sieht man bis zur Straße.
   >
@@ -448,68 +471,67 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
   > **Nelia:** Was unter Vaters Baum lag, bleibt in Lindgrund.
   >
   > **Orrin:** Meine Schuld, die Geschichte lief schneller als wir. Das sind nur vier Speerträger, Nelia.
-  >
-  > **Orrin:** *(Hilfe)* Burg wählen, „Zu den Waffen!“. Dann greifen alle Leibeigenen zu Mistgabeln.
-
-- *Dialog (Block 2, 8 s später):*
-  > **Orrin:** *(Hilfe)* Dann alle wählen – Rahmen oder „Alle“ – und Rechtsklick auf die Eintreiber. Am Handy antippen.
-  >
+- *Dialog (Hilfe, nach dem Block: 20 s):*
+  > **Orrin:** *[Hilfe, entfällt wenn es schon Miliz gibt]*
+  > Ruf in der Burg „Zu den Waffen!“. Dann greifen alle Leibeigenen zu Mistgabeln.
+- *Dialog (sobald Miliz steht, oder 30 s nach Block 1):*
   > **Nelia:** Ich gehe vorneweg. Wenn sie mich sehen, fassen sie Mut.
   >
-  > **Orrin:** *(Hilfe)* Wähl Nelia allein aus. Dann „Mut machen“, Taste C: Wer bei ihr ist, schlägt doppelt so hart.
+  > **Orrin:** *[Hilfe, entfällt wenn „Mut machen“ benutzt wurde]* Dann tu's. Wer bei dir steht, schlägt doppelt so hart – eine Minute lang.
   >
   > **Orrin:** Und keine Angst. Wir fallen höchstens in Ohnmacht. Sind die Feinde fort, stehen wir wieder auf.
 
 - *Sieg über die Eintreiber:*
-  > **Eintreiber:** Das wird Malvor erfahren! Sein Herold kauft die Kronstücke längst – in Beaucroix bietet er schon für das zweite!
+  > **Eintreiber:** Das wird Malvor erfahren! Sein Herold kauft die Kronstücke längst – in Beaucroix bietet er schon für das nächste!
   >
   > **Nelia:** Dann muss er sich beeilen.
   >
-  > **Orrin:** *(Hilfe)* Vergiss nicht: In der Burg „Entwarnung“. Sonst stehen die Mistgabeln herum, statt zu arbeiten.
+  > **Orrin:** *[Hilfe, entfällt wenn keine Miliz mehr da ist]* Und jetzt „Entwarnung“ in der Burg. Mistgabeln fällen keine Bäume.
 
 ### Nebenziele
 
 **Optional: Leibeigene kaufen**
 - *Auslöser:* Zahltag-Dialog.
-- *Ziel:* „Optional: Kauf in der Burg 2 Leibeigene – mehr Hände bauen schneller“
-- *Warum:* Die Gebäude stehen schneller; die Miliz gegen die Eintreiber wird größer.
+- *Ziel:* „Optional: Kauf in der Burg 2 Leibeigene – mehr Hände bauen schneller (‚Burg‘ (H) → ‚Leibeigenen kaufen‘)“
+- *Warum (im Dialog):* Orrin im Zahltag-Block: „… und das Dorf hat mehr Hände.“
+- *Baustein:* Merker zählt `event serfBought` hoch, `custom`-Ziel „0/2“. Zeiger `buy-serf` nur mit E4 (sonst verdeckt
+  das Hauptziel ihn).
 - *Abschluss (beim zweiten Kauf):*
   > **Nelia:** Zwei mehr. Ich werde mich nie daran gewöhnen.
 
 **Optional: Das Nachbardorf – Wahl**
 - *Auslöser:* Fund am Baum (das Gerücht läuft). Die Dorfälteste nebenan bekommt ein Ausrufezeichen, ihr Dorf wird
   kurz aufgedeckt.
-- *Ziel:* „Optional: Schick Orrin oder Nelia zur Dorfältesten nebenan“
-- *Warum:* Das Nachbardorf hat Holz und Leute, aber es hat Angst vor Malvor. Wer es überzeugt, gewinnt Verbündete.
-- *Erklärung:* einen bestimmten Helden auswählen (Bild im Schnellzugriff), zweiter Held. Zeiger: Orrins Bild.
+- *Ziel:* „Optional: Schick **einen** zur Dorfältesten nebenan – Orrin oder Nelia (Bild unten links wählt den
+  Helden)“
+- *Warum (im Dialog):* Das Nachbardorf hat Holz und Leute, aber es hat Angst vor Malvor. Wer es überzeugt, gewinnt
+  Verbündete.
+- *Erklärung:* einen bestimmten Helden auswählen. Zeiger `quick-hero-orrin` nur mit E4.
 - *Dialog (beim Erscheinen):*
-  > **Orrin:** Nebenan wohnt noch jemand! Lass mich hin. Ich erzähl ihr von unserer Prinzessin.
+  > **Orrin:** Nebenan wohnt noch jemand! Die haben Holz und Leute. Lass mich hin, ich erzähl ihr von unserer Prinzessin.
   >
   > **Nelia:** Oder ich geh selbst. Und sag ihr, wer ich wirklich bin.
   >
-  > **Orrin:** *(Hilfe)* Wen du schickst, wählst du mit seinem Bild unten links. Dann Rechtsklick bei der Alten.
+  > **Orrin:** Aber nur einer von uns. Zwei Fremde auf einmal machen den Leuten Angst.
+- ⚠ Änderung: Die Dorfälteste spricht mit Orrin **oder** Nelia (bisher nur Orrin), und nur, wenn **genau ein** Held
+  in Reichweite ist (E7); kommen beide, sagt sie: „Einer von euch soll reden. Der andere wartet draußen.“ Ausgang über
+  `npcTalked.hero`, Merker `neighborsLie` bzw. `neighborsTruth`. Begründung: erste spürbare Wahl zum Thema.
 
-- ⚠ Änderung: Die Dorfälteste spricht mit Orrin **oder** Nelia (bisher nur Orrin); der Ausgang hängt davon ab, wer
-  zuerst ankommt (Funktionsaktion prüft den nächsten Helden, setzt Merker `neighborsLie` bzw. `neighborsTruth`).
-  Begründung: erste spürbare Wahl zum Thema der Kampagne.
-
-- **Wahl A – Orrin erzählt von der Prinzessin:**
+- **Wahl A – Orrin erzählt von der Prinzessin** (Merker `neighborsLie`):
   > **Orrin:** Ehrwürdige Mutter! Die verlorene Prinzessin ist zurück – und sie friert in Lindgrund.
   >
   > **Dorfälteste:** Eine Prinzessin! Dann schicken wir Leute. Und Holz für ihre Dächer.
   >
-  > **Nelia:** *(leise)* Wieder eine, die es glaubt.
+  > **Orrin:** Sie glaubt es. Alle glauben es gern.
 
   Folge: Bündnis, 3 Leibeigene und 300 Holz.
 
-- **Wahl B – Nelia sagt die Wahrheit:**
+- **Wahl B – Nelia sagt die Wahrheit** (Merker `neighborsTruth`):
   > **Nelia:** Ich bin keine Prinzessin. Ich bin Nelia, die Tochter vom Holzfäller. Wir brauchen Hilfe.
   >
   > **Dorfälteste:** Eine Leibeigene, die nicht lügt, wenn's ihr nützen würde. Das ist seltener als eine Prinzessin.
   >
   > **Dorfälteste:** Holz haben wir selbst zu wenig. Aber Leute schick ich dir. Und ich halte den Mund.
-  >
-  > **Orrin:** Dreihundert Holz, einfach verschenkt. Für einen ehrlichen Satz.
 
   Folge: Bündnis, 3 Leibeigene, kein Holz.
 
@@ -520,18 +542,21 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
 
 ### Abschluss
 
-*Sieg, wenn alle Hauptziele erfüllt sind.*
+*Sieg, wenn alle Hauptziele erfüllt sind. Drei Fassungen für den ersten Absatz, dann ein gemeinsamer Teil.*
 
-> **Wahl A:** Das Gerücht von der verlorenen Prinzessin läuft schneller durch den Schnee als jeder Bote. Aus dem
-> Nachbardorf kommen Leute, aus dem Wald noch mehr. Am Abend steigt Rauch aus vier Schornsteinen. Nelia hört, wie die
-> Kinder „Prinzessin“ rufen, und widerspricht nicht mehr – es hat ja doch keiner zugehört.
+> **Wahl A (`neighborsLie`):** Das Gerücht von der verlorenen Prinzessin läuft schneller durch den Schnee als jeder
+> Bote. Aus dem Nachbardorf kommen Leute, aus dem Wald noch mehr. Am Abend steigt Rauch aus vier Schornsteinen. Nelia
+> hört, wie die Kinder „Prinzessin“ rufen, und widerspricht nicht mehr – es hat ja doch keiner zugehört.
 >
-> **Wahl B / ohne Nachbardorf:** Am Abend steigt Rauch aus vier Schornsteinen. Die Leute nennen sie Prinzessin, und
+> **Wahl B (`neighborsTruth`):** Am Abend steigt Rauch aus vier Schornsteinen. Die Leute nennen sie Prinzessin, und
 > Nelia widerspricht – aber nur die Alte aus dem Nachbardorf nickt, als wüsste sie es besser.
+>
+> **Ohne Nachbardorf:** Am Abend steigt Rauch aus vier Schornsteinen. Die drei aus dem Wald nennen sie Prinzessin,
+> und bald sagen es alle. Nelia widerspricht, einmal, zweimal. Dann lässt sie es.
 >
 > **Gemeinsam:** Nelia sitzt unter dem alten Baum, das erste Kronstück in der Hand. Wie es hierherkam, weiß sie nicht.
 > Sie weiß nur: Wenn Malvor alle fünf Kronstücke bekommt, wird er König, und keiner darf ihm je wieder widersprechen.
-> Und er kauft sie schon. „In Beaucroix bietet sein Herold für das zweite“, hat der Eintreiber gerufen.
+> Und er kauft sie schon. „In Beaucroix bietet sein Herold“, hat der Eintreiber gerufen.
 >
 > „Dann gehen wir nach Beaucroix“, sagt Nelia. – „Wir?“, fragt Orrin. „Mein Karrenrad ist gebrochen.“ – „Dann
 > gehst du zu Fuß.“ Am nächsten Morgen ziehen sie los, mit zehn Leibeigenen und dreihundert Talern.
@@ -548,8 +573,8 @@ herrschen wie er?
 **Beats:** B-Story beginnt (Orrins Schuld) · Fun and Games.
 
 **Malvors Ziel hier:** Kaufen statt kämpfen. Sein Herold bietet den Räubern tausend Taler für das Kronstück und
-verkauft der hungrigen Stadt Korn zum halben Preis – so kauft er Beaucroix gleich mit. Als Nelia überbietet, gibt
-er den Räubern eine Anzahlung; von dem Geld rüsten sie auf und überfallen ihr Lager.
+lässt der hungrigen Stadt Kornwagen versprechen – so kauft er Beaucroix gleich mit. Als Nelia überbietet, gibt er
+den Räubern eine Anzahlung; von dem Geld rüsten sie auf und überfallen ihr Lager.
 
 **Karte und Start (unverändert):** Lager am Rand von Beaucroix, das Kaufmannsviertel (verbündet) seitlich, das
 Räuberlager im Flusswald zur Kartenmitte hin. 10 Leibeigene, Nelia und Orrin, 300 Taler, viel Lehm, Holz und Stein,
@@ -562,12 +587,12 @@ Lehmgrube, Lager (Ausbau zum Marktplatz), Steingrube; die Kaserne kommt mit dem 
 |---|---|
 | Angebote (Tribute): bezahlen, zwei schließen einander aus | Schritt 2 (Lehmschuld), Schritt 6 |
 | Gebäude ausbauen (Lager → Marktplatz), Ausbau ohne Leibeigene | Schritt 4 |
-| Händler sind Arbeiter (brauchen Bett und Essen) | Schritt 3/4 |
+| Händler sind Arbeiter (brauchen Bett und Essen) | Schritt 1, Schritt 5 |
 | Marktplatz: tauschen, Preise fallen beim Verkaufen | Schritt 5 |
-| Steuern einstellen, Stimmung (Motivation) | Schritt 7 |
-| Kaserne, Truppen ausbilden („Volle Einheit“), Sold am Zahltag | Schritt 6, Weg „Sturm“ |
-| Alle Truppen wählen („Truppen“), angreifen, Angriffsbewegung | Weg „Sturm“, Überfälle |
+| Kaserne, Truppen ausbilden („Volle Einheit“), Sold am Zahltag | Schritt 6 |
+| Alle Truppen wählen („Truppen“), angreifen | Weg „Sturm“ |
 | Räuberlager: Wachen besiegen | Weg „Sturm“ |
+| Steuern einstellen, Stimmung (Motivation) | Schritt 7 |
 | Orrins „Wundsalbe“ | Erster Überfall |
 | Brennende Gebäude reparieren | Auslöser „Es brennt“ |
 
@@ -575,7 +600,7 @@ Lehmgrube, Lager (Ausbau zum Marktplatz), Steingrube; die Kaserne kommt mit dem 
 
 > **Bisher:** Ein Kronstück von fünf trägt Nelia bei sich – das erste, aus Lindgrund. Die Legende sagt, in jeder
 > Provinz liege eines, und das alte Recht sagt: Wer alle fünf vereint, den müssen die Provinzen krönen. Malvor weiß
-> das. Er sammelt. Der vertriebene Eintreiber hat es verraten: In Beaucroix bietet sein Herold schon für das zweite.
+> das. Er sammelt. Der vertriebene Eintreiber hat es verraten: In Beaucroix bietet sein Herold schon.
 >
 > Beaucroix, die Handelsstadt am großen Fluss, ist voll und hungrig. Malvors Agenten kaufen jedes Korn auf. Das
 > Kronstück der Provinz lag in der Stadtkasse, bis Räuber es raubten; jetzt hausen sie damit im Flusswald und
@@ -588,17 +613,17 @@ Lehmgrube, Lager (Ausbau zum Marktplatz), Steingrube; die Kaserne kommt mit dem 
 
 #### Start – Ankunft
 
-- *Auslöser:* Missionsbeginn. Der Kaufmann im Viertel nebenan hat ein Ausrufezeichen.
+- *Auslöser:* Missionsbeginn. Der Kaufmann im Viertel nebenan hat ein Ausrufezeichen (Gesprächsfigur ab Start).
 - *Dialog:*
   > **Orrin:** Beaucroix! Hier riecht sogar der Schnee nach Geld.
   >
   > **Nelia:** Ich rieche nur Hunger. Malvors Leute kaufen das Korn weg, und die Stadt sieht zu.
   >
-  > **Orrin:** Die Räuber haben das zweite Kronstück. Sie verkaufen an den, der am meisten bietet.
+  > **Orrin:** Die Räuber im Flusswald haben das Kronstück der Stadt. Sie verkaufen an den, der am meisten bietet.
   >
   > **Nelia:** Und Malvor bietet. Wir haben dreihundert Taler.
   >
-  > **Orrin:** Dann verdienen wir mehr. Wir brauchen einen eigenen Markt. Lehm und Stein haben wir genug.
+  > **Orrin:** Dann verdienen wir mehr. Mit einem eigenen Markt. Lehm und Stein haben wir genug.
   >
   > **Orrin:** Ah – und den Kaufmann da drüben … den besuchen wir besser später. Viel später.
 
@@ -606,21 +631,22 @@ Lehmgrube, Lager (Ausbau zum Marktplatz), Steingrube; die Kaserne kommt mit dem 
 
 - *Auslöser:* nach dem Startdialog.
 - *Ziel:* „Baue 3 Bauernhöfe – Händler und Arbeiter brauchen Essen“
-- *Warum:* Ein Markt braucht Händler, und Händler sind Arbeiter: Sie kommen nur, wenn es Bett und Essen gibt. In
-  einer Stadt, deren Korn Malvor wegkauft, ist ein eigener Hof mehr wert als Gold.
+- *Warum (im Dialog):* Ein Markt braucht Händler, und Händler sind Arbeiter: Sie kommen nur, wenn es Bett und Essen
+  gibt. In einer Stadt, deren Korn Malvor wegkauft, ist ein eigener Hof mehr wert als Gold.
 - *Erklärung:* bekannt aus Mission 1. Zeiger: Kachel „Bauernhof“.
-- *Dialog:*
+- *Dialog (nach dem Startblock: + 25 s):*
   > **Nelia:** Erst die Höfe. Wer bei uns arbeitet, soll nicht zu Malvors Korn betteln gehen.
   >
-  > **Orrin:** Und Händler essen viel. Glaub mir, ich bin einer.
+  > **Orrin:** Und Händler essen viel. Glaub mir, ich bin einer. Ohne Tisch kein Händler, ohne Händler kein Markt.
 
 #### Schritt 2 – Der Kaufmann (B-Story)
 
-- *Auslöser:* Orrin kommt in die Nähe des Kaufmanns **oder** 3 Minuten nach Start der Kaufmann ruft:
+- *Auslöser:* Orrin kommt in die Nähe des Kaufmanns, **oder** nach 3 Minuten ruft der Kaufmann
+  (`all: [time 180, not talked merchant]`):
   > **Kaufmann:** Orrin! Ich seh dich doch! Komm her, du alter Fuchs!
-- *Ziel:* „Optional: Schick Orrin zum Kaufmann von Beaucroix“ (nur Orrin; andere Helden hören: „Ich warte auf Orrin.
-  Er schuldet mir etwas.“)
-- *Warum:* Der Kaufmann hat Einfluss bei den Räubern – und eine Rechnung offen.
+- *Ziel:* „Optional: Schick Orrin zum Kaufmann von Beaucroix“ (nur Orrin; andere Helden hören: „Ich warte auf
+  Orrin. Er schuldet mir etwas.“)
+- *Warum (im Dialog):* Der Kaufmann hat eine Rechnung offen – und Einfluss bei den Räubern.
 - *Dialog (Gespräch):*
   > **Kaufmann:** Achthundert Lehm hast du mir verkauft, Orrin. Vor einem Monat. Bezahlt hab ich. Wo ist er?
   >
@@ -634,10 +660,13 @@ Lehmgrube, Lager (Ausbau zum Marktplatz), Steingrube; die Kaserne kommt mit dem 
   >
   > **Kaufmann:** Liefert ihr, rede ich mit den Räubern, wenn's ums Kronstück geht. Wer liefert, dem glaubt man.
 
-  Angebot „Den versprochenen Lehm liefern (800 Lehm)“ erscheint; Nebenziel „Liefere dem Kaufmann den Lehm, den Orrin
-  verkauft hat“.
-- *Erklärung:* Angebote. Zeiger: das Feld „Angebote“, dann „Bezahlen“ am Lehm-Angebot.
-  > **Orrin:** *(Hilfe)* Angebote stehen im Feld „Angebote“. Bezahlen heißt hier: liefern. Der Lehm geht sofort ab.
+  Angebot „Den versprochenen Lehm liefern (800 Lehm)“ erscheint; Nebenziel „Optional: Liefere dem Kaufmann den Lehm,
+  den Orrin verkauft hat (Feld ‚Angebote‘ → ‚Bezahlen‘)“.
+- *Erklärung:* Angebote. Zeiger: „Bezahlen“ am Lehm-Angebot, sonst „Angebote“ – nur mit E4 sichtbar, solange
+  Hauptziele zeigen.
+- *Dialog (Hilfe, nach dem Block: 20 s):*
+  > **Orrin:** *[Hilfe, entfällt wenn der Lehm geliefert ist]*
+  > Der Kaufmann hat's angeschrieben. Zahlen wir, geht der Lehm sofort zu ihm.
 - *Bezahlt:*
   > **Kaufmann:** Der Lehm ist da, und sogar trocken! Für ehrliche Leute rede ich mit jedem.
   >
@@ -645,46 +674,48 @@ Lehmgrube, Lager (Ausbau zum Marktplatz), Steingrube; die Kaserne kommt mit dem 
   >
   > **Nelia:** Dein erster Vorname ist Schulden.
 
-  Folge: Merker `clayDelivered`. Ist der Herold schon da, wird „Freikaufen (1200)“ durch „Freikaufen mit Rabatt
-  (800)“ ersetzt; sonst erscheint gleich das Rabatt-Angebot, sobald der Herold kommt.
+  Folge: Merker `clayDelivered`. Der Rabatt gilt in jeder Reihenfolge: Kommt der Herold später, öffnet er gleich
+  „Freikaufen mit Rabatt (800)“; ist er schon da, ersetzt die Lieferung „Freikaufen (1200)“ durch das Rabatt-Angebot.
 
 #### Schritt 3 – Ein Lager
 
 - *Auslöser:* gleichzeitig mit Schritt 1 sichtbar.
-- *Ziel:* „Errichte einen Marktplatz: baue ein Lager und baue es aus“
-- *Warum:* Am Markt tauscht man, was man übrig hat, gegen Taler. Ohne Taler kein Kronstück.
-- *Erklärung:* Lager bauen. Zeiger: Kachel „Lager“ (Gruppe „Wohnen“), bis die Baustelle steht.
-- *Dialog:*
+- *Ziel:* „Baue ein Lager (Baumenü → ‚Wohnen‘ → Lager)“
+- *Warum (im Dialog):* Am Markt tauscht man, was man übrig hat, gegen Taler. Ohne Taler kein Kronstück.
+- *Erklärung:* Zeiger: Kachel „Lager“, bis die Baustelle steht.
+- *Dialog (zusammen mit Schritt 1):*
   > **Orrin:** Ein Markt fängt als Lager an. Bau eins, dann machen wir einen Marktplatz daraus.
 
 #### Schritt 4 – Ausbau zum Marktplatz
 
-- *Auslöser:* Lager fertig.
-- *Ziel:* (dasselbe Ziel, jetzt mit Zeiger auf „Ausbauen“)
-- *Warum:* Erst der Marktplatz hat Händler – zwei Arbeiter, die Waren hin- und hertragen.
-- *Erklärung:* Gebäude auswählen, „Ausbauen“; der Ausbau kostet 200 Taler und 200 Stein und läuft von selbst, ohne
-  Leibeigene. Zeiger: Knopf „Ausbauen“ (Lager vorher anklicken lassen: Ring auf dem Lager).
+- *Auslöser:* Lager fertig. Der Auslöser merkt sich das Lager als Bezug (Ring darauf).
+- *Ziel:* „Baue das Lager zum Marktplatz aus (Lager wählen → ‚Ausbauen‘; kostet 200 Taler und 200 Stein)“ – eigenes
+  Teilziel statt Zeiger-Phase, damit kein E3 nötig ist.
+- *Warum (im Dialog):* Erst der Marktplatz hat Händler – zwei Arbeiter, die tauschen.
+- *Erklärung:* Ausbau läuft von selbst, ohne Leibeigene. Zeiger: „Ausbauen“; Ring auf dem Lager.
 - *Dialog:*
-  > **Orrin:** *(Hilfe)* Lager anklicken oder antippen, dann „Ausbauen“. Das geht von selbst, Leibeigene braucht's nicht.
-  >
-  > **Orrin:** Zweihundert Taler kostet das. Ja, das sind zwei Drittel von allem. Investition, Kind.
+  > **Orrin:** Jetzt bauen wir es aus. Zweihundert Taler. Ja, das sind zwei Drittel von allem. Investition, Kind.
   >
   > **Nelia:** Dann muss der Markt schnell zurückzahlen.
+- *Dialog (Hilfe, nach dem Block: 20 s):*
+  > **Orrin:** *[Hilfe, entfällt wenn der Ausbau begonnen hat (`event upgradeStarted`)]*
+  > Der Ausbau geht von selbst. Die Leibeigenen können derweil Holz holen.
 
 #### Schritt 5 – Der erste Handel
 
 - *Auslöser:* Marktplatz fertig.
-- *Ziel:* „Tausche Waren am Markt gegen Taler (Marktplatz wählen → ‚Bezahlen mit‘ Lehm oder Stein → ‚Kaufen‘ Taler →
-  ‚Handeln‘)“
-- *Warum:* Malvor bietet tausend Taler. Wer mithalten will, muss Lehm und Stein zu Geld machen.
-- *Erklärung:* Marktfenster. Zeiger: „Bezahlen mit“ → „Kaufen“ → „Handeln“.
+- *Ziel (Maus/Handy gleich):* „Tausche Waren gegen Taler: Marktplatz wählen → bei ‚Bezahlen mit‘ Lehm oder Stein,
+  bei ‚Kaufen‘ Taler → ‚Handeln‘“
+- *Warum (im Dialog):* Malvor bietet tausend Taler. Wer mithalten will, muss Lehm und Stein zu Geld machen.
+- *Erklärung:* Marktfenster; die Reihenfolge steht nur im Zieltext. Zeiger: „Handeln“; Ring auf dem Marktplatz.
 - *Dialog:*
-  > **Orrin:** *(Hilfe)* Marktplatz wählen. Bei „Bezahlen mit“ den Lehm, bei „Kaufen“ die Taler. Dann „Handeln“.
+  > **Orrin:** Gib den Händlern Lehm und nimm Taler dafür. Je mehr Taler, desto lauter können wir bieten.
   >
-  > **Orrin:** Ohne Händler kein Handel. Sind sie nicht da, fehlt ihnen Bett oder Tisch.
-  >
-  > **Orrin:** Und merk dir: Wer viel verkauft, drückt den Preis. Lieber öfter ein bisschen.
-- *Erster Handel abgeschlossen:*
+  > **Orrin:** Wer viel auf einmal verkauft, drückt den Preis. Lieber öfter ein bisschen.
+- *Dialog (Hilfe, nach dem Block: 25 s):*
+  > **Orrin:** *[Hilfe, entfällt wenn ein Handel begonnen hat (`event tradeStarted`)]*
+  > Keine Händler da? Dann fehlt ihnen Bett oder Tisch.
+- *Erster Handel abgeschlossen (`event tradeDone`):*
   > **Orrin:** Hörst du das? Der schönste Klang der Welt. Taler, die klimpern.
 
 #### Schritt 6 – Der Herold (Wahl: Taler oder Schwert)
@@ -692,74 +723,81 @@ Lehmgrube, Lager (Ausbau zum Marktplatz), Steingrube; die Kaserne kommt mit dem 
 - *Auslöser:* erster abgeschlossener Handel (Meilenstein). Das Räuberlager wird kurz aufgedeckt, die Kaserne
   freigeschaltet, das Angebot „Kronstück freikaufen“ erscheint (1200 Taler, mit Lehmlieferung 800).
 - *Ziel:* „Hol das zweite Kronstück: freikaufen (Angebot) oder das Räuberlager im Flusswald stürmen“
-- *Warum:* Verkaufen die Räuber an Malvor, hat er das erste Kronstück, das er sich nicht nehmen musste – und Nelia
-  hat eins weniger, als sie braucht.
+- *Warum (im Dialog):* Kauft Malvor es, besitzt er sein erstes Kronstück, ohne einen Finger zu rühren – und Nelia
+  fehlt eins der fünf, die sie braucht, damit er nie König wird.
 - *Dialog:*
-  > **Herold:** Hört, Leute von Beaucroix! Statthalter Malvor grüßt die Stadt und schickt Korn – zum halben Preis.
+  > **Herold:** Hört, Leute von Beaucroix! Statthalter Malvor grüßt die Stadt. Seine Kornwagen kommen – für alle, die ihm treu sind.
   >
-  > **Herold:** Und er zahlt tausend Taler für das zweite Kronstück, das im Flusswald liegt.
+  > **Herold:** Und er zahlt tausend Taler für das Kronstück im Flusswald.
   >
   > **Räuberhauptmann:** Tausend vom Statthalter! Wer zwölfhundert bietet, kriegt's. Sonst geht's nach Hagenfurt.
   >
-  > **Orrin:** Zwölfhundert. Ich zähl nach … wir haben zu wenig. Noch.
+  > **Nelia:** Kriegt Malvor es, hat er eins von fünf. Und uns fehlt eins.
   >
-  > **Nelia:** Dann holen wir's uns. Eine Kaserne bildet Leute an Schwert und Speer aus.
+  > **Orrin:** Zwölfhundert. Wir haben zu wenig. Noch. Am Markt verdienen – oder holen.
   >
-  > **Orrin:** Oder wir verdienen es am Markt. Zwei Wege. Nimm einen, bevor Malvor nachlegt.
+  > **Nelia:** Dann holen wir's uns, wenn's sein muss. Eine Kaserne bildet Leute an Schwert und Speer aus.
 
-- *Erklärung (Block 2, 5 s später):*
-  > **Nelia:** *(Hilfe)* Die Kaserne steht im Baumenü unter „Militär“. Darin: „Volle Einheit“ – ein Hauptmann und seine Leute.
+  (Die Kornwagen sind Erzählung: Korn ist keine Ware, am Markt gibt es keins.)
+- *Dialog (Block 2, nach dem Block: + 30 s):*
+  > **Orrin:** Zwei Wege, Kind. Nimm einen, bevor Malvor nachlegt.
   >
-  > **Orrin:** Soldaten wollen am Zahltag Sold. Jede Truppe frisst Taler, die dem Kronstück fehlen.
+  > **Orrin:** Aber Soldaten wollen am Zahltag Sold. Jede Truppe frisst Taler, die dem Freikauf fehlen.
+  >
+  > **Nelia:** *[Hilfe, entfällt wenn eine Kaserne-Baustelle steht]* Die Kaserne steht bei „Militär“. Dort bildet man ganze Truppen auf einmal aus.
+- *Zeiger:* „Bezahlen“ am Kronstück-Angebot bzw. Kachel „Kaserne“ – ein Zeiger: „Angebote“ für 90 s, danach die
+  Kaserne, solange keine steht (Phasen, E3; ohne E3 nur die Kaserne wie heute). Ring auf dem Räuberlager.
 
-- **Wahl A – Freikaufen:** Taler über Markt und Steuern sammeln, Angebot bezahlen. Mit Lehmlieferung 800, sonst 1200.
+- **Wahl A – Freikaufen:** Taler über Markt und Steuern sammeln, Angebot bezahlen (Merker `shardBought`).
   > **Räuberhauptmann:** Taler sind Taler. Nimm dein Goldstück, Händler.
   >
   > **Herold:** Der Statthalter wird sich merken, wer ihn überboten hat.
 
 - **Wahl B – Stürmen:** Kaserne bauen, Schwertkämpfer ausbilden (Taler und Eisen), Lager angreifen.
-  - *Erklärung beim ersten fertigen Trupp:*
-    > **Nelia:** *(Hilfe)* Knopf „Truppen“ wählt alle Soldaten und uns Helden. Dann Rechtsklick auf die Räuber, am Handy antippen.
-    >
-    > **Nelia:** *(Hilfe)* „Angreifen“ heißt: unterwegs alles angreifen, was sich in den Weg stellt.
-  - *Wachen besiegt:*
+  - *Ziel-Zusatz nach dem ersten Trupp:* „(Maus: ‚Truppen‘ wählt alle Soldaten und Helden, Rechtsklick aufs Lager ·
+    Handy: ‚Truppen‘, dann das Lager antippen)“
+  - *Erster Trupp ausgebildet (`event recruited`):*
+    > **Nelia:** *[Hilfe, entfällt wenn eigene Truppen am Räuberlager stehen]* Alle zusammen, dann aufs Lager. Einzeln holen sie uns.
+  - *Wachen besiegt (Merker `shardStormed`):*
     > **Gefangener:** Gnade! Hier, nehmt das Ding. Es hat uns nur Unglück gebracht.
     >
     > **Herold:** Der Statthalter wird sich merken, wer seine Ware gestohlen hat.
     >
     > **Nelia:** Seine Ware? Es lag in der Stadtkasse von Beaucroix.
 
-  Folge in beiden Fällen: Merker `shard2`, offene Angebote zur Kronstück-Frage schließen sich, Überfälle hören auf.
+  Folge in beiden Fällen: Merker `shard2`, offene Kronstück-Angebote schließen sich, Überfälle hören auf.
 
 #### Schritt 7 – Steuern (Wahl: nehmen oder halten)
 
-- *Auslöser:* erster Zahltag nach dem Herold.
-- *Ziel:* keins – eine Entscheidung im Spiel. Zeiger: Knopf „Burg“, dann die Steuerstufen.
-- *Warum:* Das Kronstück kostet Taler, und Taler kommen aus Steuern. Malvor nimmt viel. Was nimmt Nelia?
+- *Auslöser:* erster Zahltag nach dem Herold (`all: [event payday, fired offer]`).
+- *Ziel:* keins – eine Entscheidung im Spiel. Zeiger: „Burg“, mit E11 die ganze Steuerreihe (ohne E11 kein Zeiger
+  auf eine einzelne Stufe, damit keine Wahl vorgegeben wird).
+- *Warum (im Dialog):* Das Kronstück kostet Taler, und Taler kommen aus Steuern. Malvor nimmt viel. Was nimmt Nelia?
+- *Mechanik ehrlich:* „Hoch“ bringt etwa 2,5 Taler mehr je Arbeiter und Zahltag (bei 10–15 Arbeitern 25–40 Taler alle
+  zwei Minuten) und drückt die Stimmung langsam; „niedrig“ umgekehrt. In der Spieldauer dieser Mission sind das kleine
+  Unterschiede. Die Zeilen versprechen deshalb nichts Großes; die Folge zeigt sich in den Reaktionen und im Abschluss.
 - *Dialog:*
-  > **Orrin:** Zwölfhundert Taler … Dreh die Steuern hoch, dann haben wir sie in ein paar Zahltagen.
+  > **Orrin:** Zwölfhundert Taler … Dreh die Steuern hoch. Ein paar Taler mehr an jedem Zahltag.
   >
-  > **Nelia:** So macht es Malvor. Nehmen, bis keiner mehr kommt.
+  > **Nelia:** So macht es Malvor. Nehmen, bis keiner mehr kommen will.
   >
-  > **Orrin:** Malvor hat volle Speicher. Wir haben einen Händler mit Schulden.
+  > **Orrin:** Ein paar Taler machen noch keinen Malvor.
   >
-  > **Orrin:** *(Hilfe)* In der Burg unter „Steuern“. Hoch bringt Taler, drückt aber die Stimmung.
+  > **Nelia:** Aber einen Anfang.
   >
-  > **Nelia:** Und wer unzufrieden ist, kommt nicht mehr. Oder er geht.
+  > **Orrin:** *[Hilfe, kommt immer]* In der Burg stellt man's ein. Hoch bringt etwas mehr, und die Stimmung sinkt.
 
-- **Wahl A – „Malvors Weg“ (Steuern auf „Hoch“ oder „Sehr hoch“, Merker `taxedHard`):**
-  > **Nelia:** Gut. Aber ich zähle die Lagerfeuer, Orrin. Jeden Abend.
-  
-  Folge: deutlich mehr Taler je Zahltag; die Stimmung sinkt, neue Arbeiter bleiben aus, bei sehr hohen Steuern ziehen
-  welche weg. Beim ersten Arbeiter, der geht:
-  > **Nelia:** Da geht einer. Mit leerem Beutel und vollem Bauch hätte er gestanden.
+- **Wahl A – „Malvors Weg“** (Steuern „Hoch“ oder „Sehr hoch“; Funktionsbedingung auf die Steuerstufe; Merker
+  `taxedHard`):
+  > **Nelia:** Gut. Aber ich will ihre Gesichter sehen, nicht nur die Taler.
 
-- **Wahl B – „Nelias Weg“ (Steuern auf „Niedrig“ oder „Keine“, Merker `taxedLight`):**
+  Selten, nur bei lange „sehr hohen“ Steuern (`event workerLeft`, Grund Motivation):
+  > **Nelia:** Da geht einer. Für ein paar Taler.
+
+- **Wahl B – „Nelias Weg“** (Steuern „Niedrig“ oder „Keine“; Merker `taxedLight`):
   > **Orrin:** Niedrig! Mein Beutel weint. Aber die Leute lächeln. Das ist auch eine Währung.
 
-  Folge: weniger Taler, Stimmung steigt, Arbeiter bleiben und arbeiten schneller; der Markt muss mehr leisten.
-
-- *Umsetzung:* Auslöser mit Funktionsbedingung auf die Steuerstufe des Spielers, je einmal. Keine neue Mechanik.
+- *Was zählt:* der Stand beim Sieg (`onVictory` setzt den endgültigen Merker).
 
 #### Die Überfälle
 
@@ -769,24 +807,25 @@ Lehmgrube, Lager (Ausbau zum Marktplatz), Steingrube; die Kaserne kommt mit dem 
   >
   > **Orrin:** Er bezahlt sie dafür, uns arm zu machen. Billiger kann man nicht Krieg führen.
   >
-  > **Orrin:** *(Hilfe)* Wähl mich allein und nimm „Wundsalbe“, Taste C. Wer bei mir steht, wird geheilt.
-- *Auslöser „Es brennt“ (erstes eigenes Gebäude unter halber Kraft):*
-  > **Nelia:** *(Hilfe)* Da brennt ein Haus! Leibeigene hinschicken – Rechtsklick oder antippen. Reparieren kostet nichts.
+  > **Orrin:** *[Hilfe, entfällt wenn „Wundsalbe“ benutzt wurde]* Bringt mir die Verwundeten. Meine Salbe heilt jeden, der nah bei mir steht.
+- *Zeiger:* „Wundsalbe“ nur mit E4. Zieltext-Zusatz am Kronstück-Ziel während des Überfalls: „(Orrin allein wählen →
+  ‚Wundsalbe‘, C)“.
+- *Auslöser „Es brennt“ (erstes eigenes Gebäude unter halber Kraft, Funktionsbedingung, einmalig):*
+  > **Nelia:** *[Hilfe, kommt einmal]* Da brennt ein Haus! Leibeigene hin, sie flicken es. Reparieren kostet nichts.
 
 ### Nebenziele
 
 - **Lehmschuld** (Schritt 2): spart 400 Taler beim Freikauf.
-- Keine weiteren; die Steuerfrage ist eine Wahl, kein Ziel.
 
 ### Niederlage
 
-- *Burg gefallen:* „Euer Lager ist gefallen. Malvors Herold zahlt die tausend Taler, und das zweite Kronstück fährt
-  den Fluss hinauf nach Hagenfurt.“
+- *Burg gefallen:* „Euer Lager ist gefallen. Malvors Herold zahlt die tausend Taler, und das Kronstück aus der
+  Stadtkasse fährt den Fluss hinauf nach Hagenfurt.“
 
 ### Abschluss
 
 > **Freigekauft:** Der Räuberhauptmann zählt die Taler zweimal. Beim Abschied grinst er: „Wisst ihr, warum euer
-> Statthalter so gern Korn verkauft? Weil nur er welches hat. Der Winter ist nicht echt. Im Gebirge hinter
+> Statthalter so gern Korn verspricht? Weil nur er welches hat. Der Winter ist nicht echt. Im Gebirge hinter
 > Hagenfurt steht ein altes Wetterwerk. Malvor hat es wieder angeworfen.“
 >
 > **Gestürmt:** Der gefangene Räuber zittert, aber nicht vor Kälte. „Wir haben für Malvor Fuhren ins Gebirge
@@ -795,7 +834,8 @@ Lehmgrube, Lager (Ausbau zum Marktplatz), Steingrube; die Kaserne kommt mit dem 
 > **Steuern hoch:** In Beaucroix sagen sie, die Prinzessin nehme wie ein Statthalter. Orrin findet das ein
 > Kompliment. Nelia nicht.
 > **Steuern niedrig:** In Beaucroix sagen sie, bei der Prinzessin bleibe einem mehr im Beutel als bei Malvor.
-> Orrin rechnet nach, wie viel ihn das gekostet hat, und hört bei vierhundert auf.
+> Orrin rechnet nach, was ihn das gekostet hat, und hört lieber auf.
+> **Steuern normal:** kein Satz.
 >
 > **Gemeinsam:** Zwei Kronstücke von fünf. Orrin wird blass. „Ein gemachter Winter. Dann sind die Kornlager kein
 > Glück, sondern eine Falle.“ Nelia packt ihren Mantel. „Solange es Winter ist, muss jeder zu Malvor, der essen
@@ -825,20 +865,20 @@ Schwertkämpfer und ein Trupp Bogenschützen; 400 Taler in Orrins Börse.
 | Was | Wo erklärt |
 |---|---|
 | Mission ohne Burg: nichts nachkaufen, jede Truppe zählt | Einleitung, Start |
-| Alle Truppen und Helden wählen („Truppen“), mehrere Truppen führen | Start |
+| Alle Truppen und Helden wählen („Truppen“), mehrere Truppen führen | Start (Zieltext von Schritt 2) |
 | Nelias „Weitblick“ | Schritt 1 |
-| Eis trägt im Winter – Seen und Flüsse werden zu Wegen | Schritt 2 |
+| Eis trägt im Winter – Seen und Flüsse werden zu Wegen | Schritt 1–2 |
 | Orrins „Bestechen“ (kostet Taler) | Schritt 2, Weg „Schlucht“ |
+| Steuergruppen (für Fortgeschrittene) | Schritt 2 (nur Zieltext) |
 | Tauwetter: Wer auf dem Eis steht, ertrinkt | Start, Schritt 4, Schritt 5 |
 | Gefangene befreien → kämpfen mit | Nebenziel |
-| Steuergruppen (optional, für Fortgeschrittene) | Schritt 2, Hilfe |
 
 ### Einleitung
 
 > **Bisher:** Zwei Kronstücke von fünf hat Nelia – aus Lindgrund und aus Beaucroix. Malvor hat keins von beiden
 > bekommen. Noch nicht. Doch in Beaucroix hat Nelia erfahren, worauf seine Macht wirklich steht: Der Winter ist
-> gemacht. *(Mit Kampagnen-Merkern, K1 – Freikauf: „Der Räuberhauptmann hat es ihr verraten.“ Sturm: „Ein gefangener
-> Räuber hat es ihr verraten.“ Ohne K1 entfällt der Satz.)*
+> gemacht. *(Nur mit K1: „Der Räuberhauptmann hat es ihr für Taler verraten.“ bzw. „Ein gefangener Räuber hat es ihr
+> verraten.“ Ohne K1 entfällt der Satz.)*
 >
 > Vor Jahrhunderten hungerte der Kriegsherr Hrimgar das Kronland mit einem Wetterwerk aus. Malvor hat es wieder
 > angeworfen. Solange Schnee liegt, wächst Korn nur in Hagenfurt, und wer essen will, muss zu ihm.
@@ -852,7 +892,7 @@ Schwertkämpfer und ein Trupp Bogenschützen; 400 Taler in Orrins Börse.
 #### Start – Vor dem Bergkamm
 
 - *Auslöser:* Missionsbeginn; das Tor wird kurz aufgedeckt, die Kamera fährt hin.
-- *Dialog (Block 1):*
+- *Dialog:*
   > **Orrin:** Kein Dach, kein Feuer, kein Markt. Ich hasse Abenteuer.
   >
   > **Nelia:** Hinter dem Kamm liegt das Tal. Das Tor dort ist zu stark für uns.
@@ -862,58 +902,65 @@ Schwertkämpfer und ein Trupp Bogenschützen; 400 Taler in Orrins Börse.
   > **Orrin:** Wer dann auf dem Eis steht, ertrinkt. Wir alle. Auch die mit Schwertern.
   >
   > **Nelia:** Dann laufen wir schnell. Hier gibt es keine Burg, Leute. Wer fällt, kommt nicht wieder.
-- *Erklärung (Block 2, Hilfe):*
-  > **Nelia:** *(Hilfe)* Knopf „Truppen“ wählt alle Soldaten und uns Helden. Ein Rechtsklick, und alle laufen.
+  >
+  > **Nelia:** Wir bleiben zusammen. Wer geht, geht mit allen.
 
 #### Schritt 1 – Weitblick
 
 - *Auslöser:* nach dem Start.
-- *Ziel:* „Sieh mit Nelias Weitblick über den Bergkamm (Nelia allein wählen → ‚Weitblick‘, Taste X)“
-- *Warum:* Wer blind ins Tal läuft, läuft in eine Wache. Nelia hat als Kind von jedem Baum in Lindgrund das ganze
-  Tal überblickt – „Weitblick“ ist genau das.
-- *Erklärung:* Fähigkeit eines einzeln gewählten Helden. Zeiger: Nelias Bild, dann Knopf „Weitblick“.
-- *Dialog:*
+- *Ziel (Maus):* „Sieh mit Nelias Weitblick über den Bergkamm: Nelia allein wählen → ‚Weitblick‘ (X)“
+- *Ziel (Handy):* „Sieh mit Nelias Weitblick über den Bergkamm: Nelias Bild antippen → ‚Weitblick‘“
+- *Warum (im Dialog):* Wer blind ins Tal läuft, läuft in eine Wache.
+- *Erklärung:* Fähigkeit eines einzeln gewählten Helden. Zeiger (Liste): „Weitblick“ → Nelias Bild.
+- *Baustein:* Hauptziel mit Merker über `event ability` (`farsight`). **Nach 60 s ohne Weitblick erledigt es sich
+  selbst** (`complete`), mit der Zeile unten; so blockiert es nie den Sieg.
+- *Dialog (nach dem Startblock: + 25 s):*
   > **Orrin:** Bevor wir hineinlaufen: Schau nach, wer da steht. Du siehst doch weiter als wir alle.
   >
-  > **Nelia:** *(Hilfe)* Wähl mich allein aus und nimm „Weitblick“ – Taste X oder der Knopf. Dann seh ich weit übers Land.
-- *Erfüllt (Fähigkeit benutzt, Merker über das Ereignis „Fähigkeit“):* Die Schlucht wird kurz aufgedeckt, die Kamera
-  schwenkt hin.
+  > **Nelia:** *[Hilfe, entfällt wenn „Weitblick“ benutzt wurde]* Lasst mich allein vorn stehen. Dann seh ich weit übers Land.
+- *Erfüllt (Fähigkeit benutzt):* Die Schlucht wird aufgedeckt, die Kamera schwenkt hin.
   > **Nelia:** Da. Der Fluss läuft durch die Schlucht ins Tal. Und er ist zugefroren.
   >
   > **Orrin:** Ein gefrorener Fluss ist eine Straße. Hrimgars Winter baut uns den Weg zu seinem eigenen Werk.
+- *Selbst erledigt (60 s):* Schlucht aufdecken, Kamera hin.
+  > **Orrin:** Dann schau ich eben selbst. … Da! Der Fluss in der Schlucht – zugefroren. Eine Straße ins Tal.
 
 #### Schritt 2 – Ins Tal (Wahl: Tor oder Schlucht)
 
-- *Auslöser:* Weitblick benutzt (oder 60 s nach Start).
-- *Ziel:* „Bring die Gruppe ins Tal – durchs Tor oder über den gefrorenen Fluss in der Schlucht“
-- *Warum:* Nur aus dem Tal erreicht man die Insel.
-- *Erklärung:* Eis ist im Winter begehbar; Bestechen. Zeiger: Ringe an Tor und Schlucht (beide „Ziel zeigen“).
-- **Wahl A – Das Tor** (beim Sichten):
+- *Auslöser:* Schritt 1 erledigt.
+- *Ziel (Maus):* „Bring die Gruppe ins Tal – durchs Tor oder über den gefrorenen Fluss. ‚Truppen‘ wählt alle, dann
+  Rechtsklick aufs Ziel. Tipp: Umschalt + Zahl merkt eine Truppe, die Zahl holt sie zurück.“
+- *Ziel (Handy):* „Bring die Gruppe ins Tal – durchs Tor oder über den gefrorenen Fluss. ‚Truppen‘ antippen, dann
+  das Ziel. ‚Als Gruppe merken‘ merkt eine Truppe.“
+- *Zwei Wegweiser (optionale Ziele, je mit „Ziel zeigen“):* „Weg A: das Tor“ · „Weg B: die Schlucht“. Den Ring trägt
+  nur das erste offene; das andere erreicht man über „Ziel zeigen“. Beide erledigen sich, wenn das Hauptziel erfüllt
+  ist.
+- *Warum (im Dialog):* Nur aus dem Tal erreicht man die Insel.
+- **Wahl A – Das Tor** (`area gate who army`):
   > **Nelia:** Ein Turm und fünf Trupps. Hier durch kommen wir nur mit viel Mut.
   >
   > **Orrin:** Mut kostet nichts. Leute schon. Rechne gut, Nelia.
 
   Folge: harter Kampf, „Mut machen“ fast Pflicht; Orrins Börse bleibt voll für später (etwa einen Trupp am See).
-- **Wahl B – Die Schlucht** (beim Sichten des Postens):
+- **Wahl B – Die Schlucht** (`area gorge who army`):
   > **Orrin:** Nur zwei Trupps auf dem Eis. Und die frieren für Malvors Sold. Das ist ein Angebot.
   >
-  > **Orrin:** *(Hilfe)* Wähl mich allein, geh nah ran und nimm „Bestechen“, Taste X. Zweihundert Taler und fünfzig je Mann.
+  > **Orrin:** *[Hilfe, entfällt wenn „Bestechen“ benutzt wurde]* Lass mich nah ran. Zweihundert Taler und fünfzig je Mann, dann wechseln sie die Seite.
   >
   > **Nelia:** Du kaufst Soldaten wie Knöpfe.
   >
   > **Orrin:** Ich kaufe Leben. Ihre und unsere. Billiger geht's heute nicht.
 
-  Folge: Ein bestochener Trupp kämpft für uns; die Börse ist leer. Oder kämpfen: kleine Verluste, Börse voll für
-  später.
-- *Ins Tal gelangt:*
-  > **Orrin:** *(Hilfe)* Für Fortgeschrittene: Umschalt und eine Zahl merkt sich eine Truppe. Die Zahl allein holt sie zurück.
+  Zieltext-Zusatz: „(Orrin allein wählen → ‚Bestechen‘, X)“. Folge: Ein bestochener Trupp kämpft für uns, die
+  Börse ist fast leer – oder kämpfen: kleine Verluste, Börse voll für später.
+- *Bestechen* setzt unabhängig vom Weg den Merker `bribed` (`event ability`, `bribe`).
 
 #### Schritt 3 – Hrimgars Pläne
 
 - *Auslöser:* Ankunft im Tal (die Ruinen werden aufgedeckt).
 - *Ziel:* „Sichere Hrimgars Pläne in den Ruinen am Talrand (ein Held genügt)“
-- *Warum:* Malvor hat Hrimgars Pläne gefunden, so hat er das Werk wieder angeworfen. Wer weiß, wie das Werk gebaut
-  ist, kann es nachbauen – Malvor kann es, und Nelia soll es auch können. „Was er weiß, sollen wir auch wissen.“
+- *Warum (im Dialog):* Malvor hat Hrimgars Pläne gefunden, so hat er das Werk wieder angeworfen. Was er weiß, soll
+  Nelia auch wissen.
 - *Dialog:*
   > **Nelia:** Da drüben, die Ruinen. Hrimgars Festung.
   >
@@ -929,11 +976,12 @@ Schwertkämpfer und ein Trupp Bogenschützen; 400 Taler in Orrins Börse.
 
 - *Auslöser:* Ankunft im Tal (gleichzeitig mit Schritt 3).
 - *Ziel:* „Zerstöre das Wetterwerk auf der Insel“
-- *Warum:* Ohne Winter wächst überall Korn, und niemand muss mehr für eine Schüssel in Malvors Kornlager. Das ist
-  der Kern von Nelias Wunsch: Vater und alle anderen könnten heimgehen.
-- *Erklärung:* Gebäude angreifen (Rechtsklick/antippen); Wiederholung: Tauwetter.
+- *Warum (im Dialog):* Ohne Winter wächst überall Korn, und niemand muss mehr für eine Schüssel in Malvors Kornlager.
+- *Erklärung:* Gebäude angreifen; Wiederholung: Tauwetter.
 - *Dialog (das Werk kommt in Sicht):*
   > **Nelia:** Da ist es. Mitten im See. Hörst du das Brummen?
+  >
+  > **Nelia:** Fällt das, wächst überall wieder Korn. Dann muss keiner mehr zu Malvor. Vater auch nicht.
   >
   > **Orrin:** Ein Sturm mitten im Sommer hat König Edrian ertränkt. Kurz darauf lief das hier wieder.
   >
@@ -951,17 +999,19 @@ Schwertkämpfer und ein Trupp Bogenschützen; 400 Taler in Orrins Börse.
 
 #### Schritt 5 – Tauwetter
 
-- *Auslöser:* Werk zerstört. Die Uhr läuft 60 Sekunden.
+- *Auslöser:* Werk zerstört. Die Uhr läuft 60 Sekunden (`survive`).
 - *Ziel:* „Tauwetter! Bring Nelia und Orrin auf festen Talboden – runter vom Eis und von der Insel“
-- *Warum:* Hrimgars Winter rächt sich: Wer auf dem Eis steht, ertrinkt; wer auf der Insel bleibt, sitzt fest, bis
-  Malvors Leute kommen.
+- *Warum (im Dialog):* Hrimgars Winter rächt sich: Wer auf dem Eis steht, ertrinkt; wer auf der Insel bleibt, sitzt
+  fest, bis Malvors Leute kommen.
 - *Erklärung:* Ring am festen Ufer („Ziel zeigen“). Truppen auf dem Eis ertrinken ebenfalls (keine Niederlage, aber
   Verlust).
 - *Dialog:*
   > **Wache:** *(5 s danach)* Das Werk brennt! Fangt sie am Ufer ab!
   >
   > **Orrin:** *(15 s vor Schluss)* Das Eis wird grau! Lauf, Nelia!
-- *Tauwetter:* Das Wetter wechselt auf Sommer. Ertrinkt eine Truppe:
+- *Tauwetter:* Das Wetter wechselt auf Sommer. **Der Sieg folgt erst 5 s später** (Merker beim Tauen, Sieg über
+  `delay`), damit Ertrinken und Wetterwechsel zu sehen sind und die Zeile Platz hat.
+- *Ertrinkt eine eigene Truppe* (Baustein: in der Tau-Funktion eigene Hauptleute vorher/nachher zählen, oder E5):
   > **Nelia:** Sie waren aus Lindgrund. Ich vergesse ihre Namen nicht.
 
 ### Nebenziele
@@ -969,7 +1019,8 @@ Schwertkämpfer und ein Trupp Bogenschützen; 400 Taler in Orrins Börse.
 **Optional: Die Gefangenen**
 - *Auslöser:* Das Gefangenenlager kommt in Sicht.
 - *Ziel:* „Optional: Vertreibe die Wachen am Gefangenenlager – die Befreiten kämpfen mit dir“
-- *Warum:* Dort sitzen Leute aus den Dörfern, die Malvor ins Gebirge geschleppt hat, um sein Werk zu heizen.
+- *Warum (im Dialog):* Dort sitzen Leute aus den Dörfern, die Malvor ins Gebirge geschleppt hat, um sein Werk zu
+  heizen.
 - *Dialog (Sichten):*
   > **Nelia:** Da drüben, ein Lager mit Gefangenen. Leute aus den Dörfern.
   >
@@ -1001,8 +1052,8 @@ Schwertkämpfer und ein Trupp Bogenschützen; 400 Taler in Orrins Börse.
 > In Orrins Tasche knistern Hrimgars Pläne. Ein gefangener Wächter verrät noch etwas, für ein Stück Brot: Malvor
 > trägt selbst ein Kronstück – das von Hagenfurt, an einer Kette um den Hals. Er legt es nie ab.
 >
-> *(Torweg: Am Tor liegen viele. Orrin zählt sie nicht laut.)* *(Bestochen: Die bestochenen Soldaten bleiben. „Wer
-> einmal die Seite wechselt“, sagt Orrin, „hat Übung.“)*
+> *(Merker `bribed`: Die bestochenen Soldaten bleiben. „Wer einmal die Seite wechselt“, sagt Orrin, „hat Übung.“)*
+> *(Tor ohne Bestechung: Am Tor liegen viele. Orrin zählt sie nicht laut.)*
 >
 > In Hagenfurt erfährt Malvor in derselben Nacht, wer ihm den Winter genommen hat. Er sagt nur einen Satz, so
 > erzählt man: „Wenn der Hunger sie nicht mehr hält, dann eben das Eisen.“
@@ -1077,8 +1128,8 @@ ein kurzer Spätfrost.
   > **Nelia:** Leute, die von selbst kommen. Wenigstens kaufen wir diesmal keinen.
   >
   > **Orrin:** Nur eins von beiden, Kind. Wer Söldner hat, braucht keine Flüchtlinge – sagen die Söldner.
-- *Erklärung:* Zeiger: Feld „Angebote“. Mit 900 Talern gehen die Geflohenen sofort; Söldner erst nach etwas
-  Wirtschaft (Steuern, Gruben).
+- *Erklärung:* Zeiger: „Angebote“ (ein Zeiger; die Gruben-Ziele zeigen erst danach). Mit 900 Talern gehen die
+  Geflohenen sofort; Söldner erst nach etwas Wirtschaft (Steuern, Gruben).
 
 - **Wahl A – Söldner anheuern** (4 kampfbereite Truppen, Merker `mercs`):
   > **Orrin:** Bezahlt und bereit. Sie fragen nicht, wofür sie kämpfen.
@@ -1094,19 +1145,22 @@ ein kurzer Spätfrost.
 #### Schritt 1 – Eisen
 
 - *Auslöser:* nach dem Start.
-- *Ziel:* „Baue eine Eisengrube – Schwerter brauchen Eisen“
+- *Ziel:* „Baue eine Eisengrube – Schwerter brauchen Eisen (Baumenü → ‚Rohstoffe‘, nur auf dem Eisenschacht)“
 - *Warum:* Die Kaserne bildet Schwertkämpfer nur mit Talern und Eisen aus. Und jedes Stück Eisen, das wir fördern,
   hat Malvor nicht.
-- *Erklärung:* wie die Lehmgrube, aber auf dem Eisenschacht. Zeiger: Kachel „Eisengrube“, Ring auf dem Schacht.
-- *Dialog:*
-  > **Nelia:** *(Hilfe)* Eisengrube, wie die Lehmgrube daheim – nur auf dem Eisenschacht. Der Ring zeigt ihn.
+- *Erklärung:* wie die Lehmgrube, aber auf dem Eisenschacht (Bezug aus `ensureShaft`). Zeiger: Kachel
+  „Eisengrube“, Ring auf dem Schacht.
+- *Dialog (nach dem Startblock: + 30 s):*
+  > **Nelia:** Ohne Eisen keine Schwerter. Und jedes Stück, das wir graben, fehlt Malvor.
+  >
+  > **Nelia:** *[Hilfe, entfällt wenn die Baustelle der Eisengrube steht]* Eine Grube wie daheim die Lehmgrube – dort, wo das Eisen rostrot aus dem Hang tritt.
   >
   > **Orrin:** Bergleute wollen Bett und Tisch, wie alle. Vergiss die Höfe nicht.
 
 #### Schritt 2 – Schwefel
 
 - *Auslöser:* nach dem Start (gleichzeitig mit Schritt 1).
-- *Ziel:* „Baue eine Schwefelgrube – Malvor will den Schwefel für ein neues Wetterwerk“
+- *Ziel:* „Baue eine Schwefelgrube – Malvor will den Schwefel für ein neues Wetterwerk (Baumenü → ‚Rohstoffe‘)“
 - *Warum:* Hrimgars Pläne sagen es: Kein Wetter ohne Schwefel. Malvor will ein neues Werk. Wer den Schwefel hat,
   entscheidet, ob es je wieder ewigen Winter gibt.
 - *Erklärung:* Zeiger: Kachel „Schwefelgrube“.
@@ -1122,12 +1176,15 @@ ein kurzer Spätfrost.
 - *Auslöser:* Eisengrube fertig.
 - *Ziel:* „Optional: Erforsche ‚Stehendes Heer‘ in einer Hochschule – dann bildet der Schießplatz Bogenschützen aus“
 - *Warum:* Tarans Lager stehen hinter Palisaden. Bogenschützen treffen aus der Ferne, ohne dass man hineinlaufen muss.
-- *Erklärung:* Hochschule bauen, auswählen, unter „Forschung“ die Technik wählen; Gelehrte sind Arbeiter (Bett,
-  Essen). Zeiger: Kachel „Hochschule“ (Gruppe „Verwaltung“), dann „Stehendes Heer“, dann Kachel „Schießplatz“.
+- *Ziel-Zusatz (Maus/Handy gleich):* „(Hochschule bauen → wählen → ‚Forschung‘ → ‚Stehendes Heer‘ → Schießplatz
+  bauen)“
+- *Erklärung:* Gelehrte sind Arbeiter (Bett, Essen). Zeiger-Phasen (E3): 1. Kachel „Hochschule“ (Gruppe
+  „Verwaltung“), solange keine steht; 2. „Stehendes Heer“, bis erforscht; 3. Kachel „Schießplatz“. Ohne E3 nur
+  Phase 1 (wie heute mit `uiWhile`). Als Nebenziel zeigt es ohnehin erst, wenn kein Hauptziel einen Zeiger hat.
 - *Dialog:*
-  > **Orrin:** Schwerter allein brechen keine Belagerung. In einer Hochschule tüfteln Gelehrte.
+  > **Orrin:** Schwerter allein brechen keine Belagerung. Tarans Lager stehen hinter Palisaden.
   >
-  > **Orrin:** *(Hilfe)* Hochschule bauen, anklicken, unter „Forschung“ „Stehendes Heer“. Dann bildet ein Schießplatz Bogenschützen aus.
+  > **Orrin:** *[Hilfe, entfällt wenn eine Hochschule-Baustelle steht]* Bau eine Hochschule und lass die Gelehrten „Stehendes Heer“ ausarbeiten. Dann bildet ein Schießplatz Bogenschützen aus.
   >
   > **Nelia:** Gelehrte essen auch, oder?
   >
@@ -1145,6 +1202,8 @@ ein kurzer Spätfrost.
   > **Orrin:** Schwerter schlagen Speere und Bogen. Speere schlagen Reiter. Bogen treffen, bevor man sie erreicht.
   >
   > **Nelia:** Und Mut schlägt alles. Wenn ich vorne stehe.
+  >
+  > **Orrin:** Und je mehr eigene Leute wir haben, desto lieber geben die Bergleute Eisen dazu.
 
 - *Taran (Nelia kommt ans vordere Lager):*
   > **Taran:** Halt. … Ich kenne dein Gesicht. Kornlager Hagenfurt, der Holzplatz.
@@ -1159,6 +1218,16 @@ ein kurzer Spätfrost.
   >
   > **Taran:** Unter dem gütigen König sind auch Kinder verhungert. Malvor bringt Ordnung. Volle Speicher.
 
+- *Rückfall, falls Nelia nie am vorderen Lager war* (Auslöser `heroDown taran` **oder** Belagerung gebrochen, mit
+  `not fired meetTaran`; läuft vor der Zeile „Rückzug“): Die Erkennung muss passieren, Mission 5 baut darauf.
+  > **Taran:** Warte. Die da, mit dem Zopf. Kornlager Hagenfurt, der Holzplatz.
+  >
+  > **Taran:** Die Tochter vom Holzfäller aus Lindgrund. Und die nennen sie Prinzessin?
+  >
+  > **Nelia:** Ich hab nie gesagt, dass ich eine bin.
+  >
+  > **Taran:** Aber auch nie laut genug, dass du keine bist.
+
 - *Taran bewusstlos:*
   > **Taran:** Genug. Rückzug! … Wir sehen uns, Holzfällerstochter.
   >
@@ -1166,7 +1235,8 @@ ein kurzer Spätfrost.
   >
   > **Nelia:** Dann haben wir nicht viel Zeit.
 
-  Taran verlässt die Karte. Erklärung zum feindlichen Helden:
+  Taran verlässt die Karte (wer den Abzug zeigen will: erst Laufbefehl zum Kartenrand, dann `remove`). Erklärung
+  zum feindlichen Helden:
   > **Orrin:** Helden fallen nicht, auch seine nicht. Sie stehen wieder auf. Er hat nur klüger gezählt als wir.
 
 #### Schritt 5 – Der Bergmeister
@@ -1198,7 +1268,7 @@ ein kurzer Spätfrost.
   >
   > **Nelia:** Ein Wachturm am Lager schießt, auch wenn wir weg sind.
   >
-  > **Orrin:** *(Hilfe)* Wachturm im Baumenü unter „Militär“. Stein kostet er, Schlaf nicht.
+  > **Orrin:** *[Hilfe, entfällt wenn eine Wachturm-Baustelle steht]* Bau einen. Stein kostet er, Schlaf nicht.
 
 #### Wetter
 
@@ -1258,7 +1328,7 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
 
 | Was | Wo erklärt |
 |---|---|
-| Diplomatie: verbündet, neutral, feindlich – was das heißt | Herold |
+| Diplomatie: verbündet, neutral, feindlich – was das heißt | Herold (Ring aufs Dorf, Fortschritt „1/3“; kein Zeiger) |
 | Lieferungen an Dörfer (Angebote) | Schritt 2 |
 | Taran als eigener Held: „Schildstoß“, „Einschüchtern“ | Schritt 3 |
 | Gebäude anderer schützen (Ziel scheitert, wenn alle fallen) | Schritt 3 |
@@ -1279,8 +1349,14 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
 #### Start – Bevor der Herold kommt (Wahl)
 
 - *Auslöser:* Missionsbeginn. Die Dorfälteste von Moorbrook bekommt ein Ausrufezeichen.
+- *Sprecher:* Die Älteste von Moorbrook ist ein eigener Sprecher, **„Älteste von Moorbrook“** (E12; eigene Stimme,
+  damit sie nicht mit der Dorfältesten von Erlenhof verwechselt wird). Die beiden Speertrupps im Lager kommen je
+  einer aus Moorbrook und aus Schilfheim (in `setup` zwei Bezüge).
+- *Mit K1 (M4), eine Zeile vor dem Dialog:*
+  - `refugees`: **Dorfbewohnerin:** „Wir aus dem Kornlager sind mitgekommen, Nelia. Für uns selbst, wie du gesagt hast.“
+  - `mercs`: **Orrin:** „Die Söldner aus Eisenhain sind weitergezogen. Bezahlt ist bezahlt.“
 - *Dialog:*
-  > **Dorfälteste:** Prinzessin! Morvale steht zu dir. Unsere Speerträger halten Wache an deinem Lager.
+  > **Älteste von Moorbrook:** Prinzessin! Morvale steht zu dir. Unsere Speerträger halten Wache an deinem Lager.
   >
   > **Orrin:** Seht ihr? Königsblut öffnet Türen. Und Speicher.
   >
@@ -1291,11 +1367,12 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
   > **Orrin:** Bist du verrückt? Nach der Ernte! Nach dem fünften Kronstück! Irgendwann!
   >
   > **Nelia:** Das hast du in Eisenhain auch gesagt.
-- *Ziel:* „Optional: Bring Nelia zur Dorfältesten von Moorbrook, bevor Malvors Herold da ist“ (Fortschritt zeigt die
-  verbleibende Zeit)
+- *Ziel:* „Optional: Bring Nelia zur Ältesten von Moorbrook, bevor Malvors Herold da ist“ (Restzeit als Uhr mit E8,
+  sonst ein zweites `survive`-Ziel „Der Herold kommt“; der Weg dauert nur ~11 s – eine echte Wahl, kein Rennen)
 - *Warum:* Dieselbe Wahrheit wiegt anders, je nachdem, wer sie sagt.
 - ⚠ Änderung: neue Gesprächsfigur (Dorfälteste von Moorbrook, nur Nelia) mit Frist bis zum Herold (2,5 Minuten);
-  hat Nelia vorher mit ihr gesprochen, bleibt Moorbrook verbündet und seine Speerträger bleiben im Lager. Begründung:
+  hat Nelia vorher mit ihr gesprochen, bleibt Moorbrook verbündet und **Moorbrooks** Speertrupp bleibt im Lager (der
+  von Schilfheim geht). Beim Herold wird die Figur entfernt, das Ziel scheitert still. Begründung:
   Nelias Wachstum wird zur Spielerhandlung, und Ehrlichkeit hat einen spürbaren Lohn.
 
 - **Wahl A – Nelia sagt es selbst** (Merker `confessed`):
@@ -1303,7 +1380,7 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
   >
   > **Nelia:** Orrin hat's erfunden, und ich hab geschwiegen, weil es geholfen hat. Das war falsch.
   >
-  > **Dorfälteste:** Eine, die die Wahrheit sagt, bevor sie muss. Das ist mehr wert als Blut. Moorbrook bleibt.
+  > **Älteste von Moorbrook:** Eine, die die Wahrheit sagt, bevor sie muss. Das ist mehr wert als Blut. Moorbrook bleibt.
   >
   > **Orrin:** *(leise)* Gratuliere. Ein Dorf von dreien. Den Rest erledigt jetzt der Herold.
 
@@ -1313,13 +1390,15 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
 - **Fassung A (Nelia hat es schon gesagt):**
   > **Herold:** Hört, Leute von Morvale! Die „Prinzessin“ ist die Tochter eines Holzfällers aus Lindgrund!
   >
-  > **Dorfälteste:** Wissen wir. Sie hat's uns selbst gesagt.
+  > **Älteste von Moorbrook:** Wissen wir. Sie hat's uns selbst gesagt.
   >
   > **Herold:** Dann folgt ihr einer, die sich ertappt fühlt. Ein Händler hat die Lüge erfunden – für Geld.
   >
   > **Herold:** Und das Kronstück in Erlenhof gehört dem Statthalter. Gebt es heraus!
 
-  Schilfheim und Erlenhof werden neutral.
+  > **Dorfbewohnerin:** Schilfheims Speerträger gehen heim. Wir wissen nicht mehr, wem wir glauben sollen.
+
+  Schilfheim und Erlenhof werden neutral, Schilfheims Speertrupp verlässt das Lager.
 - **Fassung B (der Herold sagt es):**
   > **Herold:** Hört, Leute von Morvale! Die „Prinzessin“ ist die Tochter eines Holzfällers aus Lindgrund!
   >
@@ -1331,15 +1410,17 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
   >
   > **Orrin:** Nelia … nein.
   >
-  > **Dorfälteste:** Unsere Speerträger gehen heim. Wir wissen nicht mehr, wem wir glauben sollen.
+  > **Älteste von Moorbrook:** Unsere Speerträger gehen heim. Wir wissen nicht mehr, wem wir glauben sollen.
 
-  Alle drei Dörfer werden neutral, die Speerträger der Dörfer verlassen das Lager.
+  Alle drei Dörfer werden neutral, beide Speertrupps verlassen das Lager.
+- *Baustein:* zwei Herold-Auslöser (`all: [time 150, flag confessed]` / `not flag confessed`) und ein gemeinsamer
+  Anker `herald` (`any: [fired …]`) für alle späteren `delay`s.
 - *Erklärung (Hilfe, gleich danach):*
-  > **Orrin:** *(Hilfe)* Neutral heißt: Sie greifen nicht an, aber sie helfen nicht und zeigen uns nichts mehr.
+  > **Orrin:** *[Hilfe, kommt immer, nach dem Herold-Block: Anker + 30 s]* Neutral heißt: Sie greifen nicht an. Aber sie helfen nicht, und wir sehen nicht mehr, was bei ihnen los ist.
 
 #### Dark Night of the Soul
 
-- *Auslöser:* 4 Sekunden nach dem Herold.
+- *Auslöser:* nach dem Herold-Block und der Neutral-Zeile (Anker `herald` + 45 s).
 - *Dialog:*
   > **Orrin:** Das ist meine Schuld. Ohne mich wärst du eine Leibeigene, die heimgekehrt ist. Mehr nicht.
   >
@@ -1352,9 +1433,10 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
   > **Nelia:** Wir fangen von vorn an. Wie in Lindgrund: Dach, Tisch, Arbeit. Ohne Geschichte.
   >
   > **Orrin:** Ohne Geschichte. Das hab ich noch nie verkauft.
-- *Mit Kampagnen-Merkern (K1), eine Zeile vorn angehängt:*
-  - M1 Wahl B: **Nelia:** „Die Alte in Lindgrund hat mir geglaubt, als ich die Wahrheit sagte. Die hier werden es auch.“
-  - M1 Wahl A: **Nelia:** „Schon in Lindgrund hab ich dich reden lassen. Hier nicht mehr.“
+- *Mit K1 (M1), eine Zeile vorn angehängt:*
+  - `neighborsTruth`: **Nelia:** „Die Alte in Lindgrund hat mir geglaubt, als ich die Wahrheit sagte. Die hier werden es auch.“
+  - `neighborsLie`: **Nelia:** „Schon in Lindgrund hab ich dich reden lassen. Hier nicht mehr.“
+  - kein Besuch beim Nachbardorf: keine Zeile.
 
 #### Schritt 2 – Lieferungen (Break into Three)
 
@@ -1363,8 +1445,10 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
 - *Warum:* Die Dörfer folgen dem, der sie satt macht und Wort hält. Malvor fordert, Nelia liefert – ohne etwas zu
   verlangen. Moorbrook braucht Dächer (Holz, Lehm), Schilfheim einen Deich (Stein, Eisen), Erlenhof Saatgut und eine
   Scheune (Taler, Lehm).
-- *Erklärung:* Lieferungen sind Angebote; Eisen muss erst gefördert werden. Zeiger: Feld „Angebote“; Ring auf dem
-  Eisenschacht.
+- *Ziel-Zusatz:* „(Feld ‚Angebote‘ → ‚Bezahlen‘; Eisen fördert eine Eisengrube auf dem Eisenschacht)“
+- *Erklärung:* Lieferungen sind Angebote; Eisen muss erst gefördert werden. Zeiger: „Angebote“; Ring auf dem
+  Eisenschacht (in `setup` per `ensureShaft('iron', …)` sicherstellen und als Bezug merken – c5 hat das heute nicht).
+  Wer zu wem steht, zeigt der Fortschritt „verbündet 1/3“ und der Ring auf dem nächsten neutralen Dorf, kein Zeiger.
 - *Dialog:*
   > **Nelia:** Sie wollen keine Prinzessin. Sie wollen Dächer, einen Deich und Saatgut.
   >
@@ -1372,9 +1456,9 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
   >
   > **Nelia:** Gesagt hat er's zu dir. Bezahlt hab ich.
   >
-  > **Orrin:** *(Hilfe)* Die Lieferungen stehen bei den Angeboten. Bezahlen heißt: Die Ware geht sofort ins Dorf.
+  > **Orrin:** *[Hilfe, entfällt wenn schon geliefert wurde]* Jedes Dorf hat aufgeschrieben, was es braucht. Zahlen wir, geht die Ware sofort hin.
   >
-  > **Nelia:** Für den Deich brauchen wir Eisen, und wir haben keins. Eine Eisengrube auf den Schacht, schnell.
+  > **Nelia:** Für den Deich brauchen wir Eisen, und wir haben keins. Eine Grube auf den Eisenschacht, schnell.
 - *Je Lieferung (Dorf wird wieder verbündet):*
   - Moorbrook: **Dorfbewohnerin:** „Ihr habt geliefert, ohne etwas zu verlangen. Moorbrook steht zu euch.“
   - Schilfheim: **Dorfbewohnerin:** „Der Deich hält wieder. Schilfheim vergisst das nicht.“
@@ -1398,17 +1482,19 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
   >
   > **Taran:** Höfe anzünden ist keine. Wo brauchst du mich?
   >
-  > **Nelia:** Bei den Höfen von Moorbrook. Malvors Getreue sind schon unterwegs.
+  > **Nelia:** Bei den Höfen von Moorbrook. Brennen die, gehört Morvale Malvor.
   >
   > **Orrin:** Ein Hauptmann, der Nein sagt. Seltener als jede Prinzessin.
 - *Ziele:* „Schütze die Höfe von Moorbrook“ und „Vertreibe Malvors restliche Truppen“
-- *Warum:* Brennen die Höfe, hungert Moorbrook – und Morvale gehört Malvor, weil nur er noch Korn hat. Die Dörfer
-  sehen genau hin, wer ihre Höfe verteidigt.
-- *Erklärung:* Tarans Fähigkeiten; Schutzziel. Zeiger: Tarans Bild, dann „Schildstoß“; Ring an den Höfen.
-- *Dialog (Hilfe, 6 s später):*
-  > **Taran:** *(Hilfe)* Wähl mich allein. „Schildstoß“, Taste X, trifft alle rundum.
+- *Warum (im Dialog, Nelia in Block 2):* Brennen die Höfe, hungert Moorbrook – und Morvale gehört Malvor, weil nur er
+  noch Korn hat. Die Dörfer sehen genau hin, wer ihre Höfe verteidigt.
+- *Ziel-Zusatz (Maus):* „(Taran allein wählen → ‚Schildstoß‘ X trifft alle rundum, ‚Einschüchtern‘ C jagt Feinde
+  davon)“ · *(Handy):* „(Tarans Bild antippen → ‚Schildstoß‘ oder ‚Einschüchtern‘)“
+- *Erklärung:* Tarans Fähigkeiten; Schutzziel. Zeiger (Liste): „Schildstoß“ → Tarans Bild; Ring an den Höfen.
+- *Dialog (Hilfe, nach Block 2: + 25 s):*
+  > **Taran:** *[Hilfe, entfällt wenn „Schildstoß“ benutzt wurde]* Lasst mich vorn allein stehen. Mein Schildstoß trifft alle rundum.
   >
-  > **Taran:** *(Hilfe)* „Einschüchtern“, Taste C, jagt sie eine Weile davon. Dann greifen sie nicht an.
+  > **Taran:** *[Hilfe, entfällt wenn „Einschüchtern“ benutzt wurde]* Und wenn ich brülle, laufen sie eine Weile. Dann greifen sie nicht an.
 
 #### Verstärkung
 
@@ -1434,13 +1520,15 @@ Moorbrook. 12 Leibeigene, 800 Taler, kein Eisen. Schächte: Lehm, Stein, Eisen. 
   > **Nelia:** Ich bin eine Leibeigene.
   >
   > **Dorfälteste:** Dann wird es Zeit, dass mal eine gefragt wird.
-- *Mit K1 (M2 Steuern), eine Zeile davor:*
+- *Mit K1 (M2 Steuern), eine Zeile davor (bei „normal“ keine):*
   - niedrig: **Dorfälteste:** „Man erzählt, in Beaucroix hast du den Leuten mehr gelassen als jeder Statthalter.“
   - hoch: **Dorfälteste:** „Man erzählt, in Beaucroix hast du genommen wie Malvor. Hier hast du gegeben. Das zählt.“
 
 ### Nebenziele
 
-- **Optional: Baue 4 eigene Bauernhöfe** – *Warum:* Wer selbst Korn hat, muss das der Dörfer nicht nehmen.
+- **Optional: Baue 4 eigene Bauernhöfe** – *Warum (im Dialog, beim Erscheinen nach der ersten Lieferung):*
+  > **Nelia:** Und wir bauen eigene Höfe. Wer selbst Korn hat, muss keinem etwas wegnehmen.
+
   *Erfüllt:* 400 Taler.
   > **Dorfbewohnerin:** Wer selbst Korn anbaut, will uns unseres nicht wegnehmen.
 
@@ -1530,40 +1618,41 @@ Orrin, Taran. Alles ist freigeschaltet.
   > **Taran:** Der See ist tief. Aber im Winter trägt er.
   >
   > **Orrin:** Und Winter kann man machen. Hrimgars Pläne, Nelia. Dafür haben wir sie geholt.
-- *Dialog (Block 2):*
+- *Dialog (Block 2, nach dem Block: + 30 s):*
   > **Taran:** Malvor hat sein eigenes Kraftwerk. Dort, auf der kleinen Insel vor dem Schloss.
   >
   > **Taran:** Ist es geladen, taut er den See, sobald einer von uns aufs Eis tritt.
   >
   > **Taran:** Aber vom Ufer treffen es Bogenschützen. Kanonen auch, wenn ihr die Zeit habt.
   >
-  > **Orrin:** Für unser Kraftwerk brauchen wir Alchimisten, Schwefel, Geduld. Oder Geld.
+  > **Orrin:** Für unser Kraftwerk: Alchimisten, Schwefel, Geduld. Oder Gelehrte aus Beaucroix – achtzehnhundert Taler.
   >
-  > **Orrin:** Ich kenne Gelehrte in Beaucroix. Achtzehnhundert Taler, und sie schenken uns ein halbes Jahr Tüftelei.
-  >
-  > **Nelia:** Und lernen wir's selbst, bleiben die Taler für Soldaten. Beides auf einmal geht nicht.
-- *Erklärung:* Zeiger: Feld „Angebote“; dann die Alchimistenhütte. Malvors Ladebalken steht beim Nebenziel.
+  > **Nelia:** Wir haben fünfzehnhundert. Und lernen wir's selbst, bleiben die Taler für Soldaten.
+- *Erklärung:* Mit 1500 Startgold ist der Kauf (1800 Taler, 400 Schwefel) anfangs **nicht** bezahlbar – erst nach ein,
+  zwei Zahltagen oder etwas Handel. Der Text sagt das ehrlich. Zeiger: die Forschungsphasen (Schritt 1); das Angebot
+  steht sichtbar im Feld „Angebote“. Malvors Ladebalken steht beim Nebenziel.
 
 #### Schritt 1 – Wetterkunde (Wahl: kaufen oder forschen)
 
 - *Auslöser:* nach dem Start.
-- *Ziele (nacheinander, nur auf dem Forschungsweg sichtbar; der Kauf erfüllt sie auf einmal):*
-  1. „Erforsche ‚Wettervorhersage‘ in der Alchimistenhütte“
-  2. „Baue die Alchimistenhütte zum Laboratorium aus“
+- *Ziele (nacheinander; der Kauf erfüllt alle drei – die Forschungen von selbst, den Ausbau per `complete`):*
+  1. „Erforsche ‚Wettervorhersage‘ in der Alchimistenhütte (Hütte wählen → ‚Technologien‘)“
+  2. „Baue die Alchimistenhütte zum Laboratorium aus (Hütte wählen → ‚Ausbauen‘)“
   3. „Erforsche ‚Meteorologie‘ im Laboratorium“
 - *Warum:* Erst wer das Wetter versteht, kann es machen. Jede Stufe kostet Schwefel – den Schwefel, den Malvor in
   Eisenhain nicht bekommen hat.
-- *Erklärung:* Werkstattforschung; Ausbau als Voraussetzung; Alchimisten sind Arbeiter (Bett, Essen). Zeiger:
-  Alchimistenhütte, dann „Technologien“ → „Wettervorhersage“, später „Ausbauen“, dann „Meteorologie“.
-- *Dialog (Forschungsweg, 20 s nach Start, wenn nicht gekauft):*
-  > **Orrin:** *(Hilfe)* Alchimistenhütte anklicken. Unter „Technologien“ steht „Wettervorhersage“. Kostet Schwefel.
+- *Erklärung:* Werkstattforschung; Ausbau als Voraussetzung; Alchimisten sind Arbeiter (Bett, Essen).
+  Zeiger-Phasen (E3): 1. „Wettervorhersage“, bis erforscht; 2. „Ausbauen“ (Ring auf der Hütte), bis begonnen;
+  3. „Meteorologie“. Ohne E3: je Ziel sein eigener Zeiger, das genügt hier, weil die Ziele nacheinander erscheinen.
+- *Dialog (nach Block 2: + 30 s):*
+  > **Orrin:** *[Hilfe, entfällt wenn eine Forschung begonnen hat (`event researchStarted`) oder das Wissen gekauft ist]* Fang in der Alchimistenhütte an. Erst die Wettervorhersage. Die kostet Schwefel.
   >
   > **Orrin:** Ohne Alchimisten forscht keiner. Und Alchimisten wollen essen. Wie immer.
-- *„Wettervorhersage“ fertig:*
-  > **Orrin:** *(Hilfe)* Für „Meteorologie“ braucht's ein Laboratorium. Hütte anklicken, „Ausbauen“.
+- *„Wettervorhersage“ fertig (auf dem Forschungsweg):*
+  > **Orrin:** *[Hilfe, entfällt wenn der Ausbau begonnen hat]* Für die Meteorologie braucht's ein Laboratorium. Bau die Hütte aus.
   >
   > **Nelia:** Hrimgar hat Jahre gebraucht. Wir haben Hagenfurts Garde im Nacken.
-- **Wahl A – Wissen kaufen** (1800 Taler, 400 Schwefel; Merker `knowledgeBought`):
+- **Wahl A – Wissen kaufen** (1800 Taler, 400 Schwefel; im `onPaid` Merker `knowledgeBought` setzen):
   > **Gelehrte:** Hrimgars Zeichnungen sind wirr, aber vollständig. Ihr könnt sofort bauen.
   >
   > **Orrin:** Teuer, ja. Aber Zeit ist das Einzige, was man nicht nachkaufen kann.
@@ -1573,6 +1662,8 @@ Orrin, Taran. Alles ist freigeschaltet.
   > **Malvor:** Hagenfurts Garde! Zeigt dieser Bauernmagd, was Ordnung heißt.
   >
   > **Taran:** Sie kommen über Land, von Norden. Wachtürme dort, und eine Truppe, die hält.
+  >
+  > **Taran:** Und für den Sturm übers Eis brauchen wir ein Heer. Acht Truppen, besser mehr.
 
 #### Schritt 2 – Das Wetterkraftwerk
 
@@ -1580,24 +1671,25 @@ Orrin, Taran. Alles ist freigeschaltet.
 - *Ziel:* „Baue das Wetterkraftwerk – drei Wettertechniker brauchen Bett und Essen“
 - *Warum:* Erst mit dem eigenen Kraftwerk kann Nelia den See frieren lassen. Und erst wenn sie das kann, muss Malvor
   sein eigenes einsetzen.
-- *Erklärung:* Kachel „Wetterkraftwerk“ (Gruppe „Verwaltung“); Wettertechniker sammeln Energie, nur mit Bett und
-  Essen schnell.
+- *Ziel-Zusatz:* „(Baumenü → ‚Verwaltung‘ → Wetterkraftwerk)“
+- *Erklärung:* Wettertechniker sammeln Energie, nur mit Bett und Essen schnell. Zeiger: Kachel „Wetterkraftwerk“.
 - *Dialog:*
   > **Orrin:** Röhren, Kessel, Zahnräder. Genau wie auf Hrimgars Blättern. Nur diesmal gehört es uns.
   >
   > **Nelia:** Und diesmal hungert keiner dafür.
   >
-  > **Orrin:** *(Hilfe)* Wetterkraftwerk unter „Verwaltung“. Drei Wettertechniker ziehen ein. Ohne Bett laden sie langsam.
+  > **Orrin:** Drei Wettertechniker ziehen dort ein. Ohne Bett und Tisch laden sie langsam.
 
 #### Schritt 3 – Winter (Ausführung)
 
 - *Auslöser:* Wetterkraftwerk fertig.
-- *Ziel:* „Lass den Thronsee zufrieren (Wetterkraftwerk wählen, Ladung abwarten → ‚Wetter herbeiführen‘ → Winter)“
+- *Ziel:* „Lass den Thronsee zufrieren (Wetterkraftwerk wählen, Ladung abwarten → ‚Wetter herbeiführen‘ → Winter)“ –
+  Maus und Handy gleich.
 - *Warum:* Nur im Winter führt ein Weg zum Schloss.
-- *Erklärung:* Ladebalken, Wetterwechsel, Dauer und Sperre. Zeiger: „Wetterenergie“, dann „Wetter herbeiführen“ →
-  Winter.
+- *Erklärung:* Ladebalken, Wetterwechsel, Dauer. Zeiger (Liste): „Winter“ → „Wetterenergie“ (solange der Winter
+  noch nicht wählbar ist, leuchtet der Balken).
 - *Dialog:*
-  > **Orrin:** *(Hilfe)* Kraftwerk anklicken. Der Balken zeigt die Ladung. Ist er voll: „Wetter herbeiführen“, Winter.
+  > **Orrin:** *[Hilfe, entfällt wenn wir das Wetter schon gewechselt haben]* Der Balken am Kraftwerk zeigt die Ladung. Ist er voll, ruf den Winter.
   >
   > **Taran:** Drei Minuten Winter, dann taut es, und das Kraftwerk muss neu laden. Wer dann auf dem Eis steht …
   >
@@ -1612,13 +1704,16 @@ Orrin, Taran. Alles ist freigeschaltet.
   > **Nelia:** Einen Menschen als Köder?
   >
   > **Orrin:** Du hast gefragt, was geht. Nicht, was schön ist.
+  >
+  > **Taran:** Und sein Turm am Inselufer schießt auf jeden, der übers Eis kommt.
 
 #### Schritt 4 – Malvors Tauwetter (Überraschung, Wahl)
 
 - *Auslöser:* Jemand von uns steht auf dem gefrorenen See, und Malvors Kraftwerk ist geladen und bereit
   (unverändert: derselbe Befehl wie beim Spieler).
 - **Wahl A – Köder** (Leibeigene oder Truppen aufs Eis, um ihn zum Tauen zu bringen): Wer auf dem Eis steht, ertrinkt;
-  danach muss Malvor laden und drei Minuten warten. Merker `drowned`, sobald eigene Figuren ertrunken sind.
+  danach muss Malvor laden und drei Minuten warten. Merker `drowned`, sobald eigene Figuren ertrunken sind (Baustein:
+  in `malvorThaws` eigene Figuren auf dem Eis vor dem Befehl zählen; allgemein E5).
 - **Wahl B – vom Ufer:** Bogenschützen (später Kanonen) beschießen sein Kraftwerk von einer Uferstelle in Reichweite;
   im Sommer kann niemand es reparieren. Ist es zerstört, gehört der Winter Nelia allein.
 - *Dialog (jedes Tauwetter):*
@@ -1633,8 +1728,6 @@ Orrin, Taran. Alles ist freigeschaltet.
   > **Taran:** So gewinnt man Kriege. Ich hab's oft genug gesehen.
   >
   > **Nelia:** So rechnet Malvor. Ich will nicht so rechnen.
-  >
-  > **Orrin:** *(falls noch da)* Ich rechne mit Talern. Die ertrinken wenigstens nicht.
 - *Sein Kraftwerk zerstört:*
   > **Malvor:** Mein Kraftwerk! Ihr wisst nicht, was ihr zerstört!
   >
@@ -1743,18 +1836,20 @@ gekostet.
 
 ## Wo wird was zum ersten Mal erklärt?
 
-Kennungen in der letzten Spalte sind `data-testid`-Werte für `hint.ui` (Zeiger). „Ring“ = Zielort auf der Karte
-(`hint.area`/`hint.entity`).
+Kennungen in der letzten Spalte sind `data-testid`-Werte für `hint.ui` (Zeiger). Mehrere Kennungen mit Komma sind eine
+Liste (der erste sichtbare Knopf leuchtet; so zeigt das Handy automatisch auf den aufklappenden Knopf); „→“ sind
+Phasen (E3). „Ring“ = Zielort auf der Karte (`hint.area`/`hint.entity`). Zeiger von Nebenzielen und aus Auslösern
+sind nur mit E4 sichtbar, solange ein Hauptziel zeigt.
 
 | Steuerung / Mechanik | Erstmals | Wer erklärt | Zeiger |
 |---|---|---|---|
-| Kamera schieben, drehen, zoomen | M1 Start / Schritt 1 (Hilfe) | Orrin | – |
+| Kamera schieben, drehen, zoomen | M1 Schritt 1 | Zieltext (Maus/Handy) | – |
 | Held auswählen, laufen lassen | M1 Schritt 1 | Orrin | `quick-hero-nelia`, Ring am Fremden |
-| Gesprächsfigur (Ausrufezeichen) ansprechen | M1 Schritt 1–2 | Orrin (Ziel) | Ring an der Figur |
-| Ziele-Liste, „Ziel zeigen“, goldener Ring | M1 Schritt 3 | Orrin | `objective-go-root` (Handy: `objectives-toggle`) |
-| Leibeigene auswählen („Alle“, Rahmen) | M1 Schritt 4 | Orrin | `quick-all` (Handy über `minimap-toggle`) |
+| Gesprächsfigur (Ausrufezeichen) ansprechen | M1 Schritt 1–2 | Orrin (Ruf), Zieltext | Ring an der Figur |
+| Ziele-Liste, „Ziel zeigen“, goldener Ring | M1 Schritt 3 | Zieltext; Orrin (Ring) | `objective-go-root`, `objectives-toggle` |
+| Leibeigene auswählen („Alle“, Rahmen) | M1 Schritt 4 | Zieltext; Orrin | `quick-all` (Handy: `minimap-toggle` über `data-hint-for`) |
 | Holz abbauen (Haufen, Bäume), Vorrat oben | M1 Schritt 4 | Orrin | Ring an den Balken, `res-bar` |
-| Baumenü öffnen, Gebäude setzen, „Hier bauen“ | M1 Schritt 5 | Orrin | `serf-build`, `build-villageCenter`, `place-confirm` |
+| Baumenü öffnen, Gebäude setzen, „Hier bauen“ | M1 Schritt 5 | Zieltext; Orrin | `place-confirm`, `build-villageCenter`, `quick-all` |
 | Siedlungsplatz (nur dort Dorfzentrum) | M1 Schritt 5 | Orrin | Ring auf den Grundmauern |
 | Mehr Bauleute = schneller | M1 Schritt 5 | Orrin | – |
 | Dorfzentrum: ohne es keine Arbeiter | M1 Schritt 5 | Orrin | – |
@@ -1765,93 +1860,117 @@ Kennungen in der letzten Spalte sind `data-testid`-Werte für `hint.ui` (Zeiger)
 | Arbeiter kommen von selbst, wenn es Arbeit gibt | M1 „Erster Arbeiter“, Schritt 8 | Orrin | – |
 | Schacht und Grube | M1 Schritt 8 | Orrin | `build-clayMine`, Ring am Schacht |
 | Zahltag, Steuern, Taler | M1 „Zahltag“ | Orrin | `payday` |
-| Burg auswählen, Leibeigene kaufen | M1 „Zahltag“, Nebenziel | Orrin | `quick-hq`, `buy-serf` |
-| Zweiten Helden wählen, bestimmter Held für ein Gespräch | M1 Nebenziel „Nachbardorf“ | Orrin | `quick-hero-orrin` |
+| Burg auswählen, Leibeigene kaufen | M1 „Zahltag“, Nebenziel | Orrin, Zieltext | `buy-serf`, `quick-hq` (nur mit E4) |
+| Zweiten Helden wählen, bestimmter Held für ein Gespräch | M1 Nebenziel „Nachbardorf“ | Orrin, Zieltext | `quick-hero-orrin` (nur mit E4) |
 | Verbündete | M1 Nebenziel | (Abschluss) | – |
-| „Zu den Waffen!“, Miliz, angreifen | M1 Schritt 9 | Orrin | `quick-hq`, `militia` |
-| Heldenfähigkeit („Mut machen“) | M1 Schritt 9 | Orrin | `ability-courage` |
+| „Zu den Waffen!“, Miliz, angreifen | M1 Schritt 9 | Orrin, Zieltext | Phase 1: `militia`, `quick-hq` |
+| Heldenfähigkeit („Mut machen“) | M1 Schritt 9 | Nelia, Orrin, Zieltext | Phase 2 (E3): `ability-courage`, `quick-hero-nelia` |
 | Helden bewusstlos statt tot | M1 Schritt 9 | Orrin | – |
-| „Entwarnung“ | M1 Schritt 9 (Sieg) | Orrin | `militia-off` |
-| Angebote (Tribute), bezahlen | M2 Schritt 2 | Orrin | `tributes-toggle`, `tribute-pay-clay` |
-| Ausbauen (ohne Leibeigene) | M2 Schritt 4 | Orrin | `upgrade` |
+| „Entwarnung“ | M1 Schritt 9 (Sieg) | Orrin | Phase 3 (E3): `militia-off` |
+| Angebote (Tribute), bezahlen | M2 Schritt 2 | Orrin, Zieltext | `tribute-pay-clay`, `tributes-toggle` (Nebenziel: nur mit E4) |
+| Ausbauen (ohne Leibeigene) | M2 Schritt 4 (eigenes Teilziel) | Orrin, Zieltext | `upgrade`, Ring auf dem Lager |
 | Händler sind Arbeiter | M2 Schritt 1/5 | Orrin | – |
-| Marktplatz: tauschen, Preise | M2 Schritt 5 | Orrin | `market-give-clay`, `market-take-gold`, `trade-go` |
+| Marktplatz: tauschen, Preise | M2 Schritt 5 | Orrin, Zieltext | `trade-go`, Ring auf dem Marktplatz (Folge nur im Text) |
 | Zwei Angebote schließen einander aus | M2 Schritt 6 | Orrin | `tributes-toggle` |
-| Kaserne, „Volle Einheit“, Sold | M2 Schritt 6 | Nelia, Orrin | `build-barracks`, `recruit-full-sword` |
-| Alle Truppen wählen, angreifen, Angriffsbewegung | M2 Weg „Sturm“ (spätestens M3 Start) | Nelia | `quick-army`, `order-attack` |
-| Steuern einstellen, Stimmung | M2 Schritt 7 | Orrin, Nelia | `quick-hq`, `tax-3`/`tax-1`, `motivation` |
-| „Wundsalbe“ | M2 erster Überfall | Orrin | `ability-salve` |
+| Kaserne, „Volle Einheit“, Sold | M2 Schritt 6 | Nelia, Orrin | `build-barracks` |
+| Alle Truppen wählen, angreifen | M2 Weg „Sturm“ (sonst M3 Schritt 2) | Zieltext; Nelia | `quick-army` |
+| Steuern einstellen, Stimmung | M2 Schritt 7 | Orrin, Nelia | `quick-hq`; mit E11 `tax-row` (kein einzelner `tax-*`) |
+| „Wundsalbe“ | M2 erster Überfall | Orrin, Zieltext | `ability-salve` (nur mit E4) |
 | Reparieren | M2 Auslöser „Es brennt“ | Nelia | `repair` |
 | Mission ohne Burg | M3 Start | Nelia | – |
-| „Weitblick“ | M3 Schritt 1 | Nelia | `quick-hero-nelia`, `ability-farsight` |
+| „Weitblick“ | M3 Schritt 1 | Nelia, Zieltext | `ability-farsight`, `quick-hero-nelia` |
 | Eis trägt im Winter | M3 Schritt 1–2 | Orrin | Ring an der Schlucht |
 | „Bestechen“ | M3 Schritt 2 (Schlucht) | Orrin | `ability-bribe` |
-| Steuergruppen | M3 Schritt 2 (Hilfe) | Orrin | `group-save` |
+| Steuergruppen | M3 Schritt 2 | nur Zieltext | – |
 | Tauwetter | M3 Start, Schritte 4–5 | Orrin | Ring am Ufer |
 | Gefangene befreien | M3 Nebenziel | Nelia | Ring am Lager |
+| Mehrere Wege zeigen | M3 Schritt 2 | Wegweiser-Ziele | Ring am ersten, „Ziel zeigen“ an beiden |
 | Eisen- und Schwefelgrube | M4 Schritte 1–2 | Nelia, Orrin | `build-ironMine`, `build-sulfurMine` |
-| Hochschule, Forschung | M4 Schritt 3 | Orrin | `build-university`, `tech-standingArmy` |
-| Schießplatz, Bogenschützen | M4 Schritt 3 | Orrin | `build-archery` |
+| Hochschule, Forschung | M4 Schritt 3 | Orrin, Zieltext | Phasen (E3): `build-university` → `tech-standingArmy` → `build-archery` |
+| Schießplatz, Bogenschützen | M4 Schritt 3 | Orrin | (Phase 3, s. o.) |
 | Truppenarten | M4 Schritt 4 | Orrin, Nelia | – |
 | Feindlicher Held | M4 Schritt 4 | Orrin | – |
 | Wachturm | M4 erster Ausfall | Orrin | `build-tower` |
 | Regen, Spätfrost | M4 Wetter | Orrin | – |
-| Neutral / verbündet | M5 Herold | Orrin | `relation` (prüfen, wo es sichtbar ist) |
+| Neutral / verbündet | M5 Herold | Orrin | kein Zeiger; Ring aufs Dorf, Fortschritt „1/3“ |
 | Lieferungen an Dörfer | M5 Schritt 2 | Orrin | `tributes-toggle` |
-| Taran: „Schildstoß“, „Einschüchtern“ | M5 Schritt 3 | Taran | `quick-hero-taran`, `ability-shieldBash`, `ability-intimidate` |
+| Taran: „Schildstoß“, „Einschüchtern“ | M5 Schritt 3 | Taran, Zieltext | `ability-shieldBash`, `quick-hero-taran` |
 | Schutzziel | M5 Schritt 3 | (Ziel) | Ring an den Höfen |
-| Werkstattforschung (Alchimist) | M6 Schritt 1 | Orrin | `btech-weatherForecast`, `btech-meteorology` |
-| Ausbau als Voraussetzung (Laboratorium) | M6 Schritt 1 | Orrin | `upgrade` |
+| Werkstattforschung (Alchimist) | M6 Schritt 1 | Orrin, Zieltext | Phasen (E3): `btech-weatherForecast` → `upgrade` → `btech-meteorology` |
+| Ausbau als Voraussetzung (Laboratorium) | M6 Schritt 1 | Orrin | (Phase 2, s. o.) |
 | Wetterkraftwerk, Wettertechniker | M6 Schritt 2 | Orrin | `build-weatherPlant` |
-| Wetterenergie, „Wetter herbeiführen“ | M6 Schritt 3 | Orrin, Taran | `weather-energy`, `weather-winter` |
+| Wetterenergie, „Wetter herbeiführen“ | M6 Schritt 3 | Orrin, Taran, Zieltext | `weather-winter`, `weather-energy` |
 | Gegnerisches Kraftwerk, Fernkampf vom Ufer | M6 Start, Schritt 4 | Taran | Ladebalken im Nebenziel |
 | Malvors Feldgeschütz, Fußangeln | M6 Schritt 6 | Taran | – |
 
 ## ⚠ Änderungen gegenüber den bestehenden Missionen
 
+Alle vier ⚠-Änderungen brauchen laut [PRUEFUNG.md](PRUEFUNG.md) keine neue Mechanik, nur Funktionsaktionen in den
+Missionsdateien (⚠ 2 zusätzlich E7 für den Fall, dass beide Helden zugleich ankommen).
+
 | Nr. | Mission | Änderung | Begründung |
 |---|---|---|---|
 | ⚠ 1 | M1 | Eintreiber kommen, wenn die **Lehmgrube fertig** ist (spätestens nach 25 min), statt wenn zwei Höfe stehen. | Keine Überlagerung mit der Grubenerklärung; der Rauch ist der sichtbare Grund (Gegenbild zur Einleitung). |
-| ⚠ 2 | M1 | Die Dorfälteste nebenan spricht mit **Orrin oder Nelia**; Ausgang je nach Held (A: 3 Leibeigene + 300 Holz; B: 3 Leibeigene). Umsetzung: Gesprächsfigur mit `hero: ['orrin', 'nelia']`, `onTalk` als Funktionsaktion, die den nächsten Helden prüft. | Erste spürbare Wahl zum Thema. |
-| ⚠ 3 | M5 | Neue Gesprächsfigur: Dorfälteste von **Moorbrook** (nur Nelia), Frist bis zum Herold. Wer vorher spricht, behält Moorbrook verbündet und dessen Speerträger. | Nelias Wachstum wird Spielerhandlung; Ehrlichkeit hat einen Lohn. Balancing prüfen (eine Lieferung weniger). |
-| ⚠ 4 | M6 | Orrins feste Szene hat einen **zweiten Auslöser**: Malvor taut, während Orrin auf dem Eis steht. Sonst wie bisher beim Sturm. | Vorgabe „Malvor taut … Orrin bricht ein“ wird kausal. |
-| ⚠ K1 | alle | **Kampagnen-Merker** (optional): Beim Sieg werden ausgewählte Merker (`neighborsTruth`, `taxedHard`/`taxedLight`, `shardBought`/`shardStormed`, `mercs`/`refugees`, `confessed`) im Kampagnenfortschritt gespeichert und der nächsten Mission beim Start als Eingabe mitgegeben (deterministisch, im Spielstand). Einleitung und einzelne Zeilen dürfen davon abhängen. | „Wahl mit Folgen, die später erwähnt werden“. Ohne K1 gilt jeweils die neutrale Fassung; das Drehbuch funktioniert auch so. |
-| ⚠ K2 | alle | **Zieltexte mit Handy-Fassung** (optional), wie `touch` bei den Tutorial-Schritten. | Kürzere Ziele. Ohne K2 gelten die Zieltexte mit „Maus: … · Handy: …“. |
+| ⚠ 2 | M1 | Die Dorfälteste nebenan spricht mit **Orrin oder Nelia**, aber nur mit genau einem (E7); Ausgang über `npcTalked.hero` (A: 3 Leibeigene + 300 Holz; B: 3 Leibeigene). | Erste spürbare Wahl zum Thema. |
+| ⚠ 3 | M5 | Neue Gesprächsfigur: **Älteste von Moorbrook** (eigener Sprecher, E12; nur Nelia), Frist bis zum Herold. Wer vorher spricht, behält Moorbrook verbündet und dessen Speertrupp (der von Schilfheim geht in jedem Fall). | Nelias Wachstum wird Spielerhandlung; Ehrlichkeit hat einen Lohn. Balancing prüfen (eine Lieferung weniger). |
+| ⚠ 4 | M6 | Orrins feste Szene hat einen **zweiten Auslöser**: Malvor taut, während Orrin auf dem Eis steht (Prüfung in `malvorThaws` vor dem Befehl; `orrinHit` mit `not flag orrinWounded`). Sonst wie bisher beim Sturm. | Vorgabe „Malvor taut … Orrin bricht ein“ wird kausal. |
 
-**Geänderte Abläufe ohne neue Mechanik** (frei verbesserbar laut Auftrag, hier nur zur Übersicht):
+**Geänderte Abläufe ohne neue Mechanik** (Auslöser, Ziele, Reihenfolge – frei verbesserbar laut Auftrag):
 
-- M1: Save-the-Cat- und Themen-Dialog bei Orrin; das Kronstück wird beim Fund kurz, während des Dorfzentrum-Baus
-  ausführlich erklärt; Auslöser „Erstes Lagerfeuer“ (Ereignis `campLit`); Nebenziel „2 Leibeigene kaufen“
-  (Ereignis `serfBought`); der Satz „Steuern stellst du in der Burg ein“ entfällt (ohne „Bildung“ gibt es das in M1
-  nicht); Hilfe-Zeilen nur, wenn der Spieler noch nicht handelt.
-- M2: Kaufmann von Anfang an da (Rabatt gilt unabhängig davon, ob vor oder nach dem Herold geliefert wird);
-  Auslöser auf die Steuerstufe (Funktionsbedingung); Auslöser „Es brennt“; Wundsalbe beim ersten Überfall.
-- M3: Neues Hauptziel „Weitblick“ (Merker über das Ereignis `ability`); Pläne-Ziel erst bei Ankunft im Tal; Hinweis
-  auf Edrians Tod.
-- M4: Taran erkennt Nelia (Dialog); Bergmeister-Szene mit Orrins Einwurf; Wetter-Auslöser; Hinweis auf Wachturm.
-- M5: Dark-Night-Dialog; Taran gesteht die Meldung an Malvor.
-- M6: Forschung als drei Zwischenziele (auf dem Kaufweg per `complete` erledigt); Auslöser „eigene Ertrunkene“
-  (Ereignis `killed` mit `drowned`); Auslöser auf Malvors Fähigkeiten (Ereignis `ability`); Malvor wird gefangen.
-- Alle: Kronstück statt Zacke; jede Einleitung beginnt mit „Bisher“ und dem Zählstand.
+- M1: Save-the-Cat- und Themen-Dialog bei Orrin; Ziel „Baum“ erst nach Block 2; das Kronstück wird beim Fund kurz,
+  während des Dorfzentrum-Baus ausführlich erklärt; die drei Leibeigenen erscheinen am Baum (Funktionsaktion oder
+  E9); Auslöser „Erstes Lagerfeuer“ (`campLit`); Nebenziel „2 Leibeigene kaufen“ (`serfBought`); kein Satz zu
+  Steuereinstellungen (ohne „Bildung“ gibt es sie in M1 nicht); Abschluss in drei Fassungen.
+- M2: Kaufmann ab Start, Rabatt in jeder Reihenfolge; Lager und Ausbau als zwei Ziele; Herold ohne Preis-Versprechen
+  für Korn; Steuer-Auslöser (Funktionsbedingung, Stand bei Sieg); Auslöser „Es brennt“; Wundsalbe beim ersten
+  Überfall.
+- M3: Hauptziel „Weitblick“, erledigt sich nach 60 s selbst; Wegweiser-Ziele für Tor und Schlucht; Pläne-Ziel erst im
+  Tal; Merker `bribed` unabhängig vom Weg; Sieg 5 s nach dem Tauen.
+- M4: Taran erkennt Nelia – mit Rückfallszene, falls sie nie am vorderen Lager war; Bergmeister-Szene mit Orrins
+  Einwurf; Wetter-Auslöser.
+- M5: Speertrupps der Dörfer als zwei Bezüge; Eisenschacht per `ensureShaft` sicherstellen; Dark Night; Taran
+  gesteht die Meldung an Malvor; Nebenziel „4 Höfe“ erscheint nach der ersten Lieferung.
+- M6: Forschung als drei Zwischenziele (Kauf erledigt sie, Ausbau per `complete`); Merker `knowledgeBought`;
+  Ertrunkene über Zählen in `malvorThaws` bzw. E5; Malvors Fähigkeiten über `event ability` (`player: 'enemy'`);
+  Malvor wird gefangen.
+- Alle: Kronstück statt Zacke; jede Einleitung beginnt mit „Bisher“ und dem Zählstand; Hilfe gesprochen
+  geräteneutral, Handgriffe im Zieltext.
+
+## Nötige Erweiterungen der Technik (E1–E12)
+
+Ausführlich in [PRUEFUNG.md, „Nötige Erweiterungen der Technik“](PRUEFUNG.md#nötige-erweiterungen-der-technik). Was
+das Drehbuch davon nutzt und was ohne sie gilt:
+
+| Nr. | Erweiterung | Wofür im Drehbuch | Ohne sie |
+|---|---|---|---|
+| E1 | Kampagnen-Merker (K1): `carry` mit `neighborsLie`, `neighborsTruth`, `taxedHard`, `taxedLight`, `shardBought`, `shardStormed`, `bribed`, `mercs`, `refugees`, `confessed` | Rückbezüge: Einleitung M3, Start und Dark Night M5, Erlenhof M5, Abschluss M6 | Zeilen entfallen, neutrale Fassung |
+| E2 | Zieltext mit Handy-Fassung (K2) | alle „Ziel (Handy)“ | Maus-Fassung mit angehängtem „· Handy: …“ |
+| E3 | Zeiger-Phasen | M1 Schritt 9, M2 Schritt 6, M4 Schritt 3, M6 Schritt 1 | nur die erste Phase |
+| E4 | Zeiger aus Auslösern | Zahltag/„Leibeigenen kaufen“, Nachbardorf, Lehmschuld, Wundsalbe | kein Zeiger, nur Zieltext und Dialog |
+| E5 | Tauwetter meldet Ertrunkene | M3 „Sie waren aus Lindgrund“, M6 `drowned` | vorher/nachher zählen in der Missionsfunktion (geht für M3 und Malvors Tauwetter) |
+| E6 | Dialogende schätzen (`quiet`) | alle „nach dem Block“ | feste Pausen von 20–30 s |
+| E7 | Gesprächsfigur „nur einer“ | M1 Nachbardorf | Gleichstand entscheidet die Entity-Reihenfolge |
+| E8 | Uhr im `custom`-Ziel | M5 Frist bis zum Herold | zweites `survive`-Ziel „Der Herold kommt“ |
+| E9 | `give` mit `at` | M1 die drei am Baum | Funktionsaktion setzt sie dorthin |
+| E10 | Merker im State-Hash | alle Wahl-Merker | (Nebenbefund, unabhängig vom Drehbuch empfohlen) |
+| E11 | Kennung `tax-row` | M2 Steuer-Wahl | Zeiger nur auf „Burg“ |
+| E12 | Sprecher „Älteste von Moorbrook“ | M5 | gleiche Stimme wie die Älteste von Erlenhof (verwechselbar) |
+
+## Hinweis zur Übungsmission
+
+Die Zusammenfassung der Übungsmission („Der Händler Orrin zeigt Nelia, wie ein Dorf wächst …“) widerspricht dem
+ersten Treffen von Nelia und Orrin in Mission 1. Die Übungsmission soll als **Rahmen außerhalb der Geschichte**
+formuliert werden („Orrin zeigt dir, wie ein Dorf wächst“), ohne Nelia als Schülerin.
 
 ## Offene Fragen an den Projektinhaber
 
-1. **Malvors Ende:** Das Drehbuch lässt ihn gefangen nehmen („über ihn richten die Provinzen“), weil das zu Nelias
-   Weg passt. WELT.md sagt „Malvor fällt“. Soll er sterben?
-2. **K1 (Kampagnen-Merker):** umsetzen? Sonst entfallen die Rückbezüge über Missionsgrenzen (Einleitung M3,
-   Dark Night M5, Erlenhof M5, Krönung M6) und es bleiben nur die Folgen innerhalb der Mission und im Abschlusstext.
-3. **„Du da oben“:** Darf Orrin den Spieler direkt ansprechen (wie in der Übungsmission)? Alternative: Hilfe-Zeilen
-   ohne Anrede, nur als Zieltext.
-4. **Lehm in Mission 1:** Der Startvorrat (1400) reicht für alle Bauten; die Lehmgrube ist erzählerisch begründet
-   (Arbeit, Steuern, künftige Häuser), aber nicht nötig. Startlehm senken (etwa 1000), damit der Grund auch im Spiel
-   spürbar ist?
-5. **Vertonung:** Das Drehbuch hat deutlich mehr Zeilen. Sollen Hilfe-Zeilen vertont werden oder nur als Text
-   erscheinen?
-6. **Nelias Vater:** bleibt eine Figur nur in Texten (kein Modell, keine Stimme). Im Schlussbild sichtbar machen
-   (Gesprächsfigur ohne Ziel), wenn es eine spielbare Schlussszene geben soll?
-7. **Aussehen der Kronstücke:** goldene Spitze „mit einem Stein“; im Drehbuch ist der Stein des ersten rot. Je
-   Provinz eine eigene Farbe?
-8. **Untertitel der Missionen** („Was unter dem Baum liegt“ …): ins Menü übernehmen oder nur als Arbeitstitel?
-9. **Balancing:** Wahl B in M1 (300 Holz weniger), ⚠ 3 in M5 (eine Lieferung weniger) und die Steuerwahl in M2
-   sollten mit dem Test-Bot gegengeprüft werden.
-10. **KAMPAGNE.md** spricht noch von „Zacken“, die Missionsdateien ebenso; nach Freigabe des Drehbuchs angleichen.
+Für jede Frage ist die Fassung geschrieben, die ohne Entscheidung funktioniert.
+
+1. **Malvors Ende:** Er wird gefangen, über ihn richten die Provinzen (geschrieben). Soll er stattdessen sterben
+   (WELT.md: „Malvor fällt“)?
+2. **K1/E1 umsetzen?** Geschrieben ist alles so, dass die Rückbezüge ersatzlos entfallen können.
+3. **Lehm in Mission 1:** Der Startvorrat (1400) reicht für alle Bauten; die Grube ist mit „Arbeit und Steuern“
+   begründet (geschrieben). Startlehm senken (etwa 1000), damit auch der Lehm zählt?
+4. **Vertonung:** ~340 Zeilen, doppelt so viele mit Englisch. Hilfe-Zeilen mitvertonen (geschrieben: ja, sie sind
+   kurz) oder nur als Text?
+5. **Nelias Vater** bleibt eine Figur nur in Texten (geschrieben). Im Schlussbild sichtbar machen?
