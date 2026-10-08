@@ -46,12 +46,12 @@ test('Reference: a section per command, examples with output, search and deep li
   await expect(page.locator('.ref-out.err')).toHaveCount(0);
 
   // Deep link to a command (as from the in-game help)
-  await page.goto('/scripting/#hero.step');
-  const step = page.getByTestId('ref-hero.step');
+  await page.goto('/scripting/#nelia.step');
+  const step = page.getByTestId('ref-nelia.step');
   await expect(step).toBeInViewport();
   await expect(step).toContainText('Blickrichtung');
   await expect(step.locator('.ref-errors')).toContainText('GameError');
-  await shot(page, testInfo, 'scripting-hero-step');
+  await shot(page, testInfo, 'scripting-nelia-step');
 
   // Mission-only commands are marked
   await expect(page.getByTestId('ref-spawn').locator('.ref-badge')).toHaveText('nur Mission');
@@ -69,7 +69,7 @@ test('Reference: a section per command, examples with output, search and deep li
   // English: same anchors, English texts and example wording
   await page.getByTestId('site-lang-en').click();
   await expect(page.locator('h1')).toHaveText('Scripting reference');
-  await expect(page.getByTestId('ref-hero.ahead').locator('.ref-code')).toContainText('Ahead of me:');
+  await expect(page.getByTestId('ref-nelia.front').locator('.ref-code')).toContainText('Ahead of me:');
   await expect(page.getByTestId('ref-spawn').locator('.ref-badge')).toHaveText('mission only');
   expect(problems).toEqual([]);
 });

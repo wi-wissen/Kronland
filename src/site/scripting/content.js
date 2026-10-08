@@ -140,8 +140,12 @@ function entry(e, lang, base, py) {
 /** Game objects: classes with properties and methods. */
 function classesSection(lang) {
   const C = DOCS[lang].classes, P = DOCS[lang].props;
-  const METHOD_DOC = { distance_to: 'obj.distance_to', contains: 'place.contains', kill: 'obj.kill', work_on: 'unit.work_on', attack: 'unit.attack', upgrade: 'building.upgrade', start_talking: 'npc.stop_talking', stop_talking: 'npc.stop_talking' };
-  const methodLink = (cls, m) => METHOD_DOC[m] ?? (cls === 'Hero' ? `hero.${m}` : `unit.${m}`);
+  const METHOD_DOC = {
+    distance_to: 'obj.distance_to', contains: 'place.contains', kill: 'obj.kill', work_on: 'serf.work_on', chop: 'serf.chop', attack: 'troop.attack',
+    hold: 'troop.hold', defend: 'troop.hold', upgrade: 'building.upgrade', start_talking: 'npc.stop_talking', stop_talking: 'npc.stop_talking', right: 'nelia.left',
+  };
+  // Every figure (hero, serf, troop) shares the basic commands, explained once under nelia.…
+  const methodLink = (cls, m) => METHOD_DOC[m] ?? `nelia.${m}`;
   const classes = Object.keys(CLASS_METHODS).map((cls) => ({
     id: `cls-${cls}`,
     name: cls,

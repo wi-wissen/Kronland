@@ -16,7 +16,7 @@ Befehl läuft durch dieselben Regeln, kostet dieselben Rohstoffe und wird genaus
 alles: Truppen erzeugen, Rohstoffe verschenken, Gelände formen. In der Referenz unten sind Befehle, die es nur in
 Missionsskripten gibt, mit **nur Mission** markiert.
 
-Die Namen der Befehle sind englisch (`hero.step()`, `stock("wood")`), Erklärungen und Fehlermeldungen gibt es auf
+Die Namen der Befehle sind englisch (`nelia.step()`, `stock("wood")`), Erklärungen und Fehlermeldungen gibt es auf
 Deutsch und Englisch. Kronland-Python liefert für dieselben Programme dieselben Ausgaben wie das „echte“ Python –
 automatische Tests vergleichen das.
 
@@ -58,7 +58,7 @@ Schon dabei fallen Tippfehler auf – ein unbekannter Name wird gemeldet, bevor 
 
 **Ausführen.** Den Bytecode führt eine eigene [virtuelle Maschine](https://de.wikipedia.org/wiki/Virtuelle_Maschine)
 aus, eine Stapelmaschine (Werte liegen auf einem [Stapel](https://de.wikipedia.org/wiki/Stapelspeicher)). Sie kann nach
-jedem einzelnen Befehl anhalten und genau dort weitermachen. Darum kann `hero.step()` im Code einfach „warten“, bis der
+jedem einzelnen Befehl anhalten und genau dort weitermachen. Darum kann `nelia.step()` im Code einfach „warten“, bis der
 Held angekommen ist, während das Spiel weiterläuft.
 
 **Im Takt des Spiels.** Das Spiel rechnet in festen **Takten**: {{ticks}} pro Sekunde Spielzeit. In jedem Takt darf
@@ -78,7 +78,7 @@ kommt nur nie zum Ende; beende sie mit **Stopp**. Nur eine Bedingung, die nicht 
 ([Rekursion](https://de.wikipedia.org/wiki/Rekursion)), aber höchstens {{maxDepth}} Aufrufe tief.
 
 **Warten.** Befehle, die im Spiel Zeit brauchen, halten das Programm an, bis sie fertig sind: `wait()`,
-`wait_until()`, `hero.step()`, `hero.move_to()`, `hero.turn_left()`, `hero.chop()`, `say()`, `camera.fly_to()` …
+`wait_until()`, `nelia.step()`, `nelia.move_to()`, `nelia.turn_left()`, `nelia.take()`, `say()`, `camera.fly_to()` …
 Befehle wie `build()` oder `serf.work_on()` geben dagegen nur den Auftrag und kehren sofort zurück.
 
 **Aufgaben.** Das Hauptprogramm und jede Ereignisfunktion (`@every`, `@on_enter` …) laufen als eigene **Aufgaben**
@@ -203,7 +203,7 @@ while n < 100:
 print(n)
 ```
 
-Im Spiel typisch: `while hero.can_step(): hero.step()` – laufen, bis etwas im Weg ist.
+Im Spiel typisch: `while nelia.can_step(): nelia.step()` – laufen, bis etwas im Weg ist.
 
 ### Schleifen: for und range {#lang-for}
 
@@ -331,7 +331,7 @@ Kronland-Python ist bewusst klein. Was fehlt, meldet schon der Compiler mit eine
 | Aus Python | In Kronland | Stattdessen |
 |---|---|---|
 | `class` (eigene Klassen) | nicht vorhanden | Wörterbücher und Funktionen; Spielobjekte gibt es fertig |
-| `try` / `except` / `finally`, `raise` | nicht vorhanden – ein Fehler beendet das Programm | vorher prüfen: `if hero.can_step():`, `d.get(k)`, `x in xs` ([Ausnahmebehandlung](https://de.wikipedia.org/wiki/Ausnahmebehandlung)) |
+| `try` / `except` / `finally`, `raise` | nicht vorhanden – ein Fehler beendet das Programm | vorher prüfen: `if nelia.can_step():`, `d.get(k)`, `x in xs` ([Ausnahmebehandlung](https://de.wikipedia.org/wiki/Ausnahmebehandlung)) |
 | Mengen `{1, 2}`, `set()` | nicht vorhanden | Listen oder Wörterbücher |
 | `yield`, Generatoren | nicht vorhanden; `(x for x in …)` liefert eine Liste | Liste zurückgeben |
 | `with`, `async` / `await` | nicht vorhanden | `wait()` und `wait_until()` zum Warten |
@@ -354,16 +354,33 @@ Python), den Abschnitt, die Zeile und eine Erklärung – oft mit Vorschlag („
 |---|---|---|
 | `SyntaxError` | So lässt sich der Text nicht lesen | `if x > 3` ohne Doppelpunkt |
 | `IndentationError` | Einrückung passt nicht | Block nach `:` nicht eingerückt |
-| `NameError` | Name unbekannt (Tippfehler?) | `hero.stpe()`, `pirnt(1)` |
+| `NameError` | Name unbekannt (Tippfehler?) | `Nelia.step()`, `pirnt(1)` |
 | `TypeError` | falscher Typ oder falsche Argumente | `"Holz: " + 5`, `wait("2")` |
 | `ValueError` | Wert passt nicht | `int("zwölf")` |
 | `IndexError` / `KeyError` | Position bzw. Schlüssel fehlt | `[1, 2][5]`, `{}["gold"]` |
 | `ZeroDivisionError` | durch null geteilt | `5 / 0` |
-| `AttributeError` | Objekt hat das nicht | `hero.jump()` |
+| `AttributeError` | Objekt hat das nicht | `nelia.jump()` |
 | `RecursionError` | zu tief verschachtelt oder zu lange gerechnet | Funktion ruft sich endlos selbst auf |
-| `GameError` | das Spiel lehnt ab | `hero.step()` vor einem Baum, `build()` ohne Rohstoffe |
+| `GameError` | das Spiel lehnt ab | `nelia.step()` vor einem Baum, `build()` ohne Rohstoffe |
 
 Jeder Eintrag der Referenz nennt unter **Typische Fehler** die Meldungen, die dort vorkommen können.
+
+### Hinweise {#hints}
+
+Manches ist erlaubtes Python und läuft, tut aber fast nie, was gemeint war – Nelia steht still, und niemand weiß
+warum. Dafür gibt es **Hinweise**: Sie erscheinen gleich beim Ausführen in Bernstein an der Zeile, das Programm hält
+aber nicht an (in einer Aufgabe „Finde den Fehler“ kann der Code ja Absicht sein; eine Mission schaltet sie mit
+`hints(False)` ab).
+
+| Code | Was passiert | Hinweis |
+|---|---|---|
+| `nelia.left()` | schaut nach links, die Antwort geht verloren – sie dreht nicht | Zum Drehen: `nelia.turn_left()` |
+| `nelia.step` | nichts: ohne Klammern wird der Befehl nicht ausgeführt | Meintest du `nelia.step()`? |
+| `while nelia.can_step:` | Endlosschleife: eine Methode ohne Klammern gilt als wahr | Meintest du `can_step()`? |
+| `if nelia.front() == "Tree":` | nie wahr, die Antwort heißt `"tree"` | mit der Liste der möglichen Antworten |
+| `count == count + 1` | vergleicht nur, `count` bleibt gleich | Meintest du `count = count + 1`? |
+| `nelia.turnleft()` | gibt es nicht (Fehler, sobald die Zeile drankommt) | schon vor dem Start: Meintest du `turn_left`? |
+| Schleife ohne Aktion | das Programm rechnet, im Spiel passiert nichts | nach etwa 5 Sekunden |
 
 ## Ausführliche Beispiele {#examples}
 

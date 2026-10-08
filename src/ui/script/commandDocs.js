@@ -13,7 +13,7 @@ export const DOCS = { de, en };
 
 /** Every documented command: game API first, then Python (name, sig, group, level, also). */
 export const COMMANDS = [
-  ...API_DOC.map((e) => ({ name: e.name, sig: e.sig, group: e.group, level: e.level, also: [], py: false })),
+  ...API_DOC.map((e) => ({ name: e.name, sig: e.sig, group: e.group, level: e.level, also: e.also ?? [], py: false })),
   ...PY_DOC.map((e) => ({ name: e.name, sig: e.sig, group: e.group, level: 'player', also: e.also ?? [], py: true })),
 ];
 
