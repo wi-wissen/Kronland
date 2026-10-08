@@ -301,6 +301,7 @@ export default {
   'army.defend': 'Defend',
   'army.defendTip': 'Defend the area around the current position',
   'army.refill': 'Refill',
+  'army.refillNone': 'All squads are at full strength',
   'army.refillTip': 'Buy more soldiers – the captain must stand at the military building',
   'army.hint': 'Right-click: move or attack · Ctrl+right-click: attack-move',
   'army.hintTouch': 'Tap the ground to move, tap enemies to attack.',

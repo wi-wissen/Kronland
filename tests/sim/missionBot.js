@@ -173,8 +173,9 @@ export const STRATEGIES = {
     reserve: 400,
     militia: true,
     script(bot) {
-      // mercenaries first (ready for combat immediately), then own troops
-      if (bot.m.state.tributes.mercs === 'open') { bot.payTribute('mercs'); bot.s.army = []; } else bot.s.army = STRATEGIES.c4.armyLater;
+      // mercenaries are not affordable at the start: take in the runaway serfs (cheap, bring supplies) and train own troops
+      if (bot.m.state.tributes.refugees === 'open') bot.payTribute('refugees');
+      bot.s.army = STRATEGIES.c4.armyLater;
       if (bot.objective('siege')?.status === 'active') bot.attack(['siegeAGuards', 'siegeBGuards'], { minStrength: 350 });
       const nelia = bot.heroNamed('nelia');
       if (nelia && bot.npcAt('miner') && bot.m.state.npcs.miner?.state === 'open') { bot.useHero = false; bot.moveUnits([nelia.id], bot.npcAt('miner'), 'move', 'miner'); }

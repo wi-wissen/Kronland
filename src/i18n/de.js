@@ -302,6 +302,7 @@ export default {
   'army.defend': 'Verteidigen',
   'army.defendTip': 'Gegend um den aktuellen Standort verteidigen',
   'army.refill': 'Auffüllen',
+  'army.refillNone': 'Alle Trupps sind vollzählig',
   'army.refillTip': 'Soldaten nachkaufen – der Hauptmann muss am Militärgebäude stehen',
   'army.hint': 'Rechtsklick: laufen bzw. angreifen · Strg+Rechtsklick: Angriffsbewegung',
   'army.hintTouch': 'Tippe auf den Boden zum Laufen, auf Feinde zum Angreifen.',
