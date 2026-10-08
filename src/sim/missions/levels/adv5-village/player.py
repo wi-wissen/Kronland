@@ -1,0 +1,5 @@
+spot = find_spot("residence", hq())
+print("Bauplatz:", spot)
+site = build("residence", spot[0], spot[1])
+helpers = serfs(idle=True)
+print(len(helpers), "Leibeigene haben nichts zu tun")

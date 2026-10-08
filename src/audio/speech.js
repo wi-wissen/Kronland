@@ -1,5 +1,6 @@
-// Read dialogues aloud: the scenario's own recording (MP3/OGG under public/), the campaign's voiced sentences
-// (public/audio/voice, see voiceLines.js) or the browser's speech output (Web Speech API).
+// Read dialogues aloud: the level's own recording (MP3/OGG in its assets/), the campaign's voiced sentences
+// (public/audio/voice, see voiceLines.js) or the browser's speech output (Web Speech API) – also when a
+// recording is named but does not load.
 // Pure rendering: the simulation sets the duration of a dialogue itself, reading aloud never influences
 // the course of the game.
 
@@ -7,6 +8,7 @@ import { get } from '../ui/settings.js';
 import { tr } from '../i18n/index.js';
 import { loadVoiceIndex, voiceFile, speakerVoice } from './voiceLines.js';
 import { assetUrl, assetPathOk } from '../paths.js';
+import { levelAssetUrl } from '../levels/assets.js';
 
 /** Female speakers get a slightly higher voice if the browser has only one voice. */
 const HIGH = new Set(['nelia', 'elder', 'villager', 'scholar']);
@@ -105,24 +107,39 @@ export function speak(msg, lang, opts = {}) {
   // Own recording: voice is a path or { de, en }; otherwise the speaker's voiced sentence
   const own = typeof msg.voice === 'string' ? msg.voice : msg.voice?.[lang] ?? msg.voice?.de ?? null;
   // A level may only name its own files (no other website); otherwise the speaker's recorded line or speech output
-  const file = (assetPathOk(own) ? own : null)
-    ?? (msg.speaker ? voiceFile(speakerVoice(msg.speaker), lang, tr(msg.text, lang)) : null);
-  if (file && typeof Audio !== 'undefined') {
+  // assets/… belongs to the level (package, link, bundled folder); other paths are files of the game under public/
+  const ownUrl = levelAssetUrl(own) ?? (assetPathOk(own) && !own.startsWith('assets/') ? assetUrl(own) : null);
+  const line = !ownUrl && msg.speaker ? voiceFile(speakerVoice(msg.speaker), lang, tr(msg.text, lang)) : null;
+  const url = ownUrl ?? (line ? assetUrl(line) : null);
+  const end = once(opts.onEnd);
+  if (url && typeof Audio !== 'undefined') {
     try {
-      const a = new Audio(assetUrl(file));
+      const a = new Audio(url);
       audio = a;
       a.volume = volume;
       audioVol = volume;
-      const end = once(opts.onEnd);
+      // The recording does not load (missing file, offline): the browser reads the text instead
+      let failed = false;
+      const fail = () => {
+        if (failed) return;
+        failed = true;
+        if (audio === a) audio = null;
+        if (!readAloud(msg, lang, volume, end)) end();
+      };
       a.addEventListener('ended', end);
-      a.addEventListener('error', end);
+      a.addEventListener('error', fail);
       // also when paused (clicked away, next dialogue) – but not when held by a game pause
-      a.addEventListener('pause', () => { if (heldAudio !== a) end(); });
+      a.addEventListener('pause', () => { if (heldAudio !== a && !failed) end(); });
       if (holds.size) { heldAudio = a; a.volume = 0; return true; } // starts once the game resumes
-      a.play().catch(() => { if (audio === a) audio = null; end(); });
+      a.play().catch(fail);
       return true;
     } catch { audio = null; }
   }
+  return readAloud(msg, lang, volume, end);
+}
+
+/** The browser's speech output. @returns {boolean} whether it speaks */
+function readAloud(msg, lang, volume, end) {
   const synth = globalThis.speechSynthesis;
   const Utter = globalThis.SpeechSynthesisUtterance;
   if (!synth || !Utter) return false;
@@ -136,7 +153,6 @@ export function speak(msg, lang, opts = {}) {
     u.volume = volume;
     u.rate = 1;
     u.pitch = HIGH.has(msg.speaker ?? '') ? 1.15 : 0.92;
-    const end = once(opts.onEnd);
     u.onend = end;
     u.onerror = end;
     synth.speak(u);

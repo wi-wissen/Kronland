@@ -27,6 +27,7 @@ import {
 } from './models.js';
 import { UNITS, HEROES, HERO_IDS } from '../sim/data/units.js';
 import { figureRole } from './variants.js';
+import { LevelModels } from './levelModels.js';
 import { sharedModelMaterials } from './models.js';
 import { playerHex } from './playerColors.js';
 import { sharedAssetRoots, assetState, hasAsset, ownAsset, loadNatureModels } from './assets.js';
@@ -891,6 +892,7 @@ export class Renderer {
     }
     for (const [id, g] of this.buildings) if (!seen.has(id)) { this.scene.remove(g); this.buildings.delete(id); this.buildProgress.delete(id); }
     for (const [id, g] of this.units) if (!seen.has(id)) { this.scene.remove(g); this.units.delete(id); }
+    this.levelModels?.prune(seen);
     for (const [id, g] of this.simRuins ?? []) if (!seen.has(id)) { this.scene.remove(g); this.simRuins.delete(id); }
     for (const [id, g] of this.camps ?? []) if (!seen.has(id)) { this.scene.remove(g); this.camps.delete(id); }
     // clean up per-unit markers (occasionally is enough)
@@ -1318,6 +1320,11 @@ export class Renderer {
     }
     st.set(e.id, yaw);
     const tint = e.kind === 'worker' ? PROF_COLORS[e.prof] ?? null : null;
+    // Talk figure with an own model of the level: it replaces the figure once loaded
+    if (e.kind === 'npc' && e.look?.startsWith('assets/')) {
+      this.levelModels ??= new LevelModels(this.scene, patchFogTree);
+      if (this.levelModels.sync(e, x, this.groundY(x, z), z, yaw, dt ?? 0)) visible = false;
+    }
     this.chars.set(e.id, this.roleOf(e), { x, y: this.groundY(x, z), z, yaw, clip, team: playerHex(e.owner), tint, visible, speed: 1, ground: this.groundSpeed(e, prev) });
   }
 
@@ -1646,7 +1653,7 @@ export class Renderer {
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
     // last seen buildings in fog are not selectable (otherwise they would reveal the current state)
-    const objs = [...this.units.values(), ...[...this.buildings.values()].filter((g) => !g.userData.ghost)];
+    const objs = [...this.units.values(), ...[...this.buildings.values()].filter((g) => !g.userData.ghost), ...(this.levelModels?.objects() ?? [])];
     // only visible things (invisible meshes are also hit by the raycaster otherwise)
     const hit = this.raycaster.intersectObjects(objs, true).find((h) => shownInScene(h.object));
     const view = { width: rect.width, height: rect.height, touch: !!matchMedia?.('(pointer: coarse)').matches };

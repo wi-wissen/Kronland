@@ -1,0 +1,57 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "adv3",
+  "kind": "adventure",
+  "end": "script",
+  "order": 3,
+  "title": { "de": "Holz für den Winter", "en": "Wood for the Winter" },
+  "summary": {
+    "de": "Fälle eine Baumreihe – egal wie lang sie ist.",
+    "en": "Fell a row of trees – no matter how long it is."
+  },
+  "briefing": {
+    "de": "Der Winter naht, das Dorf braucht Holz. Vor Nelia steht eine Reihe Bäume. hero.ahead() verrät, was vor ihr ist (\"tree\", \"free\", \"water\" …), hero.chop() fällt den Baum vor ihr. Schreibe ein Programm, das die ganze Reihe fällt – auch wenn du nicht weißt, wie lang sie ist. Zähle mit einer Variablen, wie viele Bäume es waren, und gib die Zahl mit print() aus.",
+    "en": "Winter is coming and the village needs wood. A row of trees stands in front of Nelia. hero.ahead() tells what is in front of her (\"tree\", \"free\", \"water\" …), hero.chop() fells the tree in front of her. Write a program that fells the whole row – even if you do not know how long it is. Count the trees with a variable and print the number."
+  },
+  "victoryText": { "de": "Genug Holz für den ganzen Winter!", "en": "Enough wood for the whole winter!" },
+  "learn": {
+    "de": ["while mit Bedingung", "Rückgabewerte", "Zähler-Variable"],
+    "en": ["while with a condition", "return values", "counter variable"]
+  },
+  "world": {
+    "base": "flat",
+    "width": 26,
+    "height": 12,
+    "fog": false,
+    "starts": [{ "x": 3, "y": 6 }],
+    "places": { "grove": { "x": 13, "y": 6, "r": 10 } }
+  },
+  "players": [{ "kind": "human", "hero": "nelia", "hq": false }],
+  "sections": [
+    {
+      "id": "world",
+      "title": { "de": "Welt aufbauen", "en": "Build the world" },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": { "de": "Mission", "en": "Mission" },
+      "level": "mission",
+      "visibility": "hidden",
+      "editable": false,
+      "file": "mission.py"
+    },
+    {
+      "id": "player",
+      "title": { "de": "Dein Programm", "en": "Your program" },
+      "level": "player",
+      "visibility": "open",
+      "editable": true,
+      "file": "player.py"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { createMissionSim, createScenarioSim } from '../../src/sim/missions/runtime.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { validateScenario, emptyScenario } from '../../src/sim/scripting/scenario.js';
-import { SCENARIOS } from '../../src/sim/missions/scenarios/index.js';
+import { SCENARIOS } from '../../src/sim/missions/levels/index.js';
 import { WATER } from '../../src/sim/map.js';
 
 const run = (sim, ticks) => { for (let i = 0; i < ticks && !sim.mission.state.result; i++) sim.step(); };

@@ -176,11 +176,10 @@ export const EXAMPLES = {
   'unit.attack': 'for t in troops():\n    if t.soldiers >= 3:\n        t.attack(place("camp"))',
   'building.upgrade': 'for b in buildings("residence"):\n    if b.done and b.level == 1:\n        b.upgrade()\n        break',
   // ---------- Staging ----------
-  say: L(
-    'say("nelia", "Da hinten liegt das Lager der Räuber.")\nsay("kunz", "Kommt nur her!", seconds=3)',
-    'say("nelia", "The bandit camp is over there.")\nsay("kunz", "Come and get it!", seconds=3)',
-  ),
-  message: L('message("Ein Händler ist eingetroffen.")', 'message("A merchant has arrived.")'),
+  say: 'say("nelia", de="Da hinten liegt das Lager der Räuber.", en="The bandit camp is over there.")\nsay("kunz", "Kommt nur her!", seconds=3)',
+  message: 'message(de="Ein Händler ist eingetroffen.", en="A merchant has arrived.")',
+  npc: 'alchemist = npc("alchemist", look="worker.alchemist", at=place("camp"), name="Alchemist")\nprint(alchemist, alchemist.talkable)',
+  'npc.stop_talking': 'alchemist = npc("alchemist", look="worker.alchemist", at=place("camp"))\n\n@on_talk("alchemist")\ndef talk(hero):\n    say("alchemist", de="Schwefel? Im Norden.", en="Sulfur? Up north.")\n    alchemist.stop_talking()',
   'camera.jump_to': 'camera.jump_to(hq())',
   'camera.fly_to': 'camera.fly_to(place("camp"), seconds=3)\ncamera.fly_to(hero, seconds=2)',
   reveal: 'reveal(place("camp"), radius=8, seconds=20)',
@@ -199,15 +198,15 @@ export const EXAMPLES = {
   on_enter: L('@on_enter(place("camp"), who="hero")\ndef found(unit):\n    say("nelia", "Das Lager ist verlassen …")\n    complete("scout")', '@on_enter(place("camp"), who="hero")\ndef found(unit):\n    say("nelia", "The camp is deserted …")\n    complete("scout")'),
   on_objective: '@on_objective("camp", status="done")\ndef won(id, status):\n    victory()',
   on_weather: L('@on_weather("winter")\ndef cold(state):\n    message("Die Flüsse frieren zu – Vorsicht an den Ufern!")', '@on_weather("winter")\ndef cold(state):\n    message("The rivers are freezing – watch the banks!")'),
+  on_talk: 'npc("alchemist", look="worker.alchemist", at=place("camp"))\n\n@on_talk("alchemist")\ndef talk(hero):\n    if hero.name != "orrin":\n        say("alchemist", de="Schick mir den Händler.", en="Send me the merchant.")\n        return\n    say("alchemist", de="Schwefel? Im Norden, hinter dem Grat.", en="Sulfur? Up north, behind the ridge.")',
+  on_event: '@on_event("every", seconds=30)\ndef report():\n    print("Holz:", stock("wood"))\n\n@on_event("enter", target=place("camp"), who="hero")\ndef found(unit):\n    message(de="Das Lager ist verlassen.", en="The camp is deserted.")',
   // ---------- Goals ----------
-  objective: L(
-    'objective("homes", "Baue 3 Wohnhäuser", lambda: count("residence") >= 3)\nobjective("gold", "Spare 1000 Gold", lambda: stock("gold") >= 1000, primary=False)',
-    'objective("homes", "Build 3 residences", lambda: count("residence") >= 3)\nobjective("gold", "Save 1000 gold", lambda: stock("gold") >= 1000, primary=False)',
-  ),
+  objective: 'objective("homes", lambda: (count("residence"), 3), de="Baue 3 Wohnhäuser", en="Build 3 residences")\nobjective("gold", lambda: stock("gold") >= 1000, de="Spare 1000 Gold", en="Save 1000 gold", primary=False)',
   complete: L('objective("scout", "Erkunde das Lager")\n\n@on_enter(place("camp"), who="hero")\ndef scouted(unit):\n    complete("scout")', 'objective("scout", "Scout the camp")\n\n@on_enter(place("camp"), who="hero")\ndef scouted(unit):\n    complete("scout")'),
   fail: L('objective("escort", "Bringe Orrin sicher heim")\n\n@on_killed(HUMAN)\ndef check(kind, owner):\n    if orrin and orrin.down:\n        fail("escort")', 'objective("escort", "Bring Orrin home safely")\n\n@on_killed(HUMAN)\ndef check(kind, owner):\n    if orrin and orrin.down:\n        fail("escort")'),
   show_objective: L('objective("camp", "Zerstöre das Räuberlager", hidden=True)\nwait(30)\nshow_objective("camp")', 'objective("camp", "Destroy the bandit camp", hidden=True)\nwait(30)\nshow_objective("camp")'),
-  victory: 'wait_until(lambda: len(buildings("banditCamp", BANDITS)) == 0)\nvictory()',
+  victory: 'wait_until(lambda: len(buildings("banditCamp", BANDITS)) == 0)\nvictory("camp", de="Das Lager ist zerstört!", en="The camp is destroyed!")',
+  'program.get': 'objective("guess", lambda: program.status == "done" and program.get("steps") == 7,\n          de="Wie viele Schritte braucht Nelia? Speichere die Zahl in steps.", en="How many steps does Nelia need? Store the number in steps.")\n\n@on_start\ndef watch():\n    wait_until(lambda: program.runs > 0)\n    print("Erster Lauf, Zustand:", program.status)',
   defeat: 'wait_until(lambda: not hero.alive or hero.down)\ndefeat("hero")',
   // ---------- Intervening ----------
   spawn: 'guards = spawn(BANDITS, "spear1", place("camp"), count=2, soldiers=3)\nprint(len(guards), "Trupps bewachen das Lager")',

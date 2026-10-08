@@ -10,7 +10,7 @@ import { VISION } from '../../sim/data/vision.js';
 import { MARKET } from '../../sim/data/market.js';
 import { DAMAGE } from '../../sim/systems/damage.js';
 import { CAMPAIGN } from '../../sim/missions/registry.js';
-import { ADVENTURES, SCRIPT_MISSIONS } from '../../sim/missions/scenarios/index.js';
+import { ADVENTURES, SCRIPT_MISSIONS } from '../../sim/missions/levels/index.js';
 import { t, tr, heroName, has } from '../../i18n/index.js';
 
 const named = (key, fallback, lang) => (has(key) ? t(key, null, lang) : (fallback ?? key));

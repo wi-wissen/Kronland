@@ -1,0 +1,57 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "adv4",
+  "kind": "adventure",
+  "end": "script",
+  "order": 4,
+  "title": { "de": "Steine am Wegesrand", "en": "Stones by the Wayside" },
+  "summary": {
+    "de": "Schreibe eine eigene Funktion, die links und rechts nach Steinen schaut.",
+    "en": "Write your own function that looks left and right for stones."
+  },
+  "briefing": {
+    "de": "Auf dem Weg nach Osten liegen links und rechts Steinhaufen – jedes Mal an anderen Stellen. Nelia soll alle einsammeln. hero.take() hebt den Haufen vor ihr auf. Schreibe eine Funktion check_side(), die Nelia zur Seite dreht, nachschaut, aufhebt und zurückdreht. Dann brauchst du in der Schleife nur noch zwei Zeilen.",
+    "en": "On the way east there are piles of stone to the left and right – in different places every time. Nelia should collect them all. hero.take() picks up the pile in front of her. Write a function check_side() that turns Nelia sideways, looks, picks up and turns back. Then the loop only needs two lines."
+  },
+  "victoryText": { "de": "Alle Steine eingesammelt!", "en": "All stones collected!" },
+  "learn": {
+    "de": ["Funktionen (def)", "Parameter", "Wiederverwendung"],
+    "en": ["functions (def)", "parameters", "reuse"]
+  },
+  "world": {
+    "base": "flat",
+    "width": 28,
+    "height": 11,
+    "fog": false,
+    "starts": [{ "x": 3, "y": 5 }],
+    "places": { "road": { "x": 14, "y": 5, "r": 13 }, "end": { "x": 24, "y": 5, "r": 0 } }
+  },
+  "players": [{ "kind": "human", "hero": "nelia", "hq": false }],
+  "sections": [
+    {
+      "id": "world",
+      "title": { "de": "Welt aufbauen", "en": "Build the world" },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": { "de": "Mission", "en": "Mission" },
+      "level": "mission",
+      "visibility": "hidden",
+      "editable": false,
+      "file": "mission.py"
+    },
+    {
+      "id": "player",
+      "title": { "de": "Dein Programm", "en": "Your program" },
+      "level": "player",
+      "visibility": "open",
+      "editable": true,
+      "file": "player.py"
+    }
+  ]
+}

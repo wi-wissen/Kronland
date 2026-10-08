@@ -6,8 +6,8 @@
 //   restricted API – coding adventures. Their code comes with the command so that everything stays deterministic.
 // - All VM states are JSON and are part of the save game and the state hash. Budgets count commands.
 
-import { compile, VM, ScriptError, saveVm, loadVm, sourceHash, PyList, PyTuple, PyDict, PyFunction, PyHost, truthy } from '../../script/index.js';
-import { makeApi, DIRS, toTicks, LIMITS, assetPathOk } from './api.js';
+import { compile, VM, ScriptError, saveVm, loadVm, sourceHash, PyList, PyTuple, PyDict, PyFloat, PyFunction, PyHost, truthy, DATA_DEPTH } from '../../script/index.js';
+import { makeApi, DIRS, toTicks, toInt, LIMITS, assetPathOk } from './api.js';
 import { TICKS_PER_SECOND, toTile } from '../fixed.js';
 import { kill } from '../systems/military.js';
 
@@ -186,8 +186,13 @@ export class ScriptHost {
   handleOf(id) {
     const e = this.sim.entities.get(id);
     if (!e) return null;
-    const cls = { hero: 'Hero', unit: 'Serf', leader: 'Troop', worker: 'Worker', building: 'Building', tree: 'Tree', pile: 'Pile' }[e.kind] ?? 'Entity';
+    const cls = { hero: 'Hero', unit: 'Serf', leader: 'Troop', worker: 'Worker', building: 'Building', tree: 'Tree', pile: 'Pile', npc: 'Npc' }[e.kind] ?? 'Entity';
     return new PyHost(cls, id);
+  }
+
+  /** A hero arrived at a talk figure of the script: start @on_talk(id) with the hero. */
+  talk(id, hero) {
+    this.fire('on_talk', { id }, [this.handleOf(hero.id)]);
   }
 
   /** Registered handlers: VM variable `.handlers` = [(kind, function, filter), …] */
@@ -358,13 +363,21 @@ export class ScriptHost {
 
   // ---------- Staging, goals, output ----------
 
-  /** Text from the scenario table (key) or literal; {de, en} dictionaries become bilingual. */
+  /**
+   * Text of say/message/objective: literal, key of the version-1 table `texts`, a dict {"de": …} or the
+   * object {de, en} from the keywords de=/en=. Bilingual texts stay objects (the UI picks the language).
+   */
   text(v) {
     const cut = (s) => (s.length > LIMITS.text ? s.slice(0, LIMITS.text - 1) + '…' : s);
     if (typeof v === 'string') return cut(ownText(this.scenario.texts, v) ?? v);
     if (v instanceof PyDict) {
       const o = {};
       for (const [k, x] of v.entries()) if (typeof k === 'string' && /^[a-z]{2}$/.test(k)) o[k] = cut(this.vms.mission?.str(x) ?? String(x));
+      return o;
+    }
+    if (v && Object.getPrototypeOf(v) === Object.prototype) {
+      const o = {};
+      for (const k of ['de', 'en']) if (typeof v[k] === 'string') o[k] = cut(v[k]);
       return o;
     }
     return cut(this.vms.mission?.str(v) ?? String(v));
@@ -403,14 +416,23 @@ export class ScriptHost {
     st.objectives.push({ id, status: hidden ? 'hidden' : 'active', since: this.sim.tick, count: 0, progress: null });
   }
 
-  /** Progress of a script goal: check condition (function). */
+  /**
+   * Progress of a script goal: the condition returns True/False or a pair (done, needed), e.g.
+   * lambda: (count("residence"), 2) – then the goal panel shows 1/2.
+   */
   objectiveProgress(id) {
     const vm = this.vms.mission;
     const conds = vm?.globals.get('.objectives');
     const fn = conds instanceof PyDict ? conds.get(id) : null;
     if (!fn) return { cur: 0, target: 1 };
     try {
-      return { cur: truthy(vm.callSync(fn, [], null, null)) ? 1 : 0, target: 1 };
+      const r = vm.callSync(fn, [], null, null);
+      // Only a tuple is a pair: a list of two figures (units_in …) still counts as "true"
+      if (r instanceof PyTuple && r.items.length === 2) {
+        const target = Math.max(1, toInt(r.items[1], 'needed'));
+        return { cur: Math.max(0, Math.min(target, toInt(r.items[0], 'done'))), target };
+      }
+      return { cur: truthy(r) ? 1 : 0, target: 1 };
     } catch (e) {
       if (!(e instanceof ScriptError)) throw e;
       this.reportError('mission', e.toJSON());
@@ -422,6 +444,31 @@ export class ScriptHost {
   objectiveAction(action, id) {
     if (!this.runtime.state.objectives.some((o) => o.id === id)) throw new ScriptError('game', { reason: 'script.game.objectiveUnknown', reasonParams: { id } });
     this.runtime.runAction(this.sim, { type: action, id });
+  }
+
+  /**
+   * program.get(name): copy of a global variable of the player program – numbers, texts, lists, dicts and game
+   * objects; functions and modules give None. Without a program (or variable) the default.
+   */
+  playerVariable(name, dflt) {
+    const vm = this.vms.player;
+    const v = vm?.globals.get(name);
+    if (v === undefined) return dflt;
+    const copy = (x, depth) => {
+      if (depth > DATA_DEPTH) throw new ScriptError('recursion', { max: DATA_DEPTH, what: 'nested' });
+      if (x === null || typeof x === 'number' || typeof x === 'bigint' || typeof x === 'string' || typeof x === 'boolean') return x;
+      if (x instanceof PyFloat) return new PyFloat(x.v);
+      if (x instanceof PyList) return new PyList(x.items.map((y) => copy(y, depth + 1)));
+      if (x instanceof PyTuple) return new PyTuple(x.items.map((y) => copy(y, depth + 1)));
+      if (x instanceof PyDict) {
+        const d = new PyDict();
+        for (const [k, y] of x.entries()) d.set(copy(k, depth + 1), copy(y, depth + 1));
+        return d;
+      }
+      if (x instanceof PyHost) return new PyHost(x.cls, x.id);
+      return null;
+    };
+    return copy(v, 0);
   }
 
   print(level, text, task) {

@@ -561,6 +561,8 @@ export default {
   'err.leaderNotNear': 'Hauptmann muss bei {building} stehen',
   'err.unknownLine': 'Unbekannte Truppengattung',
   'err.noTroops': 'Keine Truppen ausgewählt',
+  'err.noTalk': 'Mit dieser Figur kann man gerade nicht sprechen',
+  'err.talkHeroOnly': 'Nur Helden können mit dieser Figur sprechen',
   'err.notOwnHero': 'Kein eigener Held',
   'err.noTarget': 'Kein Ziel in Reichweite',
   'err.noTribute': 'Dieser Tribut ist nicht (mehr) offen',

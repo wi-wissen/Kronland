@@ -2,7 +2,7 @@
   <transition name="dlg">
     <div v-if="current" :key="current.seq" class="dialogbox frame" role="status" aria-live="polite" data-testid="dialog">
       <span class="dlg-seal" :class="{ pic: portrait }" :style="{ '--sp': speaker.color }" aria-hidden="true">
-        <img v-if="portrait" :src="portrait" alt="" draggable="false"><template v-else>{{ speaker.initial }}</template>
+        <img v-if="portrait" :src="portrait" alt="" draggable="false" @error="brokenPortrait = portrait"><template v-else>{{ speaker.initial }}</template>
       </span>
       <div class="dlg-body">
         <b class="dlg-name" data-testid="dialog-speaker">{{ $tr(speaker.name) }}</b>
@@ -21,6 +21,7 @@ import { speak, stopSpeech } from '../../audio/speech.js';
 import { loadVoiceIndex } from '../../audio/voiceLines.js';
 import { speakerPortrait } from '../icons/index.js';
 import { siteUrl } from '../../paths.js';
+import { levelAssetUrl } from '../../levels/assets.js';
 
 const SHOW_MS = 14000;
 /** With recording: visible at least this long; pause after the recording ends; longest recording */
@@ -35,9 +36,11 @@ export default {
     speed: { type: Number, default: 1 },
     /** Clicking away also ends the script's waiting (say blocks) */
     scripted: Boolean,
+    /** Own speakers of the level: id → { name, color?, portrait? } */
+    speakers: { type: Object, default: () => ({}) },
   },
   emits: ['skip', 'line'],
-  data() { return { seen: 0 }; },
+  data() { return { seen: 0, brokenPortrait: null }; },
   computed: {
     /** Oldest message not yet read (order is preserved). */
     current() {
@@ -49,15 +52,21 @@ export default {
     },
     /** Painted portrait of the speaker (heroes, side characters), otherwise a seal with initial letter. */
     portrait() {
-      const p = speakerPortrait(this.current?.speaker);
-      return p ? siteUrl(p) : null;
+      const id = this.current?.speaker;
+      const own = id && !SPEAKERS[id] && Object.hasOwn(this.speakers, id) ? levelAssetUrl(this.speakers[id].portrait) : null;
+      const p = own ?? (speakerPortrait(id) ? siteUrl(speakerPortrait(id)) : null);
+      // A portrait that does not load: the seal with the initial letter instead
+      return p && p !== this.brokenPortrait ? p : null;
     },
     /** Further waiting sentences after the current one (for "Skip all"). */
     waiting() { return this.current ? this.messages.filter((x) => x.seq > this.current.seq).length : 0; },
     speaker() {
       const id = this.current?.speaker;
       if (!id) return { name: { de: 'Erzähler', en: 'Narrator' }, color: '#8a7a5c', initial: '❧' };
-      return SPEAKERS[id] ?? { name: id, color: '#e0a93b', initial: id[0]?.toUpperCase() ?? '?' };
+      if (SPEAKERS[id]) return SPEAKERS[id];
+      const own = Object.hasOwn(this.speakers, id) ? this.speakers[id] : null;
+      const name = own?.name ?? id;
+      return { name, color: own?.color ?? '#e0a93b', initial: (tr(name, this.lang)[0] ?? '?').toUpperCase() };
     },
   },
   watch: {

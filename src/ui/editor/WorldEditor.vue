@@ -17,7 +17,7 @@
         <button v-tip="$t('editor.redo')" class="icon-btn" :disabled="!ui?.canRedo" data-testid="editor-redo" @click="view.redo()">↷</button>
         <button v-tip="$t('script.gridTip')" class="icon-btn ed-grid" :class="{ on: grid }" :aria-pressed="grid" :aria-label="$t('script.grid')" data-testid="editor-grid" @click="toggleGrid">#</button>
         <button data-testid="editor-new" @click="newOpen = true"><Icon name="plus" /><span class="ed-lbl">{{ $t('editor.new') }}</span></button>
-        <label class="ed-file-btn" data-testid="editor-open"><Icon name="load" /><span class="ed-lbl">{{ $t('editor.open') }}</span><input type="file" accept=".json,application/json" @change="openFile"></label>
+        <label class="ed-file-btn" data-testid="editor-open"><Icon name="load" /><span class="ed-lbl">{{ $t('editor.open') }}</span><input type="file" accept=".zip,.json,application/zip,application/json" data-testid="editor-open-file" @change="openFile"></label>
         <button data-testid="editor-save" @click="save"><Icon name="save" /><span class="ed-lbl">{{ $t('editor.save') }}</span></button>
         <button class="primary" data-testid="editor-play" @click="play"><Icon name="play" />{{ $t('editor.play') }}</button>
       </div>
@@ -149,6 +149,17 @@
           </div>
         </section>
 
+        <!-- Files: pictures, recordings and 3D models of the level (assets/…), saved in the .zip -->
+        <section v-else-if="tab === 'files'" class="ed-form">
+          <p class="ed-note">{{ $t('editor.filesNote') }}</p>
+          <div v-for="f in fileList" :key="f.path" class="ed-asset" :data-testid="'asset-' + f.path">
+            <code>{{ f.path }}</code><small>{{ f.size }}</small>
+            <button class="icon-btn ghost" :aria-label="$t('editor.remove')" @click="removeAsset(f.path)"><Icon name="close" /></button>
+          </div>
+          <p v-if="!fileList.length" class="sp-none">{{ $t('editor.noFiles') }}</p>
+          <label class="ed-file-btn" data-testid="editor-add-file"><Icon name="plus" /><span>{{ $t('editor.addFile') }}</span><input type="file" multiple accept=".png,.jpg,.jpeg,.webp,.mp3,.ogg,.glb" data-testid="editor-asset-file" @change="addAssets"></label>
+        </section>
+
         <!-- Examples: open bundled scenarios as a template -->
         <section v-else-if="tab === 'examples'" class="ed-form">
           <p class="ed-note">{{ $t('editor.examplesNote') }}</p>
@@ -183,7 +194,8 @@ import CodeEditor from '../script/CodeEditor.vue';
 import ApiHelp from '../script/ApiHelp.vue';
 import { EditorView } from '../../game/EditorView.js';
 import { emptyScenario, validateScenario } from '../../sim/scripting/scenario.js';
-import { SCENARIOS } from '../../sim/missions/scenarios/index.js';
+import { assetAllowed, useLevelAssets } from '../../levels/assets.js';
+import { SCENARIOS } from '../../sim/missions/levels/index.js';
 import { RESOURCES } from '../../sim/data/resources.js';
 import { HERO_IDS } from '../../sim/data/units.js';
 import { loadAssets } from '../../render/assets.js';
@@ -191,6 +203,11 @@ import { applyPlayerColor } from '../settings.js';
 import { scriptErrorText } from '../../i18n/index.js';
 
 const DRAFT = 'kronland-editor-draft';
+/**
+ * Files of the level being edited (assets/… → Blob). Too big for the draft in localStorage: they stay while the page
+ * is open (also across test play) and travel in the .zip.
+ */
+const files = new Map();
 const TOOLS = [
   { id: 'camera', glyph: '✥' }, { id: 'raise', glyph: '▲' }, { id: 'lower', glyph: '▼' }, { id: 'flatten', glyph: '▬' },
   { id: 'smooth', glyph: '≈' }, { id: 'water', glyph: '≋' }, { id: 'land', glyph: '◭' }, { id: 'forest', icon: 'wood' },
@@ -207,9 +224,9 @@ function normalize(s) {
   c.briefing = { de: '', en: '', ...(c.briefing ?? {}) };
   c.world = { places: {}, ...(c.world ?? {}) };
   c.world.places ??= {};
-  c.texts ??= {};
   c.sections = (c.sections ?? []).map((x) => ({ level: 'mission', visibility: 'open', editable: false, ...x, title: typeof x.title === 'string' ? { de: x.title, en: x.title } : { de: x.id, en: x.id, ...(x.title ?? {}) } }));
-  for (const t of Object.values(c.texts)) { t.de ??= ''; t.en ??= ''; }
+  // Text table only in version-1 scenarios (since version 2 texts stand in the code: say("…", de=…, en=…))
+  if (c.texts) for (const t of Object.values(c.texts)) { t.de ??= ''; t.en ??= ''; }
   return c;
 }
 
@@ -228,12 +245,16 @@ export default {
       scenario: normalize(this.initial ?? loadDraft() ?? emptyScenario({ size: 32 })),
       ui: null, view: null, loading: true, tab: 'scenario', sideOpen: false, grid: false,
       newOpen: false, newBase: 'flat', newSize: 32, newSeed: 42,
-      placeDraft: null, newTextKey: '', message: '',
+      placeDraft: null, newTextKey: '', message: '', fileVersion: 0,
       compact: false, tools: TOOLS, resources: RESOURCES, heroes: HERO_IDS, examples: SCENARIOS,
     };
   },
   computed: {
-    tabs() { return ['scenario', 'places', 'code', 'texts', 'examples']; },
+    tabs() { return ['scenario', 'places', 'code', ...(this.scenario.texts ? ['texts'] : []), 'files', 'examples']; },
+    fileList() {
+      void this.fileVersion;
+      return [...files].map(([path, b]) => ({ path, size: b.size >= 1e6 ? `${(b.size / 1e6).toFixed(1)} MB` : `${Math.ceil(b.size / 1e3)} KB` }));
+    },
     realPlayers() { return this.scenario.players.filter((p) => p.kind !== 'bandits'); },
     showBrush() { return ['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase'].includes(this.ui?.tool.tool); },
   },
@@ -310,6 +331,22 @@ export default {
       this.scenario.world.places[d.name] = { x: d.x, y: d.y, r: 2 };
       this.placeDraft = null;
     },
+    /** Add pictures, recordings, 3D models: they land in assets/ under their (cleaned) file name. */
+    addAssets(ev) {
+      for (const f of ev.target.files ?? []) {
+        const path = `assets/${f.name.toLowerCase().replace(/[^\w.-]+/g, '-')}`;
+        if (!assetAllowed(path)) { this.flash(this.$t('editor.fileType', { name: f.name })); continue; }
+        if (f.size > 15_000_000) { this.flash(this.$t('editor.fileTooBig', { name: f.name })); continue; }
+        files.set(path, f);
+        this.flash(this.$t('editor.fileAdded', { path }));
+      }
+      ev.target.value = '';
+      this.fileVersion++;
+      this.useFiles();
+    },
+    removeAsset(path) { files.delete(path); this.fileVersion++; this.useFiles(); },
+    /** Preview and test play show the files of the level. */
+    useFiles() { const s = this.plainScenario(); useLevelAssets({ scenario: s, assets: files }, s); },
     addText() {
       const k = this.newTextKey.trim();
       if (!/^[\w-]+$/.test(k) || this.scenario.texts[k]) return;
@@ -351,12 +388,16 @@ export default {
         s.sections = s.sections.filter((x) => x.level === 'mission');
       }
       this.scenario = s;
+      files.clear();
+      this.fileVersion++;
       this.newOpen = false;
       this.view.undoStack = [];
       this.view.preview = false;
       this.view.load(this.plainScenario());
     },
     openExample(ex) {
+      files.clear();
+      this.fileVersion++;
       this.scenario = normalize(ex);
       this.scenario.id = `${ex.id}-copy`;
       this.view.preview = false;
@@ -364,31 +405,41 @@ export default {
       this.view.load(this.plainScenario());
       this.flash(this.$t('editor.opened', { name: this.$tr(ex.title) }));
     },
-    openFile(ev) {
+    /** Open a level: .zip (with its files) or a scenario file .json. */
+    async openFile(ev) {
       const f = ev.target.files?.[0];
       ev.target.value = '';
       if (!f) return;
-      const r = new FileReader();
-      r.onload = () => {
-        try {
-          const json = JSON.parse(String(r.result));
+      try {
+        let pkg;
+        if (/\.zip$/i.test(f.name) || f.type === 'application/zip') {
+          const { readLevelZip } = await import('../../levels/package.js');
+          pkg = readLevelZip(await f.arrayBuffer());
+        } else {
+          const json = JSON.parse((await f.text()).replace(/^\uFEFF/, ''));
           const problems = validateScenario(json);
-          if (problems.length) { this.flash(this.$t('adv.loadFailed', { why: problems[0] })); return; }
-          this.scenario = normalize(json);
-          this.view.preview = false;
-          this.view.undoStack = [];
-          this.view.load(this.plainScenario());
-          this.flash(this.$t('editor.opened', { name: this.$tr(json.title) || json.id }));
-        } catch (e) { this.flash(this.$t('adv.loadFailed', { why: e.message })); }
-      };
-      r.readAsText(f);
+          pkg = { scenario: problems.length ? null : json, assets: new Map(), problems };
+        }
+        if (!pkg.scenario) { this.flash(this.$t('adv.loadFailed', { why: pkg.problems[0] })); return; }
+        files.clear();
+        for (const [k, v] of pkg.assets) files.set(k, v);
+        this.fileVersion++;
+        this.scenario = normalize(pkg.scenario);
+        this.view.preview = false;
+        this.view.undoStack = [];
+        this.view.load(this.plainScenario());
+        this.useFiles();
+        this.flash(this.$t('editor.opened', { name: this.$tr(pkg.scenario.title) || pkg.scenario.id }));
+      } catch (e) { this.flash(this.$t('adv.loadFailed', { why: e.message })); }
     },
-    save() {
+    /** Save as .zip: scenario.json, one .py file per section, assets/ – the same folder as the bundled levels. */
+    async save() {
       const full = this.fullScenario();
-      const blob = new Blob([JSON.stringify(full, null, 1)], { type: 'application/json' });
+      const { writeLevelZip } = await import('../../levels/package.js');
+      const blob = new Blob([await writeLevelZip(full, files)], { type: 'application/zip' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${full.id || 'world'}.kronland.json`;
+      a.download = `${full.id || 'world'}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -409,7 +460,7 @@ export default {
       const problems = validateScenario(full);
       if (problems.length) { this.flash(problems[0]); return; }
       this.saveDraft();
-      this.$emit('play', { ...full, debug: true });
+      this.$emit('play', { scenario: { ...full, debug: true }, assets: files });
     },
   },
 };
@@ -427,6 +478,9 @@ export default {
 .ed-title:hover, .ed-title:focus-visible { background: var(--inset-bg); border-color: var(--wood-950); }
 .ed-actions { display: flex; gap: 0.375rem; align-items: center; }
 .ed-actions > button, .ed-file-btn { display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.5rem; }
+.ed-asset { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.ed-asset code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ed-asset small { color: var(--ink-muted); }
 .ed-file-btn { position: relative; padding: 0 0.75rem; border-radius: var(--r-md); cursor: pointer; background: var(--inset-bg); box-shadow: var(--inset-edge); }
 .ed-file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .ed-tools { position: absolute; z-index: 5; left: calc(0.5rem + var(--safe-l)); top: 4.25rem; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.375rem; max-height: calc(100dvh - 6rem); overflow-y: auto; width: 5.25rem; }

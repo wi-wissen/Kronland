@@ -29,6 +29,18 @@ describe('Start links', () => {
     expect(buildStartLink({ kind: 'mission', id: 'c1', seed: 9 })).toBe('mission=c1&seed=9');
   });
 
+  it('level by link: http(s) address or a path on this site; other schemes are no start', () => {
+    const url = 'https://teacher.example/levels/lindgrund.zip';
+    expect(buildStartLink({ kind: 'level', url })).toBe('level=https%3A%2F%2Fteacher.example%2Flevels%2Flindgrund.zip');
+    expect(strip(parseStartLink(`?${buildStartLink({ kind: 'level', url })}`))).toEqual({ kind: 'level', url });
+    expect(strip(parseStartLink('?level=levels/demo/'))).toEqual({ kind: 'level', url: 'levels/demo/' });
+    // the level wins over mission and seed in the same address
+    expect(parseStartLink('?level=a.zip&mission=c1&seed=3').kind).toBe('level');
+    expect(parseStartLink('?level=javascript:alert(1)')).toBeNull();
+    expect(parseStartLink('?level=data:text/plain,x')).toBeNull();
+    expect(parseStartLink('?level=')).toBeNull();
+  });
+
   it('invalid values → default', () => {
     expect(strip(parseStartLink('?seed=abc&ai=extreme&players=9&hero=gandalf&fog=maybe'))).toEqual(
       { kind: 'free', seed: 1, difficulty: 'normal', players: 4, hero: 'nelia', fog: true });

@@ -10,7 +10,7 @@
 // results only depend on the sim state, lists are sorted by ID.
 
 import {
-  PyBuiltin, PyHost, PyPartial, PyList, PyTuple, PyFloat, PyFunction, PyModule, PyBoundMethod, Suspend, ScriptError,
+  PyBuiltin, PyHost, PyPartial, PyList, PyTuple, PyDict, PyFloat, PyFunction, PyModule, PyBoundMethod, Suspend, ScriptError,
   iterItems, isNum, num, typeName, truthy, suggest,
 } from '../../script/index.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -62,11 +62,17 @@ export function toInt(v, name) {
  * Limits for shared levels: a script must not freeze the browser or blow up the save game.
  * World building per call (radius, count), number of places, goals and event handlers, length of texts.
  */
-export const LIMITS = { radius: 64, trees: 2000, spawn: 50, serfs: 100, places: 500, objectives: 100, handlers: 200, text: 2000 };
+export const LIMITS = { radius: 64, trees: 2000, spawn: 50, serfs: 100, places: 500, objectives: 100, handlers: 200, text: 2000, npcs: 50 };
 
 /** Names of places, goals and keys chosen by a script: letters, digits, _ and -, starting with a letter. */
 export const NAME_RE = /^[A-Za-z][\w-]{0,63}$/;
 
+/** Events for @on_event(name, …) → the decorator with the same filters (the short forms stay). */
+export const EVENTS = {
+  start: 'on_start', every: 'every', building_done: 'on_building_done', building_placed: 'on_building_placed',
+  destroyed: 'on_destroyed', killed: 'on_killed', recruited: 'on_recruited', research: 'on_research',
+  enter: 'on_enter', objective: 'on_objective', weather: 'on_weather', talk: 'on_talk',
+};
 
 /** Python seconds → ticks (rounded, at least 0). */
 export function toTicks(v, name = 'seconds') {
@@ -78,7 +84,9 @@ export function toTicks(v, name = 'seconds') {
 }
 
 /** Class of a handle by entity kind. */
-const CLASS_OF = { hero: 'Hero', unit: 'Serf', leader: 'Troop', soldier: 'Soldier', worker: 'Worker', building: 'Building', tree: 'Tree', pile: 'Pile', ruin: 'Ruin' };
+const CLASS_OF = { hero: 'Hero', unit: 'Serf', leader: 'Troop', soldier: 'Soldier', worker: 'Worker', building: 'Building', tree: 'Tree', pile: 'Pile', ruin: 'Ruin', npc: 'Npc' };
+/** Look of a talk figure: a role of the figure manifest ("serf", "worker.alchemist", "hero.orrin") or an own model of the level. */
+const LOOK_RE = /^[a-z][\w.-]{0,63}$/;
 
 // ---------------------------------------------------------------------------------------------
 // Directory for help panel, editor completion and docs. Descriptions: i18n script.api.<name>
@@ -133,8 +141,10 @@ export const API_DOC = [
   { name: 'unit.attack', sig: 'troop.attack(target)', level: 'player', group: 'village' },
   { name: 'building.upgrade', sig: 'building.upgrade()', level: 'player', group: 'village' },
   // Staging (missions only)
-  { name: 'say', sig: 'say(speaker, text, seconds=None, voice=None)', level: 'mission', group: 'story' },
-  { name: 'message', sig: 'message(text)', level: 'mission', group: 'story' },
+  { name: 'say', sig: 'say(speaker, text=None, de=None, en=None, seconds=None, voice=None)', level: 'mission', group: 'story' },
+  { name: 'message', sig: 'message(text=None, de=None, en=None)', level: 'mission', group: 'story' },
+  { name: 'npc', sig: 'npc(id, look="serf", at=…, name=None)', level: 'mission', group: 'story' },
+  { name: 'npc.stop_talking', sig: 'npc.stop_talking() · npc.start_talking()', level: 'mission', group: 'story' },
   { name: 'camera.jump_to', sig: 'camera.jump_to(target)', level: 'mission', group: 'story' },
   { name: 'camera.fly_to', sig: 'camera.fly_to(target, seconds=2)', level: 'mission', group: 'story' },
   { name: 'reveal', sig: 'reveal(target, radius=None, seconds=30)', level: 'mission', group: 'story' },
@@ -150,13 +160,16 @@ export const API_DOC = [
   { name: 'on_enter', sig: '@on_enter(target, who="any", player=HUMAN)', level: 'mission', group: 'events' },
   { name: 'on_objective', sig: '@on_objective(id, status=None)', level: 'mission', group: 'events' },
   { name: 'on_weather', sig: '@on_weather(state=None)', level: 'mission', group: 'events' },
+  { name: 'on_talk', sig: '@on_talk(id=None)', level: 'mission', group: 'events' },
+  { name: 'on_event', sig: '@on_event(name, …)', level: 'mission', group: 'events' },
   // Goals and end
-  { name: 'objective', sig: 'objective(id, text, condition=None, primary=True, hidden=False)', level: 'mission', group: 'goals' },
+  { name: 'objective', sig: 'objective(id, condition=None, de=None, en=None, primary=True, hidden=False)', level: 'mission', group: 'goals' },
   { name: 'complete', sig: 'complete(id)', level: 'mission', group: 'goals' },
   { name: 'fail', sig: 'fail(id)', level: 'mission', group: 'goals' },
   { name: 'show_objective', sig: 'show_objective(id)', level: 'mission', group: 'goals' },
-  { name: 'victory', sig: 'victory(reason=None)', level: 'mission', group: 'goals' },
-  { name: 'defeat', sig: 'defeat(reason=None)', level: 'mission', group: 'goals' },
+  { name: 'victory', sig: 'victory(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
+  { name: 'defeat', sig: 'defeat(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
+  { name: 'program.get', sig: 'program.get(name, default=None) · program.status · program.runs', level: 'mission', group: 'goals' },
   // Intervening
   { name: 'spawn', sig: 'spawn(owner, kind, at, count=1, soldiers=None)', level: 'mission', group: 'power' },
   { name: 'spawn_serfs', sig: 'spawn_serfs(player, count)', level: 'mission', group: 'power' },
@@ -209,6 +222,7 @@ export const CLASS_METHODS = {
   Tree: { player: ['distance_to'], mission: ['kill'] },
   Pile: { player: ['distance_to'], mission: ['kill'] },
   Ruin: { player: [], mission: [] },
+  Npc: { player: ['distance_to'], mission: ['start_talking', 'stop_talking', 'kill'] },
   Place: { player: ['distance_to', 'contains'], mission: [] },
 };
 
@@ -222,6 +236,7 @@ export const CLASS_PROPS = {
   Building: ['type', 'level', 'done', 'w', 'h'],
   Tree: ['res', 'amount'],
   Pile: ['res', 'amount'],
+  Npc: ['name', 'look', 'talkable'],
   Place: ['name', 'x', 'y', 'r'],
 };
 
@@ -350,6 +365,25 @@ export function makeApi(host, level) {
     if (!NAME_RE.test(s)) throw new ScriptError('value', { what: 'badName', name, value: s.slice(0, 40) });
     return s;
   };
+  /**
+   * Text of say/message/objective: one string (one language, or a key of the version-1 table `texts`),
+   * a dict {"de": …, "en": …} or the keywords de=/en= – then both languages travel along.
+   */
+  const textArg = (fname, text, de, en, need = true) => {
+    if ((de !== undefined && de !== null) || (en !== undefined && en !== null)) {
+      const o = {};
+      if (de !== undefined && de !== null) o.de = strArg(de, 'de');
+      if (en !== undefined && en !== null) o.en = strArg(en, 'en');
+      return o;
+    }
+    if (text === undefined || text === null) {
+      if (need) throw new ScriptError('argMissing', { name: fname, arg: 'text' });
+      return null;
+    }
+    if (typeof text !== 'string' && !(text instanceof PyDict)) throw new ScriptError('type', { what: 'strNeeded', name: 'text', type: typeName(text) });
+    return text;
+  };
+  const isCallable = (v) => v instanceof PyFunction || v instanceof PyBuiltin || v instanceof PyPartial || v instanceof PyBoundMethod;
   const listOfHandles = (v) => (v instanceof PyList || v instanceof PyTuple ? v.items : [v]);
   const sortedEntities = (filter) => [...sim().entities.values()].filter(filter).sort((a, b) => a.id - b.id).map(handle);
 
@@ -512,18 +546,19 @@ export function makeApi(host, level) {
   // ---------- Missions: staging ----------
 
   def('say', (ctx, a, kw) => {
-    const [speaker, text, seconds, voice] = args('say', a, kw, ['speaker', 'text', '?seconds', '?voice']);
+    const [speaker, text, seconds, voice, de, en] = args('say', a, kw, ['speaker', '?text', '?seconds', '?voice', '?de', '?en']);
+    const words = textArg('say', text, de, en);
     let path = null;
     if (voice !== undefined && voice !== null) {
       path = strArg(voice, 'voice');
       if (!assetPathOk(path)) throw new ScriptError('value', { what: 'assetPath', name: 'voice', value: path.slice(0, 60) });
     }
-    const dur = host.say(speaker === null ? null : strArg(speaker, 'speaker'), text, seconds === undefined || seconds === null ? null : secondsArg(seconds), path);
+    const dur = host.say(speaker === null ? null : strArg(speaker, 'speaker'), words, seconds === undefined || seconds === null ? null : secondsArg(seconds), path);
     return new Suspend({ k: 'dialog', until: sim().tick + dur });
   }, true);
   def('message', (ctx, a, kw) => {
-    const [text] = args('message', a, kw, ['text']);
-    host.say(null, text, null, null);
+    const [text, de, en] = args('message', a, kw, ['?text', '?de', '?en']);
+    host.say(null, textArg('message', text, de, en), null, null);
     return null;
   }, true);
   def('camera.jump_to', (ctx, a, kw) => {
@@ -578,13 +613,41 @@ export function makeApi(host, level) {
   def('on_enter', decorator('on_enter', ['target', '?who', '?player']), true);
   def('on_objective', decorator('on_objective', ['id', '?status']), true);
   def('on_weather', decorator('on_weather', ['?state']), true);
+  def('on_talk', decorator('on_talk', ['?id']), true);
+  /** One decorator for every event: @on_event("talk", id="alchemist") is the same as @on_talk("alchemist"). */
+  def('on_event', (ctx, a, kw) => {
+    const name = a[0] ?? kw.name;
+    if (typeof name !== 'string') throw gameErr('eventName', { events: Object.keys(EVENTS).join(', ') });
+    if (!Object.hasOwn(EVENTS, name)) throw gameErr('eventUnknown', { name: name.slice(0, 40), suggestion: suggest(name, Object.keys(EVENTS)) });
+    const { name: _n, ...rest } = kw;
+    return natives[EVENTS[name]](ctx, a.slice(1), rest);
+  }, true);
 
   // ---------- Missions: goals ----------
 
+  /**
+   * objective(id, condition, de=…, en=…, primary=True, hidden=False): the condition returns True/False or a pair
+   * (done, needed) for a progress bar. Version 1 order objective(id, text, condition) still works.
+   */
   def('objective', (ctx, a, kw) => {
-    const [id, text, cond = null, primary = true, hidden = false] = args('objective', a, kw, ['id', 'text', '?condition', '?primary', '?hidden']);
-    host.addObjective(ctx.vm, nameArg(id, 'id'), text, cond, truthy(primary), truthy(hidden));
-    return id;
+    const KW = ['id', 'condition', 'text', 'primary', 'hidden', 'de', 'en'];
+    for (const k of Object.keys(kw)) if (!KW.includes(k)) throw new ScriptError('argUnexpected', { name: 'objective', arg: k, suggestion: suggest(k, KW) });
+    if (a.length > 5) throw new ScriptError('argCount', { name: 'objective', max: 5, given: a.length });
+    const v1 = a.length >= 2 && a[1] !== null && !isCallable(a[1]);
+    const pos = v1 ? ['id', 'text', 'condition', 'primary', 'hidden'] : ['id', 'condition', 'text', 'primary', 'hidden'];
+    const v = {};
+    a.forEach((x, i) => { v[pos[i]] = x; });
+    for (const k of Object.keys(kw)) {
+      if (v[k] !== undefined) throw new ScriptError('argDuplicate', { name: 'objective', arg: k });
+      v[k] = kw[k];
+    }
+    if (v.id === undefined) throw new ScriptError('argMissing', { name: 'objective', arg: 'id' });
+    const cond = v.condition ?? null;
+    if (cond !== null && !isCallable(cond)) throw new ScriptError('type', { what: 'callableNeeded', type: typeName(cond) });
+    const name = nameArg(v.id, 'id');
+    const words = textArg('objective', v.text, v.de, v.en, false);
+    host.addObjective(ctx.vm, name, words ?? name, cond, truthy(v.primary ?? true), truthy(v.hidden ?? false));
+    return v.id;
   }, true);
   const objectiveAction = (name, action) => def(name, (ctx, a, kw) => {
     const [id] = args(name, a, kw, ['id']);
@@ -594,16 +657,16 @@ export function makeApi(host, level) {
   objectiveAction('complete', 'complete');
   objectiveAction('fail', 'fail');
   objectiveAction('show_objective', 'reveal');
-  def('victory', (ctx, a, kw) => {
-    const [r] = args('victory', a, kw, ['?reason']);
-    host.runtime.finish(sim(), true, r ? strArg(r, 'reason') : 'script');
+  /** victory(reason) picks the texts of that reason from the scenario (victoryTexts, debriefs); de=/en= give them inline. */
+  const finish = (won) => (ctx, a, kw) => {
+    const fname = won ? 'victory' : 'defeat';
+    const [r, text, de, en] = args(fname, a, kw, ['?reason', '?text', '?de', '?en']);
+    const words = textArg(fname, text, de, en, false);
+    host.runtime.finish(sim(), won, r ? nameArg(r, 'reason') : 'script', words === null ? null : host.text(words));
     return null;
-  }, true);
-  def('defeat', (ctx, a, kw) => {
-    const [r] = args('defeat', a, kw, ['?reason']);
-    host.runtime.finish(sim(), false, r ? strArg(r, 'reason') : 'script');
-    return null;
-  }, true);
+  };
+  def('victory', finish(true), true);
+  def('defeat', finish(false), true);
 
   // ---------- Missions: intervening ----------
 
@@ -823,6 +886,34 @@ export function makeApi(host, level) {
     return valueNoise(intArg(x, 'x'), intArg(y, 'y'), Math.max(1, intArg(cell, 'cell')), (sim().seed + intArg(seed, 'seed')) | 0);
   }, true);
 
+  // ---------- Missions: talk figures ----------
+
+  /**
+   * npc(id, look="serf", at=…, name=None): a figure that stands like decoration and carries an exclamation mark.
+   * A hero sent to it by tapping starts @on_talk(id) on arrival – the mission decides what happens.
+   */
+  def('npc', (ctx, a, kw) => {
+    const [n, lookV = 'serf', at, nameV, de, en] = args('npc', a, kw, ['id', '?look', '?at', '?name', '?de', '?en']);
+    const id = nameArg(n, 'id');
+    if (at === undefined || at === null) throw new ScriptError('argMissing', { name: 'npc', arg: 'at' });
+    const look = strArg(lookV, 'look');
+    if (!LOOK_RE.test(look) && !(assetPathOk(look) && /\.glb$/i.test(look))) throw new ScriptError('value', { what: 'look', name: 'look', value: look.slice(0, 60) });
+    const live = Object.values(host.runtime.state.npcs).filter((x) => x.state !== 'gone').length;
+    if (live >= LIMITS.npcs) throw new ScriptError('value', { what: 'tooMany', name: 'npc', max: LIMITS.npcs });
+    const name = textArg('npc', nameV, de, en, false);
+    const e = host.runtime.addNpc(sim(), id, { look, at: pt(at), name: name === null ? null : host.text(name) });
+    if (!e) throw gameErr('npcExists', { id });
+    return handle(e);
+  }, true);
+
+  // ---------- Missions: the player's program ----------
+
+  /** program.get("guess", default): copy of a variable of the player program (for prediction and variable tasks). */
+  def('program.get', (ctx, a, kw) => {
+    const [n, dflt = null] = args('get', a, kw, ['name', '?default']);
+    return host.playerVariable(strArg(n, 'name'), dflt);
+  }, true);
+
   // ---------- Predefined names ----------
 
   const globals = {};
@@ -830,6 +921,7 @@ export function makeApi(host, level) {
   if (isMission) {
     globals.camera = new PyModule('camera');
     globals.world = new PyModule('world');
+    globals.program = new PyModule('program');
   }
   const consts = () => {
     const ai = host.runtime.def.players.findIndex((p) => p.kind === 'ai');
@@ -858,6 +950,7 @@ export function makeApi(host, level) {
   const modules = isMission ? {
     camera: ['jump_to', 'fly_to'],
     world: ['width', 'height', 'water_level', 'height_at', 'set_height', 'set_water', 'set_cliff', 'is_water', 'noise'],
+    program: ['status', 'runs', 'get'],
   } : {};
 
   // ---------- Methods and properties of the handles ----------
@@ -873,6 +966,10 @@ export function makeApi(host, level) {
         if (name === 'width') return m.width;
         if (name === 'height') return m.height;
         if (name === 'water_level') return sim().waterLevel;
+      }
+      if (mod === 'program') {
+        if (name === 'status') return host.state.player.status;
+        if (name === 'runs') return host.state.player.runs;
       }
       if (modules[mod]?.includes(name) && natives[`${mod}.${name}`]) return new PyBuiltin(`${mod}.${name}`);
       return undefined;
@@ -941,6 +1038,11 @@ export function makeApi(host, level) {
           if (name === 'res') return e.res;
           if (name === 'amount') return e.amount;
           break;
+        case 'Npc':
+          if (name === 'name') return e.npc;
+          if (name === 'look') return e.look;
+          if (name === 'talkable') return !!e.talk;
+          break;
         default: break;
       }
       return undefined;
@@ -988,6 +1090,10 @@ export function makeApi(host, level) {
   function unitMethod(ctx, e, obj, name, a, kw) {
     const s = sim();
     switch (name) {
+      case 'start_talking': case 'stop_talking':
+        args(name, a, kw, []);
+        host.runtime.setTalkable(s, e.npc, name === 'start_talking');
+        return null;
       case 'step': {
         const [n = 1] = args('step', a, kw, ['?n']);
         const steps = intArg(n, 'n');
