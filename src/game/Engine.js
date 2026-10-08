@@ -871,7 +871,7 @@ export class Engine {
       return;
     }
     if (!g) return;
-    plan.cmds.push({ type: 'order', units, order: attackMove ? 'attackMove' : 'move', x: Math.floor(g.x), y: Math.floor(g.z) });
+    plan.cmds.push({ type: 'order', units, order: attackMove ? 'attackMove' : 'move', x: Math.floor(g.x), y: Math.floor(g.z), avoid: true });
     plan.walk = { x: g.x, y: g.z };
     if (attackMove) plan.cursor = 'attack';
   }
@@ -902,7 +902,7 @@ export class Engine {
     const occ = this.sim.entities.get(m.owner[m.idx(tx, ty)]);
     if (buildSite(occ)) return work(occ, 'build');
     if (m.walkable(tx, ty)) {
-      plan.cmds.push({ type: 'move', units, x: tx, y: ty });
+      plan.cmds.push({ type: 'move', units, x: tx, y: ty, avoid: true });
       plan.walk ??= { x: g.x, y: g.z };
     }
   }
@@ -934,9 +934,9 @@ export class Engine {
     tx = t.x; ty = t.y;
     let done = false;
     const army = this.ownArmyIds();
-    if (army.length) { this.issue({ type: 'order', units: army, order: attackMove ? 'attackMove' : 'move', x: tx, y: ty }); done = true; }
+    if (army.length) { this.issue({ type: 'order', units: army, order: attackMove ? 'attackMove' : 'move', x: tx, y: ty, avoid: true }); done = true; }
     const serfs = this.ownSerfIds();
-    if (serfs.length) { this.issue({ type: 'move', units: serfs, x: tx, y: ty }); done = true; }
+    if (serfs.length) { this.issue({ type: 'move', units: serfs, x: tx, y: ty, avoid: true }); done = true; }
     if (done) this.renderer?.orderMarker?.(tx + 0.5, ty + 0.5);
     this.emitUi();
     return done ? t : null;

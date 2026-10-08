@@ -22,8 +22,8 @@ describe('Minimap: move command to a tile', () => {
     const e = fake([1, 2, 3]);
     expect(e.commandTile(2, 4)).toEqual({ x: 5, y: 4 });
     expect(e.queue).toEqual([
-      { type: 'order', units: [2], order: 'move', x: 5, y: 4, player: 0 },
-      { type: 'move', units: [1], x: 5, y: 4, player: 0 },
+      { type: 'order', units: [2], order: 'move', x: 5, y: 4, avoid: true, player: 0 },
+      { type: 'move', units: [1], x: 5, y: 4, avoid: true, player: 0 },
     ]);
   });
 

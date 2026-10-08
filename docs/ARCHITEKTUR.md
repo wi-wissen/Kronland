@@ -102,6 +102,7 @@ docs/         Spielregeln und Architektur
 | `models.js`, `assets.js` | prozedurale Modelle und das Laden der GLB-Modelle |
 | `playerColors.js` | Spielerfarben: einzige Abbildung Spieler → Farbe (siehe unten) |
 | `jitter.js` | Darstellungs-Versatz: Figuren am selben Sim-Punkt werden je ID fest um bis zu 0,16 Kacheln versetzt gezeichnet (siehe unten) |
+| `separation.js` | Ausweichen nur in der Darstellung: Figuren, die sich näher als 0,42 Kacheln kommen, treten seitlich zur Seite (siehe unten) |
 | `devHook` | Haken des Entwicklermodus (`src/dev/`, [ENTWICKLERMODUS.md](ENTWICKLERMODUS.md)): vor/nach dem Zeichnen, sonst `null` |
 
 Pro Bild: Kamera → Sichtprüfung (Frustum) → Entities abgleichen → Detailstufen wählen → Instanzdaten
@@ -116,6 +117,15 @@ Gebäude (genauer Punkt aus `src/sim/systems/spots.js`, Blick zur Gebäudemitte)
 (Gewicht 0…1 je Figur, `JITTER_FADE` je Sekunde). Auswahlringe, Lebensbalken, Picking (`pickEntity`),
 Rahmenauswahl (`Engine.selectBox`), Treffer-Funken und die Blickrichtung zum Ziel lesen die gezeichnete Lage
 (`chars.records`), damit alles zusammenpasst. Der State-Hash bleibt unberührt.
+
+Ausweichen (`separation.js`, nur Renderer): Dazu kommt ein weicher Ausweich-Versatz (`Renderer.drawOffset()`).
+Nach dem Abgleich aller Figuren sucht `updateSeparation` über ein grobes Raster Paare näher als `SEP_RADIUS`
+(0,42 Kacheln, unter dem Abstand der Soldaten in der Reihe) und schiebt sie auseinander, höchstens `SEP_MAX`
+(0,26 Kacheln), weich nachgeführt (`SEP_RATE`), wirksam ab dem nächsten Bild. Laufende Figuren weichen vor
+allem quer zur Laufrichtung aus, auf die Seite ohne Nachbarn, frontal beide nach rechts, so dass Begegnungen
+wie ein Ausweichen statt eines Durchlaufens aussehen; stehende Figuren rücken nebeneinander. Das Gewicht des
+Versatzes (`jitterTarget`) gilt auch hier: Wer genau stehen muss (Arbeit, Helden), bleibt stehen, der andere
+weicht allein aus. Tempo und Laufzeit in der Sim ändern sich nicht.
 
 Nebel des Krieges in der Darstellung: Der Renderer zeichnet aus Sicht von `opts.player`. Feindliche Figuren,
 Fallen, Geschosse, Treffer und Explosionen nur in sichtbaren Kacheln; feindliche Gebäude außerhalb der Sicht

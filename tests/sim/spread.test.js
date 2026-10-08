@@ -30,6 +30,15 @@ describe('formationTiles', () => {
     for (const k of goals) expect(k % 30).toBeLessThan(17);
   });
 
+  it('skips taken tiles: a single unit stops next to the occupied goal', () => {
+    const map = new TileMap(20, 20);
+    const units = [{ px: tileCenter(2), py: tileCenter(10) }];
+    const [k] = formationTiles(map, 10, 10, units, 1, new Set([map.idx(10, 10)]));
+    expect(k).not.toBe(map.idx(10, 10));
+    expect(Math.max(Math.abs((k % 20) - 10), Math.abs(((k / 20) | 0) - 10))).toBe(1);
+    expect(formationTiles(map, 10, 10, units, 1, new Set())).toEqual([map.idx(10, 10)]);
+  });
+
   it('is deterministic', () => {
     const map = new TileMap(20, 20);
     const units = Array.from({ length: 5 }, (_, i) => ({ px: tileCenter(i), py: tileCenter(0) }));
@@ -49,6 +58,37 @@ describe('Move commands fan out', () => {
     sim.run(300);
     const tiles = new Set(serfs.map((u) => m.idx(toTile(u.px), toTile(u.py))));
     expect(tiles.size).toBe(serfs.length);
+  });
+});
+
+describe('Clicked move avoids standing figures', () => {
+  const setup = () => {
+    const sim = newSim();
+    const hq = hqOf(sim);
+    const [a, b] = serfsOf(sim);
+    const m = sim.map;
+    const k = m.ring(hq.x, hq.y, hq.w, hq.h).find((i) => m.walkable(i % m.width, ((i / m.width) | 0) + 3));
+    const t = { x: k % m.width, y: ((k / m.width) | 0) + 3 };
+    sim.step([{ type: 'move', player: 0, units: [a.id], ...t }]);
+    sim.run(400);
+    expect(m.idx(toTile(a.px), toTile(a.py))).toBe(m.idx(t.x, t.y));
+    return { sim, m, a, b, t };
+  };
+
+  it('with avoid the second serf stops on a neighbouring tile', () => {
+    const { sim, m, a, b, t } = setup();
+    sim.step([{ type: 'move', player: 0, units: [b.id], ...t, avoid: true }]);
+    sim.run(400);
+    const bt = { x: toTile(b.px), y: toTile(b.py) };
+    expect(m.idx(bt.x, bt.y)).not.toBe(m.idx(toTile(a.px), toTile(a.py)));
+    expect(Math.max(Math.abs(bt.x - t.x), Math.abs(bt.y - t.y))).toBe(1);
+  });
+
+  it('without avoid (scripts) the goal is exact', () => {
+    const { sim, m, b, t } = setup();
+    sim.step([{ type: 'move', player: 0, units: [b.id], ...t }]);
+    sim.run(400);
+    expect(m.idx(toTile(b.px), toTile(b.py))).toBe(m.idx(t.x, t.y));
   });
 });
 
