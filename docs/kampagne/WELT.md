@@ -1,146 +1,344 @@
-# Krone aus Eis – Welt (vereinfacht)
+# Das Kronland – Weltbeschreibung
 
-Grundlage für das Drehbuch ([DREHBUCH.md](DREHBUCH.md)). Enthält nur, was der Spieler wissen muss, um jede
-Mission zu verstehen. Was hier nicht steht, gibt es in der Geschichte nicht.
+Grundlage für alle Geschichten und Missionen in Kronland. Wer eine Mission schreibt, soll hieraus verstehen, **was es
+in dieser Welt gibt, wie sie funktioniert und warum die Menschen darin tun, was sie tun** – auch ohne das Spiel je
+gespielt zu haben. Jedes Missionsziel ist eine Handlung in dieser Welt (ein Haus bauen, Eisen fördern, ein Dorf
+beliefern); hier steht, was diese Handlung für die Menschen bedeutet.
 
-## Die Welt in drei Sätzen
+Die Kampagne „Krone aus Eis“ spielt in dieser Welt. Ihr Handlungsgerüst steht am Ende; das Drehbuch
+([DREHBUCH.md](DREHBUCH.md)) baut darauf auf.
 
-1. Seit sieben Jahren ist Winter im Kronland, weil Malvor eine alte Wettermaschine angeworfen hat – und nur seine
-   Kornspeicher sind voll. Wer essen will, arbeitet für ihn.
-2. Der König ist tot, seine Krone zerbrach in fünf Stücke; wer alle fünf hat, muss nach altem Recht gekrönt
-   werden. Malvor ist nur Statthalter und sammelt die Stücke, um König zu werden.
-3. Nelia, eine entlaufene Leibeigene, findet das erste Stück – und der Händler Orrin erzählt allen, sie sei die
-   verlorene Prinzessin.
+---
 
-## Thema
+## 1. Das Spiel im Überblick
 
-**Folgt man jemandem wegen seines Blutes oder wegen seiner Taten?** Die Lüge von der Prinzessin öffnet Nelia
-Türen, aber erst als sie auffliegt, muss sie zeigen, wer sie wirklich ist. Am Ende krönen die Provinzen eine
-Leibeigene – wegen dem, was sie getan hat.
+Kronland ist ein Aufbau-Strategiespiel nach dem Vorbild „Die Siedler – Das Erbe der Könige“. Der Spieler führt eine
+Siedlung und eine Handvoll Helden. Er baut keine Straßen und trägt keine Waren umher: Was abgebaut wird, liegt sofort
+im Vorrat. Gebaut wird frei auf freiem Gelände.
 
-Zweites Motiv: **Korn ist Macht.** Malvor herrscht nicht mit Schwertern, sondern mit Hunger. Nelia gewinnt jede
-Mission dadurch, dass Menschen satt werden – nicht nur durch Siege.
+**Der Kreislauf einer Siedlung:**
 
-## Begriffe (verbindlich)
+1. **Leibeigene** holen Holz, Lehm und Stein und errichten Gebäude.
+2. Ein **Dorfzentrum** zieht freie **Arbeiter** an – aber nur, wenn es für sie Arbeit gibt (Gruben, Höfe, Werkstätten).
+3. Arbeiter brauchen ein **Bett** (Wohnhaus) und **Essen** (Bauernhof). Ohne beides schlafen sie am Lagerfeuer und
+   schaffen kaum etwas.
+4. Arbeiter fördern Rohstoffe, veredeln sie, forschen – und zahlen **Steuern**. Alle zwei Minuten ist **Zahltag**.
+5. Mit Talern kauft man neue Leibeigene, bildet Soldaten aus, forscht und baut aus.
+6. Mit Soldaten und Helden verteidigt man die Siedlung oder greift an.
 
-Jeder Begriff wird beim ersten Auftreten **in einem Satz erklärt** und danach **immer gleich** genannt. Keine
-Synonyme, keine Kurzformen, keine Andeutungen.
+**Eine Mission** beginnt mit einem Einleitungstext. Im Spiel stehen links die **Ziele** (Hauptziele müssen erfüllt
+werden, Nebenziele sind freiwillig und bringen etwas ein). Figuren sprechen kurze, vertonte Sätze; ein Zeiger kann auf
+Knöpfe oder Orte zeigen. Neue Ziele tauchen auf, wenn etwas passiert. Am Ende: Sieg oder Niederlage, dann ein
+Abschlusstext. In der Kampagne schaltet jede Mission nur wenige neue Gebäude und Forschungen frei, der Rest steht
+ausgegraut im Menü.
 
-| Begriff | Bedeutung | Wird so genannt | Nicht |
-|---|---|---|---|
-| **Kronstück** | eines der fünf Bruchstücke der Königskrone, handgroß, aus Gold, mit einem Stein | „Kronstück“, mit Zahl: „das zweite Kronstück“, „drei von fünf Kronstücken“ | Zacke, Splitter, Blechstück, „das Ding“, „was ihr gefunden habt“ |
-| **Altes Recht** | Wer alle fünf Kronstücke vorlegt, den müssen die Provinzen krönen | „das alte Recht“ | Gesetz der Ahnen, Kronrecht |
-| **Wetterwerk** | Maschine auf einer Insel bei Hagenfurt, die den ewigen Winter macht | „das Wetterwerk“ | Wetterturm, Maschine, Hrimgars Werk |
-| **Wetterturm** | Nelias eigener, kleinerer Nachbau (Mission 6), kann das Wetter für kurze Zeit ändern | „der Wetterturm“ | Kraftwerk (nur im Spielmenü) |
-| **Malvors Wetterturm** | sein Gegenstück im Finale | „Malvors Wetterturm“ | |
-| **Statthalter** | Malvors Amt: Verwalter für den König, kein König | „Statthalter Malvor“ | Fürst, Herzog |
-| **Die verlorene Prinzessin** | Orrins Lüge: Nelia sei die Tochter des Königs | „die verlorene Prinzessin“ | |
+**Was der Spieler tun kann:**
 
-Erlaubte Eigennamen von Personen: **Nelia, Orrin, Taran, Malvor.** Alle anderen Figuren haben nur eine Rolle
-(„die Dorfälteste“, „der Bergmeister“, „Nelias Vater“). Der tote König heißt nur „der alte König“.
-
-## Orte
-
-Nur sechs Orte, je einer pro Mission, in dieser Reihenfolge entlang einer Reise von Süden nach Norden:
-
-| Ort | In einem Satz |
+| Handlung | Beispiel |
 |---|---|
-| **Lindgrund** | Nelias Heimatdorf, verlassen – alle sind zu Malvor gegangen, um Korn zu bekommen. |
-| **Beaucroix** | Handelsstadt am Fluss; hier wird alles gekauft und verkauft, auch Kronstücke. |
-| **Das Wetterwerk** | Tal hinter den Bergen bei Hagenfurt, mit einem gefrorenen See und der Maschine auf der Insel. |
-| **Eisenhain** | Stadt der Bergleute; Eisen für Waffen. |
-| **Morvale** | Moordörfer, die niemandem gehorchen und nur dem folgen, der sie satt macht. |
-| **Der Thronsee** | See vor Hagenfurt; Malvors Schloss steht auf einer Insel darin. |
+| bauen, ausbauen, abreißen | Wohnhaus, Bauernhof, Lehmgrube; Wohnhaus → Mittleres Wohnhaus |
+| Rohstoffe abbauen | Leibeigene an Bäume und Haufen schicken, Gruben auf Schächten bauen |
+| Steuern einstellen | niedrig = Leute zufrieden, hoch = mehr Taler, aber Unmut |
+| tauschen | am Marktplatz Lehm gegen Taler, Taler gegen Eisen … |
+| forschen | an der Hochschule und in Werkstätten |
+| Truppen ausbilden und führen | Kaserne, Schießplatz …; laufen, angreifen, halten |
+| Helden einsetzen | jeder Held hat zwei Fähigkeiten |
+| mit Figuren reden | eine Figur mit Ausrufezeichen; ein bestimmter Held geht zu ihr |
+| Angebote bezahlen | „Söldner anheuern“, „Kronstück freikaufen“; zwei Angebote einer Wahl schließen einander aus |
+| liefern | Waren an ein Dorf schicken, um es zum Verbündeten zu machen |
+| Wetter ändern | mit dem Wetterkraftwerk (spät) |
 
-Hagenfurt ist Malvors Stadt; man betritt sie nie, sie ist nur „dort, wo Malvor sitzt“.
+**Was es nicht gibt:** Zwischenfilme, Dialoge mit Antwortauswahl, ein Inventar, Schiffe, Nahrung als Ware (Höfe
+versorgen ihre Arbeiter direkt). Helden sterben im Kampf nicht, sie werden bewusstlos und stehen wieder auf – ein Tod
+ist nur als feste Szene möglich.
 
-## Figuren
+---
 
-Jede Hauptfigur hat ein **Wollen** (was sie anstrebt) und ein **Brauchen** (was sie lernen muss). Ihre Sätze sollen
-das zeigen, ohne es auszusprechen.
+## 2. Menschen
+
+### Leibeigene
+Unfreie, die keinem Handwerk nachgehen dürfen. Sie fällen Bäume, graben Lehm, Stein, Eisen und Schwefel aus Haufen,
+bauen und reparieren Häuser. Sie bekommen keinen Lohn, zahlen keine Steuern, brauchen kein Haus. Im Spiel kauft man
+sie für Taler in der **Burg**; in der Welt heißt das: Man löst sie aus – zahlt ihre Schuld beim Herrn ab oder gibt
+ihnen Brot für den Winter. Wer angegriffen wird, flieht. Ruft man in der Burg „**Zu den Waffen!**“, greifen sie zu
+Mistgabeln und Knüppeln und werden **Miliz**.
+
+Nelia ist eine Leibeigene. Die meisten Menschen im Kronland sind es.
+
+### Arbeiter
+Freie Leute mit Handwerk: Bauern, Bergleute, Ziegler, Schmiede, Gelehrte, Händler. Sie kommen **von selbst** zum
+Dorfzentrum, wenn irgendwo eine Stelle frei ist – niemand kann sie herbefehlen. Sie bleiben, solange es ihnen gut
+geht. Ihr Tag: arbeiten → müde werden → essen → schlafen → weiter. Ein Bett und ein Platz am Tisch machen sie etwa
+siebenmal tüchtiger als ein Lagerfeuer im Schnee. **Lagerfeuer** in der Siedlung sind darum ein sichtbares Zeichen:
+Hier fehlen Häuser oder Höfe.
+
+### Stimmung (Motivation)
+Arbeiter haben eine Stimmung. Hohe Steuern und Überstunden drücken sie, niedrige Steuern, Segnungen in der Kapelle
+und Zierbauten (Brunnen, Uhr, Windrad, Denkmal) heben sie. Sinkt sie zu tief, kommen keine neuen Leute mehr; ganz
+Unzufriedene ziehen weg.
+
+### Steuern und Zahltag
+Alle zwei Minuten zahlt jeder Arbeiter Steuern in Talern. Die Höhe stellt man in der Burg ein (nach der Forschung
+„Bildung“). Das ist die Grundfrage jeder Herrschaft im Kronland: **viel nehmen oder die Leute halten?** Malvor nimmt
+viel. Soldaten bekommen am Zahltag Sold.
+
+### Bevölkerung
+Wie viele Menschen eine Siedlung haben kann, bestimmt das Dorfzentrum (75, ausgebaut 100 und 125). Jeder Leibeigene,
+Arbeiter und Soldat zählt; Helden nicht.
+
+---
+
+## 3. Rohstoffe
+
+| Rohstoff | Woher | Wofür in der Welt |
+|---|---|---|
+| **Taler** | Steuern, Handel, Bank | Leibeigene auslösen, Sold, Forschung, Ausbau, Bestechung, Freikauf |
+| **Holz** | Leibeigene fällen Bäume (wachsen nicht nach), Sägemühle | Häuser, Höfe, Speere, Bögen |
+| **Lehm** | Haufen, Lehmgrube, Ziegelhütte | einfache Häuser, Höfe, Lager |
+| **Stein** | Haufen, Steingrube, Steinmetz | Ausbauten, Kaserne, Türme, Brücken |
+| **Eisen** | Haufen, Eisengrube, Schmiede | Schwerter, Rüstung, Reiter, Kanonen |
+| **Schwefel** | Haufen, Schwefelgrube, Alchimist | Schießpulver, Kanonen, Wetterforschung |
+
+- **Gruben** stehen nur auf **Schächten** (Stellen im Gelände, an denen ein Rohstoff zutage tritt). Bergleute
+  fördern viermal so schnell wie Leibeigene.
+- **Veredler** (Ziegelhütte, Sägemühle, Steinmetz, Schmiede, Alchimist, Bank) machen aus Rohware mehr und bessere
+  Ware und ermöglichen Forschungen.
+- **Korn** ist keine Ware im Vorrat. Ein Bauernhof ernährt die Arbeiter, die bei ihm essen. „Korn haben“ heißt in der
+  Welt: Höfe haben, die Leute satt machen.
+
+---
+
+## 4. Gebäude
+
+| Gebäude | Was es in der Welt ist | Warum man es baut |
+|---|---|---|
+| **Burg** | Sitz der Herrschaft, Vorratslager, Steuerstube | Leibeigene auslösen, Steuern einstellen, „Zu den Waffen!“. Fällt die Burg, ist die Siedlung verloren. |
+| **Dorfzentrum** | Dorfplatz mit Gemeindehaus, nur auf **Siedlungsplätzen** | Ohne Dorfzentrum kommt kein einziger Arbeiter. Bestimmt die Größe der Siedlung. |
+| **Wohnhaus** | Haus mit Betten (6, ausgebaut 9 und 12) | Arbeiter müssen schlafen. |
+| **Bauernhof** | Hof mit Tisch (8/10/12 Plätze) und einem Bauern; ausgebaut Mühle und Gut | Arbeiter müssen essen. Im ewigen Winter das Kostbarste, was ein Dorf haben kann. |
+| **Lehm-, Stein-, Eisen-, Schwefelgrube** | Grube über einem Schacht, ausgebaut Stollen und Bergwerk | Rohstoffe in Mengen. |
+| **Lager → Marktplatz** | Lagerhaus; ausgebaut ein Markt mit zwei Händlern | Waren gegen Taler tauschen und umgekehrt. Wer viel verkauft, drückt den Preis. |
+| **Hochschule → Universität** | Gelehrte forschen | neue Gebäude, Truppen, Techniken |
+| **Kapelle** | Gebet | Segnungen heben die Stimmung |
+| **Ziegelhütte, Sägemühle, Steinmetz, Schmiede, Alchimistenhütte, Bank** | Werkstätten | Ware veredeln, Truppen und Gebäude verbessern; der Alchimist erforscht das Wetter |
+| **Kaserne** | Waffenplatz | Schwertkämpfer, Speerträger |
+| **Schießplatz** | Schießbahn | Bogenschützen |
+| **Reiterei**, **Kanonengießerei** | Stall, Gießerei | Reiter, Kanonen |
+| **Wachturm → Ballista- → Kanonenturm** | Turm | schießt auf Feinde in der Nähe |
+| **Wetterturm** | Turm mit Messgeräten | sagt das Wetter voraus |
+| **Wetterkraftwerk** | Maschine mit drei Wettertechnikern; sammelt Wetterenergie | schaltet das Wetter für drei Minuten um (Sommer → Winter: Seen frieren zu) |
+| **Brücke, Brunnen, Uhr, Windrad, Denkmal** | Bauwerke, Zierden | Wege über Flüsse; Stimmung |
+
+Zerstörte oder verlassene Gebäude bleiben als **Ruinen** stehen. Beschädigte Gebäude brennen, bis Leibeigene sie
+reparieren.
+
+---
+
+## 5. Militär
+
+- Eine **Truppe** ist ein Hauptmann mit Soldaten. Ausgebildet wird in Militärgebäuden, bezahlt mit Talern und Eisen
+  (Schwert) oder Holz (Speer, Bogen). Der Hauptmann ist unverwundbar, solange einer seiner Soldaten lebt.
+- **Truppenarten** und wer wen schlägt: Schwertkämpfer schlagen Speerträger und Bogenschützen; Speerträger schlagen
+  Reiter; Bogenschützen treffen aus der Ferne; schwere Reiter überrennen Schwertkämpfer; Kanonen brechen Gebäude,
+  verlieren aber im Nahkampf.
+- Truppen sammeln **Erfahrung** (Sterne) und werden besser.
+- **Söldner** kann man auch anheuern (Angebot): sie sind sofort da, kosten aber viel.
+- **Räuber** hausen in Lagern mit Wachen. Zerstört man das Lager, ist die Bande zerschlagen.
+
+**Helden** sind besondere Figuren mit zwei Fähigkeiten. Im Kampf fallen sie nicht, sie gehen bewusstlos zu Boden und
+stehen wieder auf, sobald keine Feinde mehr in der Nähe sind.
+
+| Held | Fähigkeit 1 | Fähigkeit 2 |
+|---|---|---|
+| **Nelia** | *Weitblick*: sieht weit über das Land, deckt ein großes Gebiet auf | *Mut machen*: Truppen und Helden in ihrer Nähe schlagen eine Minute lang doppelt so hart zu |
+| **Orrin** | *Bestechen*: eine feindliche Truppe in der Nähe wechselt gegen Taler die Seite | *Wundsalbe*: heilt alle eigenen Leute in der Nähe |
+| **Taran** | *Schildstoß*: trifft alle Feinde rundum | *Einschüchtern*: feindliche Truppen fliehen und greifen eine Weile nicht an |
+| **Malvor** | *Feldgeschütz*: stellt ein kleines Geschütz auf | *Fußangeln*: legt eine Falle |
+
+---
+
+## 6. Wetter
+
+| Wetter | Wirkung in der Welt |
+|---|---|
+| **Winter** | Seen und Flüsse frieren zu und tragen Menschen – Inseln und Schluchten werden erreichbar. Alle gehen langsamer, sehen weniger weit. |
+| **Sommer** | Wasser ist Wasser: Inseln sind nur über Brücken erreichbar. |
+| **Regen** | Man sieht schlechter, Bogenschützen treffen schlechter. |
+| **Tauwetter** | Wenn Winter zu Sommer wird, bricht das Eis. **Wer auf dem Eis steht, ertrinkt.** |
+
+Normalerweise wechselt das Wetter mit den Jahreszeiten. Ein **Wetterkraftwerk** kann es für kurze Zeit umschalten;
+danach braucht es Zeit, um neue Energie zu sammeln.
+
+**Sicht:** Unerkundetes Land ist schwarz. Was man einmal gesehen hat, bleibt auf der Karte, aber Feinde sieht man
+dort nur, solange jemand von uns hinschaut.
+
+---
+
+## 7. Dörfer, Bündnisse, Angebote
+
+- Neben der eigenen Siedlung gibt es **Dörfer** ohne Burg. Jedes Dorf ist **feindlich**, **neutral** oder
+  **verbündet**. Verbündete teilen ihre Sicht und kämpfen mit.
+- Ein Dorf gewinnt man durch ein **Gespräch** (ein Held geht zur Dorfältesten) oder durch **Lieferungen** (Holz für
+  Dächer, Stein für einen Deich, Taler für Saatgut).
+- **Angebote** sind Geschäfte, die man annehmen kann: Söldner anheuern, Wissen kaufen, einen Gegenstand freikaufen.
+  Oft stehen zwei Angebote gegeneinander – **kaufen oder kämpfen**. Wer eines annimmt, verliert das andere.
+
+---
+
+## 8. Das Land
+
+Das Kronland besteht aus **fünf Provinzen**. Vom Süden nach Norden:
+
+```
+             ▲ Norden
+   ┌─────────────────────────┐
+   │        HAGENFURT        │  Malvors Provinz: Stadt, Thronsee mit Inselschloss,
+   │  (Thronsee · Wetterwerk)│  im Gebirge dahinter das Tal des Wetterwerks
+   ├────────────┬────────────┤
+   │ EISENHAIN  │  MORVALE   │  Berge und Bergwerke │ Moore und freie Dörfer
+   ├────────────┴────────────┤
+   │        BEAUCROIX        │  Handelsstadt am großen Fluss
+   ├─────────────────────────┤
+   │        LINDGRUND        │  Bauerndörfer am Waldrand
+   └─────────────────────────┘
+```
+
+Jede Provinz hat ihr eigenes Volk, ihre eigene Wirtschaft und ihr eigenes Verhältnis zu Malvor – und **jede
+verwahrt eines der fünf Kronstücke**.
+
+### Lindgrund – das Bauernland
+- **Land:** Wälder, Felder, kleine Dörfer, Lehm im Boden. Einst die Kornkammer des Kronlands.
+- **Leute:** Bauern und Leibeigene. Seit dem Winter ist Lindgrund **verlassen**: Wer essen wollte, ging nach Norden
+  in Malvors Kornlager und arbeitet dort für eine Schüssel Korn. Zurück blieben leere Häuser, eingestürzte Dächer,
+  die Grundmauern des Dorfzentrums.
+- **Wer herrscht:** niemand mehr. Der Gutsherr ist fort.
+- **Zu Malvor:** Seine **Eintreiber** kommen noch immer und fordern Abgaben von dem wenigen, was übrig ist.
+- **Kronstück:** Als die Leute gingen, versteckten sie das Kronstück der Provinz **unter dem alten Baum am
+  Waldrand**, damit es den Eintreibern nicht in die Hände fällt. Nelias Vater war einer von denen, die es vergraben
+  haben.
+
+### Beaucroix – die Handelsstadt
+- **Land:** Stadt am großen Fluss, Märkte, Lagerhäuser, Flusswald voller Räuber. Lehm und Stein in der Nähe.
+- **Leute:** Kaufleute, Händler, Tagelöhner. Hier wird alles gekauft und verkauft. Orrin kennt hier jeden – und
+  jeder kennt Orrin, nicht immer im Guten.
+- **Wer herrscht:** die Kaufleute. Wer zahlt, hat recht.
+- **Zu Malvor:** Seine Agenten kaufen alles Korn auf und treiben die Preise hoch. Die Stadt ist voll, aber hungrig.
+- **Kronstück:** Räuber haben es bei einem Überfall auf die Stadtkasse erbeutet und halten es im **Lager im
+  Flusswald**. Sie wollen es an den Meistbietenden verkaufen – Malvor bietet.
+
+### Eisenhain – die Bergwerksstadt
+- **Land:** Berge, Stollen, Schmieden. Eisen und Schwefel.
+- **Leute:** Bergleute, stur, zäh, stolz. Sie gehorchen nur ihrem **Bergmeister**.
+- **Wer herrscht:** der Bergmeister.
+- **Zu Malvor:** Wer Eisenhain hat, hat Eisen für Schwerter. Malvor braucht es für sein Heer – und er will das
+  Kronstück. Er lässt die Stadt von **Hauptmann Taran** belagern, bis sie beides herausgibt.
+- **Kronstück:** **im tiefsten Stollen**, beim Bergmeister.
+
+### Morvale – die freien Moordörfer
+- **Land:** Moore, Wälder, Deiche, verstreute Dörfer (Moorbrook, Schilfheim, Erlenhof).
+- **Leute:** freie Bauern, die nie einem Herrn gehorcht haben. Sie folgen dem, der sie satt macht und Wort hält.
+- **Wer herrscht:** die **Dorfältesten**, jedes Dorf für sich.
+- **Zu Malvor:** Er lässt sie hungern, damit sie sich unterwerfen. Taran lagert mit Soldaten in der Nähe.
+- **Kronstück:** bei der **Dorfältesten von Erlenhof**.
+
+### Hagenfurt – Malvors Provinz
+- **Land:** die Stadt Hagenfurt am **Thronsee**; mitten im See das **Inselschloss**, in dem der alte König
+  residierte und in dem nun Malvor sitzt. Im Gebirge dahinter ein abgeschlossenes **Tal mit einem See und dem
+  Wetterwerk auf einer Insel**, daneben die Ruinen von Hrimgars Festung.
+- **Leute:** Malvors Soldaten, Verwalter, Garde – und Tausende Leibeigene aus allen Provinzen in seinen
+  **Kornlagern**.
+- **Wer herrscht:** Statthalter **Malvor**.
+- **Kronstück:** **an einer Kette um Malvors Hals.**
+
+---
+
+## 9. Die Krone und das alte Recht
+
+- Die Krone des Kronlands ist aus **fünf Kronstücken** zusammengesetzt, eines für jede Provinz – Zeichen dafür, dass
+  der König von allen fünf getragen wird.
+- **Das alte Recht:** Stirbt ein König ohne Erben, wird die Krone in ihre fünf Kronstücke geteilt, und jede Provinz
+  verwahrt ihres. **Wer alle fünf Kronstücke vereint, den müssen die Provinzen krönen.**
+- Gedacht war das so: Die Provinzen geben ihr Kronstück dem, dem sie vertrauen. Malvor will sie sich **nehmen** – mit
+  Geld, Hunger und Soldaten. Ob das alte Recht danach fragt, wie man sie bekommen hat, sagt es nicht.
+- Kronstücke haben keine Zauberkraft. Jedes ist eine Handbreit groß, aus Gold, mit dem Wappen seiner Provinz.
+
+---
+
+## 10. Vorgeschichte
+
+- **Hrimgar**, ein Kriegsherr vor Jahrhunderten, baute das **Wetterwerk** und hungerte das Land mit ewigem Winter
+  aus, bis man ihn stürzte. Das Werk stand seither still, seine Pläne galten als verloren.
+- **König Edrian** war gütig, aber schwach. In schlechten Jahren hungerten die Dörfer, und er tat zu wenig
+  dagegen.
+- Edrian **ertrank in einem Sturm auf dem Thronsee**. Er hatte keine bekannten Kinder. Nach altem Recht wurde die
+  Krone geteilt, jede Provinz bekam ihr Kronstück.
+- **Malvor**, Statthalter von Hagenfurt, hatte Hrimgars Pläne gefunden. Bald nach Edrians Tod lief das Wetterwerk
+  wieder. Seitdem ist **Winter** im Kronland – seit Jahren.
+- Malvor hatte vorher seine **Kornspeicher** gefüllt, und im Windschatten des Werks tragen Hagenfurts Felder als
+  einzige noch Korn. Wer essen will, arbeitet für ihn. So wurde aus einem Statthalter der Herr des Landes – nur König
+  ist er nicht.
+
+---
+
+## 11. Figuren
 
 ### Nelia – Heldin
-- Tochter eines Leibeigenen aus Lindgrund, um die zwanzig. Hat zwei Winter in Malvors Kornlager geschuftet und ist
-  davongelaufen. Ihr **Vater** ist noch dort.
-- **Wollen:** ihr Dorf durch den Winter bringen, ihren Vater zurückholen.
-- **Brauchen:** sich trauen zu führen, ohne die Lüge. Sie glaubt anfangs, eine Leibeigene könne niemanden führen.
-- **Stimme:** knapp, praktisch, trocken. Spricht in kurzen Sätzen. Sagt nie „Prinzessin“ über sich, außer bitter.
-- **Fähigkeiten:** Weitblick (sieht weit über das Land), Mut machen (ihre Leute kämpfen besser).
+Tochter eines Leibeigenen aus Lindgrund; ihr Vater schlägt Holz. Sie musste wie alle in Malvors Kornlager arbeiten und
+ist davongelaufen. Zierlich, blonder Zopf, Kapuzenumhang. Praktisch, direkt, wenig Worte. Sie weiß, was Hunger ist,
+und denkt zuerst daran, wer heute Nacht friert. Sie glaubt anfangs nicht, dass eine Leibeigene etwas zu sagen hat.
+Die Lüge, sie sei eine Prinzessin, ist ihr unangenehm; sie widerspricht, aber niemand hört zu.
 
 ### Orrin – Händler, Mentor
-- Fahrender Händler, älter, rund, redet viel. Kennt jeden Markt, jeden Preis, jede Ausrede.
-- **Wollen:** ein Geschäft, das ihn reich macht. Die „Prinzessin“ ist für ihn zuerst eine gute Ware.
-- **Brauchen:** an etwas glauben, das kein Geschäft ist. Er glaubt am Ende wirklich an Nelia – nicht an ihr Blut.
-- **Stimme:** blumig, witzig, übertreibt, rechnet alles in Talern. Wird ernst, wenn es zählt – dann sehr kurz.
-- **Fähigkeiten:** Bestechen (feindliche Soldaten laufen gegen Taler über), Wundsalbe (heilt).
-- **Schicksal:** wird im Finale auf dem Eis schwer verwundet und stirbt nach der Krönung.
+Fahrender Händler in Bändern, Knöpfen und guten Ratschlägen; rund, älter, redet viel, rechnet alles in Talern. Kennt
+jeden Markt und jede Ausrede, hat schon mal Waren verkauft, die er nicht hatte. Erfindet die „**verlorene
+Prinzessin**“, weil die Leute etwas glauben wollen – und weil es ein gutes Geschäft ist. Mit der Zeit glaubt er
+selbst an Nelia, nicht an ihr Blut. Wird im Finale auf dem Eis schwer verwundet und stirbt nach der Krönung.
 
-### Taran – Malvors Hauptmann, später Verbündeter
-- Soldat, ernst, ehrlich. Seine kleine Schwester ist unter dem alten König verhungert. Er dient Malvor, weil Malvor
-  „Ordnung und volle Speicher“ bringt.
-- **Wollen:** dass nie wieder ein Kind verhungert.
-- **Brauchen:** erkennen, dass Malvor genau das tut, wovor er Kinder schützen will.
-- **Stimme:** wenige Worte, militärisch, nie höhnisch. Respektiert Mut.
-- **Wendepunkt:** Malvor befiehlt ihm, Korn zu verbrennen. Er verweigert und läuft über.
-- **Fähigkeiten:** Schildstoß, Einschüchtern.
+### Taran – Malvors Hauptmann
+Berufssoldat, ernst, ehrlich, spricht wenig. Seine kleine Schwester ist unter König Edrian verhungert. Er dient
+Malvor, weil der Ordnung und volle Speicher verspricht. Belagert Eisenhain, lagert bei Morvale. Als Malvor ihm
+befiehlt, die Höfe der Moordörfer niederzubrennen, verweigert er und läuft mit seinen Leuten zu Nelia über.
 
-### Malvor – Gegenspieler
-- Statthalter von Hagenfurt. Hat nach dem Tod des alten Königs das Wetterwerk wieder angeworfen. Seitdem wächst
-  nur in seinen geschützten Treibhäusern Korn – und er verteilt es an die, die gehorchen.
-- **Wollen:** König werden (alle fünf Kronstücke) – damit ihm niemand mehr widersprechen darf.
-- **Glaubt:** Unter dem alten König herrschte Chaos und Hunger; nur seine harte Hand hält das Land am Leben.
-  Er hält sich für den Retter. Nie ein Witzbold-Bösewicht.
-- **Stimme:** ruhig, höflich, kalt. Nennt Nelia „Kind“ oder „Leibeigene“.
-- **Ist präsent:** in jeder Mission durch einen Boten, einen Befehl oder Soldaten, die etwas von ihm verlangen.
-  Persönlich auftreten tut er erst im Finale.
-- **Fähigkeiten (Finale):** Feldgeschütz, Fußangeln.
+### Malvor – Statthalter von Hagenfurt
+Ruhig, höflich, kalt. Hält sich für den Retter des Landes: Unter Edrian herrschten Chaos und Hunger, unter ihm
+herrscht Ordnung, und wer gehorcht, isst. Will die fünf Kronstücke, um König zu werden, damit ihm niemand mehr
+widersprechen darf. Tritt lange nur über Boten auf (Eintreiber, Herold, Befehle an Taran); im Finale verteidigt er
+sein Inselschloss selbst.
 
-### Nebenfiguren (nur Rollen)
-Dorfälteste · Dorfbewohner · Eintreiber (Malvors Steuerleute) · Herold (Malvors Ausrufer) · Kaufmann (Beaucroix) ·
-Räuberhauptmann · Bergmeister (Eisenhain) · Wachen · Gefangene · Nelias Vater · Gelehrte.
+### Wiederkehrende Rollen
+**Malvors Eintreiber** (fordern Abgaben) · **Malvors Herold** (verkündet seine Angebote und Befehle) ·
+**Dorfälteste** · **Kaufmann** in Beaucroix · **Räuberhauptmann** · **Bergmeister** von Eisenhain · **Gelehrte** ·
+Wachen, Gefangene, Dorfbewohner.
 
-## Vorgeschichte (nur so viel)
+---
 
-- Der alte König war gütig, aber schwach; in schlechten Jahren hungerte das Land (darum glaubt Taran an Malvor).
-- Er ertrank bei einem Sturm auf dem Thronsee. Die Krone brach beim Untergang in fünf Stücke, die über die Provinzen
-  verstreut wurden – an wen und wie, weiß niemand genau. Kinder des Königs gab es keine bekannten.
-- Das Wetterwerk ist uralt; der alte König hatte es stillgelegt. Malvor fand die Pläne und warf es wieder an.
+## 12. Kampagne „Krone aus Eis“ – Handlungsgerüst
 
-## Grundgesetze der Welt
+Die Vorgabe vom 4. Oktober 2026, auf die Provinzen verteilt. Sechs Missionen, eine je Provinz, zwei in Hagenfurt.
 
-- **Winter** heißt: Seen und Flüsse frieren zu und sind begehbar; nichts wächst außer bei Malvor.
-- **Tauwetter** heißt: Eis bricht, wer darauf steht, ertrinkt.
-- **Korn** ist die Währung der Macht. Wer Höfe hat, hat Leute; wer Leute hat, hat Arbeit und Steuern.
-- **Kronstücke** haben keine Zauberkraft. Ihr Wert ist allein das alte Recht.
+| # | Provinz | Was geschieht | Kronstück |
+|---|---|---|---|
+| 1 | Lindgrund | Nelia kehrt ins verlassene Dorf zurück, trifft Orrin, findet das Kronstück unter dem alten Baum. Orrin erfindet die verlorene Prinzessin; Leute kehren zurück. Das Dorf wird wieder aufgebaut, Malvors Eintreiber werden vertrieben. | 1 |
+| 2 | Beaucroix | Markt aufbauen, handeln. Malvors Herold bietet für das Kronstück der Räuber. Freikaufen oder das Lager stürmen. | 2 |
+| 3 | Hagenfurt (Tal des Wetterwerks) | Ohne Siedlung, nur mit Helden und kleinem Trupp: ins Tal, das Wetterwerk zerstören, vor dem Tauwetter vom Eis fliehen, Hrimgars Pläne sichern. Der Winter endet. | – (Malvor trägt das Kronstück von Hagenfurt) |
+| 4 | Eisenhain | Taran belagert die Bergleute. Truppen aufstellen (Söldner oder Leibeigene), Gruben, Belagerung brechen. Der Bergmeister übergibt das Kronstück. | 3 |
+| 5 | Morvale | Malvors Herold enthüllt die Lüge; die Dörfer wenden sich ab. Taran verweigert den Befehl, die Höfe zu verbrennen, und läuft über. Die Dörfer durch Taten zurückgewinnen. | 4 |
+| 6 | Hagenfurt (Thronsee) | Mit Hrimgars Plänen ein eigenes Wetterkraftwerk bauen, den See zufrieren lassen, das Inselschloss stürmen; Malvor taut den See mit seinem eigenen. Orrin bricht ein. Malvor fällt. Krönung, Orrins Tod, Nelia hebt die Leibeigenschaft auf. | 5 |
 
-## Was der Spieler tun kann (nur zur Orientierung beim Schreiben)
+**Thema:** Folgt man jemandem wegen seines Blutes oder wegen seiner Taten? Die Lüge öffnet Nelia die Türen; als sie
+auffliegt, muss sie zeigen, wer sie ist. Am Ende krönen die Provinzen eine Leibeigene.
 
-Ein Aufbauspiel im Stil von „Die Siedler 5“: Dorf aufbauen (Wohnhäuser, Bauernhöfe, Gruben für Lehm, Stein, Eisen,
-Schwefel), Arbeiter versorgen, Steuern einnehmen, am Markt tauschen, forschen, Soldaten ausbilden, mit Helden und
-Trupps kämpfen, Helden-Fähigkeiten nutzen, mit Figuren reden (ein bestimmter Held geht hin), Angebote bezahlen
-(Kaufen **oder** Kämpfen – eine Wahl schließt die andere aus), Waren an Dörfer liefern, Dörfer werden Verbündete
-oder Gegner, Wetter (Winter/Sommer, Eis) spielt eine Rolle. Missionen ohne Dorf (nur Helden mit kleinem Trupp)
-sind möglich.
+**Zweites Motiv:** Korn ist Macht. Malvor herrscht mit Hunger und hohen Abgaben. Nelia gewinnt, indem Menschen satt
+werden und bleiben wollen – genau das, was die Wirtschaft des Spiels belohnt.
 
-Es gibt **keine** Zwischenfilme, keinen Rucksack, keine Schiffe, keine Gespräche mit Antwortauswahl. Erzählt wird
-über kurze gesprochene Dialogzeilen während des Spiels, einen Einleitungstext vor und einen Abschlusstext nach
-jeder Mission.
+---
 
-## Erzählregeln (für das Drehbuch)
+## 13. Neu gegenüber der bisherigen Fassung (bitte prüfen)
 
-1. **Ein Spieler erinnert sich an nichts.** Zwischen zwei Missionen liegen Tage. Jede Mission beginnt mit einer
-   Erinnerung: wo wir sind, wie viele Kronstücke wir haben, was Malvor gerade tut.
-2. **Jedes Ziel hat ein Warum aus der Welt.** Nicht „Baue 2 Höfe“, sondern: Wer ist hungrig, wer will etwas,
-   was passiert, wenn wir es nicht tun. Das Warum kommt von einer Figur, die etwas zu verlieren hat.
-3. **Jede Mission eine dramatische Frage**, die sich in einem Satz stellt und am Ende beantwortet wird
-   („Kommt Lindgrund durch den Winter?“).
-4. **Malvor ist in jeder Mission spürbar** und will dort etwas Konkretes, das der Spieler verhindern muss.
-5. **Ursache und Wirkung statt „und dann“.** Jede Mission folgt aus der vorigen („deshalb“, „aber“), nie bloß
-   „danach“.
-6. **Höchstens ein neuer Begriff pro Mission.** Neues wird gezeigt, bevor es wichtig wird.
-7. **Kurze Zeilen.** Gesprochen, also höchstens etwa 20 Wörter je Zeile, höchstens 6 Zeilen am Stück, solange der
-   Spieler spielt. Längeres in Einleitung und Abschluss.
-8. **Entscheidungen haben Folgen**, die später erwähnt werden.
-9. **Rückgriffe:** Was früh gesät wird, wird später geerntet (Taran und seine Schwester, Nelias Vater, Orrins
-   Lüge).
-10. **Humor kommt von Orrin**, Ernst von Taran, Wärme von Nelia, Kälte von Malvor.
+- Die Krone ist aus fünf Provinz-Kronstücken zusammengesetzt; das alte Recht verteilt sie bei einem König ohne Erben
+  auf die Provinzen. Bisher: Sie „zerbrach“ und die Stücke lagen zufällig verstreut.
+- Lindgrunds Leute haben ihr Kronstück vergraben, Nelias Vater war dabei.
+- Malvors Korn: gefüllte Speicher vor dem Winter und Felder im Windschatten des Werks.
+- Leibeigene in der Burg „kaufen“ = sie auslösen.
+- Beaucroix' Kronstück wurde aus der Stadtkasse geraubt.
+- Begriff „Kronstück“ statt „Zacke“.
