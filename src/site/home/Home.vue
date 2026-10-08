@@ -1,6 +1,8 @@
 <template>
   <SiteLayout ref="layout" page="home" overlay>
     <section class="hero" data-testid="home-hero">
+      <!-- Tiny blurred stand-in inlined into the page (~250 bytes): something to see before the still and video arrive -->
+      <div class="hero-tiny" :style="{ backgroundImage: `url(${placeholder})` }" aria-hidden="true"></div>
       <picture class="hero-bg">
         <img :src="img('hero')" :srcset="img('hero') + ' 1440w, ' + img('hero-wide') + ' 2880w'" sizes="100vw" :alt="$s('home.heroAlt')" width="1440" height="900" fetchpriority="high">
       </picture>
@@ -133,7 +135,8 @@
 <script>
 import SiteLayout from '../SiteLayout.vue';
 import { siteUrl } from '../../paths.js';
-import { HERO_VIDEO, heroMotion, matchQuery } from './heroVideo.js';
+import { HERO_VIDEO, heroMotion, heroSize, matchQuery } from './heroVideo.js';
+import { HERO_PLACEHOLDER } from './heroPlaceholder.js';
 import { BUILDINGS } from '../../sim/data/buildings.js';
 import { UNITS, HEROES } from '../../sim/data/units.js';
 import { TECHS } from '../../sim/data/technologies.js';
@@ -148,6 +151,9 @@ export default {
     return {
       reduced: !!matchQuery('(prefers-reduced-motion: reduce)')?.matches,
       playing: false,
+      placeholder: HERO_PLACEHOLDER,
+      // chosen once on load, like the still from its srcset
+      heroSize: heroSize({ width: globalThis.innerWidth, dpr: globalThis.devicePixelRatio }),
       // Order in the enlarged view (arrows); 'developer' is in the section "Für die Schule"
       shots: ['settlement', 'phone', 'combat', 'winter', 'fog', 'slope', 'developer'],
       // Gallery rows; width per image by aspect ratio (equal-height images per row)
@@ -180,7 +186,7 @@ export default {
   },
   computed: {
     motion() { return heroMotion({ reducedMotion: this.reduced, saveData: !!globalThis.navigator?.connection?.saveData }); },
-    heroVideo() { return HERO_VIDEO.map((v) => ({ src: siteUrl(v.path), type: v.type })); },
+    heroVideo() { return HERO_VIDEO[this.heroSize].map((v) => ({ src: siteUrl(v.path), type: v.type })); },
   },
   mounted() {
     this.mq = matchQuery('(prefers-reduced-motion: reduce)');
@@ -203,6 +209,7 @@ export default {
 .hero { position: relative; margin-top: calc(-3.75rem - var(--safe-t)); min-height: min(92vh, 56rem); display: flex; align-items: flex-end; overflow: hidden; isolation: isolate; }
 .hero-bg, .hero-bg img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hero-bg { z-index: -2; pointer-events: none; }
+.hero-tiny { position: absolute; inset: -3rem; z-index: -3; background: 60% 50% / cover no-repeat; filter: blur(1.5rem); pointer-events: none; }
 .hero-bg img { object-fit: cover; object-position: 60% 50%; z-index: -2; }
 /* Same framing as the still; fades in only once it plays (its first frame continues the still's scene) */
 .hero-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 60% 50%; z-index: -2; pointer-events: none; opacity: 0; transition: opacity 0.8s ease; }

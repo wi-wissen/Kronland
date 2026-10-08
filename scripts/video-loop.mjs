@@ -7,7 +7,8 @@
 // long – no visible cut. Figures walking there blend for that moment; everything periodic (windmill sails) lines up
 // if `--loop` is a whole number of its turns. Instead of `--loop`, `--period x,y,w,h` (pixels of the clip) picks the
 // frame of the second half in which that region looks most like frame 0.
-// Output: public/<out>.av1.mp4 (AV1, SVT-AV1) and public/<out>.h264.mp4 (H.264 Main, browsers without AV1), silent,
+// Output (run once per size, e.g. --width 1440 --out site/hero-loop and --width 1920 --out site/hero-loop-wide):
+// public/<out>.av1.mp4 (AV1, SVT-AV1) and public/<out>.h264.mp4 (H.264 Main, browsers without AV1), silent,
 // faststart, one keyframe. --compare additionally writes VP9-WebM and animated WebP next to the clip and prints sizes.
 // Needs ffmpeg with libsvtav1 and libx264.
 import fs from 'node:fs';
@@ -64,7 +65,7 @@ fs.mkdirSync(path.dirname(out('x')), { recursive: true });
 // Keyframe only at the start: the clip is short and always played from the beginning
 const gop = ['-g', '9999', '-keyint_min', '9999', '-pix_fmt', 'yuv420p'];
 ff(['-i', master, '-an', '-c:v', 'libsvtav1', '-preset', '4', '-crf', av1Crf, ...gop, '-svtav1-params', 'tune=0', '-movflags', '+faststart', out('av1.mp4')]);
-ff(['-i', master, '-an', '-c:v', 'libx264', '-preset', 'veryslow', '-crf', h264Crf, '-profile:v', 'main', '-level', '4.0', ...gop, '-movflags', '+faststart', out('h264.mp4')]);
+ff(['-i', master, '-an', '-c:v', 'libx264', '-preset', 'veryslow', '-crf', h264Crf, '-profile:v', 'main', '-level', width > 1920 ? '5.1' : width > 1440 ? '5.0' : '4.0', ...gop, '-movflags', '+faststart', out('h264.mp4')]);
 
 const kb = (f) => `${Math.round(fs.statSync(f).size / 1024)} KB`;
 console.log(`loop: ${loop} frames = ${(loop / fps).toFixed(3)} s, fade ${fadeN} frames, ${width}x${height}`);

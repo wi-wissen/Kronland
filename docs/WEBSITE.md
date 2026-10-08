@@ -185,8 +185,9 @@ gleiche Siedlung und Kamera wie `hero`): Leibeigene laufen durchs Bild, Mühle u
 Bäume bewegen sich.
 
 ```bash
-python3 scripts/site-video.py http://localhost:4301      # aufnehmen → assets-src/site/hero-loop/raw.mp4 (~25 min)
-node scripts/video-loop.mjs assets-src/site/hero-loop/raw.mp4 --out site/hero-loop --loop 201 --fade 24 [--compare]
+python3 scripts/site-video.py http://localhost:4301 assets-src/site/hero-loop-2x/frames --scale 2   # 2880×1800 (Cloud ~2 h, mit GPU Minuten)
+node scripts/video-loop.mjs assets-src/site/hero-loop-2x/raw.mp4 --out site/hero-loop --width 1440 --loop 201 --fade 24
+node scripts/video-loop.mjs assets-src/site/hero-loop-2x/raw.mp4 --out site/hero-loop-wide --width 1920 --loop 201 --fade 24
 ```
 
 - **Choreografie** (`site-video.py`): Ein aufgezeichnetes Spiel kehrt nie zu seinem ersten Bild zurück (Figuren
@@ -197,13 +198,21 @@ node scripts/video-loop.mjs assets-src/site/hero-loop/raw.mp4 --out site/hero-lo
   genau einer Looplänge wiederholt (ein längerer Weg bekommt mehrere Läufer im Abstand einer Looplänge). Sie
   betreten und verlassen das Bild nur am Rand.
 - **Aufnahme:** feste Uhr (1/24 s je Bild für Animationen, Flügel, Rauch), jedes Bild direkt aus der Leinwand
-  (1440×900, ohne HUD), egal wie langsam SwiftShader zeichnet.
+  (1440×900 CSS-Pixel mit `--scale 2`, also 2880×1800, ohne HUD), egal wie langsam SwiftShader zeichnet. Beide
+  Videogrößen werden daraus verkleinert und sind dadurch scharf.
 - **Länge und Schnitt:** zwei volle Umdrehungen der Mühle (1,5 rad/s → 201 Bilder = 8,375 s) plus eine Sekunde.
   `video-loop.mjs` blendet diese Sekunde in den Anfang über; Läufer und Mühle stehen dabei in beiden Bildern gleich.
-- **Format:** 1440×900, MP4 als AV1 (CRF 50, ~0,6 MB; Chrome, Edge, Firefox, Safari mit AV1-Hardware) und H.264
-  (CRF 29, ~0,8 MB) für alle anderen; der Browser lädt nur eine davon. `faststart`, ein Schlüsselbild; Video
-  dekodiert in Hardware. Animiertes WebP wäre ein Vielfaches größer (Vergleich mit `--compare`).
-- **Einbindung:** `src/site/home/heroVideo.js` (`HERO_VIDEO`), `<video>` in `Home.vue` über dem Standbild; es
+- **Format:** zwei Größen, MP4 als AV1 (CRF 50; Chrome, Edge, Firefox, Safari mit AV1-Hardware) und H.264 (CRF 29)
+  für alle anderen: 1440×900 (AV1 ~0,6 MB, H.264 ~0,75 MB) und 1920×1200 (~1 MB / ~1,2 MB). 2880 px wie
+  `hero-wide.webp` wäre doppelt so groß (2 MB AV1) bei kaum sichtbarem Gewinn in Bewegung. Der Browser lädt nur
+  eine Datei. `faststart`, ein Schlüsselbild; Video dekodiert in Hardware. Animiertes WebP wäre ein Vielfaches
+  größer (Vergleich mit `--compare`).
+- **Größenwahl** (`heroSize`): mehr als 1600 Gerätepixel Fensterbreite (großer oder 4K-Monitor, scharfes Notebook,
+  Tablet) bekommt 1920 px, Handys und normale Bildschirme 1440 px; einmal beim Laden, wie beim Standbild über `srcset`.
+- **Ladereihenfolge:** sofort ein winziges, unscharfes Vorschaubild (32×20 px, ~250 Byte, als Data-URI im Code,
+  `heroPlaceholder.js`, erzeugt `site-screens.py` mit `hero`), dann das Standbild, dann blendet das Video ein. Der
+  Schatten (`.hero-shade`) liegt über allen dreien, die Schrift bleibt lesbar.
+- **Einbindung:** `src/site/home/heroVideo.js` (`HERO_VIDEO`, `heroSize`), `<video>` in `Home.vue` über dem Standbild; es
   blendet erst ein, wenn es wirklich läuft. Kein Video bei „Bewegung reduzieren“ und „Datensparmodus“; verweigert der
   Browser den Autostart (iOS-Stromsparmodus), bleibt das Standbild. Die PWA legt die Videos nicht in den Cache.
 

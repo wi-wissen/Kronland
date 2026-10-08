@@ -2,7 +2,8 @@
 """Record the title scene of the start page (same world and camera as hero.webp in site-screens.py) as a seamless loop.
 
 Usage (preview server must be running, e.g. `npm run build && npx vite preview --port 4301`):
-    python3 scripts/site-video.py [base-url] [out-dir] [--frames N]
+    python3 scripts/site-video.py [base-url] [out-dir] [--frames N] [--scale 2]
+--scale renders at that pixel density (2: 2880x1800, as hero-wide.webp; video-loop.mjs scales down for the small file).
 Output: <out-dir>/frame-NNNN.png (default assets-src/site/hero-loop/frames) and <out-dir>/../raw.mp4 (lossless),
 then cut with scripts/video-loop.mjs (docs/WEBSITE.md).
 
@@ -16,7 +17,7 @@ choreographed:
    outside the picture, so nobody pops in or out, and the cross-fade at the seam blends identical positions.
 3. Every frame is rendered with a fixed clock (1/FPS s for animations, sails, smoke) and read from the canvas.
 Length: two full turns of the windmill (rotor 1.5 rad/s) – 201 frames = 8.375 s – plus FADE frames for the cut.
-SwiftShader needs several seconds per frame (~25 min).
+SwiftShader needs several seconds per frame (~25 min at --scale 1, about four times that at 2).
 """
 import base64
 import importlib.util
@@ -36,13 +37,16 @@ args = [a for a in sys.argv[1:]]
 N_FRAMES = None
 if '--frames' in args:
     i = args.index('--frames'); N_FRAMES = int(args[i + 1]); del args[i:i + 2]
+SCALE = 1
+if '--scale' in args:
+    i = args.index('--scale'); SCALE = int(args[i + 1]); del args[i:i + 2]
 BASE = args[0] if len(args) > 0 else 'http://localhost:4301'
 OUT = Path(args[1]) if len(args) > 1 else ROOT / 'assets-src' / 'site' / 'hero-loop' / 'frames'
 FPS = 24
 ROTOR = 1.5  # rad/s, windmill sails (src/render/movingParts.js)
 LOOP = round(2 * (2 * math.pi / ROTOR) * FPS)  # two full turns: 201 frames = 8.375 s
 FADE = FPS
-VIEW = dict(viewport={'width': 1440, 'height': 900}, device_scale_factor=1, locale='de-DE')
+VIEW = dict(viewport={'width': 1440, 'height': 900}, device_scale_factor=SCALE, locale='de-DE')
 
 # 1. Routes from just outside one edge of the picture to the opposite one, walked by the game's own movement
 ROUTES = """(o) => {
@@ -76,7 +80,7 @@ ROUTES = """(o) => {
     const via = i % 2 === 0 ? { x: hq.x + 1 + (i % 4), y: hq.y + hq.h + 1 + (i % 3) } : null;
     const first = via && m.walkable(via.x, via.y) ? via : to;
     s.pending.push({ type: 'move', player: 0, units: [u.id], x: first.x, y: first.y });
-    walkers.push({ id: u.id, to, via: first === to ? null : first, track: [], done: false, carry: i % 3 === 1 });
+    walkers.push({ id: u.id, to, via: first === to ? null : first, track: [], done: false });
   }
   for (let t = 0; t < o.maxTicks && walkers.some((w) => !w.done); t++) {
     s.run(1);
@@ -96,7 +100,7 @@ ROUTES = """(o) => {
     }
   }
   const ok = walkers.filter((w) => w.seen && w.done && w.track.length > 5);
-  window.__walkers = ok.map((w) => ({ id: w.id, track: w.track, carry: w.carry }));
+  window.__walkers = ok.map((w) => ({ id: w.id, track: w.track }));
   return { sides: Object.fromEntries(Object.entries(sides).map(([k, v]) => [k, v.length])), walkers: walkers.length, kept: ok.length,
     ticks: ok.map((w) => w.track.length) };
 }"""
@@ -123,7 +127,8 @@ FREEZE = """(o) => {
     for (let j = 0; j < k; j++) {
       let u = s.entities.get(w.id);
       if (j > 0) { u = { ...u, id: s.nextId++, path: [] }; s.entities.set(u.id, u); }
-      u.path = []; u.job = null; u.carry = w.carry ? 1 : 0;
+      // plain walk clip as in the game: serfs never carry there, and the carry clip's short steps would slide
+      u.path = []; u.job = null;
       plan.push({ id: u.id, track: w.track, period: k * L, phase: off + j * L });
     }
   });

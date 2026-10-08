@@ -42,6 +42,20 @@ test('Title image of the home page moves: recorded loop over the still, still wi
   expect(problems).toEqual([]);
 });
 
+test.describe('sharp screen', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+  test('Large and sharp screens get the wide title video (1920 px), like the still from its srcset', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop', 'one viewport is enough');
+    test.setTimeout(60_000);
+    await page.goto('/');
+    const video = page.getByTestId('hero-video');
+    await expect(video).toHaveClass(/playing/, { timeout: 30_000 });
+    const v = await video.evaluate((el) => ({ src: el.currentSrc, w: el.videoWidth }));
+    expect(v.w).toBe(1920);
+    expect(v.src).toMatch(/site\/hero-loop-wide\.av1(\.[0-9a-f]{10})?\.mp4$/);
+  });
+});
+
 test('Home page loads with title image, features, gallery and footer', async ({ page }) => {
   const problems = watch(page);
   await page.goto('/');
