@@ -807,6 +807,8 @@ export class Sim {
     if (!units.length) return this.reject(cmd, 'err.noTroops');
     if ((cmd.order === 'move' || cmd.order === 'attackMove')
       && !(Number.isInteger(cmd.x) && Number.isInteger(cmd.y) && this.map.inBounds(cmd.x, cmd.y))) return this.reject(cmd, 'err.notWalkable');
+    // Talk: heroes walk to a talk figure; once there the mission decides what happens (MissionRuntime.updateTalks)
+    if (cmd.order === 'talk') return this.cmdTalk(cmd, units);
     // Fan out targets so that the squads do not stand on top of each other: spacing 3 tiles, because the
     // soldiers of a squad leader stand in two rows behind him (slotOffset)
     const moving = cmd.order === 'move' || cmd.order === 'attackMove';
@@ -814,6 +816,7 @@ export class Sim {
     const goals = moving ? formationTiles(this.map, cmd.x, cmd.y, active, 3) : [];
     active.forEach((e, i) => {
       e.path = []; e.targetId = 0;
+      if (e.talkTo !== undefined) delete e.talkTo;
       // Look direction from a script only applies until the hero is sent elsewhere
       if (e.face !== undefined) delete e.face;
       if (moving) {
@@ -822,6 +825,35 @@ export class Sim {
       } else if (cmd.order === 'attack') e.order = { type: 'attack', target: cmd.target };
       else if (cmd.order === 'hold') e.order = { type: 'hold' };
       else { e.order = { type: 'idle' }; e.anchor = { x: e.px, y: e.py }; }
+    });
+    return true;
+  }
+
+  /** Send heroes to a talk figure (order 'talk', target = figure). Other figures in the command are ignored. */
+  cmdTalk(cmd, units) {
+    const npc = this.entities.get(cmd.target);
+    if (!npc || npc.kind !== 'npc' || !npc.talk) return this.reject(cmd, 'err.noTalk');
+    const heroes = units.filter((e) => e.kind === 'hero' && !e.down);
+    if (!heroes.length) return this.reject(cmd, 'err.talkHeroOnly');
+    // Stand next to the figure, not on it: free tiles of the first rings, each hero takes the nearest one
+    const m = this.map, nx = toTile(npc.px), ny = toTile(npc.py);
+    const spots = [];
+    for (let r = 1; r <= 2 && spots.length < heroes.length; r++) {
+      for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) if (Math.max(Math.abs(i), Math.abs(j)) === r && m.walkable(nx + i, ny + j)) spots.push(m.idx(nx + i, ny + j));
+    }
+    const fallback = formationTiles(m, nx, ny, heroes, 1);
+    heroes.forEach((e, i) => {
+      let best = -1, bd = Infinity;
+      for (const k of spots) {
+        const d = (tileCenter(k % m.width) - e.px) ** 2 + (tileCenter((k / m.width) | 0) - e.py) ** 2;
+        if (d < bd) { bd = d; best = k; }
+      }
+      if (best >= 0) spots.splice(spots.indexOf(best), 1);
+      const k = best >= 0 ? best : fallback[i] >= 0 ? fallback[i] : m.idx(nx, ny);
+      e.path = []; e.targetId = 0;
+      if (e.face !== undefined) delete e.face;
+      e.order = { type: 'move', x: tileCenter(k % m.width), y: tileCenter((k / m.width) | 0) };
+      e.talkTo = npc.id;
     });
     return true;
   }
@@ -972,7 +1004,7 @@ export class Sim {
       if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp).int(e.spot ?? -1).int(e.slot ?? -1).int(e.face ?? -1);
       else if (e.kind === 'leader') h.int(e.px).int(e.py).int(e.hp).int(e.targetId).int(e.cooldown).int(e.xp ?? 0).int(e.face ?? -1);
       else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state).int(e.slot ?? -1);
-      else if (e.px !== undefined) h.int(e.px).int(e.py).int(e.hp ?? 0).int(e.targetId ?? 0).int(e.cooldown ?? 0).int(e.face ?? -1);
+      else if (e.px !== undefined) h.int(e.px).int(e.py).int(e.hp ?? 0).int(e.targetId ?? 0).int(e.cooldown ?? 0).int(e.face ?? -1).int(e.talkTo ?? 0).int(e.talk ? 1 : 0);
       else if (e.kind === 'building') {
         h.str(e.type).int(e.x).int(e.y).int(e.progress).int(e.done ? 1 : 0).int(e.level).int(e.hp).int(e.burning ? 1 : 0);
         h.int(e.research ? e.research.progress : -1).int(e.trade ? e.trade.progress : -1);

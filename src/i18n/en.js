@@ -560,6 +560,8 @@ export default {
   'err.leaderNotNear': 'Captain must stand at the {building}',
   'err.unknownLine': 'Unknown troop type',
   'err.noTroops': 'No troops selected',
+  'err.noTalk': 'You cannot talk to this figure right now',
+  'err.talkHeroOnly': 'Only heroes can talk to this figure',
   'err.notOwnHero': 'Not your hero',
   'err.noTarget': 'No target in range',
   'err.noTribute': 'This tribute is not open (any more)',

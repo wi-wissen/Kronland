@@ -474,8 +474,9 @@ Browser gemerkt – du kannst jederzeit weitermachen.
 
 Unter **Programmier-Abenteuer → Welteneditor** baust du eigene Karten: Gelände heben und senken, Wasser, Wald,
 Rohstoffe, Startplätze und benannte Orte setzen. Den Ablauf schreibst du ebenfalls in Python – Dialoge,
-Kamerafahrten, Ziele, Angriffswellen. **Testspielen** startet deine Welt sofort; speichern kannst du sie als
-Datei und unter **Szenario-Datei öffnen** wieder spielen oder weitergeben.
+Kamerafahrten, Ziele, Angriffswellen, Gesprächsfiguren. Unter **Dateien** legst du eigene Bilder, Töne und
+3D-Modelle bei. **Testspielen** startet deine Welt sofort; speichern kannst du sie als **.zip** und unter
+**Level öffnen** wieder spielen oder weitergeben – oder die .zip ins Netz stellen und den Link teilen.
 
 > **Für Lehrkräfte:** Welche Teile von Python es gibt und alle Befehle stehen in der
 > [Beschreibung der Skripte](https://github.com/wi-wissen/Kronland/blob/main/docs/SKRIPTE.md).

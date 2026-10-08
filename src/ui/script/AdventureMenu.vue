@@ -32,10 +32,14 @@
             <button class="adv-own-btn" data-testid="open-editor" @click="$emit('editor')"><Icon name="map" /><span><b>{{ $t('adv.editor') }}</b><small>{{ $t('adv.editorSub') }}</small></span></button>
             <label class="adv-own-btn" data-testid="open-file">
               <Icon name="load" /><span><b>{{ $t('adv.load') }}</b><small>{{ $t('adv.loadSub') }}</small></span>
-              <input type="file" accept=".json,application/json" class="adv-file" data-testid="scenario-file" @change="loadFile">
+              <input type="file" accept=".zip,.json,application/zip,application/json" class="adv-file" data-testid="scenario-file" @change="loadFile">
             </label>
+            <form class="adv-link" data-testid="level-link-form" @submit.prevent="openLink">
+              <input v-model.trim="link" type="url" inputmode="url" :placeholder="$t('adv.linkPlaceholder')" :aria-label="$t('adv.link')" data-testid="level-link">
+              <button class="ghost" type="submit" :disabled="!link" data-testid="level-link-open">{{ $t('adv.linkOpen') }}</button>
+            </form>
             <a class="adv-own-btn" :href="referenceUrl" target="_blank" rel="noopener" data-testid="open-reference"><Icon name="scroll" /><span><b>{{ $t('adv.reference') }}</b><small>{{ $t('adv.referenceSub') }}</small></span></a>
-            <p v-if="fileError" class="adv-err" role="alert">{{ fileError }}</p>
+            <p v-if="fileError || notice" class="adv-err" role="alert" data-testid="level-error">{{ fileError || notice }}</p>
           </div>
         </div>
 
@@ -43,6 +47,15 @@
           <span class="cm-chapter">{{ selected.kind === 'mission' ? $t('adv.scriptMission') : $t('adv.lesson', { n: selected.n }) }}</span>
           <h2>{{ $tr(selected.title) }}</h2>
           <p class="cm-story">{{ $tr(selected.briefing) }}</p>
+          <template v-if="selected.goals.length">
+            <h3 class="cm-goalhead">{{ $t('mission.goals') }}</h3>
+            <ul class="cm-goals" data-testid="adventure-goals">
+              <li v-for="o in selected.goals" :key="o.id" :class="{ opt: !o.primary }">
+                <Icon :name="o.primary ? 'objective' : 'scroll'" />
+                <span>{{ $tr(o.text) }}<em v-if="!o.primary"> · {{ $t('mission.optional') }}</em></span>
+              </li>
+            </ul>
+          </template>
           <template v-if="selected.learn">
             <h3 class="cm-goalhead">{{ $t('adv.learn') }}</h3>
             <p class="adv-tags"><span v-for="l in $tr(selected.learn)" :key="l" class="adv-tag">{{ l }}</span></p>
@@ -58,44 +71,60 @@
 </template>
 
 <script>
-import { ADVENTURES, SCRIPT_MISSIONS } from '../../sim/missions/scenarios/index.js';
+import { ADVENTURES, SCRIPT_MISSIONS } from '../../sim/missions/levels/index.js';
 import { validateScenario } from '../../sim/scripting/scenario.js';
+import { scenarioGoals } from '../../sim/scripting/outline.js';
 import { loadProgress } from '../mission/progress.js';
 import { refUrl } from './reference.js';
 
 export default {
   name: 'AdventureMenu',
-  props: { lang: { type: String, default: 'de' } },
-  emits: ['back', 'start', 'editor', 'open'],
+  props: {
+    lang: { type: String, default: 'de' },
+    /** Why a level by link could not be opened */
+    notice: { type: String, default: '' },
+  },
+  emits: ['back', 'start', 'editor', 'open', 'link'],
   data() {
     const progress = loadProgress();
     const open = ADVENTURES.find((a) => !progress.done[a.id]) ?? ADVENTURES[0];
-    return { progress, selectedId: open.id, fileError: '' };
+    return { progress, selectedId: open.id, fileError: '', link: '' };
   },
   computed: {
     referenceUrl() { return refUrl(); },
     adventures() { return ADVENTURES.map((a, i) => ({ ...a, n: i + 1, won: !!this.progress.done[a.id] })); },
     missions() { return SCRIPT_MISSIONS.map((a) => ({ ...a, won: !!this.progress.done[a.id] })); },
-    selected() { return [...this.adventures, ...this.missions].find((a) => a.id === this.selectedId) ?? null; },
+    selected() {
+      const s = [...this.adventures, ...this.missions].find((a) => a.id === this.selectedId);
+      // Objectives straight from the level's code (without running it), hidden ones stay a surprise
+      return s ? { ...s, goals: scenarioGoals(s).filter((o) => !o.hidden) } : null;
+    },
   },
   methods: {
-    loadFile(ev) {
+    /** Level from the device: a .zip (folder with scenario.json, .py files, assets/) or a scenario file .json. */
+    async loadFile(ev) {
       const f = ev.target.files?.[0];
       ev.target.value = '';
       if (!f) return;
-      const r = new FileReader();
-      r.onload = () => {
-        try {
-          const json = JSON.parse(String(r.result));
+      this.fileError = '';
+      try {
+        let pkg;
+        if (/\.zip$/i.test(f.name) || f.type === 'application/zip') {
+          const { readLevelZip } = await import('../../levels/package.js');
+          pkg = readLevelZip(await f.arrayBuffer());
+        } else {
+          const json = JSON.parse((await f.text()).replace(/^\uFEFF/, ''));
           const problems = validateScenario(json);
-          if (problems.length) { this.fileError = this.$t('adv.loadFailed', { why: problems[0] }); return; }
-          this.fileError = '';
-          this.$emit('open', json);
-        } catch (e) {
-          this.fileError = this.$t('adv.loadFailed', { why: e.message });
+          pkg = { scenario: problems.length ? null : json, assets: new Map(), problems };
         }
-      };
-      r.readAsText(f);
+        if (!pkg.scenario) { this.fileError = this.$t('adv.loadFailed', { why: pkg.problems[0] }); return; }
+        this.$emit('open', pkg);
+      } catch (e) {
+        this.fileError = this.$t('adv.loadFailed', { why: e.message });
+      }
+    },
+    openLink() {
+      if (this.link) this.$emit('link', this.link);
     },
   },
 };
@@ -112,6 +141,8 @@ a.adv-own-btn { text-decoration: none; color: inherit; }
 .adv-own-btn small { color: var(--ink-muted); font-size: var(--fs-sm); }
 .adv-file { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .adv-err { margin: 0; color: var(--bad); font-size: var(--fs-sm); }
+.adv-link { display: flex; gap: 0.5rem; min-width: 0; }
+.adv-link input { flex: 1; min-width: 0; }
 .adv-tags { display: flex; gap: 0.375rem; flex-wrap: wrap; margin: 0; }
 .adv-tag { padding: 0.125rem 0.5rem; border-radius: 999px; background: rgba(90, 60, 20, 0.15); font-size: var(--fs-sm); }
 </style>

@@ -787,6 +787,17 @@ export class Engine {
 
   planArmy(plan, units, hitId, g, cx, cy, attackMove) {
     const hit = this.selectable(hitId);
+    // Talk figure with an exclamation mark: heroes go there and talk, the others walk to the spot
+    if (hit?.kind === 'npc' && hit.talk && !attackMove) {
+      const heroes = units.filter((id) => this.sim.entities.get(id)?.kind === 'hero');
+      if (heroes.length) {
+        plan.cmds.push({ type: 'order', units: heroes, order: 'talk', target: hit.id });
+        const rest = units.filter((id) => !heroes.includes(id));
+        if (rest.length && g) plan.cmds.push({ type: 'order', units: rest, order: 'move', x: Math.floor(g.x), y: Math.floor(g.z) });
+        plan.walk = { x: hit.px / UNIT, y: hit.py / UNIT };
+        return;
+      }
+    }
     if (hit && hit.owner !== this.player && hit.owner !== undefined && targetable(this.sim, hit.kind === 'leader' && hit.soldiers.length ? this.sim.entities.get(hit.soldiers[0]) : hit)) {
       const target = hit.kind === 'leader' && hit.soldiers.length ? hit.soldiers[0] : hit.id;
       plan.cmds.push({ type: 'order', units, order: 'attack', target });

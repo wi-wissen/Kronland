@@ -464,8 +464,9 @@ you can carry on at any time.
 
 Under **Coding Adventures → World editor** you build your own maps: raise and lower terrain, place water, forest,
 resources, start positions and named places. You write the story in Python as well – dialogues, camera flights,
-objectives, attack waves. **Test play** starts your world right away; you can save it as a file and play or share
-it again via **Open scenario file**.
+objectives, attack waves, talk figures. Under **Files** you add your own pictures, sounds and 3D models.
+**Test play** starts your world right away; you can save it as a **.zip** and play or share it again via
+**Open level** – or put the .zip online and share the link.
 
 > **For teachers:** Which parts of Python are available and every command are described in the
 > [scripting documentation](https://github.com/wi-wissen/Kronland/blob/main/docs/SKRIPTE.md).

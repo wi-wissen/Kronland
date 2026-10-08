@@ -1,5 +1,5 @@
 // Directory of all missions. New mission: create a file and register it here.
-// Scenarios (coding adventures, script missions) are in scenarios/index.js.
+// Levels (coding adventures, script missions) are folders in levels/ (levels/index.js).
 
 import tutorial from './tutorial.js';
 import c1 from './campaign/c1-lindgrund.js';
@@ -10,7 +10,7 @@ import c5 from './campaign/c5-morvale.js';
 import c6 from './campaign/c6-thronsee.js';
 import showcase from './showcase.js';
 import stress from './stress.js';
-import { SCENARIOS, ADVENTURES as ADVENTURE_JSON, SCRIPT_MISSIONS as SCRIPT_JSON } from './scenarios/index.js';
+import { SCENARIOS, ADVENTURES as ADVENTURE_JSON, SCRIPT_MISSIONS as SCRIPT_JSON } from './levels/index.js';
 import { scenarioToDef } from '../scripting/scenario.js';
 
 export const TUTORIAL_ID = tutorial.id;

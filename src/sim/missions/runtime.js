@@ -24,8 +24,13 @@ import { WEATHER_EFFECTS } from '../data/weather.js';
 
 const T = TICKS_PER_SECOND;
 const MAX_MESSAGES = 30;
+/** A hero this close to a talk figure (milli-tiles, per axis) talks to it: two tiles and a half. */
+const TALK_REACH = 2 * UNIT + 500;
 export const BANDIT_TEAM = 99;
 const VILLAGE_TEAM = 100;
+
+/** Text of a table for a reason ('hq', 'gold' …), only own entries. */
+const byReason = (table, reason) => (table && Object.hasOwn(table, reason) ? table[reason] : undefined);
 
 /** Kinds of goals that "hold" instead of "reach": they are fulfilled as long as they do not fail. */
 const HOLD_TYPES = new Set(['protect']);
@@ -66,8 +71,10 @@ export class MissionRuntime {
        * shown greyed out ("not available in this mission") and rejected by the simulation; action `unlock` adds to it.
        */
       available: def.available ? { buildings: [...(def.available.buildings ?? [])], techs: [...(def.available.techs ?? [])] } : null,
-      /** Own scenario (editor, file): is part of the save game because it is in no directory */
-      scenario: def.custom ? def.scenario : null,
+      /** Scenario with all code: part of the save game, so that corrections to a level never break old saves */
+      scenario: def.scenario ?? null,
+      /** Own level (editor, file, link) – not in the directory, no campaign progress */
+      custom: !!def.custom,
     };
     this.census = null;
     /** Python scripts of the scenario (src/sim/scripting/host.js) or null */
@@ -77,7 +84,10 @@ export class MissionRuntime {
   }
 
   static fromState(state) {
-    const def = state.scenario ? { ...scenarioToDef(state.scenario), custom: true } : getMission(state.id);
+    // Older saves carried the scenario only for own levels
+    const custom = state.custom ?? !!state.scenario;
+    const base = custom ? null : getMission(state.id);
+    const def = state.scenario ? { ...scenarioToDef(state.scenario), next: base?.next ?? null, custom } : base;
     if (!def) throw new Error(`Unknown mission: ${state.id}`);
     const st = structuredClone(state);
     const script = st.script ?? null;
@@ -170,8 +180,6 @@ export class MissionRuntime {
     if (def.shafts) api.keepShafts(sim, def.shafts);
     const ctx = this.setupContext(sim);
     def.setup?.(ctx);
-    // Places of the scenario are references as in mission files (for declarative goals and actions)
-    for (const [name, p] of Object.entries(def.scenario?.world?.places ?? {})) st.refs[name] = { x: p.x, y: p.y, r: p.r ?? 2 };
     // Initial actions and first tutorial step
     if (def.start) this.runActions(sim, def.start);
     if (st.tutorial) this.enterStep(sim, 0);
@@ -271,6 +279,8 @@ export class MissionRuntime {
     this.script?.beginTick();
     this.updateCamps(sim);
     this.updateNpcs(sim);
+    this.updateTalks(sim);
+    if (st.result) return;
     this.updateTutorial(sim);
     this.updateObjectives(sim);
     this.updateEvents(sim);
@@ -346,8 +356,11 @@ export class MissionRuntime {
       const hq = p >= 0 ? sim.findBuilding(p, 'headquarters') : null;
       return hq ? { ...api.centerOf(hq), r: 4 } : null;
     }
-    const v = this.state.refs[ref];
+    const v = typeof ref === 'string' && Object.hasOwn(this.state.refs, ref) ? this.state.refs[ref] : undefined;
     if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+    // Places of a scenario (scenario.json and make_place) – one table, kept by the script host
+    const place = typeof ref === 'string' && this.script && Object.hasOwn(this.script.places, ref) ? this.script.places[ref] : null;
+    if (place) return { x: place.x, y: place.y, r: place.r ?? 2 };
     for (const id of this.idsOf(ref)) {
       const e = sim.entities.get(id);
       if (e) return { ...api.tileOf(e), r: e.kind === 'building' ? Math.max(e.w, e.h) : 2 };
@@ -724,14 +737,62 @@ export class MissionRuntime {
     st.refs[id] = e.id;
   }
 
+  /**
+   * Talk figure of a script (npc() in Python): stands like decoration and carries an exclamation mark. A hero
+   * sent to it (order 'talk') starts the talk on arrival; @on_talk in the mission program decides what happens.
+   * @returns {any|null} the figure, null if the name is taken
+   */
+  addNpc(sim, id, o) {
+    const st = this.state;
+    if (Object.hasOwn(st.npcs, id) && st.npcs[id].state !== 'gone') return null;
+    const q = api.findOpen(sim, o.at.x, o.at.y, { maxR: 6 }) ?? o.at;
+    const e = { id: sim.nextId++, kind: 'npc', npc: id, look: o.look, owner: -1, px: tileCenter(q.x), py: tileCenter(q.y), path: [], talk: true, hp: 1 };
+    sim.entities.set(e.id, e);
+    st.npcs[id] = { entity: e.id, state: 'open', hint: -1000, script: true, ...(o.name ? { name: o.name } : {}) };
+    return e;
+  }
+
+  /** Switch talking with a script figure on or off (exclamation mark, tapping). */
+  setTalkable(sim, id, on) {
+    const n = Object.hasOwn(this.state.npcs, id) ? this.state.npcs[id] : null;
+    const e = n && sim.entities.get(n.entity);
+    if (!e || n.state === 'gone') return false;
+    e.talk = on;
+    n.state = on ? 'open' : 'closed';
+    return true;
+  }
+
+  /** Heroes sent to a talk figure: next to it the talk starts (every 5 ticks, like updateNpcs). */
+  updateTalks(sim) {
+    if ((sim.tick + 1) % 5 !== 0) return;
+    const st = this.state;
+    for (const h of sim.entities.values()) {
+      if (h.kind !== 'hero' || h.talkTo === undefined) continue;
+      const e = sim.entities.get(h.talkTo);
+      if (!e || !e.talk || h.down) { delete h.talkTo; continue; }
+      if (Math.abs(h.px - e.px) > TALK_REACH || Math.abs(h.py - e.py) > TALK_REACH) {
+        // Arrived somewhere else (blocked): give up instead of talking later by chance
+        if ((h.order?.type ?? 'idle') === 'idle' && !h.path.length) delete h.talkTo;
+        continue;
+      }
+      delete h.talkTo;
+      const n = st.npcs[e.npc];
+      // Figures of mission files talk by nearness alone (updateNpcs)
+      if (!n?.script) continue;
+      sim.events.push({ type: 'npcTalked', id: e.npc, hero: h.hero, player: h.owner });
+      this.script?.talk(e.npc, h);
+    }
+  }
+
   /** Does a hero talk to a talk figure? (every 5 ticks) */
   updateNpcs(sim) {
     const st = this.state;
     if (!st.npcs || (sim.tick + 1) % 5 !== 0) return;
     for (const [id, n] of Object.entries(st.npcs)) {
-      if (n.state !== 'open') continue;
+      if (n.state === 'gone') continue;
       const e = sim.entities.get(n.entity);
       if (!e) { n.state = 'gone'; continue; }
+      if (n.state !== 'open' || n.script) continue;
       const d = this.def.npcs[id];
       const R = (d.radius ?? 2) * UNIT + 500;
       let right = null, wrong = null;
@@ -833,8 +894,8 @@ export class MissionRuntime {
   checkEnd(sim) {
     const st = this.state;
     if (st.result) return;
-    // Scenarios with a script determine their end solely via victory() and defeat()
-    if (this.def.scenario) return;
+    // Scenarios with the end rule 'script' end solely via victory() and defeat()
+    if (this.def.scenario && this.def.end !== 'objectives') return;
     if (!this.def.noDefeat) {
       if (sim.players[st.human].defeated) { this.finish(sim, false, 'hq'); return; }
       for (const o of st.objectives) {
@@ -848,10 +909,11 @@ export class MissionRuntime {
     if (ok && prim.some((o) => o.status === 'done')) this.finish(sim, true, 'objectives');
   }
 
-  finish(sim, won, reason) {
+  /** @param {string} reason picks the texts (victoryTexts/defeatTexts/debriefs) @param {any} [text] own text instead */
+  finish(sim, won, reason, text = null) {
     const st = this.state;
     if (st.result) return;
-    st.result = { won, tick: sim.tick, reason };
+    st.result = { won, tick: sim.tick, reason, ...(text ? { text } : {}) };
     if (won) {
       for (const o of st.objectives) if (o.status === 'active' && HOLD_TYPES.has(this.objectiveDef(o.id).type)) o.status = 'done';
       if (this.def.onVictory) this.runActions(sim, this.def.onVictory);
@@ -900,24 +962,35 @@ export class MissionRuntime {
     }
     return {
       id: st.id, title: def.title, objectives, tutorial, kind: def.kind ?? 'mission',
-      // all kept messages (at most MAX_MESSAGES): a conversation of many lines in one tick must not lose its start
-      messages: st.messages,
+      // all kept messages (at most MAX_MESSAGES): a conversation of many lines in one tick must not lose its start.
+      // A copy: the UI compares snapshots – the live array would change under its feet and a new line go unseen.
+      messages: st.messages.slice(),
       tributes: Object.entries(st.tributes ?? {}).filter(([, v]) => v === 'open').map(([id]) => {
         const d = this.def.tributes[id];
         return { id, text: d.text, cost: d.cost, affordable: sim.canPay(st.human, d.cost) };
       }),
       dialogSkip: st.dialogSkip ?? 0,
+      // Own speakers of a level (scenario.json "speakers", names of npc()): name, colour, portrait
+      speakers: this.speakerTable(),
       // Landmark (rendering only): { at, model } → location and model, e.g. the foundations of the village centre in mission 1
       landmarks: (def.landmarks ?? []).map((l) => ({ model: l.model, building: l.building ?? null, at: this.pointOf(sim, l.at) })).filter((l) => l.at),
       camera: st.camera,
       script: this.script ? this.script.uiState() : null,
       result: st.result ? {
         ...st.result, title: def.title,
-        text: st.result.won ? def.victoryText : (def.defeatTexts?.[st.result.reason] ?? def.defeatText),
-        debrief: st.result.won ? (typeof def.debrief === 'function' ? def.debrief(st) : def.debrief) ?? null : null,
+        text: st.result.text ?? (st.result.won ? byReason(def.victoryTexts, st.result.reason) ?? def.victoryText : byReason(def.defeatTexts, st.result.reason) ?? def.defeatText),
+        debrief: st.result.won ? byReason(def.debriefs, st.result.reason) ?? (typeof def.debrief === 'function' ? def.debrief(st) : def.debrief) ?? null : null,
         next: st.result.won ? def.next ?? null : null,
       } : null,
     };
+  }
+
+  /** Speakers of the level: scenario.json "speakers" plus the names given to npc(). */
+  speakerTable() {
+    const out = {};
+    for (const [id, sp] of Object.entries(this.def.scenario?.speakers ?? {})) out[id] = sp;
+    for (const [id, n] of Object.entries(this.state.npcs ?? {})) if (n.name && !Object.hasOwn(out, id)) out[id] = { name: n.name };
+    return out;
   }
 
   /**
