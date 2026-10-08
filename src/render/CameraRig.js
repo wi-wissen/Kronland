@@ -137,6 +137,22 @@ export class CameraRig {
     }
   }
 
+  /**
+   * Camera position for another view (target, rotation, tilt, distance) without changing the current one: poses
+   * temporarily (with terrain and house clearance) and restores afterwards.
+   * @returns {{x:number, y:number, z:number}}
+   */
+  positionFor(x, z, yaw, pitch, dist) {
+    const keep = { x: this.target.x, z: this.target.z, yaw: this.yaw, pitch: this.pitch, dist: this.dist };
+    this.target.x = x; this.target.z = z; this.yaw = yaw; this.pitch = pitch; this.dist = dist;
+    this.clamp();
+    this.pose();
+    const p = this.camera.position, out = { x: p.x, y: p.y, z: p.z };
+    this.target.x = keep.x; this.target.z = keep.z; this.yaw = keep.yaw; this.pitch = keep.pitch; this.dist = keep.dist;
+    this.pose();
+    return out;
+  }
+
   clamp() {
     this.target.x = Math.max(0, Math.min(this.bounds.w, this.target.x));
     this.target.z = Math.max(0, Math.min(this.bounds.h, this.target.z));
