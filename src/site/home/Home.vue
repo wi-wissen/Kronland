@@ -4,12 +4,13 @@
       <!-- Tiny blurred stand-in inlined into the page (~250 bytes): something to see before the still and video arrive -->
       <div class="hero-tiny" :style="{ backgroundImage: `url(${placeholder})` }" aria-hidden="true"></div>
       <picture class="hero-bg">
-        <img :src="img('hero')" :srcset="img('hero') + ' 1440w, ' + img('hero-wide') + ' 2880w'" sizes="100vw" :alt="$s('home.heroAlt')" width="1440" height="900" fetchpriority="high">
+        <img :src="img('hero')" :srcset="img('hero') + ' 1440w, ' + img('hero-wide') + ' 2880w'" sizes="100vw" :alt="$s('home.heroAlt')" width="1440" height="900" fetchpriority="high" @load="stillReady = true" @error="stillReady = true">
       </picture>
-      <!-- The same scene recorded in the game as a silent loop (scripts/site-video.py); fades in over the still once it
-           really plays. Not with "reduce motion" or "save data"; if autoplay is refused the still simply stays. -->
+      <!-- The same scene recorded in the game as a silent loop (scripts/site-video.py); loads only once the still is there
+           (the still stays the first real picture, on phones too) and fades in over it once it really plays.
+           Not with "reduce motion" or "save data"; if autoplay is refused the still simply stays. -->
       <video
-        v-if="motion"
+        v-if="motion && stillReady"
         class="hero-video"
         :class="{ playing }"
         muted autoplay loop playsinline disablepictureinpicture disableremoteplayback
@@ -151,6 +152,7 @@ export default {
     return {
       reduced: !!matchQuery('(prefers-reduced-motion: reduce)')?.matches,
       playing: false,
+      stillReady: false,
       placeholder: HERO_PLACEHOLDER,
       // chosen once on load, like the still from its srcset
       heroSize: heroSize({ width: globalThis.innerWidth, dpr: globalThis.devicePixelRatio }),
@@ -189,6 +191,9 @@ export default {
     heroVideo() { return HERO_VIDEO[this.heroSize].map((v) => ({ src: siteUrl(v.path), type: v.type })); },
   },
   mounted() {
+    // the still may already be there (cache) before Vue listens for its load event
+    const still = this.$el.querySelector?.('.hero-bg img');
+    if (still?.complete && still.naturalWidth) this.stillReady = true;
     this.mq = matchQuery('(prefers-reduced-motion: reduce)');
     this.onReduce = () => { this.reduced = !!this.mq?.matches; };
     this.mq?.addEventListener?.('change', this.onReduce);

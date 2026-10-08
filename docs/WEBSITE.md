@@ -210,7 +210,9 @@ node scripts/video-loop.mjs assets-src/site/hero-loop-2x/raw.mp4 --out site/hero
 - **Größenwahl** (`heroSize`): mehr als 1600 Gerätepixel Fensterbreite (großer oder 4K-Monitor, scharfes Notebook,
   Tablet) bekommt 1920 px, Handys und normale Bildschirme 1440 px; einmal beim Laden, wie beim Standbild über `srcset`.
 - **Ladereihenfolge:** sofort ein winziges, unscharfes Vorschaubild (32×20 px, ~250 Byte, als Data-URI im Code,
-  `heroPlaceholder.js`, erzeugt `site-screens.py` mit `hero`), dann das Standbild, dann blendet das Video ein. Der
+  `heroPlaceholder.js`, erzeugt `site-screens.py` mit `hero`), dann das Standbild; erst wenn es geladen ist, lädt
+  das Video und blendet ein. Handys bekommen das Video auch (1440 px, 0,6 MB, weniger als manches Titelbild); der
+  Datensparmodus und der iOS-Stromsparmodus halten es ohnehin an. Der
   Schatten (`.hero-shade`) liegt über allen dreien, die Schrift bleibt lesbar.
 - **Einbindung:** `src/site/home/heroVideo.js` (`HERO_VIDEO`, `heroSize`), `<video>` in `Home.vue` über dem Standbild; es
   blendet erst ein, wenn es wirklich läuft. Kein Video bei „Bewegung reduzieren“ und „Datensparmodus“; verweigert der
