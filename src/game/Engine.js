@@ -52,6 +52,8 @@ const DIALOG_DIST = 8, DIALOG_FLY_MS = 1100, DIALOG_BACK_MS = 1200;
 /** Figures checked for the clear view of a scripted camera move: kinds, search radius (tiles), at most this many. */
 const VIEW_FIGURES = new Set(['unit', 'worker', 'soldier', 'leader', 'hero', 'npc']);
 const VIEW_RADIUS = 2.5, VIEW_MAX = 6;
+/** Phone "watch game": after a manual camera move the camera stops following the figure this long (ms). */
+const WATCH_MANUAL_MS = 5000;
 
 /** Build preview yellow ("will be levelled") if a tile deviates from the plane by more than this many cm. */
 export const LEVEL_NOTICE = 40;
@@ -239,7 +241,7 @@ export class Engine {
       this.droppedTicks += r.dropped;
     }
     const g = this.faults;
-    g.run('ui', () => { this.input.edgeScroll(dt); this.followFocus(now); this.flyCamera(now); }, (f) => f && this.fault('ui'));
+    g.run('ui', () => { this.input.edgeScroll(dt); this.followFocus(now); this.followWatched(now, dt); this.flyCamera(now); }, (f) => f && this.fault('ui'));
     g.run('render', () => this.renderer.frame(this.paused ? 1 : this.acc / TICK_MS, dt, this.prev, {
       selected: this.selected,
       ghost: this.placing?.hasPos ? this.placing : null,
@@ -526,7 +528,62 @@ export class Engine {
     if (!s.behind && sx >= m && sx <= vp.w - m && sy >= top + m && sy <= bottom - m) return false;
     r.rig.lookAtScreen(x, z, (top + bottom) / 2, vp.h);
     this.pendingFocus = null;
+    if (this.watchFollow) this.watchFollow.cam = null; // our own move, not the player's
     return true;
+  }
+
+  /**
+   * Phone, "watch game" of the code panel: the camera keeps following the figure the player program controlled last
+   * (step, turn, take …; otherwise the own hero). bottomPx: height covered by the run strip; null switches it off.
+   */
+  setWatchFollow(bottomPx) {
+    this.watchFollow = bottomPx === null || bottomPx === undefined ? null : { bottom: Math.max(0, bottomPx), manualUntil: 0, cam: null, moving: false };
+  }
+
+  /** Figure the player program controls (last command), else the own hero. */
+  watchedFigure() {
+    const id = this.sim.mission?.script?.focus;
+    const e = id ? this.sim.entities.get(id) : null;
+    if (e && e.owner === this.player && e.px !== undefined) return e;
+    for (const h of this.sim.entities.values()) if (h.kind === 'hero' && h.owner === this.player) return h;
+    return null;
+  }
+
+  /**
+   * Per frame while watching on the phone: when the figure leaves the free area (below the header, above the strip),
+   * the camera glides after it until it is in the middle again. A manual camera move (pan, zoom, rotate) pauses this
+   * for a few seconds – the player's view wins.
+   */
+  followWatched(now, dt) {
+    const f = this.watchFollow, r = this.renderer, rig = r?.rig, vp = r?.viewport;
+    if (!f || !rig || !vp || this.camFly) return;
+    const cam = { x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist, pitch: rig.pitch };
+    const same = (a, b) => a && Math.abs(a.x - b.x) < 1e-3 && Math.abs(a.z - b.z) < 1e-3 && Math.abs(a.yaw - b.yaw) < 1e-4 && Math.abs(a.dist - b.dist) < 1e-3 && Math.abs(a.pitch - b.pitch) < 1e-4;
+    if (f.cam && !same(f.cam, cam)) { f.manualUntil = now + WATCH_MANUAL_MS; f.moving = false; }
+    f.cam = cam;
+    if (now < f.manualUntil) return;
+    const e = this.watchedFigure();
+    if (!e) return;
+    const rec = r.chars?.records.get(e.id);
+    const x = rec ? rec.position.x : e.px / UNIT, z = rec ? rec.position.z : e.py / UNIT;
+    const top = Math.min(this.hudInsets().top, vp.h * 0.3), bottom = vp.h - f.bottom;
+    if (!f.moving) {
+      const s = r.project(x, r.terrain.heightAt(x, z) + 0.3, z);
+      const c = r.renderer.domElement.getBoundingClientRect();
+      const sx = s.x - c.left, sy = s.y - c.top, mx = vp.w * 0.18, my = (bottom - top) * 0.18;
+      if (!s.behind && sx >= mx && sx <= vp.w - mx && sy >= top + my && sy <= bottom - my) return;
+      f.moving = true;
+    }
+    // glide: where the camera would have to look, approached smoothly
+    const from = { x: rig.target.x, z: rig.target.z };
+    rig.lookAtScreen(x, z, (top + bottom) / 2, vp.h);
+    const k = Math.min(1, dt * 4), tx = rig.target.x, tz = rig.target.z;
+    rig.target.x = from.x + (tx - from.x) * k;
+    rig.target.z = from.z + (tz - from.z) * k;
+    rig.clamp();
+    if (Math.abs(tx - rig.target.x) < 0.05 && Math.abs(tz - rig.target.z) < 0.05) f.moving = false;
+    f.cam = { x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist, pitch: rig.pitch };
+    this.pendingFocus = null;
   }
 
   /** After a camera jump: if the panel height changes, place the target in the free area again. */

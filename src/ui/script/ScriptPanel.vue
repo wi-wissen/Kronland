@@ -92,6 +92,7 @@
                 :readonly="!s.editable"
                 :running-line="runningLine(s)"
                 :error-line="errorLine(s)"
+                :hint-lines="hints.lines[s.id] ?? []"
                 :breakpoints="bps[s.id] ?? []"
                 :label="$tr(s.title)"
                 @update:model-value="edited(s.id)"
@@ -104,6 +105,12 @@
               <b>{{ errorText.title }}</b>
               <p>{{ errorText.text }}</p>
             </div>
+            <!-- Hints: amber, the program keeps running; vanish when their section is edited (like errors) -->
+            <div v-for="h in hints.list" :key="h.seq" class="sp-hint" role="status" data-testid="script-hint">
+              <b>{{ hintTitle(h) }}</b>
+              <p>{{ hintText(h) }}</p>
+            </div>
+            <p v-if="hints.more" class="sp-hint-more" data-testid="script-hint-more">{{ $t('script.hint.more', { n: hints.more }) }}</p>
             <div v-if="vars" class="sp-vars" data-testid="script-vars">
               <div class="sp-var-col">
                 <h4>{{ $t('script.vars.globals') }}</h4>
@@ -177,6 +184,7 @@
           <button data-testid="script-watch-stop" @click="stop"><span class="sp-glyph" aria-hidden="true">■</span>{{ $t('script.stop') }}</button>
         </template>
         <button v-else class="ghost" data-testid="script-watch-hide" @click="stripHidden = true"><Icon name="close" />{{ $t('script.hide') }}</button>
+        <button v-if="hints.list.length" class="sp-watch-hint" data-testid="script-watch-hint" @click="toCode"><span class="sp-glyph" aria-hidden="true">!</span>{{ $t('script.hint.title') }}</button>
         <button class="primary" data-testid="script-watch-code" @click="toCode"><span class="sp-code-ico" aria-hidden="true">&lt;/&gt;</span>{{ $t('script.code') }}</button>
       </div>
     </div>
@@ -187,8 +195,8 @@
 import CodeEditor from './CodeEditor.vue';
 import KeyBar from './KeyBar.vue';
 import { refUrl } from './reference.js';
-import { scriptErrorText, tr } from '../../i18n/index.js';
-import { shownError, shownStatus, consoleView, fileName, sourceFromFile, MAX_FILE_BYTES } from './panelState.js';
+import { scriptErrorText, tr, t } from '../../i18n/index.js';
+import { shownError, shownStatus, shownHints, consoleView, fileName, sourceFromFile, MAX_FILE_BYTES } from './panelState.js';
 import { loadSplit, saveSplit, panelWidth, widthFromPointer, guideOffset, clampWidth } from './splitLayout.js';
 
 /** Arrow keys on the divider: the width is applied this long after the last key press (ms) */
@@ -250,6 +258,8 @@ export default {
     vars() { return this.paused ? this.player.vars : null; },
     error() { return shownError(this.player, this.dirty); },
     errorText() { return this.error ? this.errText(this.error, true) : { title: '', text: '' }; },
+    /** Hints of the current run (and of the mission sections in the editor), see panelState.shownHints */
+    hints() { return shownHints(this.script, { mode: this.mode, dirty: this.dirty }); },
     consoleLines() {
       // Only the current run; the current error is already in the error box above
       return consoleView(this.script.console, { mode: this.mode, since: this.player?.since ?? 0, error: this.error, dirty: this.dirty });
@@ -284,6 +294,8 @@ export default {
       if (s === 'paused' && before !== 'paused' && !this.split && !this.open) { this.tab = 'code'; this.$emit('update:open', true); }
     },
     open(o) { if (o) this.menu = false; },
+    // Phone, watching the game: the camera follows the figure the program controls (Engine.followWatched)
+    showStrip(on) { this.followWatch(on); },
     consoleLines(now, before) {
       // New output: keep the end of the console in view
       const last = now[now.length - 1]?.seq ?? 0;
@@ -300,6 +312,7 @@ export default {
   },
   beforeUnmount() {
     this.engine?.setGrid?.(false);
+    this.engine?.setWatchFollow?.(null);
     window.removeEventListener('resize', this.onResize);
     clearTimeout(this.keyTimer);
     this.$emit('width', 0);
@@ -321,6 +334,15 @@ export default {
       return l && l.section === s.id && this.busy ? l.line : -1;
     },
     errorLine(s) { return this.error && this.error.section === s.id ? this.error.sline : -1; },
+    /** "Hint · line 4" (with the section if there are several). */
+    hintTitle(h) {
+      const sec = (this.scenario.sections ?? []).find((x) => x.id === h.section);
+      if (!h.sline) return t('script.hint.title');
+      return sec && this.sections.length > 1
+        ? t('script.hint.whereSection', { section: tr(sec.title), line: h.sline })
+        : t('script.hint.where', { line: h.sline });
+    },
+    hintText(h) { return t(h.code, h.params ?? {}); },
     errText(e, full = false) {
       const sec = (this.scenario.sections ?? []).find((x) => x.id === e.section);
       const r = scriptErrorText(e, { section: sec && this.sections.length > 1 ? tr(sec.title) : undefined, line: e.sline || undefined });
@@ -381,6 +403,13 @@ export default {
     watchGame() {
       this.$emit('update:open', false);
       this.$nextTick(() => requestAnimationFrame(() => this.engine?.watchFocus?.(this.$refs.strip?.getBoundingClientRect().height ?? 0)));
+    },
+    /** Camera follows the controlled figure while the run strip is shown (phone), with its height as covered area. */
+    followWatch(on) {
+      if (!on) { this.engine?.setWatchFollow?.(null); return; }
+      this.$nextTick(() => requestAnimationFrame(() => {
+        if (this.showStrip) this.engine?.setWatchFollow?.(this.$refs.strip?.getBoundingClientRect().height ?? 0);
+      }));
     },
     /** Run strip → back to the code */
     toCode() { this.tab = 'code'; this.$emit('update:open', true); },
@@ -596,6 +625,11 @@ export default {
 .sp-locked .ico { width: 0.75rem; height: 0.75rem; opacity: 0.8; }
 /* Narrow panel: the badge keeps only its lock */
 @container (max-width: 22rem) { .sp-fold-lines { display: none; } }
+.sp-hint { padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: rgba(196, 140, 30, 0.2); box-shadow: inset 3px 0 0 #f0b43c; }
+.sp-hint b { color: #f5c46a; font-size: var(--fs-sm); }
+.sp-hint p { margin: 0.125rem 0 0; font-size: var(--fs-sm); line-height: 1.4; }
+.sp-hint-more { margin: 0; font-size: var(--fs-xs); color: #d9b46a; }
+.sp-watch-hint { color: #2a1a04; background: #f0b43c; border-color: #f5c46a; }
 .sp-error { padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: rgba(163, 50, 31, 0.28); box-shadow: inset 3px 0 0 var(--bad); }
 .sp-error b { color: #ffc2b5; font-size: var(--fs-sm); }
 .sp-error p { margin: 0.125rem 0 0; font-size: var(--fs-sm); line-height: 1.4; }

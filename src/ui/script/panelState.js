@@ -40,6 +40,32 @@ export function consoleView(lines, { mode, since = 0, error = null, dirty, max =
 }
 
 /**
+ * Hints the panel shows (amber line marker and box): valid code that rarely does what was meant, the program keeps
+ * running (src/script/hints.js). Player hints of the current run; in the world editor also those of the mission
+ * sections. Like errors, hints of a section disappear as soon as it was edited; at most `max` boxes, the rest is
+ * counted. The same hint on the same line counts once.
+ * @param {{ player?: { hints?: any[] }, missionHints?: any[] }|null|undefined} script ui.mission.script
+ * @param {{ mode: string, dirty: Record<string, boolean>, max?: number }} o
+ * @returns {{ list: any[], more: number, lines: Record<string, number[]> }} lines: marked lines per section
+ */
+export function shownHints(script, { mode, dirty, max = 2 }) {
+  const all = [...(script?.player?.hints ?? []), ...(mode === 'editor' ? script?.missionHints ?? [] : [])];
+  const seen = new Set();
+  const list = [];
+  /** @type {Record<string, number[]>} */
+  const lines = {};
+  for (const h of all) {
+    if (!h || dirty[h.section]) continue;
+    const key = `${h.section}:${h.sline}:${h.code}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    list.push(h);
+    if (h.sline > 0 && !(lines[h.section] ??= []).includes(h.sline)) lines[h.section].push(h.sline);
+  }
+  return { list: list.slice(0, max), more: Math.max(0, list.length - max), lines };
+}
+
+/**
  * File name for the download: scenario id (or title) as a safe name with .py.
  * @param {string} [name]
  */

@@ -8,7 +8,7 @@
         v-for="n in lineCount"
         :key="n"
         class="ce-ln"
-        :class="{ error: n === errorLine, running: n === runningLine, bp: breakpoints.includes(n) }"
+        :class="{ error: n === errorLine, running: n === runningLine, bp: breakpoints.includes(n), hint: hintLines.includes(n) && n !== errorLine }"
         :data-testid="'ce-line-' + n"
         @click="toggleBreakpoint(n)"
       >
@@ -17,7 +17,7 @@
     </div>
     <div class="ce-area">
       <div class="ce-bg" aria-hidden="true">
-        <div v-for="n in lineCount" :key="n" class="ce-bgl" :class="{ error: n === errorLine, running: n === runningLine }"></div>
+        <div v-for="n in lineCount" :key="n" class="ce-bgl" :class="{ error: n === errorLine, running: n === runningLine, hint: hintLines.includes(n) && n !== errorLine && n !== runningLine }"></div>
       </div>
       <!-- eslint-disable-next-line vue/no-v-html -->
       <pre ref="pre" class="ce-pre" aria-hidden="true" v-html="html"></pre>
@@ -114,6 +114,8 @@ export default {
     readonly: Boolean,
     /** 1-based lines */
     errorLine: { type: Number, default: -1 },
+    /** Lines with a hint (amber marker, the program keeps running) */
+    hintLines: { type: Array, default: () => [] },
     runningLine: { type: Number, default: -1 },
     breakpoints: { type: Array, default: () => [] },
     /** Number of the first line (display) */
@@ -405,11 +407,13 @@ export default {
 .ce-ln.bp .ce-dot { background: #e2533f; box-shadow: 0 0 0 1px #2a0e08; }
 .ce-ln.running { color: #b9f29e; }
 .ce-ln.error { color: #ffb3a6; }
+.ce-ln.hint { color: #f5c46a; }
 .ce-area { position: relative; flex: 1; min-width: 0; }
 .ce-bg { position: absolute; inset: 0; padding: 0.5rem 0; pointer-events: none; }
 .ce-bgl { height: var(--ce-lh); }
 .ce-bgl.running { background: rgba(120, 200, 90, 0.22); box-shadow: inset 3px 0 0 #8bd96f; }
 .ce-bgl.error { background: rgba(243, 122, 100, 0.22); box-shadow: inset 3px 0 0 #f37a64; }
+.ce-bgl.hint { background: rgba(240, 180, 60, 0.14); box-shadow: inset 3px 0 0 #f0b43c; }
 .ce-pre, .ce-input {
   margin: 0; padding: 0.5rem 0.625rem; border: 0; font: inherit; line-height: inherit; letter-spacing: normal;
   white-space: pre; tab-size: 4; font-variant-ligatures: none; overflow-wrap: normal;
