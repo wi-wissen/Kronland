@@ -38,6 +38,7 @@ export function validateScenario(s) {
   if (s.format !== SCENARIO_FORMAT) out.push(`format must be "${SCENARIO_FORMAT}"`);
   if (!VERSIONS.includes(s.version)) out.push(`version ${s.version} is not supported`);
   if (s.end !== undefined && !END_RULES.includes(s.end)) out.push(`end must be ${END_RULES.join(' or ')}`);
+  if (s.reset !== undefined && typeof s.reset !== 'boolean') out.push('reset must be true or false');
   if (typeof s.id !== 'string' || !/^[\w-]+$/.test(s.id)) out.push('id missing or contains invalid characters');
   if (!Array.isArray(s.players) || !s.players.length) out.push('players missing');
   else if (s.players[0].kind !== 'human') out.push('players[0] must be the human');

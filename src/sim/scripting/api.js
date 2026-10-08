@@ -67,7 +67,7 @@ export function toInt(v, name) {
  * Limits for shared levels: a script must not freeze the browser or blow up the save game.
  * World building per call (radius, count), number of places, goals and event handlers, length of texts.
  */
-export const LIMITS = { radius: 64, trees: 2000, spawn: 50, serfs: 100, places: 500, objectives: 100, handlers: 200, text: 2000, npcs: 50 };
+export const LIMITS = { radius: 64, trees: 2000, spawn: 50, serfs: 100, places: 500, objectives: 100, handlers: 200, text: 2000, npcs: 50, noteCode: 20_000 };
 
 /** Names of places, goals and keys chosen by a script: letters, digits, _ and -, starting with a letter. */
 export const NAME_RE = /^[A-Za-z][\w-]{0,63}$/;
@@ -163,18 +163,18 @@ export const API_DOC = [
   { name: 'reveal', sig: 'reveal(target, radius=None, seconds=30)', level: 'mission', group: 'story' },
   // Events (decorators)
   { name: 'on_start', sig: '@on_start', level: 'mission', group: 'events' },
-  { name: 'every', sig: '@every(seconds)', level: 'mission', group: 'events' },
-  { name: 'on_building_done', sig: '@on_building_done(kind=None, player=HUMAN)', level: 'mission', group: 'events' },
-  { name: 'on_building_placed', sig: '@on_building_placed(kind=None, player=HUMAN)', level: 'mission', group: 'events' },
-  { name: 'on_destroyed', sig: '@on_destroyed(kind=None, owner=None)', level: 'mission', group: 'events' },
-  { name: 'on_killed', sig: '@on_killed(owner=None)', level: 'mission', group: 'events' },
-  { name: 'on_recruited', sig: '@on_recruited(player=HUMAN)', level: 'mission', group: 'events' },
-  { name: 'on_research', sig: '@on_research(tech=None, player=HUMAN)', level: 'mission', group: 'events' },
-  { name: 'on_enter', sig: '@on_enter(target, who="any", player=HUMAN)', level: 'mission', group: 'events' },
-  { name: 'on_objective', sig: '@on_objective(id, status=None)', level: 'mission', group: 'events' },
-  { name: 'on_weather', sig: '@on_weather(state=None)', level: 'mission', group: 'events' },
+  { name: 'every', sig: '@every(seconds)', level: 'player', group: 'events' },
+  { name: 'on_building_done', sig: '@on_building_done(kind=None, player=HUMAN)', level: 'player', group: 'events' },
+  { name: 'on_building_placed', sig: '@on_building_placed(kind=None, player=HUMAN)', level: 'player', group: 'events' },
+  { name: 'on_destroyed', sig: '@on_destroyed(kind=None, owner=None)', level: 'player', group: 'events' },
+  { name: 'on_killed', sig: '@on_killed(owner=None)', level: 'player', group: 'events' },
+  { name: 'on_recruited', sig: '@on_recruited(player=HUMAN)', level: 'player', group: 'events' },
+  { name: 'on_research', sig: '@on_research(tech=None, player=HUMAN)', level: 'player', group: 'events' },
+  { name: 'on_enter', sig: '@on_enter(target, who="any", player=HUMAN)', level: 'player', group: 'events' },
+  { name: 'on_objective', sig: '@on_objective(id, status=None)', level: 'player', group: 'events' },
+  { name: 'on_weather', sig: '@on_weather(state=None)', level: 'player', group: 'events' },
   { name: 'on_talk', sig: '@on_talk(id=None)', level: 'mission', group: 'events' },
-  { name: 'on_event', sig: '@on_event(name, …)', level: 'mission', group: 'events' },
+  { name: 'on_event', sig: '@on_event(name, …)', level: 'player', group: 'events' },
   // Goals and end
   { name: 'objective', sig: 'objective(id, condition=None, de=None, en=None, primary=True, hidden=False)', level: 'mission', group: 'goals' },
   { name: 'complete', sig: 'complete(id)', level: 'mission', group: 'goals' },
@@ -183,6 +183,8 @@ export const API_DOC = [
   { name: 'victory', sig: 'victory(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
   { name: 'defeat', sig: 'defeat(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
   { name: 'program.get', sig: 'program.get(name, default=None) · program.status · program.runs', level: 'mission', group: 'goals' },
+  { name: 'note', sig: 'note(speaker, code, title=None, de=None, en=None, editable=True)', level: 'mission', group: 'goals' },
+  { name: 'reset', sig: 'reset(on=True)', level: 'mission', group: 'goals' },
   { name: 'hints', sig: 'hints(on=True)', level: 'mission', group: 'goals' },
   // Intervening
   { name: 'spawn', sig: 'spawn(owner, kind, at, count=1, soldiers=None)', level: 'mission', group: 'power' },
@@ -696,7 +698,10 @@ export function makeApi(host, level) {
     const last = a[a.length - 1];
     if (last instanceof PyFunction && Object.keys(kw).length === 0) {
       const filt = args(kind, a.slice(0, -1), {}, names.map((n) => (n.startsWith('?') ? n : `?${n}`)));
-      host.register(ctx.vm, kind, last, Object.fromEntries(names.map((n, i) => [n.replace(/^\?/, ''), filt[i] ?? null])));
+      const filters = Object.fromEntries(names.map((n, i) => [n.replace(/^\?/, ''), filt[i] ?? null]));
+      // Player programs only hear about their own buildings, figures and research (what their UI reports)
+      if (!isMission) for (const k of ['player', 'owner']) if (k in filters && kind !== 'on_enter') filters[k] = human();
+      host.register(ctx.vm, kind, last, filters);
       return last;
     }
     if (last instanceof PyPartial || last instanceof PyBuiltin) throw new ScriptError('type', { what: 'decoratorFunction' });
@@ -711,25 +716,27 @@ export function makeApi(host, level) {
     if (!(first instanceof PyFunction) && first !== undefined) toTicks(first, 'seconds');
     if (kw.seconds !== undefined) toTicks(kw.seconds, 'seconds');
     return decorator('every', ['seconds'])(ctx, a, kw);
-  }, true);
-  def('on_building_done', decorator('on_building_done', ['?kind', '?player']), true);
-  def('on_building_placed', decorator('on_building_placed', ['?kind', '?player']), true);
-  def('on_destroyed', decorator('on_destroyed', ['?kind', '?owner']), true);
-  def('on_killed', decorator('on_killed', ['?owner']), true);
-  def('on_recruited', decorator('on_recruited', ['?player']), true);
-  def('on_research', decorator('on_research', ['?tech', '?player']), true);
-  def('on_enter', decorator('on_enter', ['target', '?who', '?player']), true);
-  def('on_objective', decorator('on_objective', ['id', '?status']), true);
-  def('on_weather', decorator('on_weather', ['?state']), true);
+  });
+  def('on_building_done', decorator('on_building_done', ['?kind', '?player']));
+  def('on_building_placed', decorator('on_building_placed', ['?kind', '?player']));
+  def('on_destroyed', decorator('on_destroyed', ['?kind', '?owner']));
+  def('on_killed', decorator('on_killed', ['?owner']));
+  def('on_recruited', decorator('on_recruited', ['?player']));
+  def('on_research', decorator('on_research', ['?tech', '?player']));
+  def('on_enter', decorator('on_enter', ['target', '?who', '?player']));
+  def('on_objective', decorator('on_objective', ['id', '?status']));
+  def('on_weather', decorator('on_weather', ['?state']));
   def('on_talk', decorator('on_talk', ['?id']), true);
   /** One decorator for every event: @on_event("talk", id="alchemist") is the same as @on_talk("alchemist"). */
   def('on_event', (ctx, a, kw) => {
     const name = a[0] ?? kw.name;
     if (typeof name !== 'string') throw gameErr('eventName', { events: Object.keys(EVENTS).join(', ') });
-    if (!Object.hasOwn(EVENTS, name)) throw gameErr('eventUnknown', { name: name.slice(0, 40), suggestion: suggest(name, Object.keys(EVENTS)) });
+    // Player programs know the events their UI also sees (not start and talk)
+    const known = Object.keys(EVENTS).filter((k) => natives[EVENTS[k]]);
+    if (!known.includes(name)) throw gameErr('eventUnknown', { name: name.slice(0, 40), suggestion: suggest(name, known) });
     const { name: _n, ...rest } = kw;
     return natives[EVENTS[name]](ctx, a.slice(1), rest);
-  }, true);
+  });
 
   // ---------- Missions: goals ----------
 
@@ -1054,6 +1061,24 @@ export function makeApi(host, level) {
     const [n, dflt = null] = args('get', a, kw, ['name', '?default']);
     return host.playerVariable(strArg(n, 'name'), dflt);
   }, true);
+  /**
+   * note(speaker, code, title=None, de/en=None, editable=True): a figure hands the player a note with code. It replaces
+   * the program in the code panel and carries the figure's seal; the own code stays reachable ("back to my code").
+   */
+  def('note', (ctx, a, kw) => {
+    const [speaker, code, title, de, en, editable = true] = args('note', a, kw, ['speaker', 'code', '?title', '?de', '?en', '?editable']);
+    const text = strArg(code, 'code');
+    if (text.length > LIMITS.noteCode) throw new ScriptError('value', { what: 'tooBig', name: 'code', max: LIMITS.noteCode, value: String(text.length) });
+    const t = textArg('note', title, de, en, false);
+    host.note(speaker === null ? null : nameArg(speaker, 'speaker'), text, t === null ? null : host.text(t), truthy(editable));
+    return null;
+  }, true);
+  /** reset(False): "Run" no longer restarts the stage (building missions); reset() switches it on again. */
+  def('reset', (ctx, a, kw) => {
+    const [on = true] = args('reset', a, kw, ['?on']);
+    host.state.reset = !!truthy(on);
+    return null;
+  }, true);
 
   // ---------- Predefined names ----------
 
@@ -1248,8 +1273,21 @@ export function makeApi(host, level) {
   const steerable = (e) => e.kind === 'hero' || e.kind === 'unit' || e.kind === 'leader';
   const checkUp = (e) => { if (e.kind === 'hero' && e.down) throw gameErr('heroDown', {}); };
 
+  /**
+   * Player programs: a figure that another task of the same program is steering right now (walking, turning, picking
+   * up …) cannot take a second command – "… is busy" instead of the last command silently winning.
+   */
+  const claim = (ctx, e) => {
+    if (isMission || !ctx?.vm) return;
+    for (const t of ctx.vm.tasks.values()) {
+      if (t !== ctx.task && t.state === 'waiting' && t.wait?.id === e.id) throw gameErr('busy', { name: e.kind === 'hero' ? e.hero : e.kind === 'leader' ? 'troop' : 'serf' });
+    }
+  };
+  const STEERING = new Set(['step', 'turn_left', 'turn_right', 'turn_to', 'move_to', 'take', 'put', 'chop', 'work_on', 'attack', 'hold', 'defend']);
+
   function unitMethod(ctx, e, obj, name, a, kw) {
     const s = sim();
+    if (STEERING.has(name) && steerable(e)) claim(ctx, e);
     switch (name) {
       case 'start_talking': case 'stop_talking':
         args(name, a, kw, []);
@@ -1270,7 +1308,7 @@ export function makeApi(host, level) {
         checkUp(e);
         e.face = (faceOf(e) + (name === 'turn_left' ? 3 : 1)) % 4;
         host.focusOn(e.id);
-        return new Suspend({ k: 't', until: s.tick + 3 });
+        return new Suspend({ k: 't', id: e.id, until: s.tick + 3 });
       }
       case 'turn_to': {
         const [dirV] = args(name, a, kw, ['direction']);
@@ -1279,7 +1317,7 @@ export function makeApi(host, level) {
         checkUp(e);
         e.face = dir;
         host.focusOn(e.id);
-        return new Suspend({ k: 't', until: s.tick + 3 });
+        return new Suspend({ k: 't', id: e.id, until: s.tick + 3 });
       }
       // ----- sensors (read only, take no time) -----
       case 'front': case 'left': case 'right': case 'here': {
@@ -1310,14 +1348,14 @@ export function makeApi(host, level) {
         const kind = itemAt(s.map, here.x, here.y);
         command({ type: 'item', action: 'take', unit: e.id, player: e.owner });
         host.focusOn(e.id);
-        return new Suspend({ k: 't', until: s.tick + BALANCE.ground.itemTicks, value: kind });
+        return new Suspend({ k: 't', id: e.id, until: s.tick + BALANCE.ground.itemTicks, value: kind });
       }
       case 'put': {
         const [k = 'coin'] = args(name, a, kw, ['?kind']);
         const kind = itemKindArg(k);
         command({ type: 'item', action: 'put', unit: e.id, kind, player: e.owner });
         host.focusOn(e.id);
-        return new Suspend({ k: 't', until: s.tick + BALANCE.ground.itemTicks });
+        return new Suspend({ k: 't', id: e.id, until: s.tick + BALANCE.ground.itemTicks });
       }
       // ----- serfs: fell the tree in front by the rules of the game (job system, real duration) -----
       case 'chop': {
@@ -1384,6 +1422,16 @@ export function makeApi(host, level) {
     }
   }
 
+  /**
+   * Figures of a player in an area (@on_enter): missions see everything, player programs only the figures their
+   * player sees (fog of war). Sorted by ID.
+   */
+  const inArea = (target, playerV, whoV) => {
+    const c = pt(target);
+    const list = sapi.unitsInArea(sim(), playerOf(playerV), { ...c, r: Math.max(1, c.r) }, strArg(whoV ?? 'any', 'who'));
+    return list.filter(visibleTo).sort((x, y) => x.id - y.id).map(handle);
+  };
+
   const known = [...Object.keys(globals), 'HUMAN', 'ENEMY', 'BANDITS', 'hero', ...HERO_IDS];
-  return { natives, globals, dynamic, hostHooks, known, modules, vocab: hintVocab(level) };
+  return { natives, globals, dynamic, hostHooks, known, modules, vocab: hintVocab(level), inArea };
 }
