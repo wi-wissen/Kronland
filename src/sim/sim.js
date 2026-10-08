@@ -927,7 +927,18 @@ export class Sim {
     // Mission: goals, triggers, bandits (hook 3 of 3)
     this.mission?.update(this);
     this.tick++;
+    // Bonus thalers of computer opponents (Sim.setAi), at the start of the tick the AI sees
+    if (this.tick % BALANCE.aiBonusTicks === 0 && this.winner === null) for (const p of this.players) if (p.aiBonus && !p.defeated) p.stock.gold += p.aiBonus;
     return this.events;
+  }
+
+  /**
+   * Computer opponent setting: thalers it receives every BALANCE.aiBonusTicks (0 = none). Called by the AI
+   * on every client alike; part of the save game and the state hash.
+   */
+  setAi(player, bonusGold) {
+    const p = this.players[player];
+    if (p) p.aiBonus = Math.max(0, Math.trunc(bonusGold || 0));
   }
 
   /** Compute several ticks. */
@@ -944,7 +955,7 @@ export class Sim {
     for (const v of this.rng.getState()) h.int(v);
     for (const p of this.players) {
       for (const r of RESOURCES) h.int(p.stock[r]).int(p.raw[r]);
-      h.int(p.taxLevel).int(p.faith).int(p.techs.size).int(p.weatherEnergy ?? 0).int(p.weatherReadyAt ?? 0);
+      h.int(p.taxLevel).int(p.faith).int(p.techs.size).int(p.weatherEnergy ?? 0).int(p.weatherReadyAt ?? 0).int(p.aiBonus ?? 0);
     }
     for (const r of RESOURCES) h.int(this.market.prices[r]);
     for (const k of Object.keys(this.diplomacy ?? {}).sort()) h.str(k).str(this.diplomacy[k]);
@@ -958,8 +969,8 @@ export class Sim {
       h.int(e.id).str(e.kind).int(e.owner ?? -1);
       if (e.fearUntil !== undefined) h.int(e.fearUntil);
       if (e.fleeUntil !== undefined) h.int(e.fleeUntil).int(e.fleeGoal);
-      if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp).int(e.spot ?? -1).int(e.slot ?? -1);
-      else if (e.kind === 'leader') h.int(e.px).int(e.py).int(e.hp).int(e.targetId).int(e.cooldown).int(e.xp ?? 0);
+      if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp).int(e.spot ?? -1).int(e.slot ?? -1).int(e.face ?? -1);
+      else if (e.kind === 'leader') h.int(e.px).int(e.py).int(e.hp).int(e.targetId).int(e.cooldown).int(e.xp ?? 0).int(e.face ?? -1);
       else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state).int(e.slot ?? -1);
       else if (e.px !== undefined) h.int(e.px).int(e.py).int(e.hp ?? 0).int(e.targetId ?? 0).int(e.cooldown ?? 0).int(e.face ?? -1);
       else if (e.kind === 'building') {
@@ -969,8 +980,9 @@ export class Sim {
       else if (e.kind === 'camp') h.int(e.x).int(e.y);
       else h.int(e.x).int(e.y).int(e.amount);
     }
-    // Terrain heights (change through levelling when building)
+    // Terrain heights (change through levelling when building) and tile flags (water, cliff, occupied … – scripts can change them)
     for (const v of this.map.heights) h.int(v);
+    for (const v of this.map.flags) h.int(v);
     hashVision(this, h);
     hashBridges(this, h);
     this.mission?.hash(h);

@@ -25,6 +25,9 @@ import { valueNoise } from '../mapgen.js';
 import * as sapi from '../missions/setupApi.js';
 import { revealArea } from '../systems/vision.js';
 import { hasKey } from '../sim.js';
+import { assetPathOk } from '../../paths.js';
+
+export { assetPathOk };
 
 const T = TICKS_PER_SECOND;
 
@@ -33,6 +36,46 @@ export const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 export const DIR_NAMES = ['north', 'east', 'south', 'west'];
 
 const gameErr = (reason, reasonParams = {}) => new ScriptError('game', { reason: `script.game.${reason}`, reasonParams });
+
+// ---------------------------------------------------------------------------------------------
+// Boundary Python → simulation: the simulation only knows whole numbers. Every number from a script
+// passes through toInt or toTicks; NaN, infinity and absurd sizes become a readable script error
+// instead of reaching the game state (docs/SKRIPTE.md, tests/sim/rules.test.js).
+// ---------------------------------------------------------------------------------------------
+
+/** Largest amount a script may hand to the simulation (coordinates, counts, resources). */
+export const MAX_GAME_INT = 1_000_000_000;
+/** Longest duration in ticks (about 11 days of game time). */
+export const MAX_GAME_TICKS = 10_000_000;
+
+const shown = (n) => (Number.isNaN(n) ? 'nan' : n === Infinity ? 'inf' : n === -Infinity ? '-inf' : String(n));
+
+/** Python number → whole number for the simulation (truncated towards 0). */
+export function toInt(v, name) {
+  if (!isNum(v)) throw new ScriptError('type', { what: 'numberNeeded', name, type: typeName(v) });
+  const n = Number(num(v));
+  if (!Number.isFinite(n) || Math.abs(n) > MAX_GAME_INT) throw new ScriptError('value', { what: 'gameNumber', name, value: shown(n), max: MAX_GAME_INT });
+  return Math.trunc(n) || 0;
+}
+
+/**
+ * Limits for shared levels: a script must not freeze the browser or blow up the save game.
+ * World building per call (radius, count), number of places, goals and event handlers, length of texts.
+ */
+export const LIMITS = { radius: 64, trees: 2000, spawn: 50, serfs: 100, places: 500, objectives: 100, handlers: 200, text: 2000 };
+
+/** Names of places, goals and keys chosen by a script: letters, digits, _ and -, starting with a letter. */
+export const NAME_RE = /^[A-Za-z][\w-]{0,63}$/;
+
+
+/** Python seconds → ticks (rounded, at least 0). */
+export function toTicks(v, name = 'seconds') {
+  if (!isNum(v)) throw new ScriptError('type', { what: 'numberNeeded', name, type: typeName(v) });
+  const n = Number(num(v));
+  const t = Math.round(n * T);
+  if (!Number.isFinite(n) || t > MAX_GAME_TICKS) throw new ScriptError('value', { what: 'gameSeconds', name, value: shown(n), max: MAX_GAME_TICKS / T });
+  return Math.max(0, t);
+}
 
 /** Class of a handle by entity kind. */
 const CLASS_OF = { hero: 'Hero', unit: 'Serf', leader: 'Troop', soldier: 'Soldier', worker: 'Worker', building: 'Building', tree: 'Tree', pile: 'Pile', ruin: 'Ruin' };
@@ -222,7 +265,7 @@ export function makeApi(host, level) {
 
   /** Place for a name (scenario places, mission references). */
   const placeByName = (name) => {
-    const p = host.places[name];
+    const p = Object.hasOwn(host.places, name) ? host.places[name] : undefined;
     if (p) return { x: p.x, y: p.y, r: p.r ?? 2 };
     const pt = host.runtime.pointOf(sim(), name);
     if (pt) return { x: pt.x, y: pt.y, r: pt.r ?? 2 };
@@ -234,7 +277,7 @@ export function makeApi(host, level) {
    * @returns {{x:number, y:number, r:number}}
    */
   const pt = (v, v2) => {
-    if (v2 !== undefined && isNum(v)) return { x: Math.trunc(Number(num(v))), y: Math.trunc(Number(num(v2))), r: 0 };
+    if (v2 !== undefined && isNum(v)) return { x: toInt(v, 'x'), y: toInt(v2, 'y'), r: 0 };
     if (v instanceof PyHost) {
       if (v.cls === 'Place') {
         const p = placeHandle(v);
@@ -246,7 +289,7 @@ export function makeApi(host, level) {
       return { x: t.x, y: t.y, r: e.kind === 'building' ? Math.max(e.w, e.h) >> 1 : 0 };
     }
     if (v instanceof PyTuple || v instanceof PyList) {
-      const [x, y, r = 0] = v.items.map((a) => Math.trunc(Number(num(a))));
+      const [x, y, r = 0] = v.items.map((a, i) => toInt(a, ['x', 'y', 'r'][i] ?? 'r'));
       return { x, y, r };
     }
     if (typeof v === 'string') {
@@ -290,17 +333,22 @@ export function makeApi(host, level) {
     throw new ScriptError('game', { reason: rej?.reason ?? 'err.unknownCommand', reasonParams: rej?.params ?? {} });
   };
 
-  const intArg = (v, name) => {
-    if (!isNum(v)) throw new ScriptError('type', { what: 'numberNeeded', name, type: typeName(v) });
-    return Math.trunc(Number(num(v)));
-  };
-  const secondsArg = (v, name = 'seconds') => {
-    if (!isNum(v)) throw new ScriptError('type', { what: 'numberNeeded', name, type: typeName(v) });
-    return Math.max(0, Math.round(Number(num(v)) * T));
-  };
+  const intArg = toInt;
+  const secondsArg = toTicks;
   const strArg = (v, name) => {
     if (typeof v !== 'string') throw new ScriptError('type', { what: 'strNeeded', name, type: typeName(v) });
     return v;
+  };
+  /** Whole number up to a limit (radius, count …): bigger values are a readable error, not a frozen browser. */
+  const capArg = (v, name, max) => {
+    const n = toInt(v, name);
+    if (n > max) throw new ScriptError('value', { what: 'tooBig', name, max, value: String(n) });
+    return n;
+  };
+  const nameArg = (v, name) => {
+    const s = strArg(v, name);
+    if (!NAME_RE.test(s)) throw new ScriptError('value', { what: 'badName', name, value: s.slice(0, 40) });
+    return s;
   };
   const listOfHandles = (v) => (v instanceof PyList || v instanceof PyTuple ? v.items : [v]);
   const sortedEntities = (filter) => [...sim().entities.values()].filter(filter).sort((a, b) => a.id - b.id).map(handle);
@@ -465,7 +513,12 @@ export function makeApi(host, level) {
 
   def('say', (ctx, a, kw) => {
     const [speaker, text, seconds, voice] = args('say', a, kw, ['speaker', 'text', '?seconds', '?voice']);
-    const dur = host.say(speaker === null ? null : strArg(speaker, 'speaker'), text, seconds === undefined || seconds === null ? null : secondsArg(seconds), voice ?? null);
+    let path = null;
+    if (voice !== undefined && voice !== null) {
+      path = strArg(voice, 'voice');
+      if (!assetPathOk(path)) throw new ScriptError('value', { what: 'assetPath', name: 'voice', value: path.slice(0, 60) });
+    }
+    const dur = host.say(speaker === null ? null : strArg(speaker, 'speaker'), text, seconds === undefined || seconds === null ? null : secondsArg(seconds), path);
     return new Suspend({ k: 'dialog', until: sim().tick + dur });
   }, true);
   def('message', (ctx, a, kw) => {
@@ -509,7 +562,13 @@ export function makeApi(host, level) {
     return new PyPartial(new PyBuiltin(kind), fil.map((v) => (v === undefined ? null : v)), []);
   };
   def('on_start', decorator('on_start', []), true);
-  def('every', decorator('every', ['seconds']), true);
+  def('every', (ctx, a, kw) => {
+    // checked once when registering: the period in ticks must be a sensible number (not 0.5 → every tick by accident)
+    const first = a[0];
+    if (!(first instanceof PyFunction) && first !== undefined) toTicks(first, 'seconds');
+    if (kw.seconds !== undefined) toTicks(kw.seconds, 'seconds');
+    return decorator('every', ['seconds'])(ctx, a, kw);
+  }, true);
   def('on_building_done', decorator('on_building_done', ['?kind', '?player']), true);
   def('on_building_placed', decorator('on_building_placed', ['?kind', '?player']), true);
   def('on_destroyed', decorator('on_destroyed', ['?kind', '?owner']), true);
@@ -524,7 +583,7 @@ export function makeApi(host, level) {
 
   def('objective', (ctx, a, kw) => {
     const [id, text, cond = null, primary = true, hidden = false] = args('objective', a, kw, ['id', 'text', '?condition', '?primary', '?hidden']);
-    host.addObjective(ctx.vm, strArg(id, 'id'), text, cond, truthy(primary), truthy(hidden));
+    host.addObjective(ctx.vm, nameArg(id, 'id'), text, cond, truthy(primary), truthy(hidden));
     return id;
   }, true);
   const objectiveAction = (name, action) => def(name, (ctx, a, kw) => {
@@ -555,7 +614,7 @@ export function makeApi(host, level) {
     if (!hasKey(UNITS, kind)) throw gameErr('unitUnknown', { name: kind, suggestion: suggest(kind, Object.keys(UNITS)) });
     const c = pt(at);
     const out = [];
-    const count = intArg(n, 'count');
+    const count = capArg(n, 'count', LIMITS.spawn);
     for (let i = 0; i < count; i++) {
       const L = sapi.spawnTroop(sim(), owner, kind, { x: c.x + ((i % 3) - 1) * 3, y: c.y + Math.trunc(i / 3) * 3 }, soldiers === undefined || soldiers === null ? undefined : intArg(soldiers, 'soldiers'));
       if (L) out.push(handle(L));
@@ -566,7 +625,7 @@ export function makeApi(host, level) {
   def('spawn_serfs', (ctx, a, kw) => {
     const [p, n] = args('spawn_serfs', a, kw, ['player', 'count']);
     const pl = playerOf(p), out = [];
-    for (let i = 0; i < intArg(n, 'count'); i++) { const u = sim().spawnSerf(pl); if (u) out.push(handle(u)); }
+    for (let i = 0, k = capArg(n, 'count', LIMITS.serfs); i < k; i++) { const u = sim().spawnSerf(pl); if (u) out.push(handle(u)); }
     return new PyList(out);
   }, true);
   def('give', (ctx, a, kw) => {
@@ -574,7 +633,7 @@ export function makeApi(host, level) {
     const pl = sim().players[playerOf(p)];
     for (const k of Object.keys(kw)) {
       const r = resArg(k);
-      pl.stock[r] = Math.max(0, pl.stock[r] + intArg(kw[k], k));
+      pl.stock[r] = Math.max(0, Math.min(MAX_GAME_INT, pl.stock[r] + intArg(kw[k], k)));
     }
     return null;
   }, true);
@@ -655,7 +714,7 @@ export function makeApi(host, level) {
     const act = { type: 'ai', player: playerOf(p) };
     if (difficulty) act.difficulty = strArg(difficulty, 'difficulty');
     if (aggression) act.aggression = strArg(aggression, 'aggression');
-    if (startIn !== undefined && startIn !== null) act.startIn = Number(num(startIn));
+    if (startIn !== undefined && startIn !== null) act.startIn = toTicks(startIn, 'start_in') / T;
     if (truthy(attackNow)) act.attackNow = true;
     host.runtime.runAction(sim(), act);
     return null;
@@ -665,14 +724,15 @@ export function makeApi(host, level) {
 
   def('make_place', (ctx, a, kw) => {
     const [n, x, y, r = 3] = args('make_place', a, kw, ['name', 'x', 'y', '?r']);
-    const name = strArg(n, 'name');
-    host.places[name] = { x: intArg(x, 'x'), y: intArg(y, 'y'), r: intArg(r, 'r') };
+    const name = nameArg(n, 'name');
+    if (!Object.hasOwn(host.places, name) && Object.keys(host.places).length >= LIMITS.places) throw new ScriptError('value', { what: 'tooMany', name: 'make_place', max: LIMITS.places });
+    host.places[name] = { x: intArg(x, 'x'), y: intArg(y, 'y'), r: capArg(r, 'r', LIMITS.radius) };
     return new PyHost('Place', name);
   }, true);
   def('find_open', (ctx, a, kw) => {
     const [t, minR = 0, maxR = 24] = args('find_open', a, kw, ['near', '?min_r', '?max_r']);
     const c = pt(t);
-    const p = sapi.findOpen(sim(), c.x, c.y, { minR: intArg(minR, 'min_r'), maxR: intArg(maxR, 'max_r') });
+    const p = sapi.findOpen(sim(), c.x, c.y, { minR: intArg(minR, 'min_r'), maxR: capArg(maxR, 'max_r', LIMITS.radius) });
     return p ? pointPlace(p.x, p.y, 1) : null;
   }, true);
   def('toward', (ctx, a, kw) => {
@@ -684,7 +744,7 @@ export function makeApi(host, level) {
   def('plant_trees', (ctx, a, kw) => {
     const [t, n, r = 5] = args('plant_trees', a, kw, ['target', 'count', '?radius']);
     const c = pt(t);
-    const k = sapi.plantTrees(sim(), c, intArg(n, 'count'), intArg(r, 'radius'));
+    const k = sapi.plantTrees(sim(), c, capArg(n, 'count', LIMITS.trees), capArg(r, 'radius', LIMITS.radius));
     host.natureChanged();
     return k;
   }, true);
@@ -709,7 +769,7 @@ export function makeApi(host, level) {
   def('clear_area', (ctx, a, kw) => {
     const [t, r] = args('clear_area', a, kw, ['target', 'radius']);
     const c = pt(t);
-    const R = intArg(r, 'radius');
+    const R = capArg(r, 'radius', LIMITS.radius);
     for (const e of [...sim().entities.values()]) {
       if ((e.kind === 'tree' || e.kind === 'pile') && sapi.dist(e, c) <= R) host.removeEntity(e);
     }
@@ -786,14 +846,14 @@ export function makeApi(host, level) {
     }
     return other;
   };
-  const dynamicGlobals = () => {
-    const c = consts();
-    const out = { ...c };
-    const h = heroEntity();
-    out.hero = h ? handle(h) : null;
-    for (const id of HERO_IDS) { const e = heroNamed(id); out[id] = e ? handle(e) : null; }
-    return out;
+  // Looked up on every access (VM option `dynamic`): a hero who joins later is there at once, before and after loading
+  const dynamic = {
+    HUMAN: () => human(),
+    ENEMY: () => consts().ENEMY,
+    BANDITS: () => consts().BANDITS,
+    hero: () => { const h = heroEntity(); return h ? handle(h) : null; },
   };
+  for (const id of HERO_IDS) dynamic[id] = () => { const e = heroNamed(id); return e ? handle(e) : null; };
 
   const modules = isMission ? {
     camera: ['jump_to', 'fly_to'],
@@ -1027,5 +1087,5 @@ export function makeApi(host, level) {
   }
 
   const known = [...Object.keys(globals), 'HUMAN', 'ENEMY', 'BANDITS', 'hero', ...HERO_IDS];
-  return { natives, globals, dynamicGlobals, hostHooks, known, modules };
+  return { natives, globals, dynamic, hostHooks, known, modules };
 }

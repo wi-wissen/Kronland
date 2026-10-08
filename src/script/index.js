@@ -51,5 +51,5 @@ export function runToEnd(source, opts = {}) {
   const vm = new VM(prog, { host: { print: (t) => { output += t; } }, seed: opts.seed ?? 1 });
   const task = vm.start();
   vm.run(task, opts.budget ?? 50_000_000);
-  return { output, error: task.state === 'error' ? task.error : task.state === 'ready' ? { code: 'err.script.recursion', kind: 'RuntimeError', params: { what: 'tooLong' }, line: vm.lineOf(task) } : null, vm };
+  return { output, error: task.state === 'error' ? task.error : task.state === 'ready' ? { code: 'err.script.tooLong', kind: 'RuntimeError', params: {}, line: vm.lineOf(task) } : null, vm };
 }

@@ -8,7 +8,7 @@ import { ScriptError } from './errors.js';
 import {
   PyFloat, PyList, PyTuple, PyDict, PyRange, PyBuiltin, PyIterator, PyView, PyFunction, PyPartial, PyBoundMethod,
   PyModule, PyHost, checkInt, isInt, isNum, num, typeName, truthy, eq, lt, iterItems, makeIter, iterNext, DONE, length,
-  roundFloat, formatValue, binary, TYPE_NAMES, toIndex, keyOf, normBig,
+  roundFloat, formatValue, binary, TYPE_NAMES, toIndex, keyOf, normBig, pow10, pushAll,
 } from './values.js';
 
 const err = (code, params) => new ScriptError(code, params);
@@ -235,7 +235,7 @@ export const BUILTINS = {
       if (nd === null || typeof v === 'bigint') return v;
       const d = needInt(nd, 'ndigits');
       if (d >= 0) return v;
-      const p = 10 ** -d;
+      const p = pow10(-d);
       // round to integer, at exactly half to the even number
       const q = Math.floor(v / p), r = v - q * p;
       const up = r * 2 > p || (r * 2 === p && q % 2 !== 0);
@@ -300,6 +300,7 @@ export const BUILTINS = {
     return v;
   },
   input() { throw err('notSupported', { feature: 'input' }); },
+  set() { throw err('notSupported', { feature: 'set' }); },
 
   // ---------- math ----------
   'math.sqrt'(ctx, args, kw) {
@@ -314,7 +315,7 @@ export const BUILTINS = {
   'math.fabs'(ctx, args, kw) { const [x] = params('fabs', args, kw, ['x']); return new PyFloat(Math.abs(needNum(x, 'fabs'))); },
   'math.hypot'(ctx, args, kw) {
     noKw('hypot', kw);
-    return new PyFloat(Math.sqrt(args.reduce((s, a) => s + needNum(a, 'hypot') ** 2, 0)));
+    return new PyFloat(Math.sqrt(args.reduce((s, a) => { const v = needNum(a, 'hypot'); return s + v * v; }, 0)));
   },
   'math.isqrt'(ctx, args, kw) {
     const [x] = params('isqrt', args, kw, ['n']);
@@ -335,7 +336,7 @@ export const BUILTINS = {
     const [p, q] = params('dist', args, kw, ['p', 'q']);
     const a = iterItems(p), b = iterItems(q);
     if (a.length !== b.length) throw err('value', { what: 'distLength' });
-    return new PyFloat(Math.sqrt(a.reduce((s, x, i) => s + (needNum(x, 'dist') - needNum(b[i], 'dist')) ** 2, 0)));
+    return new PyFloat(Math.sqrt(a.reduce((s, x, i) => { const v = needNum(x, 'dist') - needNum(b[i], 'dist'); return s + v * v; }, 0)));
   },
 
   // ---------- random (the VM's own randomness, saved along) ----------
@@ -537,7 +538,7 @@ export const METHODS = {
   },
   list: {
     append: (c, l, a, kw) => { const [x] = params('append', a, kw, ['object']); l.items.push(x); return null; },
-    extend: (c, l, a, kw) => { const [x] = params('extend', a, kw, ['iterable']); l.items.push(...iterItems(x)); return null; },
+    extend: (c, l, a, kw) => { const [x] = params('extend', a, kw, ['iterable']); pushAll(l.items, iterItems(x)); return null; },
     insert: (c, l, a, kw) => {
       const [i, x] = params('insert', a, kw, ['index', 'object']);
       let k = toIndex(i);

@@ -34,13 +34,36 @@ CPython, siehe unten).
   enumerate zip round type isinstance any all map filter chr ord divmod pow repr hex bin oct iter next callable`.
 - **Module:** `math` (`sqrt floor ceil trunc fabs hypot isqrt gcd dist pi e inf tau`) und `random`
   (`random randint randrange choice shuffle uniform seed`, mit eigenem gespeicherten Zufall).
-- **Bewusst nicht:** `class`, `try/except`, Mengen, `input()`, `sin/cos/log` (nicht auf allen Rechnern
-  gleich). Der Compiler meldet sie freundlich („Das gibt es in Kronland-Python (noch) nicht“).
+- **Bewusst nicht:** `class`, `try/except`, Mengen (auch `set()`), `input()`, `sin/cos/log` (nicht auf allen
+  Rechnern gleich). Der Compiler meldet sie freundlich („Das gibt es in Kronland-Python (noch) nicht“).
+- **Fehlermeldungen für Anfänger:** fehlender Doppelpunkt, `=` statt `==` in `if`/`while`, leerer Block (mit Tipp
+  „pass“, am Programmende an der Zeile mit dem Doppelpunkt), Listen-Index mit Index und Länge („die Liste hat 3
+  Elemente, Index 0 bis 2“), `serfs[0]` ohne Klammern, `None` aus einer Funktion ohne `return`, `true`/`none` →
+  `True`/`None`.
 
 **Kommazahlen sind deterministisch:** `+ − * /` und `sqrt` sind nach IEEE 754 überall exakt gleich;
 `//` und `%` folgen dem Algorithmus von CPython Bit für Bit, `float ** int` rechnet mit Quadrieren statt
-`Math.pow`, `round()` und `format(…, '.2f')` runden exakt (BigInt) mit „gerade bei Hälfte“ wie Python.
-Ganzzahlen werden ab 2^53 zu BigInt – `2 ** 100` geht.
+`Math.pow`, `round()` (auch mit negativen Stellen) und `format(…, '.2f')` runden exakt (BigInt) mit „gerade bei
+Hälfte“ wie Python, Zehnerpotenzen sind exakt. Ganzzahlen werden ab 2^53 zu BigInt – `2 ** 100` geht.
+`tests/sim/rules.test.js` verbietet in `src/script` (wie in `src/sim` und `src/ai`) alle Rechenfunktionen, die
+Browser verschieden runden dürfen.
+
+### Grenzen
+
+Gleich auf jedem Gerät – nie entscheidet der JS-Stapel des Browsers, wo ein Programm scheitert:
+
+| Grenze | Wert | Meldung |
+|---|---|---|
+| Aufrufe ineinander (auch über `map`, `sorted(key=…)`, Bedingungen) | 1000 wie CPython (Flutfüllung bis 31×31) | RecursionError, nennt die Funktion („„ice“ hat sich 1000-mal …“) |
+| Synchrone Aufrufe ineinander (`map(f, …)` in `f`) | 50 | RecursionError |
+| Verschachtelte Daten bei `==`, `<`, `str`, Schlüsseln | 500 Ebenen | RecursionError; Speichern klappt immer (ohne JS-Rekursion) |
+| Länge einer Liste, eines Textes | 1 000 000 Elemente, 10 000 000 Zeichen | OverflowError (`list(range(10**7))`, Verdoppeln) |
+| Befehle je Takt | Mission 60 000, Spieler 20 000 | – (es geht im nächsten Takt weiter) |
+| Synchrone Aufrufe je Takt (Zielbedingungen, `wait_until`, `sorted(key=…)`) | je Programm 200 000 | „Das dauert zu lange“, die Bedingung wird abgeschaltet |
+| Weltaufbau | 8 000 000 Befehle | „Der Weltaufbau braucht zu lange“ |
+
+Der Aufrufstapel in Fehlern fasst gleiche Aufrufe zusammen und zeigt die ersten 3 und letzten 10; der Debugger
+zeigt die Aufrufe mit einfachen Argumenten (`ice(4, 3, …)`), bei tiefen Stapeln die ersten 2 und letzten 8.
 
 ## Wie die VM funktioniert
 
@@ -177,7 +200,19 @@ dabei als Befehl `{ type: 'script', action: 'run', sections }` in die Simulation
   Weltaufbau, `make_place`, Handler registrieren. Wartet es (`wait`, `say`), geht es im Takt weiter.
 - **Takt** (Ende von `update`): `on_start` einmal, Sim-Ereignisse an passende Handler, `@every` und
   `@on_enter` prüfen, wartende Aufgaben prüfen (`wait_until` ruft die Bedingung synchron auf), dann alle
-  Aufgaben in fester Reihenfolge mit Budget (Mission 60 000, Spieler 20 000 Befehle je Takt).
+  Aufgaben in fester Reihenfolge mit Budget (Mission 60 000, Spieler 20 000 Befehle je Takt). Zu Beginn jedes
+  Takts (`beginTick`, vor den Zielen) bekommt jedes Programm sein Budget für synchrone Aufrufe neu.
+- **Zahlen in die Simulation:** Jede Zahl aus Python geht über `toInt` (ganzzahlig, abgeschnitten, höchstens
+  ±1 000 000 000) oder `toTicks` (Sekunden → Takte, gerundet) in die Simulation (`api.js`). NaN, `inf` und zu große
+  Werte werden zum Skriptfehler, nie zu einem kaputten Spielstand (`wait(float("inf"))`, `@every(0.5)` = alle 5 Takte).
+- **Namen aus dem Programm:** sind nur Buchstaben, Ziffern, `_` und `-`, am Anfang ein Buchstabe
+  (`make_place`, `objective`). Gesucht wird nur in eigenen Einträgen – `message("constructor")` ist ein Text.
+  Heldennamen (`nelia`, `orrin` …) und `HUMAN`/`ENEMY` werden bei jedem Zugriff nachgeschlagen: Ein Held, der
+  später dazukommt, ist sofort da, vor und nach dem Laden gleich.
+- **Level von anderen:** Sprachaufnahmen (`voice`) nur als Pfad im Level, nie als Webadresse; je Aufruf höchstens
+  Radius 64, 2000 Bäume, 50 Trupps, 100 Leibeigene; je Level höchstens 500 Orte, 100 Ziele, 200 Ereignis-Handler;
+  Texte bis 2000 Zeichen. `validateScenario` prüft Dateien vor dem Laden (Kartengröße bis 256, bis 8 Spieler, bis
+  32 Abschnitte à 200 000 Zeichen, Textschlüssel, Pfade).
 - **Befehle** `type: 'script'`: `run`, `stop`, `debug` (`into`/`over`/`out`/`continue`/`pause`, Haltepunkte
   je Abschnitt), `skipDialog`.
 - **Speichern/Hash:** VM-Zustände, Orte und Zähler stecken in `mission.script` im Spielstand und im

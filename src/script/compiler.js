@@ -314,7 +314,9 @@ class Compiler {
       if (node.isLoad === false) continue;
       const cands = new Set([...this.globalNames, ...this.known, ...Object.keys(this.modules)]);
       for (let s = scope; s; s = s.parent) for (const l of s.locals) cands.add(l);
-      throw this.err('nameUnknown', { name: n, suggestion: suggest(n, cands) }, node);
+      // true/false/none: Python writes them with a capital letter
+      const constant = { true: 'True', false: 'False', none: 'None', null: 'None' }[n.toLowerCase()];
+      throw this.err('nameUnknown', { name: n, suggestion: constant ?? suggest(n, cands) }, node);
     }
     for (const c of scope.children ?? []) this.checkUnknown(c);
   }

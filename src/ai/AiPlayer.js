@@ -16,7 +16,7 @@ import { BUILDINGS, buildersOf, isUpgrading } from '../sim/data/buildings.js';
 import { TECHS } from '../sim/data/technologies.js';
 import { UNITS, unitOf, fullCost, LINE_UPGRADE_COST, HEROES } from '../sim/data/units.js';
 import { workerSlots, averageMotivation } from '../sim/systems/workers.js';
-import { UNIT } from '../sim/fixed.js';
+import { UNIT, HALF, dist2, toward, toTile } from '../sim/fixed.js';
 import { BUILDING_TECHS } from '../sim/data/buildingTechs.js';
 import { checkBuildingResearch } from '../sim/systems/techs.js';
 import { checkTrade, tradeCost } from '../sim/systems/market.js';
@@ -24,13 +24,14 @@ import { isDamaged } from '../sim/systems/damage.js';
 import { siteRoom, hasFreeSpot } from '../sim/systems/serfs.js';
 import { takenSpots } from '../sim/systems/spots.js';
 import { MARKET } from '../sim/data/market.js';
+import { BALANCE } from '../sim/data/balance.js';
 import { WATER, OCCUPIED, CLIFF, BRIDGE } from '../sim/map.js';
 import { canSee, knownBuildings } from '../sim/systems/vision.js';
 
 export const DIFFICULTY = {
-  easy:   { name: 'Leicht', think: 50, serfs: 14, attackSize: 3, firstAttack: 21000, maxSites: 2, bonusGold: 0, reserve: 200, militaryShare: 30 },
-  normal: { name: 'Normal', think: 25, serfs: 22, attackSize: 5, firstAttack: 14400, maxSites: 3, bonusGold: 0, reserve: 120, militaryShare: 50 },
-  hard:   { name: 'Schwer', think: 12, serfs: 28, attackSize: 6, firstAttack: 9000, maxSites: 4, bonusGold: 250, reserve: 80, militaryShare: 65, intel: true },
+  easy:   { name: 'Leicht', think: 50, serfs: 14, attackSize: 3, firstAttack: 21000, maxSites: 2, bonusGold: BALANCE.aiBonusGold.easy, reserve: 200, militaryShare: 30 },
+  normal: { name: 'Normal', think: 25, serfs: 22, attackSize: 5, firstAttack: 14400, maxSites: 3, bonusGold: BALANCE.aiBonusGold.normal, reserve: 120, militaryShare: 50 },
+  hard:   { name: 'Schwer', think: 12, serfs: 28, attackSize: 6, firstAttack: 9000, maxSites: 4, bonusGold: BALANCE.aiBonusGold.hard, reserve: 80, militaryShare: 65, intel: true },
 };
 // intel: guards report enemies within 22 tiles around the castle even in the fog (small knowledge advantage)
 
@@ -152,8 +153,8 @@ export class AiPlayer {
     const sim = this.sim;
     if (this.me.defeated || sim.winner !== null) return;
     if (!this.applyMission()) return;
-    // bonus as in the original ("refresh") for the hard level
-    if (this.cfg.bonusGold && sim.tick > 0 && sim.tick % 1200 === 0) this.me.stock.gold += this.cfg.bonusGold;
+    // Bonus thalers as in the original ("refresh") for the hard level: paid by the simulation (Sim.setAi)
+    sim.setAi(this.player, this.cfg.bonusGold);
     if ((sim.tick + this.offset) % this.cfg.think !== 0) return;
     this.cmds = [];
     this.scan();
@@ -188,9 +189,9 @@ export class AiPlayer {
         if (e.kind === 'hero' && e.down) continue;
         // Fog: only seen enemies (Hard: guards also report enemies in the fog near the castle)
         if (!this.cfg.intel && !canSee(sim, me, e)) continue;
-        const d = Math.hypot(e.px / UNIT - this.home.x, e.py / UNIT - this.home.y);
-        // Only enemies the troops can get to (not on the other shore)
-        if (d < 22 && this.reachableAt(e.px / UNIT, e.py / UNIT)) this.enemyNearHome.push(e);
+        // Only enemies the troops can get to (not on the other shore); distances squared in milli-tiles
+        const near = dist2(e.px, e.py, this.home.x * UNIT, this.home.y * UNIT) < (22 * UNIT) ** 2;
+        if (near && this.reachableAt(toTile(e.px), toTile(e.py))) this.enemyNearHome.push(e);
       }
     }
     // Bottleneck: one resource is missing while another piles up → the market pays off
@@ -348,9 +349,9 @@ export class AiPlayer {
     const damaged = this.buildings.filter((b) => isDamaged(sim, b) && b.builders.length < 2 && this.reachableRect(b.x, b.y, b.w, b.h))
       .sort((a, b) => (b.burning ? 1 : 0) - (a.burning ? 1 : 0) || a.id - b.id);
     for (const b of damaged.slice(0, 2)) {
-      const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      const cx = b.x * UNIT + b.w * HALF, cy = b.y * UNIT + b.h * HALF;
       const serfs = this.serfs.filter((u) => !u.militia && !this.reserved?.has(u.id) && u.job?.kind !== 'build' && u.job?.kind !== 'repair')
-        .sort((u, v) => Math.hypot(u.px / UNIT - cx, u.py / UNIT - cy) - Math.hypot(v.px / UNIT - cx, v.py / UNIT - cy) || u.id - v.id)
+        .sort((u, v) => dist2(u.px, u.py, cx, cy) - dist2(v.px, v.py, cx, cy) || u.id - v.id)
         .slice(0, (b.burning ? 3 : 2) - b.builders.length);
       serfs.length = Math.min(serfs.length, serfs.length ? siteRoom(sim, b, serfs[0]) : 0);
       if (!serfs.length) continue;
@@ -430,9 +431,9 @@ export class AiPlayer {
     const pos = sim.findPlacement(this.player, type, near.x, near.y, 26, (x, y) => this.reachableAfterBuild(x, y, def.w, def.h));
     if (!pos) return false;
     // Shafts and settlement spots: only within sensible proximity
-    if (Math.hypot(pos.x - this.home.x, pos.y - this.home.y) > (type === 'bridge' ? 60 : 38)) return false;
+    if (dist2(pos.x, pos.y, this.home.x, this.home.y) > (type === 'bridge' ? 60 * 60 : 38 * 38)) return false;
     // Bridge only as a shortcut: spot near the middle between own and (known) enemy castle
-    if (type === 'bridge' && Math.hypot(pos.x - near.x, pos.y - near.y) > 20) return false;
+    if (type === 'bridge' && dist2(pos.x, pos.y, near.x, near.y) > 20 * 20) return false;
     const builders = this.idleSerfs().slice(0, 4).map((u) => u.id);
     this.issue({ type: 'placeBuilding', building: type, x: pos.x, y: pos.y, units: builders });
     this.sites++;
@@ -447,9 +448,8 @@ export class AiPlayer {
     const enemy = this.enemyHome(true);
     if (['barracks', 'archery', 'stable', 'foundry', 'tower', 'bridge'].includes(type) && enemy) {
       // Bridge: the bridge spot nearest to the route to the opponent
-      if (type === 'bridge') return { x: Math.round((h.x + enemy.x) / 2), y: Math.round((h.y + enemy.y) / 2) };
-      const dx = enemy.x - h.x, dy = enemy.y - h.y, d = Math.hypot(dx, dy) || 1;
-      return { x: Math.round(h.x + (dx / d) * 9), y: Math.round(h.y + (dy / d) * 9) };
+      if (type === 'bridge') return { x: (h.x + enemy.x) >> 1, y: (h.y + enemy.y) >> 1 };
+      return toward(h, enemy, 9);
     }
     const r = 4 + this.rng.int(6);
     const corners = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
@@ -536,11 +536,11 @@ export class AiPlayer {
   /** Nearest tree/pile; first within 45 tiles around the castle, otherwise up to 70 tiles. */
   nearestNode(res, from) {
     let best = null, bd = Infinity, far = null, fd = Infinity, taken = null;
-    const fx = from.px / UNIT, fy = from.py / UNIT;
+    const fx = from.px, fy = from.py;
     for (const e of this.sim.entities.values()) {
       if ((e.kind !== 'tree' && e.kind !== 'pile') || e.res !== res || e.amount <= 0) continue;
-      const d = (e.x - fx) ** 2 + (e.y - fy) ** 2;
-      const home = (e.x - this.home.x) ** 2 + (e.y - this.home.y) ** 2;
+      const d = dist2(e.x * UNIT, e.y * UNIT, fx, fy);
+      const home = dist2(e.x, e.y, this.home.x, this.home.y);
       // check reachability and a free spot only if the node would otherwise be chosen (saves queries);
       // without a free spot the command would be rejected (err.noWork)
       const ok = () => this.reachableRect(e.x, e.y, 1, 1) && hasFreeSpot(this.sim, from, e, taken ??= takenSpots(this.sim, from.id));
@@ -581,7 +581,7 @@ export class AiPlayer {
       if (p.id === this.player || p.defeated || !this.sim.hostile(this.player, p.id)) continue;
       const hq = this.knownHq(p.id);
       if (!hq) continue;
-      const d = Math.hypot(hq.x - this.home.x, hq.y - this.home.y);
+      const d = dist2(hq.x, hq.y, this.home.x, this.home.y);
       if (d >= bd) continue;
       if (anyDirection) { bd = d; best = { x: hq.x + 2, y: hq.y + 2, id: hq.id, owner: p.id }; continue; }
       if (!this.reachableRect(hq.x, hq.y, hq.w, hq.h)) continue;
@@ -646,7 +646,7 @@ export class AiPlayer {
       if (L.soldiers.length >= d.soldiers || !this.affordable(d.soldierCost, 3)) continue;
       const b = this.buildings.find((x) => x.type === d.building && x.done);
       if (!b) continue;
-      const near = Math.abs(L.px / UNIT - b.x - b.w / 2) < 6 && Math.abs(L.py / UNIT - b.y - b.h / 2) < 6;
+      const near = Math.abs(L.px - b.x * UNIT - b.w * HALF) < 6 * UNIT && Math.abs(L.py - b.y * UNIT - b.h * HALF) < 6 * UNIT;
       if (near) this.issue({ type: 'buySoldiers', leader: L.id });
     }
   }
@@ -656,10 +656,7 @@ export class AiPlayer {
     const enemy = this.enemyHome(true);
     const h = this.home;
     let p = { x: h.x, y: h.y + 4 };
-    if (enemy) {
-      const dx = enemy.x - h.x, dy = enemy.y - h.y, d = Math.hypot(dx, dy) || 1;
-      p = { x: Math.round(h.x + (dx / d) * 8), y: Math.round(h.y + (dy / d) * 8) };
-    }
+    if (enemy) p = toward(h, enemy, 8);
     return this.reachPoint(p.x, p.y) ?? this.reachPoint(h.x, h.y + 4) ?? h;
   }
 
@@ -687,7 +684,7 @@ export class AiPlayer {
     if (this.armyState === 'gather') {
       const rally = this.rallyPoint();
       for (const L of army) {
-        const far = Math.hypot(L.px / UNIT - rally.x, L.py / UNIT - rally.y) > 6;
+        const far = dist2(L.px, L.py, rally.x * UNIT, rally.y * UNIT) > (6 * UNIT) ** 2;
         if (far && L.order?.type === 'idle' && !L.targetId) {
           // incomplete squads first to the building for refilling
           const d = UNITS[L.def];
@@ -721,7 +718,7 @@ export class AiPlayer {
       // drive stragglers on again
       const idle = army.filter((L) => L.order?.type === 'idle' && !L.targetId).map((L) => L.id);
       if (idle.length) {
-        const near = army.some((L) => Math.hypot(L.px / UNIT - enemy.x, L.py / UNIT - enemy.y) < 10);
+        const near = army.some((L) => dist2(L.px, L.py, enemy.x * UNIT, enemy.y * UNIT) < (10 * UNIT) ** 2);
         // Attack in a targeted way only what is currently visible; otherwise keep scouting by attack-move
         const target = near && enemy.id ? sim.entities.get(enemy.id) : null;
         this.issue(target && canSee(sim, this.player, target) ? { type: 'order', units: idle, order: 'attack', target: enemy.id } : { type: 'order', units: idle, order: 'attackMove', x: enemy.x, y: enemy.y });

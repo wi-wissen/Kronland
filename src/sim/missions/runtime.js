@@ -268,6 +268,7 @@ export class MissionRuntime {
     const st = this.state;
     if (st.result) return;
     this.census = null;
+    this.script?.beginTick();
     this.updateCamps(sim);
     this.updateNpcs(sim);
     this.updateTutorial(sim);
@@ -576,7 +577,7 @@ export class MissionRuntime {
         const c = st.ai[p] ?? (st.ai[p] = { difficulty: 'normal', aggression: 'normal', startTick: 0, forbid: [] });
         if (a.difficulty) c.difficulty = a.difficulty;
         if (a.aggression) c.aggression = a.aggression;
-        if (a.startIn !== undefined) c.startTick = sim.tick + a.startIn * T;
+        if (a.startIn !== undefined) c.startTick = sim.tick + Math.round(a.startIn * T);
         if (a.forbid) c.forbid = a.forbid;
         if (a.attackNow) c.attackNow = sim.tick;
         break;
