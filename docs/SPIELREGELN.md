@@ -67,7 +67,10 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
   frei sind (`siteRoom`). Im Kampf und bei Laufbefehlen gilt das nicht (dort fächern Formationen bzw.
   Zielkacheln auf).
 - Laufbefehle fächern auf: Jede Figur bekommt eine eigene Zielkachel um den Klickpunkt (Leibeigene
-  1 Kachel Abstand, Truppen und Helden 3 Kacheln, damit die Soldaten dahinter Platz haben).
+  1 Kachel Abstand, Truppen und Helden 3 Kacheln, damit die Soldaten dahinter Platz haben). Bei einem Klick
+  des Spielers (Befehlsfeld `avoid`) bleiben Kacheln frei, auf denen schon eine andere Figur steht oder auf die
+  ein Leibeigener gerade läuft (`takenTiles`, bei Trupps zählen nur Hauptleute und Helden): Wer auf eine besetzte
+  Kachel geschickt wird, bleibt auf der Nachbarkachel stehen. Skripte und KI laufen weiter genau aufs Ziel.
 - Beim Platzieren eines Gebäudes mit ausgewählten Leibeigenen fangen diese sofort an zu bauen.
 - Über jeder Baustelle (auch beim Ausbau) zeigt ein blauer Balken den Baufortschritt. Ausbauten nehmen keine
   Leibeigenen an (`err.upgradeNoSerfs`), siehe §6.

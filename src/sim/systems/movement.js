@@ -122,19 +122,41 @@ export function isAdjacent(e, r) {
 }
 
 /**
+ * Tiles already taken by other figures: where a figure stands without a path, and where a serf
+ * is currently walking to (`goal`). Figures in `exclude` (the group being sent) do not count,
+ * nor workers inside their building. Without `soldiers` only squad leaders count for a squad (their
+ * soldiers stand in rows behind them and would push the squads far apart).
+ * @param {import('../sim.js').Sim} sim
+ * @param {Set<number>} exclude entity IDs
+ * @returns {Set<number>} tile indices
+ */
+export function takenTiles(sim, exclude, soldiers = true) {
+  const m = sim.map, out = new Set();
+  for (const e of sim.entities.values()) {
+    if (e.px === undefined || !MOBILE.has(e.kind) || exclude.has(e.id) || e.inside || e.down) continue;
+    if (e.kind === 'soldier' && (!soldiers || exclude.has(e.leader))) continue;
+    if (e.goal !== undefined) out.add(e.goal);
+    else if (!e.path?.length) out.add(m.idx(toTile(e.px), toTile(e.py)));
+  }
+  return out;
+}
+
+/**
  * Walk targets for a group so that they do not stand on top of each other: grid points at spacing `spacing`
  * (tiles) around (tx,ty), from inside out, only walkable and in the same region as the centre.
- * Assignment greedy by shortest path (pair with the smallest distance first), so that the paths
- * hardly cross. Deterministic: ties by order.
+ * Tiles in `taken` (other figures stand there) are skipped, so a figure sent onto an occupied tile
+ * stops on the neighbouring tile instead. Assignment greedy by shortest path (pair with the smallest
+ * distance first), so that the paths hardly cross. Deterministic: ties by order.
  * @param {import('../map.js').TileMap} map
  * @param {{px:number, py:number}[]} units
+ * @param {Set<number>} [taken] tile indices to avoid
  * @returns {number[]} tile index per unit (same order as `units`)
  */
-export function formationTiles(map, tx, ty, units, spacing = 1) {
+export function formationTiles(map, tx, ty, units, spacing = 1, taken = null) {
   const n = units.length;
   let ck = map.walkable(tx, ty) ? map.idx(tx, ty) : nearestWalkable(map, tx, ty, tileCenter(tx), tileCenter(ty), 12);
   if (ck < 0) return units.map(() => -1);
-  if (n === 1) return [ck];
+  if (n === 1 && !taken?.has(ck)) return [ck];
   const cx = ck % map.width, cy = (ck / map.width) | 0, region = map.regionAt(ck);
   /** @type {number[]} */
   const slots = [];
@@ -143,7 +165,7 @@ export function formationTiles(map, tx, ty, units, spacing = 1) {
     for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
       if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue;
       const x = cx + i * spacing, y = cy + j * spacing;
-      if (!map.walkable(x, y) || map.regionAt(map.idx(x, y)) !== region) continue;
+      if (!map.walkable(x, y) || map.regionAt(map.idx(x, y)) !== region || taken?.has(map.idx(x, y))) continue;
       ring.push({ k: map.idx(x, y), d: i * i + j * j });
     }
     // In the ring the round spots first (circle instead of square)

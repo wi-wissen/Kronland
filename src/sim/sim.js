@@ -12,7 +12,7 @@ import { UNIT, tileCenter, toTile, secondsToTicks } from './fixed.js';
 import { Hasher } from './hash.js';
 import { updateSerf, clearJob, assignJob, assignGather } from './systems/serfs.js';
 import { updateUpgrades } from './systems/upgrades.js';
-import { unstickAll, nearestWalkable, formationTiles } from './systems/movement.js';
+import { unstickAll, nearestWalkable, formationTiles, takenTiles } from './systems/movement.js';
 import { updatePayday } from './systems/payday.js';
 import { updateSpawning, updateWorker, removeWorker, workersOf, maxMotivation, updateCamps } from './systems/workers.js';
 import { updateMilitary, setMilitia, useAbility, slotOffset } from './systems/military.js';
@@ -557,8 +557,10 @@ export class Sim {
     const serfs = this.ownSerfs(cmd);
     if (!serfs.length) return this.reject(cmd, 'err.noUnits');
     if (!Number.isInteger(cmd.x) || !Number.isInteger(cmd.y) || !this.map.walkable(cmd.x, cmd.y)) return this.reject(cmd, 'err.notWalkable');
-    // Fan out targets: each serf gets their own tile around the click point
-    const goals = formationTiles(this.map, cmd.x, cmd.y, serfs, 1);
+    // Fan out targets: each serf gets their own tile around the click point; with `avoid` (click by the player,
+    // not scripts) not where other figures already stand, so nobody walks onto someone else
+    const taken = cmd.avoid ? takenTiles(this, new Set(serfs.map((u) => u.id))) : null;
+    const goals = formationTiles(this.map, cmd.x, cmd.y, serfs, 1, taken);
     serfs.forEach((u, i) => {
       clearJob(this, u);
       u.goal = goals[i] >= 0 ? goals[i] : this.map.idx(cmd.x, cmd.y);
@@ -811,7 +813,9 @@ export class Sim {
     // soldiers of a squad leader stand in two rows behind him (slotOffset)
     const moving = cmd.order === 'move' || cmd.order === 'attackMove';
     const active = units.filter((e) => !(e.kind === 'hero' && e.down));
-    const goals = moving ? formationTiles(this.map, cmd.x, cmd.y, active, 3) : [];
+    // `avoid` (click by the player): skip tiles where other figures stand
+    const taken = moving && cmd.avoid ? takenTiles(this, new Set(active.map((e) => e.id)), false) : null;
+    const goals = moving ? formationTiles(this.map, cmd.x, cmd.y, active, 3, taken) : [];
     active.forEach((e, i) => {
       e.path = []; e.targetId = 0;
       // Look direction from a script only applies until the hero is sent elsewhere

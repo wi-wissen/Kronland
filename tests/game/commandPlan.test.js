@@ -29,7 +29,7 @@ describe('planCommandAt', () => {
   it('free ground: walk, with a marker and the normal cursor', () => {
     const { e, marks } = fake();
     const plan = e.planCommandAt(0, 0);
-    expect(plan.cmds).toEqual([{ type: 'move', units: [1], x: 8, y: 8 }]);
+    expect(plan.cmds).toEqual([{ type: 'move', units: [1], x: 8, y: 8, avoid: true }]);
     expect(plan.cursor).toBeNull();
     expect(e.queue).toEqual([]); // planning issues nothing
     expect(e.commandAt(0, 0)).toBe(true);
