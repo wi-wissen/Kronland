@@ -513,4 +513,7 @@ Werte: `BALANCE.ground` (alle (A)).
   1 Gold, eine Blume wird gepflückt. Ablegen geht nur mit Talern (kostet 1 Gold). Ein Baum, Haufen oder Gebäude auf der
   Kachel nimmt den Gegenstand weg, ebenso Tauwetter auf dem Eis und eine einstürzende Brücke. Gegenstände setzen nur
   Missionen und der Weltaufbau.
+- **Darstellung:** Spuren zeigt das Gelände als Trampelpfad (Sommer, Regen) bzw. getretenen Schnee mit Fußabdrücken
+  (Winter), nur soweit der Spieler sie sieht oder zuletzt gesehen hat. Taler und Christrosen liegen sichtbar auf
+  ihren Kacheln, sobald die Kachel erkundet ist. Im Welteneditor setzt man beides mit „Gegenstand“ und „Spur“.
 - **Lernabenteuer ohne Burg** beginnen mit leerem Lager – `stock("gold")` zählt genau die gesammelten Taler.

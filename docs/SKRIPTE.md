@@ -179,6 +179,13 @@ ersten eigenen Helden – Level der Version 1 laufen weiter, nur das alte `hero.
 - Spuren: `TileMap.tracks` (ein Byte je Kachel), `updateTracks` einmal je Takt nach dem Militär; Schwelle je Wetter,
   Besen aus dem Takt. `world.tracks` in scenario.json (`threshold`, `fade`, `who`).
 - Beides steht im Spielstand und im State-Hash.
+- Darstellung (liest nur): `src/render/ground.js` füllt eine Datentextur mit einem Texel je Kachel (R = Stärke ab der
+  Schwelle, G = Achse der Fußabdrücke aus den Nachbarkacheln), höchstens alle 5 Takte und nur hochgeladen, wenn sich
+  etwas geändert hat. Nur gerade gesehene Kacheln übernehmen den Sim-Wert, erkundete behalten den zuletzt gesehenen,
+  unerkundete zeigen nichts. Der Gelände-Shader (`terrain.js`) macht daraus im Sommer und Regen Trampelpfade (Erde
+  statt Gras), im Winter getretenen Schnee mit Fußabdrücken (alle Grafikstufen). `src/render/items.js` zeichnet Taler
+  (aufrecht, drehend, wippend) und Christrosen als Instanzen, neu aufgebaut bei `map.groundVersion`; aus der Ferne
+  (Übersicht, Handy) wachsen sie bis 1,8-fach, im unerkundeten Nebel bleiben sie verborgen. Aufheben glitzert und klingt.
 
 `figures_near(ziel, radius, kind, side)` sucht Helden, Leibeigene, Trupps (Hauptmann) und Arbeiter draußen, nach Abstand
 in Milli-Kacheln, dann Nummer; ein Spielerprogramm sieht nur, was der Spieler sieht (`canSee`), Missionen alles.
@@ -201,7 +208,11 @@ kommt aus `API_DOC` (`query: true`, `answers`) über `hintVocab(level)`, der Spr
 | `busyLoop` | zur Laufzeit: 50 Takte (≈ 5 s) volles Budget ohne Warten und ohne Sim-Befehl |
 
 Hinweise stehen mit Abschnitt und Zeile in `state.player.hints` (Missionsabschnitte: `state.missionHints`, für den
-Editor) und in `uiState()`; die Anzeige (bernsteinfarben, Desktop und Handy) kommt mit der Oberfläche. Eine Mission
+Editor) und in `uiState()`. Das Code-Panel zeigt sie bernsteinfarben: Zeilennummer und Zeile markiert, darunter
+höchstens zwei Kästen „Hinweis · Zeile 4“ (der Rest gezählt, `shownHints` in `panelState.js`); das Programm läuft weiter,
+und wie Fehler verschwinden sie, sobald der Abschnitt bearbeitet wird. Hinweise der Missionsabschnitte zeigt nur das
+Testspielen aus dem Welteneditor. Am Handy steht in der Laufleiste „Spiel ansehen“ ein Knopf „Hinweis“, der zum Code
+führt (kein automatischer Wechsel wie bei Fehlern). Eine Mission
 schaltet sie mit `hints(False)` ab, etwa für eine „Finde den Fehler“-Etappe. Texte: `script.hint.*` in
 `src/i18n/script.js`.
 
@@ -348,13 +359,14 @@ Abenteuer im Browser gemerkt (`kronland-code-<id>`).
 
 Die Abenteuer spielen auf offenen Wiesen; Hindernisse sind Landschaft mit Sinn (Fluss, See, Wäldchen,
 Mauerreste), keine Baumgänge. Die Kamera zeigt ruhig die ganze Karte (Norden oben, am Desktop im Spielbereich
-links vom Code-Panel) und läuft dem Helden nicht hinterher. Das **Raster** (Knopf „# Raster“ im Panel, Vorliebe bleibt im
+links vom Code-Panel) und läuft dem Helden nicht hinterher. Am Handy („Spiel ansehen“ während eines Laufs) gleitet
+sie der Figur nach, die das Programm zuletzt gesteuert hat, sobald sie den freien Bildbereich verlässt
+(`Engine.followWatched`); verschiebt, dreht oder zoomt der Spieler selbst, pausiert das 5 s. Das **Raster** (Knopf „# Raster“ im Panel, Vorliebe bleibt im
 Browser; auch im Welteneditor) zeigt die Kacheln, jede fünfte Linie kräftiger – so lassen sich Schritte
 abzählen. Der Held startet mit Blick nach Osten; `nelia.step()` geht immer in Blickrichtung und dreht die Figur
 dabei nicht zur Laufrichtung. Mehrere Helden ohne Burg starten auf eigenen Kacheln.
 
-Die Taler und Blumen der Abenteuer 3 und 4 zeichnet der Renderer erst mit Phase 2b (Instanzen, Spuren im
-Gelände-Shader); bis dahin liegen sie nur in der Simulation.
+Taler und Blumen liegen sichtbar auf ihren Kacheln, Spuren erscheinen im Gelände (siehe „Boden“ oben).
 
 ## Code-Panel und Debugger
 
@@ -424,7 +436,9 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
 
 - **Werkzeuge:** Kamera, Heben, Senken, Ebnen, Glätten (gedrückt halten wirkt weiter), Wasser und Land (Wasser
   und Felsen folgen aus der Höhe wie im Kartengenerator), Wald, Radierer, Rohstoffhaufen, Schacht,
-  Siedlungsplatz, Startplatz, Ort. Pinselgröße und Stärke. Rückgängig/Wiederholen (Strg+Z/Strg+Y), Raster (`#`).
+  Siedlungsplatz, **Gegenstand** (Taler oder Christrose auf die Kachel unter dem Zeiger, Ziehen legt eine Reihe),
+  **Spur** (Pinsel mit Stärke 1 … 48: ab 8 auch im Sommer sichtbar, darunter nur Fußabdrücke im Schnee), Startplatz,
+  Ort. Der Radierer nimmt auch Gegenstände und Spuren, Wasser und Felsen ebenso. Pinselgröße und Stärke. Rückgängig/Wiederholen (Strg+Z/Strg+Y), Raster (`#`).
 - **Panel:** Szenario (Titel, Art, Auftrag zweisprachig, Spieler mit/ohne Burg, Nebel), Orte,
   Code (Abschnitte mit Stufe, Sichtbarkeit, bearbeitbar; Befehlsreferenz), Dateien (Bilder, Töne, 3D-Modelle
   hinzufügen und entfernen; sie gelten, solange die Seite offen ist, und reisen in der .zip), Beispiele
@@ -435,7 +449,9 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
   Browser gemerkt (ohne Dateien). **Testspielen** startet das
   Szenario mit allen Abschnitten im Code-Panel und Debugger fürs Missionsskript (Haltepunkte halten das Spiel an);
   danach geht es zurück in den Editor.
-- Gespeichert wird die Karte als `world.terrain` (Höhen und Flags Base64, Bäume/Haufen/Plätze/Schächte, Startplätze).
+- Gespeichert wird die Karte als `world.terrain` (Höhen und Flags Base64, Bäume/Haufen/Plätze/Schächte, Gegenstände
+  `{kind: "coin"|"flower", x, y}` und Spuren `{kind: "track", x, y, strength}` in `features`, Startplätze); beim
+  Testspielen und Öffnen kommt alles zurück.
 
 ## Tests
 
