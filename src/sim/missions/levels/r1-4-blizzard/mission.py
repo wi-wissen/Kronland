@@ -18,7 +18,7 @@ npc("maid", look="serf", at=(2, 5), de="Magd Hedda", en="Hedda the maid")
 npc("runaways", look="serf", at=(17, 25), de="Geflohene", en="Runaways")
 
 
-# Wait until the player has started the program again and it has ended
+# Warten, bis der Spieler das Programm erneut gestartet hat und es zu Ende ist
 def next_run():
     runs = program.runs
     wait_until(lambda: program.runs > runs and program.status in ENDED)
