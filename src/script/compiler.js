@@ -8,6 +8,7 @@
 
 import { parse } from './parser.js';
 import { ScriptError, suggest } from './errors.js';
+import { findHints } from './hints.js';
 
 export const OP = {
   NOP: 0, LOAD_CONST: 1, LOAD_FAST: 2, STORE_FAST: 3, LOAD_GLOBAL: 4, STORE_GLOBAL: 5, LOAD_DEREF: 6, STORE_DEREF: 7,
@@ -51,14 +52,19 @@ export const CMP_OPS = ['==', '!=', '<', '>', '<=', '>=', 'in', 'not in', 'is', 
 /**
  * Compile source text.
  * @param {string} source
- * @param {{ known?: Iterable<string>, modules?: Record<string, string[]> }} [opts]
+ * @param {{ known?: Iterable<string>, modules?: Record<string, string[]>, vocab?: any }} [opts]
  *   known: names available at run time (built-in functions, game API);
- *   modules: modules for import/from … import * with their names
+ *   modules: modules for import/from … import * with their names;
+ *   vocab: vocabulary of the game API for hints (src/script/hints.js) – program.hints
  * @returns {Program}
  */
 export function compile(source, opts = {}) {
   const tree = parse(source);
-  return new Compiler(source, opts).program(tree);
+  // Hints first: the compiler renames nodes (comprehension variables)
+  const hints = findHints(tree, opts.vocab);
+  const prog = new Compiler(source, opts).program(tree);
+  prog.hints = hints;
+  return prog;
 }
 
 class Scope {

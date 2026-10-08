@@ -1,6 +1,6 @@
-def check_side():
-    # drehen, schauen, aufheben, zurückdrehen
+def fetch(turn):
+    # drehen, hingehen, aufheben, zurück auf den Weg
     pass
 
-while hero.can_step():
-    hero.step()
+while nelia.can_step():
+    nelia.step()

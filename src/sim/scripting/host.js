@@ -7,9 +7,11 @@
 // - All VM states are JSON and are part of the save game and the state hash. Budgets count commands.
 
 import { compile, VM, ScriptError, saveVm, loadVm, sourceHash, PyList, PyTuple, PyDict, PyFloat, PyFunction, PyHost, truthy, DATA_DEPTH } from '../../script/index.js';
-import { makeApi, DIRS, toTicks, toInt, LIMITS, assetPathOk } from './api.js';
-import { TICKS_PER_SECOND, toTile } from '../fixed.js';
+import { makeApi, toTicks, toInt, LIMITS, assetPathOk, CLASS_OF } from './api.js';
+import { TICKS_PER_SECOND, toTile, tileCenter } from '../fixed.js';
 import { kill } from '../systems/military.js';
+import { clearJob } from '../systems/serfs.js';
+import { DIRS, faceOf, tileKind } from '../systems/ground.js';
 
 const T = TICKS_PER_SECOND;
 /** Commands per tick for all mission scripts together or for the player program */
@@ -23,6 +25,8 @@ const MAX_CONSOLE = 300;
 /** Longest text a notify() notice carries */
 const NOTIFY_MAX = 300;
 const MAX_ERRORS = 20;
+/** Ticks in a row in which the player program uses its whole budget without any action → hint busyLoop (5 s). */
+export const BUSY_TICKS = 50;
 
 /** May the sim state start a handler on this event? Event → [handler kind, filter, arguments]. */
 const EVENT_HANDLERS = {
@@ -69,7 +73,17 @@ export class ScriptHost {
     this.nature = false;
     /** Last notify() event of the current tick (transient, display only) */
     this.lastNotify = null;
+    /** Figure of the last basic command (step, turn …) – the phone camera follows it (transient, display only) */
+    this.focus = 0;
+    /** Did the player program act in this tick (sim command or waiting)? For the busy-loop hint (transient). */
+    this.acted = false;
   }
+
+  /** Remember the figure a program just steered (display only, not part of the state). */
+  focusOn(id) { this.focus = id; }
+
+  /** A program issued a sim command (busy-loop hint: it does something). */
+  noteAction() { this.acted = true; }
 
   get places() { return this.state.places; }
   vmOf(level) { return this.vms[level]; }
@@ -112,7 +126,7 @@ export class ScriptHost {
 
   makeVm(level, source, seed) {
     const api = this.apis[level] ?? (this.apis[level] = makeApi(this, level));
-    const prog = compile(source, { known: api.known, modules: api.modules });
+    const prog = compile(source, { known: api.known, modules: api.modules, vocab: api.vocab });
     const opts = this.vmOpts(level, api, seed);
     return { prog, opts };
   }
@@ -137,6 +151,8 @@ export class ScriptHost {
     if (!mod.source.trim()) return;
     try {
       const { prog, opts } = this.makeVm('mission', mod.source, (sim.seed * 31 + 7) >>> 0);
+      // Hints for mission sections (shown in the world editor)
+      this.addHints('mission', prog.hints);
       this.vms.mission = new VM(prog, opts);
       const main = this.vms.mission.start({ kind: 'main' }, this.debugOpts('mission'));
       // World building and registration run immediately (large budget), waiting continues tick by tick
@@ -186,8 +202,7 @@ export class ScriptHost {
   handleOf(id) {
     const e = this.sim.entities.get(id);
     if (!e) return null;
-    const cls = { hero: 'Hero', unit: 'Serf', leader: 'Troop', worker: 'Worker', building: 'Building', tree: 'Tree', pile: 'Pile', npc: 'Npc' }[e.kind] ?? 'Entity';
-    return new PyHost(cls, id);
+    return new PyHost(CLASS_OF[e.kind] ?? 'Entity', id);
   }
 
   /** A hero arrived at a talk figure of the script: start @on_talk(id) with the hero. */
@@ -281,6 +296,7 @@ export class ScriptHost {
     const vm = this.vms[level];
     if (!vm) return;
     let left = budget;
+    this.acted = false;
     for (const task of [...vm.tasks.values()]) {
       if (task.state === 'waiting') this.checkWait(vm, task);
       if (task.state === 'ready' && left > 0) {
@@ -292,8 +308,36 @@ export class ScriptHost {
         this.reportError(level, task.error);
       }
     }
-    if (level === 'player') this.updatePlayerStatus();
+    if (level === 'player') {
+      this.updatePlayerStatus();
+      this.checkBusy(vm, left);
+    }
     vm.prune();
+  }
+
+  /**
+   * Hint busyLoop: the player program computes for BUSY_TICKS ticks in a row with its whole budget, without waiting
+   * and without a single game command – an endless loop in which nothing happens in the game.
+   */
+  checkBusy(vm, left) {
+    const st = this.state.player;
+    const busy = left <= 0 && !this.acted && ![...vm.tasks.values()].some((t) => t.state === 'waiting');
+    st.busy = busy ? (st.busy ?? 0) + 1 : 0;
+    if (st.busy !== BUSY_TICKS || this.state.hintsOff) return;
+    const main = [...vm.tasks.values()].find((t) => t.state === 'ready') ?? null;
+    const line = main ? vm.lineOf(main) : 0;
+    this.addHints('player', [{ code: 'script.hint.busyLoop', params: {}, line, col: 0 }]);
+  }
+
+  /** Store hints (compile time or busyLoop) with section and line, like errors. */
+  addHints(level, hints) {
+    if (!hints?.length) return;
+    const list = level === 'player' ? (this.state.player.hints ??= []) : (this.state.missionHints ??= []);
+    for (const h of hints) {
+      if (list.length >= 20) break;
+      const where = this.sectionLine(level, h.line);
+      list.push({ ...h, level, section: where.section, sline: where.line, seq: ++this.state.seq });
+    }
   }
 
   /** Is a task's waiting over? Then continues it (or ends it with an error). */
@@ -314,33 +358,40 @@ export class ScriptHost {
         break;
       }
       case 'walk': this.checkWalk(vm, task, w); break;
+      case 'chop': this.checkChop(vm, task, w); break;
       default: vm.resume(task, null);
     }
   }
 
+  /** Is a figure standing still (no walk command, no path)? Serfs walk with `goal`, all others with an order. */
+  static idle(e) {
+    return e.kind === 'unit' && !e.militia ? e.goal === undefined && !e.path.length : (e.order?.type ?? 'idle') === 'idle' && !e.path.length;
+  }
+
+  gameError(vm, task, reason, reasonParams = {}) {
+    this.failTask(vm, task, new ScriptError('game', { reason: `script.game.${reason}`, reasonParams }));
+  }
+
+  /** step(n) / move_to(): wait until the figure stands still; a step must reach its tile, then the next step follows. */
   checkWalk(vm, task, w) {
     const sim = this.sim;
     const e = sim.entities.get(w.id);
-    if (!e) { this.failTask(vm, task, new ScriptError('game', { reason: 'script.game.gone', reasonParams: { what: 'unit' } })); return; }
-    if (e.kind === 'hero' && e.down) { this.failTask(vm, task, new ScriptError('game', { reason: 'script.game.heroDown', reasonParams: {} })); return; }
+    if (!e) { this.gameError(vm, task, 'gone', { what: 'unit' }); return; }
+    if (e.kind === 'hero' && e.down) { this.gameError(vm, task, 'heroDown'); return; }
     const tx = toTile(e.px), ty = toTile(e.py);
     const arrived = tx === w.x && ty === w.y;
-    const idle = e.kind === 'unit' ? e.goal === undefined && !e.path.length : (e.order?.type ?? 'idle') === 'idle' && !e.path.length;
-    if (!idle && sim.tick < w.until) return;
+    if (!ScriptHost.idle(e) && sim.tick < w.until) return;
     if (w.mode === 'step') {
-      if (!arrived) { this.failTask(vm, task, new ScriptError('game', { reason: 'script.game.blocked', reasonParams: { what: 'unit' } })); return; }
+      if (!arrived) { this.gameError(vm, task, 'blocked', { what: 'unit' }); return; }
       if (w.more > 0) {
-        // Next step in look direction
-        const d = DIRS[e.face ?? 1];
+        // Next step in look direction – the same check as can_step() and the first step
+        const d = DIRS[faceOf(e)];
         const nx = tx + d[0], ny = ty + d[1];
-        const m = sim.map;
-        if (!m.walkable(nx, ny)) {
-          const info = !m.inBounds(nx, ny) ? 'edge' : this.apis[task.meta?.level ?? 'player']?.natives.tile({ vm, task }, [nx, ny], Object.create(null)) ?? 'blocked';
-          this.failTask(vm, task, new ScriptError('game', { reason: 'script.game.blocked', reasonParams: { what: info } }));
-          return;
-        }
+        if (!sim.map.walkable(nx, ny)) { this.gameError(vm, task, 'blocked', { what: tileKind(sim, nx, ny) }); return; }
         const face = e.face;
-        sim.applyCommand({ type: 'order', player: e.owner, units: [e.id], order: 'move', x: nx, y: ny });
+        sim.applyCommand(e.kind === 'unit' && !e.militia
+          ? { type: 'move', player: e.owner, units: [e.id], x: nx, y: ny }
+          : { type: 'order', player: e.owner, units: [e.id], order: 'move', x: nx, y: ny });
         if (face !== undefined) e.face = face;
         w.x = nx; w.y = ny; w.more--; w.until = sim.tick + 60 * T;
         return;
@@ -348,12 +399,32 @@ export class ScriptHost {
       vm.resume(task, null);
       return;
     }
-    // After move_to the hero looks in the main direction of their path (for ahead() and the rendering)
-    if (e.kind === 'hero' && w.sx !== undefined) {
+    // After move_to the figure looks in the main direction of its way (for front() and the rendering)
+    if (w.sx !== undefined) {
       const dx = tx - w.sx, dy = ty - w.sy;
       if (dx || dy) e.face = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
     }
     vm.resume(task, arrived);
+  }
+
+  /**
+   * serf.chop(): the serf fells the tree by the rules of the game (job with `once`). Done when the tree is gone;
+   * then the serf steps back onto the tile it chopped from (its working spot may lie beside it).
+   */
+  checkChop(vm, task, w) {
+    const sim = this.sim;
+    const e = sim.entities.get(w.id);
+    if (!e) { this.gameError(vm, task, 'gone', { what: 'unit' }); return; }
+    if (sim.entities.has(w.tree)) {
+      if (e.job?.target !== w.tree) { this.gameError(vm, task, 'interrupted'); return; }
+      if (sim.tick >= w.until) { this.gameError(vm, task, 'interrupted'); return; }
+      return;
+    }
+    if (e.job) { this.gameError(vm, task, 'interrupted'); return; }
+    if (toTile(e.px) === w.x && toTile(e.py) === w.y) { vm.resume(task, null); return; }
+    // Back to the own tile, then done (a step without further steps)
+    sim.applyCommand({ type: 'move', player: e.owner, units: [e.id], x: w.x, y: w.y });
+    task.wait = { k: 'walk', id: e.id, x: w.x, y: w.y, mode: 'step', more: 0, until: sim.tick + 60 * T };
   }
 
   failTask(vm, task, err) {
@@ -586,8 +657,11 @@ export class ScriptHost {
     st.player.since = st.seq;
     st.player.bps = cmd.debug?.bps ?? {};
     st.player.error = null;
+    st.player.hints = [];
+    st.player.busy = 0;
     try {
       const { prog, opts } = this.makeVm('player', mod.source, (sim.seed * 131 + st.player.runs * 7919) >>> 0);
+      if (!st.hintsOff) this.addHints('player', prog.hints);
       this.vms.player = new VM(prog, opts);
       const bps = this.moduleLines('player', st.player.bps);
       const debug = cmd.debug ? { mode: cmd.debug.mode === 'step' ? 'step' : 'run', kind: 'into', bps } : { mode: 'run', bps };
@@ -606,15 +680,29 @@ export class ScriptHost {
 
   stopPlayer() {
     const vm = this.vms.player;
+    // Figures the program is waiting for (step, move_to, chop) stop where they are; orders that keep running stay
+    const steered = new Set();
     if (vm) {
+      for (const t of vm.tasks.values()) if (t.state === 'waiting' && (t.wait?.k === 'walk' || t.wait?.k === 'chop')) steered.add(t.wait.id);
       for (const t of vm.tasks.values()) vm.kill(t);
       vm.prune();
     }
     this.vms.player = null;
     if (this.state.player.status === 'running' || this.state.player.status === 'paused') this.state.player.status = 'stopped';
-    // Hero stays put
-    const h = this.sim && [...this.sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === this.runtime.state.human);
-    if (h && h.order?.type === 'move') { h.order = { type: 'idle' }; h.path = []; h.anchor = { x: h.px, y: h.py }; }
+    if (!this.sim) return;
+    const human = this.runtime.state.human;
+    for (const e of this.sim.entities.values()) {
+      if (e.owner !== human) continue;
+      // All heroes stay put (also those walking for an older program), and every figure the program steered
+      if (e.kind === 'hero' && e.order?.type === 'move') { e.order = { type: 'idle' }; e.path = []; e.anchor = { x: e.px, y: e.py }; continue; }
+      if (!steered.has(e.id)) continue;
+      if (e.kind === 'unit' && !e.militia) {
+        if (e.job?.once) clearJob(this.sim, e);
+        e.goal = undefined; e.path = [];
+        // Back to the middle of the tile it stands on
+        e.px = tileCenter(toTile(e.px)); e.py = tileCenter(toTile(e.py));
+      } else if (e.order?.type === 'move') { e.order = { type: 'idle' }; e.path = []; e.anchor = { x: e.px, y: e.py }; }
+    }
   }
 
   updatePlayerStatus() {
@@ -695,7 +783,10 @@ export class ScriptHost {
   /** State for code panel, console and debugger (read only, pure JSON). */
   uiState() {
     const st = this.state;
-    const player = { status: st.player.status, runs: st.player.runs, since: st.player.since ?? 0, error: st.player.error ?? null, line: null, vars: null };
+    const player = {
+      status: st.player.status, runs: st.player.runs, since: st.player.since ?? 0, error: st.player.error ?? null, line: null, vars: null,
+      hints: st.hintsOff ? [] : st.player.hints ?? [],
+    };
     const pvm = this.vms.player;
     if (pvm) {
       const main = [...pvm.tasks.values()].find((t) => t.meta?.kind === 'main');
@@ -714,6 +805,6 @@ export class ScriptHost {
         if (t.state === 'paused' && !mission.paused) mission.paused = { id: t.id, line, vars: mvm.inspect(t) };
       }
     }
-    return { console: st.console.slice(-120), errors: st.errors.slice(-5), player, mission, places: { ...st.places } };
+    return { console: st.console.slice(-120), errors: st.errors.slice(-5), player, mission, missionHints: st.missionHints ?? [], places: { ...st.places }, focus: this.focus };
   }
 }

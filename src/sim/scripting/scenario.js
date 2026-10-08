@@ -204,7 +204,7 @@ export function emptyScenario(o = {}) {
     sections: [
       { id: 'world', file: 'world.py', title: { de: 'Welt aufbauen', en: 'Build the world' }, level: 'mission', visibility: 'collapsed', editable: false, code: '# Weltaufbau: plant_trees(…), add_pile(…), make_place(…)\n' },
       { id: 'mission', file: 'mission.py', title: { de: 'Mission', en: 'Mission' }, level: 'mission', visibility: 'hidden', editable: false, code: '# Ziele: objective("ziel", lambda: …, de="…") – sind alle Hauptziele erfüllt, ist die Mission gewonnen\n@on_start\ndef intro():\n    say("nelia", de="Los geht\'s!", en="Here we go!")\n' },
-      { id: 'player', file: 'player.py', title: { de: 'Dein Programm', en: 'Your program' }, level: 'player', visibility: 'open', editable: true, code: 'hero.step()\n' },
+      { id: 'player', file: 'player.py', title: { de: 'Dein Programm', en: 'Your program' }, level: 'player', visibility: 'open', editable: true, code: 'nelia.step()\n' },
     ],
   };
 }

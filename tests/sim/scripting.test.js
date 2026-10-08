@@ -110,33 +110,36 @@ describe('Scenarios', () => {
     expect(copy.hash()).toBe(sim.hash());
   });
 
-  it('hero: turning, facing direction, obstacles, take() and chop()', () => {
+  it('hero under her name: turning, facing direction, sensors, take() and put() – no chopping', () => {
     const sim = createScenarioSim(scenario([
-      { id: 'w', level: 'mission', code: 'add_tree(6, 8)\nadd_pile("stone", 4, 7, 50)\n' },
+      { id: 'w', level: 'mission', code: 'add_tree(6, 8)\nadd_pile("stone", 4, 7, 50)\nadd_item("coin", 5, 8)\nadd_item("flower", 4, 9)\n' },
       playerSection(),
     ]));
     runCode(sim, [
-      'print(hero.facing, hero.ahead(), hero.can_step())',
-      'hero.step()',
-      'print(hero.ahead())',
-      'hero.chop()',
-      'print(stock("wood") > 0, hero.ahead())',
-      'hero.turn_left()',
-      'hero.step(0)',
-      'print(hero.facing)',
-      'hero.turn_to("west")',
-      'hero.step()',
-      'hero.turn_right()',
-      'print(hero.ahead())',
-      's0 = stock("stone")',
-      'print(hero.take(), stock("stone") - s0)',
-      'hero.step()',
-      'hero.step()',
+      'print(nelia.facing, nelia.front(), nelia.can_step(), nelia.left(), nelia.right(), nelia.here())',
+      'nelia.step()',
+      'print(nelia.front(), nelia.here(), nelia.ahead())',
+      'print(nelia.take(), stock("gold"), nelia.here())',
+      'nelia.put()',
+      'print(nelia.here(), stock("gold"))',
+      'print(nelia.take())',
+      'nelia.turn_left()',
+      'nelia.step(0)',
+      'print(nelia.facing)',
+      'nelia.turn_to("west")',
+      'nelia.step()',
+      'nelia.turn_right()',
+      'print(nelia.front(), hero == nelia)',
+      'nelia.turn_to("north")',
     ].join('\n'));
     run(sim, 200);
-    expect(consoleText(sim)).toBe(['east free True', 'tree', 'True free', 'north', 'pile', 'stone 50'].join('\n'));
-    // after two steps north he stands at (4, 6)
-    expect(tileOf(heroOf(sim))).toEqual([4, 6]);
+    expect(sim.mission.script.state.errors).toEqual([]);
+    expect(consoleText(sim)).toBe(['east coin True pile flower free', 'tree coin tree', 'coin 1 free', 'coin 0', 'coin', 'north', 'pile True'].join('\n'));
+    expect(tileOf(heroOf(sim))).toEqual([4, 8]);
+    // Heroes do not chop: the old shortcut is gone
+    runCode(sim, 'nelia.turn_to("east")\nnelia.step()\nnelia.chop()\n');
+    run(sim, 50);
+    expect(sim.mission.script.state.errors.at(-1)).toMatchObject({ kind: 'AttributeError', sline: 3 });
   });
 
   it('hero without a castle looks east and keeps the facing direction when stepping', () => {
@@ -329,19 +332,24 @@ describe('Saving and determinism', () => {
 
 describe('Learning adventures are solvable with a model solution', () => {
   const SOLUTIONS = {
-    adv1: 'for i in range(10):\n    hero.step()\n',
-    adv2: 'while not hero.is_at(place("goal")):\n    if hero.can_step():\n        hero.step()\n    else:\n        hero.turn_right()\n',
-    adv3: 'hero.step()\nwhile hero.ahead() == "tree":\n    hero.chop()\n    hero.step()\n',
+    adv1: 'for i in range(10):\n    nelia.step()\n',
+    adv2: 'while not nelia.is_at(place("goal")):\n    if nelia.can_step():\n        nelia.step()\n    else:\n        nelia.turn_right()\n',
+    adv3: 'count = 0\nwhile nelia.front() == "coin":\n    nelia.step()\n    nelia.take()\n    count = count + 1\nprint("Taler:", count)\n',
     adv4: [
-      'def check_side(turn, back):',
+      'def fetch(turn):',
       '    turn()',
-      '    if hero.ahead() == "pile":',
-      '        hero.take()',
-      '    back()',
-      'while hero.can_step():',
-      '    hero.step()',
-      '    check_side(hero.turn_left, hero.turn_right)',
-      '    check_side(hero.turn_right, hero.turn_left)',
+      '    nelia.step()',
+      '    nelia.take()',
+      '    turn()',
+      '    turn()',
+      '    nelia.step()',
+      '    turn()',
+      'while nelia.can_step():',
+      '    nelia.step()',
+      '    if nelia.left() == "coin":',
+      '        fetch(nelia.turn_left)',
+      '    if nelia.right() == "coin":',
+      '        fetch(nelia.turn_right)',
     ].join('\n'),
     adv5: [
       'def build_one(kind):',
@@ -369,6 +377,8 @@ describe('Learning adventures are solvable with a model solution', () => {
       run(sim, 4000);
       expect(sim.mission.script.state.errors.filter((e) => e.level === 'player' && e.seq > 2)).toEqual([]);
       expect(sim.mission.state.result).toMatchObject({ won: true });
+      // The model solution gives no hints
+      expect(sim.mission.script.state.player.hints).toEqual([]);
     });
   }
 
