@@ -556,7 +556,9 @@ export class Engine {
    */
   followWatched(now, dt) {
     const f = this.watchFollow, r = this.renderer, rig = r?.rig, vp = r?.viewport;
-    if (!f || !rig || !vp || this.camFly) return;
+    if (!f || !rig || !vp) return;
+    // scripted moves and the dialogue camera have the view; their return is not a manual move
+    if (this.camFly || this.dialogCam) { f.cam = null; f.moving = false; return; }
     const cam = { x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist, pitch: rig.pitch };
     const same = (a, b) => a && Math.abs(a.x - b.x) < 1e-3 && Math.abs(a.z - b.z) < 1e-3 && Math.abs(a.yaw - b.yaw) < 1e-4 && Math.abs(a.dist - b.dist) < 1e-3 && Math.abs(a.pitch - b.pitch) < 1e-4;
     if (f.cam && !same(f.cam, cam)) { f.manualUntil = now + WATCH_MANUAL_MS; f.moving = false; }

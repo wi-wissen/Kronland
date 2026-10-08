@@ -491,11 +491,12 @@ export default {
 .ed-asset small { color: var(--ink-muted); }
 .ed-file-btn { position: relative; padding: 0 0.75rem; border-radius: var(--r-md); cursor: pointer; background: var(--inset-bg); box-shadow: var(--inset-edge); }
 .ed-file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.ed-tools { position: absolute; z-index: 5; left: calc(0.5rem + var(--safe-l)); top: 4.25rem; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.375rem; max-height: calc(100dvh - 6rem); overflow-y: auto; width: 5.25rem; }
+/* two columns: all 16 tools and the options of the chosen one fit without scrolling */
+.ed-tools { position: absolute; z-index: 5; left: calc(0.5rem + var(--safe-l)); top: 4.25rem; display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 0.25rem; padding: 0.375rem; max-height: calc(100dvh - 6rem); overflow-y: auto; width: 10rem; }
 .ed-tools button.act.ed-tool { flex: none; width: 100%; min-height: 3.25rem; padding: 0.375rem 0.25rem 0.3125rem; }
 .ed-tool > .ico { width: 1.5rem; height: 1.5rem; }
 .ed-glyph { position: relative; z-index: 1; height: 1.5rem; display: grid; place-items: center; font-size: 1.25rem; line-height: 1; }
-.ed-brush { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--fs-xs); padding: 0.25rem 0; border-top: 1px solid rgba(225, 168, 58, 0.2); }
+.ed-brush { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--fs-xs); padding: 0.25rem 0; border-top: 1px solid rgba(225, 168, 58, 0.2); }
 .ed-brush input[type=range] { width: 100%; }
 .ed-num { width: 4.5rem; }
 .ed-status { position: absolute; z-index: 5; left: 6.25rem; bottom: calc(0.5rem + var(--safe-b)); margin: 0; padding: 0.25rem 0.625rem; border-radius: var(--r-md); background: rgba(20, 13, 8, 0.75); color: var(--ink); font-size: var(--fs-sm); }
@@ -541,7 +542,7 @@ export default {
 .editor.compact .ed-actions > button, .editor.compact .ed-file-btn { min-height: 2.25rem; padding: 0 0.45rem; }
 .editor.compact .ed-actions .icon-btn { min-width: 2.25rem; }
 .editor.compact .ed-side-fab { bottom: calc(5.75rem + var(--safe-b)); }
-.editor.compact .ed-tools { top: auto; left: var(--safe-l); right: var(--safe-r); bottom: var(--safe-b); width: auto; flex-direction: row; max-height: none; overflow-x: auto; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.editor.compact .ed-tools { display: flex; top: auto; left: var(--safe-l); right: var(--safe-r); bottom: var(--safe-b); width: auto; flex-direction: row; max-height: none; overflow-x: auto; border-radius: var(--r-lg) var(--r-lg) 0 0; }
 .editor.compact .ed-tools button.act.ed-tool { width: 3.75rem; }
 .editor.compact .ed-brush { flex-direction: row; align-items: center; border-top: 0; border-left: 1px solid rgba(225, 168, 58, 0.2); padding: 0 0.375rem; min-width: 10rem; }
 .editor.compact .ed-status { left: 0.5rem; bottom: calc(5.75rem + var(--safe-b)); font-size: var(--fs-xs); }
