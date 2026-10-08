@@ -8,13 +8,15 @@
 
 import * as THREE from 'three';
 import { Renderer } from '../render/Renderer.js';
-import { applyEdit, editorSim, withTerrain, tileInfo, deriveFlags } from '../sim/editor/edit.js';
+import { applyEdit, editorSim, withTerrain, tileInfo, deriveFlags, groundSnapshot, restoreGround } from '../sim/editor/edit.js';
 import { createScenarioSim } from '../sim/missions/runtime.js';
 import { fromB64 } from '../sim/world.js';
 import { OCCUPIED, RESERVED } from '../sim/map.js';
 import { BALANCE } from '../sim/data/balance.js';
 
-const PAINT_TOOLS = new Set(['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase']);
+const PAINT_TOOLS = new Set(['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase', 'item', 'track']);
+/** Tools that work on exactly the tile under the pointer (brush size does not apply) */
+const ONE_TILE = new Set(['item']);
 const CLICK_TOOLS = new Set(['pile', 'shaft', 'spot', 'start', 'place']);
 const UNDO_MAX = 30;
 
@@ -28,7 +30,7 @@ export class EditorView {
     this.canvas = canvas;
     this.onUi = opts.onUi ?? (() => {});
     this.onPick = opts.onPick ?? (() => {});
-    this.tool = { tool: 'raise', r: 2, strength: 60, res: 'stone', amount: BALANCE.pile.amount, player: 0 };
+    this.tool = { tool: 'raise', r: 2, strength: 60, res: 'stone', amount: BALANCE.pile.amount, player: 0, item: 'coin', level: BALANCE.ground.tracks.max };
     this.undoStack = [];
     this.redoStack = [];
     this.preview = false;
@@ -125,6 +127,7 @@ export class EditorView {
       heights: m.heights.slice(), flags: m.flags.slice(),
       nodes: [...this.sim.entities.values()].filter((e) => e.kind === 'tree' || e.kind === 'pile').map((e) => ({ kind: e.kind, x: e.x, y: e.y, res: e.res, amount: e.amount })),
       spots: this.sim.spots.map((s) => ({ ...s })), shafts: this.sim.shafts.map((s) => ({ ...s })),
+      ground: groundSnapshot(m),
     };
   }
 
@@ -139,6 +142,7 @@ export class EditorView {
       const e = sim.addNode(n.kind, n.x, n.y, n.res, n.amount);
       if (e && n.kind === 'pile') m.reserve(n.x, n.y, 1, 1);
     }
+    restoreGround(m, snap.ground);
     sim.spots = snap.spots.map((s) => ({ ...s }));
     sim.shafts = snap.shafts.map((s) => ({ ...s }));
     m.heightVersion++;
@@ -173,7 +177,7 @@ export class EditorView {
     if (this.preview) return;
     const t = this.tool;
     if (CLICK_TOOLS.has(t.tool) && (t.tool === 'start' || t.tool === 'place')) { this.onPick(t.tool, x, y); return; }
-    const r = applyEdit(this.sim, { tool: t.tool, x, y, r: t.r, strength: t.strength, res: t.res, amount: t.amount, seed: (x * 31 + y) | 0 });
+    const r = applyEdit(this.sim, { tool: t.tool, x, y, r: t.r, strength: t.strength, res: t.res, amount: t.amount, seed: (x * 31 + y) | 0, item: t.item, level: t.level });
     if (r.events.length) this.renderer.onEvents(r.events);
     if (r.changed) this.dirty = true;
   }
@@ -299,7 +303,7 @@ export class EditorView {
   updateBrush() {
     const b = this.brush, h = this.hoverTile;
     if (!b || !h || this.preview || this.tool.tool === 'camera') { if (b) b.visible = false; return; }
-    const r = PAINT_TOOLS.has(this.tool.tool) ? this.tool.r + 0.5 : this.tool.tool === 'shaft' ? 1.5 : this.tool.tool === 'spot' ? 2 : 0.5;
+    const r = ONE_TILE.has(this.tool.tool) ? 0.5 : PAINT_TOOLS.has(this.tool.tool) ? this.tool.r + 0.5 : this.tool.tool === 'shaft' ? 1.5 : this.tool.tool === 'spot' ? 2 : 0.5;
     const cx = h.x + 0.5, cz = h.y + 0.5;
     const pos = b.geometry.attributes.position;
     for (let i = 0; i < 65; i++) {
@@ -341,6 +345,7 @@ export class EditorView {
       counts: {
         trees: [...sim.entities.values()].filter((e) => e.kind === 'tree').length,
         piles: [...sim.entities.values()].filter((e) => e.kind === 'pile').length,
+        items: sim.map.items.size,
         spots: sim.spots.length, shafts: sim.shafts.length,
       },
       starts: sim.starts.map((s, i) => ({ i, x: s.x, y: s.y, screen: this.screenOf(s.x, s.y) })),

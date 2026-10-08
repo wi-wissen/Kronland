@@ -13,8 +13,9 @@ import { isqrt } from '../fixed.js';
 import { Sim } from '../sim.js';
 import { terrainOf } from '../world.js';
 import { playerSetupOf, scenarioToDef } from '../scripting/scenario.js';
+import { addItem, removeItem, itemAt, setTrack, clearGround, ITEM_KINDS } from '../systems/ground.js';
 
-export const TOOLS = ['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase', 'pile', 'shaft', 'spot'];
+export const TOOLS = ['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase', 'pile', 'shaft', 'spot', 'item', 'track'];
 export const MIN_H = -1500, MAX_H = 6000;
 
 const hash = (x, y, s) => {
@@ -26,7 +27,8 @@ const hash = (x, y, s) => {
 /**
  * Apply a tool.
  * @param {import('../sim.js').Sim} sim
- * @param {{ tool: string, x: number, y: number, r?: number, strength?: number, res?: string, amount?: number, seed?: number }} op
+ * @param {{ tool: string, x: number, y: number, r?: number, strength?: number, res?: string, amount?: number, seed?: number,
+ *   item?: string, level?: number }} op item: 'coin' | 'flower' (tool item), level: track strength 1…max (tool track)
  * @returns {{ events: any[], changed: boolean }}
  */
 export function applyEdit(sim, op) {
@@ -97,6 +99,9 @@ export function applyEdit(sim, op) {
     }
     case 'erase': {
       for (const t of tiles) {
+        // items and tracks under the brush
+        if (removeItem(sim, t.x, t.y)) changed = true;
+        if (m.tracks[t.k]) { setTrack(m, t.x, t.y, 0); changed = true; }
         const e = sim.entities.get(m.owner[t.k]);
         if (e && (e.kind === 'tree' || e.kind === 'pile')) {
           sim.removeEntity(e);
@@ -118,6 +123,23 @@ export function applyEdit(sim, op) {
       if (!m.walkable(cx, cy) || (m.flags[m.idx(cx, cy)] & RESERVED)) return { events, changed };
       const n = sim.addNode('pile', cx, cy, res, Math.max(1, Math.min(5000, Math.trunc(op.amount ?? BALANCE.pile.amount))));
       if (n) { m.reserve(cx, cy, 1, 1); events.push({ type: 'natureChanged' }); changed = true; }
+      return { events, changed };
+    }
+    case 'item': {
+      // one item on the tile under the pointer (dragging lays a row); replaces another item there
+      const kind = ITEM_KINDS.includes(op.item) ? op.item : 'coin';
+      if (itemAt(m, cx, cy) === kind) return { events, changed };
+      if (itemAt(m, cx, cy)) removeItem(sim, cx, cy);
+      return { events, changed: addItem(sim, cx, cy, kind) };
+    }
+    case 'track': {
+      // track strength on walkable tiles under the brush (1 = footprints only in snow, from 8 also paths in summer)
+      const level = Math.max(1, Math.min(BALANCE.ground.tracks.max, Math.trunc(op.level ?? BALANCE.ground.tracks.max)));
+      for (const t of tiles) {
+        if (!m.walkable(t.x, t.y) || m.tracks[t.k] === level) continue;
+        setTrack(m, t.x, t.y, level);
+        changed = true;
+      }
       return { events, changed };
     }
     case 'shaft': case 'spot': {
@@ -171,9 +193,23 @@ export function deriveFlags(sim, x0, y0, w, h, events = []) {
         } else continue; // building: area stays as it is
       }
       m.flags[k] = f | (m.flags[k] & OCCUPIED);
+      // no items and tracks on water and rocks
+      if ((f & (WATER | CLIFF)) && (m.tracks[k] || m.items.has(k))) clearGround(m, k);
     }
   }
   return nature;
+}
+
+/** Items and tracks of the map for undo/redo of the editor. */
+export function groundSnapshot(map) {
+  return { items: [...map.items], tracks: map.tracks.slice() };
+}
+
+/** Restore items and tracks (after the trees and piles: a node on a tile would take the item away). */
+export function restoreGround(map, snap) {
+  map.items = new Map(snap.items);
+  map.tracks.set(snap.tracks);
+  map.groundVersion++;
 }
 
 /** Infos about a tile for the editor's status line. */
@@ -184,8 +220,9 @@ export function tileInfo(sim, x, y) {
   const e = (f & OCCUPIED) ? sim.entities.get(m.owner[k]) : null;
   return {
     x, y, h: m.heights[k],
-    kind: f & CLIFF ? 'cliff' : f & WATER ? 'water' : e ? (e.kind === 'building' ? 'building' : e.kind) : (f & RESERVED ? 'reserved' : 'free'),
+    kind: f & CLIFF ? 'cliff' : f & WATER ? 'water' : e ? (e.kind === 'building' ? 'building' : e.kind) : (f & RESERVED ? 'reserved' : m.items.get(k) ?? (m.tracks[k] ? 'track' : 'free')),
     res: e?.res ?? null,
+    track: m.tracks[k],
   };
 }
 

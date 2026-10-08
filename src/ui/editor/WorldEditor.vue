@@ -29,6 +29,7 @@
       </button>
       <div v-if="ui && showBrush" class="ed-brush">
         <label>{{ $t('editor.size') }} <input type="range" min="0" max="8" :value="ui.tool.r" data-testid="brush-size" @input="setTool({ r: +$event.target.value })"><b class="num">{{ ui.tool.r }}</b></label>
+        <label v-if="ui.tool.tool === 'track'">{{ $t('editor.strength') }} <input type="range" min="1" max="48" :value="ui.tool.level" data-testid="track-level" @input="setTool({ level: +$event.target.value })"><b class="num">{{ ui.tool.level }}</b></label>
         <label v-if="['raise', 'lower'].includes(ui.tool.tool)">{{ $t('editor.strength') }} <input type="range" min="10" max="300" step="10" :value="ui.tool.strength" @input="setTool({ strength: +$event.target.value })"></label>
       </div>
       <div v-if="ui && ['pile', 'shaft'].includes(ui.tool.tool)" class="ed-brush">
@@ -36,6 +37,11 @@
           <option v-for="r in (ui.tool.tool === 'shaft' ? ['stone', 'iron', 'clay', 'sulfur'] : resources)" :key="r" :value="r">{{ $name.res ? $name.res(r) : r }}</option>
         </select>
         <label v-if="ui.tool.tool === 'pile'">{{ $t('editor.amount') }} <input type="number" min="1" max="5000" step="50" :value="ui.tool.amount" class="ed-num" @change="setTool({ amount: +$event.target.value })"></label>
+      </div>
+      <div v-if="ui && ui.tool.tool === 'item'" class="ed-brush">
+        <select :value="ui.tool.item" :aria-label="$t('editor.item')" data-testid="tool-item-kind" @change="setTool({ item: $event.target.value })">
+          <option v-for="k in items" :key="k" :value="k">{{ $t('editor.item.' + k) }}</option>
+        </select>
       </div>
       <div v-if="ui && ui.tool.tool === 'start'" class="ed-brush">
         <select :value="ui.tool.player" :aria-label="$t('editor.player')" @change="setTool({ player: +$event.target.value })">
@@ -47,7 +53,7 @@
     <p v-if="ui" class="ed-status" data-testid="editor-status">
       <template v-if="ui.hover">x {{ ui.hover.x }} · y {{ ui.hover.y }} · {{ ui.hover.h }} cm · {{ $t('editor.kind.' + ui.hover.kind) }}<template v-if="ui.hover.res"> ({{ ui.hover.res }})</template></template>
       <template v-else>{{ ui.size.w }} × {{ ui.size.h }}</template>
-      · 🌲 {{ ui.counts.trees }} · ◆ {{ ui.counts.piles }}
+      · 🌲 {{ ui.counts.trees }} · ◆ {{ ui.counts.piles }}<template v-if="ui.counts.items"> · ● {{ ui.counts.items }}</template>
       <b v-if="ui.preview" class="ed-preview-badge">{{ $t('editor.previewOn') }}</b>
     </p>
 
@@ -212,8 +218,10 @@ const TOOLS = [
   { id: 'camera', glyph: '✥' }, { id: 'raise', glyph: '▲' }, { id: 'lower', glyph: '▼' }, { id: 'flatten', glyph: '▬' },
   { id: 'smooth', glyph: '≈' }, { id: 'water', glyph: '≋' }, { id: 'land', glyph: '◭' }, { id: 'forest', icon: 'wood' },
   { id: 'erase', icon: 'trash' }, { id: 'pile', icon: 'stone' }, { id: 'shaft', icon: 'b-stoneMine' }, { id: 'spot', icon: 'b-villageCenter' },
-  { id: 'start', icon: 'banner' }, { id: 'place', icon: 'target' },
+  { id: 'item', icon: 'gold' }, { id: 'track', glyph: '∴' }, { id: 'start', icon: 'banner' }, { id: 'place', icon: 'target' },
 ];
+/** Items of the tool "Gegenstand" (src/sim/systems/ground.js ITEM_KINDS) */
+const ITEMS = ['coin', 'flower'];
 
 /** Add missing fields so the forms always have something to bind to. */
 function normalize(s) {
@@ -246,7 +254,7 @@ export default {
       ui: null, view: null, loading: true, tab: 'scenario', sideOpen: false, grid: false,
       newOpen: false, newBase: 'flat', newSize: 32, newSeed: 42,
       placeDraft: null, newTextKey: '', message: '', fileVersion: 0,
-      compact: false, tools: TOOLS, resources: RESOURCES, heroes: HERO_IDS, examples: SCENARIOS,
+      compact: false, tools: TOOLS, items: ITEMS, resources: RESOURCES, heroes: HERO_IDS, examples: SCENARIOS,
     };
   },
   computed: {
@@ -256,7 +264,7 @@ export default {
       return [...files].map(([path, b]) => ({ path, size: b.size >= 1e6 ? `${(b.size / 1e6).toFixed(1)} MB` : `${Math.ceil(b.size / 1e3)} KB` }));
     },
     realPlayers() { return this.scenario.players.filter((p) => p.kind !== 'bandits'); },
-    showBrush() { return ['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase'].includes(this.ui?.tool.tool); },
+    showBrush() { return ['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase', 'track'].includes(this.ui?.tool.tool); },
   },
   watch: {
     scenario: {
