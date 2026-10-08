@@ -108,7 +108,9 @@ export default {
     const bank = ax.at(ax.p(gorge.far.x, gorge.far.y) + 2, -22 + 5);
     ctx.camp('ford', bank, [{ def: 'spear1', count: 1, soldiers: 3 }, { def: 'bow1', count: 1, soldiers: 4 }], { r: 6, maxR: 6, onIce: true });
     // Prisoners in a camp at the valley edge
-    ctx.camp('prison', ax.at(54, 28), [{ def: 'sword1', count: 1, soldiers: 3 }, { def: 'spear1', count: 1, soldiers: 3 }], { r: 6 });
+    const prison = ctx.camp('prison', ax.at(54, 28), [{ def: 'sword1', count: 1, soldiers: 3 }, { def: 'spear1', count: 1, soldiers: 3 }], { r: 6 });
+    // Whoever comes this close sees the prisoners (then the side objective appears)
+    if (prison) ctx.ref('prisonSight', { x: prison.x, y: prison.y, r: 14 });
     // Hrimgar's ruins on the other valley edge: blueprint fragments
     const ruins = api.findOpen(sim, ...Object.values(ax.at(62, -24)), { maxR: 6, clear: 2 }) ?? ax.at(62, -24);
     ctx.ref('ruinsArea', { x: ruins.x, y: ruins.y, r: 3 });
@@ -126,12 +128,13 @@ export default {
     { type: 'reveal', area: 'gate', seconds: 20 },
     { type: 'camera', at: 'gate' },
     say('orrin', 'Und an der Schlucht steht sicher auch jemand. Schau mit deinem Weitblick nach, bevor wir hineinlaufen.', 'And surely someone stands guard at the gorge too. Use your farsight before we walk in.'),
+    say('orrin', 'Und merk dir eins: Fällt das Werk, taut der See. Dann müssen wir schnell runter vom Eis.', 'And remember one thing: once the works falls, the lake thaws. Then we have to get off the ice fast.'),
   ],
 
   objectives: [
-    { id: 'works', type: 'destroy', ref: 'weatherworks', primary: true, text: t('Zerstöre das Wetterwerk auf der Insel', 'Destroy the weatherworks on the island'),
+    { id: 'works', type: 'destroy', ref: 'weatherworks', primary: true, hint: { entity: 'weatherworks' }, text: t('Zerstöre das Wetterwerk auf der Insel', 'Destroy the weatherworks on the island'),
       onDone: [{ type: 'reveal', id: 'escape' }] },
-    { id: 'escape', type: 'survive', seconds: THAW_AFTER, primary: true, hidden: true,
+    { id: 'escape', type: 'survive', seconds: THAW_AFTER, primary: true, hidden: true, hint: { area: 'landing' },
       text: t('Tauwetter! Bring Nelia und Orrin auf festen Talboden – runter vom Eis und von der Insel', 'Thaw! Get Nelia and Orrin onto firm valley ground – off the ice and off the island'),
       onDone: [thaw] },
     { id: 'plans', type: 'reach', area: 'ruinsArea', who: 'hero', primary: true, text: t('Sichere Hrimgars Bauplan-Bruchstücke in den Ruinen am Talrand', 'Secure Hrimgar’s plan fragments in the ruins at the valley edge'),
@@ -141,10 +144,13 @@ export default {
         say('nelia', 'Dann pass gut darauf auf. Vielleicht brauchen wir sie noch.', 'Then take good care of them. We might need them yet.'),
       ] },
     { id: 'heroes', type: 'protect', ref: 'heroes', primary: true, text: t('Nelia und Orrin dürfen nicht beide fallen', 'Nelia and Orrin must not both fall') },
-    { id: 'prisoners', type: 'destroy', ref: 'prisonGuards', text: t('Optional: Befreie die Gefangenen im Lager am Talrand', 'Optional: Free the prisoners in the camp at the valley edge'),
+    // Appears only once the camp is in sight: then Nelia says what it is for
+    { id: 'prisoners', type: 'destroy', ref: 'prisonGuards', hidden: true, hint: { area: 'prisonArea' },
+      text: t('Optional: Vertreibe die Wachen am Gefangenenlager – die Befreiten kämpfen mit dir', 'Optional: Drive off the guards at the prison camp – the freed prisoners will fight with you'),
       onDone: [
         say('villager', 'Ihr seid die Leute aus Lindgrund? Wir kämpfen mit euch!', 'You are the people from Lindgrund? We’ll fight with you!'),
         { type: 'spawn', owner: 'human', at: 'prisonArea', units: [{ def: 'spear1', count: 2, soldiers: 3 }] },
+        say('orrin', 'Zwei Trupps Speerträger mehr. Die können wir am Wetterwerk gut gebrauchen.', 'Two more squads of spearmen. We can put them to good use at the weatherworks.'),
       ] },
   ],
 
@@ -154,6 +160,12 @@ export default {
     ] },
     { id: 'gateSeen', when: { type: 'area', area: 'gate', who: 'army' }, do: [
       say('nelia', 'Ein Turm und fünf Trupps. Wenn wir hier durchwollen, brauchen wir Mut – viel Mut.', 'A tower and five squads. If we want through here, we need courage – a lot of courage.'),
+    ] },
+    { id: 'prisonSeen', when: { type: 'area', area: 'prisonSight', who: 'army' }, do: [
+      { type: 'reveal', area: 'prisonArea', seconds: 30 },
+      say('nelia', 'Da drüben, ein Lager mit Gefangenen – Leute aus den Dörfern. Vertreiben wir die Wachen, kämpfen sie mit uns.',
+        'Over there, a camp with prisoners – people from the villages. If we drive off the guards, they will fight with us.'),
+      { type: 'reveal', id: 'prisoners' },
     ] },
     { id: 'valley', when: { type: 'area', area: 'valley', who: 'army' }, do: [
       { type: 'reveal', area: 'isle', seconds: 30 },

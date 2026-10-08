@@ -33,7 +33,8 @@ export default {
   players: [
     {
       kind: 'human', heroes: ['nelia', 'orrin'], serfs: 10, techs: ['conscription', 'education', 'construction'],
-      stock: { gold: 2000, clay: 1600, wood: 2200, stone: 1500, iron: 600, sulfur: 200 },
+      // Small stock: mercenaries (1400) have to be earned, buildings wait for the own pits and taxes
+      stock: { gold: 900, clay: 1400, wood: 1800, stone: 1200, iron: 400, sulfur: 100 },
     },
     { kind: 'bandits', look: 'soldiers' },
     { kind: 'village', name: 'eisenhain', diplomacy: { human: 'allied' } },

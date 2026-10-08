@@ -424,7 +424,7 @@ Prüfung im Editor, ohne Build-Schritt.
 | Untätige Leibeigene | Taste . | Knopf „Untätige“ |
 | Pause (Spiel und Animationen stehen, Welt in Graustufen, Schild „Pausiert“ unten; Befehle bleiben möglich) | Leertaste | Knopf |
 | Baumenü-Gruppe | Reiter (nur wenn nicht alle Gruppen nebeneinander passen) | Reiter |
-| Heldenfähigkeit | X, C | Knopf |
+| Heldenfähigkeit | X, C – nur wenn ein Held allein ausgewählt ist (bei gemischter Auswahl Hinweis statt Knöpfen) | Knopf |
 | Steuergruppe merken | Umschalt+1–9 (Strg+1–9, wo der Browser es durchlässt) | Knopf „Als Gruppe merken“ |
 | Steuergruppe abrufen | 1–9, zweimal: Kamera hin | Gruppenschild über der Karte |
 | Zur Burg | H | Knopf „Burg“ |

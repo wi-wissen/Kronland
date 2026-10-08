@@ -124,7 +124,7 @@ Aufbau- und Echtzeitstrategiespielen.
 
 **Preise:** Kaufen kostet Arbeit. Mission 2 startet mit 300 Talern (Zacke 1200, mit Rabatt 800), Mission 5 mit
 kleinem Vorrat (Eisen für die Lieferung muss erst gefördert werden), Mission 6 mit 1500 Talern und 600 Schwefel
-(Wissen der Gelehrten: 1800 Taler, 400 Schwefel). Mission 4 bleibt eine echte Wahl (Söldner 1400 oder Flüchtlinge 400).
+(Wissen der Gelehrten: 1800 Taler, 400 Schwefel). Mission 4 startet mit 900 Talern: Flüchtlinge (400) gehen sofort, Söldner (1400) erst nach etwas Wirtschaft – und wer nur spart, steht ohne Truppen vor Tarans Ausfällen.
 
 ## Mission 1: Lindgrund (Einführung)
 
@@ -166,7 +166,7 @@ schließt das Gebirge. Zwei Wege führen hinein:
 Im Tal liegt der See mit dem **Wetterwerk** auf der Insel. Ist es zerstört, taut es nach **60 Sekunden**: Wer dann
 auf dem Eis steht, ertrinkt; stehen Nelia oder Orrin auf dem Eis oder auf der Insel, ist die Mission verloren
 (eigene Niederlagentexte). Hrimgars Baupläne liegen in den Ruinen am anderen Talrand, Gefangene in einem Lager
-am Rand gegenüber (optional, zwei Speerträger-Trupps schließen sich an).
+am Rand gegenüber (optional: erscheint als Ziel, sobald man das Lager sieht; Nelia erklärt, dass die Befreiten mitkämpfen – zwei Speerträger-Trupps schließen sich an). Orrin warnt gleich zu Beginn vor dem Tauwetter.
 
 ## Mission 6: Malvors Wetterkraftwerk
 

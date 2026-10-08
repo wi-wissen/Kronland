@@ -28,10 +28,18 @@
           </button>
         </div>
       </div>
-      <div v-if="sel.refill" class="act-group">
+      <!-- Always there with troops (greyed out when all squads are full): appearing and vanishing in battle would
+           push the hero abilities aside right while you click them -->
+      <div v-if="sel.refill || sel.leaders?.length" class="act-group">
         <h4>{{ $t('army.troops') }}</h4>
         <div>
-          <button v-tip="{ title: $t('army.refill'), text: $t('army.refillTip') }" class="act" data-testid="order-refill" @click="act({ kind: 'refill' })">
+          <button
+            v-tip="{ title: $t('army.refill'), text: $t('army.refillTip'), reason: sel.refill ? null : $t('army.refillNone') }"
+            class="act"
+            :aria-disabled="!sel.refill"
+            data-testid="order-refill"
+            @click="sel.refill && act({ kind: 'refill' })"
+          >
             <Icon name="refill" /><span class="act-lbl">{{ $t('army.refill') }}</span>
           </button>
         </div>
@@ -48,13 +56,18 @@
           ><Icon name="banner" /><span class="act-lbl">{{ group.current ? $t('army.groupIs', { n: group.current }) : $t('army.groupSave', { n: group.next }) }}</span></button>
         </div>
       </div>
-      <div v-for="h in sel.heroes" :key="h.id" class="act-group">
+      <!-- Abilities only for a hero selected on its own (the "intersection" of a mixed selection has none) -->
+      <div v-if="!solo && sel.heroes?.length" class="act-group" data-testid="abilities-solo-hint">
+        <h4>{{ $t('army.abilities') }}</h4>
+        <p class="ap-solo">{{ $t('army.abilitiesSolo') }}</p>
+      </div>
+      <div v-for="h in solo ? [solo] : []" :key="h.id" class="act-group">
         <h4>{{ $t('army.abilitiesOf', { hero: $name.hero(h.hero) }) }}</h4>
         <div>
           <button
-            v-for="(a, i) in h.abilities"
+            v-for="a in h.abilities"
             :key="a.id"
-            v-tip="{ title: $name.ability(a.id), text: $t('adesc.' + a.id), reason: h.down ? $t('army.heroDown') : a.readyIn > 0 ? $t('army.readyIn', { s: a.readyIn }) : null, key: touch ? null : abilityKeys[i]?.toUpperCase() }"
+            v-tip="{ title: $name.ability(a.id), text: $t('adesc.' + a.id), reason: h.down ? $t('army.heroDown') : a.readyIn > 0 ? $t('army.readyIn', { s: a.readyIn }) : null, key: touch ? null : keyOf(h, a)?.toUpperCase() }"
             class="act ability"
             :class="{ ready: !h.down && a.readyIn === 0 }"
             :aria-disabled="h.down || a.readyIn > 0"
@@ -85,8 +98,7 @@
 </template>
 
 <script>
-/** Keys of the hero abilities (the numbers belong to the control groups) */
-export const ABILITY_KEYS = ['x', 'c', 'v'];
+import { abilityKeyMap } from './abilityKeys.js';
 
 import ArmyRoster from './ArmyRoster.vue';
 
@@ -103,22 +115,25 @@ export default {
     details: { type: Boolean, default: true },
   },
   emits: ['action'],
-  data() { return { abilityKeys: ABILITY_KEYS }; },
   mounted() {
     this.onKey = (e) => {
       if (e.target instanceof HTMLInputElement || e.ctrlKey || e.metaKey || e.altKey) return;
-      const h = this.sel.heroes?.[0];
-      const a = h?.abilities[ABILITY_KEYS.indexOf(e.key.toLowerCase())];
-      if (a && !h.down && !a.readyIn) this.act({ kind: 'ability', hero: h.id, ability: a.id });
+      const hit = abilityKeyMap(this.solo ? [this.solo] : []).find((x) => x.key === e.key.toLowerCase());
+      if (hit && !hit.hero.down && !hit.ability.readyIn) this.act({ kind: 'ability', hero: hit.hero.id, ability: hit.ability.id });
     };
     window.addEventListener('keydown', this.onKey);
   },
   beforeUnmount() { window.removeEventListener('keydown', this.onKey); },
   computed: {
+    /** The hero, if exactly one hero and nothing else is selected (only then its abilities show) */
+    solo() {
+      const s = this.sel;
+      return s.heroes?.length === 1 && !s.leaders?.length && !s.militia && !s.serfs ? s.heroes[0] : null;
+    },
     /** Short explanations: abilities of all selected heroes and the control group */
     explain() {
       const out = [];
-      for (const h of this.sel.heroes ?? []) {
+      for (const h of this.solo ? [this.solo] : []) {
         for (const a of h.abilities) out.push({ key: h.id + a.id, icon: 'ab-' + a.id, name: this.$name.ability(a.id), text: this.$t('adesc.' + a.id) });
       }
       const g = this.group;
@@ -137,6 +152,8 @@ export default {
   },
   methods: {
     act(a) { this.$emit('action', a); },
+    /** Key of an ability of the selected hero */
+    keyOf(h, a) { return abilityKeyMap([h]).find((x) => x.hero.id === h.id && x.ability.id === a.id)?.key ?? null; },
   },
 };
 </script>
@@ -149,6 +166,7 @@ export default {
 .ap-explain b { color: var(--gold-200); margin-right: 0.25rem; }
 .ability[aria-disabled='true'] { filter: none !important; }
 .ability[aria-disabled='true'] > .ico { filter: grayscale(0.7) brightness(0.7); }
+.ap-solo { margin: 0; max-width: 9rem; min-height: 4.25rem; display: flex; align-items: center; color: var(--ink-dim); font-size: var(--fs-xs); line-height: 1.3; }
 .ap-hint { margin: 0; color: var(--ink-dim); font-size: var(--fs-xs); }
 @media (max-width: 760px), (max-height: 480px) and (orientation: landscape) {
   /* Wrap instead of swiping sideways: the heroes' abilities otherwise lay invisible off to the right */
