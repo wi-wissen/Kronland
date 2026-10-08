@@ -128,6 +128,8 @@ export class MissionRuntime {
       const pl = sim.players[i];
       if (!pl) return;
       if (p.stock) { pl.stock = { ...emptyStock(), ...p.stock }; }
+      // Levels without a castle (coding adventures) start with an empty stock: stock("gold") counts the coins picked up
+      else if (p.hq === false && def.scenario) pl.stock = emptyStock();
       if (p.techs) api.giveTechs(sim, i, p.techs);
       if (p.serfs !== undefined) api.setSerfs(sim, i, p.serfs);
       if (p.team !== undefined) pl.team = p.team;

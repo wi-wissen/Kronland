@@ -49,6 +49,9 @@ export function saveGame(sim, extra = {}, { clone = true } = {}) {
     map: {
       width: sim.map.width, height: sim.map.height, frozen: sim.map.frozen,
       heights: toB64(sim.map.heights), flags: toB64(sim.map.flags), owner: toB64(sim.map.owner),
+      // Ground: tracks (one byte per tile) and items [[tile, kind], …] sorted by tile
+      tracks: toB64(sim.map.tracks),
+      items: [...sim.map.items.keys()].sort((a, b) => a - b).map((k) => [k, sim.map.items.get(k)]),
     },
     players: sim.players.map((p) => ({ ...p, techs: [...p.techs] })),
     diplomacy: sim.diplomacy ?? {},
@@ -85,6 +88,9 @@ export function loadGame(data) {
   map.flags = fromB64(data.map.flags, Uint8Array);
   map.owner = fromB64(data.map.owner, Int32Array);
   map.frozen = data.map.frozen;
+  // Older save games have no ground yet: no tracks, no items
+  if (data.map.tracks) map.tracks = fromB64(data.map.tracks, Uint8Array);
+  for (const [k, kind] of data.map.items ?? []) map.items.set(k, kind);
   Object.assign(sim, {
     seed: data.seed, tick: data.tick, nextId: data.nextId, map, waterLevel: data.waterLevel,
     starts: data.starts, spots: data.spots, shafts: data.shafts, weather: data.weather,

@@ -32,4 +32,15 @@ export const BALANCE = {
   // Building on slopes (docs/SPIELREGELN.md §6a): largest height difference (cm) within the footprint.
   // The area is levelled to the mean when building. 400 cm ≈ 1.1 tile widths (A, justified in §6a).
   maxSlope: 400,
+  // Ground (docs/SPIELREGELN.md, Spuren und Gegenstände): items on tiles and tracks. Only looks and sensors,
+  // no effect on speed or pathfinding.
+  ground: {
+    coinValue: 1,            // thalers per coin picked up / put down (A)
+    itemTicks: 5,            // take()/put() take 0.5 s (A)
+    tracks: {
+      max: 48,               // strongest track (bytes per tile, A)
+      fadeSeconds: 30,       // each tile loses one level in this time (A)
+      threshold: { summer: 8, rain: 8, winter: 1 }, // strength from which a tile counts as "track": in snow every step (A)
+    },
+  },
 };

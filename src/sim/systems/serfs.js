@@ -176,6 +176,8 @@ export function assignGather(sim, serfs, t) {
 
 /** Find the nearest work of the same kind in the surroundings. */
 function findNextJob(sim, u, prev) {
+  // One single job (script serf.chop()): done, no follow-up work
+  if (prev.once) { clearJob(sim, u); return false; }
   const tx = toTile(u.px), ty = toTile(u.py);
   if (prev.kind === 'gather') {
     const node = nearestNode(sim, u, prev.res, tx, ty, gathererCounts(sim, new Set([u.id])));
@@ -268,7 +270,7 @@ function doWork(sim, u, t) {
   if (t.amount <= 0) {
     sim.removeEntity(t);
     sim.events.push({ type: 'nodeDepleted', node: t.id, res: t.res });
-    findNextJob(sim, u, { kind: 'gather', res: t.res });
+    findNextJob(sim, u, { kind: 'gather', res: t.res, once: u.job.once });
   }
 }
 
