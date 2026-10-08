@@ -3,6 +3,7 @@
 // Finished bridges are walkable for everyone; when destroyed the tiles become water again.
 // Everything deterministic and integer.
 
+import { thawGround } from './ground.js';
 import { BRIDGE, WATER, OCCUPIED, RESERVED, CLIFF } from '../map.js';
 import { toTile, tileCenter } from '../fixed.js';
 import { removeWorker } from './workers.js';
@@ -80,6 +81,8 @@ export function bridgeGone(sim, b) {
   m.version++;
   sim.events.push({ type: 'bridgeCollapsed', player: b.owner, building: b.id, x: b.x, y: b.y, w: b.w, h: b.h });
   if (m.frozen) return;
+  // Items and tracks on the bridge fall into the water
+  thawGround(sim, b.x, b.y, b.w, b.h);
   for (const e of [...sim.entities.values()]) {
     if (e.px === undefined) continue;
     const tx = toTile(e.px), ty = toTile(e.py);

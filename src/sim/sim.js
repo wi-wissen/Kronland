@@ -27,6 +27,7 @@ import { checkWeatherChange, changeWeather } from './systems/weather.js';
 import { createVision, updateVision, revealStart, hashVision } from './systems/vision.js';
 import { setupBridges, hashBridges, checkBridgeSite, bridgeSiteAt, bridgeDone, bridgeGone } from './systems/bridges.js';
 import { levelSite } from './systems/terrain.js';
+import { updateTracks, thawGround, takeItem, putItem, addItem, setTrack, ITEM_KINDS } from './systems/ground.js';
 
 /** Own key of a data table? Protects against commands like { building: 'constructor' }. */
 export const hasKey = (table, key) => typeof key === 'string' && Object.hasOwn(table, key);
@@ -137,6 +138,8 @@ export class Sim {
       else if (f.kind === 'shaft') this.shafts.push({ x: f.x, y: f.y, res: f.res });
       else if (f.kind === 'tree') this.addNode('tree', f.x, f.y, 'wood', BALANCE.tree.wood);
       else if (f.kind === 'pile') this.addNode('pile', f.x, f.y, f.res, f.amount ?? BALANCE.pile.amount);
+      else if (ITEM_KINDS.includes(f.kind)) addItem(this, f.x, f.y, f.kind);
+      else if (f.kind === 'track' && this.map.inBounds(f.x, f.y)) setTrack(this.map, f.x, f.y, f.strength ?? BALANCE.ground.tracks.max);
     }
 
     for (let p = 0; p < gen.starts.length; p++) {
@@ -212,9 +215,17 @@ export class Sim {
       const ring = this.map.ring(hq.x, hq.y, hq.w, hq.h);
       t = ring[((ring.length >> 1) + 2 * n) % ring.length];
     } else {
-      // Without castle (coding adventure): on the start spot or the nearest walkable tile
+      // Without castle (coding adventure): on the start spot or the nearest walkable tile; further heroes of the
+      // same player on the nearest free tile below (never two on one tile)
       const s = this.starts[owner] ?? { x: 1, y: 1 };
-      t = nearestWalkable(this.map, s.x, s.y, tileCenter(s.x), tileCenter(s.y), 12);
+      const taken = new Set();
+      for (const e of this.entities.values()) if (e.kind === 'hero' && e.owner === owner) taken.add(this.map.idx(toTile(e.px), toTile(e.py)));
+      t = -1;
+      for (let i = 0; i <= 2 * n && t < 0; i++) {
+        const y = s.y + (i & 1 ? (i + 1) >> 1 : -(i >> 1)) * 2;
+        const k = nearestWalkable(this.map, s.x, y, tileCenter(s.x), tileCenter(y), 12);
+        if (k >= 0 && !taken.has(k)) t = k;
+      }
       if (t < 0) t = this.map.idx(s.x, s.y);
     }
     const h = {
@@ -420,6 +431,7 @@ export class Sim {
       case 'order': return this.cmdOrder(cmd);
       case 'ability': return this.cmdAbility(cmd);
       case 'militia': setMilitia(this, cmd.player, !!cmd.on, Array.isArray(cmd.units) ? cmd.units : null); return true;
+      case 'item': return this.cmdItem(cmd);
       case 'trade': return this.cmdTrade(cmd);
       case 'changeWeather': return this.cmdChangeWeather(cmd);
       // Mission: e.g. confirm or skip a tutorial step (hook 2 of 3)
@@ -543,13 +555,29 @@ export class Sim {
     if (t.kind === 'building' && t.done && t.owner === cmd.player && t.builders.length >= buildersOf(t.type)
       && !serfs.some((u) => t.builders.includes(u.id))) return this.reject(cmd, REASONS.repairFull);
     let ok = 0;
-    if (t.kind === 'tree' || t.kind === 'pile') ok = assignGather(this, serfs, t);
+    // once (scripts: serf.chop()): exactly this node, and afterwards no follow-up work
+    if (cmd.once && (t.kind === 'tree' || t.kind === 'pile')) {
+      for (const u of serfs) if (assignJob(this, u, t)) { u.job.once = true; ok++; }
+    } else if (t.kind === 'tree' || t.kind === 'pile') ok = assignGather(this, serfs, t);
     else for (const u of serfs) if (assignJob(this, u, t)) ok++;
     if (!ok) {
       // Own construction site without a free spot all around (or already fully staffed)
       if (t.kind === 'building' && t.owner === cmd.player && !t.done) return this.reject(cmd, REASONS.siteFull);
       return this.reject(cmd, 'err.noWork');
     }
+    return true;
+  }
+
+  /**
+   * Pick up or put down an item on the tile of a figure: { type: 'item', action: 'take'|'put', unit, kind? }.
+   * Heroes and serfs only (troops carry nothing). A coin is one thaler.
+   */
+  cmdItem(cmd) {
+    const e = this.entities.get(cmd.unit);
+    if (!e || e.owner !== cmd.player || !(e.kind === 'hero' || e.kind === 'unit')) return this.reject(cmd, 'err.cannotCarry');
+    if (e.kind === 'hero' && e.down) return this.reject(cmd, 'err.heroDown');
+    const r = cmd.action === 'take' ? takeItem(this, e) : cmd.action === 'put' ? putItem(this, e, cmd.kind ?? 'coin') : { code: 'err.unknownCommand' };
+    if (typeof r !== 'string') return this.reject(cmd, r);
     return true;
   }
 
@@ -886,6 +914,8 @@ export class Sim {
     this.map.frozen = !!WEATHER_EFFECTS[state]?.freezesWater;
     this.events.push({ type: 'weather', state });
     if (wasWinter && !this.map.frozen) {
+      // Thaw: items and tracks on the ice are gone
+      thawGround(this);
       // Thaw: whoever stands on the ice drowns; heroes return to the castle
       for (const e of [...this.entities.values()]) {
         const f = e.px === undefined ? 0 : this.map.flags[this.map.idx(toTile(e.px), toTile(e.py))];
@@ -949,6 +979,8 @@ export class Sim {
     updateUpgrades(this);
     updateCamps(this);
     updateMilitary(this);
+    // Tracks: figures that left a tile, broom (after all movement of the tick)
+    updateTracks(this);
     updateBuildingResearch(this);
     updateMarket(this);
     updateDamage(this);
@@ -1015,6 +1047,11 @@ export class Sim {
     // Terrain heights (change through levelling when building) and tile flags (water, cliff, occupied … – scripts can change them)
     for (const v of this.map.heights) h.int(v);
     for (const v of this.map.flags) h.int(v);
+    // Items (sorted, the Map order differs after loading) and tracks
+    const items = [...this.map.items.keys()].sort((a, b) => a - b);
+    h.int(items.length);
+    for (const k of items) h.int(k).str(this.map.items.get(k));
+    for (const v of this.map.tracks) h.int(v);
     hashVision(this, h);
     hashBridges(this, h);
     this.mission?.hash(h);

@@ -1,5 +1,5 @@
 count = 0
-hero.step()
-hero.chop()
+nelia.step()
+nelia.take()
 count = count + 1
-print("Gefällt:", count)
+print("Taler:", count)

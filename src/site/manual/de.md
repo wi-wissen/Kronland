@@ -458,12 +458,17 @@ was schiefging, und macht oft einen Vorschlag („Meintest du `turn_left`?“).
 
 Bleibst du mit der Maus auf einem Befehl (am Handy: lange drücken), erklärt ihn eine Karte. Ausführlich –
 mit Parametern, Rückgabewerten, Fehlern und vielen Beispielen – erklärt sie die [Programmier-Referenz](scripting/) (Knopf **Referenz** im Code-Fenster). Die wichtigsten:
-`hero.step()`, `hero.turn_left()`, `hero.turn_right()`, `hero.ahead()`, `hero.chop()`, `hero.take()` und `print()`.
+`nelia.step()`, `nelia.turn_left()`, `nelia.turn_right()`, `nelia.front()`, `nelia.left()`, `nelia.take()` und `print()`.
+Dein Held heißt im Code wie im Spiel (`nelia`, `orrin` …); Leibeigene (`serfs()`) haben dieselben Grundbefehle und
+fällen mit `chop()` Bäume.
 
 ```
 for i in range(10):
-    hero.step()
+    nelia.step()
 ```
+
+Schreibst du etwas, das zwar läuft, aber fast nie gemeint ist – etwa `nelia.left()` (schaut nur, dreht nicht) oder
+`nelia.step` ohne Klammern –, erscheint ein **Hinweis** in Bernstein an der Zeile. Das Programm läuft trotzdem weiter.
 
 Am Handy hilft eine Tastenleiste mit Einrücken, Doppelpunkt, Klammern und Anführungszeichen. Dein Code wird im
 Browser gemerkt – du kannst jederzeit weitermachen.

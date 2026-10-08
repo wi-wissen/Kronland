@@ -1,10 +1,10 @@
 import random
-# Steine links (y = 4) und rechts (y = 6) des Wegs, zufällig verteilt; im Osten endet der Weg am Bach
+# Taler links (y = 4) und rechts (y = 6) des Wegs, zufällig verteilt; im Osten endet der Weg am Bach
 for x in range(5, 24):
     if random.random() < 0.35:
-        add_pile("stone", x, 4, 100)
+        add_item("coin", x, 4)
     if random.random() < 0.35:
-        add_pile("stone", x, 6, 100)
+        add_item("coin", x, 6)
 for y in range(world.height):
     world.set_water(25, y)
     world.set_water(26, y)

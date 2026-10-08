@@ -5,16 +5,22 @@
   "kind": "adventure",
   "end": "script",
   "order": 3,
-  "title": { "de": "Holz für den Winter", "en": "Wood for the Winter" },
+  "title": {
+    "de": "Taler für den Winter",
+    "en": "Thalers for the Winter"
+  },
   "summary": {
-    "de": "Fälle eine Baumreihe – egal wie lang sie ist.",
-    "en": "Fell a row of trees – no matter how long it is."
+    "de": "Sammle eine Reihe Taler ein – egal wie lang sie ist.",
+    "en": "Collect a row of thalers – no matter how long it is."
   },
   "briefing": {
-    "de": "Der Winter naht, das Dorf braucht Holz. Vor Nelia steht eine Reihe Bäume. hero.ahead() verrät, was vor ihr ist (\"tree\", \"free\", \"water\" …), hero.chop() fällt den Baum vor ihr. Schreibe ein Programm, das die ganze Reihe fällt – auch wenn du nicht weißt, wie lang sie ist. Zähle mit einer Variablen, wie viele Bäume es waren, und gib die Zahl mit print() aus.",
-    "en": "Winter is coming and the village needs wood. A row of trees stands in front of Nelia. hero.ahead() tells what is in front of her (\"tree\", \"free\", \"water\" …), hero.chop() fells the tree in front of her. Write a program that fells the whole row – even if you do not know how long it is. Count the trees with a variable and print the number."
+    "de": "Der Winter naht, das Dorf braucht Geld für Brennholz. Händler haben auf dem Feldweg Taler verloren: eine Reihe direkt vor Nelia. nelia.front() verrät, was vor ihr ist (\"coin\", \"free\", \"tree\" …), nelia.take() hebt auf, worauf sie steht. Schreibe ein Programm, das die ganze Reihe einsammelt – auch wenn du nicht weißt, wie lang sie ist. Zähle mit einer Variablen mit und gib die Zahl mit print() aus.",
+    "en": "Winter is coming and the village needs money for firewood. Merchants lost thalers on the field path: a row right in front of Nelia. nelia.front() tells what is in front of her (\"coin\", \"free\", \"tree\" …), nelia.take() picks up what she stands on. Write a program that collects the whole row – even if you do not know how long it is. Count along with a variable and print the number."
   },
-  "victoryText": { "de": "Genug Holz für den ganzen Winter!", "en": "Enough wood for the whole winter!" },
+  "victoryText": {
+    "de": "Genug Taler für den ganzen Winter!",
+    "en": "Enough thalers for the whole winter!"
+  },
   "learn": {
     "de": ["while mit Bedingung", "Rückgabewerte", "Zähler-Variable"],
     "en": ["while with a condition", "return values", "counter variable"]
@@ -25,7 +31,7 @@
     "height": 12,
     "fog": false,
     "starts": [{ "x": 3, "y": 6 }],
-    "places": { "grove": { "x": 13, "y": 6, "r": 10 } }
+    "places": {}
   },
   "players": [{ "kind": "human", "hero": "nelia", "hq": false }],
   "sections": [

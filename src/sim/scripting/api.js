@@ -20,10 +20,16 @@ import { TECHS } from '../data/technologies.js';
 import { BUILDING_TECHS } from '../data/buildingTechs.js';
 import { BALANCE } from '../data/balance.js';
 import { WATER, CLIFF, OCCUPIED } from '../map.js';
-import { TICKS_PER_SECOND, tileCenter, toTile } from '../fixed.js';
+import { TICKS_PER_SECOND, tileCenter, toTile, UNIT } from '../fixed.js';
 import { valueNoise } from '../mapgen.js';
 import * as sapi from '../missions/setupApi.js';
-import { revealArea } from '../systems/vision.js';
+import { revealArea, canSee, isExplored } from '../systems/vision.js';
+import { hasForecast, forecast as weatherForecast } from '../systems/weather.js';
+import { isEnemy } from '../systems/military.js';
+import {
+  DIRS, DIR_NAMES, TILE_WORDS, ITEM_KINDS, tileKind, tileToward, faceOf, figureTile, itemAt, itemList, addItem, removeItem,
+  clearGround, setTrack,
+} from '../systems/ground.js';
 import { hasKey } from '../sim.js';
 import { assetPathOk } from '../../paths.js';
 
@@ -31,9 +37,8 @@ export { assetPathOk };
 
 const T = TICKS_PER_SECOND;
 
-/** Compass directions for hero.turn_left() & co.: 0 = north (−y), 1 = east, 2 = south, 3 = west. */
-export const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-export const DIR_NAMES = ['north', 'east', 'south', 'west'];
+/** Compass directions for nelia.turn_left() & co. (src/sim/systems/ground.js): 0 = north (−y), 1 = east, 2 = south, 3 = west. */
+export { DIRS, DIR_NAMES, TILE_WORDS };
 
 const gameErr = (reason, reasonParams = {}) => new ScriptError('game', { reason: `script.game.${reason}`, reasonParams });
 
@@ -84,61 +89,69 @@ export function toTicks(v, name = 'seconds') {
 }
 
 /** Class of a handle by entity kind. */
-const CLASS_OF = { hero: 'Hero', unit: 'Serf', leader: 'Troop', soldier: 'Soldier', worker: 'Worker', building: 'Building', tree: 'Tree', pile: 'Pile', ruin: 'Ruin', npc: 'Npc' };
+export const CLASS_OF = { hero: 'Hero', unit: 'Serf', leader: 'Troop', soldier: 'Soldier', worker: 'Worker', building: 'Building', tree: 'Tree', pile: 'Pile', ruin: 'Ruin', npc: 'Npc' };
 /** Look of a talk figure: a role of the figure manifest ("serf", "worker.alchemist", "hero.orrin") or an own model of the level. */
 const LOOK_RE = /^[a-z][\w.-]{0,63}$/;
 
 // ---------------------------------------------------------------------------------------------
 // Directory for help panel, editor completion and docs. Descriptions: i18n script.api.<name>
 // level: 'player' = both levels, 'mission' = mission scripts only. group: section in the help panel.
+// also: further names explained in the same entry. query: only reads (the hints warn when the result is thrown
+// away); answers: the possible text answers ('tile', 'dir', 'weather') – vocabulary of the hints (src/script/hints.js).
 // ---------------------------------------------------------------------------------------------
 
 export const API_DOC = [
   // Flow
   { name: 'wait', sig: 'wait(seconds)', level: 'player', group: 'flow' },
   { name: 'wait_until', sig: 'wait_until(condition, timeout=None)', level: 'player', group: 'flow' },
-  { name: 'time', sig: 'time()', level: 'player', group: 'flow' },
+  { name: 'time', sig: 'time()', level: 'player', group: 'flow', query: true },
   { name: 'print', sig: 'print(*values)', level: 'player', group: 'flow' },
   { name: 'notify', sig: 'notify(text)', level: 'player', group: 'flow' },
-  // Hero (coding adventure)
-  { name: 'hero', sig: 'hero', level: 'player', group: 'hero' },
-  { name: 'hero.step', sig: 'hero.step(n=1)', level: 'player', group: 'hero' },
-  { name: 'hero.turn_left', sig: 'hero.turn_left()', level: 'player', group: 'hero' },
-  { name: 'hero.turn_right', sig: 'hero.turn_right()', level: 'player', group: 'hero' },
-  { name: 'hero.turn_to', sig: 'hero.turn_to(direction)', level: 'player', group: 'hero' },
-  { name: 'hero.ahead', sig: 'hero.ahead()', level: 'player', group: 'hero' },
-  { name: 'hero.can_step', sig: 'hero.can_step()', level: 'player', group: 'hero' },
-  { name: 'hero.move_to', sig: 'hero.move_to(target)', level: 'player', group: 'hero' },
-  { name: 'hero.is_at', sig: 'hero.is_at(target)', level: 'player', group: 'hero' },
-  { name: 'hero.take', sig: 'hero.take()', level: 'player', group: 'hero' },
-  { name: 'hero.chop', sig: 'hero.chop()', level: 'player', group: 'hero' },
-  { name: 'hero.say', sig: 'hero.say(text)', level: 'player', group: 'hero' },
-  { name: 'hero.facing', sig: 'hero.facing', level: 'player', group: 'hero' },
-  { name: 'hero.x', sig: 'hero.x, hero.y', level: 'player', group: 'hero' },
+  // Figures: heroes under their name, step by step; serfs and troops have the same basic commands
+  { name: 'nelia', sig: 'nelia · orrin · taran · malvor', level: 'player', group: 'hero', also: ['hero', 'orrin', 'taran', 'malvor'] },
+  { name: 'nelia.step', sig: 'nelia.step(n=1)', level: 'player', group: 'hero', also: ['hero.step'] },
+  { name: 'nelia.turn_left', sig: 'nelia.turn_left()', level: 'player', group: 'hero', also: ['hero.turn_left'] },
+  { name: 'nelia.turn_right', sig: 'nelia.turn_right()', level: 'player', group: 'hero', also: ['hero.turn_right'] },
+  { name: 'nelia.turn_to', sig: 'nelia.turn_to(direction)', level: 'player', group: 'hero', also: ['hero.turn_to'] },
+  { name: 'nelia.front', sig: 'nelia.front()', level: 'player', group: 'hero', query: true, answers: 'tile', also: ['hero.front', 'nelia.ahead', 'hero.ahead'] },
+  { name: 'nelia.left', sig: 'nelia.left() · nelia.right()', level: 'player', group: 'hero', query: true, answers: 'tile', also: ['nelia.right', 'hero.left', 'hero.right'] },
+  { name: 'nelia.here', sig: 'nelia.here()', level: 'player', group: 'hero', query: true, answers: 'tile', also: ['hero.here'] },
+  { name: 'nelia.can_step', sig: 'nelia.can_step()', level: 'player', group: 'hero', query: true, also: ['hero.can_step'] },
+  { name: 'nelia.move_to', sig: 'nelia.move_to(target, wait=True)', level: 'player', group: 'hero', also: ['hero.move_to', 'unit.move_to'] },
+  { name: 'nelia.is_at', sig: 'nelia.is_at(target)', level: 'player', group: 'hero', query: true, also: ['hero.is_at', 'unit.is_at'] },
+  { name: 'nelia.take', sig: 'nelia.take()', level: 'player', group: 'hero', also: ['hero.take'] },
+  { name: 'nelia.put', sig: 'nelia.put(kind="coin")', level: 'player', group: 'hero', also: ['hero.put'] },
+  { name: 'nelia.say', sig: 'nelia.say(text)', level: 'player', group: 'hero', also: ['hero.say'] },
+  { name: 'nelia.facing', sig: 'nelia.facing', level: 'player', group: 'hero', answers: 'dir', also: ['hero.facing'] },
+  { name: 'nelia.x', sig: 'nelia.x, nelia.y', level: 'player', group: 'hero', also: ['hero.x', 'nelia.y', 'hero.y'] },
   // Read world
   { name: 'place', sig: 'place(name)', level: 'player', group: 'world' },
-  { name: 'places', sig: 'places()', level: 'player', group: 'world' },
-  { name: 'tile', sig: 'tile(x, y)', level: 'player', group: 'world' },
-  { name: 'distance', sig: 'distance(a, b)', level: 'player', group: 'world' },
-  { name: 'obj.distance_to', sig: 'obj.distance_to(target)', level: 'player', group: 'world' },
-  { name: 'place.contains', sig: 'place.contains(target)', level: 'player', group: 'world' },
-  { name: 'trees_near', sig: 'trees_near(target, radius=6)', level: 'player', group: 'world' },
-  { name: 'piles_near', sig: 'piles_near(target, radius=6, res=None)', level: 'player', group: 'world' },
+  { name: 'places', sig: 'places()', level: 'player', group: 'world', query: true },
+  { name: 'tile', sig: 'tile(x, y)', level: 'player', group: 'world', query: true, answers: 'tile' },
+  { name: 'distance', sig: 'distance(a, b)', level: 'player', group: 'world', query: true },
+  { name: 'obj.distance_to', sig: 'obj.distance_to(target)', level: 'player', group: 'world', query: true },
+  { name: 'place.contains', sig: 'place.contains(target)', level: 'player', group: 'world', query: true },
+  { name: 'trees_near', sig: 'trees_near(target, radius=6)', level: 'player', group: 'world', query: true },
+  { name: 'piles_near', sig: 'piles_near(target, radius=6, res=None)', level: 'player', group: 'world', query: true },
+  { name: 'figures_near', sig: 'figures_near(target, radius=6, kind=None, side=None)', level: 'player', group: 'world', query: true, also: ['units_in'] },
+  { name: 'items_near', sig: 'items_near(target, radius=6, kind=None)', level: 'player', group: 'world', query: true },
+  { name: 'weather', sig: 'weather()', level: 'player', group: 'world', query: true, answers: 'weather' },
+  { name: 'forecast', sig: 'forecast()', level: 'player', group: 'world', query: true },
   // Village (commands as in the UI)
-  { name: 'stock', sig: 'stock(res)', level: 'player', group: 'village' },
-  { name: 'count', sig: 'count(kind)', level: 'player', group: 'village' },
-  { name: 'serfs', sig: 'serfs(idle=False)', level: 'player', group: 'village' },
-  { name: 'troops', sig: 'troops()', level: 'player', group: 'village' },
-  { name: 'buildings', sig: 'buildings(kind=None)', level: 'player', group: 'village' },
-  { name: 'hq', sig: 'hq()', level: 'player', group: 'village' },
-  { name: 'find_spot', sig: 'find_spot(kind, near, radius=20)', level: 'player', group: 'village' },
-  { name: 'can_build', sig: 'can_build(kind, x, y)', level: 'player', group: 'village' },
+  { name: 'stock', sig: 'stock(res)', level: 'player', group: 'village', query: true },
+  { name: 'count', sig: 'count(kind)', level: 'player', group: 'village', query: true },
+  { name: 'serfs', sig: 'serfs(idle=False)', level: 'player', group: 'village', query: true },
+  { name: 'troops', sig: 'troops()', level: 'player', group: 'village', query: true },
+  { name: 'buildings', sig: 'buildings(kind=None)', level: 'player', group: 'village', query: true },
+  { name: 'hq', sig: 'hq()', level: 'player', group: 'village', query: true },
+  { name: 'find_spot', sig: 'find_spot(kind, near, radius=20)', level: 'player', group: 'village', query: true },
+  { name: 'can_build', sig: 'can_build(kind, x, y)', level: 'player', group: 'village', query: true },
   { name: 'build', sig: 'build(kind, x, y)', level: 'player', group: 'village' },
   { name: 'buy_serf', sig: 'buy_serf(count=1)', level: 'player', group: 'village' },
-  { name: 'unit.move_to', sig: 'unit.move_to(target, wait=True)', level: 'player', group: 'village' },
-  { name: 'unit.is_at', sig: 'unit.is_at(target)', level: 'player', group: 'village' },
-  { name: 'unit.work_on', sig: 'serf.work_on(target)', level: 'player', group: 'village' },
-  { name: 'unit.attack', sig: 'troop.attack(target)', level: 'player', group: 'village' },
+  { name: 'serf.chop', sig: 'serf.chop()', level: 'player', group: 'village' },
+  { name: 'serf.work_on', sig: 'serf.work_on(target)', level: 'player', group: 'village', also: ['unit.work_on'] },
+  { name: 'troop.attack', sig: 'troop.attack(target)', level: 'player', group: 'village', also: ['unit.attack', 'nelia.attack', 'serf.attack'] },
+  { name: 'troop.hold', sig: 'troop.hold() · troop.defend()', level: 'player', group: 'village', also: ['troop.defend', 'nelia.hold', 'nelia.defend'] },
   { name: 'building.upgrade', sig: 'building.upgrade()', level: 'player', group: 'village' },
   // Staging (missions only)
   { name: 'say', sig: 'say(speaker, text=None, de=None, en=None, seconds=None, voice=None)', level: 'mission', group: 'story' },
@@ -170,52 +183,59 @@ export const API_DOC = [
   { name: 'victory', sig: 'victory(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
   { name: 'defeat', sig: 'defeat(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
   { name: 'program.get', sig: 'program.get(name, default=None) · program.status · program.runs', level: 'mission', group: 'goals' },
+  { name: 'hints', sig: 'hints(on=True)', level: 'mission', group: 'goals' },
   // Intervening
   { name: 'spawn', sig: 'spawn(owner, kind, at, count=1, soldiers=None)', level: 'mission', group: 'power' },
   { name: 'spawn_serfs', sig: 'spawn_serfs(player, count)', level: 'mission', group: 'power' },
   { name: 'give', sig: 'give(player, wood=0, gold=0, …)', level: 'mission', group: 'power' },
   { name: 'set_diplomacy', sig: 'set_diplomacy(a, b, "allied"|"neutral"|"hostile")', level: 'mission', group: 'power' },
-  { name: 'diplomacy', sig: 'diplomacy(a, b)', level: 'player', group: 'power' },
+  { name: 'diplomacy', sig: 'diplomacy(a, b)', level: 'player', group: 'power', query: true },
   { name: 'give_tech', sig: 'give_tech(player, *techs)', level: 'mission', group: 'power' },
   { name: 'place_building', sig: 'place_building(player, kind, near, done=True)', level: 'mission', group: 'power' },
   { name: 'remove', sig: 'remove(thing)', level: 'mission', group: 'power' },
-  { name: 'hero.teleport', sig: 'hero.teleport(target)', level: 'mission', group: 'power' },
+  { name: 'nelia.teleport', sig: 'nelia.teleport(target)', level: 'mission', group: 'power', also: ['hero.teleport'] },
   { name: 'obj.kill', sig: 'obj.kill()', level: 'mission', group: 'power' },
   { name: 'attack', sig: 'attack(units, target)', level: 'mission', group: 'power' },
   { name: 'move', sig: 'move(units, target)', level: 'mission', group: 'power' },
-  { name: 'units_in', sig: 'units_in(target, player=HUMAN, who="any")', level: 'mission', group: 'power' },
-  { name: 'alive', sig: 'alive(units)', level: 'mission', group: 'power' },
-  { name: 'hero_of', sig: 'hero_of(player, name=None)', level: 'mission', group: 'power' },
+  { name: 'alive', sig: 'alive(units)', level: 'mission', group: 'power', query: true },
+  { name: 'hero_of', sig: 'hero_of(player, name=None)', level: 'mission', group: 'power', query: true },
   { name: 'set_weather', sig: 'set_weather(state, seconds=120)', level: 'mission', group: 'power' },
   { name: 'ai', sig: 'ai(player, difficulty=None, aggression=None, start_in=None, attack_now=False)', level: 'mission', group: 'power' },
   // Shape terrain
   { name: 'make_place', sig: 'make_place(name, x, y, r=3)', level: 'mission', group: 'terrain' },
-  { name: 'find_open', sig: 'find_open(near, min_r=0, max_r=24)', level: 'mission', group: 'terrain' },
-  { name: 'toward', sig: 'toward(a, b, distance)', level: 'mission', group: 'terrain' },
-  { name: 'map_center', sig: 'map_center()', level: 'mission', group: 'terrain' },
+  { name: 'find_open', sig: 'find_open(near, min_r=0, max_r=24)', level: 'mission', group: 'terrain', query: true },
+  { name: 'toward', sig: 'toward(a, b, distance)', level: 'mission', group: 'terrain', query: true },
+  { name: 'map_center', sig: 'map_center()', level: 'mission', group: 'terrain', query: true },
   { name: 'plant_trees', sig: 'plant_trees(target, count, radius=5)', level: 'mission', group: 'terrain' },
-  { name: 'add_tree', sig: 'add_tree(x, y)', level: 'mission', group: 'terrain' },
+  { name: 'add_tree', sig: 'add_tree(x, y, amount=None)', level: 'mission', group: 'terrain' },
   { name: 'add_pile', sig: 'add_pile(res, x, y, amount=None)', level: 'mission', group: 'terrain' },
+  { name: 'add_item', sig: 'add_item(kind, x, y)', level: 'mission', group: 'terrain' },
+  { name: 'remove_item', sig: 'remove_item(x, y)', level: 'mission', group: 'terrain' },
+  { name: 'items', sig: 'items(kind=None)', level: 'mission', group: 'terrain', query: true },
   { name: 'clear_area', sig: 'clear_area(target, radius)', level: 'mission', group: 'terrain' },
   { name: 'world.width', sig: 'world.width, world.height, world.water_level', level: 'mission', group: 'terrain' },
-  { name: 'world.height_at', sig: 'world.height_at(x, y)', level: 'mission', group: 'terrain' },
-  { name: 'world.is_water', sig: 'world.is_water(x, y)', level: 'mission', group: 'terrain' },
+  { name: 'world.height_at', sig: 'world.height_at(x, y)', level: 'mission', group: 'terrain', query: true },
+  { name: 'world.is_water', sig: 'world.is_water(x, y)', level: 'mission', group: 'terrain', query: true },
   { name: 'world.set_height', sig: 'world.set_height(x, y, h)', level: 'mission', group: 'terrain' },
   { name: 'world.set_water', sig: 'world.set_water(x, y, on=True)', level: 'mission', group: 'terrain' },
   { name: 'world.set_cliff', sig: 'world.set_cliff(x, y, on=True)', level: 'mission', group: 'terrain' },
-  { name: 'world.noise', sig: 'world.noise(x, y, cell=16, seed=0)', level: 'mission', group: 'terrain' },
+  { name: 'world.set_track', sig: 'world.set_track(x, y, strength=None)', level: 'mission', group: 'terrain' },
+  { name: 'world.noise', sig: 'world.noise(x, y, cell=16, seed=0)', level: 'mission', group: 'terrain', query: true },
   // Constants
   { name: 'HUMAN', sig: 'HUMAN, ENEMY, BANDITS', level: 'player', group: 'const' },
 ];
 
+/** Basic commands of every figure that a program steers (hero, serf, troop – the troop through its captain). */
+export const FIGURE_METHODS = ['step', 'turn_left', 'turn_right', 'turn_to', 'front', 'left', 'right', 'here', 'can_step', 'move_to', 'is_at', 'say', 'distance_to'];
+
 /** Names of the methods per handle class and level (also read by the scripting reference on the website). */
 export const CLASS_METHODS = {
   Hero: {
-    player: ['step', 'turn_left', 'turn_right', 'turn_to', 'ahead', 'can_step', 'move_to', 'is_at', 'take', 'chop', 'say', 'distance_to'],
+    player: [...FIGURE_METHODS, 'take', 'put', 'attack', 'hold', 'defend'],
     mission: ['teleport', 'kill'],
   },
-  Serf: { player: ['move_to', 'work_on', 'is_at', 'distance_to'], mission: ['kill'] },
-  Troop: { player: ['move_to', 'attack', 'is_at', 'distance_to'], mission: ['kill'] },
+  Serf: { player: [...FIGURE_METHODS, 'take', 'put', 'chop', 'work_on', 'attack', 'hold', 'defend'], mission: ['teleport', 'kill'] },
+  Troop: { player: [...FIGURE_METHODS, 'attack', 'hold', 'defend'], mission: ['teleport', 'kill'] },
   Worker: { player: ['is_at', 'distance_to'], mission: ['kill'] },
   Soldier: { player: ['is_at', 'distance_to'], mission: [] },
   Building: { player: ['upgrade', 'distance_to'], mission: ['kill'] },
@@ -226,19 +246,49 @@ export const CLASS_METHODS = {
   Place: { player: ['distance_to', 'contains'], mission: [] },
 };
 
+/** Old names that still work but are no longer shown (version-1 levels): ahead() = front(). */
+export const DEPRECATED_METHODS = { ahead: 'front' };
+
 /** Properties per class (for dir(), suggestions and the scripting reference). */
 export const CLASS_PROPS = {
   common: ['id', 'kind', 'owner', 'x', 'y', 'alive', 'hp'],
-  Hero: ['name', 'facing', 'down'],
-  Troop: ['type', 'soldiers'],
-  Serf: ['idle', 'job'],
-  Worker: ['profession'],
+  Hero: ['name', 'facing', 'down', 'side'],
+  Troop: ['type', 'soldiers', 'facing', 'idle', 'side'],
+  Serf: ['idle', 'job', 'facing', 'side'],
+  Worker: ['profession', 'side'],
   Building: ['type', 'level', 'done', 'w', 'h'],
   Tree: ['res', 'amount'],
   Pile: ['res', 'amount'],
   Npc: ['name', 'look', 'talkable'],
   Place: ['name', 'x', 'y', 'r'],
 };
+
+/** Answers of the sensors and readers per kind (API_DOC `answers`) – vocabulary of the hints. */
+export const ANSWERS = { tile: [...TILE_WORDS, 'unknown'], dir: DIR_NAMES, weather: ['summer', 'rain', 'winter'] };
+
+/**
+ * Vocabulary of the game API for the hints (src/script/hints.js): which calls only read, their possible answers,
+ * look → turn pairs, the methods of figures and the attributes of the predefined game objects (nelia, hero …).
+ * @param {'mission'|'player'} level
+ */
+export function hintVocab(level) {
+  const queryFunctions = new Set(), queryMethods = new Set(), answers = {};
+  for (const e of API_DOC) {
+    if (level !== 'mission' && e.level === 'mission') continue;
+    for (const n of [e.name, ...(e.also ?? [])]) {
+      const last = n.split('.').pop();
+      if (e.query) (n.includes('.') ? queryMethods : queryFunctions).add(last);
+      if (e.answers) answers[last] = ANSWERS[e.answers];
+    }
+  }
+  const heroAttrs = [...CLASS_PROPS.common, ...CLASS_PROPS.Hero, ...CLASS_METHODS.Hero.player,
+    ...(level === 'mission' ? CLASS_METHODS.Hero.mission : []), ...Object.keys(DEPRECATED_METHODS)];
+  const objects = {};
+  for (const id of ['hero', ...HERO_IDS]) objects[id] = heroAttrs;
+  const methods = new Set();
+  for (const cls of ['Hero', 'Serf', 'Troop']) for (const m of [...CLASS_METHODS[cls].player, ...CLASS_METHODS[cls].mission]) methods.add(m);
+  return { queryFunctions, queryMethods, answers, turns: { left: 'turn_left', right: 'turn_right' }, objects, methods };
+}
 
 // ---------------------------------------------------------------------------------------------
 
@@ -325,22 +375,26 @@ export function makeApi(host, level) {
   };
   const pointPlace = (x, y, r = 0) => new PyHost('Place', `@${x},${y},${r}`);
 
+  /** What lies on a tile (src/sim/systems/ground.js); player programs see "unknown" where the fog was never lifted. */
   const tileInfo = (x, y) => {
-    const m = sim().map;
-    if (!m.inBounds(x, y)) return 'edge';
-    const k = m.idx(x, y), f = m.flags[k];
-    if (f & CLIFF) return 'cliff';
-    if (f & OCCUPIED) {
-      const e = sim().entities.get(m.owner[k]);
-      return e?.kind === 'tree' ? 'tree' : e?.kind === 'pile' ? 'pile' : e?.kind === 'ruin' ? 'ruin' : 'building';
-    }
-    if (f & WATER) return m.frozen ? 'ice' : 'water';
-    return 'free';
+    if (!isMission && sim().map.inBounds(x, y) && !isExplored(sim(), human(), x, y)) return 'unknown';
+    return tileKind(sim(), x, y);
+  };
+  /** Player programs only see figures the player sees (fog of war); missions see everything. */
+  const visibleTo = (e) => isMission || canSee(sim(), human(), e);
+  /** Side of a figure seen from the human: "own", "allied", "neutral" or "enemy". */
+  const sideOf = (e) => {
+    const h = human();
+    if (e.owner === h) return 'own';
+    if (e.owner === undefined || e.owner < 0 || !sim().players[e.owner]) return 'neutral';
+    if (isEnemy(sim(), h, e.owner)) return 'enemy';
+    return sim().relation(h, e.owner) === 'allied' ? 'allied' : 'neutral';
   };
 
   /** Execute a sim command as a player; rejection becomes a GameError with the simulation's reason. */
   const command = (cmd) => {
     const s = sim();
+    host.noteAction();
     const before = s.events.length;
     const ok = s.applyCommand({ ...cmd, player: cmd.player ?? human() });
     if (ok) return true;
@@ -471,6 +525,60 @@ export function makeApi(host, level) {
   def('trees_near', near('tree'));
   def('piles_near', near('pile'));
 
+  /** Figures for figures_near: heroes (awake), serfs, troops (the captain stands for the soldiers), workers outside. */
+  const FIGURE_KINDS = { hero: 'hero', unit: 'serf', leader: 'troop', worker: 'worker' };
+  const SIDES = ['own', 'allied', 'neutral', 'enemy'];
+  const kindMatches = (e, kind) => {
+    if (kind === FIGURE_KINDS[e.kind]) return true;
+    if (e.kind === 'hero') return e.hero === kind;
+    if (e.kind === 'leader') return e.def === kind;
+    if (e.kind === 'worker') return e.prof === kind;
+    return false;
+  };
+  def('figures_near', (ctx, a, kw) => {
+    const [t, r = 6, k, sd] = args('figures_near', a, kw, ['target', '?radius', '?kind', '?side']);
+    const c = pt(t), R = capArg(r, 'radius', LIMITS.radius) * UNIT;
+    const kind = k === undefined || k === null ? null : strArg(k, 'kind');
+    const side = sd === undefined || sd === null ? null : strArg(sd, 'side');
+    if (side !== null && !SIDES.includes(side)) throw gameErr('sideUnknown', { name: side.slice(0, 40), suggestion: suggest(side, SIDES) });
+    const self = t instanceof PyHost && t.cls !== 'Place' ? t.id : 0;
+    const cx = tileCenter(c.x), cy = tileCenter(c.y);
+    const out = [];
+    for (const e of sim().entities.values()) {
+      if (!FIGURE_KINDS[e.kind] || e.id === self || e.px === undefined || e.inside || (e.kind === 'hero' && e.down)) continue;
+      const d = (e.px - cx) ** 2 + (e.py - cy) ** 2;
+      if (d > R * R || (kind && !kindMatches(e, kind)) || (side && sideOf(e) !== side) || !visibleTo(e)) continue;
+      out.push({ e, d });
+    }
+    out.sort((p, q) => p.d - q.d || p.e.id - q.e.id);
+    return new PyList(out.map((o) => handle(o.e)));
+  });
+  const itemKindArg = (k) => {
+    if (k === undefined || k === null) return null;
+    const s = strArg(k, 'kind');
+    if (!ITEM_KINDS.includes(s)) throw gameErr('itemUnknown', { name: s.slice(0, 40), suggestion: suggest(s, ITEM_KINDS) });
+    return s;
+  };
+  def('items_near', (ctx, a, kw) => {
+    const [t, r = 6, k] = args('items_near', a, kw, ['target', '?radius', '?kind']);
+    const c = pt(t), R = capArg(r, 'radius', LIMITS.radius), kind = itemKindArg(k);
+    const out = itemList(sim().map, kind)
+      .filter((p) => (p.x - c.x) ** 2 + (p.y - c.y) ** 2 <= R * R && (isMission || isExplored(sim(), human(), p.x, p.y)))
+      .map((p) => ({ p, d: (p.x - c.x) ** 2 + (p.y - c.y) ** 2 }))
+      .sort((p, q) => p.d - q.d || p.p.y - q.p.y || p.p.x - q.p.x);
+    return new PyList(out.map((o) => new PyTuple([o.p.x, o.p.y])));
+  });
+  def('weather', (ctx, a, kw) => {
+    args('weather', a, kw, []);
+    return sim().weather.state;
+  });
+  /** forecast(): the next weathers like the top bar – [("winter", 42), …] (seconds until they begin). Players need a weather tower. */
+  def('forecast', (ctx, a, kw) => {
+    args('forecast', a, kw, []);
+    if (!isMission && !hasForecast(sim(), human())) throw gameErr('noForecast', {});
+    return new PyList(weatherForecast(sim()).map((f) => new PyTuple([f.state, Math.ceil(f.inTicks / T)])));
+  });
+
   // ---------- Village ----------
 
   def('stock', (ctx, a, kw) => {
@@ -499,7 +607,7 @@ export function makeApi(host, level) {
   def('serfs', (ctx, a, kw) => {
     const [idle = false, p] = args('serfs', a, kw, ['?idle', '?player']);
     const pl = isMission ? playerOf(p) : human();
-    return new PyList(sortedEntities((e) => e.kind === 'unit' && e.owner === pl && (!truthy(idle) || (!e.job && !e.path.length))));
+    return new PyList(sortedEntities((e) => e.kind === 'unit' && e.owner === pl && (!truthy(idle) || (!e.job && !e.path.length && e.goal === undefined))));
   });
   def('troops', (ctx, a, kw) => {
     const [p] = args('troops', a, kw, ['?player']);
@@ -812,10 +920,11 @@ export function makeApi(host, level) {
     return k;
   }, true);
   def('add_tree', (ctx, a, kw) => {
-    const [x, y] = args('add_tree', a, kw, ['x', 'y']);
+    const [x, y, amount] = args('add_tree', a, kw, ['x', 'y', '?amount']);
     const tx = intArg(x, 'x'), ty = intArg(y, 'y');
     if (!sim().map.rectFree(tx, ty, 1, 1)) return null;
-    const n = sim().addNode('tree', tx, ty, 'wood', BALANCE.tree.wood);
+    const wood = amount === undefined || amount === null ? BALANCE.tree.wood : Math.max(1, capArg(amount, 'amount', BALANCE.tree.wood * 10));
+    const n = sim().addNode('tree', tx, ty, 'wood', wood);
     host.natureChanged();
     return n ? handle(n) : null;
   }, true);
@@ -836,6 +945,28 @@ export function makeApi(host, level) {
     for (const e of [...sim().entities.values()]) {
       if ((e.kind === 'tree' || e.kind === 'pile') && sapi.dist(e, c) <= R) host.removeEntity(e);
     }
+    for (const p of itemList(sim().map)) if (sapi.dist(p, c) <= R) removeItem(sim(), p.x, p.y);
+    return null;
+  }, true);
+  // Items on tiles (coins, flowers): world building; players pick them up with take()
+  def('add_item', (ctx, a, kw) => {
+    const [k, x, y] = args('add_item', a, kw, ['kind', 'x', 'y']);
+    const kind = itemKindArg(k);
+    if (kind === null) throw new ScriptError('argMissing', { name: 'add_item', arg: 'kind' });
+    return addItem(sim(), intArg(x, 'x'), intArg(y, 'y'), kind);
+  }, true);
+  def('remove_item', (ctx, a, kw) => {
+    const [x, y] = args('remove_item', a, kw, ['x', 'y']);
+    return removeItem(sim(), intArg(x, 'x'), intArg(y, 'y'));
+  }, true);
+  def('items', (ctx, a, kw) => {
+    const [k] = args('items', a, kw, ['?kind']);
+    return new PyList(itemList(sim().map, itemKindArg(k)).map((p) => new PyTuple([p.x, p.y])));
+  }, true);
+  /** hints(False): no hints for the player program of this level (e.g. a stage where finding the mistake is the task). */
+  def('hints', (ctx, a, kw) => {
+    const [on = true] = args('hints', a, kw, ['?on']);
+    host.state.hintsOff = !truthy(on);
     return null;
   }, true);
 
@@ -866,6 +997,8 @@ export function makeApi(host, level) {
       if (e && (e.kind === 'tree' || e.kind === 'pile')) host.removeEntity(e);
       if (m.flags[k] & OCCUPIED) return null;
       m.flags[k] |= flag;
+      // Water and rock carry no items and keep no tracks
+      clearGround(m, k);
       if (flag === WATER) m.heights[k] = Math.min(m.heights[k], sim().waterLevel - 220);
     } else {
       m.flags[k] &= ~flag;
@@ -877,6 +1010,14 @@ export function makeApi(host, level) {
   }, true);
   setFlag('set_water', WATER);
   setFlag('set_cliff', CLIFF);
+  /** world.set_track(x, y, strength=None): a track on a tile (None = strongest, 0 = none). Read it with tile(). */
+  def('world.set_track', (ctx, a, kw) => {
+    const [x, y, st] = args('set_track', a, kw, ['x', 'y', '?strength']);
+    const tx = intArg(x, 'x'), ty = intArg(y, 'y');
+    inMap(tx, ty);
+    setTrack(sim().map, tx, ty, st === undefined || st === null ? BALANCE.ground.tracks.max : intArg(st, 'strength'));
+    return null;
+  }, true);
   def('world.is_water', (ctx, a, kw) => {
     const [x, y] = args('is_water', a, kw, ['x', 'y']);
     return !!(sim().map.flags[inMap(intArg(x, 'x'), intArg(y, 'y'))] & WATER);
@@ -928,13 +1069,14 @@ export function makeApi(host, level) {
     return { HUMAN: human(), ENEMY: ai, BANDITS: host.runtime.state.bandits };
   };
   const heroEntity = () => [...sim().entities.values()].find((e) => e.kind === 'hero' && e.owner === human());
-  // Every hero also under their name (nelia, orrin …): own first, otherwise that of another player
+  // Every hero also under their name (nelia, orrin …): own first, otherwise that of another player (player
+  // programs: only while the player sees them)
   const heroNamed = (id) => {
     let other = null;
     for (const e of sim().entities.values()) {
       if (e.kind !== 'hero' || e.hero !== id) continue;
       if (e.owner === human()) return e;
-      other ??= e;
+      if (visibleTo(e)) other ??= e;
     }
     return other;
   };
@@ -949,13 +1091,15 @@ export function makeApi(host, level) {
 
   const modules = isMission ? {
     camera: ['jump_to', 'fly_to'],
-    world: ['width', 'height', 'water_level', 'height_at', 'set_height', 'set_water', 'set_cliff', 'is_water', 'noise'],
+    world: ['width', 'height', 'water_level', 'height_at', 'set_height', 'set_water', 'set_cliff', 'set_track', 'is_water', 'noise'],
     program: ['status', 'runs', 'get'],
   } : {};
 
   // ---------- Methods and properties of the handles ----------
 
   const methodsOf = (cls) => [...(CLASS_METHODS[cls]?.player ?? []), ...(isMission ? CLASS_METHODS[cls]?.mission ?? [] : [])];
+  /** Shown methods plus old names that still work (ahead → front) for steerable figures. */
+  const callable = (cls, name) => methodsOf(cls).includes(name) || (Object.hasOwn(DEPRECATED_METHODS, name) && methodsOf(cls).includes(DEPRECATED_METHODS[name]));
   const propsOf = (cls) => [...(cls === 'Place' ? [] : CLASS_PROPS.common), ...(CLASS_PROPS[cls] ?? [])];
 
   const hostHooks = {
@@ -987,7 +1131,7 @@ export function makeApi(host, level) {
       return `<${obj.cls}${what ? ' ' + what : ''} at ${t.x}, ${t.y}>`;
     },
     getattr(ctx, obj, name) {
-      if (methodsOf(obj.cls).includes(name)) return new PyBoundMethod(obj, name);
+      if (callable(obj.cls, name)) return new PyBoundMethod(obj, name);
       if (obj.cls === 'Place') {
         const p = placeHandle(obj);
         if (!p) throw gameErr('placeUnknown', { name: String(obj.id) });
@@ -1008,20 +1152,22 @@ export function makeApi(host, level) {
         case 'x': return t.x;
         case 'y': return t.y;
         case 'hp': return e.hp ?? null;
+        case 'side': if (e.px !== undefined && e.kind !== 'npc') return sideOf(e); break;
+        case 'facing': if (e.kind === 'hero' || e.kind === 'unit' || e.kind === 'leader') return DIR_NAMES[faceOf(e)]; break;
         default: break;
       }
       switch (obj.cls) {
         case 'Hero':
           if (name === 'name') return e.hero;
-          if (name === 'facing') return DIR_NAMES[e.face ?? 1];
           if (name === 'down') return !!e.down;
           break;
         case 'Troop':
           if (name === 'type') return e.def;
           if (name === 'soldiers') return e.soldiers.length;
+          if (name === 'idle') return (e.order?.type ?? 'idle') === 'idle' && !e.targetId && !e.path.length;
           break;
         case 'Serf':
-          if (name === 'idle') return !e.job && !e.path.length;
+          if (name === 'idle') return !e.job && !e.path.length && e.goal === undefined;
           if (name === 'job') return e.job?.kind ?? null;
           break;
         case 'Worker':
@@ -1049,7 +1195,8 @@ export function makeApi(host, level) {
     },
     setattr() { return false; },
     callMethod(ctx, obj, name, a, kw) {
-      if (!methodsOf(obj.cls).includes(name)) throw new ScriptError('attr', { type: obj.cls, name, suggestion: suggest(name, methodsOf(obj.cls)) });
+      if (!callable(obj.cls, name)) throw new ScriptError('attr', { type: obj.cls, name, suggestion: suggest(name, methodsOf(obj.cls)) });
+      if (Object.hasOwn(DEPRECATED_METHODS, name)) name = DEPRECATED_METHODS[name];
       if (name === 'distance_to') {
         const [t] = args(name, a, kw, ['target']);
         const A = pt(obj), B = pt(t);
@@ -1063,12 +1210,16 @@ export function makeApi(host, level) {
         }
       }
       const e = entityOf(obj);
-      if (!isMission && e.owner !== human()) throw gameErr('notYours', {});
+      // Foreign figures: player programs may only ask where they are (and only while they see them)
+      if (!isMission && e.owner !== human() && !(READ_ONLY.has(name) && visibleTo(e))) throw gameErr('notYours', {});
       return unitMethod(ctx, e, obj, name, a, kw);
     },
   };
 
   // ---------- Methods of the game objects ----------
+
+  /** Methods that only read and may be asked of visible foreign figures too. */
+  const READ_ONLY = new Set(['is_at', 'distance_to']);
 
   const isAt = (e, t) => {
     const c = pt(t);
@@ -1076,16 +1227,26 @@ export function makeApi(host, level) {
     return (p.x - c.x) ** 2 + (p.y - c.y) ** 2 <= c.r * c.r;
   };
 
-  /** Send a figure to a tile and wait until it is there (or cannot get further). */
-  const walk = (e, x, y, mode) => {
-    const s = sim();
+  /** Walk command of a figure: serfs walk with `move`, heroes, troops and militia with an `order` (as in the UI). */
+  const moveCommand = (e, x, y) => (e.kind === 'unit' && !e.militia
+    ? { type: 'move', units: [e.id], x, y, player: e.owner }
+    : { type: 'order', units: [e.id], order: 'move', x, y, player: e.owner });
+
+  /**
+   * Send a figure to a tile and wait until it is there (or cannot get further). A step keeps the look direction
+   * (an order from the UI clears it, the script sets it again).
+   */
+  const walk = (e, x, y, mode, more = 0) => {
     const face = e.face, from = tileOfE(e);
-    if (e.kind === 'unit') command({ type: 'move', units: [e.id], x, y, player: e.owner });
-    else command({ type: 'order', units: [e.id], order: 'move', x, y, player: e.owner });
-    // Steps keep the look direction
+    command(moveCommand(e, x, y));
     if (mode === 'step' && face !== undefined) e.face = face;
-    return new Suspend({ k: 'walk', id: e.id, x, y, sx: from.x, sy: from.y, mode, until: s.tick + 60 * T });
+    host.focusOn(e.id);
+    return new Suspend({ k: 'walk', id: e.id, x, y, sx: from.x, sy: from.y, mode, more, until: sim().tick + 60 * T });
   };
+
+  /** Figures that a program steers step by step (heroes, serfs, troops through their captain). */
+  const steerable = (e) => e.kind === 'hero' || e.kind === 'unit' || e.kind === 'leader';
+  const checkUp = (e) => { if (e.kind === 'hero' && e.down) throw gameErr('heroDown', {}); };
 
   function unitMethod(ctx, e, obj, name, a, kw) {
     const s = sim();
@@ -1094,69 +1255,89 @@ export function makeApi(host, level) {
         args(name, a, kw, []);
         host.runtime.setTalkable(s, e.npc, name === 'start_talking');
         return null;
+      // ----- step by step (waits) -----
       case 'step': {
         const [n = 1] = args('step', a, kw, ['?n']);
         const steps = intArg(n, 'n');
         if (steps < 1) return null;
-        const d = DIRS[e.face ?? 1];
-        const p = tileOfE(e);
-        const tx = p.x + d[0], ty = p.y + d[1];
-        const what = tileInfo(tx, ty);
-        if (what !== 'free' && what !== 'ice') throw gameErr('blocked', { what });
-        if (e.down) throw gameErr('heroDown', {});
-        const r = walk(e, tx, ty, 'step');
-        if (steps > 1) r.wait.more = steps - 1;
-        return r;
+        checkUp(e);
+        const t = tileToward(e, 0);
+        if (!s.map.walkable(t.x, t.y)) throw gameErr('blocked', { what: tileKind(s, t.x, t.y) });
+        return walk(e, t.x, t.y, 'step', steps - 1);
       }
       case 'turn_left': case 'turn_right': {
         args(name, a, kw, []);
-        e.face = ((e.face ?? 1) + (name === 'turn_left' ? 3 : 1)) % 4;
+        checkUp(e);
+        e.face = (faceOf(e) + (name === 'turn_left' ? 3 : 1)) % 4;
+        host.focusOn(e.id);
         return new Suspend({ k: 't', until: s.tick + 3 });
       }
       case 'turn_to': {
         const [dirV] = args(name, a, kw, ['direction']);
         const dir = DIR_NAMES.indexOf(strArg(dirV, 'direction'));
         if (dir < 0) throw gameErr('dirUnknown', { name: dirV, suggestion: suggest(dirV, DIR_NAMES) });
+        checkUp(e);
         e.face = dir;
+        host.focusOn(e.id);
         return new Suspend({ k: 't', until: s.tick + 3 });
       }
-      case 'ahead': case 'can_step': {
+      // ----- sensors (read only, take no time) -----
+      case 'front': case 'left': case 'right': case 'here': {
         args(name, a, kw, []);
-        const d = DIRS[e.face ?? 1];
-        const p = tileOfE(e);
-        const what = tileInfo(p.x + d[0], p.y + d[1]);
-        return name === 'ahead' ? what : what === 'free' || what === 'ice';
+        const t = tileToward(e, name === 'front' ? 0 : name === 'left' ? -1 : name === 'right' ? 1 : null);
+        return tileInfo(t.x, t.y);
+      }
+      case 'can_step': {
+        args(name, a, kw, []);
+        const t = tileToward(e, 0);
+        return s.map.walkable(t.x, t.y);
       }
       case 'move_to': {
         const [t, w = true] = args(name, a, kw, ['target', '?wait']);
         const c = pt(t);
-        if (e.kind === 'building') throw gameErr('cannotMove', {});
+        if (!steerable(e)) throw gameErr('cannotMove', {});
+        checkUp(e);
         if (truthy(w)) return walk(e, c.x, c.y, 'move');
-        if (e.kind === 'unit') command({ type: 'move', units: [e.id], x: c.x, y: c.y, player: e.owner });
-        else command({ type: 'order', units: [e.id], order: 'move', x: c.x, y: c.y, player: e.owner });
+        // Orders that keep running return at once, like a click in the UI
+        command(moveCommand(e, c.x, c.y));
         return null;
       }
       case 'is_at': { const [t] = args(name, a, kw, ['target']); return isAt(e, t); }
-      case 'take': case 'chop': {
+      // ----- items (on the tile the figure stands on) -----
+      case 'take': {
         args(name, a, kw, []);
-        const d = DIRS[e.face ?? 1];
-        const p = tileOfE(e);
-        const tx = p.x + d[0], ty = p.y + d[1];
+        const here = figureTile(e);
+        const kind = itemAt(s.map, here.x, here.y);
+        command({ type: 'item', action: 'take', unit: e.id, player: e.owner });
+        host.focusOn(e.id);
+        return new Suspend({ k: 't', until: s.tick + BALANCE.ground.itemTicks, value: kind });
+      }
+      case 'put': {
+        const [k = 'coin'] = args(name, a, kw, ['?kind']);
+        const kind = itemKindArg(k);
+        command({ type: 'item', action: 'put', unit: e.id, kind, player: e.owner });
+        host.focusOn(e.id);
+        return new Suspend({ k: 't', until: s.tick + BALANCE.ground.itemTicks });
+      }
+      // ----- serfs: fell the tree in front by the rules of the game (job system, real duration) -----
+      case 'chop': {
+        args(name, a, kw, []);
+        const t = tileToward(e, 0);
         const m = s.map;
-        const node = m.inBounds(tx, ty) ? s.entities.get(m.owner[m.idx(tx, ty)]) : null;
-        const want = name === 'take' ? 'pile' : 'tree';
-        if (!node || node.kind !== want) throw gameErr(name === 'take' ? 'noPile' : 'noTree', { what: tileInfo(tx, ty) });
-        const res = node.res, amount = name === 'take' ? node.amount : (BALANCE.tree.wood ?? 1);
-        host.removeEntity(node);
-        const pl = s.players[e.owner];
-        if (pl && RESOURCES.includes(res)) pl.stock[res] += amount;
-        return new Suspend({ k: 't', until: s.tick + (name === 'chop' ? 15 : 5), value: res });
+        const k = m.inBounds(t.x, t.y) ? m.idx(t.x, t.y) : -1;
+        const node = k >= 0 && (m.flags[k] & OCCUPIED) ? s.entities.get(m.owner[k]) : null;
+        if (!node || node.kind !== 'tree') throw gameErr('noTree', { what: tileKind(s, t.x, t.y) });
+        const from = tileOfE(e);
+        command({ type: 'assignWork', units: [e.id], target: node.id, once: true, player: e.owner });
+        host.focusOn(e.id);
+        return new Suspend({ k: 'chop', id: e.id, tree: node.id, x: from.x, y: from.y, until: s.tick + 600 * T });
       }
       case 'say': {
         const [text] = args(name, a, kw, ['text']);
         const dur = host.say(e.kind === 'hero' ? e.hero : null, text, null, null, true);
         return new Suspend({ k: 'dialog', until: s.tick + Math.min(dur, 30) });
       }
+      // ----- orders that keep running (return at once) -----
       case 'work_on': {
         const [t] = args(name, a, kw, ['target']);
         const target = entityOf(t);
@@ -1165,8 +1346,18 @@ export function makeApi(host, level) {
       }
       case 'attack': {
         const [t] = args(name, a, kw, ['target']);
-        if (t instanceof PyHost && t.cls !== 'Place') command({ type: 'order', units: [e.id], order: 'attack', target: entityOf(t).id, player: e.owner });
+        const isThing = t instanceof PyHost && t.cls !== 'Place';
+        // Serfs (no militia) fight with their fists, like a click on an opponent
+        if (e.kind === 'unit' && !e.militia) {
+          if (!isThing) throw new ScriptError('type', { what: 'entityNeeded', type: typeName(t) });
+          command({ type: 'assignWork', units: [e.id], target: entityOf(t).id, player: e.owner });
+        } else if (isThing) command({ type: 'order', units: [e.id], order: 'attack', target: entityOf(t).id, player: e.owner });
         else { const c = pt(t); command({ type: 'order', units: [e.id], order: 'attackMove', x: c.x, y: c.y, player: e.owner }); }
+        return null;
+      }
+      case 'hold': case 'defend': {
+        args(name, a, kw, []);
+        command({ type: 'order', units: [e.id], order: name === 'hold' ? 'hold' : 'idle', player: e.owner });
         return null;
       }
       case 'upgrade': {
@@ -1181,6 +1372,7 @@ export function makeApi(host, level) {
         e.px = tileCenter(c.x); e.py = tileCenter(c.y); e.path = [];
         if (e.order) e.order = { type: 'idle' };
         if (e.anchor) e.anchor = { x: e.px, y: e.py };
+        if (e.goal !== undefined) e.goal = undefined;
         return null;
       }
       case 'kill': {
@@ -1193,5 +1385,5 @@ export function makeApi(host, level) {
   }
 
   const known = [...Object.keys(globals), 'HUMAN', 'ENEMY', 'BANDITS', 'hero', ...HERO_IDS];
-  return { natives, globals, dynamic, hostHooks, known, modules };
+  return { natives, globals, dynamic, hostHooks, known, modules, vocab: hintVocab(level) };
 }

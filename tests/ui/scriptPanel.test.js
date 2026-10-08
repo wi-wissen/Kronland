@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shownError, shownStatus, consoleView, fileName, sourceFromFile } from '../../src/ui/script/panelState.js';
+import { shownError, shownStatus, shownHints, consoleView, fileName, sourceFromFile } from '../../src/ui/script/panelState.js';
 
 const err = (seq, section = 'player') => ({ seq, section, sline: 2, code: 'err.script.nameUnknown' });
 const line = (seq, level, text, e = null) => ({ seq, level, text, ...(e ? { err: e } : {}) });
@@ -52,5 +52,33 @@ describe('Code panel: files', () => {
   it('opened text: BOM and Windows line ends removed, binary refused', () => {
     expect(sourceFromFile('﻿print(1)\r\nprint(2)\r')).toBe('print(1)\nprint(2)\n');
     expect(sourceFromFile('a\0b')).toBeNull();
+  });
+});
+
+describe('Code panel: hints', () => {
+  const hint = (seq, sline, section = 'player', code = 'script.hint.lookOnly') => ({ seq, sline, section, code, params: {}, level: section === 'player' ? 'player' : 'mission' });
+
+  it('player hints with their lines; edited sections hide theirs (like errors)', () => {
+    const script = { player: { hints: [hint(1, 4), hint(2, 7, 'player', 'script.hint.busyLoop')] } };
+    const h = shownHints(script, { mode: 'adventure', dirty: {} });
+    expect(h.list.map((x) => x.seq)).toEqual([1, 2]);
+    expect(h.lines).toEqual({ player: [4, 7] });
+    expect(h.more).toBe(0);
+    expect(shownHints(script, { mode: 'adventure', dirty: { player: true } })).toEqual({ list: [], more: 0, lines: {} });
+  });
+
+  it('at most two boxes, the rest counted; all lines marked; duplicates once', () => {
+    const script = { player: { hints: [hint(1, 2), hint(2, 3), hint(3, 5), hint(4, 2)] } };
+    const h = shownHints(script, { mode: 'adventure', dirty: {} });
+    expect(h.list.length).toBe(2);
+    expect(h.more).toBe(1);
+    expect(h.lines.player).toEqual([2, 3, 5]);
+  });
+
+  it('mission hints only in the world editor', () => {
+    const script = { player: { hints: [] }, missionHints: [hint(9, 3, 'world')] };
+    expect(shownHints(script, { mode: 'adventure', dirty: {} }).list).toEqual([]);
+    expect(shownHints(script, { mode: 'editor', dirty: {} }).lines).toEqual({ world: [3] });
+    expect(shownHints(null, { mode: 'editor', dirty: {} }).list).toEqual([]);
   });
 });

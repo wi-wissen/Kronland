@@ -80,9 +80,9 @@ Quelltext → Lexer (INDENT/DEDENT) → Parser (Syntaxbaum) → Compiler (Gülti
 - **VM** (`vm.js`): Stapelmaschine mit eigenem Rahmen-Stapel (keine JS-Rekursion). Darum kann sie nach jedem
   Befehl anhalten und genau dort weitermachen:
   - **Budget:** `run(task, n)` führt höchstens n Befehle aus. Eine Endlosschleife friert nichts ein.
-  - **Warten:** Ein Native (z. B. `wait`, `hero.step`) liefert `new Suspend(wait)`; die Aufgabe parkt, der
-    Gastgeber setzt sie mit `resume(task, wert)` fort. So blockiert `hero.step()` im Code, während die
-    Simulation den Helden laufen lässt.
+  - **Warten:** Ein Native (z. B. `wait`, `nelia.step`) liefert `new Suspend(wait)`; die Aufgabe parkt, der
+    Gastgeber setzt sie mit `resume(task, wert)` fort. So blockiert `nelia.step()` im Code, während die
+    Simulation die Heldin laufen lässt.
   - **Aufgaben:** Hauptprogramm, jeder Ereignis-Handler und das Spielerprogramm sind eigene Tasks.
   - **Debugger:** `stmt[pc]` markiert Anweisungsanfänge; dort prüft die VM Haltepunkte und Schrittmodus
     (`into`, `over`, `out`). `inspect(task)` liefert globale, übergebene und lokale Variablen und den Aufrufstapel.
@@ -106,14 +106,17 @@ vollständige Liste steht ausführlich mit Parametern, Rückgabe, Fehlern und Be
 siehe [WEBSITE.md](WEBSITE.md)); Quelle ist `API_DOC` (`api.js`). Die wichtigsten:
 
 ```python
-# Held (player)
-hero.step(n=1)  hero.turn_left()  hero.turn_right()  hero.turn_to("north")
-hero.ahead()    # "free", "tree", "pile", "water", "cliff", "building", "edge" …
-hero.can_step()  hero.move_to(ziel)  hero.is_at(ziel)  hero.take()  hero.chop()  hero.say(text)
-place("goal")  tile(x, y)  trees_near(ziel)  stock("wood")  count("farm")  serfs(idle=True)
+# Figuren (player): Helden unter ihrem Namen, Leibeigene und Trupps mit denselben Grundbefehlen
+nelia.step(n=1)  nelia.turn_left()  nelia.turn_right()  nelia.turn_to("north")
+nelia.front()  nelia.left()  nelia.right()  nelia.here()   # "free", "tree", "water", "coin", "track" … (nur schauen)
+nelia.can_step()  nelia.move_to(ziel, wait=True)  nelia.is_at(ziel)  nelia.take()  nelia.put()  nelia.say(text)
+for s in serfs():  s.step()  s.chop()  s.work_on(baum)      # Leibeigene fällen nach Spielregeln
+t = troops()[0]    t.move_to(ziel, wait=False)  t.attack(feind)  t.hold()  t.defend()
+place("goal")  tile(x, y)  trees_near(ziel)  figures_near(ziel, 8, side="enemy")  items_near(ziel, kind="coin")
+weather()  forecast()  stock("wood")  count("farm")  serfs(idle=True)
 hq()  find_spot("residence", hq())  build("residence", x, y)  serf.work_on(baustelle)
 wait(sekunden)  wait_until(lambda: …, timeout=None)  time()  print(…)  notify(text)
-nelia  orrin  taran  malvor        # jeder Held unter seinem Namen (eigener zuerst, sonst None); hero = Haupt-Held
+nelia  orrin  taran  malvor        # jeder Held unter seinem Namen (eigener zuerst, sonst ein sichtbarer); hero = erster Held
 diplomacy(HUMAN, ENEMY)            # "allied", "neutral" oder "hostile"
 
 # Mission (zusätzlich)
@@ -126,8 +129,10 @@ program.status  program.runs  program.get("guess")   # das Spielerprogramm lesen
 spawn(BANDITS, "sword1", place("gate"), count=3)   attack(truppen, hq())   give(HUMAN, wood=200)
 hero_of(HUMAN, "orrin")   set_diplomacy(HUMAN, ENEMY, "neutral")   orrin.teleport((6, 8))   orrin.kill()
 place_building(BANDITS, "banditCamp", ort)   make_place("name", x, y, r)   find_open(nahe)   toward(a, b, d)
-plant_trees(ziel, anzahl)  add_tree(x, y)  add_pile("stone", x, y)  clear_area(ziel, r)
+plant_trees(ziel, anzahl)  add_tree(x, y, amount=None)  add_pile("stone", x, y)  clear_area(ziel, r)
+add_item("coin", x, y)  remove_item(x, y)  items("coin")  world.set_track(x, y)  hints(False)
 world.width  world.height_at(x, y)  world.set_height(x, y, h)  world.set_water(x, y)  world.noise(x, y, 16)
+units_in(ziel, HUMAN, who="hero")  # ältere Form von figures_near (sieht durch den Nebel)
 
 # Ereignisse (Dekoratoren)
 @on_start  @every(10)  @on_building_done("farm")  @on_building_placed  @on_destroyed("headquarters")
@@ -137,8 +142,79 @@ world.width  world.height_at(x, y)  world.set_height(x, y, h)  world.set_water(x
 ```
 
 Spielobjekte sind Handles (`Hero`, `Serf`, `Troop`, `Building`, `Tree`, `Pile`, `Npc`, `Place`) mit Eigenschaften
-wie `x`, `y`, `alive`, `type`, `level` und Methoden je Klasse; gespeichert wird nur Klasse + ID.
+wie `x`, `y`, `alive`, `type`, `level`, `facing`, `side` und Methoden je Klasse; gespeichert wird nur Klasse + ID.
 Ziele akzeptieren Orte, Spielobjekte, Tupel `(x, y)` oder Ortsnamen.
+
+### Figuren Kachel für Kachel
+
+Helden, Leibeigene und Trupps teilen die Grundbefehle (`FIGURE_METHODS`): `step`, `turn_left/right/to`, die Sensoren
+`front/left/right/here`, `can_step`, `move_to`, `is_at`, `say`. Beim Trupp ist der Hauptmann die Figur, die Soldaten
+folgen. Jede Aktion ist ein vorhandener Sim-Befehl (Leibeigene `move`, Helden, Trupps und Miliz `order`, Aufheben
+`item`, Fällen `assignWork` mit `once`), Drehen setzt nur `face`. Dazu je Art:
+
+| Art | zusätzlich |
+|---|---|
+| Held | `take()`, `put()`, `attack()`, `hold()`, `defend()` – **kein Fällen** |
+| Leibeigener | `take()`, `put()`, `chop()` (Baum vorn, nach den Spielregeln, echte Dauer), `work_on()`, `attack()` (Fäuste) |
+| Trupp | `attack()`, `hold()`, `defend()` |
+
+**Warteregel:** Was die Figur selbst bald beendet, wartet (`step`, `turn_*`, `take`, `put`, `chop`, `move_to`). Aufträge,
+die nach den Spielregeln weiterlaufen, kehren sofort zurück (`work_on`, `attack`, `hold`, `defend`,
+`move_to(…, wait=False)`), wie ein Klick in der Oberfläche. Gewartet wird im Host (`checkWalk`, `checkChop`): ein Schritt
+muss seine Kachel erreichen, sonst `blocked`; `chop()` ist fertig, wenn der Baum weg ist und der Leibeigene wieder auf
+seiner Kachel steht; ein anderer Befehl dazwischen gibt `interrupted`. **Stopp** hält alle Helden und jede Figur an, auf
+die das Programm gerade wartet; laufende Aufträge bleiben. `ahead()` ist der alte Name von `front()` und `hero` der des
+ersten eigenen Helden – Level der Version 1 laufen weiter, nur das alte `hero.chop()`/`hero.take()` gibt es nicht mehr.
+
+### Boden: Sensoren, Gegenstände, Spuren
+
+`src/sim/systems/ground.js` (Regeln: [SPIELREGELN.md §14](SPIELREGELN.md#14-spuren-und-gegenstände)):
+
+- `tileKind(sim, x, y)` liefert ein Wort mit festem Vorrang: `edge`, `cliff`, `tree`/`pile`/`ruin`/`building`, `water`,
+  `coin`/`flower`, `ice`, `track`, `free`. Eine fertige Brücke ist Boden; `step()` und `can_step()` prüfen
+  `map.walkable` (also auch Eis, Taler, Spur). `tile(x, y)` liefert dasselbe, im unerkundeten Nebel `"unknown"`.
+- Gegenstände: `TileMap.items` (Kachel → `"coin"`/`"flower"`), `occupy()` räumt sie, Tauwetter und eingestürzte
+  Brücken auch. Befehl `{ type: 'item', action: 'take'|'put', unit, kind }` mit `err.nothingHere`, `err.somethingHere`,
+  `err.onlyCoins`, `err.notEnoughGold`, `err.cannotCarry`.
+- Spuren: `TileMap.tracks` (ein Byte je Kachel), `updateTracks` einmal je Takt nach dem Militär; Schwelle je Wetter,
+  Besen aus dem Takt. `world.tracks` in scenario.json (`threshold`, `fade`, `who`).
+- Beides steht im Spielstand und im State-Hash.
+- Darstellung (liest nur): `src/render/ground.js` füllt eine Datentextur mit einem Texel je Kachel (R = Stärke ab der
+  Schwelle, G = Achse der Fußabdrücke aus den Nachbarkacheln), höchstens alle 5 Takte und nur hochgeladen, wenn sich
+  etwas geändert hat. Nur gerade gesehene Kacheln übernehmen den Sim-Wert, erkundete behalten den zuletzt gesehenen,
+  unerkundete zeigen nichts. Der Gelände-Shader (`terrain.js`) macht daraus im Sommer und Regen Trampelpfade (Erde
+  statt Gras), im Winter getretenen Schnee mit Fußabdrücken (alle Grafikstufen). `src/render/items.js` zeichnet Taler
+  (aufrecht, drehend, wippend) und Christrosen als Instanzen, neu aufgebaut bei `map.groundVersion`; aus der Ferne
+  (Übersicht, Handy) wachsen sie bis 1,8-fach, im unerkundeten Nebel bleiben sie verborgen. Aufheben glitzert und klingt.
+
+`figures_near(ziel, radius, kind, side)` sucht Helden, Leibeigene, Trupps (Hauptmann) und Arbeiter draußen, nach Abstand
+in Milli-Kacheln, dann Nummer; ein Spielerprogramm sieht nur, was der Spieler sieht (`canSee`), Missionen alles.
+`forecast()` braucht im Spielerprogramm einen Wetterturm (`script.game.noForecast`).
+
+### Hinweise
+
+Code, der in Python erlaubt ist und läuft, aber fast nie tut, was gemeint war, bekommt einen **Hinweis**
+(`src/script/hints.js`): ein Durchlauf über den Syntaxbaum vor dem Start, das Programm hält nicht an. Das Vokabular
+kommt aus `API_DOC` (`query: true`, `answers`) über `hintVocab(level)`, der Sprachkern kennt keine Spielnamen.
+
+| Code | Muster |
+|---|---|
+| `lookOnly` | `nelia.left()`/`right()` als Anweisung – schaut nur, dreht nicht |
+| `unusedResult` | Sensor oder Abfrage als Anweisung (`nelia.front()`, `tile(3, 4)`) |
+| `notCalled` / `alwaysTrue` | Methode ohne Klammern als Anweisung bzw. in `if`/`while` |
+| `unknownAnswer` | Vergleich einer Sensor-Antwort mit einem Wort, das nie kommt (`"Tree"`), mit Vorschlag und Liste |
+| `compareStatement` | `count == count + 1` als Anweisung |
+| `unknownMethod` | unbekannte Methode an `nelia`, `hero` … schon beim Übersetzen |
+| `busyLoop` | zur Laufzeit: 50 Takte (≈ 5 s) volles Budget ohne Warten und ohne Sim-Befehl |
+
+Hinweise stehen mit Abschnitt und Zeile in `state.player.hints` (Missionsabschnitte: `state.missionHints`, für den
+Editor) und in `uiState()`. Das Code-Panel zeigt sie bernsteinfarben: Zeilennummer und Zeile markiert, darunter
+höchstens zwei Kästen „Hinweis · Zeile 4“ (der Rest gezählt, `shownHints` in `panelState.js`); das Programm läuft weiter,
+und wie Fehler verschwinden sie, sobald der Abschnitt bearbeitet wird. Hinweise der Missionsabschnitte zeigt nur das
+Testspielen aus dem Welteneditor. Am Handy steht in der Laufleiste „Spiel ansehen“ ein Knopf „Hinweis“, der zum Code
+führt (kein automatischer Wechsel wie bei Fehlern). Eine Mission
+schaltet sie mit `hints(False)` ab, etwa für eine „Finde den Fehler“-Etappe. Texte: `script.hint.*` in
+`src/i18n/script.js`.
 
 **Dialoge** dauern eine feste Zeit (aus der Textlänge der deutschen Fassung oder `voiceLength`) – das
 Vorlesen beeinflusst den Ablauf nie. Wegklicken schickt `skipDialog` und beendet das Warten sofort.
@@ -212,7 +288,8 @@ lindgrund/
 | `end` | `objectives` (Standard): gewonnen, wenn alle Hauptziele erfüllt sind; verloren mit der Burg oder einem gescheiterten Hauptziel. `script`: nur `victory()`/`defeat()` |
 | `world.base` | `flat` (Wiese, `width`/`height`), `generate` (Zufallskarte, `seed`/`size`) oder `terrain` (Editor-Karte in `world.terrain`) |
 | `world.places` | benannte Orte (Kreise), im Code `place("name")`; mit `make_place` eine gemeinsame Tabelle |
-| `players[i].hq` | `false`: ohne Burg, Dorfzentrum und Leibeigene – nur der Held (Lernabenteuer) |
+| `players[i].hq` | `false`: ohne Burg, Dorfzentrum und Leibeigene – nur der Held (Lernabenteuer); ohne `stock` mit leerem Lager |
+| `world.tracks` | Spuren im Level: `{ "threshold": 1, "fade": 0, "who": "heroes" }` (Schwelle 1 … 48, Sekunden je Stufe, 0 = verweht nie; wer Spuren macht: `all`, `none`, `heroes`) |
 | `players[i].stock/techs/serfs` | wie in Missionsdateien (`docs/MISSIONEN.md`) |
 | `available` | Freischaltungen zu Beginn: `{ "buildings": […], "techs": […] }` (sonst alles) |
 | `shafts`, `landmarks`, `weatherCycle` | wie in Missionsdateien |
@@ -273,8 +350,8 @@ dabei als Befehl `{ type: 'script', action: 'run', sections }` in die Simulation
 |---|---|---|---|
 | 1 | `adv1` | Der Weg zum Schatz | Anweisungen, `for`, `range()` |
 | 2 | `adv2` | Der Weg zur Ruine | `while`, `if/else`, Bedingungen |
-| 3 | `adv3` | Holz für den Winter | `while` mit Bedingung, Rückgabewerte, Zähler (Reihe zufällig lang) |
-| 4 | `adv4` | Steine am Wegesrand | eigene Funktionen, Funktionen als Argument (Steine zufällig verteilt) |
+| 3 | `adv3` | Taler für den Winter | `while` mit Bedingung, Rückgabewerte, Zähler (Talerreihe zufällig lang, `take()`) |
+| 4 | `adv4` | Taler am Wegesrand | eigene Funktionen, Funktionen als Argument (Taler links und rechts, `left()`/`right()`) |
 | 5 | `adv5` | Ein Dorf per Programm | Listen, Objekte und Methoden, Befehle wie in der Oberfläche |
 
 Jedes Abenteuer hat eine Musterlösung im Test (`tests/sim/scripting.test.js`). Der Code der Spieler wird pro
@@ -282,10 +359,14 @@ Abenteuer im Browser gemerkt (`kronland-code-<id>`).
 
 Die Abenteuer spielen auf offenen Wiesen; Hindernisse sind Landschaft mit Sinn (Fluss, See, Wäldchen,
 Mauerreste), keine Baumgänge. Die Kamera zeigt ruhig die ganze Karte (Norden oben, am Desktop im Spielbereich
-links vom Code-Panel) und läuft dem Helden nicht hinterher. Das **Raster** (Knopf „# Raster“ im Panel, Vorliebe bleibt im
+links vom Code-Panel) und läuft dem Helden nicht hinterher. Am Handy („Spiel ansehen“ während eines Laufs) gleitet
+sie der Figur nach, die das Programm zuletzt gesteuert hat, sobald sie den freien Bildbereich verlässt
+(`Engine.followWatched`); verschiebt, dreht oder zoomt der Spieler selbst, pausiert das 5 s. Das **Raster** (Knopf „# Raster“ im Panel, Vorliebe bleibt im
 Browser; auch im Welteneditor) zeigt die Kacheln, jede fünfte Linie kräftiger – so lassen sich Schritte
-abzählen. Der Held startet mit Blick nach Osten; `hero.step()` geht immer in Blickrichtung und dreht die Figur
-dabei nicht zur Laufrichtung.
+abzählen. Der Held startet mit Blick nach Osten; `nelia.step()` geht immer in Blickrichtung und dreht die Figur
+dabei nicht zur Laufrichtung. Mehrere Helden ohne Burg starten auf eigenen Kacheln.
+
+Taler und Blumen liegen sichtbar auf ihren Kacheln, Spuren erscheinen im Gelände (siehe „Boden“ oben).
 
 ## Code-Panel und Debugger
 
@@ -324,7 +405,7 @@ die Maus etwa eine halbe Sekunde auf einem Befehl, erscheint eine Karte mit Sign
 und Rückgabe (Texte aus `commandDocs.js`, erst beim ersten Bedarf nachgeladen, ~60 kB je Sprache). Sie
 verschwindet beim Verlassen, Tippen oder mit Escape. **Strg+Klick** (Mac: **⌘+Klick**) öffnet die
 Programmier-Referenz am Eintrag (`scripting/#<name>`) in einem neuen Tab; solange Strg/⌘ gedrückt ist, ist der
-Befehl unterstrichen und der Zeiger eine Hand. Erkannt werden Punktketten (`hero.step`, `math.sqrt`), Methoden
+Befehl unterstrichen und der Zeiger eine Hand. Erkannt werden Punktketten (`nelia.step`, `math.sqrt`), Methoden
 an Literalen (`"a b".split` → `str.split`), Methoden an unbekannten Werten nach Name (`xs.append` →
 `list.append`) und eingebaute Funktionen (`len`); Strings und Kommentare nicht. Grundlage ist der Highlighter
 des Editors (`highlightRanges`). Am Handy ersetzt **langes Drücken** auf einen Befehl das Überfahren: Die Karte
@@ -355,7 +436,9 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
 
 - **Werkzeuge:** Kamera, Heben, Senken, Ebnen, Glätten (gedrückt halten wirkt weiter), Wasser und Land (Wasser
   und Felsen folgen aus der Höhe wie im Kartengenerator), Wald, Radierer, Rohstoffhaufen, Schacht,
-  Siedlungsplatz, Startplatz, Ort. Pinselgröße und Stärke. Rückgängig/Wiederholen (Strg+Z/Strg+Y), Raster (`#`).
+  Siedlungsplatz, **Gegenstand** (Taler oder Christrose auf die Kachel unter dem Zeiger, Ziehen legt eine Reihe),
+  **Spur** (Pinsel mit Stärke 1 … 48: ab 8 auch im Sommer sichtbar, darunter nur Fußabdrücke im Schnee), Startplatz,
+  Ort. Der Radierer nimmt auch Gegenstände und Spuren, Wasser und Felsen ebenso. Pinselgröße und Stärke. Rückgängig/Wiederholen (Strg+Z/Strg+Y), Raster (`#`).
 - **Panel:** Szenario (Titel, Art, Auftrag zweisprachig, Spieler mit/ohne Burg, Nebel), Orte,
   Code (Abschnitte mit Stufe, Sichtbarkeit, bearbeitbar; Befehlsreferenz), Dateien (Bilder, Töne, 3D-Modelle
   hinzufügen und entfernen; sie gelten, solange die Seite offen ist, und reisen in der .zip), Beispiele
@@ -366,13 +449,16 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
   Browser gemerkt (ohne Dateien). **Testspielen** startet das
   Szenario mit allen Abschnitten im Code-Panel und Debugger fürs Missionsskript (Haltepunkte halten das Spiel an);
   danach geht es zurück in den Editor.
-- Gespeichert wird die Karte als `world.terrain` (Höhen und Flags Base64, Bäume/Haufen/Plätze/Schächte, Startplätze).
+- Gespeichert wird die Karte als `world.terrain` (Höhen und Flags Base64, Bäume/Haufen/Plätze/Schächte, Gegenstände
+  `{kind: "coin"|"flower", x, y}` und Spuren `{kind: "track", x, y, strength}` in `features`, Startplätze); beim
+  Testspielen und Öffnen kommt alles zurück.
 
 ## Tests
 
 ```bash
 npx vitest run tests/script      # Sprache: CPython-Vergleich, Fehler, Debugger, Speichern mitten im Lauf
 npx vitest run tests/sim/scripting.test.js tests/sim/scenarioV2.test.js tests/sim/editor.test.js tests/levels
+npx vitest run tests/sim/ground.test.js tests/sim/figures.test.js tests/script/hints.test.js
 E2E_PORT=4310 npx playwright test e2e/script.spec.js
 ```
 

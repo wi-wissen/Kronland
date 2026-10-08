@@ -8,8 +8,11 @@ const ID_PART = /[\p{L}\p{N}_]/u;
 const ID_START = /[\p{L}_]/u;
 const isId = (c) => c !== undefined && ID_PART.test(c);
 
-/** Method types tried for `x.name` when the type of x is unknown (in this order). */
-export const METHOD_TYPES = ['str', 'list', 'dict', 'tuple'];
+/**
+ * Method types tried for `x.name` when the type of x is unknown (in this order): Python types first, then the game
+ * objects whose methods the reference explains once (every figure under nelia.…, serf.chop, troop.hold …).
+ */
+export const METHOD_TYPES = ['str', 'list', 'dict', 'tuple', 'nelia', 'serf', 'troop', 'obj', 'place', 'building', 'npc'];
 
 /**
  * Identifier around a character position (the character at `offset`), or null.

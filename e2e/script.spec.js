@@ -52,7 +52,7 @@ test('Adventure from the menu: write a program, run it, win', async ({ page }) =
   // World setup is folded and locked, the own program editable
   await expect(page.getByTestId('fold-world')).toBeVisible();
   const ta = page.getByTestId('section-player').getByTestId('code-input');
-  await ta.fill('for i in range(10):\n    hero.step()\nprint("arrived")\n');
+  await ta.fill('for i in range(10):\n    nelia.step()\nprint("arrived")\n');
   await page.getByTestId('script-run').click();
   await expect(page.getByTestId('mission-result')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('mission-result-title')).toHaveText('Sieg!');
@@ -172,8 +172,8 @@ test('print() to the console, notify() as a notice, error clears after editing, 
   expect(await fs.readFile(await dl.path(), 'utf8')).toContain('notify(f"Meldung {i}")');
 
   // Open a .py file from the device
-  await page.getByTestId('script-file').setInputFiles({ name: 'weg.py', mimeType: 'text/x-python', buffer: Buffer.from('\uFEFFfor i in range(2):\r\n    hero.step()\r\n') });
-  await expect(ta).toHaveValue('for i in range(2):\n    hero.step()\n');
+  await page.getByTestId('script-file').setInputFiles({ name: 'weg.py', mimeType: 'text/x-python', buffer: Buffer.from('\uFEFFfor i in range(2):\r\n    nelia.step()\r\n') });
+  await expect(ta).toHaveValue('for i in range(2):\n    nelia.step()\n');
   expect(errors).toEqual([]);
 });
 

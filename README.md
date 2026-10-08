@@ -61,9 +61,10 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
 - **Programmier-Abenteuer**: Nelia mit Python steuern – fünf Lernabenteuer (Schleifen, Bedingungen, Funktionen,
   Listen), Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
   mit Einzelschritt, Haltepunkten und Variablenansicht, Knopf „Referenz“ zur Website, Befehlserklärung beim Überfahren (Strg+Klick öffnet die
-  Referenz, am Handy langes Drücken), Fehlermeldungen mit Vorschlag,
+  Referenz, am Handy langes Drücken), Fehlermeldungen mit Vorschlag, bernsteinfarbene Hinweise (Programm läuft weiter),
+  Taler und Christrosen zum Aufheben, Trampelpfade und Fußabdrücke im Schnee, am Handy folgt die Kamera der gesteuerten Figur,
   `print()` in die Konsole, `notify()` als Meldung im Spiel, Programm als `.py` speichern und öffnen.
-  Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Orte, Missionen programmieren,
+  Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Gegenstände, Spuren, Orte, Missionen programmieren,
   Welt aus Code erzeugen, Bilder, Töne und 3D-Modelle beilegen, als `.zip` speichern, testspielen). Ein Level ist
   ein Ordner (`scenario.json`, `.py`-Dateien, `assets/`) und reist als `.zip` – auch per Link von einem statischen
   Host (`play/?level=https://…/level.zip`). Missionen in Python: Ziele mit Fortschritt, Gesprächsfiguren (`npc()`,

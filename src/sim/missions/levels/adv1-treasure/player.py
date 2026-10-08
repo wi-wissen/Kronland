@@ -1,3 +1,3 @@
 # Bring Nelia zum Schatz!
-hero.step()
-hero.step()
+nelia.step()
+nelia.step()

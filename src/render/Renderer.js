@@ -37,6 +37,8 @@ import { sharedTerrainTextures } from './textures.js';
 import { sharedNatureTextures } from './naturetex.js';
 import { HintMarker, NpcMarks } from './hints.js';
 import { FogOfWar, patchFog, patchFogTree } from './fog.js';
+import { TrackLayer } from './ground.js';
+import { ItemLayer, itemScale } from './items.js';
 import { TileGrid, overviewDist } from './grid.js';
 import { knownBuildings } from '../sim/systems/vision.js';
 import { jitterOffset, jitterTarget, JITTER_FADE } from './jitter.js';
@@ -89,6 +91,9 @@ export class Renderer {
     this.fog = new FogOfWar(sim, this.viewer);
     patchFog(this.terrain.mesh.material);
     patchFog(this.water.material);
+    // Tracks (texture in the terrain shader) and items on tiles (coins, flowers)
+    this.tracks = new TrackLayer(sim, this.viewer, this.terrain.uniforms);
+    this.items = new ItemLayer(this.scene, this.terrain, patchFogTree);
     // Draw terrain and water in tiles: areas outside the screen drop out
     this.terrainChunks = splitGridMesh(this.terrain.mesh, 24);
     this.waterChunks = splitGridMesh(this.water.mesh, 32);
@@ -181,6 +186,8 @@ export class Renderer {
     for (const x of [...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), this.ballGeo, this.arrowGeo, this.boomGeo]) free(x);
     this.env?.dispose?.();
     this.fog?.dispose();
+    this.tracks?.dispose();
+    this.items?.dispose();
     this.grid?.dispose();
     this.terrain?.dispose?.();
     this.water?.dispose?.();
@@ -707,6 +714,7 @@ export class Renderer {
       m.g.position.y = t.rectHeight(m.x, m.y, w, w) - 0.1;
     }
     if (this.view) this.view.pos.set(Infinity, 0, 0); // collect chunks anew
+    this.items?.invalidate(); // items onto the new ground
   }
 
   /**
@@ -756,6 +764,10 @@ export class Renderer {
       else if (ev.type === 'buildingDone') this.onBuildingDone(ev);
       else if (ev.type === 'terrainChanged') (this.pendingTerrain ??= []).push({ x: ev.x, y: ev.y, w: ev.w, h: ev.h });
       else if (ev.type === 'natureChanged') this.natureDirty = true;
+      else if (ev.type === 'item' && ev.action === 'take' && fog.visibleAt(ev.x + 0.5, ev.y + 0.5)) {
+        const x = ev.x + 0.5, z = ev.y + 0.5;
+        this.fx.glint(x, this.terrain.heightAt(x, z) + 0.3, z, ev.kind === 'coin' ? 0xffd75a : 0xfff6f0);
+      }
       if (ev.type === 'nodeDepleted') {
         this.removeTree(ev.node);
         const p = this.piles.get(ev.node);
@@ -847,6 +859,9 @@ export class Renderer {
     if (view.revealAll) fog.revealAll();
     fog.update(realDt);
     const fogOn = fog.active, me = this.viewer;
+    if (view.revealAll) this.tracks.revealAll();
+    this.tracks.update();
+    this.items.update(sim.map, this.time, fogOn ? (x, z) => fog.exploredAt(x, z) : null, fogOn ? String(sim.vision?.version ?? 0) : '', itemScale(this.rig.dist));
     const mine = (o) => o !== undefined && o >= 0 && !!sim.players[o] && sim.allied(o, me);
     const talkers = [];
 

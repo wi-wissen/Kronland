@@ -13,6 +13,9 @@ export const END_RULES = ['objectives', 'script'];
 import { assetPathOk } from '../../paths.js';
 import { scenarioGoals } from './outline.js';
 
+/** Who leaves tracks (world.tracks.who): everyone, nobody (only tracks set by the mission) or only heroes. */
+export const TRACK_WHO = ['all', 'none', 'heroes'];
+
 /** Visibility of a section in the code panel. */
 export const VISIBILITY = ['open', 'collapsed', 'hidden'];
 
@@ -84,6 +87,14 @@ export function validateScenario(s) {
   if (new Set(ids).size !== ids.length) out.push('duplicate section ids');
   const w = s.world ?? {};
   if (w.terrain && (!w.terrain.heights || !w.terrain.flags)) out.push('world.terrain incomplete');
+  if (w.tracks !== undefined) {
+    const t = w.tracks;
+    const ok = t && typeof t === 'object' && !Array.isArray(t)
+      && (t.threshold === undefined || (Number.isInteger(t.threshold) && t.threshold >= 1 && t.threshold <= 48))
+      && (t.fade === undefined || (typeof t.fade === 'number' && t.fade >= 0 && t.fade <= 3600))
+      && (t.who === undefined || TRACK_WHO.includes(t.who));
+    if (!ok) out.push(`world.tracks: threshold 1…48, fade 0…3600 seconds, who ${TRACK_WHO.join('/')}`);
+  }
   return out;
 }
 
@@ -160,6 +171,8 @@ export function scenarioToDef(s) {
       terrain: world.terrain ?? null, starts: world.starts ?? null,
     },
     fog: world.fog ?? s.fog ?? true,
+    // Tracks: { threshold, fade (seconds per level, 0 = never), who } – otherwise the rules of the game
+    tracks: world.tracks ?? null,
     vision: world.vision ?? (world.startReveal ? { startReveal: world.startReveal } : undefined),
     weatherCycle: s.weatherCycle,
     players: s.players,
@@ -191,7 +204,7 @@ export function emptyScenario(o = {}) {
     sections: [
       { id: 'world', file: 'world.py', title: { de: 'Welt aufbauen', en: 'Build the world' }, level: 'mission', visibility: 'collapsed', editable: false, code: '# Weltaufbau: plant_trees(…), add_pile(…), make_place(…)\n' },
       { id: 'mission', file: 'mission.py', title: { de: 'Mission', en: 'Mission' }, level: 'mission', visibility: 'hidden', editable: false, code: '# Ziele: objective("ziel", lambda: …, de="…") – sind alle Hauptziele erfüllt, ist die Mission gewonnen\n@on_start\ndef intro():\n    say("nelia", de="Los geht\'s!", en="Here we go!")\n' },
-      { id: 'player', file: 'player.py', title: { de: 'Dein Programm', en: 'Your program' }, level: 'player', visibility: 'open', editable: true, code: 'hero.step()\n' },
+      { id: 'player', file: 'player.py', title: { de: 'Dein Programm', en: 'Your program' }, level: 'player', visibility: 'open', editable: true, code: 'nelia.step()\n' },
     ],
   };
 }

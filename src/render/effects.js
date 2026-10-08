@@ -228,6 +228,15 @@ export class Effects {
     }
   }
 
+  /** Glint when an item is picked up (coin: golden, flower: white): a small rising swirl of sparkles. */
+  glint(x, y, z, color = 0xffd75a) {
+    const n = Math.max(6, Math.round(14 * this.density));
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * 6.283, sp = 0.5 + Math.random() * 0.5;
+      this.fire.emit({ x: x + Math.cos(a) * 0.15, y: y + Math.random() * 0.2, z: z + Math.sin(a) * 0.15, vx: Math.cos(a) * sp, vy: 1.2 + Math.random() * 1.1, vz: Math.sin(a) * sp, size: 0.1, grow: -0.06, life: 0.55 + Math.random() * 0.35, color: 0xfffbe8, color2: color, alpha: 1, drag: 1.6 });
+    }
+  }
+
   /** Sparks on a melee hit. */
   sparks(x, y, z) {
     for (let i = 0; i < 3; i++) this.fire.emit({ x, y, z, vx: jit(1.5), vy: 0.8 + Math.random() * 1.2, vz: jit(1.5), size: 0.07, grow: -0.05, life: 0.25 + Math.random() * 0.15, color: 0xfff4c0, color2: 0xffa040, alpha: 1, drag: 2 });

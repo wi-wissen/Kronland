@@ -29,6 +29,7 @@
       </button>
       <div v-if="ui && showBrush" class="ed-brush">
         <label>{{ $t('editor.size') }} <input type="range" min="0" max="8" :value="ui.tool.r" data-testid="brush-size" @input="setTool({ r: +$event.target.value })"><b class="num">{{ ui.tool.r }}</b></label>
+        <label v-if="ui.tool.tool === 'track'">{{ $t('editor.strength') }} <input type="range" min="1" max="48" :value="ui.tool.level" data-testid="track-level" @input="setTool({ level: +$event.target.value })"><b class="num">{{ ui.tool.level }}</b></label>
         <label v-if="['raise', 'lower'].includes(ui.tool.tool)">{{ $t('editor.strength') }} <input type="range" min="10" max="300" step="10" :value="ui.tool.strength" @input="setTool({ strength: +$event.target.value })"></label>
       </div>
       <div v-if="ui && ['pile', 'shaft'].includes(ui.tool.tool)" class="ed-brush">
@@ -36,6 +37,11 @@
           <option v-for="r in (ui.tool.tool === 'shaft' ? ['stone', 'iron', 'clay', 'sulfur'] : resources)" :key="r" :value="r">{{ $name.res ? $name.res(r) : r }}</option>
         </select>
         <label v-if="ui.tool.tool === 'pile'">{{ $t('editor.amount') }} <input type="number" min="1" max="5000" step="50" :value="ui.tool.amount" class="ed-num" @change="setTool({ amount: +$event.target.value })"></label>
+      </div>
+      <div v-if="ui && ui.tool.tool === 'item'" class="ed-brush">
+        <select :value="ui.tool.item" :aria-label="$t('editor.item')" data-testid="tool-item-kind" @change="setTool({ item: $event.target.value })">
+          <option v-for="k in items" :key="k" :value="k">{{ $t('editor.item.' + k) }}</option>
+        </select>
       </div>
       <div v-if="ui && ui.tool.tool === 'start'" class="ed-brush">
         <select :value="ui.tool.player" :aria-label="$t('editor.player')" @change="setTool({ player: +$event.target.value })">
@@ -47,7 +53,7 @@
     <p v-if="ui" class="ed-status" data-testid="editor-status">
       <template v-if="ui.hover">x {{ ui.hover.x }} · y {{ ui.hover.y }} · {{ ui.hover.h }} cm · {{ $t('editor.kind.' + ui.hover.kind) }}<template v-if="ui.hover.res"> ({{ ui.hover.res }})</template></template>
       <template v-else>{{ ui.size.w }} × {{ ui.size.h }}</template>
-      · 🌲 {{ ui.counts.trees }} · ◆ {{ ui.counts.piles }}
+      · 🌲 {{ ui.counts.trees }} · ◆ {{ ui.counts.piles }}<template v-if="ui.counts.items"> · ● {{ ui.counts.items }}</template>
       <b v-if="ui.preview" class="ed-preview-badge">{{ $t('editor.previewOn') }}</b>
     </p>
 
@@ -212,8 +218,10 @@ const TOOLS = [
   { id: 'camera', glyph: '✥' }, { id: 'raise', glyph: '▲' }, { id: 'lower', glyph: '▼' }, { id: 'flatten', glyph: '▬' },
   { id: 'smooth', glyph: '≈' }, { id: 'water', glyph: '≋' }, { id: 'land', glyph: '◭' }, { id: 'forest', icon: 'wood' },
   { id: 'erase', icon: 'trash' }, { id: 'pile', icon: 'stone' }, { id: 'shaft', icon: 'b-stoneMine' }, { id: 'spot', icon: 'b-villageCenter' },
-  { id: 'start', icon: 'banner' }, { id: 'place', icon: 'target' },
+  { id: 'item', icon: 'gold' }, { id: 'track', glyph: '∴' }, { id: 'start', icon: 'banner' }, { id: 'place', icon: 'target' },
 ];
+/** Items of the tool "Gegenstand" (src/sim/systems/ground.js ITEM_KINDS) */
+const ITEMS = ['coin', 'flower'];
 
 /** Add missing fields so the forms always have something to bind to. */
 function normalize(s) {
@@ -246,7 +254,7 @@ export default {
       ui: null, view: null, loading: true, tab: 'scenario', sideOpen: false, grid: false,
       newOpen: false, newBase: 'flat', newSize: 32, newSeed: 42,
       placeDraft: null, newTextKey: '', message: '', fileVersion: 0,
-      compact: false, tools: TOOLS, resources: RESOURCES, heroes: HERO_IDS, examples: SCENARIOS,
+      compact: false, tools: TOOLS, items: ITEMS, resources: RESOURCES, heroes: HERO_IDS, examples: SCENARIOS,
     };
   },
   computed: {
@@ -256,7 +264,7 @@ export default {
       return [...files].map(([path, b]) => ({ path, size: b.size >= 1e6 ? `${(b.size / 1e6).toFixed(1)} MB` : `${Math.ceil(b.size / 1e3)} KB` }));
     },
     realPlayers() { return this.scenario.players.filter((p) => p.kind !== 'bandits'); },
-    showBrush() { return ['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase'].includes(this.ui?.tool.tool); },
+    showBrush() { return ['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase', 'track'].includes(this.ui?.tool.tool); },
   },
   watch: {
     scenario: {
@@ -483,11 +491,12 @@ export default {
 .ed-asset small { color: var(--ink-muted); }
 .ed-file-btn { position: relative; padding: 0 0.75rem; border-radius: var(--r-md); cursor: pointer; background: var(--inset-bg); box-shadow: var(--inset-edge); }
 .ed-file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.ed-tools { position: absolute; z-index: 5; left: calc(0.5rem + var(--safe-l)); top: 4.25rem; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.375rem; max-height: calc(100dvh - 6rem); overflow-y: auto; width: 5.25rem; }
+/* two columns: all 16 tools and the options of the chosen one fit without scrolling */
+.ed-tools { position: absolute; z-index: 5; left: calc(0.5rem + var(--safe-l)); top: 4.25rem; display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 0.25rem; padding: 0.375rem; max-height: calc(100dvh - 6rem); overflow-y: auto; width: 10rem; }
 .ed-tools button.act.ed-tool { flex: none; width: 100%; min-height: 3.25rem; padding: 0.375rem 0.25rem 0.3125rem; }
 .ed-tool > .ico { width: 1.5rem; height: 1.5rem; }
 .ed-glyph { position: relative; z-index: 1; height: 1.5rem; display: grid; place-items: center; font-size: 1.25rem; line-height: 1; }
-.ed-brush { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--fs-xs); padding: 0.25rem 0; border-top: 1px solid rgba(225, 168, 58, 0.2); }
+.ed-brush { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--fs-xs); padding: 0.25rem 0; border-top: 1px solid rgba(225, 168, 58, 0.2); }
 .ed-brush input[type=range] { width: 100%; }
 .ed-num { width: 4.5rem; }
 .ed-status { position: absolute; z-index: 5; left: 6.25rem; bottom: calc(0.5rem + var(--safe-b)); margin: 0; padding: 0.25rem 0.625rem; border-radius: var(--r-md); background: rgba(20, 13, 8, 0.75); color: var(--ink); font-size: var(--fs-sm); }
@@ -533,7 +542,7 @@ export default {
 .editor.compact .ed-actions > button, .editor.compact .ed-file-btn { min-height: 2.25rem; padding: 0 0.45rem; }
 .editor.compact .ed-actions .icon-btn { min-width: 2.25rem; }
 .editor.compact .ed-side-fab { bottom: calc(5.75rem + var(--safe-b)); }
-.editor.compact .ed-tools { top: auto; left: var(--safe-l); right: var(--safe-r); bottom: var(--safe-b); width: auto; flex-direction: row; max-height: none; overflow-x: auto; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.editor.compact .ed-tools { display: flex; top: auto; left: var(--safe-l); right: var(--safe-r); bottom: var(--safe-b); width: auto; flex-direction: row; max-height: none; overflow-x: auto; border-radius: var(--r-lg) var(--r-lg) 0 0; }
 .editor.compact .ed-tools button.act.ed-tool { width: 3.75rem; }
 .editor.compact .ed-brush { flex-direction: row; align-items: center; border-top: 0; border-left: 1px solid rgba(225, 168, 58, 0.2); padding: 0 0.375rem; min-width: 10rem; }
 .editor.compact .ed-status { left: 0.5rem; bottom: calc(5.75rem + var(--safe-b)); font-size: var(--fs-xs); }

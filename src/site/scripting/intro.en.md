@@ -15,7 +15,7 @@ every command goes through the same rules, costs the same resources and is refus
 may do anything: create troops, give away resources, shape the terrain. In the reference below, commands that only
 exist in mission scripts are marked **mission only**.
 
-The command names are English (`hero.step()`, `stock("wood")`); explanations and error messages are available in
+The command names are English (`nelia.step()`, `stock("wood")`); explanations and error messages are available in
 German and English. Kronland Python produces the same output as “real” Python for the same programs – automated
 tests compare this.
 
@@ -57,7 +57,7 @@ already caught here – an unknown name is reported before anything runs.
 
 **Executing.** The bytecode is executed by a [virtual machine](https://en.wikipedia.org/wiki/Virtual_machine) of its
 own, a [stack machine](https://en.wikipedia.org/wiki/Stack_machine). It can stop after every single instruction and
-continue exactly there. That is why `hero.step()` can simply “wait” in the code until the hero has arrived, while the
+continue exactly there. That is why `nelia.step()` can simply “wait” in the code until the hero has arrived, while the
 game keeps running.
 
 **In step with the game.** The game computes in fixed **ticks**: {{ticks}} per second of game time. In every tick a
@@ -77,7 +77,7 @@ Functions may call themselves ([recursion](https://en.wikipedia.org/wiki/Recursi
 most {{maxDepth}} calls deep.
 
 **Waiting.** Commands that take time in the game pause the program until they are done: `wait()`, `wait_until()`,
-`hero.step()`, `hero.move_to()`, `hero.turn_left()`, `hero.chop()`, `say()`, `camera.fly_to()` … Commands like
+`nelia.step()`, `nelia.move_to()`, `nelia.turn_left()`, `nelia.take()`, `say()`, `camera.fly_to()` … Commands like
 `build()` or `serf.work_on()`, on the other hand, only give the order and return at once.
 
 **Tasks.** The main program and every event function (`@every`, `@on_enter` …) run side by side as separate
@@ -200,7 +200,7 @@ while n < 100:
 print(n)
 ```
 
-Typical in the game: `while hero.can_step(): hero.step()` – walk until something is in the way.
+Typical in the game: `while nelia.can_step(): nelia.step()` – walk until something is in the way.
 
 ### Loops: for and range {#lang-for}
 
@@ -326,7 +326,7 @@ Kronland Python is deliberately small. Whatever is missing is reported by the co
 | From Python | In Kronland | Instead |
 |---|---|---|
 | `class` (own classes) | not available | dictionaries and functions; game objects come ready-made |
-| `try` / `except` / `finally`, `raise` | not available – an error ends the program | check first: `if hero.can_step():`, `d.get(k)`, `x in xs` ([exception handling](https://en.wikipedia.org/wiki/Exception_handling)) |
+| `try` / `except` / `finally`, `raise` | not available – an error ends the program | check first: `if nelia.can_step():`, `d.get(k)`, `x in xs` ([exception handling](https://en.wikipedia.org/wiki/Exception_handling)) |
 | sets `{1, 2}`, `set()` | not available | lists or dictionaries |
 | `yield`, generators | not available; `(x for x in …)` returns a list | return a list |
 | `with`, `async` / `await` | not available | `wait()` and `wait_until()` for waiting |
@@ -349,16 +349,32 @@ the section, the line and an explanation – often with a suggestion (“Did you
 |---|---|---|
 | `SyntaxError` | the text cannot be read like this | `if x > 3` without colon |
 | `IndentationError` | indentation does not fit | block after `:` not indented |
-| `NameError` | unknown name (typo?) | `hero.stpe()`, `pirnt(1)` |
+| `NameError` | unknown name (typo?) | `Nelia.step()`, `pirnt(1)` |
 | `TypeError` | wrong type or wrong arguments | `"Wood: " + 5`, `wait("2")` |
 | `ValueError` | value does not fit | `int("twelve")` |
 | `IndexError` / `KeyError` | position or key missing | `[1, 2][5]`, `{}["gold"]` |
 | `ZeroDivisionError` | divided by zero | `5 / 0` |
-| `AttributeError` | the object does not have that | `hero.jump()` |
+| `AttributeError` | the object does not have that | `nelia.jump()` |
 | `RecursionError` | nested too deeply or computing too long | a function calls itself endlessly |
-| `GameError` | the game refuses | `hero.step()` in front of a tree, `build()` without resources |
+| `GameError` | the game refuses | `nelia.step()` in front of a tree, `build()` without resources |
 
 Every entry of the reference lists the messages that can occur there under **Typical errors**.
+
+### Hints {#hints}
+
+Some code is valid Python and runs, but almost never does what was meant – Nelia just stands there and nobody knows
+why. For this there are **hints**: they appear in amber at the line as soon as the program runs, but the program does
+not stop (in a “find the mistake” task the code may be on purpose; a mission switches them off with `hints(False)`).
+
+| Code | What happens | Hint |
+|---|---|---|
+| `nelia.left()` | looks left, the answer is lost – she does not turn | To turn: `nelia.turn_left()` |
+| `nelia.step` | nothing: without parentheses the command does not run | Did you mean `nelia.step()`? |
+| `while nelia.can_step:` | endless loop: a method without parentheses counts as true | Did you mean `can_step()`? |
+| `if nelia.front() == "Tree":` | never true, the answer is `"tree"` | with the list of possible answers |
+| `count == count + 1` | only compares, `count` stays the same | Did you mean `count = count + 1`? |
+| `nelia.turnleft()` | does not exist (an error once the line runs) | already before the start: did you mean `turn_left`? |
+| loop without action | the program computes, nothing happens in the game | after about 5 seconds |
 
 ## Worked examples {#examples}
 

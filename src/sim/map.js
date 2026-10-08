@@ -22,6 +22,16 @@ export class TileMap {
     /** Counter for height changes (levelling when building); only for caches of the rendering */
     this.heightVersion = 0;
     /**
+     * Items lying on tiles (sparse): tile index → 'coin' | 'flower'. At most one per tile, only on walkable ground –
+     * occupy() removes them (src/sim/systems/ground.js).
+     * @type {Map<number, string>}
+     */
+    this.items = new Map();
+    /** Track strength per tile (footprints, trodden paths): grows when figures leave a tile, a sweeping broom fades it */
+    this.tracks = new Uint8Array(width * height);
+    /** Counter for changes of items and tracks set by scripts (rendering only, not saved) */
+    this.groundVersion = 0;
+    /**
      * Cache of the region numbers (lazy): [0] without ice, [1] with ice (only used in winter).
      * ver: state of `version`, dirty: rectangles changed since then [x, y, w, h, …] (local recomputation;
      * released rectangles with negative width).
@@ -210,10 +220,13 @@ export class TileMap {
 
   /** Occupy or release a rectangle. */
   occupy(x, y, w, h, entityId) {
+    const items = this.items.size > 0;
     for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) {
       const k = this.idx(i, j);
       this.flags[k] |= OCCUPIED;
       this.owner[k] = entityId;
+      // Items only lie on walkable ground: a tree, pile or building on the tile takes them away
+      if (items && this.items.delete(k)) this.groundVersion++;
     }
     this.markDirty(x, y, w, h);
     this.version++;

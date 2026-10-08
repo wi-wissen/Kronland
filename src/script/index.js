@@ -12,6 +12,7 @@ export { KINDS as ERROR_KINDS } from './errors.js';
 export { BUDGET_LIMITS } from './vm.js';
 export * from './values.js';
 export { highlightRanges, tokenize } from './lexer.js';
+export { findHints } from './hints.js';
 
 /** Names that every program knows without an import. */
 export const BUILTIN_NAMES = Object.keys(BUILTINS).filter((n) => !n.includes('.'));
@@ -19,12 +20,13 @@ export const BUILTIN_NAMES = Object.keys(BUILTINS).filter((n) => !n.includes('.'
 /**
  * Translate source text. Built-in functions and modules are always known.
  * @param {string} source
- * @param {{ known?: Iterable<string>, modules?: Record<string, string[]> }} [opts]
+ * @param {{ known?: Iterable<string>, modules?: Record<string, string[]>, vocab?: any }} [opts] vocab: hints (program.hints)
  */
 export function compile(source, opts = {}) {
   return compileRaw(source, {
     known: [...BUILTIN_NAMES, ...(opts.known ?? [])],
     modules: { ...MODULES, ...(opts.modules ?? {}) },
+    vocab: opts.vocab,
   });
 }
 

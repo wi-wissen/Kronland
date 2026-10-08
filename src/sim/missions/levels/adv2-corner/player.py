@@ -1,3 +1,3 @@
 # Ziel: place("goal"). Was tun, wenn vor Nelia ein Baum steht?
-while not hero.is_at(place("goal")):
-    hero.step()
+while not nelia.is_at(place("goal")):
+    nelia.step()

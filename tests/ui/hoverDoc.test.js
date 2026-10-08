@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { identAt, candidatesAt, commandAt, offsetAt } from '../../src/ui/script/hoverDoc.js';
 import { isKnown, cardFor, commandList } from '../../src/ui/script/docCards.js';
+import { commandDoc } from '../../src/ui/script/commandDocs.js';
 
 /** Command at the first occurrence of `needle` (+ delta characters into it). */
 const at = (src, needle, delta = 0) => commandAt(src, src.indexOf(needle) + delta, isKnown);
@@ -21,6 +22,10 @@ describe('commandAt', () => {
     expect(at(src, 'hero.step()', 6)).toMatchObject({ name: 'hero.step' });
     expect(at(src, 'can_step')).toMatchObject({ name: 'hero.can_step', from: src.indexOf('can_step'), to: src.indexOf('can_step') + 8 });
     expect(at(src, 'hero')).toMatchObject({ name: 'hero' });
+    // Any figure: the basic commands are explained once under nelia.…, serf and troop commands under their class
+    expect(at('bran.front()', 'front')).toMatchObject({ name: 'nelia.front' });
+    expect(at('s.chop()', 'chop')).toMatchObject({ name: 'serf.chop' });
+    expect(commandDoc(at('t.defend()', 'defend').name).name).toBe('troop.hold');
   });
 
   it('resolves built-ins, modules and names explained together with another', () => {
@@ -73,13 +78,15 @@ describe('offsetAt', () => {
 describe('doc cards', () => {
   it('render signature, texts, parameters and the reference link in both languages', () => {
     for (const lang of ['de', 'en']) {
-      const c = cardFor('hero.step', lang);
-      expect(c.sig).toBe('hero.step(n=1)');
+      const c = cardFor('nelia.step', lang);
+      expect(c.sig).toBe('nelia.step(n=1)');
+      // The old name leads to the same entry
+      expect(cardFor('hero.step', lang).sig).toBe('nelia.step(n=1)');
       expect(c.shortHtml.length).toBeGreaterThan(5);
       expect(c.descHtml).toContain('<code>');
       expect(c.params[0].name).toBe('n');
       expect(c.returnsHtml).toContain('None');
-      expect(c.url).toMatch(/scripting\/#hero\.step$/);
+      expect(c.url).toMatch(/scripting\/#nelia\.step$/);
     }
     expect(cardFor('nope', 'de')).toBeNull();
     expect(commandList('en').some((c) => c.name === 'str.split' && c.py)).toBe(true);
