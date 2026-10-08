@@ -66,6 +66,7 @@ import DocCard from './DocCard.vue';
 import { commandAt, offsetAt } from './hoverDoc.js';
 import { docs, loadDocs } from './docsLoader.js';
 import { refUrl } from './reference.js';
+import { moveLines } from './editText.js';
 
 const INDENT = '    ';
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -323,6 +324,22 @@ export default {
       this.$emit('update:modelValue', ta.value);
     },
 
+    /** Move the selected lines one up (-1) or down (+1): Alt+↑/↓ and the key bar (undo is preserved). */
+    moveLines(dir) {
+      const ta = this.$refs.ta;
+      if (this.readonly || !ta) return;
+      const r = moveLines(ta.value, ta.selectionStart, ta.selectionEnd, dir);
+      if (!r) return;
+      ta.focus();
+      ta.selectionStart = r.from;
+      ta.selectionEnd = r.to;
+      const ok = document.execCommand?.('insertText', false, r.replacement);
+      if (!ok || ta.value !== r.text) { ta.value = r.text; }
+      ta.selectionStart = r.start;
+      ta.selectionEnd = r.end;
+      this.$emit('update:modelValue', ta.value);
+    },
+
     /** Indent or unindent selected lines. */
     indent(out = false) {
       const ta = this.$refs.ta;
@@ -357,6 +374,9 @@ export default {
       if (e.key === 'Tab') {
         e.preventDefault();
         this.indent(e.shiftKey);
+      } else if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        this.moveLines(e.key === 'ArrowUp' ? -1 : 1);
       } else if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
         // Take over the indentation of the line, one level deeper after a colon
         e.preventDefault();
