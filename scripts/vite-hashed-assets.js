@@ -16,7 +16,7 @@ import { join, relative, resolve, dirname, sep } from 'node:path';
 /** Folders under public/ whose files are hashed (everything the game or the website loads at runtime). */
 export const HASHED_DIRS = ['models', 'textures', 'audio', 'icons', 'portraits', 'art', 'site', 'blog'];
 /** Extensions that are hashed; other files (licence texts …) are copied unchanged. */
-export const HASHED_EXT = /\.(glb|gltf|json|webp|png|jpg|svg|mp3|ogg|opus|m4a|webm|wav)$/i;
+export const HASHED_EXT = /\.(glb|gltf|json|webp|png|jpg|svg|mp3|ogg|opus|m4a|webm|wav|mp4)$/i;
 /** Working files that are never shipped (raw voice recordings, see .gitignore). */
 export const EXCLUDE = /(^|\/)\.|\.src\.mp3$|^audio\/voice\/.*\.wav$/;
 /** Length of the hash in the file name (hex characters of SHA-256). */

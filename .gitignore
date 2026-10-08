@@ -19,3 +19,4 @@ scripts/_tmp/
 .claude/worktrees/
 # Teil-Archive der Rohdateien zum Sichern/Hochladen (node scripts/assets-src.mjs pack, docs/ROHDATEIEN.md)
 assets-src-archive/
+__pycache__/

@@ -24,7 +24,7 @@ public/audio/manifest.json              →  dist/audio/manifest.4b1c…….json
 ```
 
 - Gehasht werden alle Spiel- und Websitedateien unter `models/`, `textures/`, `audio/`, `icons/`, `portraits/`,
-  `art/`, `site/` (Endungen glb, json, webp, png, jpg, mp3 …). Wurzeldateien (Favicon, App-Symbole fürs
+  `art/`, `site/` (Endungen glb, json, webp, png, jpg, mp3, mp4 …). Wurzeldateien (Favicon, App-Symbole fürs
   Manifest) und Lizenztexte bleiben ungehasht. Stimmen-Rohaufnahmen (`*.wav`, `*.src.mp3`) werden nicht ausgeliefert.
 - Die Zuordnung logischer Pfad → gehashter Pfad (~850 Einträge, ~15 KB gepackt) landet als `__KRONLAND_ASSETS__`
   im Spielcode. `src/paths.js` löst damit auf:

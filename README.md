@@ -18,7 +18,7 @@ npm run build   # Produktionsbuild nach dist/ (statische Website, alle Pfade rel
 
 | Adresse | Inhalt |
 |---|---|
-| `./` | Startseite: Titelbild, Funktionen, Galerie, „Für die Schule“ (Entwicklermodus), Danksagung |
+| `./` | Startseite: Titelbild (Spielszene als Video-Loop), Funktionen, Galerie, „Für die Schule“ (Entwicklermodus), Danksagung |
 | `play/` | das Spiel (URL-Parameter wie unten, z. B. `play/?seed=42`; PWA mit Start `play/`) |
 | `manual/` | Handbuch DE/EN mit Inhaltsverzeichnis, Suche, Druckansicht (Markdown in `src/site/manual/`) |
 | `compendium/` | Kompendium: alle Werte und Formeln mit Seitenleiste, Suche, Deep-Links – alle Tabellen aus `src/sim/data/` erzeugt, neue Inhalte erscheinen automatisch |
