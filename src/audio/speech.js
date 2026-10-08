@@ -75,8 +75,28 @@ if (typeof window !== 'undefined') loadVoiceIndex();
 /** Is something playing right now? */
 export const speaking = () => (audio && !audio.paused) || (globalThis.speechSynthesis?.speaking ?? false);
 
+/**
+ * Browsers only play sound after the first tap or key press on the page (autoplay rule): a dialogue that starts
+ * before that – the first lines of a mission opened by a direct link – waits here and starts with the first gesture.
+ */
+let blocked = null;
+let gestureArmed = false;
+function onFirstGesture() {
+  const go = blocked;
+  blocked = null;
+  go?.();
+}
+function waitForGesture(go) {
+  blocked = go;
+  if (gestureArmed || typeof window === 'undefined') return;
+  gestureArmed = true;
+  for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, onFirstGesture, { capture: true });
+}
+const notAllowed = (e) => e?.name === 'NotAllowedError' || e?.error === 'not-allowed';
+
 /** Stop everything (dialogue dismissed, game ended). */
 export function stopSpeech() {
+  blocked = null;
   clearInterval(fadeTimer);
   heldAudio = null;
   try { if (audio) { audio.pause(); audio = null; } } catch { /* without audio */ }
@@ -131,7 +151,11 @@ export function speak(msg, lang, opts = {}) {
       // also when paused (clicked away, next dialogue) – but not when held by a game pause
       a.addEventListener('pause', () => { if (heldAudio !== a && !failed) end(); });
       if (holds.size) { heldAudio = a; a.volume = 0; return true; } // starts once the game resumes
-      a.play().catch(fail);
+      a.play().catch((e) => {
+        // No gesture yet: play with the first tap (unless the dialogue is gone by then)
+        if (notAllowed(e)) waitForGesture(() => { if (audio === a) a.play().catch(fail); });
+        else fail();
+      });
       return true;
     } catch { audio = null; }
   }
@@ -154,7 +178,10 @@ function readAloud(msg, lang, volume, end) {
     u.rate = 1;
     u.pitch = HIGH.has(msg.speaker ?? '') ? 1.15 : 0.92;
     u.onend = end;
-    u.onerror = end;
+    u.onerror = (ev) => {
+      if (notAllowed(ev)) waitForGesture(() => { try { synth.speak(u); } catch { end(); } });
+      else end();
+    };
     synth.speak(u);
     if (holds.size) synth.pause();
     return true;

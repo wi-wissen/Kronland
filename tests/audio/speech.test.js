@@ -53,3 +53,25 @@ describe('Speech output as a stand-in', () => {
     expect(spoken.map((u) => u.text)).toEqual(['Nur deutsch']);
   });
 });
+
+describe('Autoplay rule', () => {
+  it('a recording blocked before the first tap plays with the first tap', async () => {
+    let plays = 0;
+    class Blocked extends FakeAudio { play() { plays++; return plays === 1 ? Promise.reject(Object.assign(new Error('x'), { name: 'NotAllowedError' })) : Promise.resolve(); } }
+    globalThis.Audio = Blocked;
+    globalThis.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+    const spoken = [];
+    globalThis.speechSynthesis = { speak: (u) => spoken.push(u), cancel() {}, pause() {}, getVoices: () => [] };
+    const target = new EventTarget();
+    globalThis.window ??= target;
+    resetSpeech();
+    expect(speak({ seq: 10, speaker: null, text: 'Hallo', voice: 'audio/x.mp3' }, 'de')).toBe(true);
+    await Promise.resolve(); await Promise.resolve();
+    expect(plays).toBe(1);
+    expect(spoken).toEqual([]);
+    globalThis.window.dispatchEvent(new Event('pointerdown'));
+    await Promise.resolve();
+    expect(plays).toBe(2);
+    delete globalThis.Audio; delete globalThis.speechSynthesis; delete globalThis.SpeechSynthesisUtterance;
+  });
+});
