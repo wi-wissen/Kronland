@@ -58,6 +58,7 @@ const NO_JITTER = Object.freeze({ dx: 0, dz: 0 }), JITTER_TMP = { dx: 0, dz: 0 }
 const FACE_YAW = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
+const tmpBox = new THREE.Box3();
 
 export class Renderer {
   /**
@@ -357,6 +358,8 @@ export class Renderer {
     }));
     /** @type {Map<number, {v:number, h:any, x:number, z:number, s:number}>} */
     this.treeIndex = new Map();
+    /** Ornamental trees (not fellable) for the clear-view test of the camera */
+    this.decoTrees = [];
     this.treeVariants = variants;
     const c = new THREE.Color();
     const up = new THREE.Vector3(0, 1, 0);
@@ -373,6 +376,7 @@ export class Renderer {
       if (v.kind !== 'conifer' && (it.h >>> 22) % 23 === 0) c.setRGB(1.35, 1.05, 0.55);
       const handle = groups[it.v].add(it.x, it.z, tmpM, c);
       if (it.id) this.treeIndex.set(it.id, { v: it.v, h: handle, x: it.x, z: it.z, s });
+      else this.decoTrees.push({ v: it.v, x: it.x, z: it.z, s });
     }
     for (const g of groups) { g.finalize(this.scene); this.chunked.push(g); for (const m of g.meshes) patchFog(m.material); }
     // season: remember summer version, winter version (lazy) for swapping on weather change
@@ -538,6 +542,8 @@ export class Renderer {
     /** Per tile the instances (for fading out under buildings) */
     this.scatterByTile = new Map();
     this.scatter = [];
+    /** Large boulders and rock peaks for the clear-view test of the camera: { x, z, r, y0, y1 } */
+    this.boulders = [];
     const up = new THREE.Vector3(0, 1, 0);
     for (const [name, list] of Object.entries(lists)) {
       if (!list.length) continue;
@@ -560,6 +566,11 @@ export class Renderer {
         tmpS.set(it.s, it.s * (name.startsWith('kk') ? 0.8 : 1), it.s);
         tmpM.compose(tmpP, tmpQ, tmpS);
         const h = ci.add(it.x, it.z, tmpM);
+        if (name.startsWith('kk') || name.startsWith('mt')) {
+          const bb = kind.geometry.boundingBox ?? (kind.geometry.computeBoundingBox(), kind.geometry.boundingBox);
+          const r = 0.4 * Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z) * it.s;
+          this.boulders.push({ x: it.x, z: it.z, r, y0: y + bb.min.y * tmpS.y, y1: y + bb.max.y * tmpS.y, tile: it.tile });
+        }
         if (!this.scatterByTile.has(it.tile)) this.scatterByTile.set(it.tile, []);
         this.scatterByTile.get(it.tile).push([ci, h]);
       }
@@ -945,6 +956,43 @@ export class Renderer {
       top = Math.max(top, buildingTop(r, g.position.y, h, x, z));
     }
     return top;
+  }
+
+  /**
+   * Stand-ins for everything that can hide figures from the camera within an area (clear view of scripted camera
+   * moves, see sightline.js): tree crowns as cylinders, houses as boxes.
+   * @returns {import('./sightline.js').Blocker[]}
+   */
+  sightBlockers(x0, z0, x1, z1) {
+    const out = [];
+    const tree = (t) => {
+      const v = this.treeVariants?.[t.v];
+      if (!v || t.x < x0 - 3 || t.x > x1 + 3 || t.z < z0 - 3 || t.z > z1 + 3) return;
+      const bb = v.geometry.boundingBox ?? (v.geometry.computeBoundingBox(), v.geometry.boundingBox);
+      const h = bb.max.y * t.s, base = this.terrain.heightAt(t.x, t.z);
+      // crowns are irregular and let light through at the rim: a bit narrower than the bounding box
+      const r = 0.38 * Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z) * t.s;
+      out.push({ type: 'cyl', x: t.x, z: t.z, r, y0: base + h * 0.3, y1: base + h });
+    };
+    for (const t of this.treeIndex.values()) tree(t);
+    for (const t of this.decoTrees ?? []) tree(t);
+    for (const b of this.boulders ?? []) {
+      if (b.x < x0 - 4 || b.x > x1 + 4 || b.z < z0 - 4 || b.z > z1 + 4 || !this.scatterByTile.has(b.tile)) continue;
+      out.push({ type: 'cyl', x: b.x, z: b.z, r: b.r, y0: b.y0, y1: b.y1 });
+    }
+    for (const g of this.piles.values()) {
+      const p = g.position;
+      if (p.x < x0 - 2 || p.x > x1 + 2 || p.z < z0 - 2 || p.z > z1 + 2) continue;
+      const bb = tmpBox.setFromObject(g);
+      out.push({ type: 'cyl', x: p.x, z: p.z, r: 0.4 * Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z), y0: bb.min.y, y1: bb.max.y });
+    }
+    for (const g of this.buildings.values()) {
+      const r = g.userData.rect;
+      if (!r || r.x > x1 || r.x + r.w < x0 || r.y > z1 || r.y + r.h < z0) continue;
+      const h = (g.userData.height ?? 2) * (g.userData.body?.scale.y ?? 1);
+      out.push({ type: 'box', x0: r.x, z0: r.y, x1: r.x + r.w, z1: r.y + r.h, y0: g.position.y - 1, y1: g.position.y + h });
+    }
+    return out;
   }
 
   /** Choose LOD levels of trees, decoration and buildings by camera. */

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl, SHOT_QUALITY } from './paths.js';
 
 // Ring slots: resting workers at the campfire, waiting workers in front of a building and woodcutters at a tree stand on

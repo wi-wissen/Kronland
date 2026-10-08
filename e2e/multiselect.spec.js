@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Desktop: drag a box over several own figures selects all of them; Shift or Ctrl click adds and removes single ones.
@@ -15,10 +15,6 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
   // screen points computed before that no longer match the picture
   await page.waitForFunction(() => window.__kronland?.renderer.frameNo > 2, null, { timeout: 60_000 });
   await expect(page.getByTestId('res-gold')).toHaveText('500');
-  // Park the pointer on the map: Playwright's mouse starts at (0, 0), inside the edge-scroll strip. Any pointermove
-  // the browser sends there (Chromium's synthetic moves after layout changes) pans the camera towards the top left
-  // while the test measures and drags – the box then misses figures (CI, timing-dependent).
-  await page.mouse.move(720, 450);
 
   // three serfs in a row south of the castle, camera on them
   const ids = await page.evaluate(() => {

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Attack alarm: notice, red pulse on the minimap, on mobile the map button pulses; the bell runs without errors.
@@ -37,11 +37,6 @@ test('Ranged attack alerts as well; serfs attack an enemy like a tree (right cli
   await page.goto(playUrl('?seed=42&no-models&fog=off'));
   await page.waitForFunction(() => !!window.__kronland);
   await expect(page.getByTestId('res-gold')).toHaveText('500', SLOW);
-  // Park the pointer on the map: Playwright's mouse starts at (0, 0), inside the edge-scroll strip, and a synthetic
-  // pointermove there (Chromium sends them after layout changes, e.g. when the build panel opens) pans the camera
-  // away from the enemy while the test waits for the click point (docs/TESTS.md)
-  const vp = page.viewportSize();
-  await page.mouse.move(vp.width / 2, vp.height / 2);
   // Enemy archer shoots at our castle (event as from combat)
   await page.evaluate(() => {
     const e = window.__kronland, s = e.sim, hq = s.findBuilding(0, 'headquarters');

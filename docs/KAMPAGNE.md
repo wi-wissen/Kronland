@@ -145,7 +145,7 @@ sind Kulisse und lassen sich nicht abbauen). Keine Leibeigenen, kein Arbeiter.
 | 4 | Dorfzentrum auf den alten Grundmauern | Baumenü, Siedlungsplatz; ohne Dorfzentrum kommen keine Arbeiter |
 | 5 | 2 Wohnhäuser | Arbeiter brauchen Betten (sonst Lagerfeuer) |
 | 6 | 2 Höfe | … und Essen; Höfe bringen die ersten Arbeiter |
-| 7 | 6 Arbeiter (Lehmmine) | Arbeiter kommen von selbst, wenn es Arbeit gibt |
+| 7 | 6 Arbeiter (Lehmgrube) | Arbeiter kommen von selbst, wenn es Arbeit gibt |
 | – | erster Zahltag mit Arbeitern | Steuern, Leibeigene in der Burg kaufen |
 | 8 | Eintreiber vertreiben (kommen erst, wenn die Höfe stehen; spätestens nach 25 min) | „Zu den Waffen!“, Kampf, Heldin |
 

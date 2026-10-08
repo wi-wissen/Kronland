@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Dev mode: activation (?dev=1, keyboard shortcut, settings), path/A* of a figure, wireframe,

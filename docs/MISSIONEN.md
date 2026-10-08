@@ -346,6 +346,12 @@ wartet der Dialog auf den Index der Aufnahmen. Solange eine Stimme spricht, sink
 **Dialogkamera** (`Engine.dialogFocus`, Einstellung „Kamera bei Dialogen“): Spricht eine sichtbare Figur (Held
 oder Gesprächsfigur), fährt die Kamera in 1,1 s auf Abstand 8 an sie heran (Nahansicht mit flachem Blick); nach
 dem letzten Satz fährt sie zurück. Bewegt der Spieler die Kamera selbst, bleibt sie dort.
+**Freie Sicht** (`src/render/sightline.js`, `Engine.viewTurn`): Skriptkamera (`camera.jump_to`/`fly_to`, Tutorial-
+Kamerasprünge) und Dialogkamera prüfen, ob Baumkronen, große Felsen, Rohstoffhaufen, Häuser oder Gelände zwischen
+Kamera und den Figuren am Ziel stehen (bis 6 sichtbare Figuren im Umkreis von 2,5 Feldern, sonst der Zielpunkt;
+vereinfachte Formen: Zylinder und Quader statt Meshes). Ist die Sicht verdeckt, dreht die Kamera in Schritten
+bis 180° (kleinste Drehung zuerst), reicht das nicht, blickt sie zusätzlich steiler. Bei Fahrten gleitet die Drehung
+mit; die Dialogkamera dreht beim Zurückfahren wieder zurück. Nur Darstellung, die Simulation merkt davon nichts.
 
 Feste Oberflächentexte stehen unter `mission.*` in `src/i18n/de.js`/`en.js`.
 Tutorial-Hinweise (`hint.ui`) zeigen auf `data-testid`s, z. B. `quick-all`, `build-residence`,

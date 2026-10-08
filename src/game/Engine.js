@@ -18,6 +18,7 @@ import { createMissionSim, createScenarioSim } from '../sim/missions/runtime.js'
 import { resetSpeech, stopSpeech } from '../audio/speech.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
+import { clearView, figureTargets, angleDelta } from '../render/sightline.js';
 import { cursorCss } from './cursors.js';
 import { characterManifest } from '../render/characters.js';
 import { figureRole, figureSex } from '../render/variants.js';
@@ -48,6 +49,9 @@ const figureLook = (role) => (role === 'bandit.bow' ? 'banditBow' : role === 'ba
 
 /** Dialogue camera: distance close to the figure, duration of the move, pause before the return move (ms) */
 const DIALOG_DIST = 8, DIALOG_FLY_MS = 1100, DIALOG_BACK_MS = 1200;
+/** Figures checked for the clear view of a scripted camera move: kinds, search radius (tiles), at most this many. */
+const VIEW_FIGURES = new Set(['unit', 'worker', 'soldier', 'leader', 'hero', 'npc']);
+const VIEW_RADIUS = 2.5, VIEW_MAX = 6;
 
 /** Build preview yellow ("will be levelled") if a tile deviates from the plane by more than this many cm. */
 export const LEVEL_NOTICE = 40;
@@ -1254,6 +1258,7 @@ export class Engine {
     const t = Math.min(1, (now - f.t0) / f.ms);
     const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
     if (f.td !== undefined) { rig.dist = f.fd + (f.td - f.fd) * e; rig.clamp(); }
+    if (f.view) { rig.yaw = f.view.fy + f.view.dy * e; rig.pitch = f.view.fp + (f.view.tp - f.view.fp) * e; }
     rig.lookAt(f.fx + (f.tx - f.fx) * e, f.fz + (f.tz - f.fz) * e);
     f.last = { x: rig.target.x, z: rig.target.z, dist: rig.dist };
     if (t >= 1) this.camFly = null;
@@ -1271,10 +1276,11 @@ export class Engine {
     const rig = this.renderer.rig;
     const pos = msg?.speaker ? this.speakerPos(msg.speaker) : null;
     if (pos) {
-      if (!this.dialogCam || this.dialogCam.taken) this.dialogCam = { x: rig.target.x, z: rig.target.z, dist: rig.dist, taken: false };
+      if (!this.dialogCam || this.dialogCam.taken) this.dialogCam = { x: rig.target.x, z: rig.target.z, dist: rig.dist, yaw: rig.yaw, pitch: rig.pitch, taken: false };
       // already close (same speaker, conversation partner next door): do not approach again
       if (Math.hypot(rig.target.x - pos.x, rig.target.z - pos.z) < 1.5 && Math.abs(rig.dist - DIALOG_DIST) < 0.5) return;
-      this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: pos.x, tz: pos.z, fd: rig.dist, td: Math.min(rig.dist, DIALOG_DIST), t0: performance.now(), ms: DIALOG_FLY_MS };
+      const td = Math.min(rig.dist, DIALOG_DIST);
+      this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: pos.x, tz: pos.z, fd: rig.dist, td, view: this.viewTurn(pos.x, pos.z, td, [pos]), t0: performance.now(), ms: DIALOG_FLY_MS };
       return;
     }
     // no (visible) speaker any more: back after a short pause – if the next sentence follows right away, it stays
@@ -1283,7 +1289,8 @@ export class Engine {
     this.dialogCamBack = setTimeout(() => {
       this.dialogCam = null;
       if (back.taken || this.camFly) return;
-      this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: back.x, tz: back.z, fd: rig.dist, td: back.dist, t0: performance.now(), ms: DIALOG_FLY_MS };
+      const view = back.yaw === undefined ? null : { fy: rig.yaw, dy: angleDelta(rig.yaw, back.yaw), fp: rig.pitch, tp: back.pitch };
+      this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: back.x, tz: back.z, fd: rig.dist, td: back.dist, view, t0: performance.now(), ms: DIALOG_FLY_MS };
     }, msg ? 0 : DIALOG_BACK_MS);
   }
 
@@ -1311,6 +1318,54 @@ export class Engine {
   }
 
   /**
+   * Script camera (camera.jump_to / camera.fly_to): jump or glide to (x, z) and turn so that no tree or house hides
+   * the figures there.
+   * @param {number} x @param {number} z @param {number} [fly] duration in ticks (0: jump)
+   */
+  scriptCamera(x, z, fly = 0) {
+    const rig = this.renderer.rig, view = this.viewTurn(x, z, rig.dist);
+    if (fly > 0) {
+      // camera move: duration in game time (ticks), shorter accordingly at faster speed
+      this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: x, tz: z, view, t0: performance.now(), ms: (fly * 100) / Math.max(0.25, this.speed) };
+      return;
+    }
+    this.camFly = null;
+    // turn before placing: the placement on small screens depends on the rotation
+    if (view) { rig.yaw = view.fy + view.dy; rig.pitch = view.tp; }
+    // do not hide the target under the (possibly still open) panel of the previous step
+    this.focusPoint(x, z);
+  }
+
+  /**
+   * Clear view for a scripted camera move to (x, z): rotation (and if needed tilt) at which no tree or house
+   * stands in front of the figures there (sightline.js). Without figures nearby the spot itself counts.
+   * Pure rendering; the player's later camera keeps the rotation.
+   * @param {number} x @param {number} z @param {number} dist distance at the end of the move
+   * @param {{x:number, z:number}[]} [spots] figures to keep visible (default: visible figures around the spot)
+   * @returns {{fy:number, dy:number, fp:number, tp:number}|null} start and change of rotation, start and end tilt; null: view is clear
+   */
+  viewTurn(x, z, dist, spots = null) {
+    const r = this.renderer, rig = r?.rig;
+    if (!rig?.positionFor || !r.sightBlockers) return null;
+    if (!spots) {
+      const near = [];
+      for (const e of this.sim.entities.values()) {
+        if (!VIEW_FIGURES.has(e.kind) || e.px === undefined || !this.canSee(e)) continue;
+        const d = Math.hypot(e.px / UNIT - x, e.py / UNIT - z);
+        if (d <= VIEW_RADIUS) near.push({ x: e.px / UNIT, z: e.py / UNIT, d });
+      }
+      near.sort((a, b) => a.d - b.d);
+      spots = near.length ? near.slice(0, VIEW_MAX) : [{ x, z }];
+    }
+    const g = (px, pz) => r.terrain.heightAt(px, pz);
+    const reach = Math.max(rig.dist, dist) + 4;
+    const blockers = r.sightBlockers(x - reach, z - reach, x + reach, z + reach);
+    const v = clearView((yaw, pitch) => rig.positionFor(x, z, yaw, pitch, dist), rig.yaw, rig.pitch, figureTargets(spots, g), blockers, g);
+    if (v.yaw === rig.yaw && v.pitch === rig.pitch) return null;
+    return { fy: rig.yaw, dy: angleDelta(rig.yaw, v.yaw), fp: rig.pitch, tp: v.pitch };
+  }
+
+  /**
    * Mission data for the UI; incidentally checks tutorial steps that only the
    * UI can see (camera moved, serfs selected), and follows camera hints.
    */
@@ -1321,15 +1376,7 @@ export class Engine {
     const mv = this.missionView;
     if (ui.camera && ui.camera.seq !== mv.cameraSeq) {
       mv.cameraSeq = ui.camera.seq;
-      if (ui.camera.fly > 0) {
-        // camera move: duration in game time (ticks), shorter accordingly at faster speed
-        const rig = this.renderer.rig;
-        this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: ui.camera.x + 0.5, tz: ui.camera.y + 0.5, t0: performance.now(), ms: (ui.camera.fly * 100) / Math.max(0.25, this.speed) };
-      } else {
-        this.camFly = null;
-        // do not hide the target under the (possibly still open) panel of the previous step
-        this.focusPoint(ui.camera.x + 0.5, ui.camera.y + 0.5);
-      }
+      this.scriptCamera(ui.camera.x + 0.5, ui.camera.y + 0.5, ui.camera.fly);
     }
     // Breakpoint in the mission script (world editor, test play): halt the game until the debugger continues
     if (ui.script?.mission.paused && !this.debugHalt) { this.debugHalt = true; this.paused = true; }

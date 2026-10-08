@@ -24,7 +24,7 @@ const CAST_FILE = path.join(VOICE_DIR, 'cast.json');
 const roleDir = (role) => path.join(VOICE_DIR, role);
 const GAME_DIR = path.join(ROOT, 'public/audio/voice');
 /** Mission speakers without a voice of their own (example script mission) */
-const SPEAKER_ALIAS = { kunz: 'bandit' };
+const SPEAKER_ALIAS = { kunz: 'bandit', guard: 'collector' };
 const AUDITION_DIR = path.join(VOICE_DIR, 'audition');
 /** Target loudness (LUFS) and peak level of all recordings */
 export const LOUDNESS = 'loudnorm=I=-18:TP=-1.5:LRA=11';

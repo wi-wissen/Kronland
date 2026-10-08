@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Bridges and ornaments (taken over from the extensions): start menu without extension switch, build a bridge at a

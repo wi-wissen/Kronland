@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl, SHOT_QUALITY } from './paths.js';
 
 // Fixed spots: serfs at a construction site and resting workers at the campfire each stand on their

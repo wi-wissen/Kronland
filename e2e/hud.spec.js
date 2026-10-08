@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 import { quick, openQuick } from './quick.js';
 
@@ -301,12 +301,13 @@ test('Resource bar: large amounts shortened, everything in one row with the cres
   } else {
     for (const width of [1440, 1180]) {
       await page.setViewportSize({ width, height: 900 });
-      await page.waitForTimeout(200);
-      // Crest stays in the first row (no row of its own), medallion centred
-      await expect(page.getByTestId('topbar')).not.toHaveClass(/tight/);
-      const res = await box('.tb-res'), crest = await box('.tb-crest');
-      expect(crest.t, `Crest at ${width}px`).toBeLessThan(res.b);
-      expect(res.r).toBeLessThan(crest.l);
+      // Crest stays in the first row (no row of its own), medallion centred. The top bar measures itself after the
+      // resize (a frame or more under software WebGL): poll until the layout has settled instead of a fixed wait.
+      await expect.poll(async () => {
+        const res = await box('.tb-res'), crest = await box('.tb-crest');
+        const tight = await page.getByTestId('topbar').evaluate((el) => el.classList.contains('tight'));
+        return { tight, crestInFirstRow: crest.t < res.b, resLeftOfCrest: res.r < crest.l };
+      }, { message: `Top bar at ${width}px`, timeout: 10_000 }).toEqual({ tight: false, crestInFirstRow: true, resLeftOfCrest: true });
     }
     // Narrower: resources in two rows instead of the crest in its own row
     await expect(page.getByTestId('res-bar')).toHaveClass(/two/);

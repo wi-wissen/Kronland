@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Close zoom (issue #6): mouse wheel or two-finger gesture all the way in, flatter view, camera above the
@@ -243,4 +243,52 @@ test('Nature LOD levels: trees at game height not only far form, far away no inv
   // at every zoom level: no decoration chunks that lie entirely beyond the end of shrinking
   for (const d of [22, 40, 55, 75]) expect((await at(d)).hidden, `Zoom ${d}`).toBe(0);
   expect(errors).toEqual([]);
+});
+
+test('Script camera turns so that no tree hides the figure it looks at', async ({ page }, info) => {
+  test.setTimeout(120_000);
+  if (info.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(playUrl('?seed=42&fog=off'));
+  await page.waitForFunction(() => !!window.__kronland);
+  await expect(page.getByTestId('res-gold')).toHaveText('500');
+  // A serf at the edge of a forest, game halted; rotation chosen so that a tree stands between camera and serf
+  const setup = await page.evaluate(() => {
+    const e = window.__kronland, s = e.sim, W = s.map.width;
+    const trees = [...s.entities.values()].filter((t) => t.kind === 'tree');
+    const occ = new Set(trees.map((t) => t.y * W + t.x));
+    const serf = [...s.entities.values()].find((u) => u.kind === 'unit' && u.owner === 0);
+    const rig = e.renderer.rig;
+    rig.dist = 14; rig.pitch = 0.75;
+    for (const t of trees) {
+      let n = 0;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (occ.has((t.y + dy) * W + t.x + dx)) n++;
+      if (n < 9) continue;
+      for (const [dx, dy] of [[0, 2], [2, 0], [0, -2], [-2, 0]]) {
+        const x = t.x + dx, y = t.y + dy;
+        if (occ.has(y * W + x)) continue;
+        serf.px = (x * 1000) + 500; serf.py = (y * 1000) + 500; serf.path = [];
+        for (let k = 0; k < 24; k++) {
+          rig.yaw = (k / 24) * 2 * Math.PI;
+          if (e.viewTurn(x + 0.5, y + 0.5, rig.dist)) return { x: x + 0.5, z: y + 0.5, yaw: rig.yaw };
+        }
+      }
+    }
+    return null;
+  });
+  expect(setup).not.toBeNull();
+  // Before: camera simply placed over the serf with the old rotation – a crown in front of it
+  await page.evaluate((p) => { const rig = window.__kronland.renderer.rig; rig.yaw = p.yaw; rig.lookAt(p.x, p.z); }, setup);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `test-results/script-camera-before-${info.project.name}.png` });
+  // Script jump: the camera turns until the view is clear
+  const after = await page.evaluate((p) => {
+    const e = window.__kronland, rig = e.renderer.rig;
+    rig.yaw = p.yaw; rig.lookAt(p.x - 20, p.z - 20);
+    e.scriptCamera(p.x, p.z, 0);
+    return { yaw: rig.yaw, still: e.viewTurn(p.x, p.z, rig.dist) };
+  }, setup);
+  expect(after.yaw).not.toBeCloseTo(setup.yaw, 3);
+  expect(after.still).toBeNull();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `test-results/script-camera-after-${info.project.name}.png` });
 });

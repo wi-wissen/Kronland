@@ -545,7 +545,7 @@ const SPEAKER_PORTRAITS = new Set(['elder', 'villager', 'collector', 'merchant',
 export function speakerPortrait(id) {
   if (!id) return null;
   if (PORTRAITS[`hero-${id}`]) return PORTRAITS[`hero-${id}`];
-  const sp = id === 'kunz' ? 'bandit' : id;
+  const sp = { kunz: 'bandit', guard: 'collector' }[id] ?? id;
   return SPEAKER_PORTRAITS.has(sp) ? `portraits/sp-${sp}.webp` : null;
 }
 

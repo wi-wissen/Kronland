@@ -60,8 +60,8 @@ export default {
   ),
   victoryText: t('Malvor ist gefallen. Die fünf Zacken sind vereint.', 'Malvor has fallen. The five shards are united.'),
   debrief: t(
-    'Die Provinzen krönen Nelia zur ersten Königin des Kronlands – weil sie als verlorenes Kind König Edrians gilt. Orrin erlebt die Krönung noch. „Meine Prinzessin“, flüstert er, „ich wusste es immer.“ Nelia hält seine Hand und schweigt. In der Nacht stirbt er. Am nächsten Morgen hebt Königin Nelia die Leibeigenschaft auf. Den Wetterturm lässt sie stehen: Die Technik, mit der Hrimgar und Malvor das Land aushungerten, soll es künftig vor Missernten schützen. Ende der Kampagne – danke fürs Spielen!',
-    'The provinces crown Nelia the first queen of the Crownland – because she is believed to be King Edrian’s lost child. Orrin lives to see the coronation. “My princess,” he whispers, “I always knew.” Nelia holds his hand and stays silent. He dies in the night. The next morning Queen Nelia abolishes serfdom. She leaves the weather tower standing: the technique Hrimgar and Malvor used to starve the land shall protect it from failed harvests from now on. End of the campaign – thank you for playing!',
+    'Nach dem alten Recht krönen die Provinzen Nelia zur Königin des Kronlands – die erste, die ihre Krone nicht geerbt hat. Orrin erlebt die Krönung noch. „Meine Prinzessin“, flüstert er, „ich wusste es immer.“ Nelia hält seine Hand und schweigt. In der Nacht stirbt er. Am nächsten Morgen hebt Königin Nelia die Leibeigenschaft auf. Den Wetterturm lässt sie stehen: Die Technik, mit der Hrimgar und Malvor das Land aushungerten, soll es künftig vor Missernten schützen. Ende der Kampagne – danke fürs Spielen!',
+    'By the old law, the provinces crown Nelia queen of the Crownland – the first who did not inherit her crown. Orrin lives to see the coronation. “My princess,” he whispers, “I always knew.” Nelia holds his hand and stays silent. He dies in the night. The next morning Queen Nelia abolishes serfdom. She leaves the weather tower standing: the technique Hrimgar and Malvor used to starve the land shall protect it from failed harvests from now on. End of the campaign – thank you for playing!',
   ),
   defeatText: t('Malvor hat gesiegt.', 'Malvor has won.'),
   defeatTexts: { hq: t('Die Ufersiedlung ist gefallen. Malvor hat gesiegt.', 'The lakeshore settlement has fallen. Malvor has won.') },
@@ -126,8 +126,8 @@ export default {
   },
 
   start: [
-    say('malvor', 'Eine Leibeigene mit einem Händler und einem Verräter. Komm nur, Nelia. Der See ist tief.', 'A serf with a merchant and a traitor. Come then, Nelia. The lake is deep.'),
-    say('malvor', 'Vier Zacken hast du gesammelt. Die fünfte trage ich – hol sie dir, wenn du kannst.', 'You have gathered four shards. The fifth I wear – come and take it, if you can.'),
+    say('malvor', 'Eine Leibeigene mit einem Händler und einem Verräter. Vier Zacken hast du gesammelt, die fünfte trage ich. Komm und hol sie dir, Nelia – der See ist tief.',
+      'A serf with a merchant and a traitor. You have gathered four shards; the fifth I wear. Come and take it, Nelia – the lake is deep.'),
     say('taran', 'Er hat recht, der See ist tief. Aber im Winter trägt er.', 'He’s right, the lake is deep. But in winter it holds.'),
     say('orrin', 'Hrimgars Pläne! Ein Wetterturm, Nelia. Dafür brauchen wir eine Alchimistenhütte, Wissen – oder Geld. Ich kenne Gelehrte in Beaucroix …', 'Hrimgar’s plans! A weather tower, Nelia. For that we need an alchemist’s hut, knowledge – or money. I know scholars in Beaucroix …'),
     say('taran', 'Malvor hat sein eigenes Kraftwerk, dort auf der kleinen Insel vor dem Schloss. Ist es geladen, taut er den See, sobald wir aufs Eis gehen. Aber vom Ufer aus treffen es Bogenschützen und Kanonen.', 'Malvor has his own weather plant, there on the small island in front of the castle. Once it is charged, he thaws the lake as soon as we step onto the ice. But archers and cannons can hit it from the shore.'),
