@@ -18,7 +18,7 @@ export const BUDGET = { mission: 60_000, player: 20_000, setup: 8_000_000 };
  * Instructions per tick for synchronous calls (goal conditions, wait_until, sorted(key=…)) – shared by all calls
  * of a program, so that a slow condition cannot freeze the game. During world building the setup budget applies.
  */
-export const SYNC_BUDGET = { mission: 200_000, player: 50_000 };
+export const SYNC_BUDGET = { mission: 200_000, player: 200_000 };
 const MAX_CONSOLE = 300;
 /** Longest text a notify() notice carries */
 const NOTIFY_MAX = 300;

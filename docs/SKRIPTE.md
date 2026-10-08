@@ -59,7 +59,7 @@ Gleich auf jedem Gerät – nie entscheidet der JS-Stapel des Browsers, wo ein P
 | Verschachtelte Daten bei `==`, `<`, `str`, Schlüsseln | 500 Ebenen | RecursionError; Speichern klappt immer (ohne JS-Rekursion) |
 | Länge einer Liste, eines Textes | 1 000 000 Elemente, 10 000 000 Zeichen | OverflowError (`list(range(10**7))`, Verdoppeln) |
 | Befehle je Takt | Mission 60 000, Spieler 20 000 | – (es geht im nächsten Takt weiter) |
-| Synchrone Aufrufe je Takt (Zielbedingungen, `wait_until`, `sorted(key=…)`) | Mission 200 000, Spieler 50 000 | „Das dauert zu lange“, die Bedingung wird abgeschaltet |
+| Synchrone Aufrufe je Takt (Zielbedingungen, `wait_until`, `sorted(key=…)`) | je Programm 200 000 | „Das dauert zu lange“, die Bedingung wird abgeschaltet |
 | Weltaufbau | 8 000 000 Befehle | „Der Weltaufbau braucht zu lange“ |
 
 Der Aufrufstapel in Fehlern fasst gleiche Aufrufe zusammen und zeigt die ersten 3 und letzten 10; der Debugger
