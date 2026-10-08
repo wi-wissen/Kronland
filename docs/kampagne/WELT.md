@@ -58,9 +58,10 @@ ist nur als feste Szene möglich.
 
 ### Leibeigene
 Unfreie, die keinem Handwerk nachgehen dürfen. Sie fällen Bäume, graben Lehm, Stein, Eisen und Schwefel aus Haufen,
-bauen und reparieren Häuser. Sie bekommen keinen Lohn, zahlen keine Steuern, brauchen kein Haus. Im Spiel kauft man
-sie für Taler in der **Burg**; in der Welt heißt das: Man löst sie aus – zahlt ihre Schuld beim Herrn ab oder gibt
-ihnen Brot für den Winter. Wer angegriffen wird, flieht. Ruft man in der Burg „**Zu den Waffen!**“, greifen sie zu
+bauen und reparieren Häuser. Sie bekommen keinen Lohn, zahlen keine Steuern, brauchen kein Haus. Man **kauft** sie
+für Taler in der **Burg** – so ist das im Kronland, und so bleibt es auch im Spiel. Nelia, selbst eine Leibeigene,
+ist das sichtlich unangenehm; sie tut es, weil das Dorf Hände braucht, und sagt es auch. Am Ende der Kampagne
+schafft sie die Leibeigenschaft ab. Wer angegriffen wird, flieht. Ruft man in der Burg „**Zu den Waffen!**“, greifen sie zu
 Mistgabeln und Knüppeln und werden **Miliz**.
 
 Nelia ist eine Leibeigene. Die meisten Menschen im Kronland sind es.
@@ -92,7 +93,7 @@ Arbeiter und Soldat zählt; Helden nicht.
 
 | Rohstoff | Woher | Wofür in der Welt |
 |---|---|---|
-| **Taler** | Steuern, Handel, Bank | Leibeigene auslösen, Sold, Forschung, Ausbau, Bestechung, Freikauf |
+| **Taler** | Steuern, Handel, Bank | Leibeigene kaufen, Sold, Forschung, Ausbau, Bestechung, Freikauf |
 | **Holz** | Leibeigene fällen Bäume (wachsen nicht nach), Sägemühle | Häuser, Höfe, Speere, Bögen |
 | **Lehm** | Haufen, Lehmgrube, Ziegelhütte | einfache Häuser, Höfe, Lager |
 | **Stein** | Haufen, Steingrube, Steinmetz | Ausbauten, Kaserne, Türme, Brücken |
@@ -112,7 +113,7 @@ Arbeiter und Soldat zählt; Helden nicht.
 
 | Gebäude | Was es in der Welt ist | Warum man es baut |
 |---|---|---|
-| **Burg** | Sitz der Herrschaft, Vorratslager, Steuerstube | Leibeigene auslösen, Steuern einstellen, „Zu den Waffen!“. Fällt die Burg, ist die Siedlung verloren. |
+| **Burg** | Sitz der Herrschaft, Vorratslager, Steuerstube | Leibeigene kaufen, Steuern einstellen, „Zu den Waffen!“. Fällt die Burg, ist die Siedlung verloren. |
 | **Dorfzentrum** | Dorfplatz mit Gemeindehaus, nur auf **Siedlungsplätzen** | Ohne Dorfzentrum kommt kein einziger Arbeiter. Bestimmt die Größe der Siedlung. |
 | **Wohnhaus** | Haus mit Betten (6, ausgebaut 9 und 12) | Arbeiter müssen schlafen. |
 | **Bauernhof** | Hof mit Tisch (8/10/12 Plätze) und einem Bauern; ausgebaut Mühle und Gut | Arbeiter müssen essen. Im ewigen Winter das Kostbarste, was ein Dorf haben kann. |
@@ -203,8 +204,8 @@ Das Kronland besteht aus **fünf Provinzen**. Vom Süden nach Norden:
    └─────────────────────────┘
 ```
 
-Jede Provinz hat ihr eigenes Volk, ihre eigene Wirtschaft und ihr eigenes Verhältnis zu Malvor – und **jede
-verwahrt eines der fünf Kronstücke**.
+Jede Provinz hat ihr eigenes Volk, ihre eigene Wirtschaft und ihr eigenes Verhältnis zu Malvor – und **in jeder
+liegt, so die Legende, eines der fünf Kronstücke**.
 
 ### Lindgrund – das Bauernland
 - **Land:** Wälder, Felder, kleine Dörfer, Lehm im Boden. Einst die Kornkammer des Kronlands.
@@ -213,9 +214,9 @@ verwahrt eines der fünf Kronstücke**.
   die Grundmauern des Dorfzentrums.
 - **Wer herrscht:** niemand mehr. Der Gutsherr ist fort.
 - **Zu Malvor:** Seine **Eintreiber** kommen noch immer und fordern Abgaben von dem wenigen, was übrig ist.
-- **Kronstück:** Als die Leute gingen, versteckten sie das Kronstück der Provinz **unter dem alten Baum am
-  Waldrand**, damit es den Eintreibern nicht in die Hände fällt. Nelias Vater war einer von denen, die es vergraben
-  haben.
+- **Kronstück:** **unter dem alten Baum am Waldrand.** Dort hat Nelias Vater immer die Familiensachen versteckt,
+  wenn die Eintreiber kamen. Wie ein Kronstück dorthin kommt, weiß niemand – und genau das lässt Raum für Zweifel:
+  Ist Nelia vielleicht doch nicht nur die Tochter eines Holzfällers? Die Geschichte beantwortet das nie.
 
 ### Beaucroix – die Handelsstadt
 - **Land:** Stadt am großen Fluss, Märkte, Lagerhäuser, Flusswald voller Räuber. Lehm und Stein in der Nähe.
@@ -254,13 +255,14 @@ verwahrt eines der fünf Kronstücke**.
 
 ## 9. Die Krone und das alte Recht
 
-- Die Krone des Kronlands ist aus **fünf Kronstücken** zusammengesetzt, eines für jede Provinz – Zeichen dafür, dass
-  der König von allen fünf getragen wird.
-- **Das alte Recht:** Stirbt ein König ohne Erben, wird die Krone in ihre fünf Kronstücke geteilt, und jede Provinz
-  verwahrt ihres. **Wer alle fünf Kronstücke vereint, den müssen die Provinzen krönen.**
-- Gedacht war das so: Die Provinzen geben ihr Kronstück dem, dem sie vertrauen. Malvor will sie sich **nehmen** – mit
-  Geld, Hunger und Soldaten. Ob das alte Recht danach fragt, wie man sie bekommen hat, sagt es nicht.
-- Kronstücke haben keine Zauberkraft. Jedes ist eine Handbreit groß, aus Gold, mit dem Wappen seiner Provinz.
+- Als König Edrian auf dem Thronsee ertrank, **zerbrach seine Krone in fünf Kronstücke**. Wie sie danach über das
+  Land verstreut wurden, weiß niemand – darüber gibt es nur Gerüchte und Legenden. Sicher ist nur: In jeder der fünf
+  Provinzen soll eines liegen.
+- **Das alte Recht:** **Wer alle fünf Kronstücke vereint, den müssen die Provinzen krönen.**
+- Malvor will sie sich **nehmen** – mit Geld, Hunger und Soldaten. Ob das alte Recht danach fragt, wie man sie
+  bekommen hat, sagt es nicht.
+- Kronstücke haben keine Zauberkraft. Jedes ist eine Handbreit groß, aus Gold, eine Zacke der alten Krone mit einem
+  Stein darin.
 
 ---
 
@@ -270,8 +272,10 @@ verwahrt eines der fünf Kronstücke**.
   aus, bis man ihn stürzte. Das Werk stand seither still, seine Pläne galten als verloren.
 - **König Edrian** war gütig, aber schwach. In schlechten Jahren hungerten die Dörfer, und er tat zu wenig
   dagegen.
-- Edrian **ertrank in einem Sturm auf dem Thronsee**. Er hatte keine bekannten Kinder. Nach altem Recht wurde die
-  Krone geteilt, jede Provinz bekam ihr Kronstück.
+- Edrian **ertrank unter rätselhaften Umständen in einem Sturm auf dem Thronsee**. Er hatte keine bekannten Kinder.
+  Hinter vorgehaltener Hand fragen die Leute, ob Malvor damit zu tun hatte – ein Sturm mitten im Sommer, kurz
+  bevor das Wetterwerk wieder lief. Beweise gibt es keine. Die Krone zerbrach dabei in fünf Kronstücke, die
+  verschwanden.
 - **Malvor**, Statthalter von Hagenfurt, hatte Hrimgars Pläne gefunden. Bald nach Edrians Tod lief das Wetterwerk
   wieder. Seitdem ist **Winter** im Kronland – seit Jahren.
 - Malvor hatte vorher seine **Kornspeicher** gefüllt, und im Windschatten des Werks tragen Hagenfurts Felder als
@@ -335,10 +339,8 @@ werden und bleiben wollen – genau das, was die Wirtschaft des Spiels belohnt.
 
 ## 13. Neu gegenüber der bisherigen Fassung (bitte prüfen)
 
-- Die Krone ist aus fünf Provinz-Kronstücken zusammengesetzt; das alte Recht verteilt sie bei einem König ohne Erben
-  auf die Provinzen. Bisher: Sie „zerbrach“ und die Stücke lagen zufällig verstreut.
-- Lindgrunds Leute haben ihr Kronstück vergraben, Nelias Vater war dabei.
+- Malvor steht im Verdacht, mit Edrians Tod zu tun zu haben (Sturm kurz vor dem neuen Winter); nie bewiesen.
+- In jeder Provinz liegt ein Kronstück (Legende; wie sie dorthin kamen, bleibt offen).
 - Malvors Korn: gefüllte Speicher vor dem Winter und Felder im Windschatten des Werks.
-- Leibeigene in der Burg „kaufen“ = sie auslösen.
 - Beaucroix' Kronstück wurde aus der Stadtkasse geraubt.
 - Begriff „Kronstück“ statt „Zacke“.
