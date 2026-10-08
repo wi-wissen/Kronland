@@ -42,6 +42,7 @@ import { ItemLayer, itemScale } from './items.js';
 import { TileGrid, overviewDist } from './grid.js';
 import { knownBuildings } from '../sim/systems/vision.js';
 import { jitterOffset, jitterTarget, JITTER_FADE } from './jitter.js';
+import { updateSeparation } from './separation.js';
 import { COMBAT } from '../sim/data/combat.js';
 import { wrapAngle } from './angle.js';
 import { pickFigure, inDepth } from './pick.js';
@@ -57,7 +58,7 @@ import { findSpinners, turnParts } from './movingParts.js';
 export const figureSync = (kind) => (kind === 'unit' || kind === 'worker' || kind === 'npc' ? 'unit' : 'fighter');
 /** Rotation per viewing direction from scripts (0 = north/−z, 1 = east/+x, 2 = south/+z, 3 = west). */
 /** No offset / intermediate value for jitter() (read immediately, never stored). */
-const NO_JITTER = Object.freeze({ dx: 0, dz: 0 }), JITTER_TMP = { dx: 0, dz: 0 };
+const NO_JITTER = Object.freeze({ dx: 0, dz: 0 }), JITTER_TMP = { dx: 0, dz: 0 }, OFFSET_TMP = { dx: 0, dz: 0 };
 const FACE_YAW = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
@@ -914,6 +915,9 @@ export class Renderer {
     if ((this.frameNo = (this.frameNo ?? 0) + 1) % 120 === 0) {
       for (const m of [this.unitYaw, this.hitAt, this.shotAt, this.jitterW]) if (m) for (const id of m.keys()) if (!seen.has(id)) m.delete(id);
     }
+    // figures close to each other step aside (rendering only, applied in the next frame)
+    updateSeparation(this.sepPts ?? [], (this.sepOff ??= new Map()), dt);
+    if (this.sepPts) this.sepPts.length = 0;
     this.chars.prune();
 
     // hide markers as soon as something is built there (in fog the last seen state stays)
@@ -1293,6 +1297,20 @@ export class Renderer {
     return JITTER_TMP;
   }
 
+  /**
+   * Drawn offset of a figure in tiles: jitter plus the sidestep from separation.js (figures close to each other
+   * step aside). Collects the figure for the separation pass after the entity loop (one frame delay).
+   */
+  drawOffset(e, moving, prev, px, py) {
+    const j = this.jitter(e, moving);
+    const w = this.jitterW.get(e.id) ?? 0;
+    (this.sepPts ??= []).push({ id: e.id, x: px / UNIT + j.dx, z: py / UNIT + j.dz,
+      vx: moving ? e.px - prev.px : 0, vz: moving ? e.py - prev.py : 0, w });
+    const s = this.sepOff?.get(e.id);
+    OFFSET_TMP.dx = j.dx + (s ? s.dx * w : 0); OFFSET_TMP.dz = j.dz + (s ? s.dz * w : 0);
+    return OFFSET_TMP;
+  }
+
   /** Ground speed in tiles per real-time second (for the walking pace of the legs); 0 when standing. */
   groundSpeed(e, prev) {
     if (!prev) return 0;
@@ -1303,7 +1321,7 @@ export class Renderer {
     const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
     const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
     const moving = prev && (prev.px !== e.px || prev.py !== e.py);
-    const j = this.jitter(e, moving);
+    const j = this.drawOffset(e, moving, prev, px, py);
     const x = px / UNIT + j.dx, z = py / UNIT + j.dz;
     const st = (this.unitYaw ??= new Map());
     let yaw = st.get(e.id) ?? 0;
@@ -1348,7 +1366,7 @@ export class Renderer {
     const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
     const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
     const moving = prev && (prev.px !== e.px || prev.py !== e.py);
-    const j = this.jitter(e, moving);
+    const j = this.drawOffset(e, moving, prev, px, py);
     const x = px / UNIT + j.dx, z = py / UNIT + j.dz;
     const y = this.groundY(x, z);
     const st = (this.unitYaw ??= new Map());
