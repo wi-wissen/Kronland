@@ -27,7 +27,7 @@ function level(mission, extra = {}) {
 
 describe('Level folders', () => {
   it('every bundled level is a folder with scenario.json and .py files, packed and valid', () => {
-    expect(LEVELS.map((l) => l.folder)).toEqual(['adv1-treasure', 'adv2-corner', 'adv3-wood', 'adv4-stones', 'adv5-village', 'm1-raid']);
+    expect(LEVELS.map((l) => l.folder)).toEqual(['adv1-treasure', 'adv2-corner', 'adv3-wood', 'adv4-stones', 'adv5-village', 'm1-raid', 'r1-4-blizzard']);
     for (const l of LEVELS) {
       expect(validateScenario(l), l.id).toEqual([]);
       expect(l.version).toBe(2);
@@ -35,7 +35,7 @@ describe('Level folders', () => {
       // texts stand in the code, no key table any more
       expect(l.texts).toBeUndefined();
     }
-    expect(ADVENTURES.map((a) => a.id)).toEqual(['adv1', 'adv2', 'adv3', 'adv4', 'adv5']);
+    expect(ADVENTURES.map((a) => a.id)).toEqual(['adv1', 'adv2', 'adv3', 'adv4', 'adv5', 'r1-4']);
   });
 
   it('pack and unpack are inverse: files ↔ code', () => {
