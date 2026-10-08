@@ -7,7 +7,7 @@
 // - All VM states are JSON and are part of the save game and the state hash. Budgets count commands.
 
 import { compile, VM, ScriptError, saveVm, loadVm, sourceHash, PyList, PyTuple, PyDict, PyFunction, PyHost, truthy } from '../../script/index.js';
-import { makeApi, DIRS } from './api.js';
+import { makeApi, DIRS, toTicks } from './api.js';
 import { TICKS_PER_SECOND, toTile } from '../fixed.js';
 import { kill } from '../systems/military.js';
 
@@ -110,7 +110,8 @@ export class ScriptHost {
     return {
       host: { ...api.hostHooks, print: (text, task) => this.print(level, text, task) },
       natives: api.natives,
-      globals: { ...api.globals, ...api.dynamicGlobals() },
+      globals: api.globals,
+      dynamic: api.dynamic,
       seed,
     };
   }
@@ -219,8 +220,8 @@ export class ScriptHost {
     list.forEach((h, i) => {
       const [kind, fn, filt] = h.items;
       if (kind === 'every') {
-        const sec = Number(filt.get('seconds') ?? 1);
-        const period = Math.max(1, Math.round(sec * T));
+        const sec = filt.get('seconds');
+        const period = Math.max(1, sec === undefined || sec === null ? T : toTicks(sec));
         if (st.every[i] === undefined) st.every[i] = sim.tick + period;
         if (sim.tick < st.every[i]) return;
         st.every[i] = sim.tick + period;

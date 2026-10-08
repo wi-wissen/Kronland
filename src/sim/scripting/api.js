@@ -34,6 +34,36 @@ export const DIR_NAMES = ['north', 'east', 'south', 'west'];
 
 const gameErr = (reason, reasonParams = {}) => new ScriptError('game', { reason: `script.game.${reason}`, reasonParams });
 
+// ---------------------------------------------------------------------------------------------
+// Boundary Python → simulation: the simulation only knows whole numbers. Every number from a script
+// passes through toInt or toTicks; NaN, infinity and absurd sizes become a readable script error
+// instead of reaching the game state (docs/SKRIPTE.md, tests/sim/rules.test.js).
+// ---------------------------------------------------------------------------------------------
+
+/** Largest amount a script may hand to the simulation (coordinates, counts, resources). */
+export const MAX_GAME_INT = 1_000_000_000;
+/** Longest duration in ticks (about 11 days of game time). */
+export const MAX_GAME_TICKS = 10_000_000;
+
+const shown = (n) => (Number.isNaN(n) ? 'nan' : n === Infinity ? 'inf' : n === -Infinity ? '-inf' : String(n));
+
+/** Python number → whole number for the simulation (truncated towards 0). */
+export function toInt(v, name) {
+  if (!isNum(v)) throw new ScriptError('type', { what: 'numberNeeded', name, type: typeName(v) });
+  const n = Number(num(v));
+  if (!Number.isFinite(n) || Math.abs(n) > MAX_GAME_INT) throw new ScriptError('value', { what: 'gameNumber', name, value: shown(n), max: MAX_GAME_INT });
+  return Math.trunc(n) || 0;
+}
+
+/** Python seconds → ticks (rounded, at least 0). */
+export function toTicks(v, name = 'seconds') {
+  if (!isNum(v)) throw new ScriptError('type', { what: 'numberNeeded', name, type: typeName(v) });
+  const n = Number(num(v));
+  const t = Math.round(n * T);
+  if (!Number.isFinite(n) || t > MAX_GAME_TICKS) throw new ScriptError('value', { what: 'gameSeconds', name, value: shown(n), max: MAX_GAME_TICKS / T });
+  return Math.max(0, t);
+}
+
 /** Class of a handle by entity kind. */
 const CLASS_OF = { hero: 'Hero', unit: 'Serf', leader: 'Troop', soldier: 'Soldier', worker: 'Worker', building: 'Building', tree: 'Tree', pile: 'Pile', ruin: 'Ruin' };
 
@@ -234,7 +264,7 @@ export function makeApi(host, level) {
    * @returns {{x:number, y:number, r:number}}
    */
   const pt = (v, v2) => {
-    if (v2 !== undefined && isNum(v)) return { x: Math.trunc(Number(num(v))), y: Math.trunc(Number(num(v2))), r: 0 };
+    if (v2 !== undefined && isNum(v)) return { x: toInt(v, 'x'), y: toInt(v2, 'y'), r: 0 };
     if (v instanceof PyHost) {
       if (v.cls === 'Place') {
         const p = placeHandle(v);
@@ -246,7 +276,7 @@ export function makeApi(host, level) {
       return { x: t.x, y: t.y, r: e.kind === 'building' ? Math.max(e.w, e.h) >> 1 : 0 };
     }
     if (v instanceof PyTuple || v instanceof PyList) {
-      const [x, y, r = 0] = v.items.map((a) => Math.trunc(Number(num(a))));
+      const [x, y, r = 0] = v.items.map((a, i) => toInt(a, ['x', 'y', 'r'][i] ?? 'r'));
       return { x, y, r };
     }
     if (typeof v === 'string') {
@@ -290,14 +320,8 @@ export function makeApi(host, level) {
     throw new ScriptError('game', { reason: rej?.reason ?? 'err.unknownCommand', reasonParams: rej?.params ?? {} });
   };
 
-  const intArg = (v, name) => {
-    if (!isNum(v)) throw new ScriptError('type', { what: 'numberNeeded', name, type: typeName(v) });
-    return Math.trunc(Number(num(v)));
-  };
-  const secondsArg = (v, name = 'seconds') => {
-    if (!isNum(v)) throw new ScriptError('type', { what: 'numberNeeded', name, type: typeName(v) });
-    return Math.max(0, Math.round(Number(num(v)) * T));
-  };
+  const intArg = toInt;
+  const secondsArg = toTicks;
   const strArg = (v, name) => {
     if (typeof v !== 'string') throw new ScriptError('type', { what: 'strNeeded', name, type: typeName(v) });
     return v;
@@ -509,7 +533,13 @@ export function makeApi(host, level) {
     return new PyPartial(new PyBuiltin(kind), fil.map((v) => (v === undefined ? null : v)), []);
   };
   def('on_start', decorator('on_start', []), true);
-  def('every', decorator('every', ['seconds']), true);
+  def('every', (ctx, a, kw) => {
+    // checked once when registering: the period in ticks must be a sensible number (not 0.5 → every tick by accident)
+    const first = a[0];
+    if (!(first instanceof PyFunction) && first !== undefined) toTicks(first, 'seconds');
+    if (kw.seconds !== undefined) toTicks(kw.seconds, 'seconds');
+    return decorator('every', ['seconds'])(ctx, a, kw);
+  }, true);
   def('on_building_done', decorator('on_building_done', ['?kind', '?player']), true);
   def('on_building_placed', decorator('on_building_placed', ['?kind', '?player']), true);
   def('on_destroyed', decorator('on_destroyed', ['?kind', '?owner']), true);
@@ -655,7 +685,7 @@ export function makeApi(host, level) {
     const act = { type: 'ai', player: playerOf(p) };
     if (difficulty) act.difficulty = strArg(difficulty, 'difficulty');
     if (aggression) act.aggression = strArg(aggression, 'aggression');
-    if (startIn !== undefined && startIn !== null) act.startIn = Number(num(startIn));
+    if (startIn !== undefined && startIn !== null) act.startIn = toTicks(startIn, 'start_in') / T;
     if (truthy(attackNow)) act.attackNow = true;
     host.runtime.runAction(sim(), act);
     return null;
@@ -786,14 +816,14 @@ export function makeApi(host, level) {
     }
     return other;
   };
-  const dynamicGlobals = () => {
-    const c = consts();
-    const out = { ...c };
-    const h = heroEntity();
-    out.hero = h ? handle(h) : null;
-    for (const id of HERO_IDS) { const e = heroNamed(id); out[id] = e ? handle(e) : null; }
-    return out;
+  // Looked up on every access (VM option `dynamic`): a hero who joins later is there at once, before and after loading
+  const dynamic = {
+    HUMAN: () => human(),
+    ENEMY: () => consts().ENEMY,
+    BANDITS: () => consts().BANDITS,
+    hero: () => { const h = heroEntity(); return h ? handle(h) : null; },
   };
+  for (const id of HERO_IDS) dynamic[id] = () => { const e = heroNamed(id); return e ? handle(e) : null; };
 
   const modules = isMission ? {
     camera: ['jump_to', 'fly_to'],
@@ -1027,5 +1057,5 @@ export function makeApi(host, level) {
   }
 
   const known = [...Object.keys(globals), 'HUMAN', 'ENEMY', 'BANDITS', 'hero', ...HERO_IDS];
-  return { natives, globals, dynamicGlobals, hostHooks, known, modules };
+  return { natives, globals, dynamic, hostHooks, known, modules };
 }

@@ -89,7 +89,7 @@ describe('Budget and infinite loops', () => {
   });
 
   it('runToEnd reports programs that are too long', () => {
-    expect(runToEnd('while True:\n    pass', { budget: 5000 }).error.params.what).toBe('tooLong');
+    expect(runToEnd('while True:\n    pass', { budget: 5000 }).error.code).toBe('err.script.tooLong');
   });
 });
 

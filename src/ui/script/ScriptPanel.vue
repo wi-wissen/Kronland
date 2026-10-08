@@ -118,7 +118,7 @@
                 <p v-for="v in vars.locals" :key="'l' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
                 <p v-if="!vars.locals.length" class="sp-none">{{ $t('script.vars.none') }}</p>
                 <h4>{{ $t('script.vars.stack') }}</h4>
-                <p v-for="(f, i) in vars.frames" :key="'f' + i" class="sp-frame">{{ f.name === '<module>' ? $t('script.vars.main') : f.name + '()' }}</p>
+                <p v-for="(f, i) in vars.frames" :key="'f' + i" class="sp-frame">{{ f.skipped ? $t('script.vars.skipped', { n: f.skipped }) : f.name === '<module>' ? $t('script.vars.main') : `${f.name}(${f.args ?? ''})` }}</p>
               </div>
             </div>
             <button v-if="split" class="ghost sp-reset" data-testid="script-reset" @click="resetCode">{{ $t('script.reset') }}</button>

@@ -88,7 +88,7 @@ export function terrainOf(sim) {
   }
   for (const s of sim.spots) features.push({ kind: 'spot', x: s.x, y: s.y });
   for (const s of sim.shafts) features.push({ kind: 'shaft', x: s.x, y: s.y, res: s.res });
-  features.sort((a, b) => (a.y - b.y) || (a.x - b.x) || a.kind.localeCompare(b.kind));
+  features.sort((a, b) => (a.y - b.y) || (a.x - b.x) || (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0));
   return {
     w: m.width, h: m.height, waterLevel: sim.waterLevel,
     heights: toB64(m.heights), flags: toB64(flags), features,

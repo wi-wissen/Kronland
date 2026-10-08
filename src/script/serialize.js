@@ -16,13 +16,16 @@ const floatIn = (s) => (s === '-0' ? -0 : s === 'nan' ? NaN : Number(s));
 export function saveVm(vm) {
   const objs = [];
   const ids = new Map();
+  // Objects are numbered when first seen and filled afterwards from a queue: deeply nested data
+  // (x = [x] in a loop) needs no JS recursion, so saving works the same on every device.
+  const queue = [];
   const ref = (o, make) => {
     let i = ids.get(o);
     if (i !== undefined) return { r: i };
     i = objs.length;
     ids.set(o, i);
     objs.push(null);
-    objs[i] = make();
+    queue.push([i, make]);
     return { r: i };
   };
   const enc = (v) => {
@@ -59,6 +62,7 @@ export function saveVm(vm) {
     id: t.id, state: t.state, frames: t.frames.map(frame), wait: enc(t.wait), result: enc(t.result),
     error: t.error, debug: t.debug ? JSON.parse(JSON.stringify(t.debug)) : null, meta: enc(t.meta),
   }));
+  for (let q = 0; q < queue.length; q++) { const [i, make] = queue[q]; objs[i] = make(); }
   return { v: 1, globals, tasks, nextTask: vm.nextTask, rng: [...vm.rng], steps: vm.steps, objs };
 }
 
