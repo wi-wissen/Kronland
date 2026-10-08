@@ -182,7 +182,7 @@ export const API_DOC = [
   { name: 'show_objective', sig: 'show_objective(id)', level: 'mission', group: 'goals' },
   { name: 'victory', sig: 'victory(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
   { name: 'defeat', sig: 'defeat(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
-  { name: 'program.get', sig: 'program.get(name, default=None) · program.status · program.runs', level: 'mission', group: 'goals' },
+  { name: 'program.get', sig: 'program.get(name, default=None) · program.status · program.runs · program.stop()', level: 'mission', group: 'goals' },
   { name: 'note', sig: 'note(speaker, code, title=None, de=None, en=None, editable=True)', level: 'mission', group: 'goals' },
   { name: 'reset', sig: 'reset(on=True)', level: 'mission', group: 'goals' },
   { name: 'hints', sig: 'hints(on=True)', level: 'mission', group: 'goals' },
@@ -1061,6 +1061,12 @@ export function makeApi(host, level) {
     const [n, dflt = null] = args('get', a, kw, ['name', '?default']);
     return host.playerVariable(strArg(n, 'name'), dflt);
   }, true);
+  /** program.stop(): stop the player program (between two stages, before the mission moves the hero on). */
+  def('program.stop', (ctx, a, kw) => {
+    args('stop', a, kw, []);
+    host.stopPlayer();
+    return null;
+  }, true);
   /**
    * note(speaker, code, title=None, de/en=None, editable=True): a figure hands the player a note with code. It replaces
    * the program in the code panel and carries the figure's seal; the own code stays reachable ("back to my code").
@@ -1117,7 +1123,7 @@ export function makeApi(host, level) {
   const modules = isMission ? {
     camera: ['jump_to', 'fly_to'],
     world: ['width', 'height', 'water_level', 'height_at', 'set_height', 'set_water', 'set_cliff', 'set_track', 'is_water', 'noise'],
-    program: ['status', 'runs', 'get'],
+    program: ['status', 'runs', 'get', 'stop'],
   } : {};
 
   // ---------- Methods and properties of the handles ----------
