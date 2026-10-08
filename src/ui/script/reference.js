@@ -64,6 +64,7 @@ export const PY_DOC = [
   { name: 'callable', sig: 'callable(obj)', group: 'pyfunc' },
   { name: 'iter', sig: 'iter(obj), next(iterator, default=…)', group: 'pyfunc', also: ['next'] },
   { name: 'input', sig: 'input()', group: 'pyfunc' },
+  { name: 'set', sig: 'set()', group: 'pyfunc' },
   // math
   { name: 'math.sqrt', sig: 'math.sqrt(x)', group: 'pymath' },
   { name: 'math.isqrt', sig: 'math.isqrt(n)', group: 'pymath' },
@@ -276,6 +277,7 @@ export const EXAMPLES = {
   callable: 'def greet():\n    return "Hallo"\nprint(callable(greet), callable(print), callable(5))',
   iter: 'it = iter([10, 20])\nprint(next(it))\nprint(next(it))\nprint(next(it, "fertig"))',
   input: '# input() gibt es nicht – Werte stehen direkt im Programm:\nname = "Nelia"\nprint("Hallo", name)',
+  set: '# set() gibt es nicht – eine Liste oder ein Wörterbuch tut es auch:\nseen = []\nfor x in [3, 1, 3, 2, 1]:\n    if x not in seen:\n        seen.append(x)\nprint(seen)',
   // ---------- Python: math ----------
   'math.sqrt': 'import math\nprint(math.sqrt(16), math.sqrt(2))\nx, y = 3, 4\nprint(math.sqrt(x * x + y * y))',
   'math.isqrt': 'import math\nprint(math.isqrt(17), math.isqrt(16))',
@@ -385,6 +387,7 @@ export const ERRORS = {
   chr: ['err.script.value.chrRange', 'err.script.type.ordLength'],
   iter: ['err.script.stopIteration', 'err.script.notIterable'],
   input: ['err.script.notSupported.input'],
+  set: ['err.script.notSupported.set'],
   'math.sqrt': ['err.script.mathDomain'],
   'math.isqrt': ['err.script.mathDomain', 'err.script.type.intNeeded'],
   'math.dist': ['err.script.value.distLength'],

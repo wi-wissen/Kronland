@@ -210,6 +210,7 @@ export default {
     isinstance: { d: 'Checks whether a value has a type; with a tuple of types, whether it has one of them. `True` also counts as `int`.', p: [['obj', 'any', 'value'], ['class', 'type or tuple of types', 'e.g. int, (int, float)']], r: 'True or False' },
     callable: { d: 'Can the value be called (function, method, lambda)?', p: [['obj', 'any', 'value']], r: 'True or False' },
     iter: { d: '`iter` turns a sequence into an iterator, `next` fetches the next element. When the iterator is exhausted there is an error – unless a default is given.', p: [['obj / iterator', 'sequence / iterator', 'source'], ['default', 'any', 'result at the end']], r: 'iterator or element' },
+    set: { d: '**Not available in Kronland.** Kronland Python has no sets. For “seen already?” a list with `in` or a dictionary (`seen[(x, y)] = True`) is enough.', p: [], r: '–' },
     input: { d: '**Not available in Kronland.** A program runs in the middle of the game and cannot wait for keyboard input. Write values directly into the program or read them from the game (`stock()`, `hero.ahead()` …).', p: [], r: '–' },
     // ---------- Python: math ----------
     'math.sqrt': { d: 'Square root. Exact according to IEEE 754 – the same result on every machine.', p: [['x', 'number ≥ 0', 'value']], r: 'float' },

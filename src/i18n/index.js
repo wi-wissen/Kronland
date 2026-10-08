@@ -105,6 +105,8 @@ export const heroName = (id) => HEROES[id]?.name ?? id;
 export const abilityName = (id) => orData(`ability.${id}`, id);
 
 /** Parameters of a reason that must be translated themselves (IDs → names). */
+const TOKEN_WORDS = new Set(['NEWLINE', 'EOF', 'INDENT', 'DEDENT']);
+
 function nameParams(params) {
   if (!params) return params;
   const out = { ...params };
@@ -113,6 +115,8 @@ function nameParams(params) {
   if (params.res) out.res = resName(params.res);
   if (params.line) out.line = lineName(params.line);
   if (params.unit) out.unit = unitName(params.unit);
+  // Parser tokens in words: "found: end of line" instead of "found: NEWLINE"
+  if (TOKEN_WORDS.has(params.got)) out.got = t(`script.token.${params.got.toLowerCase()}`);
   return out;
 }
 

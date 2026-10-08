@@ -26,7 +26,7 @@ In der Cloud-Umgebung nimmt Node-`fetch` den Proxy (und damit die injizierten AP
 E2E läuft headless über SwiftShader (Software-WebGL) und ist langsam (passt die Playwright-Version nicht zum vorinstallierten Browser: `PW_CHROMIUM=/opt/pw-browsers/chromium`): großzügige Timeouts, nur betroffene Specs laufen lassen, eigenen Port wählen, wenn mehrere Sitzungen parallel testen.
 
 ## Feste Regeln
-- **Simulation (`src/sim`) ist deterministisch**: nur Ganzzahlen (Milli-Kacheln, `isqrt`), seeded RNG (`src/sim/rng.js`), kein `Math.random`, kein `Date`, fester 100-ms-Tick. Einzige Eingabe sind Befehle. Darstellung und UI lesen den Zustand nur, sie ändern ihn nie direkt. Neuer Sim-Zustand gehört in `src/sim/serialize.js` und in den State-Hash.
+- **Simulation (`src/sim`) ist deterministisch**: nur Ganzzahlen (Milli-Kacheln, `isqrt`), seeded RNG (`src/sim/rng.js`), kein `Math.random`, kein `Date`, fester 100-ms-Tick. Einzige Eingabe sind Befehle. Darstellung und UI lesen den Zustand nur, sie ändern ihn nie direkt. Neuer Sim-Zustand gehört in `src/sim/serialize.js` und in den State-Hash. Gilt auch für `src/ai` und `src/script`: nur exakt gerundete Rechenarten (kein `Math.hypot/pow/sin/…`, Abstände als Quadrat), Zahlen aus Python nur über `toInt`/`toTicks` (`tests/sim/rules.test.js`).
 - Balance-Werte in `src/sim/data/` (BALANCE, Gebäude, Einheiten …), nicht im Code verstreut – das Wiki liest sie von dort.
 - **Alle Texte zweisprachig** über `src/i18n` (de.js, en.js, `t()`); Ablehnungsgründe der Sim sind Codes `err.*`.
 - **Handy mitdenken**: Touch, kein Hover, kleine Bildschirme.

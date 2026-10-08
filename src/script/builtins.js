@@ -300,6 +300,7 @@ export const BUILTINS = {
     return v;
   },
   input() { throw err('notSupported', { feature: 'input' }); },
+  set() { throw err('notSupported', { feature: 'set' }); },
 
   // ---------- math ----------
   'math.sqrt'(ctx, args, kw) {

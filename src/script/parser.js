@@ -229,10 +229,14 @@ class Parser {
 
   /** Indented block after ':' (or single-line: if x: y = 1). */
   block() {
-    this.expect('op', ':');
+    if (!this.atOp(':')) throw this.error('expected', { what: 'colon', got: this.tokText(this.tok) });
+    const colon = this.next();
     if (!this.at('newline')) return this.simpleStatements();
     this.expect('newline');
-    this.expect('indent');
+    // Missing block at the end of the program (or only a comment there): report the line with the colon,
+    // not a line after the section; otherwise the line that should be indented (as CPython)
+    if (!this.at('indent')) throw this.error('expectedIndent', {}, this.at('eof') ? colon : this.tok);
+    this.next();
     const body = [];
     while (!this.at('dedent') && !this.at('eof')) {
       if (this.accept('newline')) continue;
@@ -247,6 +251,7 @@ class Parser {
     const p = this.pos();
     this.next();
     const test = this.namedTest();
+    if (this.atOp('=')) throw this.error('badAssign', { what: 'condition' });
     const body = this.block();
     let orelse = [];
     if (this.atKw('elif')) orelse = [this.ifStmt()];
@@ -258,6 +263,7 @@ class Parser {
     const p = this.pos();
     this.next();
     const test = this.namedTest();
+    if (this.atOp('=')) throw this.error('badAssign', { what: 'condition' });
     const body = this.block();
     const orelse = this.accept('kw', 'else') ? this.block() : [];
     return { type: 'While', test, body, orelse, ...p };

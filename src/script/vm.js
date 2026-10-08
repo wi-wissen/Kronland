@@ -604,7 +604,7 @@ export class VM {
     const table = METHODS[t];
     if (table && Object.hasOwn(table, name)) return new PyBoundMethod(obj, name);
     if (obj instanceof PyFloat && (name === 'real')) return obj;
-    throw new ScriptError('attr', { type: t, name, suggestion: table ? suggest(name, Object.keys(table)) : null });
+    throw new ScriptError('attr', { type: t, name, suggestion: table ? suggest(name, Object.keys(table)) : null, ...(obj === null || obj === undefined ? { what: 'none' } : {}) });
   }
 
   setattr(task, obj, name, v) {

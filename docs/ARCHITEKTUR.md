@@ -41,7 +41,11 @@ docs/         Spielregeln und Architektur
 2. **Determinismus.** Gleicher Seed + gleiche Befehle = gleicher Zustand, auf jedem Browser.
    - fester Takt (100 ms), nur Ganzzahlen in der Logik (Positionen in 1/1000 Kachel),
    - eigener Zufallsgenerator (`sim/rng.js`), kein `Math.random`, kein `Date.now`,
-   - keine `Math.sin/cos/atan2` in der Logik (Lookup-Tabellen in `sim/fixed.js`),
+   - nur exakt gerundete Rechenarten: `+ − * /`, `Math.sqrt`, `** 2`; keine `Math.hypot/pow/sin/cos/atan2/exp/log`
+     (Richtungstabellen in `sim/dirs.js`, Abstände als Quadrat in Milli-Kacheln: `dist2`, `isqrt`, `toward` in `sim/fixed.js`).
+     Das gilt auch für den Computergegner (`src/ai`) und die Skript-VM (`src/script`); `tests/sim/rules.test.js` prüft den
+     Quelltext, `tests/sim/integers.test.js` prüft, dass im Spielstand nur ganze Zahlen stehen und die KI in zwei Läufen und
+     nach dem Laden dieselben Befehle gibt,
    - feste Iterationsreihenfolge (Entities nach ID).
    - `sim/hash.js` bildet pro Takt einen Zustands-Hash; Golden-Tests sichern das ab.
    - Befehle können aus dem Netz kommen: IDs aus Datentabellen nur mit `hasKey()` (sim.js) nachschlagen,
@@ -401,7 +405,9 @@ Ablegen (fensterweit, damit eine danebengeworfene Datei nicht das Spiel verläss
 ## Multiplayer (später)
 
 Lockstep: Alle Clients rechnen dieselbe Simulation, ausgetauscht werden nur Befehle pro Takt.
-Ein kleiner WebSocket-Relay genügt. Desyncs erkennt der Zustands-Hash.
+Ein kleiner WebSocket-Relay genügt. Desyncs erkennt der Zustands-Hash. Der Computergegner läuft auf jedem Client
+im selben Takt mit (`Engine.stepOnce`: erst `ai.update()`, dann `sim.step()`) und rechnet nur ganzzahlig; seine
+Einstellungen, die die Simulation betreffen (Bonus-Taler der Stufe „Schwer“, `Sim.setAi`), stehen im Spielstand und im Hash.
 
 ## JavaScript mit Typ-Hinweisen
 

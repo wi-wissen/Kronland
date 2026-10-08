@@ -337,7 +337,8 @@ function sliceSeq(items, sl) {
 
 function normIndex(i, len, what) {
   const k = i < 0 ? i + len : i;
-  if (k < 0 || k >= len) throw err('index', { what });
+  // Index and length in the message: "the list has 3 elements (index 0 to 2)"
+  if (k < 0 || k >= len) throw err('index', { what: `${what}${len ? 'Range' : 'Empty'}`, index: i, len, last: len - 1 });
   return k;
 }
 
@@ -363,6 +364,7 @@ export function getItem(obj, idx) {
     }
     return obj.start + normIndex(toIndex(idx), rangeLen(obj), 'range') * obj.step;
   }
+  if (obj instanceof PyBuiltin || obj instanceof PyFunction) throw err('notSubscriptable', { what: 'function', type: typeName(obj), name: obj.name.replace(/^.*[.:]/, '') });
   throw err('notSubscriptable', { type: typeName(obj) });
 }
 
@@ -408,7 +410,7 @@ export function delItem(obj, idx) {
 
 // ---------- Arithmetic ----------
 
-const opErr = (op, a, b) => err('operand', { op, a: typeName(a), b: typeName(b) });
+const opErr = (op, a, b) => err('operand', { op, a: typeName(a), b: typeName(b), ...(a === null || b === null || a === undefined || b === undefined ? { what: 'none' } : {}) });
 
 /** Integer power by squaring (exact, with overflow check). */
 function ipow(a, b) {

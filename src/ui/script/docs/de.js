@@ -212,6 +212,7 @@ export default {
     isinstance: { d: 'Prüft, ob ein Wert von einem Typ ist; mit einem Tupel von Typen, ob er einer davon ist. `True` zählt auch als `int`.', p: [['obj', 'beliebig', 'Wert'], ['class', 'Typ oder Tupel von Typen', 'z. B. int, (int, float)']], r: 'True oder False' },
     callable: { d: 'Kann man den Wert aufrufen (Funktion, Methode, lambda)?', p: [['obj', 'beliebig', 'Wert']], r: 'True oder False' },
     iter: { d: '`iter` macht aus einer Folge einen Iterator, `next` holt das nächste Element. Ist der Iterator zu Ende, gibt es einen Fehler – außer mit Standardwert.', p: [['obj / iterator', 'Folge / Iterator', 'Quelle'], ['default', 'beliebig', 'Ergebnis am Ende']], r: 'Iterator bzw. Element' },
+    set: { d: '**Gibt es in Kronland nicht.** Mengen fehlen in Kronland-Python. Für „schon gesehen?“ reicht eine Liste mit `in` oder ein Wörterbuch (`seen[(x, y)] = True`).', p: [], r: '–' },
     input: { d: '**Gibt es in Kronland nicht.** Ein Programm läuft mitten im Spiel und kann nicht auf eine Tastatureingabe warten. Schreibe Werte direkt ins Programm oder lies sie aus dem Spiel (`stock()`, `hero.ahead()` …).', p: [], r: '–' },
     // ---------- Python: math ----------
     'math.sqrt': { d: 'Quadratwurzel. Exakt nach IEEE 754 – auf jedem Rechner dasselbe Ergebnis.', p: [['x', 'Zahl ≥ 0', 'Wert']], r: 'Kommazahl' },
