@@ -13,7 +13,7 @@ import { ScriptError, suggest } from './errors.js';
 import {
   PyFloat, PyList, PyTuple, PyDict, PySlice, PyFunction, PyBuiltin, PyPartial, PyBoundMethod, PyHost, PyModule,
   Cell, binary, unary, compare, truthy, makeIter, iterNext, DONE, iterItems, getItem, setItem, delItem, toStr,
-  formatValue, typeName, keyOf,
+  formatValue, typeName, keyOf, pushAll,
 } from './values.js';
 import { BUILTINS, METHODS, MODULES, moduleAttr } from './builtins.js';
 
@@ -71,6 +71,8 @@ export class VM {
     /** Predefined names (not saved – come back from the game API on loading) */
     this.predef = new Map(Object.entries(opts.globals ?? {}));
     for (const name of Object.keys(BUILTINS)) if (!name.includes('.') && !this.predef.has(name)) this.predef.set(name, new PyBuiltin(name));
+    /** Instructions left for synchronous calls (conditions, sorted(key=…)) – the host resets it every tick */
+    this.syncBudget = Infinity;
     /** @type {Map<string, () => any>} predefined names resolved on access (not saved) */
     this.dynamic = new Map(Object.entries(opts.dynamic ?? {}));
     /** @type {Map<string, any>} global variables assigned by the program */
@@ -224,10 +226,13 @@ export class VM {
     const base = parent ? parent.frames.length + (parent.base ?? 0) : 0;
     if (base >= MAX_DEPTH) throw this.recursionError(parent, fn);
     if ((this.syncNesting ?? 0) >= MAX_SYNC_NESTING) throw new ScriptError('recursion', { what: 'callbacks', max: MAX_SYNC_NESTING });
+    // All synchronous calls of a tick share the host's budget (syncBudget, reset by the host every tick)
+    const limit = Math.min(SYNC_LIMIT, this.syncBudget);
+    if (limit <= 0) throw new ScriptError('tooLong', {});
     const task = { id: 0, frames: [this.bindFrame(fn, args, kw)], state: 'ready', wait: null, result: null, error: null, debug: null, meta: parent?.meta ?? null, sync: true, parent, base };
     this.syncNesting = (this.syncNesting ?? 0) + 1;
     try {
-      this.execute(task, SYNC_LIMIT, true);
+      this.syncBudget -= this.execute(task, limit, true);
     } finally {
       this.syncNesting--;
     }
@@ -347,7 +352,7 @@ export class VM {
           case OP.INPLACE: {
             const b = stack.pop(), a = stack.pop();
             // list += extends the same list (as in Python)
-            if (a instanceof PyList && BIN_OPS[arg] === '+') { a.items.push(...iterItems(b)); stack.push(a); }
+            if (a instanceof PyList && BIN_OPS[arg] === '+') { pushAll(a.items, iterItems(b)); stack.push(a); }
             else stack.push(binary(BIN_OPS[arg], a, b));
             break;
           }
@@ -391,7 +396,7 @@ export class VM {
           case OP.LIST_APPEND: { const v = stack.pop(); stack[stack.length - 1 - arg].items.push(v); break; }
           case OP.DICT_SET: { const v = stack.pop(), k = stack.pop(); stack[stack.length - 1 - arg].set(k, v); break; }
           case OP.LIST_PUSH: { const v = stack.pop(); stack[stack.length - 1].items.push(v); break; }
-          case OP.LIST_EXTEND: { const v = stack.pop(); stack[stack.length - 1].items.push(...iterItems(v)); break; }
+          case OP.LIST_EXTEND: { const v = stack.pop(); pushAll(stack[stack.length - 1].items, iterItems(v)); break; }
           case OP.LIST_TO_TUPLE: stack.push(new PyTuple(stack.pop().items)); break;
           case OP.MAKE_FUNCTION: {
             const c = this.codes[arg];

@@ -6,7 +6,7 @@
 import { get } from '../ui/settings.js';
 import { tr } from '../i18n/index.js';
 import { loadVoiceIndex, voiceFile, speakerVoice } from './voiceLines.js';
-import { assetUrl } from '../paths.js';
+import { assetUrl, assetPathOk } from '../paths.js';
 
 /** Female speakers get a slightly higher voice if the browser has only one voice. */
 const HIGH = new Set(['nelia', 'elder', 'villager', 'scholar']);
@@ -103,7 +103,9 @@ export function speak(msg, lang, opts = {}) {
   stopSpeech();
   const volume = Math.max(0, Math.min(1, opts.volume ?? get('master') ?? 1));
   // Own recording: voice is a path or { de, en }; otherwise the speaker's voiced sentence
-  const file = (typeof msg.voice === 'string' ? msg.voice : msg.voice?.[lang] ?? msg.voice?.de ?? null)
+  const own = typeof msg.voice === 'string' ? msg.voice : msg.voice?.[lang] ?? msg.voice?.de ?? null;
+  // A level may only name its own files (no other website); otherwise the speaker's recorded line or speech output
+  const file = (assetPathOk(own) ? own : null)
     ?? (msg.speaker ? voiceFile(speakerVoice(msg.speaker), lang, tr(msg.text, lang)) : null);
   if (file && typeof Audio !== 'undefined') {
     try {

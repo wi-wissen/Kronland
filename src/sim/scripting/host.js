@@ -7,13 +7,18 @@
 // - All VM states are JSON and are part of the save game and the state hash. Budgets count commands.
 
 import { compile, VM, ScriptError, saveVm, loadVm, sourceHash, PyList, PyTuple, PyDict, PyFunction, PyHost, truthy } from '../../script/index.js';
-import { makeApi, DIRS, toTicks } from './api.js';
+import { makeApi, DIRS, toTicks, LIMITS, assetPathOk } from './api.js';
 import { TICKS_PER_SECOND, toTile } from '../fixed.js';
 import { kill } from '../systems/military.js';
 
 const T = TICKS_PER_SECOND;
 /** Commands per tick for all mission scripts together or for the player program */
 export const BUDGET = { mission: 60_000, player: 20_000, setup: 8_000_000 };
+/**
+ * Instructions per tick for synchronous calls (goal conditions, wait_until, sorted(key=…)) – shared by all calls
+ * of a program, so that a slow condition cannot freeze the game. During world building the setup budget applies.
+ */
+export const SYNC_BUDGET = { mission: 200_000, player: 50_000 };
 const MAX_CONSOLE = 300;
 /** Longest text a notify() notice carries */
 const NOTIFY_MAX = 300;
@@ -30,6 +35,12 @@ const EVENT_HANDLERS = {
   objective: (ev) => ['on_objective', { id: ev.id, status: ev.status }, [ev.id, ev.status]],
   weather: (ev) => ['on_weather', { state: ev.state }, [ev.state]],
 };
+/** Own entry of a scenario table (texts, voice …) – never something from Object.prototype ("constructor"). */
+const ownText = (table, key) => (table && Object.hasOwn(table, key) ? table[key] : undefined);
+
+/** Longest line in the output panel. */
+const MAX_LINE = 2000;
+
 /** Filters that mean the human when unspecified (otherwise: all). */
 const HUMAN_DEFAULT = new Set(['player']);
 
@@ -127,9 +138,16 @@ export class ScriptHost {
     try {
       const { prog, opts } = this.makeVm('mission', mod.source, (sim.seed * 31 + 7) >>> 0);
       this.vms.mission = new VM(prog, opts);
-      this.vms.mission.start({ kind: 'main' }, this.debugOpts('mission'));
+      const main = this.vms.mission.start({ kind: 'main' }, this.debugOpts('mission'));
       // World building and registration run immediately (large budget), waiting continues tick by tick
+      this.vms.mission.syncBudget = BUDGET.setup;
       this.runVm('mission', BUDGET.setup);
+      if (main.state === 'ready') {
+        // Not waiting, not finished: a world building that never ends must not continue silently in the game
+        this.failTask(this.vms.mission, main, new ScriptError('setupTooLong', { max: BUDGET.setup }));
+        main.reported = true;
+        this.reportError('mission', main.error);
+      }
     } catch (e) {
       if (!(e instanceof ScriptError)) throw e;
       this.reportError('mission', e.toJSON());
@@ -143,6 +161,11 @@ export class ScriptHost {
   }
 
   // ---------- Tick ----------
+
+  /** Start of a tick (before goals are checked): fresh budget for synchronous calls. */
+  beginTick() {
+    for (const level of ['mission', 'player']) if (this.vms[level]) this.vms[level].syncBudget = SYNC_BUDGET[level];
+  }
 
   update(sim) {
     this.sim = sim;
@@ -176,6 +199,7 @@ export class ScriptHost {
   register(vm, kind, fn, filters) {
     let list = vm.globals.get('.handlers');
     if (!(list instanceof PyList)) { list = new PyList([]); vm.globals.set('.handlers', list); }
+    if (list.items.length >= LIMITS.handlers) throw new ScriptError('value', { what: 'tooMany', name: `@${kind}`, max: LIMITS.handlers });
     const d = new PyDict();
     for (const [k, v] of Object.entries(filters)) d.set(k, v);
     list.items.push(new PyTuple([kind, fn, d]));
@@ -336,25 +360,27 @@ export class ScriptHost {
 
   /** Text from the scenario table (key) or literal; {de, en} dictionaries become bilingual. */
   text(v) {
-    if (typeof v === 'string') return this.scenario.texts?.[v] ?? v;
+    const cut = (s) => (s.length > LIMITS.text ? s.slice(0, LIMITS.text - 1) + '…' : s);
+    if (typeof v === 'string') return cut(ownText(this.scenario.texts, v) ?? v);
     if (v instanceof PyDict) {
       const o = {};
-      for (const [k, x] of v.entries()) if (typeof k === 'string') o[k] = this.vms.mission?.str(x) ?? String(x);
+      for (const [k, x] of v.entries()) if (typeof k === 'string' && /^[a-z]{2}$/.test(k)) o[k] = cut(this.vms.mission?.str(x) ?? String(x));
       return o;
     }
-    return this.vms.mission?.str(v) ?? String(v);
+    return cut(this.vms.mission?.str(v) ?? String(v));
   }
 
   /** Message of a figure. @returns {number} duration in ticks (deterministic, language-independent) */
   say(speaker, textV, ticks, voice, bubble = false) {
     const st = this.runtime.state;
     const text = this.text(textV);
-    const key = typeof textV === 'string' && this.scenario.texts?.[textV] ? textV : null;
+    const key = typeof textV === 'string' && ownText(this.scenario.texts, textV) ? textV : null;
     const de = typeof text === 'string' ? text : text.de ?? text.en ?? '';
     let dur = ticks ?? Math.min(150, Math.max(30, 25 + Math.ceil(de.length * 0.55)));
-    const vlen = key ? this.scenario.voiceLength?.[key] : null;
+    const vlen = key ? ownText(this.scenario.voiceLength, key) : null;
     if (ticks === null && vlen) dur = Math.max(dur, Math.round(vlen * T) + 5);
-    const v = voice ?? (key ? this.scenario.voice?.[key] ?? null : null);
+    const own = key ? ownText(this.scenario.voice, key) ?? null : null;
+    const v = voice ?? (assetPathOk(own) || (own && typeof own === 'object') ? own : null);
     st.messages.push({ seq: ++st.seq, tick: this.sim.tick, speaker, text, voice: v, dur, bubble });
     if (st.messages.length > 30) st.messages.shift();
     this.sim.events.push({ type: 'dialog', seq: st.seq, player: st.human });
@@ -369,6 +395,7 @@ export class ScriptHost {
   addObjective(vm, id, textV, cond, primary, hidden) {
     const rt = this.runtime, st = rt.state;
     if (st.objectives.some((o) => o.id === id)) throw new ScriptError('game', { reason: 'script.game.objectiveExists', reasonParams: { id } });
+    if (st.objectives.length >= LIMITS.objectives) throw new ScriptError('value', { what: 'tooMany', name: 'objective', max: LIMITS.objectives });
     (st.extraObjectives ??= {})[id] = { id, type: 'script', text: this.text(textV), primary };
     let conds = vm.globals.get('.objectives');
     if (!(conds instanceof PyDict)) { conds = new PyDict(); vm.globals.set('.objectives', conds); }
@@ -406,8 +433,8 @@ export class ScriptHost {
     for (let i = 0; i < lines.length; i++) {
       const piece = lines[i];
       if (i === lines.length - 1 && piece === '') break;
-      if (first && last && last.open && last.level === level) { last.text += piece; }
-      else { st.console.push({ seq: ++st.seq, level, text: piece, open: false }); }
+      if (first && last && last.open && last.level === level) { last.text = (last.text + piece).slice(0, MAX_LINE); }
+      else { st.console.push({ seq: ++st.seq, level, text: piece.slice(0, MAX_LINE), open: false }); }
       first = false;
       st.console[st.console.length - 1].open = i === lines.length - 1;
     }

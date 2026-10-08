@@ -8,7 +8,7 @@ import { ScriptError } from './errors.js';
 import {
   PyFloat, PyList, PyTuple, PyDict, PyRange, PyBuiltin, PyIterator, PyView, PyFunction, PyPartial, PyBoundMethod,
   PyModule, PyHost, checkInt, isInt, isNum, num, typeName, truthy, eq, lt, iterItems, makeIter, iterNext, DONE, length,
-  roundFloat, formatValue, binary, TYPE_NAMES, toIndex, keyOf, normBig, pow10,
+  roundFloat, formatValue, binary, TYPE_NAMES, toIndex, keyOf, normBig, pow10, pushAll,
 } from './values.js';
 
 const err = (code, params) => new ScriptError(code, params);
@@ -537,7 +537,7 @@ export const METHODS = {
   },
   list: {
     append: (c, l, a, kw) => { const [x] = params('append', a, kw, ['object']); l.items.push(x); return null; },
-    extend: (c, l, a, kw) => { const [x] = params('extend', a, kw, ['iterable']); l.items.push(...iterItems(x)); return null; },
+    extend: (c, l, a, kw) => { const [x] = params('extend', a, kw, ['iterable']); pushAll(l.items, iterItems(x)); return null; },
     insert: (c, l, a, kw) => {
       const [i, x] = params('insert', a, kw, ['index', 'object']);
       let k = toIndex(i);

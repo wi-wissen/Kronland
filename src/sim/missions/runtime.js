@@ -268,6 +268,7 @@ export class MissionRuntime {
     const st = this.state;
     if (st.result) return;
     this.census = null;
+    this.script?.beginTick();
     this.updateCamps(sim);
     this.updateNpcs(sim);
     this.updateTutorial(sim);

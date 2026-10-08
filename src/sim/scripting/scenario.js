@@ -5,8 +5,16 @@
 export const SCENARIO_FORMAT = 'kronland-scenario';
 export const SCENARIO_VERSION = 1;
 
+import { assetPathOk } from '../../paths.js';
+
 /** Visibility of a section in the code panel. */
 export const VISIBILITY = ['open', 'collapsed', 'hidden'];
+
+/** Limits for scenarios from files and other people (map size, players, code length …). */
+export const SCENARIO_LIMITS = { mapSize: 256, players: 8, sections: 32, code: 200_000, texts: 2000, text: 4000 };
+const KEY_RE = /^[A-Za-z][\w-]{0,63}$/;
+const isText = (v) => typeof v === 'string' || (v && typeof v === 'object' && !Array.isArray(v) && Object.values(v).every((x) => typeof x === 'string'));
+const textLength = (v) => (typeof v === 'string' ? v.length : Math.max(0, ...Object.values(v).map((x) => x.length)));
 
 /**
  * Check a scenario. Returns a list of problems (empty = fine).
@@ -21,9 +29,30 @@ export function validateScenario(s) {
   if (typeof s.id !== 'string' || !/^[\w-]+$/.test(s.id)) out.push('id missing or contains invalid characters');
   if (!Array.isArray(s.players) || !s.players.length) out.push('players missing');
   else if (s.players[0].kind !== 'human') out.push('players[0] must be the human');
+  else if (s.players.length > SCENARIO_LIMITS.players) out.push(`at most ${SCENARIO_LIMITS.players} players`);
+  if (s.sections !== undefined && !Array.isArray(s.sections)) out.push('sections must be a list');
+  if ((s.sections ?? []).length > SCENARIO_LIMITS.sections) out.push(`at most ${SCENARIO_LIMITS.sections} sections`);
+  for (const k of ['title', 'summary', 'briefing']) if (s[k] !== undefined && s[k] !== null && !isText(s[k])) out.push(`${k} must be a text`);
+  const texts = s.texts ?? {};
+  if (Object.keys(texts).length > SCENARIO_LIMITS.texts) out.push(`at most ${SCENARIO_LIMITS.texts} texts`);
+  for (const [k, v] of Object.entries(texts)) {
+    if (!KEY_RE.test(k)) out.push(`texts: invalid key "${k.slice(0, 40)}"`);
+    else if (!isText(v)) out.push(`texts.${k} must be a text`);
+    else if (textLength(v) > SCENARIO_LIMITS.text) out.push(`texts.${k} too long`);
+  }
+  for (const [k, v] of Object.entries(s.voice ?? {})) {
+    const paths = typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v) : [null];
+    if (!paths.every(assetPathOk)) out.push(`voice.${k.slice(0, 40)}: only paths inside the level`);
+  }
+  for (const k of Object.keys(s.world?.places ?? {})) if (!KEY_RE.test(k)) out.push(`world.places: invalid name "${k.slice(0, 40)}"`);
+  for (const k of ['width', 'height', 'size']) {
+    const v = s.world?.[k];
+    if (v !== undefined && !(Number.isInteger(v) && v >= 8 && v <= SCENARIO_LIMITS.mapSize)) out.push(`world.${k} must be 8…${SCENARIO_LIMITS.mapSize}`);
+  }
   for (const [i, sec] of (s.sections ?? []).entries()) {
     if (typeof sec.id !== 'string') out.push(`sections[${i}].id missing`);
     if (typeof sec.code !== 'string') out.push(`sections[${i}].code missing`);
+    else if (sec.code.length > SCENARIO_LIMITS.code) out.push(`sections[${i}].code too long`);
     if (sec.level && !['mission', 'player'].includes(sec.level)) out.push(`sections[${i}].level invalid`);
     if (sec.visibility && !VISIBILITY.includes(sec.visibility)) out.push(`sections[${i}].visibility invalid`);
   }

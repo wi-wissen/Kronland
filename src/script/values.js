@@ -238,8 +238,20 @@ export function rangeLen(r) {
   if (r.step > 0) return r.stop > r.start ? Math.floor((r.stop - r.start - 1) / r.step) + 1 : 0;
   return r.stop < r.start ? Math.floor((r.start - r.stop - 1) / -r.step) + 1 : 0;
 }
+/** Most elements a list may get, longest text (memory of a shared level stays bounded). */
+export const MAX_ITEMS = 1_000_000;
+export const MAX_STR = 10_000_000;
+
+/** Append all items with a loop: spreading a huge array depends on the engine's argument limit. */
+export function pushAll(target, items) {
+  if (target.length + items.length > MAX_ITEMS) throw err('overflow', {});
+  for (let i = 0; i < items.length; i++) target.push(items[i]);
+}
+
 export function rangeItems(r) {
-  const n = rangeLen(r), out = new Array(n);
+  const n = rangeLen(r);
+  if (n > MAX_ITEMS) throw err('overflow', {});
+  const out = new Array(n);
   for (let i = 0; i < n; i++) out[i] = r.start + i * r.step;
   return out;
 }
@@ -526,19 +538,21 @@ export function binary(op, a, b) {
   }
   switch (op) {
     case '+':
-      if (typeof a === 'string' && typeof b === 'string') return a + b;
-      if (a instanceof PyList && b instanceof PyList) return new PyList(a.items.concat(b.items));
-      if (a instanceof PyTuple && b instanceof PyTuple) return new PyTuple(a.items.concat(b.items));
+      if (typeof a === 'string' && typeof b === 'string') { if (a.length + b.length > MAX_STR) throw err('overflow', {}); return a + b; }
+      if ((a instanceof PyList && b instanceof PyList) || (a instanceof PyTuple && b instanceof PyTuple)) {
+        if (a.items.length + b.items.length > MAX_ITEMS) throw err('overflow', {});
+        return a instanceof PyList ? new PyList(a.items.concat(b.items)) : new PyTuple(a.items.concat(b.items));
+      }
       break;
     case '*': {
       const [s, n0] = isInt(b) ? [a, num(b)] : isInt(a) ? [b, num(a)] : [null, 0];
       if (typeof n0 === 'bigint' && s !== null && (typeof s === 'string' || s instanceof PyList || s instanceof PyTuple)) throw err('overflow', {});
       const n = Number(n0);
-      if (typeof s === 'string') { if (s.length * Math.max(0, n) > 10_000_000) throw err('overflow', {}); return n > 0 ? s.repeat(n) : ''; }
+      if (typeof s === 'string') { if (s.length * Math.max(0, n) > MAX_STR) throw err('overflow', {}); return n > 0 ? s.repeat(n) : ''; }
       if (s instanceof PyList || s instanceof PyTuple) {
-        if (s.items.length * Math.max(0, n) > 1_000_000) throw err('overflow', {});
+        if (s.items.length * Math.max(0, n) > MAX_ITEMS) throw err('overflow', {});
         const out = [];
-        for (let i = 0; i < n; i++) out.push(...s.items);
+        for (let i = 0; i < n; i++) pushAll(out, s.items);
         return s instanceof PyList ? new PyList(out) : new PyTuple(out);
       }
       break;
