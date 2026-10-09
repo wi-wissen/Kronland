@@ -177,6 +177,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
 
 ## KI gegen KI
 
+Die Computergegner sind Teil der Simulation (Gedächtnis in `sim.ai`, laufen im Takt, im Spielstand und im Hash) –
+bereit für Lockstep-Mehrspieler ([Architektur](docs/ARCHITEKTUR.md#multiplayer-später)).
+
 ```bash
 node scripts/ai-match.js 1 60 hard easy   # Seed, Minuten, Stärke Spieler 1 und 2
 node scripts/stress-run.js bustle 20       # Dauerlauf ohne Grafik: Takt-Zeiten, Figuren, Spielstand je Minute (--build=5: Spieler baut)

@@ -763,13 +763,14 @@ export class MissionRuntime {
   }
 }
 
-/** Settings of the AI opponents from the mission (for AiPlayer). */
+/** Settings of the AI opponents from the mission (read by AiPlayer.applyMission). */
 export function missionAiConfig(sim, player) {
   return sim.mission?.state?.ai?.[player] ?? null;
 }
 
 /**
- * Create a simulation for a mission.
+ * Create a simulation for a mission. Players of kind 'ai' become computer opponents inside the simulation
+ * (`ai: false`: without them, for tests that drive all players themselves).
  * @param {string} id
  * @param {StartOptions} [opts]
  */
@@ -807,5 +808,7 @@ export function createDefSim(def, opts = {}) {
     world: def.world ? { ...def.world, size: def.world.size ?? def.size, seed: seed ?? def.world.seed ?? def.seed } : undefined,
     // Without castle (hq: false): coding adventures and command missions
     playerSetup: def.scenario ? playerSetupOf(def) : real.map((p) => ({ hq: p.hq !== false })),
+    // Computer opponents (index as in def.players)
+    ai: opts.ai === false ? [] : def.players.map((p) => (p.kind === 'ai' ? p.difficulty ?? 'normal' : null)),
   });
 }

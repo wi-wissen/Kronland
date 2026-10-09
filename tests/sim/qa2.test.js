@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { Sim } from '../../src/sim/sim.js';
-import { AiPlayer } from '../../src/ai/AiPlayer.js';
+import { addAi } from '../../src/ai/runner.js';
 import { WATER, CLIFF } from '../../src/sim/map.js';
 import { DAMAGE } from '../../src/sim/systems/damage.js';
 import { pathStats } from '../../src/sim/pathfinding.js';
@@ -132,12 +132,12 @@ describe('Eliminated players', () => {
 
   it('AI of an eliminated player gives no more commands', () => {
     const sim = new Sim({ seed: 3, players: 3 });
-    const ai = new AiPlayer(sim, 1, 'hard');
+    addAi(sim, 1, 'hard');
     sim.destroyBuilding(hqOf(sim, 1), null);
     let n = 0;
     const orig = sim.command.bind(sim);
     sim.command = (c) => { if (c.player === 1) n++; orig(c); };
-    for (let t = 0; t < 300; t++) { ai.update(); sim.step(); }
+    sim.run(300);
     expect(n).toBe(0);
   });
 });
@@ -175,7 +175,7 @@ describe('AI: only reachable targets', () => {
     const sim = new Sim({ seed: 42 });
     const isl = makeIsland(sim);
     expect(isl.trees.length).toBeGreaterThan(3);
-    const ai = new AiPlayer(sim, 0, 'hard');
+    addAi(sim, 0, 'hard');
     const bad = [];
     const orig = sim.command.bind(sim);
     sim.command = (c) => {
@@ -185,17 +185,16 @@ describe('AI: only reachable targets', () => {
       orig(c);
     };
     pathStats.unreachable = 0;
-    for (let t = 0; t < 3000; t++) { ai.update(); sim.step(); }
+    sim.run(3000);
     expect(bad).toEqual([]);
     expect(pathStats.unreachable).toBeLessThan(5);
   });
 
   it('demolishes a construction site that became unreachable and plans anew', () => {
     const sim = new Sim({ seed: 42 });
-    const ai = new AiPlayer(sim, 0, 'hard');
+    addAi(sim, 0, 'hard');
     let site = null;
     for (let t = 0; t < 2000 && !site; t++) {
-      ai.update();
       for (const e of sim.step()) if (e.type === 'buildingPlaced' && e.player === 0) site = sim.entities.get(e.building);
     }
     expect(site).toBeTruthy();
@@ -210,20 +209,15 @@ describe('AI: only reachable targets', () => {
     m.version++;
     let demolished = false;
     for (let t = 0; t < 200 && !demolished; t++) {
-      ai.update();
       demolished = sim.step().some((e) => e.type === 'demolished' && e.building === site.id);
     }
     expect(demolished).toBe(true);
   });
 
   it('4 AIs, size 160: (almost) no failed pathfinding attempts', () => {
-    const sim = new Sim({ seed: 1, players: 4, size: 160 });
-    const ais = [0, 1, 2, 3].map((p) => new AiPlayer(sim, p, 'hard'));
+    const sim = new Sim({ seed: 1, players: 4, size: 160, ai: ['hard', 'hard', 'hard', 'hard'] });
     pathStats.unreachable = 0; pathStats.exhausted = 0;
-    for (let t = 0; t < 600 * 15; t++) {
-      for (const a of ais) if (!sim.players[a.player].defeated) a.update();
-      sim.step();
-    }
+    sim.run(600 * 15);
     // before: several hundred per 150 s (construction sites in rock niches, built-over shafts)
     expect(pathStats.unreachable + pathStats.exhausted).toBeLessThan(40);
     // AI figures never stand on water/buildings

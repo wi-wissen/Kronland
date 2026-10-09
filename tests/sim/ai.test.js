@@ -1,13 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { Sim } from '../../src/sim/sim.js';
-import { AiPlayer } from '../../src/ai/AiPlayer.js';
+import { addAi, aiOf } from '../../src/ai/runner.js';
 
 function match(seed, diffs, ticks, stopOnWin = true) {
-  const sim = new Sim({ seed });
-  const ais = diffs.map((d, i) => d && new AiPlayer(sim, i, d));
+  const sim = new Sim({ seed, ai: diffs });
+  const ais = diffs.map((d, i) => aiOf(sim, i));
   const rejects = [];
   for (let t = 0; t < ticks; t++) {
-    for (const ai of ais) ai?.update();
     for (const e of sim.step()) if (e.type === 'rejected') rejects.push(e);
     if (stopOnWin && sim.winner !== null) break;
   }
@@ -38,11 +37,11 @@ describe('AI opponent', () => {
 
   it('defends its own castle against attackers', () => {
     const sim = new Sim({ seed: 2 });
-    const ai = new AiPlayer(sim, 0, 'normal');
+    const ai = addAi(sim, 0, 'normal');
     const hq = sim.findBuilding(0, 'headquarters');
     const L = sim.spawnLeader(1, 'sword1', hq.x + 7, hq.y + 2);
     L.order = { type: 'hold' };
-    for (let t = 0; t < 60; t++) { ai.update(); sim.step(); }
+    for (let t = 0; t < 60; t++) { sim.step(); }
     expect([...sim.entities.values()].some((e) => e.owner === 0 && e.kind === 'unit' && e.militia)).toBe(true);
     expect(ai.armyState).toBe('defend');
   });
@@ -62,17 +61,17 @@ describe('AI opponent', () => {
 
   it('repairs damaged buildings with serfs', () => {
     const sim = new Sim({ seed: 2 });
-    const ai = new AiPlayer(sim, 0, 'normal');
+    const ai = addAi(sim, 0, 'normal');
     const vc = sim.findBuilding(0, 'villageCenter');
     vc.hp = 600; // burning (< 50 %)
     let t = 0;
-    for (; t < 3000 && vc.hp < 1500; t++) { ai.update(); sim.step(); }
+    for (; t < 3000 && vc.hp < 1500; t++) { sim.step(); }
     expect(vc.hp).toBe(1500);
   });
 
   it('uses the marketplace to trade surpluses', () => {
     const sim = new Sim({ seed: 2 });
-    const ai = new AiPlayer(sim, 0, 'normal');
+    const ai = addAi(sim, 0, 'normal');
     const hq = sim.findBuilding(0, 'headquarters');
     const pos = sim.findPlacement(0, 'storehouse', hq.x + 2, hq.y + 8, 30) ?? (() => { sim.players[0].techs.add('education'); return sim.findPlacement(0, 'storehouse', hq.x + 2, hq.y + 8, 30); })();
     const m = sim.createBuilding(0, 'storehouse', pos.x, pos.y, true);
@@ -80,7 +79,7 @@ describe('AI opponent', () => {
     const p = sim.players[0];
     p.stock.wood = 0; p.raw.wood = 0; p.stock.iron = 5000;
     const trades = [];
-    for (let t = 0; t < 3000; t++) { ai.update(); for (const e of sim.step()) if (e.type === 'tradeStarted' && e.player === 0) trades.push(e); }
+    for (let t = 0; t < 3000; t++) { for (const e of sim.step()) if (e.type === 'tradeStarted' && e.player === 0) trades.push(e); }
     expect(trades.length).toBeGreaterThan(0);
     expect(trades[0]).toMatchObject({ give: 'iron' });
   });

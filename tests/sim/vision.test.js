@@ -198,10 +198,9 @@ describe('Last seen buildings', () => {
 
 describe('Determinism and save game', () => {
   const run = (seed, ticks) => {
-    const sim = new Sim({ seed });
-    const ais = [new AiPlayer(sim, 0, 'normal'), new AiPlayer(sim, 1, 'hard')];
-    for (let i = 0; i < ticks; i++) { for (const ai of ais) ai.update(); sim.step(); }
-    return { sim, ais };
+    const sim = new Sim({ seed, ai: ['normal', 'hard'] });
+    sim.run(ticks);
+    return { sim };
   };
 
   it('same course yields the same vision', () => {
@@ -214,17 +213,16 @@ describe('Determinism and save game', () => {
   });
 
   it('save game stores exploration, vision and last seen buildings; afterwards everything continues the same', () => {
-    const { sim, ais } = run(12, 2500);
+    const { sim } = run(12, 2500);
     // save between two recalculations
-    while (sim.tick % VISION.updateTicks === 0) { for (const ai of ais) ai.update(); sim.step(); }
+    while (sim.tick % VISION.updateTicks === 0) sim.step();
     const ehq = hqOf(sim, 1);
     revealArea(sim, 0, center(ehq).x, center(ehq).y, 4, 200);
-    const data = JSON.parse(JSON.stringify(saveGame(sim, { ais: ais.map((a) => a.getState()) })));
+    const data = JSON.parse(JSON.stringify(saveGame(sim)));
     expect(data.vision.enabled).toBe(true);
     // compact: bit fields instead of bytes per tile
     expect(data.vision.teams[0].explored.length).toBeLessThan(sim.map.width * sim.map.height / 4);
     const sim2 = loadGame(data);
-    const ais2 = data.extra.ais.map((st) => AiPlayer.fromState(sim2, st));
     expect(sim2.hash()).toBe(sim.hash());
     for (const p of [0, 1]) {
       expect([...visionOf(sim2, p).explored]).toEqual([...visionOf(sim, p).explored]);
@@ -232,8 +230,8 @@ describe('Determinism and save game', () => {
       expect([...visionOf(sim2, p).ghosts.values()]).toEqual([...visionOf(sim, p).ghosts.values()]);
     }
     for (let i = 0; i < 2000; i++) {
-      for (const ai of ais) ai.update(); sim.step();
-      for (const ai of ais2) ai.update(); sim2.step();
+      sim.step();
+      sim2.step();
     }
     expect(sim2.hash()).toBe(sim.hash());
   });
