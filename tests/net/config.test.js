@@ -38,9 +38,9 @@ describe('kronland.config.json', () => {
     expect(await loadConfig({ fetch: async () => { throw new TypeError('x'); }, storage: new FakeStorage() })).toEqual(empty);
   });
 
-  it('the shipped public/kronland.config.json is stage 0', async () => {
+  it('the template kronland.config.example.json is stage 0', async () => {
     const { readFileSync } = await import('node:fs');
-    const c = parseConfig(JSON.parse(readFileSync(new URL('../../public/kronland.config.json', import.meta.url), 'utf8')));
+    const c = parseConfig(JSON.parse(readFileSync(new URL('../../kronland.config.example.json', import.meta.url), 'utf8')));
     expect(c.server).toBeNull();
     expect(c.sources).toEqual([]);
   });

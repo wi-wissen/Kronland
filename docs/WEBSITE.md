@@ -11,7 +11,7 @@ Unterordner hostbar):
 | `compendium/` | `compendium/index.html` | Kompendium: alle Werte und Formeln, aus den Spieldaten erzeugt | `src/site/compendium/` |
 | `scripting/` | `scripting/index.html` | Programmier-Referenz: Kronland-Python, jeder Befehl mit Beispiel | `src/site/scripting/` |
 | `blog/`, `blog/<name>/` | `blog/index.html` (Artikelseiten erzeugt der Build) | Blog: Übersicht und Artikel, u. a. einer je Meilenstein | `src/site/blog/` |
-| `level/<id>/` | vom Build erzeugt, nur wenn `public/kronland.config.json` Quellen nennt | je offenem Levelpaket eine Seite mit Linkvorschau, dazu `sitemap-levels.xml` | `scripts/vite-pack-pages.js`, [SERVER.md](SERVER.md) |
+| `level/<id>/` | vom Build erzeugt, nur wenn die Konfiguration (`public/kronland.config.json`, siehe [SERVER.md](SERVER.md#konfiguration)) Quellen nennt | je offenem Levelpaket eine Seite mit Linkvorschau, dazu `sitemap-levels.xml` | `scripts/vite-pack-pages.js`, [SERVER.md](SERVER.md) |
 
 **Adressen sind englisch** (wie bei Spielen üblich: `play/`, `manual/`, `compendium/`), die Seiten selbst zweisprachig.
 Das Kompendium hieß früher „Wiki“; umbenannt, weil niemand mitschreibt – es ist ein Nachschlagewerk, das aus den

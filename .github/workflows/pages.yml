@@ -28,6 +28,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Server and sources come from the repository variables (Settings > Variables), not from Git; unset = stage 0
+      - run: node scripts/write-config.mjs
+        env:
+          KRONLAND_SERVER: ${{ vars.KRONLAND_SERVER }}
+          KRONLAND_SOURCES: ${{ vars.KRONLAND_SOURCES }}
       - run: npm run build
         env:
           KRONLAND_SITE_URL: https://kronland.wi7.net/

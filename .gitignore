@@ -20,3 +20,6 @@ scripts/_tmp/
 # Teil-Archive der Rohdateien zum Sichern/Hochladen (node scripts/assets-src.mjs pack, docs/ROHDATEIEN.md)
 assets-src-archive/
 __pycache__/
+
+# Local/deploy configuration (server, sources); template: kronland.config.example.json (docs/SERVER.md)
+public/kronland.config.json
