@@ -49,6 +49,20 @@
         >{{ $t('set.q.' + q) }}</button>
       </div>
       <p v-if="inGame" class="st-note">{{ $t('set.qualityNote') }}</p>
+      <span class="st-sl-label st-sub"><Icon name="map" />{{ $t('set.tracks') }}</span>
+      <div class="seg" role="radiogroup" :aria-label="$t('set.tracks')" data-testid="tracks">
+        <button
+          v-for="m in trackModes"
+          :key="m"
+          role="radio"
+          :aria-checked="trackShown === m"
+          :class="{ active: trackShown === m }"
+          :disabled="!!trackFixed"
+          :data-testid="'tracks-' + m"
+          @click="set('tracks', m)"
+        >{{ $t('set.tracks.' + m) }}</button>
+      </div>
+      <p class="st-note" data-testid="tracks-note">{{ trackFixed ? $t('set.tracksFixed', { mode: $t('set.tracks.' + trackFixed) }) : $t('set.tracksNote') }}</p>
     </section>
 
     <section class="st-sec">
@@ -149,16 +163,24 @@
 </template>
 
 <script>
-import { settings, set, DEFAULTS, MUSIC_PAUSE_OPTIONS, BARK_OPTIONS } from './settings.js';
+import { settings, set, DEFAULTS, MUSIC_PAUSE_OPTIONS, BARK_OPTIONS, TRACK_OPTIONS } from './settings.js';
 import { LANGS } from '../i18n/index.js';
 import { devState, setDevMode } from '../dev/state.js';
 import { PLAYER_COLOR_IDS, PLAYER_COLOR_CSS } from '../render/playerColors.js';
 
 export default {
   name: 'SettingsPanel',
-  props: { inGame: Boolean },
+  props: {
+    inGame: Boolean,
+    /** Mode of the running level when it fixes the tracks (world.tracks.mode), otherwise null */
+    trackFixed: { type: String, default: null },
+  },
   emits: ['close', 'quality'],
-  data() { return { s: settings, langs: LANGS, qualities: ['auto', 'low', 'medium', 'high'], pauses: MUSIC_PAUSE_OPTIONS, barkModes: BARK_OPTIONS, preview: null, dev: devState, colorIds: PLAYER_COLOR_IDS, colorCss: PLAYER_COLOR_CSS }; },
+  data() { return { s: settings, langs: LANGS, qualities: ['auto', 'low', 'medium', 'high'], pauses: MUSIC_PAUSE_OPTIONS, barkModes: BARK_OPTIONS, trackModes: TRACK_OPTIONS, preview: null, dev: devState, colorIds: PLAYER_COLOR_IDS, colorCss: PLAYER_COLOR_CSS }; },
+  computed: {
+    /** Fixed by the level: its mode, otherwise the setting */
+    trackShown() { return this.trackFixed ?? this.s.tracks; },
+  },
   methods: {
     set(k, v) { set(k, v); if (k === 'uiScale') this.preview = null; },
     setQuality(q) { set('quality', q); this.$emit('quality', q); },

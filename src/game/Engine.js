@@ -24,7 +24,7 @@ import { cursorCss } from './cursors.js';
 import { characterManifest } from '../render/characters.js';
 import { figureRole, figureSex } from '../render/variants.js';
 import { getQuality } from '../render/quality.js';
-import { get as setting, applyPlayerColor } from '../ui/settings.js';
+import { get as setting, applyPlayerColor, onChange as onSettingChange } from '../ui/settings.js';
 import { Input } from './Input.js';
 import { ControlGroups } from './groups.js';
 import { visibleSameType } from './sameType.js';
@@ -111,20 +111,24 @@ export class Engine {
     const players = opts.players ?? 2;
     const heroes = [...HERO_IDS, ...HERO_IDS];
     if (opts.hero && HEROES[opts.hero]) { const i = heroes.indexOf(opts.hero); if (i > 0) [heroes[0], heroes[i]] = [heroes[i], heroes[0]]; }
+    // Game option "tracks" from the settings (a level may fix it, src/sim/systems/ground.js)
+    const tracks = setting('tracks');
     if (opts.load) {
       this.sim = loadGame(opts.load);
       this.ais = (opts.load.extra?.ais ?? []).map((st) => AiPlayer.fromState(this.sim, st));
     } else if (opts.mission || opts.scenario) {
       // Mission or scenario (world editor, file): players, opponents and setup come from the definition
-      this.sim = opts.scenario ? createScenarioSim(opts.scenario, { seed: opts.seed }) : createMissionSim(opts.mission.id, { seed: opts.mission.seed });
+      this.sim = opts.scenario ? createScenarioSim(opts.scenario, { seed: opts.seed, tracks }) : createMissionSim(opts.mission.id, { seed: opts.mission.seed, tracks });
       this.ais = this.sim.mission.def.players
         .map((p, i) => (p.kind === 'ai' ? new AiPlayer(this.sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
     } else {
-      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes, fog: opts.fog ?? true });
+      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes, fog: opts.fog ?? true, tracks });
       /** AI opponents for all other players */
       this.ais = [];
       for (let p = 1; p < players; p++) this.ais.push(new AiPlayer(this.sim, p, opts.difficulty ?? 'normal'));
     }
+    // Setting changed during the game: a command (lockstep-safe), never a direct write into the simulation
+    this.offSettings = onSettingChange(({ key }) => { if (key === 'tracks') this.syncTracks(); });
     applyPlayerColor(this.player); // player colour (pure rendering, no sim state)
     this.renderer = new Renderer(canvas, this.sim, { player: this.player });
     this.onUi = opts.onUi ?? (() => {});
@@ -143,6 +147,8 @@ export class Engine {
     /** @type {null | {type: string, x: number, y: number, valid: boolean, reason: string|null, hasPos: boolean}} */
     this.placing = null;
     this.queue = [];
+    // A save game keeps its mode unless the setting differs: then the same command as a change in the menu
+    if (opts.load) this.syncTracks();
     this.prev = new Map();
     this.speed = 1;
     this.paused = false;
@@ -222,6 +228,7 @@ export class Engine {
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     window.removeEventListener('kronland-quality', this.onQuality);
+    this.offSettings?.();
     this.input.dispose();
     this.audio?.dispose();
     clearTimeout(this.dialogCamBack);
@@ -1067,10 +1074,17 @@ export class Engine {
     this.camFly = null;
     this.debugHalt = false;
     this.restarts++;
+    this.syncTracks();
     if (this.dev) { this.dev.dispose(); this.dev = null; this.setDevMode(true); }
     this.emitUi();
   }
   togglePause() { this.paused = !this.paused; this.emitUi(); }
+
+  /** Game option "tracks": send the setting as a command when it differs and the level does not fix the mode. */
+  syncTracks() {
+    const mode = setting('tracks');
+    if (!this.sim.trackModeFixed && this.sim.trackMode !== mode) this.issue({ type: 'setTracks', mode });
+  }
 
   // ---------- Building ----------
 

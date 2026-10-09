@@ -146,8 +146,8 @@ describe('Tracks', () => {
     expect(tileKind(sim, 6, 8)).toBe('track');
   });
 
-  it('teleports leave nothing; who: "none" and fade 0 (never) from the level', () => {
-    const sim = createScenarioSim(scenario('world.set_track(10, 10)\n', { world: { tracks: { who: 'none', fade: 0, threshold: 1 } } }));
+  it('teleports leave nothing; who: "none" and mode permanent from the level', () => {
+    const sim = createScenarioSim(scenario('world.set_track(10, 10)\n', { world: { tracks: { who: 'none', mode: 'permanent', threshold: 1 } } }));
     const h = heroOf(sim);
     updateTracks(sim);
     h.px += 1000;
@@ -185,7 +185,7 @@ describe('Tracks', () => {
   });
 
   it('soldiers and serfs leave tracks too (one loop over all figures)', () => {
-    const sim = createScenarioSim(scenario('spawn(HUMAN, "sword1", (6, 4), soldiers=4)\n', { world: { tracks: { threshold: 1, fade: 0 } } }));
+    const sim = createScenarioSim(scenario('spawn(HUMAN, "sword1", (6, 4), soldiers=4)\n', { world: { tracks: { threshold: 1, mode: 'permanent' } } }));
     const L = [...sim.entities.values()].find((e) => e.kind === 'leader');
     sim.applyCommand({ type: 'order', player: 0, units: [L.id], order: 'move', x: 16, y: 4 });
     run(sim, 100);
