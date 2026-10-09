@@ -18,8 +18,8 @@ const browser = await chromium.launch({ args: gl, ...(process.env.PW_CHROMIUM ? 
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.on('pageerror', (e) => console.log('pageerror', e.message));
 await page.addInitScript((q) => { localStorage.setItem('kronland.quality', q); }, quality);
-await page.goto(`http://localhost:${port}/play/?seed=1&fog=off&no-models`, { timeout: 180_000 });
-await page.waitForFunction(() => !!window.__kronland?.renderer, null, { timeout: 180_000 });
+await page.goto(`http://localhost:${port}/play/?seed=1&fog=off&no-models`, { timeout: 180_000, waitUntil: 'domcontentloaded' });
+await page.waitForFunction(() => !!window.__kronland?.renderer, null, { timeout: 180_000, waitUntil: 'domcontentloaded' });
 // Only the 3D picture: everything else invisible
 await page.addStyleTag({ content: 'body * { visibility: hidden !important; } canvas { visibility: visible !important; }' });
 
