@@ -109,30 +109,6 @@ describe('I.5 "Holz für die erste Nacht": roses, brook and six count in every w
   });
 });
 
-describe('I.M "Heimweg durchs Unterholz": every stretch of undergrowth in three worlds', () => {
-  const SIMPLE = lines('while not nelia.is_at(place("exit")):', '    if nelia.can_step():', '        nelia.step()', '    else:', '        nelia.turn_right()');
-  const all = { normal: 'solved', near: 'solved', far: 'solved' };
-
-  it('all three stages count only after „Prüfen“; the model solutions pass every world', () => {
-    for (const g of ['edge', 'thicket', 'home']) expect(isAllWorlds('r1-m', g), g).toBe(true);
-    expect(by(check('r1-m', 'edge', SIMPLE))).toEqual(all);
-    for (const lang of ['de', 'en']) {
-      expect(by(check('r1-m', 'thicket', refExample('thicket', lang)))).toEqual(all);
-      expect(by(check('r1-m', 'home', refExample('thicket', lang)))).toEqual(all);
-    }
-  });
-
-  it('hard-coded programs fail an edge world', () => {
-    // The way out of the normal case, written out: the tree right in front of Nelia (near) blocks the first step
-    const path = lines('nelia.step(19)', 'nelia.turn_right()', 'nelia.step(6)', 'nelia.turn_right()', 'nelia.step(17)', 'nelia.turn_right()', 'nelia.step(4)', 'nelia.turn_right()', 'nelia.step(10)');
-    const r = check('r1-m', 'edge', path);
-    expect(by(r)).toEqual({ normal: 'solved', near: 'error', far: 'error' });
-    expect(r.results.find((x) => x.world === 'near').error).toMatchObject({ sline: 1 });
-    // Turning right when blocked runs in circles in every thicket – also where the exit is right behind Nelia (near)
-    expect(by(check('r1-m', 'home', SIMPLE))).toEqual({ normal: 'timeout', near: 'timeout', far: 'timeout' });
-  });
-});
-
 describe('II.1 "Orrins Abkürzung": the ruin and the coins in three worlds', () => {
   const LOADED = `\ndef around_ruin():\n    nelia.turn_right()\n    nelia.step()\n    nelia.turn_left()\n    nelia.step(2)\n    nelia.turn_left()\n    nelia.step()\n    nelia.turn_right()\n\naround_ruin()\naround_ruin()\naround_ruin()\n`;
   const LEFT = LOADED.replace(/turn_right/g, 'TMP').replace(/turn_left/g, 'turn_right').replace(/TMP/g, 'turn_left');

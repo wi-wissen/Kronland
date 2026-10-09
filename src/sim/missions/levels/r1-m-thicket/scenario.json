@@ -7,12 +7,12 @@
   "order": 19,
   "title": { "de": "Heimweg durchs Unterholz", "en": "Home through the Undergrowth" },
   "summary": {
-    "de": "Meisterstück der Reihe I: ohne fertiges Programm durch dreimal anders gewachsenes Unterholz – mit while, if und der rechten Hand.",
-    "en": "Masterpiece of row I: without a ready-made program through undergrowth that grew differently three times – with while, if and the right hand."
+    "de": "Meisterstück der Reihe I: ohne fertiges Programm durch den Wald – erst ein gewundener Pfad, dann Abzweigungen und Sackgassen mit der rechten Hand. Drei Wälder, ein Programm.",
+    "en": "Masterpiece of row I: without a ready-made program through the forest – first a winding path, then forks and dead ends with the right hand. Three forests, one program."
   },
   "briefing": {
-    "de": "Zwischen Nelia und Lindgrund liegt dichtes Unterholz, dreimal anders gewachsen. Diesmal gibt es kein fertiges Programm: Du schreibst das Programm selbst, mit allem aus Reihe I. nelia.can_step() ist True, wenn vorn frei ist, nelia.right() verrät, was rechts von ihr ist, ohne dass sie sich dreht. place(\"exit\") ist immer der Ausgang des Abschnitts – ein gutes Programm findet in jedem Unterholz hinaus. Jedes Stück Unterholz gibt es in drei Welten – erst wenn „Prüfen“ alle bestanden hat, geht es weiter.",
-    "en": "Dense undergrowth lies between Nelia and Lindgrund, grown differently three times. This time there is no ready-made program: you write the program yourself, with everything from row I. nelia.can_step() is True when the way ahead is free, nelia.right() tells what is to her right without turning her. place(\"exit\") is always the exit of the section – a good program finds its way out of any undergrowth. Every stretch of undergrowth comes in three worlds – only once “Check” passes all of them do you go on."
+    "de": "Zwischen Nelia und Lindgrund liegt dichtes Unterholz. Diesmal gibt es kein fertiges Programm: Du schreibst das Programm selbst, mit allem aus Reihe I – und es wächst von Etappe zu Etappe. Erst führt ein gewundener Pfad zur Lichtung, dahinter gabelt sich das Dickicht, mit Sackgassen, bis zum Ausgang. nelia.can_step() ist True, wenn vorn frei ist, nelia.right() verrät, was rechts von ihr ist, ohne dass sie sich dreht. Den Wald gibt es in drei Welten, jede ist anders gewachsen – ein gutes Programm findet in jedem hinaus. Erst wenn „Prüfen“ den Ausgang in allen drei Wäldern bestanden hat, geht es weiter.",
+    "en": "Dense undergrowth lies between Nelia and Lindgrund. This time there is no ready-made program: you write the program yourself, with everything from row I – and it grows from stage to stage. First a winding path leads to the clearing, beyond it the thicket forks, with dead ends, up to the exit. nelia.can_step() is True when the way ahead is free, nelia.right() tells what is to her right without turning her. The forest comes in three worlds, each grown differently – a good program finds its way out of every one. Only once “Check” has passed the exit in all three forests do you go on."
   },
   "victoryText": {
     "de": "Nelia steht auf dem Dorfplatz von Lindgrund. Doch wer ist der Fremde, der auf sie gewartet hat?",
@@ -29,10 +29,10 @@
   ],
   "world": {
     "base": "flat",
-    "width": 26,
-    "height": 33,
+    "width": 30,
+    "height": 13,
     "fog": false,
-    "starts": [{ "x": 2, "y": 2 }],
+    "starts": [{ "x": 6, "y": 7 }],
     "tracks": { "who": "none" }
   },
   "weatherCycle": [["winter", 3600000]],
