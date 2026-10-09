@@ -232,7 +232,7 @@ führt (kein automatischer Wechsel wie bei Fehlern). Eine Mission
 schaltet sie mit `hints(False)` ab, etwa für eine „Finde den Fehler“-Etappe. Texte: `script.hint.*` in
 `src/i18n/script.js`.
 
-**Dialoge** dauern eine feste Zeit (aus der Textlänge der deutschen Fassung oder `voiceLength`) – das
+**Dialoge** dauern eine feste Zeit (aus der Textlänge der deutschen Fassung oder `seconds`) – das
 Vorlesen beeinflusst den Ablauf nie. Wegklicken schickt `skipDialog` und beendet das Warten sofort.
 **Gespräche:** Die `say()`-Zeilen einer Aufgabe sind ein Gespräch. Spricht gerade eine andere Aufgabe, wartet die
 Zeile (`wait.k = 'say'`), bis deren Gespräch vorbei ist (`state.talk`: Aufgabe und Ende der Zeile plus ein Takt, damit
@@ -415,8 +415,8 @@ lindgrund/
 | `sections` | Python-Abschnitte: `file` (Name im Ordner), `level` mission/player, `visibility` open/collapsed/hidden, `editable`. Gepackt (Spielstand, Editor) trägt jeder Abschnitt seinen `code` |
 
 **Texte stehen im Code:** `say("orrin", de="Bei allen Märkten!", en="By all markets!")`; einsprachige Level
-schreiben einfach `say("orrin", "Hallo!")`. Version 1 (Texttabelle `texts` mit Schlüsseln, `voice`/`voiceLength`
-je Schlüssel, Ende nur per Skript) lädt weiter.
+schreiben einfach `say("orrin", "Hallo!")`. Nur das Format 2 lädt; Format 1 (Texttabelle `texts`, `voice`/`voiceLength`
+je Schlüssel) gibt es nicht mehr, seine Spielstände melden `saves.err.missionChanged`.
 
 **Dateien eines Levels** (`assets/`, nur PNG, JPG, WebP, MP3, OGG, GLB, je höchstens 15 MB, zusammen 60 MB, 300
 Dateien) dienen nur der Darstellung; die Simulation kennt nur ihren Pfad, ein Spielstand braucht sie nicht.
@@ -625,7 +625,7 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
 - **Panel:** Szenario (Titel, Art, Auftrag zweisprachig, Spieler mit/ohne Burg, Nebel), Orte,
   Code (Abschnitte mit Stufe, Sichtbarkeit, bearbeitbar; Befehlsreferenz), Dateien (Bilder, Töne, 3D-Modelle
   hinzufügen und entfernen; sie gelten, solange die Seite offen ist, und reisen in der .zip), Beispiele
-  (mitgelieferte Level als Vorlage). Den Reiter Texte gibt es nur noch für Szenarien der Version 1.
+  (mitgelieferte Level als Vorlage).
 - **Code aus der Karte:** Doppelklick (Handy: lange drücken, nicht mit Heben/Senken/Ebnen/Glätten, die beim Halten
   weiterwirken) fügt Code an der Schreibmarke des zuletzt bearbeiteten Abschnitts ein (sonst „Mission“, ans Ende).
   Ort → `place("camp")`, eigene Burg → `hq()`, Held → `nelia`, Gesprächsfigur (Vorschau) → `"id"`, Baum, Haufen,

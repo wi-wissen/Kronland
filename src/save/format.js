@@ -11,6 +11,7 @@ import { version as GAME_VERSION } from '../../package.json';
 import { loadGame, SAVE_VERSION } from '../sim/serialize.js';
 import { getMission, CAMPAIGN, TUTORIAL_ID } from '../sim/missions/registry.js';
 import { tr } from '../i18n/index.js';
+import { SCENARIO_VERSION } from '../sim/scripting/scenario.js';
 
 export const FORMAT = 'kronland-save';
 export const FORMAT_VERSION = 1;
@@ -174,6 +175,9 @@ export function validateDoc(doc) {
   // A mission that moved from a mission file into a level folder (Python): old saves carry no scenario to go on with
   const def = s.mission ? getMission(s.mission.id) : null;
   if (def?.scenario && !s.mission.scenario && !s.mission.custom) throw new SaveError('saves.err.missionChanged', { title: tr(def.title) });
+  // A level of an older scenario format (version 1: text table) cannot go on
+  const sc = s.mission?.scenario;
+  if (sc && sc.version !== SCENARIO_VERSION) throw new SaveError('saves.err.missionChanged', { title: tr(sc.title ?? def?.title ?? String(s.mission.id)) });
   return doc;
 }
 

@@ -18,10 +18,9 @@ const consoleText = (sim) => sim.mission.script.state.console.map((c) => c.text)
 /** Small test scenario on a flat meadow. */
 function scenario(sections, extra = {}) {
   return {
-    format: 'kronland-scenario', version: 1, id: 'test', kind: 'adventure',
+    format: 'kronland-scenario', version: 2, end: 'script', id: 'test', kind: 'adventure',
     world: { base: 'flat', width: 24, height: 16, fog: false, starts: [{ x: 4, y: 8 }], places: { goal: { x: 10, y: 8, r: 0 } } },
     players: [{ kind: 'human', hero: 'nelia', hq: false }],
-    texts: { hi: { de: 'Hallo!', en: 'Hello!' } },
     sections,
     ...extra,
   };
@@ -194,7 +193,7 @@ describe('Mission scripts', () => {
         '@on_start',
         'def start():',
         '    objective("walk", lambda: nelia.is_at(place("goal")), text="Geh zum Ziel")',
-        '    say("nelia", "hi")',
+        '    say("nelia", de="Hallo!", en="Hello!")',
         '    log.append(("said", int(time())))',
         '    ok = wait_until(lambda: nelia.is_at(place("goal")), timeout=60)',
         '    log.append(("reached", ok))',
@@ -317,7 +316,7 @@ describe('Debugger via commands', () => {
 
 describe('Saving and determinism', () => {
   const code = 'import random\nfor i in range(6):\n    nelia.step()\n    print(i, random.randint(1, 9))\n';
-  const mission = 'n = 0\n@every(1)\ndef count():\n    global n\n    n += 1\n@on_start\ndef s():\n    say("nelia", "hi")\n';
+  const mission = 'n = 0\n@every(1)\ndef count():\n    global n\n    n += 1\n@on_start\ndef s():\n    say("nelia", de="Hallo!", en="Hello!")\n';
 
   it('same commands, same hash', () => {
     const a = createScenarioSim(scenario([{ id: 'm', level: 'mission', code: mission }, playerSection()]));

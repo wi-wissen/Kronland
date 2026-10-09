@@ -52,7 +52,6 @@ export function scenarioGoals(scenario) {
       if (typeof literal(kw.de) === 'string') text.de = literal(kw.de);
       if (typeof literal(kw.en) === 'string') text.en = literal(kw.en);
     } else text = textOf(kw.text ?? node.args[2]);
-    if (typeof text === 'string' && scenario.texts && Object.hasOwn(scenario.texts, text)) text = scenario.texts[text];
     const primary = literal(kw.primary ?? node.args[3]);
     const hidden = literal(kw.hidden ?? node.args[4]);
     out.push({ id, text: text && (typeof text === 'string' || Object.keys(text).length) ? text : id, primary: primary !== false, hidden: hidden === true });

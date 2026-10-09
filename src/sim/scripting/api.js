@@ -486,7 +486,7 @@ export function makeApi(host, level) {
     return s;
   };
   /**
-   * Text of say/message/objective: one string (one language, or a key of the version-1 table `texts`),
+   * Text of say/message/objective: one string (one language),
    * a dict {"de": …, "en": …} or the keywords de=/en= – then both languages travel along.
    */
   const textArg = (fname, text, de, en, need = true) => {

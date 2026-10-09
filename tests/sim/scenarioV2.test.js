@@ -71,8 +71,8 @@ describe('Level folders', () => {
     const bad = level('');
     bad.sections[0].file = '../evil.py';
     expect(validateScenario(bad).join()).toContain('file must be');
-    // version 1 ends only by script, version 2 by its objectives unless `end` says otherwise
-    expect(scenarioToDef({ ...level(''), version: 1 }).end).toBe('script');
+    // only the current format loads; a level ends by its objectives unless `end` says otherwise
+    expect(validateScenario({ ...level(''), version: 1 }).join()).toContain('version 1 is not supported');
     expect(scenarioToDef(level('')).end).toBe('objectives');
     expect(scenarioToDef(level('', { end: 'script' })).end).toBe('script');
   });
@@ -240,6 +240,12 @@ describe('Save games', () => {
     expect(back.mission.def.custom).toBe(true);
     expect(back.mission.def.next).toBeNull();
   });
+
+  it('a save of a level in the old scenario format 1 cannot go on (missionChanged)', () => {
+    const data = JSON.parse(JSON.stringify(saveGame(createScenarioSim(level('x = 1\n')))));
+    data.mission.scenario.version = 1;
+    expect(() => loadGame(data)).toThrow(expect.objectContaining({ code: 'saves.err.missionChanged' }));
+  });
 });
 
 describe('Talk figures', () => {
@@ -321,23 +327,23 @@ describe('Talk figures', () => {
 });
 
 describe('Outline without running the code', () => {
-  it('objectives of a level: texts inline or from the table, computed ones fall back to the id', async () => {
+  it('objectives of a level: texts inline, computed ones fall back to the id', async () => {
     const { scenarioGoals } = await import('../../src/sim/scripting/outline.js');
     const s = level([
       'objective("homes", lambda: (count("residence"), 2), de="Baue 2 Wohnhäuser", en="Build 2 residences")',
       'objective("old", lambda: False, "Alter Text", False)',
-      'objective("key", None, "k1", hidden=True)',
+      'objective("key", None, "Schlüssel", hidden=True)',
       'objective("dict", text={"de": "A", "en": "B"})',
       'objective(name_from_code, lambda: True)',
       'objective("calc", lambda: True, de=f"{1}")',
       'def later():',
       '    objective("inside", lambda: True, en="Only English")',
       '',
-    ].join('\n'), { texts: { k1: { de: 'Aus der Tabelle', en: 'From the table' } } });
+    ].join('\n'));
     expect(scenarioGoals(s)).toEqual([
       { id: 'homes', text: { de: 'Baue 2 Wohnhäuser', en: 'Build 2 residences' }, primary: true, hidden: false },
       { id: 'old', text: 'Alter Text', primary: false, hidden: false },
-      { id: 'key', text: { de: 'Aus der Tabelle', en: 'From the table' }, primary: true, hidden: true },
+      { id: 'key', text: 'Schlüssel', primary: true, hidden: true },
       { id: 'dict', text: { de: 'A', en: 'B' }, primary: true, hidden: false },
       { id: 'calc', text: 'calc', primary: true, hidden: false },
       { id: 'inside', text: { en: 'Only English' }, primary: true, hidden: false },

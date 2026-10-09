@@ -7,7 +7,7 @@
 // - All VM states are JSON and are part of the save game and the state hash. Budgets count commands.
 
 import { compile, VM, ScriptError, saveVm, loadVm, sourceHash, PyList, PyTuple, PyDict, PyFloat, PyFunction, PyHost, truthy, DATA_DEPTH } from '../../script/index.js';
-import { makeApi, toTicks, toInt, LIMITS, assetPathOk, CLASS_OF } from './api.js';
+import { makeApi, toTicks, toInt, LIMITS, CLASS_OF } from './api.js';
 import { TICKS_PER_SECOND, toTile, tileCenter } from '../fixed.js';
 import { kill } from '../systems/military.js';
 import { clearJob } from '../systems/serfs.js';
@@ -48,8 +48,6 @@ const EVENT_HANDLERS = {
   ability: (ev, h) => ['on_ability', { ability: ev.ability, player: ev.owner }, [h(ev.hero), ev.ability]],
   tributePaid: (ev) => ['on_tribute', { id: ev.id }, [ev.id]],
 };
-/** Own entry of a scenario table (texts, voice …) – never something from Object.prototype ("constructor"). */
-const ownText = (table, key) => (table && Object.hasOwn(table, key) ? table[key] : undefined);
 
 /** Longest line in the output panel. */
 const MAX_LINE = 2000;
@@ -554,12 +552,12 @@ export class ScriptHost {
   // ---------- Staging, goals, output ----------
 
   /**
-   * Text of say/message/objective: literal, key of the version-1 table `texts`, a dict {"de": …} or the
+   * Text of say/message/objective: literal, a dict {"de": …} or the
    * object {de, en} from the keywords de=/en=. Bilingual texts stay objects (the UI picks the language).
    */
   text(v) {
     const cut = (s) => (s.length > LIMITS.text ? s.slice(0, LIMITS.text - 1) + '…' : s);
-    if (typeof v === 'string') return cut(ownText(this.scenario.texts, v) ?? v);
+    if (typeof v === 'string') return cut(v);
     if (v instanceof PyDict) {
       const o = {};
       for (const [k, x] of v.entries()) if (typeof k === 'string' && /^[a-z]{2}$/.test(k)) o[k] = cut(this.vms.mission?.str(x) ?? String(x));
@@ -610,13 +608,9 @@ export class ScriptHost {
   say(speaker, textV, ticks, voice, bubble = false, skipped = false) {
     const st = this.runtime.state;
     const text = this.text(textV);
-    const key = typeof textV === 'string' && ownText(this.scenario.texts, textV) ? textV : null;
     const de = typeof text === 'string' ? text : text.de ?? text.en ?? '';
-    let dur = ticks ?? Math.min(150, Math.max(30, 25 + Math.ceil(de.length * 0.55)));
-    const vlen = key ? ownText(this.scenario.voiceLength, key) : null;
-    if (ticks === null && vlen) dur = Math.max(dur, Math.round(vlen * T) + 5);
-    const own = key ? ownText(this.scenario.voice, key) ?? null : null;
-    const v = voice ?? (assetPathOk(own) || (own && typeof own === 'object') ? own : null);
+    const dur = ticks ?? Math.min(150, Math.max(30, 25 + Math.ceil(de.length * 0.55)));
+    const v = voice ?? null;
     st.messages.push({ seq: ++st.seq, tick: this.sim.tick, speaker, text, voice: v, dur, bubble, ...(skipped ? { skipped: true } : {}) });
     if (st.messages.length > 30) st.messages.shift();
     this.sim.events.push({ type: 'dialog', seq: st.seq, player: st.human });

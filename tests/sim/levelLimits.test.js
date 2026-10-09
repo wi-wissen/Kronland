@@ -7,7 +7,7 @@ import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { validateScenario } from '../../src/sim/scripting/scenario.js';
 
 const base = (mission, extra = {}) => ({
-  format: 'kronland-scenario', version: 1, id: 'limits', kind: 'adventure',
+  format: 'kronland-scenario', version: 2, end: 'script', id: 'limits', kind: 'adventure',
   world: { base: 'flat', width: 20, height: 12, fog: false, starts: [{ x: 4, y: 6 }] },
   players: [{ kind: 'human', hero: 'nelia', hq: false }],
   sections: [{ id: 'm', level: 'mission', code: mission }],
@@ -33,11 +33,11 @@ describe('levels from other people', () => {
     expect(what(sim('say("nelia", "Hallo", voice="https://example.org/a.mp3")\n'))).toEqual(['assetPath']);
     expect(what(sim('say("nelia", "Hallo", voice="../../a.mp3")\n'))).toEqual(['assetPath']);
     expect(errors(sim('say("nelia", "Hallo", voice="audio/voice/a.mp3")\n'))).toEqual([]);
-    const bad = base('', { texts: { hi: 'Hallo' }, voice: { hi: 'https://example.org/a.mp3' } });
-    expect(validateScenario(bad).join()).toMatch(/voice\.hi/);
-    const s = createScenarioSim(bad);
+    // Scenario format 1 (text table texts/voice) no longer loads; a text is never a key into a table
+    expect(validateScenario(base('', { version: 1 })).join()).toMatch(/version 1 is not supported/);
+    const s = createScenarioSim(base('', { texts: { hi: 'Hallo' }, voice: { hi: 'https://example.org/a.mp3' } }));
     s.mission.script.say('nelia', 'hi', null, null);
-    expect(s.mission.state.messages.at(-1).voice).toBeNull();
+    expect(s.mission.state.messages.at(-1)).toMatchObject({ text: 'hi', voice: null });
   });
 
   it('memory: big ranges and doubling lists or texts end in an OverflowError', () => {
@@ -75,7 +75,7 @@ describe('levels from other people', () => {
   it('scenario files are checked for size, names and texts', () => {
     expect(validateScenario(base('', { world: { base: 'flat', width: 5000, height: 12 } })).join()).toMatch(/world\.width/);
     expect(validateScenario(base('', { players: Array.from({ length: 12 }, (_, i) => ({ kind: i ? 'ai' : 'human' })) })).join()).toMatch(/players/);
-    expect(validateScenario(JSON.parse('{"format":"kronland-scenario","version":1,"id":"x","players":[{"kind":"human"}],"texts":{"__proto__":"x"}}')).join()).toMatch(/invalid key/);
+    expect(validateScenario(JSON.parse('{"format":"kronland-scenario","version":2,"id":"x","players":[{"kind":"human"}],"victoryTexts":{"__proto__":"x"}}')).join()).toMatch(/victoryTexts\.__proto__/);
     expect(validateScenario(base('', { title: 42 })).join()).toMatch(/title/);
   });
 });
