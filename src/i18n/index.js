@@ -119,6 +119,7 @@ function nameParams(params) {
   if (typeof params.ability === 'string') out.ability = abilityName(params.ability);
   if (typeof params.hero === 'string') out.hero = heroName(params.hero);
   if (typeof params.holder === 'string') out.holder = heroName(params.holder);
+  if (typeof params.figure === 'string' && has(`script.notA.${params.figure}`)) out.figure = t(`script.notA.${params.figure}`);
   // Parser tokens in words: "found: end of line" instead of "found: NEWLINE"
   if (TOKEN_WORDS.has(params.got)) out.got = t(`script.token.${params.got.toLowerCase()}`);
   return out;

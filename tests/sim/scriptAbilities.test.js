@@ -207,7 +207,13 @@ describe('"To arms!" in scripts', () => {
     const sim = scenario({ bandits: false });
     runCode(sim, 'call_to_arms([nelia])\n');
     run(sim, 2);
-    expect(errText(sim)[0]).toContain('call_to_arms() nimmt nur Leibeigene');
+    expect(errText(sim)[0]).toContain('call_to_arms() nimmt nur Leibeigene, keinen Helden.');
+    expect(errText(sim, 'en')[0]).toContain('call_to_arms() only takes serfs, not a hero.');
+    const other = scenario();
+    runCode(other, 'back_to_work([hq()])\n');
+    run(other, 2);
+    expect(errText(other)[0]).toContain('back_to_work() nimmt nur Leibeigene, kein Gebäude.');
+    expect(errText(other, 'en')[0]).toContain('not a building.');
   });
 });
 

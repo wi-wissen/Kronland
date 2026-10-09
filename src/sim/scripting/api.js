@@ -763,7 +763,7 @@ export function makeApi(host, level) {
     else {
       for (const h of listOfHandles(list)) {
         const e = entityOf(h);
-        if (e.kind !== 'unit') throw gameErr('notSerf', { name: fname, what: CLASS_OF[e.kind] ?? e.kind });
+        if (e.kind !== 'unit') throw gameErr('notSerf', { name: fname, figure: CLASS_OF[e.kind] ?? 'Entity' });
         if (!isMission && e.owner !== human()) throw gameErr('notYours', {});
         if (!byOwner.has(e.owner)) byOwner.set(e.owner, []);
         byOwner.get(e.owner).push(e.id);
