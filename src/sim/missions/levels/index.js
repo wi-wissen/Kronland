@@ -37,8 +37,22 @@ export const LEVELS = Object.entries(folders)
   .filter(([, files]) => files['scenario.json'])
   .map(([dir, files]) => ({ ...packLevel(JSON.parse(files['scenario.json']), (name) => files[name]), folder: dir }));
 
-/** Coding adventures in order. */
+/** Coding adventures in order: the course missions, row by row (`order` = 10 × row + mission, Meisterstück 9). */
 export const ADVENTURES = LEVELS.filter((s) => s.kind === 'adventure').sort(byOrder);
+
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
+
+/**
+ * Course number of a course mission from its id: 'r1-2' → { row: 1, roman: 'I', n: '2', label: 'I.2' },
+ * 'r1-m' → Meisterstück 'I.M'. Other ids (own levels, script missions) → null.
+ * @param {string} id
+ */
+export function courseNumber(id) {
+  const m = /^r([1-5])-(\d|m)$/.exec(id ?? '');
+  if (!m) return null;
+  const row = Number(m[1]), n = m[2].toUpperCase();
+  return { row, roman: ROMAN[row], n, label: `${ROMAN[row]}.${n}` };
+}
 
 /** Script missions: scenarios that are played like missions (normal game, code panel hidden). */
 export const SCRIPT_MISSIONS = LEVELS.filter((s) => s.kind === 'mission').sort(byOrder);
