@@ -7,9 +7,10 @@
 // - All VM states are JSON and are part of the save game and the state hash. Budgets count commands.
 
 import { compile, VM, ScriptError, saveVm, loadVm, sourceHash, PyList, PyTuple, PyDict, PyFloat, PyFunction, PyHost, truthy, DATA_DEPTH } from '../../script/index.js';
-import { makeApi, toTicks, toInt, LIMITS, CLASS_OF } from './api.js';
+import { makeApi, toTicks, toInt, LIMITS, CLASS_OF, abilityScriptName, ALARM_SECONDS } from './api.js';
 import { TICKS_PER_SECOND, toTile, tileCenter } from '../fixed.js';
-import { kill } from '../systems/military.js';
+import { kill, isEnemy } from '../systems/military.js';
+import { canSee } from '../systems/vision.js';
 import { clearJob } from '../systems/serfs.js';
 import { removeWorker } from '../systems/workers.js';
 import { DIRS, faceOf, tileKind } from '../systems/ground.js';
@@ -45,7 +46,7 @@ const EVENT_HANDLERS = {
   serfBought: (ev, h) => ['on_serf_bought', { player: ev.player }, [h(ev.unit)]],
   researchStarted: (ev) => ['on_research_started', { tech: ev.tech, player: ev.player }, [ev.tech]],
   upgradeStarted: (ev, h) => ['on_upgrade_started', { player: ev.player }, [h(ev.building)]],
-  ability: (ev, h) => ['on_ability', { ability: ev.ability, player: ev.owner }, [h(ev.hero), ev.ability]],
+  ability: (ev, h) => ['on_ability', { ability: abilityScriptName(ev.ability), player: ev.owner }, [h(ev.hero), abilityScriptName(ev.ability)]],
   tributePaid: (ev) => ['on_tribute', { id: ev.id }, [ev.id]],
 };
 
@@ -245,10 +246,32 @@ export class ScriptHost {
    */
   dispatch(sim, level, carried = []) {
     for (const ev of carried.concat(sim.events)) {
+      if (ev.type === 'hit') { this.alarm(sim, ev, level); continue; }
       const f = EVENT_HANDLERS[ev.type];
       if (f) { const [kind, info, args] = f(ev, (id) => this.handleOf(id)); this.fire(kind, info, args, level); }
     }
     this.poll(sim, level);
+  }
+
+  /**
+   * @on_event("attacked"): an enemy hit a figure or building of the filtered player (the alarm of the UI). Each handler
+   * hears it at most once per ALARM_SECONDS, so a battle does not start a task per blow. Arguments: what was hit and
+   * the attacker (player programs: None if the player cannot see the attacker).
+   */
+  alarm(sim, ev, level) {
+    const t = sim.entities.get(ev.target), by = sim.entities.get(ev.by);
+    if (!t || t.owner === undefined || t.owner < 0 || !sim.players[t.owner]) return;
+    if (by && !isEnemy(sim, t.owner, by.owner)) return;
+    const st = level === 'mission' ? this.state : this.state.player;
+    this.handlers(level).forEach((h, i) => {
+      const [k, fn, filt] = h.items;
+      if (k !== 'on_attacked' || !this.matches(filt, { player: t.owner })) return;
+      st.alarm ??= {};
+      if (st.alarm[i] !== undefined && sim.tick < st.alarm[i]) return;
+      st.alarm[i] = sim.tick + ALARM_SECONDS * T;
+      const seen = by && (level === 'mission' || canSee(sim, this.runtime.state.human, by));
+      this.spawnHandler(fn, [this.handleOf(t.id), seen ? this.handleOf(by.id) : null], { kind: k, handler: i, level }, level);
+    });
   }
 
   /** Does the player program still take events (not ended by an error or stop)? */
@@ -841,6 +864,7 @@ export class ScriptHost {
     st.player.busy = 0;
     st.player.every = {};
     st.player.enter = {};
+    st.player.alarm = {};
     st.player.listening = false;
     // Events the previous run caused belong to it, not to the new one
     if (st.carry?.player) { delete st.carry.player; if (!st.carry.mission) delete st.carry; }
@@ -1008,7 +1032,7 @@ export class ScriptHost {
   hash(h) {
     const s = this.save();
     const p = s.state.player;
-    h.str(JSON.stringify([s.mission, s.player, s.state.places, s.state.every, s.state.enter, p.status, p.every ?? {}, p.enter ?? {}, s.state.note?.seq ?? 0, s.state.reset ?? null, s.state.talk ?? null, s.state.skip ?? null, s.state.carry ?? null]));
+    h.str(JSON.stringify([s.mission, s.player, s.state.places, s.state.every, s.state.enter, p.status, p.every ?? {}, p.enter ?? {}, s.state.note?.seq ?? 0, s.state.reset ?? null, s.state.talk ?? null, s.state.skip ?? null, s.state.alarm ?? {}, p.alarm ?? {}, s.state.carry ?? null]));
   }
 
   // ---------- UI ----------
