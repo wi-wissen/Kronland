@@ -548,7 +548,7 @@ float kSt = kTrE;
 float kFlat = smoothstep(0.05, 0.4, kTrE) * (1.0 - uSnow);
 float kPath = smoothstep(0.66, 0.92, kTrE) * (1.0 - uSnow);
 float kWorn = 0.0;
-if (uSnow < 0.5 && kSt > 0.3) kWorn = kTrails(kRel, kDir, kSt, 0.4, 0.08, vec2(0.16, 0.11)) * smoothstep(0.25, 0.5, kTrE);
+if (uSnow < 0.5 && kSt > 0.3) kWorn = kTrails(kRel, kDir, kSt, 0.4, 0.08, vec2(0.13, 0.09)) * smoothstep(0.25, 0.5, kTrE);
 wDirt = max(wDirt, max(kPath * 0.92, kWorn * 0.6));
 wMeadow *= 1.0 - max(kPath, kFlat * 0.8);
 float wGrass = max(0.0, 1.0 - wMeadow - wDirt - wSand - wRock);
@@ -577,7 +577,7 @@ kH = mix(kH, kLum(cSnow) * 0.3, sMask);
 // Winter: one walker's footprints from the first step; with more strength more walkers, each a layer of prints
 // turned and shifted a little, until they overlap into a trodden lane (packed snow between them, greyer, flat)
 if (uSnow > 0.5 && kTr > 0.001) {
-  float kP = kSt > 0.3 ? kTrails(kRel, kDir, kSt, 0.32, 0.13, vec2(0.12, 0.075)) : 0.0;
+  float kP = kSt > 0.3 ? kTrails(kRel, kDir, kSt, 0.32, 0.12, vec2(0.075, 0.048)) : 0.0;
   kP *= smoothstep(0.12, 0.35, kTrE) * sMask;
   float kLane = smoothstep(0.45, 0.9, kTrE) * (0.8 + kN * 0.5);
   float kSn = sMask * clamp(max(kLane, smoothstep(0.3, 0.6, kTrE) * 0.15), 0.0, 1.0);

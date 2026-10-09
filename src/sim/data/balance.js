@@ -41,10 +41,9 @@ export const BALANCE = {
     // gain·(max − s)/max there (rounded up, at least 1): quick at first, then less and less – only frequent traffic
     // reaches a path. A broom visits every tile once per sweepSeconds and takes `decay` away (`pathDecay` from the
     // path threshold on: bare earth needs longer to grow over than flattened grass). Steady state for a tile passed
-    // every I seconds: s ≈ max·(1 − decay·I / (gain·sweepSeconds)). Summer: path for I ≲ 27 s (once a path, it
-    // stays one up to I ≈ 40 s), trodden up to I ≈ 43 s, nothing visible from I ≈ 52 s. Snow: lane for I ≲ 42 s,
-    // footprints up to I ≈ 90 s. Measured (scripts: AI settlement, 96×96, 20 min summer): paths only in the alleys
-    // between buildings and on the main routes, about 8 % of the walkable tiles.
+    // every I seconds: s ≈ max·(1 − decay·I / (gain·p/100·sweepSeconds)). With 20 walkers (p = 100 %) in summer: path
+    // for I ≲ 27 s, trodden up to I ≈ 43 s; 5 walkers: path up to 53 s; 150 walkers: path only for I ≲ 10 s
+    // (table in docs/SPIELREGELN.md §14).
     tracks: {
       max: 255,              // strongest track (one byte per tile)
       sweepSeconds: 10,      // the broom visits every tile once in this time (cost per tick: tiles / 100)
