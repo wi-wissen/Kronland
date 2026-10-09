@@ -13,6 +13,7 @@ export default {
   'tdesc.mathematics': 'Unlocks building bridges on bridge sites',
   'toast.bridgeBuilt': 'Bridge finished – the river can be crossed here',
   'toast.bridgeCollapsed': 'A bridge has collapsed',
+  'toast.aiDisabled': 'Computer opponent {player} has failed (AI error) and gives no more commands',
   'err.bridgeSiteOnly': 'Only on a bridge site',
   'err.unreachable': 'Target unreachable',
 };
