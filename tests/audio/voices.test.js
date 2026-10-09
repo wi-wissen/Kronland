@@ -134,13 +134,16 @@ describe('Voiced lines', () => {
     }
   });
 
-  it('every say() line of the campaign levels in Python (mission 1, tutorial) has its recording in German and English', async () => {
+  it('every say() line of the campaign levels in Python (all chapters, tutorial) has its recording in German and English', async () => {
     const { CAMPAIGN_LEVELS } = await import('../../src/sim/missions/levels/index.js');
     const { scenarioLines } = await import('../../src/sim/scripting/outline.js');
     const { missionLines } = await import('../../src/sim/missions/dialogLines.js');
     const { files } = JSON.parse(fs.readFileSync(new URL('../../public/audio/voice/index.json', import.meta.url), 'utf8'));
-    // Lines that were never voiced as mission files either (the village elder's hint for the wrong hero)
-    const UNVOICED = new Set(['Schick mir den Händler, Kind. Der redet für zwei.']);
+    // Lines that were never voiced as mission files either: the hints of talk figures for the wrong hero
+    const UNVOICED = new Set([
+      'Schick mir den Händler, Kind. Der redet für zwei.', 'Ich warte auf Orrin. Er schuldet mir etwas.',
+      'Die Prinzessin soll selbst kommen.', 'Nelia soll selbst kommen.',
+    ]);
     const missing = [];
     let n = 0;
     for (const s of CAMPAIGN_LEVELS) {

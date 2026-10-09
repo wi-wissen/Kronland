@@ -27,7 +27,7 @@ function level(mission, extra = {}) {
 
 describe('Level folders', () => {
   it('every bundled level is a folder with scenario.json and .py files, packed and valid', () => {
-    expect(LEVELS.map((l) => l.folder)).toEqual(['adv1-treasure', 'adv2-corner', 'adv3-wood', 'adv4-stones', 'adv5-village', 'c1-lindgrund', 'm1-raid', 'r1-4-blizzard', 'tutorial']);
+    expect(LEVELS.map((l) => l.folder)).toEqual(['adv1-treasure', 'adv2-corner', 'adv3-wood', 'adv4-stones', 'adv5-village', 'c1-lindgrund', 'c2-beaucroix', 'm1-raid', 'r1-4-blizzard', 'tutorial']);
     for (const l of LEVELS) {
       expect(validateScenario(l), l.id).toEqual([]);
       expect(l.version).toBe(2);

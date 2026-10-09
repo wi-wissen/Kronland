@@ -3,7 +3,7 @@
 // The full matrix (4 maps, table) is delivered by `node scripts/campaign-matrix.js`.
 
 import { describe, it, expect } from 'vitest';
-import { playMission, TIME_LIMITS, ref, objective, until } from './missionBot.js';
+import { playMission, TIME_LIMITS, ref, refIds, objective, until, py, stepWithEvent, takeOut } from './missionBot.js';
 import { meetOrrin } from './playthroughs.js';
 import { getMission } from '../../src/sim/missions/registry.js';
 import { createMissionSim } from '../../src/sim/missions/runtime.js';
@@ -64,14 +64,17 @@ describe('Campaign: setup and texts', () => {
   });
 
   it('mission 2: the debrief follows the path taken (bought or stormed)', () => {
-    const debrief = (flag) => {
+    const debrief = (storm) => {
       const sim = createMissionSim('c2');
-      sim.mission.state.flags[flag] = true;
-      sim.mission.finish(sim, true, 'objectives');
+      // storming: the camp guards are gone – the script picks the ending "stormed"
+      if (storm) takeOut(sim, refIds(sim, 'robber_guards'));
+      sim.run(5);
+      for (const o of sim.mission.state.objectives) if (sim.mission.objectiveDef(o.id).primary) o.status = 'done';
+      until(sim, () => sim.mission.state.result, 1000);
       return sim.mission.uiState(sim).result.debrief.de;
     };
-    expect(debrief('shardBought')).toMatch(/Räuberhauptmann zählt/);
-    expect(debrief('shardStormed')).toMatch(/gefangene Räuber/);
+    expect(debrief(false)).toMatch(/Räuberhauptmann zählt/);
+    expect(debrief(true)).toMatch(/gefangene Räuber/);
   });
 });
 
@@ -97,8 +100,7 @@ describe('Campaign: step-by-step unlocks and pointers', () => {
     expect(sim.checkPlacement(0, 'barracks', h.x, h.y)).toBe('err.notInMission');
     expect(new Set(sim.shafts.map((s) => s.res))).toEqual(new Set(['clay', 'stone']));
     const before = sim.hash();
-    sim.mission.state.flags.traded = true;
-    sim.step();
+    stepWithEvent(sim, { type: 'tradeDone', give: 'wood', take: 'gold', amount: 100 });
     expect(sim.mission.state.available.buildings).toContain('barracks');
     expect(sim.mission.state.tributes.buyShard).toBe('open');
     expect(sim.hash()).not.toBe(before);
@@ -110,11 +112,12 @@ describe('Campaign: step-by-step unlocks and pointers', () => {
 
   it('mission 2: no raids and no offer before the milestone (first trade)', () => {
     const sim = createMissionSim('c2');
+    const bandits = () => [...sim.entities.values()].filter((e) => e.kind === 'leader' && e.owner === sim.mission.state.bandits).length;
+    const guards = bandits();
     for (let i = 0; i < 20 * 60 * 10; i++) sim.step();
-    const st = sim.mission.state;
-    expect(st.fired.offer).toBeUndefined();
-    expect(st.fired.raid).toBeUndefined();
-    expect(st.tributes.buyShard).toBeUndefined();
+    expect(py(sim, 'offered_at')).toBeNull();
+    expect(bandits()).toBe(guards);
+    expect(sim.mission.state.tributes.buyShard).toBeUndefined();
   });
 
   it('research outside the mission list is locked (mission 4: only "Standing Army")', () => {

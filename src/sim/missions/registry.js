@@ -1,7 +1,6 @@
 // Directory of all missions. New mission: create a level folder in levels/ (levels/index.js) – campaign chapters and
 // the tutorial are found by their kind; older chapters are still mission files in campaign/ registered here.
 
-import c2 from './campaign/c2-beaucroix.js';
 import c3 from './campaign/c3-hagenfurt.js';
 import c4 from './campaign/c4-eisenhain.js';
 import c5 from './campaign/c5-morvale.js';
@@ -15,6 +14,7 @@ import { scenarioToDef } from '../scripting/scenario.js';
 const LEVEL_DEFS = Object.fromEntries(CAMPAIGN_LEVELS.map((s) => [s.id, scenarioToDef(s)]));
 const tutorial = LEVEL_DEFS.tutorial;
 const c1 = LEVEL_DEFS.c1;
+const c2 = LEVEL_DEFS.c2;
 
 export const TUTORIAL_ID = tutorial.id;
 

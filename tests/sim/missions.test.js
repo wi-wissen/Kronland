@@ -6,7 +6,7 @@ import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { AiPlayer } from '../../src/ai/AiPlayer.js';
 import { tr } from '../../src/i18n/tr.js';
 import * as api from '../../src/sim/missions/setupApi.js';
-import { act, build, own, hero, objective, stepId, until, idle, P, ref, talkTo } from './missionBot.js';
+import { act, build, own, hero, objective, stepId, until, idle, P, ref, refIds, talkTo, py, stepWithEvent, takeOut, heroOf } from './missionBot.js';
 import { playTutorial, playMission1, meetOrrin } from './playthroughs.js';
 
 /** Small test mission directly from a definition (without registry). */
@@ -429,8 +429,7 @@ describe('Campaign', () => {
     // nothing to buy before the milestone (first trade); then Malvor's herald comes and the offer opens
     sim.run(310);
     expect(st.tributes.buyShard).toBeUndefined();
-    st.flags.traded = true;
-    sim.run(2);
+    stepWithEvent(sim, { type: 'tradeDone', give: 'wood', take: 'gold', amount: 100 });
     expect(st.tributes.buyShard).toBe('open');
     // without enough thalers: rejected
     sim.players[0].stock.gold = 0;
@@ -438,27 +437,35 @@ describe('Campaign', () => {
     // clay debt: only available after the trader's conversation
     expect(act(sim, { type: 'mission', action: 'tribute', id: 'clay' }).some((e) => e.type === 'rejected')).toBe(true);
     const merchant = sim.entities.get(st.npcs.merchant.entity);
-    const orrin = sim.entities.get(st.refs.orrin);
-    orrin.px = merchant.px + 600; orrin.py = merchant.py;
-    sim.run(10);
+    const orrin = heroOf(sim, 'orrin');
+    orrin.px = merchant.px + 600; orrin.py = merchant.py; orrin.path = [];
+    // Nelia is the wrong one: only a hint
+    const nelia = heroOf(sim, 'nelia');
+    nelia.px = merchant.px; nelia.py = merchant.py + 600; nelia.path = [];
+    talkTo(sim, [nelia.id], 'merchant');
+    until(sim, () => st.messages.some((m) => m.speaker === 'merchant'), 3000);
+    expect(st.messages.at(-1).text.de).toMatch(/Ich warte auf Orrin/);
+    expect(st.tributes.clay).toBeUndefined();
+    talkTo(sim, [orrin.id], 'merchant');
+    until(sim, () => st.tributes.clay === 'open', 300);
     expect(st.tributes.clay).toBe('open');
     sim.players[0].stock.clay = 1000;
     act(sim, { type: 'mission', action: 'tribute', id: 'clay' });
     expect(st.tributes).toMatchObject({ clay: 'paid', buyShard: 'closed', buyShardCheap: 'open' });
     sim.players[0].stock.gold = 2000; sim.players[0].stock.wood = 2000;
     act(sim, { type: 'mission', action: 'tribute', id: 'buyShardCheap' });
-    expect(st.flags.shard2).toBe(true);
+    sim.step();
+    expect(py(sim, 'shard')).toBe(true);
     expect(sim.players[0].stock.gold).toBe(1200);
   });
 
   it('mission 2: storming the bandit camp brings Zacke just as well', () => {
     const sim = createMissionSim('c2');
     const st = sim.mission.state;
-    st.flags.traded = true;
-    sim.run(2);
-    for (const id of st.refs.robbersGuards) sim.mission.runAction(sim, { type: 'remove', ref: id });
+    stepWithEvent(sim, { type: 'tradeDone', give: 'wood', take: 'gold', amount: 100 });
+    takeOut(sim, refIds(sim, 'robber_guards'));
     sim.run(5);
-    expect(st.flags.shard2).toBe(true);
+    expect(py(sim, 'shard')).toBe(true);
     expect(st.tributes.buyShard).toBe('closed');
   });
 

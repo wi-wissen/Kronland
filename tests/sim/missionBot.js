@@ -38,6 +38,8 @@ export const idle = (sim, owner = P) => serfs(sim, owner).filter((u) => !u.job &
 export const own = (sim, type, owner = P) => [...sim.entities.values()].filter((e) => e.kind === 'building' && e.owner === owner && e.type === type);
 export const leaders = (sim, owner = P) => [...sim.entities.values()].filter((e) => e.kind === 'leader' && e.owner === owner);
 export const hero = (sim, owner = P) => [...sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === owner);
+/** Hero by name (of a player, default the human). */
+export const heroOf = (sim, name, owner = P) => [...sim.entities.values()].find((e) => e.kind === 'hero' && e.hero === name && e.owner === owner);
 
 /** Player command in the next tick; returns the events of this tick. */
 export const act = (sim, cmd) => sim.step([{ player: P, ...cmd }]);
@@ -112,6 +114,36 @@ export function talkTo(sim, heroIds, npcId) {
 }
 export const stepId = (sim) => sim.mission.currentStep()?.id ?? null;
 
+/**
+ * Global variable of the mission's Python program as a plain value: numbers, texts, bools, None → null, lists and
+ * tuples → arrays, game objects → their entity ID, places → {x, y, r}. Unknown: undefined.
+ */
+export function py(sim, name) {
+  const v = sim.mission.script?.vms.mission?.globals.get(name);
+  const plain = (x) => {
+    if (x === null || x === undefined || typeof x !== 'object') return typeof x === 'bigint' ? Number(x) : x;
+    if (x.items) return x.items.map(plain);
+    if ('v' in x && Object.keys(x).length === 1) return x.v;
+    if (x.cls === 'Place') return ref(sim, String(x.id)) ?? (() => { const [px, py2, r] = String(x.id).slice(1).split(',').map(Number); return { x: px, y: py2, r }; })();
+    if (x.cls !== undefined) return x.id;
+    if (x.map instanceof Map) return Object.fromEntries([...x.map.values()].map(([k, y]) => [k, plain(y)]));
+    return x;
+  };
+  return plain(v);
+}
+
+/** One tick in which the game reports `ev` as well (e.g. a trade at the market) – the mission program hears it. */
+export function stepWithEvent(sim, ev) {
+  const m = sim.mission, update = m.update;
+  m.update = (s) => { m.update = update; s.events.push({ player: P, ...ev }); update.call(m, s); };
+  sim.step();
+}
+
+/** Take figures or buildings out of the game without a trace (as the mission's remove()). */
+export function takeOut(sim, ids) {
+  for (const id of [].concat(ids)) sim.mission.script.takeOut(sim.entities.get(id));
+}
+
 // ---------------------------------------------------------------------------------------------
 // MissionBot
 // ---------------------------------------------------------------------------------------------
@@ -170,7 +202,7 @@ export const STRATEGIES = {
       bot.useHero = false;
       const orrin = bot.heroNamed('orrin');
       // first Orrin's clay debt at the merchant, then buy Zacke free (the way without combat)
-      if (orrin && bot.npcAt('merchant') && bot.m.state.npcs.merchant?.state === 'open') bot.moveUnits([orrin.id], bot.npcAt('merchant'), 'move', 'merchant');
+      if (orrin && bot.m.state.npcs.merchant?.state === 'open') talkTo(bot.sim, [orrin.id], 'merchant');
       bot.payTribute('clay', 0);
       // first the market (needs thalers), then buy Zacke free
       if (bot.objective('market')?.status === 'done' && !bot.payTribute('buyShardCheap')) bot.payTribute('buyShard');
