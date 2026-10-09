@@ -615,8 +615,10 @@ if (uSnow > 0.5 && kTr > 0.001) {
     float kRn = (texture2D(tMacro, vWPos.xz * 0.37 + 0.2).g - 0.5) * 0.2 + (texture2D(tMacro, vWPos.xz * 1.1 + 0.6).b - 0.5) * 0.14;
     // dusting along the prints from the first steps, a lane only from medium strength (relative to the ridge of the
     // field, so it stays narrow); the frayed edge comes from the noise
-    float kRl = smoothstep(0.4, 0.52, kTrE + kRn) * (0.35 + 0.65 * smoothstep(0.45, 0.85, kTrE));
-    float kRd = smoothstep(0.17, 0.3, kTrE + kRn) * 0.16;
+    // relative to the ridge of the field (its height ≈ 0.8 × the stage), so the lane stays as narrow as the footprint lane
+    float kRg = kTrE / max(0.2, kTs.r * 0.8) + kRn;
+    float kRl = smoothstep(0.84, 0.96, kRg) * smoothstep(0.3, 0.5, kTs.r) * (0.4 + 0.6 * smoothstep(0.45, 0.9, kTs.r));
+    float kRd = smoothstep(0.74, 0.9, kRg) * smoothstep(0.12, 0.3, kTs.r) * 0.12;
     vec2 kRp = kSt > 0.2 ? kTrails(kRel, kDir, kSt, 0.2, 0.14, vec2(0.1, 0.05), 0.3) : vec2(0.0);
     vec3 kPack = cSnow * vec3(0.9, 0.94, 1.0);
     albedo = mix(albedo, kPack, max(kRl, kRd) * kRk * 0.9);
