@@ -10,7 +10,7 @@ import { VISION } from '../../sim/data/vision.js';
 import { MARKET } from '../../sim/data/market.js';
 import { DAMAGE } from '../../sim/systems/damage.js';
 import { CAMPAIGN } from '../../sim/missions/registry.js';
-import { ADVENTURES, SCRIPT_MISSIONS } from '../../sim/missions/levels/index.js';
+import { ADVENTURES, SCRIPT_MISSIONS, courseNumber } from '../../sim/missions/levels/index.js';
 import { t, tr, heroName, has } from '../../i18n/index.js';
 
 const named = (key, fallback, lang) => (has(key) ? t(key, null, lang) : (fallback ?? key));
@@ -89,8 +89,8 @@ export function manualVars(lang, credits = '') {
     fountainTech: named(`tech.${BUILDINGS.fountain.requires}`, BUILDINGS.fountain.requires, lang),
     statueTech: named(`tech.${BUILDINGS.statue.requires}`, BUILDINGS.statue.requires, lang),
     campaignList: CAMPAIGN.map((m, i) => `${i + 1}. **${tr(m.title, lang)}**`).join('\n'),
-    // Coding adventures (src/sim/missions/scenarios)
-    adventureList: ADVENTURES.map((a, i) => `${i + 1}. **${tr(a.title, lang)}** – ${tr(a.summary, lang)}${a.learn ? ` *(${tr(a.learn, lang).join(', ')})*` : ''}`).join('\n'),
+    // Course missions (src/sim/missions/levels), with their course number (I.2 … III.M)
+    adventureList: ADVENTURES.map((a, i) => `- **${courseNumber(a.id)?.label ?? i + 1} ${tr(a.title, lang)}** – ${tr(a.summary, lang)}${a.learn ? ` *(${tr(a.learn, lang).join(', ')})*` : ''}`).join('\n'),
     scriptMissions: SCRIPT_MISSIONS.map((m) => `„${tr(m.title, lang)}“`).join(', '),
     credits: creditsMarkdown(credits),
   };

@@ -422,11 +422,15 @@ export the ones that matter.
 
 In the **coding adventures** you don't steer your hero with the mouse but with a program written in **Python**.
 They are meant for anyone who wants to learn programming – in class, too. No prior knowledge needed: every
-adventure explains what is new.
+mission explains what is new.
 
-Open **Coding Adventures** in the start menu. The adventures build on each other:
+Open **Coding Adventures** in the start menu. The missions belong to the rows of the programming course and tell
+Nelia's story onwards – I.2 is row I, mission 2, M the masterpiece at the end of a row:
 
 {{adventureList}}
+
+Every course mission consists of stages on the same map: first predict what a finished note does, then change it,
+then write your own. **Run** starts the current stage over – so you can try as often as you like.
 
 There is also the script mission {{scriptMissions}}, a normal game whose story is written entirely in Python.
 

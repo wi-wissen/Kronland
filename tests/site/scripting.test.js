@@ -151,23 +151,20 @@ describe('Scripting reference: examples work', () => {
     }
   });
 
-  for (const [id, w] of Object.entries(WORKED)) {
+  // Examples from the course missions (w.course) are played stage by stage in tests/levels/course.test.js
+  for (const [id, w] of Object.entries(WORKED).filter(([, x]) => !x.course)) {
     it(`worked example ${id}`, () => {
-      for (const lang of LANGS) {
-        const code = refExample(id, lang);
-        if (w.adventure) {
-          const sim = createMissionSim(w.adventure);
-          sim.step();
-          sim.command({ type: 'script', player: 0, action: 'run', sections: { player: code } });
-          for (let i = 0; i < 4000 && !sim.mission.state.result; i++) sim.step();
-          expect(sim.mission.script.state.errors.filter((e) => e.level === 'player'), `${id} ${lang}`).toEqual([]);
-          expect(sim.mission.state.result, `${id} ${lang}`).toMatchObject({ won: true });
-        } else {
-          expect(runInGame(code, w.level, 600), `${id} ${lang}`).toEqual([]);
-        }
-      }
+      for (const lang of LANGS) expect(runInGame(refExample(id, lang), w.level, 600), `${id} ${lang}`).toEqual([]);
     });
   }
+
+  it('worked examples from the course missions name a bundled mission and one of its stages', () => {
+    for (const [id, w] of Object.entries(WORKED).filter(([, x]) => x.course)) {
+      const sim = createMissionSim(w.course);
+      expect(sim.mission.script.state.errors, id).toEqual([]);
+      expect(sim.mission.def.scenario.sections.find((s) => s.id === 'mission').code, id).toContain(`objective("${w.stage}"`);
+    }
+  });
 });
 
 describe('Scripting reference: page', () => {

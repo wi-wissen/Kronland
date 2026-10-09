@@ -5,6 +5,9 @@ import { createMissionSim } from '../../src/sim/missions/runtime.js';
 import { StageSnapshot } from '../../src/sim/stage.js';
 import { ADVENTURES, getScenario } from '../../src/sim/missions/registry.js';
 import { courseNumber } from '../../src/sim/missions/levels/index.js';
+import { refExample } from '../../src/ui/script/reference.js';
+
+const LANGS = ['de', 'en'];
 
 const hero = (sim) => [...sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === 0);
 const tile = (sim) => { const e = hero(sim); return [Math.floor(e.px / 1000), Math.floor(e.py / 1000)]; };
@@ -52,7 +55,7 @@ describe('Course missions in the adventure menu', () => {
 });
 
 describe('I.2 "Taler für die Mägde"', () => {
-  it('the maid hands over a note; the model solution wins all four stages', () => {
+  it.each(LANGS)('the maid hands over a note; the model solution wins all four stages (%s)', (lang) => {
     const state = play('r1-2');
     until(state.sim, () => active(state.sim).includes('predict'));
     const note = state.sim.mission.script.state.note;
@@ -80,7 +83,7 @@ describe('I.2 "Taler für die Mägde"', () => {
     // Stage 3: a straight line runs into the thicket; the zigzag loop reaches the top
     runAs(state, lines('for i in range(5):', '    nelia.step()'));
     until(state.sim, () => said(state.sim, /Hier komme ich nicht weiter/));
-    runAs(state, lines('for i in range(5):', '    nelia.step()', '    nelia.turn_left()', '    nelia.step()', '    nelia.turn_right()'));
+    runAs(state, refExample('zigzag', lang));
     until(state.sim, () => active(state.sim).includes('fire'));
     expect(tile(state.sim)).toEqual([4, 34]);
     expect(state.sim.players[0].stock.gold).toBe(8);
@@ -94,7 +97,7 @@ describe('I.2 "Taler für die Mägde"', () => {
 });
 
 describe('I.5 "Holz für die erste Nacht"', () => {
-  it('counting with variables: the model solution wins all four stages', () => {
+  it.each(LANGS)('counting with variables: the model solution wins all four stages (%s)', (lang) => {
     const state = play('r1-5');
     until(state.sim, () => active(state.sim).includes('predict'));
     const note = state.sim.mission.script.state.note;
@@ -125,10 +128,7 @@ describe('I.5 "Holz für die erste Nacht"', () => {
     // Stage 3: count the steps to the brook and walk back just as far
     runAs(state, lines('steps = 0', 'while nelia.can_step():', '    nelia.step()', '    steps = steps + 1'));
     until(state.sim, () => said(state.sim, /aber ich stehe nicht am Start/));
-    runAs(state, lines(
-      'steps = 0', 'while nelia.front() != "ice":', '    nelia.step()', '    steps = steps + 1',
-      'nelia.turn_left()', 'nelia.turn_left()', 'for i in range(steps):', '    nelia.step()',
-    ));
+    runAs(state, refExample('brook', lang));
     until(state.sim, () => active(state.sim).includes('six'));
     expect(tile(state.sim)).toEqual([2, 33]);
 
@@ -143,19 +143,8 @@ describe('I.5 "Holz für die erste Nacht"', () => {
   });
 });
 
-const RIGHT_HAND = lines(
-  'while not nelia.is_at(place("exit")):',
-  '    if nelia.right() == "free":',
-  '        nelia.turn_right()',
-  '        nelia.step()',
-  '    elif nelia.can_step():',
-  '        nelia.step()',
-  '    else:',
-  '        nelia.turn_left()',
-);
-
 describe('I.M "Heimweg durchs Unterholz"', () => {
-  it('no note; turning right when blocked solves the edge, the right-hand rule every thicket', () => {
+  it.each(LANGS)('no note; turning right when blocked solves the edge, the right-hand rule every thicket (%s)', (lang) => {
     const state = play('r1-m');
     until(state.sim, () => active(state.sim).includes('edge'));
     expect(state.sim.mission.script.state.note).toBeFalsy();
@@ -171,12 +160,12 @@ describe('I.M "Heimweg durchs Unterholz"', () => {
     expect(active(state.sim)).toEqual(['thicket']);
     state.sim.command({ type: 'script', player: 0, action: 'stop' });
     until(state.sim, () => said(state.sim, /Ich drehe mich im Kreis/));
-    runAs(state, RIGHT_HAND);
+    runAs(state, refExample('thicket', lang));
     until(state.sim, () => active(state.sim).includes('home'), 6000);
     expect(tile(state.sim)).toEqual([2, 24]);
 
     // Stage 3: the same program in undergrowth that grew differently; the stranger waits on the square
-    runAs(state, RIGHT_HAND);
+    runAs(state, refExample('thicket', lang));
     until(state.sim, () => !!state.sim.mission.state.result, 6000);
     expect(state.sim.mission.state.result).toMatchObject({ won: true });
     expect(tile(state.sim)).toEqual([23, 26]);
@@ -187,7 +176,7 @@ describe('I.M "Heimweg durchs Unterholz"', () => {
 });
 
 describe('II.1 "Orrins Abkürzung"', () => {
-  it('functions without parameters: the model solution wins all three stages', () => {
+  it.each(LANGS)('functions without parameters: the model solution wins all three stages (%s)', (lang) => {
     const state = play('r2-1');
     until(state.sim, () => active(state.sim).includes('predict'));
     const note = state.sim.mission.script.state.note;
@@ -211,17 +200,7 @@ describe('II.1 "Orrins Abkürzung"', () => {
     expect(tile(state.sim)).toEqual([2, 23]);
 
     // Stage 3: own commands fetch the coins left and right of the path
-    runAs(state, lines(
-      'def turn_around():', '    nelia.turn_left()', '    nelia.turn_left()',
-      '',
-      'def fetch_left():', '    nelia.turn_left()', '    nelia.step()', '    nelia.take()', '    turn_around()', '    nelia.step()', '    nelia.turn_left()',
-      '',
-      'def fetch_right():', '    nelia.turn_right()', '    nelia.step()', '    nelia.take()', '    turn_around()', '    nelia.step()', '    nelia.turn_right()',
-      '',
-      'while nelia.can_step():', '    nelia.step()',
-      '    if nelia.left() == "coin":', '        fetch_left()',
-      '    if nelia.right() == "coin":', '        fetch_right()',
-    ));
+    runAs(state, refExample('fetch', lang));
     until(state.sim, () => !!state.sim.mission.state.result, 6000);
     expect(state.sim.mission.state.result).toMatchObject({ won: true });
     expect(state.sim.players[0].stock.gold).toBe(10);
@@ -230,7 +209,7 @@ describe('II.1 "Orrins Abkürzung"', () => {
 });
 
 describe('III.M "Lindgrund steht wieder"', () => {
-  it('a whole village by program: gather wood and clay, then build from a plan', () => {
+  it.each(LANGS)('a whole village by program: gather wood and clay, then build from a plan (%s)', (lang) => {
     const state = play('r3-m');
     const sim = state.sim;
     // The village centre has decayed: only its site is left; the stock is not enough for the plan
@@ -241,27 +220,7 @@ describe('III.M "Lindgrund steht wieder"', () => {
     // Run restarts nothing in a building mission
     runAs(state, 'print(len(serfs()))\n');
     expect(state.sim).toBe(sim);
-    runAs(state, lines(
-      'plan = [["villageCenter", 300, 300], ["residence", 150, 100], ["residence", 150, 100], ["farm", 200, 150], ["farm", 200, 150]]',
-      'helpers = serfs()',
-      'piles = piles_near(hq(), 12, "wood") + piles_near(hq(), 12, "clay")',
-      '',
-      'def gather():',
-      '    for i in range(len(helpers)):',
-      '        helpers[i].work_on(piles[i % len(piles)])',
-      '',
-      'def build_on(kind):',
-      '    spot = find_spot(kind, hq())',
-      '    return build(kind, spot[0], spot[1])',
-      '',
-      'for step in plan:',
-      '    gather()',
-      '    wait_until(lambda: stock("wood") >= step[1] and stock("clay") >= step[2])',
-      '    site = build_on(step[0])',
-      '    for s in helpers:',
-      '        s.work_on(site)',
-      '    wait_until(lambda: site.done)',
-    ));
+    runAs(state, refExample('village', lang));
     until(sim, () => !!sim.mission.state.result, 20000);
     expect(sim.mission.state.result).toMatchObject({ won: true });
     expect(sim.mission.state.messages.some((m) => m.speaker === 'herald')).toBe(true);

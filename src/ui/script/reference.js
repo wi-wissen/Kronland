@@ -472,16 +472,17 @@ const EN_TEXT = [
   ['"Holz Holz Holz".replace("Holz", "Stein")', '"wood wood wood".replace("wood", "stone")'], ['"Holz", "Holz2"', '"wood", "wood2"'],
   ['{} hat {} Holz', '{} has {} wood'], ['"Holz".center', '"wood".center'], ['"Holz".ljust', '"wood".ljust'], ['"Eiche"', '"oak"'], ['"Buche"', '"beech"'],
   ['Hallo!', 'Hello!'], ['Angekommen!', 'Arrived!'],
-  ['# Abenteuer 1: zehn Schritte geradeaus', '# Adventure 1: ten steps straight ahead'],
-  ['# Abenteuer 2: um die Ecke – laufen, bis das Ziel erreicht ist', '# Adventure 2: round the corner – walk until the goal is reached'],
-  ['# Abenteuer 3: die ganze Talerreihe einsammeln, egal wie lang sie ist', '# Adventure 3: collect the whole row of thalers, however long it is'],
-  ['Taler eingesammelt', 'thalers collected'], ['# Abenteuer 4: Taler links und rechts vom Weg holen', '# Adventure 4: fetch thalers left and right of the path'],
-  ['# viermal gedreht: wieder die alte Richtung', '# turned four times: the old direction again'],
+  ['# I.2: im Zickzack den Hang hinauf – eine Schleife mit mehreren Befehlen', '# I.2: up the slope in a zigzag – a loop with several commands'],
+  ['# I.5: Schritte bis zum Eis zählen und genauso weit zurückgehen', '# I.5: count the steps up to the ice and walk back just as far'],
+  ['Schritte hin und zurück', 'steps there and back'],
+  ['# I.M: mit der rechten Hand an den Bäumen durchs Unterholz', '# I.M: through the undergrowth with the right hand on the trees'],
+  ['# II.1: eigene Befehle holen die Taler links und rechts vom Weg', '# II.1: own commands fetch the coins left and right of the path'],
+  ['# zweimal links: Nelia schaut zurück', '# twice left: Nelia looks back'],
   ['Rechts:', 'Right:'], ['"Hier:"', '"Here:"'], ['Hier liegt:', 'Here lies:'], ['Feinde in der Nähe', 'enemies nearby'], ['Taler in der Nähe', 'thalers nearby'],
   ['Das Wasser ist gefroren und trägt.', 'The water is frozen and carries.'], ['"Wetter:"', '"Weather:"'], ['Ohne Wetterturm keine Vorhersage', 'No forecast without a weather tower'],
   ['"Trupps")', '"troops")'], ['# in dieser Etappe ist das Finden des Fehlers die Aufgabe', '# in this stage finding the mistake is the task'],
   ['# ein junger Baum', '# a young tree'], ['"Taler")', '"thalers")'],
-  ['# Abenteuer 5: ein Dorf per Programm', '# Adventure 5: a village by program'], ['Fertig nach', 'Done after'], ['"Sekunden"', '"seconds"'],
+  ['# III.M: ein Dorf nach Bauplan – Gebäude, Holz, Lehm', '# III.M: a village by plan – building, wood, clay'], ['"fertig nach"', '"done after"'], ['"Sekunden"', '"seconds"'],
   ['# Holzfäller: untätige Leibeigene an die nächsten Bäume schicken', '# Lumberjacks: send idle serfs to the nearest trees'],
   ['Leibeigene fällen Bäume', 'serfs are felling trees'], ['Nach 30 Sekunden:', 'After 30 seconds:'], ['Holz mehr', 'more wood'],
   ['# Bestandsaufnahme: Gebäude zählen, Figuren durchlaufen', '# Inventory: count buildings, walk through figures'],
@@ -509,15 +510,16 @@ export const refAnchor = (name) => BASICS_ANCHOR[name] ?? name;
 export const refUrl = (name) => siteUrl('scripting/') + (name ? `#${encodeURIComponent(refAnchor(name))}` : '');
 
 /**
- * Longer worked examples for the reference (chapter "examples"). adventure: solves this learning adventure
- * (checked in tests/site/scripting.test.js); level: runs as player program or mission script in the test scenario.
+ * Longer worked examples for the reference (chapter "examples"). course + stage: solves this stage of a course
+ * mission (played stage by stage in both languages in tests/levels/course.test.js); level: runs as player program or
+ * mission script in the test scenario (tests/site/scripting.test.js).
  */
 export const WORKED = {
-  adv1: { adventure: 'adv1', code: '# Abenteuer 1: zehn Schritte geradeaus\nfor i in range(10):\n    nelia.step()\n' },
-  adv2: { adventure: 'adv2', code: '# Abenteuer 2: um die Ecke – laufen, bis das Ziel erreicht ist\nwhile not nelia.is_at(place("goal")):\n    if nelia.can_step():\n        nelia.step()\n    else:\n        nelia.turn_right()\n' },
-  adv3: { adventure: 'adv3', code: '# Abenteuer 3: die ganze Talerreihe einsammeln, egal wie lang sie ist\ncount = 0\nwhile nelia.front() == "coin":\n    nelia.step()\n    nelia.take()\n    count = count + 1\nprint(count, "Taler eingesammelt")\n' },
-  adv4: { adventure: 'adv4', code: '# Abenteuer 4: Taler links und rechts vom Weg holen\ndef fetch(turn):\n    turn()\n    nelia.step()\n    nelia.take()\n    turn()\n    turn()\n    nelia.step()\n    turn()  # viermal gedreht: wieder die alte Richtung\n\nwhile nelia.can_step():\n    nelia.step()\n    if nelia.left() == "coin":\n        fetch(nelia.turn_left)\n    if nelia.right() == "coin":\n        fetch(nelia.turn_right)\n' },
-  adv5: { adventure: 'adv5', code: '# Abenteuer 5: ein Dorf per Programm\ndef build_one(kind, helpers=3):\n    spot = find_spot(kind, hq())\n    site = build(kind, spot[0], spot[1])\n    for s in serfs(idle=True)[:helpers]:\n        s.work_on(site)\n    return site\n\nsites = [build_one("residence"), build_one("residence"), build_one("farm")]\nwait_until(lambda: all(s.done for s in sites))\nprint("Fertig nach", round(time()), "Sekunden")\n' },
+  zigzag: { course: 'r1-2', stage: 'slope', code: '# I.2: im Zickzack den Hang hinauf – eine Schleife mit mehreren Befehlen\nfor i in range(5):\n    nelia.step()\n    nelia.turn_left()\n    nelia.step()\n    nelia.turn_right()\n' },
+  brook: { course: 'r1-5', stage: 'brook', code: '# I.5: Schritte bis zum Eis zählen und genauso weit zurückgehen\nsteps = 0\nwhile nelia.front() != "ice":\n    nelia.step()\n    steps = steps + 1\nnelia.turn_left()\nnelia.turn_left()\nfor i in range(steps):\n    nelia.step()\nprint(steps, "Schritte hin und zurück")\n' },
+  thicket: { course: 'r1-m', stage: 'thicket', code: '# I.M: mit der rechten Hand an den Bäumen durchs Unterholz\nwhile not nelia.is_at(place("exit")):\n    if nelia.right() == "free":\n        nelia.turn_right()\n        nelia.step()\n    elif nelia.can_step():\n        nelia.step()\n    else:\n        nelia.turn_left()\n' },
+  fetch: { course: 'r2-1', stage: 'coins', code: '# II.1: eigene Befehle holen die Taler links und rechts vom Weg\ndef turn_around():\n    nelia.turn_left()\n    nelia.turn_left()  # zweimal links: Nelia schaut zurück\n\ndef fetch_left():\n    nelia.turn_left()\n    nelia.step()\n    nelia.take()\n    turn_around()\n    nelia.step()\n    nelia.turn_left()\n\ndef fetch_right():\n    nelia.turn_right()\n    nelia.step()\n    nelia.take()\n    turn_around()\n    nelia.step()\n    nelia.turn_right()\n\nwhile nelia.can_step():\n    nelia.step()\n    if nelia.left() == "coin":\n        fetch_left()\n    if nelia.right() == "coin":\n        fetch_right()\n' },
+  village: { course: 'r3-m', stage: 'farms', code: '# III.M: ein Dorf nach Bauplan – Gebäude, Holz, Lehm\nplan = [["villageCenter", 300, 300], ["residence", 150, 100], ["residence", 150, 100], ["farm", 200, 150], ["farm", 200, 150]]\nhelpers = serfs()\npiles = piles_near(hq(), 12, "wood") + piles_near(hq(), 12, "clay")\n\ndef gather():\n    for i in range(len(helpers)):\n        helpers[i].work_on(piles[i % len(piles)])\n\ndef build_on(kind):\n    spot = find_spot(kind, hq())\n    return build(kind, spot[0], spot[1])\n\nfor step in plan:\n    gather()\n    wait_until(lambda: stock("wood") >= step[1] and stock("clay") >= step[2])\n    site = build_on(step[0])\n    for s in helpers:\n        s.work_on(site)\n    wait_until(lambda: site.done)\n    print(step[0], "fertig nach", round(time()), "Sekunden")\n' },
   lumber: {
     level: 'player',
     code: '# Holzfäller: untätige Leibeigene an die nächsten Bäume schicken\ndef lumber(n):\n    trees = trees_near(hq(), radius=15)\n    idle = serfs(idle=True)\n    pairs = list(zip(idle[:n], trees))\n    for serf, tree in pairs:\n        serf.work_on(tree)\n    return len(pairs)\n\nstart = stock("wood")\nprint(lumber(4), "Leibeigene fällen Bäume")\nwait(30)\nprint("Nach 30 Sekunden:", stock("wood") - start, "Holz mehr")\n',
