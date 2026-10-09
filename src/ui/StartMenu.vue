@@ -1,14 +1,16 @@
 <template>
   <div class="start backdrop" data-testid="start-menu">
     <div class="sm-wrap">
-      <!-- Quiet corner top right: language, settings, account (only "Sign in" is a real button) -->
-      <div class="sm-corner">
+      <!-- Quiet corners: language top left; settings and account top right (only "Sign in" is a real button) -->
+      <div class="sm-corner sm-corner-l">
         <div class="sm-lang" role="radiogroup" :aria-label="$t('menu.language')">
           <template v-for="(l, i) in ['de', 'en']" :key="l">
             <span v-if="i" class="sm-dot" aria-hidden="true">·</span>
             <button class="ghost sm-langbtn" role="radio" :aria-checked="$i18n.lang === l" :class="{ active: $i18n.lang === l }" :lang="l" :data-testid="'menu-lang-' + l" @click="setLang(l)">{{ l.toUpperCase() }}</button>
           </template>
         </div>
+      </div>
+      <div class="sm-corner">
         <button class="ghost icon-btn" data-testid="menu-settings" :aria-label="$t('menu.settings')" v-tip="$t('menu.settings')" @click="settingsOpen = true"><Icon name="settings" /></button>
         <!-- Account: only where a server is configured (public/kronland.config.json) -->
         <div v-if="net.server" class="sm-account" data-testid="account">
@@ -71,7 +73,6 @@
               <small>{{ k.line }}</small>
             </span>
             <span v-if="k.fresh" class="sm-new">{{ $t('lib.new') }}</span>
-            <span v-if="k.done" class="sm-done" aria-hidden="true"><Icon name="check" /></span>
           </button>
         </div>
       </section>
@@ -240,10 +241,11 @@ export default {
 }
 .backdrop > * { position: relative; z-index: 1; }
 .backdrop.loading { --backdrop-art: var(--art-loading, var(--art-title, none)); }
-.sm-wrap { max-width: 60rem; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 1rem; padding-top: 2.75rem; }
+.sm-wrap { max-width: 60rem; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 1rem; padding-top: calc(var(--touch) + 1rem); }
 
 /* Corner: quiet text and symbols without frames */
 .sm-corner { position: absolute; top: max(0.5rem, var(--safe-t)); right: max(0.75rem, var(--safe-r)); z-index: 3; display: flex; justify-content: flex-end; align-items: center; gap: 0.25rem; }
+.sm-corner-l { right: auto; left: max(0.75rem, var(--safe-l)); }
 .sm-corner > button, .sm-langbtn { color: #fff3da; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85); }
 .sm-lang { display: flex; align-items: center; }
 .sm-langbtn { min-width: var(--touch); padding-inline: 0.5rem; font-weight: 600; }
@@ -283,7 +285,7 @@ export default {
 .sm-hero-acts { display: flex; align-items: center; gap: 0.5rem 1rem; flex-wrap: wrap; margin-top: 0.625rem; }
 .sm-continue { min-height: 3.25rem; padding-inline: 2rem; font-size: var(--fs-xl); font-family: var(--display); }
 .sm-allsaves { font-size: var(--fs-sm); }
-.sm-saves-link { align-self: center; color: #fff3da; background: rgba(20, 12, 8, 0.55); border-radius: 999px; padding-inline: 1rem; }
+button.sm-saves-link { align-self: center; color: #fff3da; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85); background: rgba(20, 12, 8, 0.6); border-radius: 999px; padding-inline: 1rem; }
 
 /* Library tile and the kinds */
 .sm-library { padding: 0.875rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
@@ -306,8 +308,6 @@ export default {
 .sm-seal { flex: none; width: 3.25rem; height: 3.25rem; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 30%, #fbf1d6, #c9a66b); box-shadow: inset 0 0 0 2px var(--gold-500), 0 0 0 2px var(--wood-950), 0 3px 6px rgba(0, 0, 0, 0.5); }
 .sm-seal .ico { width: 2.125rem; height: 2.125rem; }
 .sm-new { position: absolute; top: 0.375rem; right: 0.5rem; padding: 0 0.5rem; border-radius: 999px; background: var(--bad); color: #2a0b05; font-size: var(--fs-xs); font-weight: 800; line-height: 1.4rem; }
-.sm-done { position: absolute; top: 0.375rem; right: 0.5rem; width: 1.5rem; height: 1.5rem; border-radius: 50%; display: grid; place-items: center; background: var(--good-deep); color: #fff; }
-.sm-done .ico { width: 1rem; height: 1rem; }
 .sm-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.625rem; }
 .sm-credits { margin: 0; text-align: center; color: rgba(255, 243, 218, 0.75); font-size: var(--fs-xs); text-shadow: 0 1px 2px #000; }
 .sm-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.25rem 1.25rem; }

@@ -58,7 +58,7 @@ test('Start menu with a save game: the big "Weiterspielen" continues, "Alle Spie
   await expect(page.getByTestId('continue-card')).toBeVisible();
   await expect(page.getByTestId('continue-name')).toHaveText('Freies Spiel');
   await expect(page.getByTestId('continue-card')).toContainText('Karte 42');
-  await expect(page.getByTestId('continue-card')).toContainText('Gespeichert');
+  await expect(page.getByTestId('continue-card')).toContainText(/gespeichert/i);
   await expect(page.getByTestId('menu-saves')).toHaveText('Alle Spielstände (1)');
   await page.getByTestId('menu-saves').click();
   await expect(page.getByTestId('save-item')).toHaveCount(1);
