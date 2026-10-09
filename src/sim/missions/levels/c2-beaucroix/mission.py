@@ -148,7 +148,7 @@ def stormed():
 def raids():
     wait_until(lambda: offered_at is not None)
     for i in range(3):
-        wait(300)
+        wait_until(lambda: time() >= offered_at + 300 * (i + 1))
         if shard:
             return
         wave = spawn(BANDITS, "sword1", place("robbers"), count=2, soldiers=3)

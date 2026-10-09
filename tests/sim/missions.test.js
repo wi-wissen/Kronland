@@ -560,15 +560,21 @@ describe('Campaign', () => {
   it('mission 4: Taran withdraws when he falls; the mining master hands over only after the siege', () => {
     const sim = createMissionSim('c4');
     const st = sim.mission.state;
-    const taran = sim.entities.get(st.refs.taran);
+    const taran = sim.entities.get(py(sim, 'taran_foe'));
     expect(taran.owner).toBe(st.bandits);
     taran.hp = 0; taran.down = true;
     sim.run(2);
     expect(sim.entities.has(taran.id)).toBe(false);
     expect(st.npcs.miner).toBeUndefined();
-    for (const id of st.refs.siegeGuards) sim.mission.runAction(sim, { type: 'remove', ref: id });
+    takeOut(sim, refIds(sim, 'siege_guards'));
     sim.run(2);
     expect(st.npcs.miner?.state).toBe('open');
+    // only Nelia gets the shard
+    const miner = sim.entities.get(st.npcs.miner.entity), nelia = heroOf(sim, 'nelia');
+    nelia.px = miner.px + 800; nelia.py = miner.py; nelia.path = [];
+    talkTo(sim, [nelia.id], 'miner');
+    until(sim, () => objective(sim, 'shard').status === 'done', 300);
+    expect(objective(sim, 'shard').status).toBe('done');
   });
 
   it('mission 4: mercenary or serfs – whoever pays for one cannot have the other any more', () => {
