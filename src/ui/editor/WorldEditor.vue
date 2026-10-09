@@ -754,7 +754,7 @@ export default {
 .editor.compact .ed-lbl { display: none; }
 .editor.compact .ed-top { gap: 0.25rem; padding: 0.25rem; }
 .editor.compact .ed-title { min-width: 0; width: 0; flex: 1; font-size: var(--fs-md); }
-.editor.compact .ed-actions { gap: 0.2rem; }
+.editor.compact .ed-actions { gap: 0.2rem; min-width: 0; overflow-x: auto; } /* more buttons than a phone is wide: scroll, never widen the page */
 .editor.compact .ed-actions > button, .editor.compact .ed-file-btn { min-height: 2.25rem; padding: 0 0.45rem; }
 .editor.compact .ed-actions .icon-btn { min-width: 2.25rem; }
 .editor.compact .ed-side-fab { bottom: calc(5.75rem + var(--safe-b)); }
