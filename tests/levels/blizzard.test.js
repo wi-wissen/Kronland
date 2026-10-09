@@ -168,6 +168,21 @@ describe('Mission I.4 "Im Schneetreiben"', () => {
     expect(active(state.sim)).toEqual(['coin']);
   });
 
+  it('a check that solves the coin stage without a run: the hut goal is active before Nelia walks to the coin; Run during the walk is safe', () => {
+    const state = play('normal');
+    until(state.sim, () => active(state.sim).includes('predict'));
+    runAs(state, state.loads[0]);
+    until(state.sim, () => active(state.sim).includes('coin'));
+    expect(checkAs(state, COIN).passed).toBe(true);
+    until(state.sim, () => active(state.sim).includes('hut'), 400);
+    // The walk to the coin has just begun: she is not on the coin tile yet, Run takes the snapshot of the hut stage
+    expect(tile(state.sim)).not.toEqual([11, 8]);
+    runAs(state, TRACK);
+    expect(active(state.sim)).toEqual(['hut']);
+    until(state.sim, () => state.sim.mission.script.state.player.status === 'done', 4000);
+    expect(playerErrors(state.sim)).toEqual([]);
+  });
+
   it('has three worlds: forest edge, coin and track differ', () => {
     expect(getMission('r1-4').worlds.map((w) => w.id)).toEqual(WORLDS);
     const at = {};

@@ -145,6 +145,20 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
     expect(active(state.sim)).toEqual(['hedge']);
   });
 
+  it('the coins goal exists before the camera flight and the dialogue; Run right after the hedge stage restarts there', () => {
+    const state = play('normal');
+    until(state.sim, () => active(state.sim).includes('predict'));
+    runAs(state, state.loads[0]);
+    until(state.sim, () => active(state.sim).includes('hedge'));
+    runAs(state, LEFT);
+    until(state.sim, () => active(state.sim).includes('coins'));
+    runAs(state, FETCH('de'));
+    for (let i = 0; i < 30; i++) state.sim.step();
+    runAs(state, FETCH('de'));
+    expect(tile(state.sim)).toEqual([14, 5]);
+    expect(active(state.sim)).toEqual(['coins']);
+  });
+
   it('a check that passes without a run: Orrin fetches the remaining coins himself', () => {
     const state = play('normal');
     until(state.sim, () => active(state.sim).includes('predict'));
