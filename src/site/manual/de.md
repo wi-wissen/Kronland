@@ -252,7 +252,7 @@ Schwertkämpfer, Speerträger, Bogenschützen, leichte und schwere Reiterei, Kan
 - Jede Gattung hat Stärken und Schwächen: Speere gegen Reiter, Schwerter gegen Speere, Kanonen gegen Gebäude.
   Die genaue Schadenstabelle steht im [Kompendium](compendium/#units).
 
-![Truppen ausgewählt: Befehle und Fähigkeiten des Helden](site/hud-army.webp)
+![Truppen ausgewählt: Haltung, Trupps und Steuergruppe – die Fähigkeiten des Helden erscheinen, wenn er allein gewählt ist](site/hud-army.webp)
 
 ![Auswahlkarte rechts: Held und Hauptleute mit Rang, Truppstärke und Lebenspunkten](site/hud-selection.webp)
 
@@ -401,6 +401,8 @@ zu, Neuschnee deckt Spuren zu, Tauwetter nimmt sie mit; **Dauerhaft** – nichts
 die ganze Partie und lässt sich jederzeit ändern. Braucht ein Level Spuren (z. B. eine Fährte im Schnee), legt es
 die Einstellung fest; das Menü zeigt das dann an.
 
+![Spuren im Gelände: dasselbe Dorf im Sommer (Erdpfade im Gras) und im Winter (Fußabdrücke und festgetretene Wege im Schnee)](site/paths.webp)
+
 **Karte teilen:** Im Spielmenü (Pause) steht die Karte, z. B. „Karte: 62921“, darunter **„Link kopieren“** (am
 Handy **„Link teilen“**). Wer den Link öffnet, beginnt dieselbe Karte mit denselben Einstellungen **von vorn** –
 dein aktueller Spielstand ist nicht enthalten. Bei Missionen enthält der Link nur die Mission; geladene
@@ -443,6 +445,8 @@ keins: Jede Mission erklärt, was neu ist.
 Nelias Geschichte weiter – I.2 ist Reihe I, Mission 2, M das Meisterstück am Ende einer Reihe:
 
 {{adventureList}}
+
+![Programmier-Abenteuer im Startmenü: die Kursmissionen nach Reihen geordnet, rechts der Auftrag der gewählten Mission](site/course.webp)
 
 Jede Kursmission besteht aus Etappen auf derselben Karte: erst vorhersagen, was ein fertiger Zettel tut, dann ihn
 ändern, dann selbst schreiben. **Ausführen** beginnt die aktuelle Etappe von vorn – du kannst also beliebig oft
@@ -493,7 +497,7 @@ allgemeines (`while nelia.here() != "coin":`) in allen.
 Am Handy hilft eine Tastenleiste mit Einrücken, Doppelpunkt, Klammern und Anführungszeichen. Dein Code wird im
 Browser gemerkt – du kannst jederzeit weitermachen.
 
-![Programmier-Abenteuer: Das Programm hält am Haltepunkt (grüne Zeile), darunter die Variablen](site/programming.webp)
+![Code-Panel in Mission I.4: oben die Welten mit dem Ergebnis von „Prüfen“ (✓ im Normalfall, ✗ in den Randfällen), darunter das Programm am Haltepunkt (grüne Zeile) mit den Variablen](site/programming.webp)
 
 ### Welteneditor
 
