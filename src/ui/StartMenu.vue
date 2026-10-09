@@ -15,6 +15,7 @@
             <span class="sm-cont-txt"><b>{{ $t('menu.continueLatest') }}</b><small data-testid="continue-name">{{ latest.auto ? $t('saves.auto') + ' · ' : '' }}{{ latest.name }}</small></span>
           </button>
           <p v-if="error" class="sm-error" role="alert" data-testid="continue-error"><Icon name="warning" />{{ error }}</p>
+          <p v-if="notice" class="sm-error" role="alert" data-testid="link-error"><Icon name="warning" />{{ notice }}</p>
           <button class="sm-mode" data-testid="menu-tutorial" @click="$emit('tutorial')">
             <span class="sm-seal"><Icon name="scroll" /></span>
             <span><b>{{ $t('menu.tutorial') }}</b><small>{{ $t('menu.tutorialSub') }}</small></span>
@@ -31,12 +32,31 @@
             <span class="sm-seal"><Icon name="mode-special" /></span>
             <span><b>{{ $t('menu.special') }}</b><small>{{ $t('menu.specialSub') }}</small></span>
           </button>
+          <button v-if="discover" class="sm-mode" data-testid="menu-discover" @click="$emit('discover')">
+            <span class="sm-seal"><Icon name="globe" /></span>
+            <span><b>{{ $t('menu.discover') }}</b><small>{{ $t('menu.discoverSub') }}</small></span>
+          </button>
           <div class="sm-tools">
             <button class="sm-tool" data-testid="menu-saves" @click="savesOpen = true"><Icon name="load" />{{ $t('menu.saves') }}</button>
             <button class="sm-tool" data-testid="menu-settings" @click="settingsOpen = true"><Icon name="settings" />{{ $t('menu.settings') }}</button>
             <div class="seg sm-lang" role="radiogroup" :aria-label="$t('menu.language')">
               <button v-for="l in ['de', 'en']" :key="l" role="radio" :aria-checked="$i18n.lang === l" :class="{ active: $i18n.lang === l }" :lang="l" :data-testid="'menu-lang-' + l" @click="setLang(l)">{{ l.toUpperCase() }}</button>
             </div>
+          </div>
+          <!-- Account: only where a server is configured (public/kronland.config.json) -->
+          <div v-if="net.server" class="sm-account" data-testid="account">
+            <template v-if="net.signedIn && net.user">
+              <span class="sm-acc-line"><Icon name="user" />{{ $t('acct.signedAs', { name: net.user.displayName }) }}</span>
+              <span class="sm-acc-links">
+                <a :href="net.user.accountUrl" target="_blank" rel="noopener noreferrer" data-testid="account-manage">{{ $t('acct.manage') }}</a>
+                <button class="ghost" data-testid="sign-out" @click="signOut">{{ $t('acct.signOut') }}</button>
+              </span>
+            </template>
+            <template v-else>
+              <button class="sm-tool" data-testid="sign-in" @click="signIn"><Icon name="user" />{{ $t('acct.signIn') }}</button>
+              <span class="sm-acc-hint">{{ $t('acct.hint') }}</span>
+            </template>
+            <p v-if="net.error" class="sm-error" role="alert" data-testid="auth-error"><Icon name="warning" />{{ authError }}</p>
           </div>
         </nav>
 
@@ -126,6 +146,9 @@ import { set } from './settings.js';
 import { getStore, SaveError } from '../save/index.js';
 import { HERO_IDS } from '../sim/data/units.js';
 import { siteRoot } from '../paths.js';
+import { net, canDiscover } from '../net/state.js';
+import { errorMessage } from '../net/errors.js';
+import { has, t } from '../i18n/index.js';
 
 export default {
   name: 'StartMenu',
@@ -135,16 +158,23 @@ export default {
     latest: { type: Object, default: null },
     /** Page reloaded after a game error or game left after an error: notice about "Continue" */
     recovered: { type: Boolean, default: false },
+    /** Why a link (?save=, ?source=) could not be handled */
+    notice: { type: String, default: '' },
   },
-  emits: ['start', 'load', 'tutorial', 'campaign', 'saves-changed', 'adventures', 'special'],
+  emits: ['start', 'load', 'tutorial', 'campaign', 'saves-changed', 'adventures', 'special', 'discover'],
   data() {
     return {
       opponents: 1, difficulty: 'normal', hero: 'nelia', heroes: HERO_IDS,
       seed: Math.floor(Math.random() * 99999) + 1, settingsOpen: false, savesOpen: false, fog: true,
-      busy: false, error: '', touch: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
+      net, busy: false, error: '', touch: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
       // Website: home page, manual, compendium, scripting reference (relative to the root, see src/paths.js)
       links: { home: siteRoot(), manual: `${siteRoot()}manual/`, compendium: `${siteRoot()}compendium/`, scripting: `${siteRoot()}scripting/`, blog: `${siteRoot()}blog/` },
     };
+  },
+  computed: {
+    /** "Discover levels" only where there is a source (otherwise the game is as it always was) */
+    discover() { return canDiscover(); },
+    authError() { return net.error ? errorMessage(net.error, t, has) : ''; },
   },
   mounted() {
     this.onKey = (e) => {
@@ -167,6 +197,8 @@ export default {
       } finally { this.busy = false; }
     },
     setLang(l) { set('lang', l); },
+    async signIn() { try { await (await import('../net/index.js')).login(location.search.replace(/^\?/, '')); } catch (e) { net.error = { code: e.code ?? 'net.err.unknown', params: e.params ?? {} }; } },
+    async signOut() { await (await import('../net/index.js')).logout(); },
     start() {
       this.$emit('start', { players: this.opponents + 1, difficulty: this.difficulty, hero: this.hero, seed: this.seed || 1, fog: this.fog });
     },
@@ -220,6 +252,12 @@ export default {
 .sm-mode small { color: var(--ink-muted); font-size: var(--fs-sm); }
 .sm-seal { flex: none; width: 3.25rem; height: 3.25rem; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 30%, #fbf1d6, #c9a66b); box-shadow: inset 0 0 0 2px var(--gold-500), 0 0 0 2px var(--wood-950), 0 3px 6px rgba(0, 0, 0, 0.5); }
 .sm-seal .ico { width: 2.125rem; height: 2.125rem; }
+.sm-account { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: rgba(20, 12, 8, 0.55); }
+.sm-acc-line { display: flex; align-items: center; gap: 0.5rem; color: #fff3da; font-weight: 600; }
+.sm-acc-line .ico { width: 1.125rem; height: 1.125rem; }
+.sm-acc-links { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+.sm-acc-links a { color: var(--gold-200); min-height: var(--touch); display: inline-flex; align-items: center; }
+.sm-acc-hint { color: #fff3da; font-size: var(--fs-sm); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
 .sm-tools { display: flex; gap: 0.5rem; align-items: stretch; flex-wrap: wrap; }
 .sm-tool { flex: 1 1 8rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: var(--touch); }
 .sm-lang { flex: none; width: 7rem; }

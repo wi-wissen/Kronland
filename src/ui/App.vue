@@ -1,8 +1,9 @@
 <template>
-  <StartMenu v-if="screen === 'menu'" :latest="latest" :recovered="recovered" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" @adventures="screen = 'adventures'" @special="screen = 'special'" />
+  <StartMenu v-if="screen === 'menu'" :latest="latest" :recovered="recovered" :notice="netNotice" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" @adventures="screen = 'adventures'" @special="screen = 'special'" @discover="screen = 'discover'" />
   <CampaignMenu v-else-if="screen === 'campaign'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @tutorial="startMission('tutorial')" />
   <SpecialMapsMenu v-else-if="screen === 'special'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" />
   <AdventureMenu v-else-if="screen === 'adventures'" :lang="$i18n.lang" :notice="levelError" @back="screen = 'menu'" @start="startMission" @editor="openEditor()" @open="openLevel($event)" @link="openLink($event)" />
+  <DiscoverMenu v-else-if="screen === 'discover'" :lang="$i18n.lang" :notice="levelError" :preselect="discoverPick" :extra="discoverExtra" @back="screen = 'menu'" @start="openLevel($event, 'discover')" @edit="editFromServer" />
   <WorldEditor v-else-if="screen === 'editor'" :initial="editorScenario" :touch="touchDevice" @back="closeEditor" @play="openLevel($event, 'editor')" @change="editorScenario = $event" />
 
   <div v-else-if="screen === 'loading' || finishing" class="loading backdrop" data-testid="loading">
@@ -101,7 +102,7 @@
         </div>
       </Teleport>
 
-      <GameMenu v-if="menuOpen" :engine="engine" :touch="ui.touch" :share="share" :update="appUpdate.available" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" @update="installUpdate" />
+      <GameMenu v-if="menuOpen" :read-only="readOnly" :engine="engine" :touch="ui.touch" :share="share" :update="appUpdate.available" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" @update="installUpdate" />
     </template>
   </div>
 
@@ -124,6 +125,9 @@
     @width="codeW = $event"
   />
 
+  <!-- ?source=<url>: ask before a link adds a source -->
+  <ConfirmDialog v-if="sourceAsk" :title="$t('src.confirm.title')" :text="$t('src.confirm.text', { url: sourceAsk })" :confirm-label="$t('src.confirm.ok')" @cancel="sourceAsk = ''" @confirm="acceptSource" />
+
   <Tooltip :touch="!!ui?.touch" />
 </template>
 
@@ -145,6 +149,7 @@ import SpecialMapsMenu from './mission/SpecialMapsMenu.vue';
 import MissionHud from './mission/MissionHud.vue';
 import MissionResult from './mission/MissionResult.vue';
 import AdventureMenu from './script/AdventureMenu.vue';
+import ConfirmDialog from './saves/ConfirmDialog.vue';
 import { recordWin, loadProgress } from './mission/progress.js';
 import { getMission, SPECIAL_MAPS } from '../sim/missions/registry.js';
 import { setMenuMusic } from '../audio/index.js';
@@ -153,7 +158,9 @@ import { clock } from './plugin.js';
 import { getStore, autosaveDue, autosaveStart, snapshotText, whenIdle, AUTO_ID, SaveError } from '../save/index.js';
 import { defaultSaveName } from '../save/format.js';
 import { makeThumb } from './saves/thumb.js';
-import { t } from '../i18n/index.js';
+import { t, has } from '../i18n/index.js';
+import { errorMessage } from '../net/errors.js';
+import { setPendingServerPack } from './editor/serverDraft.js';
 import { devState, setDevMode, isDevHotkey } from '../dev/state.js';
 import { missing, pauseBannerVisible } from './hud/hudLayout.js';
 import { buildStartLink, parseStartLink, normalizeFree, addressFor, shareUrl } from './startLink.js';
@@ -168,17 +175,19 @@ const COMPACT = 760;
 /** sessionStorage: page was reloaded from the error dialog */
 const CRASH_FLAG = 'kronland-crash';
 /** Screens on which a new version may reload the page by itself (nothing running, nothing unsaved) */
-const IDLE_SCREENS = ['menu', 'campaign', 'adventures', 'special'];
+const IDLE_SCREENS = ['menu', 'campaign', 'adventures', 'special', 'discover'];
 const MID = 1100;
 const NARROW = 1500;
 
 export default {
   name: 'App',
   components: {
-    TopBar, CommandBar, ToastFeed, PauseBanner, StartMenu, GameMenu, Tooltip, CampaignMenu, SpecialMapsMenu, MissionHud, MissionResult, AdventureMenu,
+    TopBar, CommandBar, ToastFeed, PauseBanner, StartMenu, GameMenu, Tooltip, ConfirmDialog, CampaignMenu, SpecialMapsMenu, MissionHud, MissionResult, AdventureMenu,
     // Code panel and world editor: loaded only on demand
     ScriptPanel: defineAsyncComponent(() => import('./script/ScriptPanel.vue')),
     WorldEditor: defineAsyncComponent(() => import('./editor/WorldEditor.vue')),
+    // Level packs from sources and the server: loaded on demand
+    DiscoverMenu: defineAsyncComponent(() => import('./net/DiscoverMenu.vue')),
     // Developer mode: loaded only when switched on
     DevPanel: defineAsyncComponent(() => import('./dev/DevPanel.vue')),
   },
@@ -217,6 +226,17 @@ export default {
       levelPackage: null,
       /** Why a level from a file or link could not be opened (shown in the adventure menu) */
       levelError: '',
+      /** Level pack of the running level from "Discover levels": { id, hash, level } (progress events) or null */
+      packRef: null,
+      /** Pack to select in "Discover levels" and a pack found by id (?play=) that is in no catalog */
+      discoverPick: '',
+      discoverExtra: null,
+      /** Address from ?source= waiting for the player's yes */
+      sourceAsk: '',
+      /** Why a network link (?save=) failed (start menu) */
+      netNotice: '',
+      /** Save game opened read-only (?save= of someone else): no saving */
+      readOnly: false,
       touchDevice: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
       /** Game halted after a permanent error (Engine.crash): error dialog */
       crash: null,
@@ -277,7 +297,7 @@ export default {
     screen: {
       immediate: true,
       handler(s) {
-        if (['menu', 'campaign', 'adventures', 'special', 'editor'].includes(s)) setMenuMusic(true); else if (s === 'loading') setMenuMusic(false);
+        if (['menu', 'campaign', 'adventures', 'special', 'discover', 'editor'].includes(s)) setMenuMusic(true); else if (s === 'loading') setMenuMusic(false);
         // Back in the menus after a game: a pending update loads now
         if (IDLE_SCREENS.includes(s)) updateIfIdle();
       },
@@ -292,6 +312,10 @@ export default {
     'ui.mission.result'(r) {
       if (!r || this.recorded) return;
       this.recorded = true;
+      if (this.packRef) {
+        const ref = this.packRef;
+        import('../net/index.js').then((m) => m.track.finish(r.won ? 'completed' : 'failed', ref));
+      }
       if (!r.won || this.engine?.sim.mission?.def.custom) return;
       const id = this.ui.mission.id;
       const before = loadProgress().done[id]?.best;
@@ -339,6 +363,8 @@ export default {
     if (link?.kind === 'level') this.openLink(link.url, link.noAssets);
     else if (link?.kind === 'mission') this.startMission(link.id, { noAssets: link.noAssets, seed: link.seed });
     else if (link) this.newGame({ ...link, noAssets: link.noAssets });
+    // Server, sources and network links (loaded on demand)
+    this.netStart();
   },
   beforeUnmount() {
     this.engine?.stop();
@@ -356,6 +382,7 @@ export default {
     },
     clock,
     async boot(opts) {
+      this.readOnly = !!opts.readOnly;
       this.scriptOpen = false;
       this.engine?.stop();
       this.engine = null;
@@ -379,6 +406,7 @@ export default {
       e.start();
       if (devState.on) e.setDevMode(true);
       this.screen = 'game';
+      this.trackLevel();
       this.$nextTick(this.layout);
       if (!opts.noAssets) {
         // Models the first frames request on demand (hero, workers, other buildings): if they are all cached
@@ -420,6 +448,7 @@ export default {
       if (!def) return;
       this.recorded = false;
       this.record = false;
+      this.packRef = null;
       // Special maps (showcase, stress test) have their own menu: return there
       // Campaign chapters and the tutorial return to the campaign, even when they are level folders
       this.origin = SPECIAL_MAPS.includes(def) ? 'special' : def.scenario && !['campaign', 'tutorial'].includes(def.kind) ? 'adventures' : 'campaign';
@@ -436,6 +465,7 @@ export default {
      */
     openLevel(pkg, origin = 'adventures', extra = {}) {
       this.levelError = '';
+      if (pkg.pack && origin === 'discover') this.discoverPick = pkg.pack.id;
       this.levelPackage = markRaw({ assets: new Map(), base: null, ...pkg });
       this.startScenario(pkg.scenario, origin, { ...extra, ...(pkg.world ? { world: pkg.world } : {}) });
     },
@@ -457,6 +487,8 @@ export default {
     startScenario(json, origin = 'adventures', extra = {}) {
       this.recorded = false;
       this.record = false;
+      // Level of a pack: progress events (src/net/progress.js)
+      this.packRef = this.levelPackage?.pack ?? null;
       this.origin = origin;
       // Scenario file / world editor: is in no directory, hence no start link
       this.setStart(null);
@@ -482,8 +514,57 @@ export default {
       this.screen = 'editor';
     },
     closeEditor() { this.screen = 'adventures'; },
+    /** Own pack from "Discover levels" into the world editor. @param {{ id: string, scenario: any, files: Map<string, Blob> }} own */
+    editFromServer(own) {
+      setPendingServerPack({ id: own.id, files: own.files });
+      this.editorScenario = own.scenario;
+      this.screen = 'editor';
+    },
+    /** Progress events for the running level if it comes from a pack. */
+    trackLevel() {
+      if (!this.packRef) {
+        if (this.tracking) { this.tracking = false; import('../net/index.js').then((m) => m.track.stop()); }
+        return;
+      }
+      this.tracking = true;
+      const ref = this.packRef;
+      this.engine.onRun = (sections) => { import('../net/index.js').then((m) => m.track.run(sections)); };
+      import('../net/index.js').then((m) => m.track.start(ref));
+    },
+    /**
+     * Network layer at start: configuration, sign-in answer (?code=&state=) and the links ?source=, ?play=, ?save=
+     * (docs/SERVER.md). Runs in the background; without server and sources it only reads the configuration.
+     */
+    async netStart() {
+      try {
+        const net = await import('../net/index.js');
+        await net.initNet();
+        const links = net.netLinks(location.search);
+        if (links.source) {
+          if (net.knownSource(links.source)) this.screen = 'discover';
+          else this.sourceAsk = links.source;
+        }
+        if (links.play) {
+          this.discoverPick = links.play;
+          this.discoverExtra = await net.findPack(links.play).catch(() => null);
+          this.screen = 'discover';
+        }
+        if (links.save) {
+          try {
+            const { doc, readOnly } = await net.openSave(links.save);
+            this.loadDoc(doc, { readOnly });
+          } catch (e) { this.netNotice = errorMessage(e, t, has); }
+        }
+      } catch (e) { console.warn('Net: start failed', e); }
+    },
+    async acceptSource() {
+      const url = this.sourceAsk;
+      this.sourceAsk = '';
+      try { (await import('../net/index.js')).addSource(url); } catch (e) { this.levelError = errorMessage(e, t, has); }
+      this.screen = 'discover';
+    },
     toCampaign() {
-      const back = ['editor', 'adventures', 'special'].includes(this.origin) ? this.origin : 'campaign';
+      const back = ['editor', 'adventures', 'special', 'discover'].includes(this.origin) ? this.origin : 'campaign';
       this.quit();
       this.screen = back;
     },
@@ -492,15 +573,16 @@ export default {
       try { this.latest = await (await getStore({ legacyName: t('saves.legacyName') })).latest(); } catch { this.latest = null; }
     },
     /** Load a checked envelope (src/save/format.js). */
-    loadDoc(doc) {
+    loadDoc(doc, { readOnly = false } = {}) {
       this.menuOpen = false;
       this.recorded = false;
       this.record = false;
+      this.packRef = null;
       // Save game: cannot be rebuilt from a seed – no start link
       this.setStart(null);
       // Files of the level (portraits, recordings): bundled ones or those of the package still open; otherwise placeholders
       useLevelAssets(this.levelPackage, doc.state.mission?.scenario ?? null);
-      this.boot({ load: doc.state });
+      this.boot({ load: doc.state, readOnly });
     },
     onSaved(entry) {
       this.latest = entry;
@@ -518,6 +600,8 @@ export default {
     async autosave({ idle = false, force = false } = {}) {
       const e = this.engine;
       if (!e || (!settings.autosave && !force) || this.screen !== 'game') return;
+      // A save game of someone else is only for looking
+      if (this.readOnly) return;
       // Never save after a crash: the state may be broken, the last good save is kept
       if (e.crash) return;
       this.lastAutoTick = e.sim.tick;
@@ -601,7 +685,7 @@ export default {
       this.engine = null;
       this.ui = null;
       // Test play from the world editor: back to the editor
-      this.screen = this.origin === 'editor' ? 'editor' : 'menu';
+      this.screen = this.origin === 'editor' ? 'editor' : this.origin === 'discover' ? 'discover' : 'menu';
       this.origin = null;
       this.start = null;
       if (location.search) history.replaceState(null, '', location.pathname);

@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'node:path';
 import hashedAssets from './scripts/vite-hashed-assets.js';
 import blogPages from './scripts/vite-blog-pages.js';
+import packPages from './scripts/vite-pack-pages.js';
 import socialMeta from './scripts/vite-social-meta.js';
 import { freshPages } from './scripts/sw-pages.js';
 
@@ -77,7 +78,7 @@ export default defineConfig({
         // Upfront (on first visit, ~3 MB): code, pages and the small UI images (icons, portraits,
         // menu backdrops). Models, textures, sound and website images only when they are needed.
         globPatterns: ['**/*.{js,css,html,png,webp}'],
-        globIgnores: ['models/**', 'site/**', 'textures/**', 'blog/*/*.{png,jpg,webp,svg}'],
+        globIgnores: ['models/**', 'site/**', 'textures/**', 'blog/*/*.{png,jpg,webp,svg}', 'level/**'],
         // Files with a content hash (Vite bundles, hashed game files) need no checksum in the cache key
         dontCacheBustURLsMatching: /\.[0-9a-f]{10}\.[a-z0-9]+$|(^|\/)assets\//i,
         // Multiple pages: no fallback page for navigations (otherwise /play/ would get the home page)
@@ -116,6 +117,8 @@ export default defineConfig({
     }),
     pagePaths(),
     blogPages(),
+    // One page per open level pack of the configured sources (docs/SERVER.md); nothing without sources
+    packPages(),
   ],
   build: {
     rollupOptions: {

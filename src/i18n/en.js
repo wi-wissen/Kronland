@@ -5,6 +5,7 @@ import { levels } from './util.js';
 import extras from './extras.en.js';
 import { devEn } from './dev.js';
 import { scriptEn } from './script.js';
+import { netEn } from './net.js';
 
 export default {
   // Developer mode (own namespace dev.*, src/i18n/dev.js)
@@ -995,6 +996,8 @@ export default {
   'set.autosave': 'Save automatically (every 2 game minutes and when leaving)',
   'menu.saves': 'Saved games',
   'menu.continueLatest': 'Continue',
+  // Network features (src/i18n/net.js)
+  ...netEn,
   // Expansion content (own file)
   ...extras,
 };

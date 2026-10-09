@@ -1323,6 +1323,7 @@ export class Engine {
     const next = this.stage.beforeRun(this.sim);
     if (next) this.restart(next);
     this.issue({ type: 'script', action: 'run', sections, ...(debug ? { debug } : {}) });
+    this.onRun?.(sections); // progress events of pack levels (App.trackLevel); the simulation never sees it
     if (this.debugHalt) { this.paused = false; this.debugHalt = false; }
     this.emitUi();
   }

@@ -10,7 +10,7 @@ export const MAX_SEED = 2147483647;
 const DIFFICULTIES = ['easy', 'normal', 'hard'];
 const FOG_OFF = ['off', '0', 'no', 'false'];
 /** Parameters that only concern rendering/debugging: they stay in the address bar, never in the shared link. */
-export const LOCAL_PARAMS = ['quality', 'nature', 'dev', 'debug', 'no-models'];
+export const LOCAL_PARAMS = ['quality', 'nature', 'dev', 'debug', 'no-models', 'config'];
 
 /**
  * @typedef {{ kind: 'free', seed: number, difficulty: 'easy'|'normal'|'hard', players: number, hero: string, fog: boolean }} FreeStart

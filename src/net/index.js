@@ -120,6 +120,9 @@ export function addSource(input) {
   return url;
 }
 
+/** Is this address one of the sources already (file or player)? */
+export const knownSource = (url) => sourceList({ server: net.server, sources: net.sources }, net.playerSources).some((s) => s.url === url);
+
 export function removeSource(url) {
   removePlayerSource(url);
   net.playerSources = loadPlayerSources();

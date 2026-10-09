@@ -6,6 +6,7 @@ import { levels } from './util.js';
 import extras from './extras.de.js';
 import { devDe } from './dev.js';
 import { scriptDe } from './script.js';
+import { netDe } from './net.js';
 
 export default {
   // Developer mode (own namespace dev.*, src/i18n/dev.js)
@@ -996,6 +997,8 @@ export default {
   'set.autosave': 'Automatisch speichern (alle 2 Spielminuten und beim Verlassen)',
   'menu.saves': 'Spielstände',
   'menu.continueLatest': 'Weiterspielen',
+  // Network features (src/i18n/net.js)
+  ...netDe,
   // Expansion content (own file)
   ...extras,
 };

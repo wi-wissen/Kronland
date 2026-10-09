@@ -5,6 +5,7 @@
 
 import { validate } from './schema.js';
 import { NetError } from './errors.js';
+import { sha256Hex } from './hash.js';
 import { validateScenario, scenarioToDef } from '../sim/scripting/scenario.js';
 import { assetAllowed } from '../levels/assets.js';
 import schema from '../../contract/schemas/pack.schema.json';
@@ -28,13 +29,7 @@ export function compareVersions(a, b) {
 /** Does this game version satisfy the pack's minClient? */
 export const clientOk = (minClient, version = GAME_VERSION) => !minClient || compareVersions(minClient, version) <= 0;
 
-/** Hex SHA-256 of bytes or text. */
-export async function sha256Hex(data) {
-  const subtle = globalThis.crypto?.subtle;
-  if (!subtle) throw new NetError('packs.err.crypto');
-  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-  return [...new Uint8Array(await subtle.digest('SHA-256', bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+export { sha256Hex };
 
 /**
  * Where the files of a pack lie. Static sources: next to pack.json. The server's manifest endpoint

@@ -4,6 +4,12 @@
     :class="{ dragging }"
     data-testid="save-browser"
   >
+    <!-- Signed in: saves on this device or in the cloud (src/net/cloudSaves.js) -->
+    <div v-if="net.signedIn" class="seg sv-where" role="radiogroup" :aria-label="$t('saves.title.manage')" data-testid="save-where">
+      <button role="radio" :aria-checked="where === 'device'" :class="{ active: where === 'device' }" data-testid="save-where-device" @click="setWhere('device')">{{ $t('saves.where.device') }}</button>
+      <button role="radio" :aria-checked="where === 'cloud'" :class="{ active: where === 'cloud' }" data-testid="save-where-cloud" @click="setWhere('cloud')"><Icon name="cloud" />{{ $t('saves.where.cloud') }}</button>
+    </div>
+
     <form v-if="mode === 'save'" class="sv-new" @submit.prevent="saveNew">
       <label class="h-label" for="sv-name">{{ $t('saves.newName') }}</label>
       <div class="sv-newrow">
@@ -37,7 +43,7 @@
             <button type="submit" class="icon-btn primary" :aria-label="$t('saves.renameDone')" data-testid="rename-ok"><Icon name="check" /></button>
           </form>
           <strong v-else class="sv-name" data-testid="save-item-name">
-            <span v-if="e.auto" class="sv-badge">{{ $t('saves.auto') }}</span>{{ e.name }}
+            <span v-if="e.auto" class="sv-badge">{{ $t('saves.auto') }}</span><Icon v-if="where === 'cloud'" name="cloud" class="sv-cloud" />{{ e.name }}
           </strong>
           <span class="sv-meta num">{{ when(e.savedAt) }} · {{ $t('saves.playTime', { t: playTime(e.tick) }) }}</span>
           <span class="sv-meta">{{ modeLabel(e) }} · {{ $t('saves.players', { n: e.players }) }}<template v-if="!e.fog"> · {{ $t('saves.fogOff') }}</template></span>
@@ -88,6 +94,8 @@ import ConfirmDialog from './ConfirmDialog.vue';
 import { getStore, readSaveFile, downloadDoc, SaveError } from '../../save/index.js';
 import { defaultSaveName, modeLabel, playTime } from '../../save/format.js';
 import { makeThumb, thumbFromState } from './thumb.js';
+import { net } from '../../net/state.js';
+import { has } from '../../i18n/index.js';
 
 const COMPACT_KEY = 'kronland-export-compact';
 
@@ -115,6 +123,7 @@ export default {
       newName: '', renaming: null, renameText: '', confirm: null, dragging: false, compact, storeKind: null,
       /** Storage usage according to the browser ({ used, quota } in MB) or null */
       usage: null,
+      net, where: 'device',
     };
   },
   computed: {
@@ -142,13 +151,31 @@ export default {
       if (Number.isNaN(d.getTime()) || d.getTime() === 0) return '–';
       return d.toLocaleString(this.$i18n.lang === 'en' ? 'en-GB' : 'de-DE', { dateStyle: 'short', timeStyle: 'short' });
     },
+    /** Switch between this device and the cloud. */
+    setWhere(w) {
+      if (this.where === w) return;
+      this.where = w;
+      this.message = null;
+      this.loading = true;
+      this.refresh();
+    },
     async store() {
+      if (this.where === 'cloud') {
+        const s = await (await import('../../net/index.js')).cloudStore();
+        if (s) { this.storeKind = 'cloud'; return s; }
+        this.where = 'device';
+      }
       const s = await getStore({ legacyName: this.$t('saves.legacyName') });
       this.storeKind = s.kind;
       return s;
     },
     async refresh() {
-      try { this.entries = await (await this.store()).list(); } catch (e) { this.fail(e); }
+      try {
+        const store = await this.store();
+        this.entries = await store.list();
+        // The cloud list swallows errors like the local one; show why it is empty
+        if (store.backend.lastError) this.fail(store.backend.lastError);
+      } catch (e) { this.fail(e); }
       this.loading = false;
       this.$emit('changed', this.entries);
       this.estimate();
@@ -167,7 +194,7 @@ export default {
     fail(e) {
       // Unexpected errors belong in the console, the notice stays understandable
       if (!(e instanceof SaveError)) console.error(e);
-      const code = e instanceof SaveError ? e.code : 'saves.err.unknown';
+      const code = e instanceof SaveError && has(e.code) ? e.code : 'saves.err.unknown';
       this.message = { tone: 'bad', text: this.$t(code, e?.params ?? {}) };
     },
     async run(fn) {
@@ -320,6 +347,8 @@ export default {
 .sv-hint { color: var(--ink-dim); font-size: var(--fs-xs); }
 .sv-compact .st-sl-label { font-size: var(--fs-sm); }
 .sv-store { margin: 0; color: var(--ink-dim); font-size: var(--fs-xs); line-height: 1.4; }
+.sv-where { margin-bottom: 0.5rem; }
+.sv-where .ico, .sv-cloud { width: 1rem; height: 1rem; vertical-align: -0.1875rem; margin-right: 0.25rem; }
 .sv-store.warn { color: #ffcf9a; }
 .sv-drop {
   position: absolute; inset: -0.5rem; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem;

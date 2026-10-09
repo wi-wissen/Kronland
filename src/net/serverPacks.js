@@ -2,8 +2,7 @@
 // "open own packs". Media are renamed to their SHA-256 (the pack format wants hash names) and the level's
 // references are rewritten accordingly.
 
-import { sha256Hex } from './packs.js';
-import { ASSET_TYPES, extOf } from '../levels/assets.js';
+import { hashMedia, bothLanguages } from './packBuild.js';
 import { NetError } from './errors.js';
 
 export const PACK_FORMAT = 'kronland-pack';
@@ -14,31 +13,15 @@ export function newPackId(random = (a) => globalThis.crypto.getRandomValues(a)) 
   return Array.from(random(new Uint8Array(7)), (b) => chars[b % chars.length]).join('');
 }
 
-const text = (t, fallback) => {
-  const o = typeof t === 'string' ? { de: t, en: t } : t ?? {};
-  return { de: o.de ?? o.en ?? fallback, en: o.en ?? o.de ?? fallback };
-};
-
 /**
  * Pack document for PUT /api/v1/packs/{id} from the editor's level and its files.
  * @param {any} scenario @param {Map<string, Blob>} files 'assets/x.png' -> file @param {string} id
  * @returns {Promise<{ doc: any, uploads: Array<{ name: string, blob: Blob }> }>}
  */
 export async function buildDocument(scenario, files, id, version = '1.0.0') {
-  let json = JSON.stringify(scenario);
-  const media = {}, uploads = [];
-  const renames = [...files].sort((a, b) => b[0].length - a[0].length);
-  for (const [path, blob] of renames) {
-    const ext = extOf(path);
-    if (!ASSET_TYPES[ext] || !json.includes(path)) continue; // unused files stay on the device
-    const name = `${await sha256Hex(new Uint8Array(await blob.arrayBuffer()))}.${ext === 'jpeg' ? 'jpg' : ext}`;
-    json = json.split(path).join(`assets/${name}`);
-    media[name] = { type: ASSET_TYPES[ext], bytes: blob.size };
-    uploads.push({ name, blob });
-  }
-  const level = JSON.parse(json);
+  const { scenario: level, media, uploads } = await hashMedia(scenario, files);
   const doc = {
-    format: PACK_FORMAT, version: 1, id, title: text(level.title, level.id), summary: text(level.summary, ''),
+    format: PACK_FORMAT, version: 1, id, title: bothLanguages(level.title, level.id), summary: bothLanguages(level.summary, ''),
     minClient: version, levels: [{ id: level.id, scenario: level }], ...(uploads.length ? { media } : {}),
   };
   return { doc, uploads };
