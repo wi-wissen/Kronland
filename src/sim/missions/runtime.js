@@ -416,9 +416,14 @@ export class MissionRuntime {
    */
   applyCheck(sim, cmd) {
     const st = this.state, key = this.stageKey();
-    if (typeof cmd.stage !== 'string' || cmd.stage !== key || !key) return sim.reject(cmd, 'err.stageChanged');
+    // Right after the switcher the mission may not have reached its start stage yet: that stage counts then
+    const ok = typeof cmd.stage === 'string' && !!cmd.stage && (cmd.stage === key || (!key && cmd.stage === st.startStage));
+    if (!ok) return sim.reject(cmd, 'err.stageChanged');
     if (cmd.passed !== true) return true;
-    for (const o of st.objectives) if (o.status === 'active' && this.objectiveDef(o.id)?.allWorlds) (st.checked ??= {})[o.id] = true;
+    for (const id of cmd.stage.split(',')) {
+      const o = st.objectives.find((x) => x.id === id);
+      if (!o || o.status === 'active') (st.checked ??= {})[id] = true;
+    }
     sim.events.push({ type: 'checkPassed', stage: key, player: st.human });
     return true;
   }

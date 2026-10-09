@@ -594,7 +594,7 @@ export default {
     },
     /** Text of a world in the check result. */
     checkStatus(r) {
-      if (r.status === 'error' && r.error) return t('script.check.status.error', { line: r.error.sline || '?', title: this.errText(r.error, true).title });
+      if (r.status === 'error' && r.error) return t('script.check.status.error', { line: r.error.sline || '?', kind: r.error.kind ?? '', text: scriptErrorText(r.error).text });
       return t('script.check.status.' + r.status);
     },
     /** Phone: close the sheet and show the game; the hero comes into view above the run strip if it is not visible. */
@@ -815,7 +815,11 @@ export default {
 .sp-worlds { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.375rem 0.5rem; align-items: center; padding: 0.5rem; border-radius: var(--r-md); background: rgba(0, 0, 0, 0.22); box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.18); }
 .sp-worlds-row { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
 .sp-worlds-lbl { flex: none; color: var(--gold-300); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-.sp-worlds-list { display: flex; gap: 0.25rem; overflow-x: auto; min-width: 0; scrollbar-width: none; }
+.sp-worlds-list { display: flex; flex-wrap: wrap; gap: 0.25rem; min-width: 0; }
+/* Phones: chips in full width, „Prüfen“ as a wide button below */
+.sheet .sp-worlds { grid-template-columns: minmax(0, 1fr); }
+.sheet .sp-check { width: 100%; }
+.sheet .sp-worlds-row { flex-direction: column; align-items: stretch; gap: 0.25rem; }
 .sp-world { flex: none; display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.25rem; padding: 0 0.625rem; border-radius: 999px; font-size: var(--fs-sm); background: rgba(255, 255, 255, 0.06); }
 .sp-world.active { background: rgba(243, 200, 94, 0.22); box-shadow: inset 0 0 0 1px var(--gold-400); color: var(--gold-100); }
 .sp-world-n { display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; font-size: var(--fs-xs); background: rgba(0, 0, 0, 0.35); }

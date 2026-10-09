@@ -70,7 +70,8 @@ export class EditorView {
     const cam = keepCamera && this.renderer ? { x: this.renderer.rig.target.x, z: this.renderer.rig.target.z, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist } : null;
     this.disposeRenderer();
     this.scenario = scenario;
-    this.sim = this.preview ? createScenarioSim(scenario) : editorSim(scenario);
+    // Preview runs the mission sections in the world chosen in the panel (world.id, docs/SKRIPTE.md#welten)
+    this.sim = this.preview ? createScenarioSim(scenario, this.world ? { world: this.world } : {}) : editorSim(scenario);
     this.renderer = new Renderer(this.canvas, this.sim, { player: 0 });
     if (cam) { this.renderer.rig.lookAt(cam.x, cam.z); this.renderer.rig.yaw = cam.yaw; this.renderer.rig.dist = cam.dist; }
     else this.renderer.rig.lookAt(this.sim.map.width / 2, this.sim.map.height / 2);

@@ -428,7 +428,7 @@ export default {
       const seed = extra.seed !== undefined && extra.seed !== def.seed ? extra.seed : undefined;
       this.setStart({ kind: 'mission', id, ...(seed !== undefined ? { seed } : {}) });
       useLevelAssets(null, def.scenario ?? null);
-      this.boot({ mission: { id, seed: extra.seed }, players, noAssets: extra.noAssets });
+      this.boot({ mission: { id, seed: extra.seed }, players, noAssets: extra.noAssets, ...(extra.world ? { world: extra.world } : {}) });
     },
     /**
      * Play a level from a .zip, a scenario file, a link or the world editor.
@@ -437,7 +437,7 @@ export default {
     openLevel(pkg, origin = 'adventures', extra = {}) {
       this.levelError = '';
       this.levelPackage = markRaw({ assets: new Map(), base: null, ...pkg });
-      this.startScenario(pkg.scenario, origin, extra);
+      this.startScenario(pkg.scenario, origin, { ...extra, ...(pkg.world ? { world: pkg.world } : {}) });
     },
     /** Open a level by link (?level=…): a .zip or a folder on a static host. */
     async openLink(url, noAssets = false) {
@@ -462,17 +462,20 @@ export default {
       this.setStart(null);
       useLevelAssets(this.levelPackage, json);
       const players = json.players.filter((p) => p.kind !== 'bandits').length + (json.players.some((p) => p.kind === 'bandits') ? 1 : 0);
-      this.boot({ scenario: json, players, noAssets: extra.noAssets });
+      // World of a level with several worlds (test play from the world editor), otherwise the first
+      this.boot({ scenario: json, players, noAssets: extra.noAssets, ...(extra.world ? { world: extra.world } : {}) });
     },
     /** Again: mission from the directory or the same scenario JSON. */
     retry() {
       const def = this.engine?.sim.mission?.def;
+      // Again in the same world (levels with several worlds)
+      const world = this.engine?.sim.mission?.state.world ?? undefined;
       if (def?.custom) {
         const start = this.start;
-        this.startScenario(def.scenario, this.origin ?? 'adventures');
+        this.startScenario(def.scenario, this.origin ?? 'adventures', { world });
         if (start?.kind === 'level') this.setStart(start);
       }
-      else this.startMission(this.ui.mission.id, { seed: this.start?.kind === 'mission' ? this.start.seed : undefined });
+      else this.startMission(this.ui.mission.id, { seed: this.start?.kind === 'mission' ? this.start.seed : undefined, world });
     },
     openEditor(scenario = null) {
       if (scenario) this.editorScenario = scenario;

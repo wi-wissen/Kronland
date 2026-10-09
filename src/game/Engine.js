@@ -1344,7 +1344,8 @@ export class Engine {
   async checkProgram(sections, onProgress) {
     const m = this.sim.mission;
     if (!m?.script || m.state.result || this.checking) return null;
-    const stage = stageKey(this.sim);
+    // Right after the switcher the mission is still on its way to the stage it was started at
+    const stage = stageKey(this.sim) || (m.state.startStage ?? '');
     if (!stage) return { stage, passed: false, results: [] };
     this.checking = true;
     try {

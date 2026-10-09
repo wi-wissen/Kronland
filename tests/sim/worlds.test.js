@@ -191,6 +191,21 @@ describe('Worlds: „Prüfen“', () => {
     expect(tileX(sim)).toBe(4);
   });
 
+  it('right after the switcher a check of the start stage counts before the mission has reached it', () => {
+    const sim = createScenarioSim(scenario(), { world: 'near', stage: 'coin' });
+    expect(stageKey(sim)).toBe('');
+    sim.command({ type: 'script', player: 0, action: 'check', stage: 'coin', passed: true });
+    sim.step();
+    expect(sim.mission.state.checked).toEqual({ coin: true });
+    run(sim, 5);
+    expect(sim.mission.state.result).toMatchObject({ won: true });
+    // Any other stage is rejected
+    const other = createScenarioSim(scenario(), { world: 'near', stage: 'coin' });
+    other.command({ type: 'script', player: 0, action: 'check', stage: 'warm', passed: true });
+    other.step();
+    expect(other.mission.state.checked).toEqual({});
+  });
+
   it('check games do not need the check: all_worlds goals count on their condition there', () => {
     const sim = createDefSim(def, { world: 'near', stage: 'coin', check: true });
     run(sim, 3);
