@@ -106,6 +106,10 @@ Arbeiter und Soldat zählt; Helden nicht.
   Ware und ermöglichen Forschungen.
 - **Korn** ist keine Ware im Vorrat. Ein Bauernhof ernährt die Arbeiter, die bei ihm essen. „Korn haben“ heißt in der
   Welt: Höfe haben, die Leute satt machen.
+- **Winterkorn:** Im ewigen Winter wächst nicht jedes Getreide, aber zähes Wintergetreide wächst auch unter Schnee,
+  wenn die Erde gut ist und man es pflegt (Lindgrund war die Kornkammer, die Deiche von Morvale haben gute Erde). Das
+  reicht für ein Dorf, nie für ein ganzes Land. Malvors Felder im Windschatten des Wetterwerks bringen weit mehr. Darum
+  ist Saatkorn kostbar und ein Bauernhof das Kostbarste, was ein Dorf haben kann.
 
 ---
 
@@ -223,9 +227,13 @@ liegt, so die Legende, eines der fünf Kronstücke**.
 - **Leute:** Kaufleute, Händler, Tagelöhner. Hier wird alles gekauft und verkauft. Orrin kennt hier jeden – und
   jeder kennt Orrin, nicht immer im Guten.
 - **Wer herrscht:** die Kaufleute. Wer zahlt, hat recht.
-- **Zu Malvor:** Seine Agenten kaufen alles Korn auf und treiben die Preise hoch. Die Stadt ist voll, aber hungrig.
+- **Zu Malvor:** Die Straßen sind zugeschneit, die Stadt kann sich nicht selbst versorgen. Sie kauft Korn bei Malvor,
+  für Gold. So fließt das Gold nach Hagenfurt, und davon bezahlt er sein Bieten um die Kronstücke. Die Stadt ist voller
+  Waren, aber hungrig und arm.
 - **Kronstück:** Räuber haben es bei einem Überfall auf die Stadtkasse erbeutet und halten es im **Lager im
-  Flusswald**. Sie wollen es an den Meistbietenden verkaufen – Malvor bietet.
+  Flusswald**. Sie wollen es an den Meistbietenden verkaufen – Malvor bietet. Der Rat der Kaufleute hat
+  zugesagt: Wer es zurückholt, ob durch Freikauf oder mit Gewalt, darf es mitnehmen, denn in der Stadt wäre es nicht
+  sicher.
 
 ### Eisenhain – die Bergwerksstadt
 - **Land:** Berge, Stollen, Schmieden. Eisen und Schwefel.
@@ -344,3 +352,5 @@ werden und bleiben wollen – genau das, was die Wirtschaft des Spiels belohnt.
 - Malvors Korn: gefüllte Speicher vor dem Winter und Felder im Windschatten des Werks.
 - Beaucroix' Kronstück wurde aus der Stadtkasse geraubt.
 - Begriff „Kronstück“ statt „Zacke“.
+- Winterkorn (zähes Wintergetreide, reicht für ein Dorf), Malvor verkauft Korn für Gold an Beaucroix, der Rat von
+  Beaucroix sagt das Kronstück dem zu, der es zurückholt (bestätigt Oktober 2026).

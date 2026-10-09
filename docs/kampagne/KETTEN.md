@@ -1,7 +1,7 @@
 # Ketten – warum geschieht was?
 
 Zu jeder Mission steht hier zuerst die Ursache-Wirkung-Kette, bevor ein Gespräch geschrieben wird. Aufbau, Regeln und
-Ablauf: [Leitfaden](LEITFADEN.md). Welt: [WELT.md](WELT.md). Stand: Entwurf zur Abnahme, nur Mission 1 und 2.
+Ablauf: [Leitfaden](LEITFADEN.md). Welt: [WELT.md](WELT.md). Stand: Entwurf zur Abnahme.
 
 ## Die Krone und die fünf Kronstücke
 
@@ -22,7 +22,7 @@ anders zu, und es wird jedes Mal härter.
 | Morvale | Dorfälteste von Erlenhof | „keiner weiß, seit wann“ | Lüge und Hunger |
 | Hagenfurt | Malvor, an einer Kette um den Hals | sagt er nicht (nährt den Verdacht um Edrians Tod) | – |
 
-## Drei Festlegungen zur Welt, die die Ketten brauchen (bitte bestätigen)
+## Drei Festlegungen zur Welt, die die Ketten brauchen (bestätigt, jetzt in WELT.md)
 
 1. **Winterkorn.** Im ewigen Winter wächst nicht jedes Getreide. Es gibt aber zähes Wintergetreide, das unter Schnee
    wächst, wenn die Erde gut ist und man es pflegt (Lindgrund war die Kornkammer, die Deiche von Morvale haben gute
@@ -50,7 +50,10 @@ anders zu, und es wird jedes Mal härter.
      kommt er mit.
   2. Zum Baum: Statt Saatkorn liegt dort ein Kronstück. Orrin erzählt den drei Dorfbewohnern aus dem Wald, Nelia sei die
      verlorene Prinzessin. Darum bleiben sie. Das ist der Katalysator.
-  3. Holz von den eingestürzten Häusern holen, weil jedes Gebäude Holz braucht.
+  3. Holz von den Balkenhaufen bei den eingestürzten Häusern holen, weil jedes Gebäude Holz braucht. Die Burg am Dorfrand
+     (das alte Verwalterhaus, der Gutsherr ist fort) steht noch und bleibt Nelias Mittelpunkt. Die drei Leute aus dem
+     Wald sind Leibeigene und tragen einen kleinen Sack Winterkorn, den sie vor den Eintreibern gerettet haben. Daraus
+     entstehen die ersten Höfe.
   4. Dorfzentrum bauen: Ohne Dorfzentrum zieht kein freier Arbeiter her.
   5. Wohnhäuser: Arbeiter brauchen Betten. Höfe: Arbeiter brauchen Essen.
   6. Lehmgrube: Arbeit, Lehm für weitere Häuser; wer arbeitet, zahlt Steuern.
@@ -70,12 +73,14 @@ anders zu, und es wird jedes Mal härter.
   Meistbietenden. Malvors Herold (sein Ausrufer und Gesandter) ist schon vor Ort und bietet. Im Gespräch wird beim
   ersten Auftritt kurz gesagt, wer der Herold ist.
 - **Was steht im Weg?** Nelia hat 300 Taler, Malvor viel mehr. Er hat das Gold, weil Beaucroix sein Korn für Gold
-  kauft. Die Stadt ist hungrig und arm, der Rat kann nichts tun: Die Straßen sind zugeschneit, der Flusswald gehört den
-  Räubern.
+  kauft. Sein Herold hat aber nur Vollmacht für tausend Taler; für mehr müsste er nach Hagenfurt reiten und fragen,
+  das dauert. Die Räuber verlangen zwölfhundert von jedem. Darum bleibt Nelia Zeit, aber nicht lange. Die Stadt ist
+  hungrig und arm, der Rat kann nichts tun: Die Straßen sind zugeschneit, der Flusswald gehört den Räubern.
 - **Was der Spieler tut, und warum jeweils:**
   1. Bauernhöfe: Händler und Arbeiter brauchen Essen. Das wurde in Mission 1 erklärt und wird nicht wiederholt.
-  2. Marktplatz bauen, weil die Stadt Lehm und Stein braucht: Der Boden ist gefroren, die Gruben der Stadt stehen still.
-     Nelias Lehm und Stein bringen Taler.
+  2. Marktplatz bauen, weil die Stadt Lehm und Stein braucht: Die Gruben der Stadt graben in gefrorenen Boden und stehen
+     still. In Lindgrund tritt der Lehm aus einem Schacht zutage, dort wird weiter gefördert. Nelia hat Lehm und Stein
+     von dort mitgebracht und tauscht beides gegen Taler.
   3. Dann zwei Wege:
      - **Weg A, Freikauf:** Mit den Talern aus dem Handel das Stück bei den Räubern kaufen (1200 Taler).
      - **Weg B, Stürmen:** Kaserne bauen, Schwertkämpfer ausbilden, das Räuberlager erobern.
@@ -90,9 +95,113 @@ anders zu, und es wird jedes Mal härter.
   verlorene Anzahlung; der Rat von Beaucroix hat Nelia das Stück zugesagt, es ist also kein Diebstahl.
 - **Was Nelia danach weiß:** Die Räuber verraten, dass der Winter gemacht ist (ein Wetterwerk im Gebirge hinter Hagenfurt).
 
+## Mission 3 – Das Wetterwerk
+
+- **Wer will was?** Nelia will den ewigen Winter beenden. Winterkorn reicht nur für einzelne Dörfer; solange es Winter
+  ist, bleibt das Land von Malvors Korn abhängig.
+- **Warum jetzt?** In Beaucroix haben die Räuber verraten: Der Winter ist gemacht, ein altes Wetterwerk in einem Tal
+  hinter Hagenfurt hält ihn am Laufen.
+- **Was steht im Weg?** Das Tal liegt im Gebirge. Das Tor wird von fünf Trupps und einem Turm mit Riesenarmbrust
+  gehalten. Eine zweite Möglichkeit ist die Schlucht mit dem zugefrorenen Fluss, aber dort steht ein Posten. Nelia
+  hat nur drei Trupps Freiwillige; Nachschub und Burg gibt es im feindlichen Gebirge nicht, wer fällt, ist fort. Das
+  Werk steht auf einer Insel im See. Fällt es, endet der Winter, und das Eis bricht (60 Sekunden).
+- **Was der Spieler tut, und warum jeweils:**
+  1. Nelias „Weitblick“ über den Kamm: Sie sieht Tor und Schlucht, ohne dass jemand sich zeigt.
+  2. Durch die Schlucht gehen: Das Tor wäre zu stark. Der Winter trägt das Eis.
+  3. Orrin besticht den Posten: Soldaten, die seit Wochen frieren, sind für Gold zu haben.
+  4. Im Tal die Baupläne aus Hrimgars Ruinen holen. Orrin sieht darin den eigentlichen Preis: Wer das Werk versteht,
+     kann Wetter selbst machen. Nelia lässt sich darauf ein, weil Malvor sonst wieder Winter machen kann und sie ihm
+     dann nichts entgegensetzen könnte.
+  5. Das Werk auf der Insel zerstören, solange die Torwache noch nicht da ist.
+  6. Innerhalb von 60 Sekunden vom Eis aufs feste Ufer. Die Torwache, die zum See gerufen wurde, rückt ab, weil das
+     brennende Werk nicht mehr zu retten ist; die Gruppe verlässt das Tal durch das nun unbewachte Tor.
+  7. Optional: Gefangene am Lager befreien (die Befreiten kämpfen mit).
+- **Neu für den Spieler:** Spiel ohne Burg, „Weitblick“, „Bestechen“, der Knopf „Truppen“, Tauwetter und Ertrinken.
+- **Wann ist der Gegner besiegt?** Es muss kein Gegner besiegt werden. Das Werk ist zerstört und die Gruppe auf festem
+  Boden. Die Wachen am Ufer sind nur Hindernis; die Torwache kommt erst nach dem Alarm.
+- **Was Nelia danach weiß:** Malvor trägt das Kronstück von Hagenfurt selbst an einer Kette um den Hals (ein
+  gefangener Wächter verrät es). Malvor ändert sein Vorgehen: Wenn der Hunger nicht mehr hält, schickt er Eisen.
+
+## Mission 4 – Eisenhain
+
+- **Wer will was?** Malvor will Eisen für ein Heer und das Kronstück aus dem Stollen. Nelia will, dass er beides nicht
+  bekommt.
+- **Warum jetzt?** Ohne seinen Winter kann Malvor die Menschen nicht mehr mit Hunger halten. Er braucht Soldaten, und
+  Eisen gibt es in Eisenhain. Hauptmann Taran belagert die Stadt.
+- **Was steht im Weg?** Zwei Belagerungslager hinter Palisaden. Nelia hat zu wenig Soldaten. Taran kennt sie aus dem
+  Kornlager und weiß, wer sie wirklich ist.
+- **Was der Spieler tut, und warum jeweils:**
+  1. Soldaten beschaffen, zwei Wege, nur einer: Söldner (teuer, sofort kampfbereit) oder geflohene Leibeigene
+     (billig, bringen Vorräte, müssen kämpfen lernen).
+  2. Eisengrube: Schwertkämpfer brauchen Eisen, und was Nelia fördert, fehlt Malvor.
+  3. Schwefelgrube: In Hrimgars Plänen steht Schwefel auf jeder Seite. Schwefel gibt es nur in Eisenhain. Malvors
+     Reste reichen für Pulver und ein kleines Kraftwerk, aber nicht für ein neues Wetterwerk. Wer den Schwefel fördert,
+     hält ihn von Malvor fern. (Neue Festlegung, siehe unten.)
+  4. Optional: „Stehendes Heer“ erforschen und Bogenschützen bauen, weil man Palisaden besser von draußen trifft.
+  5. Beide Lager angreifen. Taran kommt Nelia in die Nähe, erkennt sie und zieht sich nach seiner Niederlage zurück.
+  6. Tarans Ausfälle abwehren, solange die Belagerung steht.
+  7. Der Bergmeister übergibt das Kronstück an die „Prinzessin“. Nelia will ihm die Wahrheit sagen; Orrin redet
+     dazwischen.
+- **Neu für den Spieler:** Söldner oder Flüchtlinge (zwei Angebote, eines wählbar), Schächte für Eisen und Schwefel,
+  Hochschule und Forschung, Schießplatz, Wachturm, Regen und Spätfrost.
+- **Wann ist der Gegner besiegt?** Beide Belagerungslager sind erobert. Taran (ein Held) fällt nicht, er zieht ab. Danach
+  gibt es keine Ausfälle mehr.
+- **Was danach geschieht:** Taran meldet Malvor, wer Nelia ist. Daraus folgt der Herold in Morvale.
+
+## Mission 5 – Morvale
+
+- **Wer will was?** Malvor will das Vertrauen der Moordörfer in Nelia zerstören und sie durch Hunger gefügig machen.
+  Nelia will, dass die Dörfer ihr aus freiem Willen folgen, und das Kronstück aus Erlenhof.
+- **Warum jetzt?** Taran hat Malvor erzählt, wer Nelia ist. Malvors Herold enthüllt in Morvale, dass sie keine
+  Prinzessin, sondern eine entlaufene Leibeigene ist.
+- **Was steht im Weg?** Die Dörfer wenden sich ab (neutral). Tarans Soldaten lagern hinter Moorbrook und haben Befehl,
+  dessen Höfe zu verbrennen.
+- **Was der Spieler tut, und warum jeweils:**
+  1. Eigene Höfe bauen, damit Nelia den Dörfern nichts wegnimmt (Nebenziel).
+  2. Nach der Enthüllung die drei Dörfer durch Lieferungen zurückgewinnen: Holz und Stein für Moorbrooks Dächer, Eisen
+     für Schilfheims Deich, Taler für Erlenhofs Saatgut. Sie wollen keine Prinzessin, sie wollen Hilfe.
+  3. Taran verweigert den Befehl, die Höfe zu verbrennen, weil er selbst ein Dorf verhungern sah, und läuft über.
+  4. Die Höfe von Moorbrook gegen Malvors restliche Truppen halten und die Truppen vertreiben.
+  5. Die Dorfälteste von Erlenhof übergibt das vierte Kronstück: „Wir folgen dir, nicht deinem Blut.“
+- **Neu für den Spieler:** Lieferungen als Bezahlung an Dörfer, „neutral“, Tarans Fähigkeiten „Schildstoß“ und
+  „Einschüchtern“.
+- **Wann ist der Gegner besiegt?** Die Truppen vor Moorbrook sind vertrieben; eine Verstärkung kommt genau einmal.
+- **Was danach geschieht:** Malvor schreibt Nelia: Vier hast du, das fünfte trage ich, komm und hol es dir.
+
+## Mission 6 – Der Thronsee
+
+- **Wer will was?** Nelia will Malvor das fünfte Kronstück abnehmen, damit die Krone vollständig ist. Malvor will es
+  behalten, denn wer alle fünf vereint, muss gekrönt werden.
+- **Warum jetzt?** Er hat sie herausgefordert. Die Dörfer, Taran und die Städte stehen hinter ihr.
+- **Was steht im Weg?** Sein Inselschloss liegt mitten im Thronsee, es ist Sommer, es gibt keine Brücke und kein Boot.
+  Im Winter trägt der See. Malvor hat ein eigenes Wetterkraftwerk (kleines Wetterwerk, nach denselben Plänen) auf einer
+  kleinen Insel davor und taut den See, sobald jemand auf dem Eis steht.
+- **Was der Spieler tut, und warum jeweils:**
+  1. Das Wetterkraftwerk erforschen (langsam) oder das Wissen kaufen (teuer), weil man Winter nur mit dem Kraftwerk
+     machen kann.
+  2. Das Kraftwerk bauen und laden, dann Winter machen (drei Minuten).
+  3. Malvors Kraftwerk vom Ufer aus mit Bogenschützen zerstören, oder warten, bis er es leer getaut hat, das eigene
+     Kraftwerk wieder laden und dann den See erneut zufrieren lassen.
+  4. Über das Eis zur Schlossinsel. Malvors Feldgeschütz zerschlägt das Eis unter Orrin in der Vorhut; Taran zieht ihn
+     schwer verwundet heraus. Orrin scheidet aus dem Kampf aus und stirbt erst nach der Krönung.
+  5. Das Inselschloss erobern. Malvor ist die einzige Ausnahme zu „Helden stehen wieder auf“: Er fällt im Kampf um das
+     Schloss endgültig.
+  6. Die Garde von Hagenfurt greift in drei Wellen aus dem Norden an. Dann ist Malvors Reserve verbraucht.
+- **Neu für den Spieler:** Forschen oder kaufen, Wetterkraftwerk bauen und laden, „Wetter herbeiführen“,
+  Malvors Falle (Tauwetter), Feldgeschütze und Fußangeln.
+- **Wann ist der Gegner besiegt?** Das Schloss ist erobert und Malvor gefallen.
+- **Was danach geschieht:** Nelia wird gekrönt, Orrin stirbt, Nelia hebt die Leibeigenschaft auf, Lindgrund lebt.
+
+## Eine neue Festlegung zur Welt (bitte bestätigen)
+
+**Schwefel gibt es nur in Eisenhain.** Malvor hat nur Reste, die für Pulver und ein kleines Kraftwerk reichen, nicht für
+ein neues Wetterwerk. Dann ergeben die Schwefelgrube in Mission 4 und der Schwefel in Mission 6 (Nelia hat welchen,
+Malvor nur Reste) Sinn. In `WELT.md` steht bisher „Eisen und
+Schwefel“ bei Eisenhain; „nur dort“ wäre die Ergänzung.
+
 ## Offene Entscheidungen für dich
 
-1. Passen die drei Festlegungen zur Welt (Winterkorn, Malvor verkauft Korn für Gold, der Rat gibt sein Wort)?
-2. Passt die Kette von Mission 1 und 2?
+1. Passt die Festlegung „Schwefel gibt es nur in Eisenhain“?
+2. Passen die Ketten der Missionen 1 bis 6?
 
-Sobald das geklärt ist, folgen die Ketten für Mission 3 bis 6. Danach werden die Gespräche aus den Ketten geschrieben.
+Danach werden die Gespräche aus den Ketten geschrieben.
