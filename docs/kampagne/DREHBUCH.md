@@ -1959,6 +1959,21 @@ formuliert werden („Orrin zeigt dir, wie ein Dorf wächst“), ohne Nelia als 
 Für jede Frage ist die Fassung geschrieben, die ohne Entscheidung funktioniert.
 
 1. **K1/E1 umsetzen?** Geschrieben ist alles so, dass die Rückbezüge ersatzlos entfallen können.
-2. **Vertonung:** ~340 Zeilen, doppelt so viele mit Englisch. Hilfe-Zeilen mitvertonen (geschrieben: ja, sie sind
-   kurz) oder nur als Text?
-3. **Nelias Vater** bleibt eine Figur nur in Texten (geschrieben). Im Schlussbild sichtbar machen?
+2. **Vertonung.** Jeder gesprochene Satz im Spiel ist eine eigene Aufnahme (eine Sprechblase mit Porträt, eine
+   Tondatei). Das Drehbuch hat **347 solche Sätze** (die heutigen Missionen haben 133). Auf Deutsch und Englisch sind
+   das **694 Aufnahmen**. Verteilt auf **17 Sprecherrollen**: Orrin 138 Sätze, Nelia 116, Taran 32, Herold 13, Malvor
+   10, die übrigen zwölf Nebenrollen zusammen 38.
+   **Davon sind 31 Bedienhinweise** – Sätze, in denen ein Held erklärt, was man klicken soll („Ruf in der Burg ‚Zu
+   den Waffen!‘“). Sie kommen nur, wenn der Spieler das noch nicht getan hat. Die übrigen 316 Sätze sind Geschichte.
+   **Zu entscheiden:** Werden auch die 31 Bedienhinweise aufgenommen, oder stehen sie nur als Text in der
+   Sprechblase? (Die Bedienhinweise werden gerade so umgeschrieben, dass die Helden den Spieler direkt ansprechen;
+   ihre Zahl kann sich dabei leicht ändern.)
+3. **Nelias Vater** wird in allen sechs Missionen nur erwähnt: Nelia spricht von ihm (Mission 1 und 6), ein
+   Gefangener sagt, dass er lebt (Mission 3), und im Text nach dem Finale schlägt er frei Holz unter dem alten Baum.
+   **Als Figur ist er nie zu sehen und hat keine Stimme.** Zu entscheiden – eine von drei Möglichkeiten:
+   - **a)** so lassen (nur erwähnt);
+   - **b)** Nelia befreit ihn in Mission 3 aus dem Gefangenenlager: Er steht als Figur dort, sagt zwei, drei Sätze
+     und geht dann heim nach Lindgrund – das Nebenziel bekommt einen persönlichen Grund;
+   - **c)** er erscheint in Mission 6 nach dem Sieg als Figur vor Malvors Kornlager, Nelia spricht mit ihm (eine kurze
+     Szene vor dem Abschlusstext).
+   Für b) und c) braucht er eine Figur (Modell wie ein Leibeigener reicht) und eine Stimme.
