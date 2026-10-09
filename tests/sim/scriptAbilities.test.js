@@ -1,5 +1,5 @@
-// Hero abilities and "To arms!" in the scripting API: nelia.use(…), ready(), cooldown(), abilities(), call_to_arms(),
-// back_to_work(), serf.militia and @on_event("attacked"). Every action is the same sim command as the UI button –
+// Hero abilities and "To arms!" in the scripting API: nelia.use(…), ready(), cooldown(), abilities(), militia(),
+// serf.militia and @on_event("attacked"). Every action is the same sim command as the UI button –
 // a script and a direct command lead to the same state hash.
 import { describe, it, expect } from 'vitest';
 import { createScenarioSim } from '../../src/sim/missions/runtime.js';
@@ -175,9 +175,9 @@ describe('Hero abilities in scripts', () => {
 });
 
 describe('"To arms!" in scripts', () => {
-  it('call_to_arms() and back_to_work() are the militia command of the castle', () => {
+  it('militia(True/False) is the militia command of the castle', () => {
     const a = scenario({ bandits: false }), b = scenario({ bandits: false });
-    runCode(a, 'print(call_to_arms(), [s.militia for s in serfs()])\nwait(3)\nprint(back_to_work(), back_to_work())\n');
+    runCode(a, 'print(militia(True), [s.militia for s in serfs()])\nwait(3)\nprint(militia(False), militia(False))\n');
     run(a, 1);
     b.step([{ type: 'militia', player: 0, on: true }]);
     // the script ran at the end of tick 0, the command at its start – compare after both took effect
@@ -191,7 +191,7 @@ describe('"To arms!" in scripts', () => {
 
   it('a list of serfs arms only those; same hash as the command with units', () => {
     const a = scenario({ bandits: false }), b = scenario({ bandits: false });
-    runCode(a, 'call_to_arms(serfs()[:2])\n');
+    runCode(a, 'militia(True, serfs()[:2])\n');
     run(a, 1);
     const ids = serfsOf(b).map((e) => e.id).sort((x, y) => x - y).slice(0, 2);
     const update = b.mission.update.bind(b.mission);
@@ -205,14 +205,14 @@ describe('"To arms!" in scripts', () => {
 
   it('only serfs, only own ones', () => {
     const sim = scenario({ bandits: false });
-    runCode(sim, 'call_to_arms([nelia])\n');
+    runCode(sim, 'militia(True, [nelia])\n');
     run(sim, 2);
-    expect(errText(sim)[0]).toContain('call_to_arms() nimmt nur Leibeigene, keinen Helden.');
-    expect(errText(sim, 'en')[0]).toContain('call_to_arms() only takes serfs, not a hero.');
+    expect(errText(sim)[0]).toContain('militia() nimmt nur Leibeigene, keinen Helden.');
+    expect(errText(sim, 'en')[0]).toContain('militia() only takes serfs, not a hero.');
     const other = scenario();
-    runCode(other, 'back_to_work([hq()])\n');
+    runCode(other, 'militia(False, [hq()])\n');
     run(other, 2);
-    expect(errText(other)[0]).toContain('back_to_work() nimmt nur Leibeigene, kein Gebäude.');
+    expect(errText(other)[0]).toContain('militia() nimmt nur Leibeigene, kein Gebäude.');
     expect(errText(other, 'en')[0]).toContain('not a building.');
   });
 });
@@ -220,7 +220,7 @@ describe('"To arms!" in scripts', () => {
 describe('@on_event("attacked")', () => {
   it('fires for own figures hit by an enemy, at most every 5 seconds per handler', () => {
     const sim = scenario();
-    runCode(sim, 'n = 0\n@on_event("attacked")\ndef alarm(target, attacker):\n    global n\n    n += 1\n    if n == 1:\n        print(target.side, attacker.side)\n        call_to_arms()\n');
+    runCode(sim, 'n = 0\n@on_event("attacked")\ndef alarm(target, attacker):\n    global n\n    n += 1\n    if n == 1:\n        print(target.side, attacker.side)\n        militia(True)\n');
     run(sim, 200);
     expect(errors(sim)).toEqual([]);
     expect(out(sim)).toEqual(['own enemy']);
@@ -232,7 +232,7 @@ describe('@on_event("attacked")', () => {
 });
 
 describe('Determinism and saving', () => {
-  const code = '@on_event("attacked")\ndef alarm(target, attacker):\n    call_to_arms()\n    if nelia.ready("courage"):\n        nelia.use("courage")\n'
+  const code = '@on_event("attacked")\ndef alarm(target, attacker):\n    militia(True)\n    if nelia.ready("courage"):\n        nelia.use("courage")\n'
     + 'taran.use("shield_bash")\nwait(2)\norrin.use("salve")\n';
 
   it('loading mid-program continues with the same hash', () => {

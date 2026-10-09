@@ -461,7 +461,7 @@ Hovering over a command (on a phone: long press) shows a card explaining it. The
 `nelia.step()`, `nelia.turn_left()`, `nelia.turn_right()`, `nelia.front()`, `nelia.left()`, `nelia.take()` and `print()`.
 In the code your hero has the same name as in the game (`nelia`, `orrin` …); serfs (`serfs()`) have the same basic
 commands and fell trees with `chop()`. A hero uses abilities like with the buttons (`nelia.use("courage")`, ask
-`nelia.ready("courage")` first), `call_to_arms()` calls “To arms!” like the castle, `back_to_work()` ends it.
+`nelia.ready("courage")` first), `militia(True)` calls “To arms!” like the castle, `militia(False)` gives the all-clear.
 
 ```
 for i in range(10):

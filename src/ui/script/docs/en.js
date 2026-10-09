@@ -58,7 +58,7 @@ export default {
     soldiers: 'number of soldiers in the troop',
     idle: 'True if the figure has nothing to do (serf: no work, no way; troop: no order)',
     side: 'side from your point of view: "own", "allied", "neutral" or "enemy"',
-    militia: 'True if the serf has taken up arms (militia, `call_to_arms()`)',
+    militia: 'True if the serf has taken up arms (militia, `militia(True)`)',
     job: 'current job: "build", "repair", "gather" (felling, digging), "fight" or None',
     profession: 'profession of the worker',
     level: 'upgrade level (1, 2, 3)',
@@ -132,7 +132,7 @@ export default {
     'serf.work_on': { d: 'Method of serfs: sends the serf to work – build at a construction site, fell a tree or dig at a pile. The program does not wait; the serf keeps working until the job is done and then looks for work of the same kind.', p: [['target', 'game object', 'Building (construction site), Tree or Pile']], r: 'None' },
     'troop.attack': { d: 'Method of troops and heroes: attacks a game object. With a place or point the figure walks there and fights anything hostile on the way (attack move). Serfs attack a figure with their fists. The program does not wait.', p: [['target', 'game object or target', 'whom or where']], r: 'None' },
     'troop.hold': { d: 'Methods of troops, heroes and militia: `hold()` holds the position – the figure only fights enemies within range and follows nobody. `defend()` defends (as after a walk order): enemies nearby are attacked, then it returns to its spot. The program does not wait.', p: [], r: 'None' },
-    call_to_arms: { d: '**“To arms!”** like the button in the castle: serfs drop their work, take up pitchforks and gather in front of the castle (militia). `back_to_work()` sends them back to work. Without arguments it applies to all own serfs, otherwise only to those in the list. The program does not wait. `serf.militia` tells whether a serf is militia; militia can be steered like a troop with `move_to`, `attack`, `hold`.', p: [['serfs', 'list', 'serfs (default: all)']], r: 'number of serfs that switched' },
+    militia: { d: '**“To arms!”** like the button in the castle: with `militia(True)` serfs drop their work, take up pitchforks and gather in front of the castle (militia). `militia(False)` gives the all-clear and sends them back to work. Without a list it applies to all own serfs, otherwise only to those in the list. The program does not wait. `serf.militia` tells whether a serf is militia; militia can be steered like a troop with `move_to`, `attack`, `hold`.', p: [['on', 'True/False', 'to arms or all-clear'], ['serfs', 'list', 'serfs (default: all)']], r: 'number of serfs that switched' },
     'building.upgrade': { d: 'Method of buildings: upgrades one level, like the button in the building menu (costs resources, some levels need a technology).', p: [], r: 'None' },
     'building.change_weather': { d: 'Method of the weather power plant: changes the weather like the button at the plant – only with a full charge, after the waiting time and with the research “Meteorology”. `building.can_change_weather(state)` asks first whether it works right now. In missions also for plants of other players (an opponent who thaws the lake).', p: [['state', 'text', '"summer", "rain" or "winter"']], r: 'None; can_change_weather: True or False' },
     // ---------- Staging ----------

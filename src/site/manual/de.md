@@ -473,7 +473,7 @@ mit Parametern, Rückgabewerten, Fehlern und vielen Beispielen – erklärt sie 
 `nelia.step()`, `nelia.turn_left()`, `nelia.turn_right()`, `nelia.front()`, `nelia.left()`, `nelia.take()` und `print()`.
 Dein Held heißt im Code wie im Spiel (`nelia`, `orrin` …); Leibeigene (`serfs()`) haben dieselben Grundbefehle und
 fällen mit `chop()` Bäume. Fähigkeiten setzt ein Held wie mit seinen Knöpfen ein (`nelia.use("courage")`, vorher
-`nelia.ready("courage")` fragen), `call_to_arms()` ruft wie in der Burg „Zu den Waffen!“, `back_to_work()` beendet es.
+`nelia.ready("courage")` fragen), `militia(True)` ruft wie in der Burg „Zu den Waffen!“, `militia(False)` gibt Entwarnung.
 
 ```
 for i in range(10):

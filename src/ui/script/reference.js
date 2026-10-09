@@ -189,9 +189,9 @@ export const EXAMPLES = {
   'serf.work_on': 'trees = trees_near(hq(), radius=15)\nfor s, t in zip(serfs(idle=True), trees):\n    s.work_on(t)',
   'troop.attack': 'for t in troops():\n    if t.soldiers >= 3:\n        t.attack(place("camp"))',
   'troop.hold': 'for t in troops():\n    t.hold()\nwait(5)\nfor t in troops():\n    t.defend()\nprint(len(troops()), "Trupps")',
-  call_to_arms: L(
-    '@on_event("attacked")\ndef alarm(target, attacker):\n    call_to_arms()\n    if nelia.ready("courage"):\n        nelia.use("courage")\n\nprint(call_to_arms(serfs()[:1]), "Leibeigener an den Waffen")\nwait(5)\nback_to_work()\nprint([s.militia for s in serfs()])',
-    '@on_event("attacked")\ndef alarm(target, attacker):\n    call_to_arms()\n    if nelia.ready("courage"):\n        nelia.use("courage")\n\nprint(call_to_arms(serfs()[:1]), "serf took up arms")\nwait(5)\nback_to_work()\nprint([s.militia for s in serfs()])',
+  militia: L(
+    '@on_event("attacked")\ndef alarm(target, attacker):\n    militia(True)\n    if nelia.ready("courage"):\n        nelia.use("courage")\n\nprint(militia(True, serfs()[:1]), "Leibeigener an den Waffen")\nwait(5)\nmilitia(False)\nprint([s.militia for s in serfs()])',
+    '@on_event("attacked")\ndef alarm(target, attacker):\n    militia(True)\n    if nelia.ready("courage"):\n        nelia.use("courage")\n\nprint(militia(True, serfs()[:1]), "serf took up arms")\nwait(5)\nmilitia(False)\nprint([s.militia for s in serfs()])',
   ),
   'building.change_weather': 'for plant in buildings("weatherPlant"):\n    if plant.can_change_weather("winter"):\n        plant.change_weather("winter")\nprint(weather(), stock("energy"))',
   'building.upgrade': 'for b in buildings("residence"):\n    if b.done and b.level == 1:\n        b.upgrade()\n        break',
@@ -400,7 +400,7 @@ export const ERRORS = {
   'nelia.use': ['script.game.abilityNotReady', 'script.game.abilityUnknown', 'script.game.abilityOther', 'script.game.abilityNoTarget',
     'script.game.abilityFar', 'script.game.bribeNoTroop', 'script.game.bribeGold', 'script.game.heroDown'],
   'nelia.ready': ['script.game.abilityUnknown', 'script.game.abilityOther'],
-  call_to_arms: ['script.game.notSerf', 'script.game.notYours'],
+  militia: ['script.game.notSerf', 'script.game.notYours'],
   'nelia.put': ['err.script.game', 'script.game.itemUnknown'],
   'serf.chop': ['script.game.noTree', 'script.game.interrupted'],
   figures_near: ['script.game.sideUnknown'],

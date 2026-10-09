@@ -192,7 +192,7 @@ export const API_DOC = [
   { name: 'serf.work_on', sig: 'serf.work_on(target)', level: 'player', group: 'village' },
   { name: 'troop.attack', sig: 'troop.attack(target)', level: 'player', group: 'village', also: ['nelia.attack', 'serf.attack'] },
   { name: 'troop.hold', sig: 'troop.hold() · troop.defend()', level: 'player', group: 'village', also: ['troop.defend', 'nelia.hold', 'nelia.defend'] },
-  { name: 'call_to_arms', sig: 'call_to_arms(serfs=None) · back_to_work(serfs=None)', level: 'player', group: 'village', also: ['back_to_work'] },
+  { name: 'militia', sig: 'militia(on, serfs=None)', level: 'player', group: 'village' },
   { name: 'building.upgrade', sig: 'building.upgrade()', level: 'player', group: 'village' },
   { name: 'building.change_weather', sig: 'building.change_weather(state) · building.can_change_weather(state)', level: 'player', group: 'village', also: ['building.can_change_weather'] },
   // Staging (missions only)
@@ -751,11 +751,13 @@ export function makeApi(host, level) {
     return null;
   });
   /**
-   * call_to_arms(serfs=None) / back_to_work(serfs=None): the "To arms!" button at the castle – all serfs or the given
-   * ones take up pitchforks (militia) or go back to work. Returns how many serfs switched.
+   * militia(on, serfs=None): the "To arms!" button at the castle (sim command `militia`) – with True all serfs or the
+   * given ones take up pitchforks, with False they go back to work. Returns how many serfs switched.
    */
-  const militia = (fname, on) => def(fname, (ctx, a, kw) => {
-    const [list, p] = args(fname, a, kw, ['?serfs', '?player']);
+  def('militia', (ctx, a, kw) => {
+    const fname = 'militia';
+    const [onArg, list, p] = args(fname, a, kw, ['on', '?serfs', '?player']);
+    const on = truthy(onArg);
     const s = sim();
     /** @type {Map<number, number[]|null>} owner → serf IDs (null = all) */
     const byOwner = new Map();
@@ -777,8 +779,6 @@ export function makeApi(host, level) {
     }
     return Math.abs(armed() - before);
   });
-  militia('call_to_arms', true);
-  militia('back_to_work', false);
 
   // ---------- Missions: staging ----------
 
@@ -1739,7 +1739,7 @@ export function makeApi(host, level) {
           if (name === 'job') return e.job?.kind ?? null;
           // what the serf is cutting or digging right now ("wood", "clay" …)
           if (name === 'res') return e.job?.kind === 'gather' ? e.job.res ?? null : null;
-          // took up arms ("To arms!", call_to_arms())
+          // took up arms ("To arms!", militia(True))
           if (name === 'militia') return !!e.militia;
           break;
         case 'Worker':

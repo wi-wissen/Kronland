@@ -71,7 +71,7 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   `print()` in die Konsole, `notify()` als Meldung im Spiel, Programm als `.py` speichern und öffnen. **Ausführen startet
   die Etappe neu** (Schnappschuss je Unterziel), der aktive Auftrag steht oben im Panel, Figuren stecken **Zettel** mit
   Code zu („Zurück zu meinem Code“), Ereignisse (`@every`, `@on_enter`, Alarm `@on_event("attacked")` …) auch im eigenen Programm mit Haltepunkten,
-  Heldenfähigkeiten (`nelia.use("courage")`, `ready()`, `cooldown()`) und „Zu den Waffen!“ (`call_to_arms()`, `back_to_work()`) wie mit den Knöpfen,
+  Heldenfähigkeiten (`nelia.use("courage")`, `ready()`, `cooldown()`) und „Zu den Waffen!“ (`militia(True)`, `militia(False)`) wie mit den Knöpfen,
   Zeilen verschieben mit Alt+↑/↓ bzw. ⇡ ⇣ in der Tastenleiste.
   Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Gegenstände, Spuren, Orte, Missionen programmieren,
   Welt aus Code erzeugen, Doppelklick bzw. langes Drücken auf die Karte fügt Code ein – `place("camp")`, `(x, y)`,

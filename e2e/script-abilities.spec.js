@@ -7,7 +7,7 @@ const SLOW = { timeout: 30_000 };
 
 // Desktop only (DESKTOP_ONLY in playwright.config.js): the commands are the same as the buttons, whose phone layout
 // hud.spec.js and serfbar.spec.js cover.
-test('call_to_arms() and nelia.use() from the code panel show in the HUD', async ({ page }) => {
+test('militia() and nelia.use() from the code panel show in the HUD', async ({ page }) => {
   test.setTimeout(180_000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -18,7 +18,7 @@ test('call_to_arms() and nelia.use() from the code panel show in the HUD', async
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await expect(page.getByTestId('script-panel')).toBeVisible(SLOW);
   const ta = page.getByTestId('section-player').getByTestId('code-input');
-  await ta.fill('print("armed", call_to_arms())\nnelia.use("courage")\nprint("ready", nelia.ready("courage"))\n');
+  await ta.fill('print("armed", militia(True))\nnelia.use("courage")\nprint("ready", nelia.ready("courage"))\n');
   await page.getByTestId('script-run').click();
   await expect(page.getByTestId('script-console')).toContainText('ready False', SLOW);
   await expect(page.getByTestId('script-console')).toContainText(/armed [1-9]/);

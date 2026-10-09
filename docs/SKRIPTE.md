@@ -114,7 +114,7 @@ nelia.can_step()  nelia.move_to(ziel, wait=True)  nelia.is_at(ziel)  nelia.take(
 for s in serfs():  s.step()  s.chop()  s.work_on(baum)      # Leibeigene fällen nach Spielregeln
 t = troops()[0]    t.move_to(ziel, wait=False)  t.attack(feind)  t.hold()  t.defend()
 nelia.use("courage")  nelia.use("farsight", (x, y))  nelia.ready("courage")  nelia.cooldown("courage")  nelia.abilities()
-call_to_arms()  call_to_arms(serfs()[:3])  back_to_work()  serf.militia   # „Zu den Waffen!“ wie in der Burg
+militia(True)  militia(True, serfs()[:3])  militia(False)  serf.militia   # „Zu den Waffen!“ wie in der Burg
 place("goal")  tile(x, y)  trees_near(ziel)  figures_near(ziel, 8, side="enemy")  items_near(ziel, kind="coin")
 weather()  forecast()  stock("wood")  count("farm")  serfs(idle=True)
 hq()  find_spot("residence", hq())  build("residence", x, y)  serf.work_on(baustelle)
@@ -193,7 +193,7 @@ Bedingung.
 Heldenfähigkeiten und „Zu den Waffen!“ gehen im Programm genauso wie mit den Knöpfen von Heldenmenü und Burg: Jeder
 Aufruf ist derselbe Sim-Befehl (`ability`, `militia` mit `units`), mit Abklingzeit, Reichweite und Talern nach den
 Spielregeln. Passt Kursreihe IV (Wachrunden, die Höfe schützen): `@every` als Wachrunde, `@on_event("attacked")` als
-Alarm, `call_to_arms()` und `nelia.use("courage")` als Antwort.
+Alarm, `militia(True)` und `nelia.use("courage")` als Antwort.
 
 - **Namen** in snake_case wie die übrige API: `farsight`, `courage`, `bribe`, `salve`, `shield_bash`, `intimidate`,
   `field_gun`, `caltrops` (`abilityScriptName` in `api.js`; Daten und Sim-Befehl behalten die IDs aus `units.js`).
@@ -206,8 +206,8 @@ Alarm, `call_to_arms()` und `nelia.use("courage")` als Antwort.
   Reichweite oder ohne genug Taler (`bribeTarget`/`bribeCost` aus `military.js`, dieselbe Wahl wie die Sim).
 - `hero.ready(name)` (False auch, solange bewusstlos), `hero.cooldown(name)` (ganze Sekunden, aufgerundet wie der
   Knopf), `hero.abilities()` – nur lesen. Spielerprogramme steuern nur eigene Helden (`notYours`).
-- `call_to_arms(serfs=None)` / `back_to_work(serfs=None)` – alle oder die genannten eigenen Leibeigenen; liefert die
-  Zahl der Gewechselten. Missionen können zusätzlich `player=` angeben bzw. Leibeigene anderer Spieler nennen.
+- `militia(on, serfs=None)` – Befehl `militia` der Sim; `True` zu den Waffen, `False` Entwarnung, für alle oder die
+  genannten eigenen Leibeigenen; liefert die Zahl der Gewechselten. Missionen können zusätzlich `player=` angeben bzw. Leibeigene anderer Spieler nennen.
   `serf.militia` liest den Zustand.
 - `@on_event("attacked")`: aus den `hit`-Ereignissen der Sim, wenn ein Feind eine Figur oder ein Gebäude des
   gefilterten Spielers trifft (Spielerprogramm: immer HUMAN). Je Funktion höchstens alle `ALARM_SECONDS` = 5 s (Stand
