@@ -63,7 +63,9 @@ Im Sommer gilt **dieselbe Geometrie** – nur das Material wechselt: schwach get
 schaut Erde in verstreuten Flecken entlang der Mitte durch, voll ausgetreten ist es überwiegend Erde mit weichem
 Grasrand. Die Erde ist dabei nie sauber gezogen: Rauschen in drei Größen fasert die Ränder aus und lässt Lücken und
 Flecken entstehen. Auf **Fels** wird die Spur nie erdbraun – dort wird der Stein nur dunkler und schmutziger; der
-Shader blendet die Erdfarbe mit dem Gesteinsgewicht des Bodens aus.
+Shader blendet die Erdfarbe mit dem Gesteinsgewicht des Bodens aus. Im Winter ist es umgekehrt: Auf kahlem Fels
+zeigt sich festgetretener Schnee genau dort, wo gelaufen wird – je stärker die Spur, desto klarer die helle, leicht
+bläuliche Bahn mit Fußabdrücken.
 
 ![Der Prüfstand: fünf Formen (gerade, diagonal, Knick, S-Kurve, Abzweig) und zwei Felsfälle in drei Stärken, links Sommer, rechts Winter – immer ein Weg, im Sommer wie im Schnee ähnlich breit, im Sommer aufgebrochen und ausgefranst.](blog/footpaths/bench.webp)
 

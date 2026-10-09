@@ -62,7 +62,8 @@ In summer **the same geometry** applies – only the material changes: lightly t
 shows earth in scattered patches along the middle; fully worn it is mostly earth with a soft grass edge. The earth is
 never struck cleanly: noise on three scales frays the edges and leaves gaps and patches. On **rock** the track never
 turns earth-brown – the stone only gets darker and dirtier; the shader fades the earth colour out with the rock weight
-of the ground.
+of the ground. In winter it is the other way round: on bare rock packed snow shows up exactly where people walk – the
+stronger the track, the clearer the light, slightly bluish lane with footprints.
 
 ![The test bench: five shapes (straight, diagonal, bend, S-curve, junction) and two rock cases at three strengths, summer on the left, winter on the right – always one path, similarly wide in summer and in snow, broken up and frayed in summer.](blog/footpaths/bench.webp)
 

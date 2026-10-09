@@ -608,6 +608,22 @@ if (uSnow > 0.5 && kTr > 0.001) {
   albedo = mix(albedo, cSnow * vec3(0.5, 0.56, 0.7), kPr.x * kPm * 0.85);
   albedo = mix(albedo, cSnow * vec3(0.3, 0.35, 0.47), kPr.y * kPm * 0.85);
   kH -= kPr.x * kPm * 0.25;
+  // On bare rock (steep ground, no snow cover): packed snow shows up exactly where everyone walks – a light, slightly
+  // bluish lane with a ragged edge, footprints in it; the stronger the track, the clearer and wider the lane
+  float kRk = (bA.w / bSum) * (1.0 - sMask);
+  if (kRk > 0.01) {
+    float kRn = (texture2D(tMacro, vWPos.xz * 0.37 + 0.2).g - 0.5) * 0.2 + (texture2D(tMacro, vWPos.xz * 1.1 + 0.6).b - 0.5) * 0.14;
+    // dusting along the prints from the first steps, a lane only from medium strength (relative to the ridge of the
+    // field, so it stays narrow); the frayed edge comes from the noise
+    float kRl = smoothstep(0.4, 0.52, kTrE + kRn) * (0.35 + 0.65 * smoothstep(0.45, 0.85, kTrE));
+    float kRd = smoothstep(0.17, 0.3, kTrE + kRn) * 0.16;
+    vec2 kRp = kSt > 0.2 ? kTrails(kRel, kDir, kSt, 0.2, 0.14, vec2(0.1, 0.05), 0.3) : vec2(0.0);
+    vec3 kPack = cSnow * vec3(0.9, 0.94, 1.0);
+    albedo = mix(albedo, kPack, max(kRl, kRd) * kRk * 0.9);
+    albedo = mix(albedo, kPack * vec3(0.82, 0.88, 0.98), kRp.x * kRk * smoothstep(0.16, 0.4, kTrE) * (1.0 - 0.7 * kRl));
+    albedo = mix(albedo, cSnow * vec3(0.5, 0.56, 0.7), kRp.y * kRk * smoothstep(0.16, 0.4, kTrE) * 0.6);
+    kH = mix(kH, kLum(cSnow) * 0.3, kRl * kRk * 0.7);
+  }
 }
 // Summer paths: a little darker where they are well trodden
 albedo *= 1.0 - kPath * smoothstep(0.7, 1.0, kTrE) * 0.12;
