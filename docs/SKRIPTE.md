@@ -623,6 +623,25 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
   Code (Abschnitte mit Stufe, Sichtbarkeit, bearbeitbar; Befehlsreferenz), Dateien (Bilder, Töne, 3D-Modelle
   hinzufügen und entfernen; sie gelten, solange die Seite offen ist, und reisen in der .zip), Beispiele
   (mitgelieferte Level als Vorlage). Den Reiter Texte gibt es nur noch für Szenarien der Version 1.
+- **Code aus der Karte:** Doppelklick (Handy: lange drücken, nicht mit Heben/Senken/Ebnen/Glätten, die beim Halten
+  weiterwirken) fügt Code an der Schreibmarke des zuletzt bearbeiteten Abschnitts ein (sonst „Mission“, ans Ende).
+  Ort → `place("camp")`, eigene Burg → `hq()`, Held → `nelia`, Gesprächsfigur (Vorschau) → `"id"`, Baum, Haufen,
+  Gebäude, Startplatz, Gegenstand … → `(x, y)`. Auf einer freien Kachel ein Menü: „Ort hier anlegen“
+  (`make_place("place1", x, y, 2)`, Name markiert), „Gesprächsfigur hier“ (Baustein unten mit `at=(x, y)`),
+  „Koordinaten einfügen“. Was das Werkzeug bei den zwei Klicks getan hat, wird zurückgenommen. Einfügen geht über
+  den Browser (Strg+Z nimmt es zurück, am Handy ohne Tastatur direkt), Einrückung passend: Ausdrücke genau an die
+  Marke, Anweisungen in eine eigene Zeile mit der Einrückung des Blocks (nie zwischen Dekorator und `def` oder in
+  eine mehrzeilige Klammer), Definitionen mit Dekorator immer auf oberster Ebene hinter den umgebenden Block, mit
+  Leerzeile. Logik: `src/ui/editor/codeInsert.js`, Kachel-Erkennung `EditorView.targetAt()`.
+- **Bausteine** (Reiter Code): Gesprächsfigur (`npc` + `@on_talk`), Ziel mit Fortschritt (`objective` mit
+  `(erreicht, Ziel)` + `@on_objective`), Angriffswelle (`@every` + `spawn` + `attack`, legt fehlende Räuber als
+  Spieler an), Dialogfolge (mehrere `say`, auf oberster Ebene in `@on_start` verpackt), Talerspur (`add_item` in
+  einer Schleife). Sie kommen an die zuletzt auf der Karte gewählte Kachel (sonst die Mitte), mit eindeutigen
+  Platzhalternamen (`figure1`, `goal1` …), Texten de/en und Kommentaren in der Sprache der Oberfläche
+  (`src/ui/editor/blocks.js`; jeder Baustein wird in `tests/ui/codeInsert.test.js` übersetzt und ausgeführt).
+- **Wie in der Programmierumgebung:** Befehlskarten beim Überfahren, Strg+Klick zur Referenz, langes Drücken am
+  Handy (derselbe `CodeEditor`); in der Vorschau Fehler mit roter und Hinweise mit gelber Zeilenmarke (verschwinden,
+  sobald der Abschnitt bearbeitet wird); beim Testspielen Debugger und Hinweise im Code-Panel.
 - **Welt aus Code:** „Weltaufbau ausführen“ zeigt das Ergebnis der Missionsabschnitte als Vorschau;
   „Ins Gelände übernehmen“ macht es zur Karte (und kommentiert den Abschnitt `world` aus).
 - **Speichern/Öffnen** als `.zip` (Level-Ordner mit Dateien; Öffnen nimmt auch eine `.json`); ein Entwurf wird im
@@ -639,8 +658,8 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
 npx vitest run tests/script      # Sprache: CPython-Vergleich, Fehler, Debugger, Speichern mitten im Lauf
 npx vitest run tests/sim/scripting.test.js tests/sim/scenarioV2.test.js tests/sim/editor.test.js tests/levels
 npx vitest run tests/sim/ground.test.js tests/sim/figures.test.js tests/script/hints.test.js
-npx vitest run tests/sim/stage.test.js tests/sim/playerEvents.test.js tests/levels/blizzard.test.js tests/ui/editText.test.js
-E2E_PORT=4310 npx playwright test e2e/script.spec.js e2e/stage.spec.js
+npx vitest run tests/sim/stage.test.js tests/sim/playerEvents.test.js tests/levels/blizzard.test.js tests/ui/editText.test.js tests/ui/codeInsert.test.js
+E2E_PORT=4310 npx playwright test e2e/script.spec.js e2e/stage.spec.js e2e/editor-code.spec.js
 ```
 
 `tests/script/cases/*.py` laufen in der VM und müssen dieselbe Ausgabe liefern wie `*.out` (mit `python3`

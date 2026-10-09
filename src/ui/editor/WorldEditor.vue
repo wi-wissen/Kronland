@@ -119,9 +119,25 @@
             </template>
           </div>
           <div v-if="ui?.preview && (ui.errors.length || ui.console.length)" class="sp-console">
-            <div v-for="e in ui.errors" :key="'e' + e.seq" class="sp-out err">{{ errText(e) }}</div>
+            <div v-for="e in ui.errors" :key="'e' + e.seq" class="sp-out err" data-testid="editor-error">{{ errText(e) }}</div>
             <div v-for="c in ui.console.filter((c) => !c.err)" :key="c.seq" class="sp-out">{{ c.text }}</div>
           </div>
+          <!-- Hints of the mission code (valid, but rarely meant so): amber, like in the code panel -->
+          <div v-for="h in previewHints.list" :key="'h' + h.seq" class="sp-hint" role="status" data-testid="editor-hint">
+            <b>{{ hintTitle(h) }}</b>
+            <p>{{ $t(h.code, h.params ?? {}) }}</p>
+          </div>
+          <p v-if="previewHints.more" class="sp-hint-more">{{ $t('script.hint.more', { n: previewHints.more }) }}</p>
+          <!-- Building blocks: typical pieces of a mission, inserted at the caret -->
+          <details class="ed-blocks" :open="!compact" data-testid="editor-blocks">
+            <summary>{{ $t('editor.blocks') }}</summary>
+            <p class="ed-note">{{ $t(touch ? 'editor.blocksNoteTouch' : 'editor.blocksNote', { x: blockTile.x, y: blockTile.y }) }}</p>
+            <div class="ed-block-list">
+              <button v-for="b in blocks" :key="b.id" class="ed-block" :data-testid="'block-' + b.id" @click="insertBlock(b.id)">
+                <b>{{ $t('editor.block.' + b.id) }}</b><small>{{ $t('editor.blockHint.' + b.id) }}</small>
+              </button>
+            </div>
+          </details>
           <div v-for="(s, i) in scenario.sections" :key="s.id" class="ed-section" :data-testid="'editor-section-' + s.id">
             <div class="ed-sec-head">
               <input v-model="s.title.de" class="ed-sec-title" :aria-label="$t('editor.sectionTitle')">
@@ -131,7 +147,16 @@
               <button class="icon-btn ghost" :disabled="i === 0" :aria-label="$t('editor.up')" @click="moveSection(i, -1)"><Icon name="chevronUp" /></button>
               <button class="icon-btn ghost" :aria-label="$t('editor.remove')" @click="scenario.sections.splice(i, 1)"><Icon name="close" /></button>
             </div>
-            <CodeEditor v-model="s.code" :label="s.title.de" />
+            <CodeEditor
+              :ref="(el) => setEditor(s.id, el)"
+              v-model="s.code"
+              :label="s.title.de"
+              :error-line="sectionError(s.id)"
+              :hint-lines="previewHints.lines[s.id] ?? []"
+              @update:model-value="edited(s.id)"
+              @focus="focusSection(s.id)"
+              @blur="rememberCaret(s.id)"
+            />
           </div>
           <div class="ed-row">
             <button data-testid="editor-add-section" @click="addSection('mission')"><Icon name="plus" />{{ $t('editor.addMission') }}</button>
@@ -177,6 +202,16 @@
       </div>
     </aside>
 
+    <!-- Double-click/long press on a free tile: what to insert -->
+    <div v-if="codeMenu" class="ed-menu-scrim" data-testid="editor-code-scrim" @click="closeMenu" @contextmenu.prevent="closeMenu"></div>
+    <div v-if="codeMenu" class="ed-code-menu frame" :style="codeMenu.style" role="menu" data-testid="editor-code-menu">
+      <b class="ed-code-menu-title">{{ $t('editor.code.tile', { x: codeMenu.x, y: codeMenu.y }) }}</b>
+      <button v-for="c in freeMenu" :key="c" role="menuitem" :data-testid="'code-menu-' + c" @click="menuChoice(c)">
+        <span>{{ $t('editor.code.' + c) }}</span><code>{{ menuPreview(c) }}</code>
+      </button>
+    </div>
+    <p v-if="codeToast" class="ed-code-toast" role="status" data-testid="editor-code-toast">{{ codeToast }}</p>
+
     <!-- New world -->
     <Teleport to="body">
       <div v-if="newOpen" class="scrim" @click.self="newOpen = false">
@@ -206,7 +241,10 @@ import { RESOURCES } from '../../sim/data/resources.js';
 import { HERO_IDS } from '../../sim/data/units.js';
 import { loadAssets } from '../../render/assets.js';
 import { applyPlayerColor } from '../settings.js';
-import { scriptErrorText } from '../../i18n/index.js';
+import { scriptErrorText, i18n } from '../../i18n/index.js';
+import { planInsert, applyPlan, targetSnippet, menuSnippet, FREE_MENU } from './codeInsert.js';
+import { BLOCKS, buildBlock, talkBlock } from './blocks.js';
+import { shownHints } from '../script/panelState.js';
 
 const DRAFT = 'kronland-editor-draft';
 /**
@@ -255,6 +293,13 @@ export default {
       newOpen: false, newBase: 'flat', newSize: 32, newSeed: 42,
       placeDraft: null, newTextKey: '', message: '', fileVersion: 0,
       compact: false, tools: TOOLS, items: ITEMS, resources: RESOURCES, heroes: HERO_IDS, examples: SCENARIOS,
+      blocks: BLOCKS, freeMenu: FREE_MENU,
+      /** Code from the map: menu for a free tile, confirmation, tile for the building blocks */
+      codeMenu: null, codeToast: '', codeTile: null,
+      /** Section that gets code from the map (last focused), its caret while the editor is closed */
+      focusedSection: null, carets: {},
+      /** Sections edited since the preview started: their error and hint marks are out of date */
+      previewDirty: {},
     };
   },
   computed: {
@@ -264,6 +309,12 @@ export default {
       return [...files].map(([path, b]) => ({ path, size: b.size >= 1e6 ? `${(b.size / 1e6).toFixed(1)} MB` : `${Math.ceil(b.size / 1e3)} KB` }));
     },
     realPlayers() { return this.scenario.players.filter((p) => p.kind !== 'bandits'); },
+    /** Tile for the building blocks: the last one picked on the map, otherwise the middle */
+    blockTile() { return this.codeTile ?? { x: Math.floor((this.ui?.size.w ?? 32) / 2), y: Math.floor((this.ui?.size.h ?? 32) / 2) }; },
+    previewHints() {
+      if (!this.ui?.preview) return { list: [], more: 0, lines: {} };
+      return shownHints({ missionHints: this.ui.hints }, { mode: 'editor', dirty: this.previewDirty });
+    },
     showBrush() { return ['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase', 'track'].includes(this.ui?.tool.tool); },
   },
   watch: {
@@ -275,24 +326,38 @@ export default {
         this.draftTimer = setTimeout(() => this.saveDraft(), 800);
       },
     },
+    'ui.preview'(on) { if (on) this.previewDirty = {}; },
     'ui.canUndo'() { clearTimeout(this.draftTimer); this.draftTimer = setTimeout(() => this.saveDraft(), 800); },
   },
   async mounted() {
     this.layout = () => { this.compact = window.innerWidth < 900 || window.innerHeight < 560; };
     this.layout();
     window.addEventListener('resize', this.layout);
+    this.onEsc = (e) => { if (e.key === 'Escape' && this.codeMenu) { e.stopPropagation(); this.codeMenu = null; } };
+    window.addEventListener('keydown', this.onEsc, true);
+    // Caret of the section being edited, also when its editor closes (tab change) before it reports a blur
+    this.onSel = () => {
+      const a = document.activeElement;
+      for (const [id, ed] of Object.entries(this.editors ?? {})) if (ed?.$refs?.ta === a && a.offsetParent) { this.carets[id] = ed.selection(); this.focusedSection = id; }
+    };
+    document.addEventListener('selectionchange', this.onSel);
     applyPlayerColor();
     try { await loadAssets(Math.max(1, this.realPlayers.length), () => {}); } catch { /* placeholder models */ }
     this.view = markRaw(new EditorView(this.$refs.canvas, this.plainScenario(), {
       onUi: (ui) => { this.ui = ui; },
       onPick: (tool, x, y) => this.pick(tool, x, y),
+      onCode: (target, client) => this.codeAt(target, client),
     }));
     this.loading = false;
     window.__kronlandEditor = this.view;
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.layout);
+    window.removeEventListener('keydown', this.onEsc, true);
+    document.removeEventListener('selectionchange', this.onSel);
     clearTimeout(this.draftTimer);
+    clearTimeout(this.toastTimer);
+    clearTimeout(this.sheetTimer);
     this.saveDraft();
     this.view?.dispose();
     if (window.__kronlandEditor === this.view) window.__kronlandEditor = null;
@@ -371,9 +436,94 @@ export default {
       const [x] = s.splice(i, 1);
       s.splice(i + d, 0, x);
     },
-    insertCode(text) {
-      const s = this.scenario.sections.find((x) => x.level === 'mission') ?? this.scenario.sections[0];
-      if (s) s.code = s.code.replace(/\n*$/, '\n') + text + '\n';
+    /** Example from the command help: at the caret like a building block (definitions at the top level). */
+    insertCode(text) { this.insertSnippet({ kind: /^(@|def )/m.test(text) ? 'top' : 'stmt', code: text }); },
+
+    // ---------- Code from the map and building blocks ----------
+
+    setEditor(id, el) { if (el) (this.editors ??= {})[id] = el; else if (this.editors) delete this.editors[id]; },
+    focusSection(id) { this.focusedSection = id; },
+    /** Caret on leaving a section – only from a visible editor (a hidden sheet's textarea has lost its selection). */
+    rememberCaret(id) { const ed = this.editors?.[id]; if (ed?.$refs?.ta?.offsetParent) this.carets[id] = ed.selection(); },
+    edited(id) { if (this.ui?.preview) this.previewDirty = { ...this.previewDirty, [id]: true }; },
+    sectionError(id) {
+      if (!this.ui?.preview || this.previewDirty[id]) return -1;
+      const e = [...this.ui.errors].reverse().find((x) => x.section === id);
+      return e?.sline > 0 ? e.sline : -1;
+    },
+    hintTitle(h) {
+      const sec = this.scenario.sections.find((x) => x.id === h.section);
+      if (!h.sline) return this.$t('script.hint.title');
+      return sec ? this.$t('script.hint.whereSection', { section: this.$tr(sec.title), line: h.sline }) : this.$t('script.hint.where', { line: h.sline });
+    },
+    /** Section for inserted code: the last focused one, otherwise the mission. */
+    targetSection() {
+      const all = this.scenario.sections;
+      return all.find((x) => x.id === this.focusedSection) ?? all.find((x) => x.id === 'mission') ?? all.find((x) => x.level === 'mission') ?? all[0] ?? null;
+    },
+    /** Context for building blocks and the talk figure of the menu. */
+    blockCtx(at) {
+      const p = this.scenario.players[0] ?? {};
+      return { x: at.x, y: at.y, lang: i18n.lang === 'en' ? 'en' : 'de', codes: this.scenario.sections.map((x) => x.code), hero: p.hero ?? null, hq: !!p.hq, width: this.ui?.size.w ?? 32, height: this.ui?.size.h ?? 32 };
+    },
+    /** Double-click/long press on the map: code for places and things right away, a menu for free tiles. */
+    codeAt(target, client) {
+      this.codeTile = { x: target.x, y: target.y };
+      const sn = targetSnippet(target);
+      if (sn) { this.insertSnippet(sn); return; }
+      const W = window.innerWidth, H = window.innerHeight;
+      const left = Math.max(8, Math.min(W - 248, client.x + 8)), top = Math.max(8, Math.min(H - 220, client.y + 8));
+      this.codeMenu = { x: target.x, y: target.y, at: Date.now(), style: { left: `${left}px`, top: `${top}px` } };
+    },
+    /** Tap beside the menu closes it – not the click the browser sends when the long-press finger lifts. */
+    closeMenu() {
+      if (this.codeMenu && Date.now() - this.codeMenu.at > 600) this.codeMenu = null;
+    },
+    menuSnippetOf(choice) {
+      const at = { x: this.codeMenu.x, y: this.codeMenu.y };
+      return menuSnippet(choice, at, { codes: this.scenario.sections.map((x) => x.code), talk: (p) => talkBlock(this.blockCtx(p)) });
+    },
+    /** First line of the code a menu entry inserts (without comments and placeholder marks). */
+    menuPreview(choice) {
+      const lines = this.menuSnippetOf(choice).code.replace(/[«»]/g, '').split('\n').filter((l) => l.trim() && !l.startsWith('#'));
+      return lines[0] ?? '';
+    },
+    menuChoice(choice) {
+      const sn = this.menuSnippetOf(choice);
+      this.codeMenu = null;
+      this.insertSnippet(sn);
+    },
+    insertBlock(id) {
+      const sn = buildBlock(id, this.blockCtx(this.blockTile));
+      if (!sn) return;
+      if (sn.needs === 'bandits' && !this.scenario.players.some((p) => p.kind === 'bandits')) {
+        this.addPlayer('bandits');
+        this.flash(this.$t('editor.banditsAdded'));
+      }
+      this.insertSnippet(sn);
+    },
+    /**
+     * Insert a snippet at the caret of the target section (codeInsert.planInsert): through the code editor so undo
+     * keeps it; the code tab opens (on phones the panel too) so you see where it went.
+     */
+    async insertSnippet(sn) {
+      const s = this.targetSection();
+      if (!s) return;
+      this.tab = 'code';
+      // Phones: the sheet opens a moment later – the finger of the long press must not land in it
+      await this.$nextTick();
+      const ed = this.editors?.[s.id];
+      const live = ed && document.activeElement === ed.$refs?.ta && ed.$refs.ta.offsetParent ? ed.selection() : null;
+      const sel = live ?? this.carets[s.id] ?? { start: s.code.length, end: s.code.length };
+      const plan = planInsert(s.code, sel.start, sel.end, sn);
+      if (!ed?.replace(plan.from, plan.to, plan.text, plan.select, !this.touch)) s.code = applyPlan(s.code, plan);
+      this.carets[s.id] = { start: plan.select[0], end: plan.select[1] };
+      this.focusedSection = s.id;
+      const shown = plan.text.trim().split('\n').find((l) => !l.trim().startsWith('#')) ?? '';
+      this.codeToast = this.$t('editor.code.inserted', { section: this.$tr(s.title), code: shown.trim() });
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => { this.codeToast = ''; }, 3500);
+      if (this.compact) { clearTimeout(this.sheetTimer); this.sheetTimer = setTimeout(() => { this.sideOpen = true; }, 450); }
     },
     addPlayer(kind) {
       this.scenario.players.push(kind === 'bandits' ? { kind: 'bandits' } : { kind: 'ai', hero: 'malvor', hq: true, difficulty: 'normal' });
@@ -526,8 +676,26 @@ export default {
 .ed-example { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 0.125rem; padding: 0.5rem 0.75rem; }
 .ed-example b { color: var(--gold-200); }
 .ed-example small { color: var(--ink-muted); }
-.ed-help summary { cursor: pointer; color: var(--gold-300); }
+.ed-help summary, .ed-blocks summary { cursor: pointer; color: var(--gold-300); }
+.ed-block-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.375rem; margin-top: 0.375rem; }
+.ed-block { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; gap: 0.125rem; padding: 0.4375rem 0.625rem; min-height: var(--touch, 2.75rem); }
+.ed-block b { color: var(--gold-200); font-size: var(--fs-sm); }
+.ed-block small { color: var(--ink-muted); font-size: var(--fs-xs); line-height: 1.3; font-weight: 400; }
+.ed-menu-scrim { position: fixed; inset: 0; z-index: 20; }
+.ed-code-menu { position: fixed; z-index: 21; width: 15rem; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem; }
+.ed-code-menu-title { font-size: var(--fs-xs); color: var(--gold-300); padding: 0 0.25rem; }
+.ed-code-menu button { display: flex; flex-direction: column; align-items: flex-start; gap: 0.125rem; text-align: left; min-height: var(--touch, 2.75rem); padding: 0.375rem 0.625rem; }
+.ed-code-menu code { font-size: 0.75rem; color: var(--gold-100); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ed-code-toast { position: absolute; z-index: 9; left: 50%; top: 4.5rem; transform: translateX(-50%); max-width: min(32rem, calc(100vw - 2rem)); margin: 0; padding: 0.375rem 0.75rem; border-radius: var(--r-md); background: rgba(20, 13, 8, 0.9); box-shadow: inset 0 0 0 1px var(--gold-500); color: var(--ink); font-size: var(--fs-sm); pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ed-msg { position: sticky; bottom: 0; margin: 0.5rem 0 0; padding: 0.375rem 0.625rem; border-radius: var(--r-md); background: rgba(63, 125, 43, 0.4); font-size: var(--fs-sm); }
+/* Preview output: the code panel's look (its styles load only with the game) */
+.editor .sp-console { padding: 0.375rem 0.625rem; border-radius: var(--r-md); background: #0f0b08; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8125rem; line-height: 1.5; }
+.editor .sp-out { white-space: pre-wrap; word-break: break-word; color: #e6dbc3; }
+.editor .sp-out.err { color: #ff9f8c; }
+.editor .sp-hint { padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: rgba(196, 140, 30, 0.2); box-shadow: inset 3px 0 0 #f0b43c; }
+.editor .sp-hint b { color: #f5c46a; font-size: var(--fs-sm); }
+.editor .sp-hint p { margin: 0.125rem 0 0; font-size: var(--fs-sm); line-height: 1.4; }
+.editor .sp-hint-more { margin: 0; font-size: var(--fs-xs); color: #d9b46a; }
 .ed-label { position: absolute; z-index: 4; transform: translate(-50%, -110%); pointer-events: none; padding: 0.125rem 0.4rem; border-radius: var(--r-sm); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; text-shadow: 0 1px 2px #000; }
 .ed-label.start { background: rgba(77, 123, 192, 0.85); color: #fff; }
 .ed-label.place { background: rgba(196, 141, 42, 0.85); color: #fff8e6; }
