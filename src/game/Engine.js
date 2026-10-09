@@ -1358,8 +1358,9 @@ export class Engine {
   /** Show tile grid (coding adventure: count steps). Pure rendering. */
   setGrid(on) { this.renderer?.setGrid(!!on); }
 
-  skipDialog() {
-    if (this.sim.mission?.script) this.issue({ type: 'script', action: 'skipDialog' });
+  /** End the dialogue line the mission script waits for; `all`: the rest of its conversation too. */
+  skipDialog(all = false) {
+    if (this.sim.mission?.script) this.issue({ type: 'script', action: 'skipDialog', ...(all ? { all: true } : {}) });
   }
 
   /** Smooth camera move (script: camera.fly_to; dialogue camera also with distance). */
@@ -1425,10 +1426,12 @@ export class Engine {
 
   /** Location of a speaking figure if it can be seen: hero with this name (own first) or conversation figure. */
   speakerPos(speaker) {
-    const npcs = this.sim.mission?.def?.npcs ?? {};
+    const npcs = this.sim.mission?.def?.npcs ?? {}, own = this.sim.mission?.state?.npcs ?? {};
     let best = null;
     for (const e of this.sim.entities.values()) {
-      const match = (e.kind === 'hero' && e.hero === speaker) || (e.kind === 'npc' && (npcs[e.npc]?.speaker ?? e.npc) === speaker);
+      // Talk figures speak with the voice of their speaker (npc(…, speaker="orrin")), otherwise under their own name
+      const as = e.kind === 'npc' ? (Object.hasOwn(npcs, e.npc) ? npcs[e.npc].speaker : Object.hasOwn(own, e.npc) ? own[e.npc].speaker : null) ?? e.npc : null;
+      const match = (e.kind === 'hero' && e.hero === speaker) || (e.kind === 'npc' && as === speaker);
       if (!match || !this.canSee(e)) continue;
       if (!best || (e.owner === this.player && best.owner !== this.player)) best = e;
     }
@@ -1501,15 +1504,17 @@ export class Engine {
     // Breakpoint in the mission script (world editor, test play): halt the game until the debugger continues
     if (ui.script?.mission.paused && !this.debugHalt) { this.debugHalt = true; this.paused = true; }
     else if (!ui.script?.mission.paused && this.debugHalt) { this.debugHalt = false; this.paused = false; }
-    const step = m.currentStep();
-    const check = step?.done?.type === 'ui' ? step.done.check : null;
-    if (check && !mv.checks[`${step.id}`]) {
+    // UI check the current step waits for (step(ui=…) in the mission program): reported once as a command
+    const step = ui.tutorial;
+    const check = step?.watch ?? null;
+    const key = step ? `${step.index}:${step.id}` : '';
+    if (check && !mv.checks[key]) {
       const rig = this.renderer.rig;
-      if (!mv.camStart || mv.camStart.step !== step.id) mv.camStart = { step: step.id, x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist };
+      if (!mv.camStart || mv.camStart.step !== key) mv.camStart = { step: key, x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist };
       const c = mv.camStart;
       const moved = Math.hypot(rig.target.x - c.x, rig.target.z - c.z) > 3 || Math.abs(rig.yaw - c.yaw) > 0.35 || Math.abs(rig.dist - c.dist) > 6;
       const ok = check === 'camera' ? moved : check === 'selectSerfs' ? this.ownSerfIds().length > 0 : false;
-      if (ok) { mv.checks[step.id] = true; this.issue({ type: 'mission', action: 'ui', check }); }
+      if (ok) { mv.checks[key] = true; this.issue({ type: 'mission', action: 'ui', check }); }
     }
     // Marker: hint of the tutorial, otherwise the first open objective with a location (main objectives first)
     const has = (h) => !!(h && (h.entity || h.area));

@@ -7,7 +7,7 @@ import { buildingArmor } from '../data/buildings.js';
 import { moveAlong, pathTo, canStep, goalsAt, nearestWalkable } from './movement.js';
 import { idiv, isqrt, toTile, tileCenter, UNIT } from '../fixed.js';
 import { removeWorker } from './workers.js';
-import { startFlee } from './serfs.js';
+import { startFlee, clearJob } from './serfs.js';
 import { techBonus, boosted, buildingMaxHp } from './techs.js';
 import { EXPERIENCE as XP, starsOf } from '../data/experience.js';
 import { BALANCE } from '../data/balance.js';
@@ -221,6 +221,29 @@ export function applyDamage(sim, target, dmg, attacker) {
     return;
   }
   kill(sim, target, attacker);
+}
+
+/**
+ * A figure switches sides (bribed squad, a hero who defects, mission scripts): a squad leader takes his soldiers
+ * along; all of them forget their targets and stand still where they are.
+ * @param {import('../sim.js').Sim} sim @param {any} e hero, serf or squad leader @param {number} owner
+ */
+export function changeOwner(sim, e, owner) {
+  const ids = e.kind === 'leader' ? [e.id, ...e.soldiers] : [e.id];
+  for (const id of ids) {
+    const x = sim.entities.get(id);
+    if (!x) continue;
+    x.owner = owner; x.targetId = 0; x.path = []; x.buff = null;
+    delete x.fearUntil; delete x.fleeTo;
+  }
+  if (e.kind === 'unit' && !e.militia) {
+    // Serfs drop their work (a construction site of the old side is not theirs any more)
+    clearJob(sim, e);
+    e.goal = undefined;
+  } else {
+    e.order = { type: 'idle' }; e.anchor = { x: e.px, y: e.py };
+  }
+  if (e.talkTo !== undefined) delete e.talkTo;
 }
 
 export function kill(sim, t, attacker) {
@@ -641,13 +664,7 @@ export function useAbility(sim, h, ability, x, y) {
       if (!best) return 'err.noTarget';
       if (!sim.pay(h.owner, { gold: def.gold + def.goldPerSoldier * best.soldiers.length })) return 'err.notEnoughGold';
       const from = best.owner;
-      for (const id of [best.id, ...best.soldiers]) {
-        const e = sim.entities.get(id);
-        if (!e) continue;
-        e.owner = h.owner; e.targetId = 0; e.path = []; e.buff = null;
-        delete e.fearUntil; delete e.fleeTo;
-      }
-      best.order = { type: 'idle' }; best.anchor = { x: best.px, y: best.py };
+      changeOwner(sim, best, h.owner);
       sim.events.push({ type: 'bribed', leader: best.id, from, to: h.owner });
       break;
     }
