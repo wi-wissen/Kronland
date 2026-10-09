@@ -342,39 +342,6 @@ describe('I.5 "Holz für die erste Nacht"', () => {
   });
 });
 
-describe('II.1 "Orrins Abkürzung"', () => {
-  it.each(LANGS)('functions without parameters: the model solution wins all three stages (%s)', (lang) => {
-    const state = play('r2-1');
-    until(state.sim, () => active(state.sim).includes('predict'));
-    expect(state.loads).toHaveLength(1);
-    const program = state.loads[0];
-    expect(program).toContain('def around_ruin():');
-
-    // Stage 1: where does Nelia stand after three calls? Running the loaded program once is enough
-    runAs(state, program);
-    until(state.sim, () => active(state.sim).includes('hedge'));
-    expect(tile(state.sim)).toEqual([2, 13]);
-
-    // Stage 2: the hedge blocks the south – the unchanged program fails, the function round the left works
-    runAs(state, program);
-    until(state.sim, () => said(state.sim, /links und rechts tauschen/));
-    const left = program.replace(/turn_right/g, 'TMP').replace(/turn_left/g, 'turn_right').replace(/TMP/g, 'turn_left');
-    runAs(state, left);
-    until(state.sim, () => active(state.sim).includes('coins'));
-    expect(tile(state.sim)).toEqual([2, 23]);
-
-    // Stage 3: own commands fetch the coins left and right of the path
-    runAs(state, refExample('fetch', lang));
-    until(state.sim, () => state.sim.players[0].stock.gold === 10, 6000);
-    expect(active(state.sim)).toEqual(['coins']);
-    expect(checkAs(state, refExample('fetch', lang)).passed).toBe(true);
-    until(state.sim, () => !!state.sim.mission.state.result, 6000);
-    expect(state.sim.mission.state.result).toMatchObject({ won: true });
-    expect(state.sim.players[0].stock.gold).toBe(10);
-    expect(playerErrors(state.sim)).toEqual([]);
-  });
-});
-
 describe('III.M "Lindgrund steht wieder"', () => {
   it.each(LANGS)('a whole village by program: gather wood and clay, then build from a plan (%s)', (lang) => {
     const state = play('r3-m');

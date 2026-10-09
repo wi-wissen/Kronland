@@ -11,8 +11,8 @@
     "en": "Your own commands with def: Orrin's detour round the ruin, a changed function and coins left and right of the path."
   },
   "briefing": {
-    "de": "Auf dem Dorfplatz von Lindgrund wartet Orrin, ein Händler. Er kennt eine Abkürzung um die alte Ruine und hat sie als Funktion aufgeschrieben: „def around_ruin():“ gibt einer Folge von Befehlen einen Namen, „around_ruin()“ führt sie aus – so oft man will. nelia.left() und nelia.right() verraten, was neben Nelia liegt, ohne dass sie sich dreht. Ausführen beginnt die Etappe jedes Mal von vorn. Ruine und Taler gibt es in drei Welten – „Prüfen“ zeigt, ob deine Befehle in allen klappen.",
-    "en": "Orrin, a merchant, is waiting on the village square of Lindgrund. He knows a shortcut round the old ruin and wrote it down as a function: “def around_ruin():” gives a sequence of commands a name, “around_ruin()” runs it – as often as you like. nelia.left() and nelia.right() tell what lies beside Nelia without turning her. Run starts the stage over every time. Ruin and coins come in three worlds – “Check” shows whether your commands work in all of them."
+    "de": "Auf dem Dorfplatz von Lindgrund wartet Orrin, ein Händler. Er kennt eine Abkürzung um die alte Ruine und hat sie als Funktion aufgeschrieben: „def around_ruin():“ gibt einer Folge von Befehlen einen Namen, „around_ruin()“ führt sie aus – so oft man will. nelia.left() und nelia.right() verraten, was neben Nelia liegt, ohne dass sie sich dreht. Ausführen beginnt die Etappe jedes Mal von vorn. Die Straße mit der Ruine gibt es in drei Welten – die Ruine ist überall gleich, die Straße dahinter nicht. „Prüfen“ zeigt, ob deine Befehle in allen klappen.",
+    "en": "Orrin, a merchant, is waiting on the village square of Lindgrund. He knows a shortcut round the old ruin and wrote it down as a function: “def around_ruin():” gives a sequence of commands a name, “around_ruin()” runs it – as often as you like. nelia.left() and nelia.right() tell what lies beside Nelia without turning her. Run starts the stage over every time. The road with the ruin comes in three worlds – the ruin is the same everywhere, the road beyond it is not. “Check” shows whether your commands work in all of them."
   },
   "victoryText": {
     "de": "Orrin hat seine Taler wieder – und Nelia einen Partner, der mehr weiß, als er sagt.",
@@ -29,19 +29,10 @@
   ],
   "world": {
     "base": "flat",
-    "width": 24,
-    "height": 28,
+    "width": 38,
+    "height": 11,
     "fog": false,
-    "starts": [{ "x": 2, "y": 3 }],
-    "places": {
-      "a_start": { "x": 2, "y": 3, "r": 0 },
-      "a_view": { "x": 9, "y": 4, "r": 4 },
-      "b_start": { "x": 2, "y": 13, "r": 0 },
-      "b_view": { "x": 9, "y": 14, "r": 4 },
-      "b_goal": { "x": 8, "y": 13, "r": 0 },
-      "c_start": { "x": 2, "y": 23, "r": 0 },
-      "c_view": { "x": 11, "y": 24, "r": 4 }
-    }
+    "starts": [{ "x": 2, "y": 5 }]
   },
   "weatherCycle": [["winter", 3600000]],
   "players": [{ "kind": "human", "hero": "nelia", "hq": false }],

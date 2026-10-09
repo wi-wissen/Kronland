@@ -1,12 +1,13 @@
-# II.1 „Orrins Abkürzung“: drei Etappen in drei Abschnitten der Karte (Funktion ohne Parameter).
-# Jede Etappe ist ein Unterziel; Ausführen beginnt sie von vorn (Schnappschuss beim ersten Ausführen).
-# Drei Welten (world.py): die Vorhersage gilt je Welt, die Hecke ist überall gleich, die Taler zählen erst, wenn
-# „Prüfen“ das Programm in allen Welten bestanden hat (all_worlds=True).
+# II.1 „Orrins Abkürzung“: eine Straße nach Osten in drei Etappen (Funktion ohne Parameter), in drei Welten (world.py).
+# Die Etappen sind aufeinanderfolgende Wegstücke derselben Karte: dreimal um die Mauern der Ruine (predict), dreimal um
+# den zweiten Teil, wo eine Dornenhecke wächst (hedge), dann die Straße mit Orrins Talern (coins). Das Programm bleibt
+# und wächst; nichts wird geladen oder versetzt, die Welt ändert sich nur an Ort und Stelle (die Hecke wächst).
+# Die Taler zählen erst, wenn „Prüfen“ das Programm in allen Welten bestanden hat (all_worlds=True).
 
 STAGES = ["predict", "hedge", "coins"]
 ENDED = ("done", "error", "stopped")
-# So weit kommt Nelia mit dreimal around_ruin() im ersten Abschnitt – wo ein Baum den Umweg versperrt, weniger weit
-AHEAD = {"normal": 6, "near": 1, "far": 5}[world.id]
+# So weit kommt Nelia mit dreimal around_ruin() am Anfang der Ruine (Kacheln östlich vom Start)
+AHEAD = 6
 
 PROGRAM = "\n".join([
     "def around_ruin():",
@@ -24,51 +25,38 @@ PROGRAM = "\n".join([
     "",
 ])
 
-npc("trader", look="hero.orrin", at=(2, 5), speaker="orrin")
-
-
-# Warten, bis ein Lauf nach dem seen-ten zu Ende ist; zählt auch einen Lauf, der gleich nach dem Wechsel der Welt begann
-def next_run(seen):
-    wait_until(lambda: program.runs > seen and program.status in ENDED)
-    return program.runs
-
-
-def move_to_section(start, view):
-    program.stop()
-    nelia.teleport(place(start))
-    nelia.turn_to("east")
-    camera.fly_to(place(view), seconds=1)
+npc("trader", look="hero.orrin", at=(2, 3), speaker="orrin")
 
 
 def predict():
-    seen = program.runs
     # Das Programm einmal ausführen genügt (after_run) – Nachdenken, dann Ausführen
     objective("predict", after_run=True,
               de="around_ruin() wird dreimal aufgerufen: Wie viele Kacheln weiter östlich steht Nelia danach? Führe das Programm aus und sieh nach.",
               en="around_ruin() is called three times: how many tiles further east does Nelia stand afterwards? Run the program and have a look.")
-    while objective_status("predict") != "done":
-        wait_until(lambda: objective_status("predict") == "done" or (program.runs > seen and program.status == "error"))
-        seen = program.runs
-        # Randfall: ein Baum versperrt einen Umweg – das Programm bricht ab, wo Nelia steht, zählt trotzdem
-        if objective_status("predict") != "done" and nelia.x - place("a_start").x == AHEAD:
-            complete("predict")
-    walked = nelia.x - place("a_start").x
+    wait_until(lambda: objective_status("predict") == "done")
+    walked = nelia.x - place("start").x
     say("orrin", de=f"{walked} Kacheln. Drei Zeilen unten, die Arbeit steckt oben in der Funktion.",
                  en=f"{walked} tiles. Three lines below, the work is in the function above.")
 
 
-def hedge():
-    # Die Hecke steht in jeder Welt gleich: Hier geht es ums Ändern der Funktion, nicht um Randfälle
-    move_to_section("b_start", "b_view")
-    say("orrin", de="Hier ist im Süden eine Dornenhecke gewachsen. Meine Abkürzung muss diesmal links herum, nördlich an den Mauern vorbei.",
-                 en="A thorn hedge has grown in the south here. This time my shortcut has to go round the left, north past the walls.")
-    objective("hedge", lambda: nelia.is_at(place("b_goal")),
+def hedge(grow):
+    nelia.turn_to("east")
+    if grow:
+        # Die Hecke wächst an Ort und Stelle, Kachel für Kachel
+        say("orrin", de="Weiter hinten steht der Rest der Ruine – aber seht nur, im Süden ist eine Dornenhecke gewachsen! Meine Abkürzung muss diesmal links herum, nördlich an den Mauern vorbei.",
+                     en="The rest of the ruin stands further on – but look, a thorn hedge has grown in the south! This time my shortcut has to go round the left, north past the walls.",
+            wait=False)
+        grow_hedge()
+    else:
+        say("orrin", de="Hier ist im Süden eine Dornenhecke gewachsen. Meine Abkürzung muss diesmal links herum, nördlich an den Mauern vorbei.",
+                     en="A thorn hedge has grown in the south here. This time my shortcut has to go round the left, north past the walls.")
+    objective("hedge", lambda: nelia.is_at(place("ruin_end")),
               de="Ändere around_ruin(): Nelia soll links herum um die Mauerreste gehen. Die drei Aufrufe unten bleiben gleich.",
               en="Change around_ruin(): Nelia should go round the left of the walls. The three calls below stay the same.")
-    while not nelia.is_at(place("b_goal")):
+    while not nelia.is_at(place("ruin_end")):
         runs = program.runs
-        wait_until(lambda: nelia.is_at(place("b_goal")) or (program.runs > runs and program.status in ENDED))
-        if not nelia.is_at(place("b_goal")):
+        wait_until(lambda: nelia.is_at(place("ruin_end")) or (program.runs > runs and program.status in ENDED))
+        if not nelia.is_at(place("ruin_end")):
             say("nelia", de="Hier komme ich nicht weiter. In der Funktion links und rechts tauschen – dann gilt es für alle drei Aufrufe.",
                          en="I cannot go on from here. Swap left and right in the function – then it counts for all three calls.")
     program.stop()
@@ -76,8 +64,10 @@ def hedge():
                  en="One place changed, and all three detours are right again. That is what functions are for.")
 
 
-def coins():
-    move_to_section("c_start", "c_view")
+def coins(fly):
+    nelia.turn_to("east")
+    if fly:
+        camera.fly_to(place("view_road"), seconds=1.5)
     say("orrin", de="Meine Geldkatze hatte ein Loch. Links und rechts vom Weg liegen jetzt meine Taler.",
                  en="My purse had a hole. Now my coins lie left and right of the path.")
     total = len(items("coin"))
@@ -98,22 +88,28 @@ def coins():
             say("nelia", de="Es liegen noch Taler neben dem Weg. Schau bei jedem Schritt mit nelia.left() und nelia.right() nach \"coin\".",
                          en="There are still coins beside the path. At every step look with nelia.left() and nelia.right() for \"coin\".")
     program.stop()
+    # Hat „Prüfen“ die Etappe gelöst, ohne dass Nelia hier alle einsammelte: Orrin holt die übrigen selbst
+    if len(items("coin")) > 0:
+        say("orrin", de="Dein Programm findet sie alle – die übrigen hole ich selbst.", en="Your program finds them all – I will fetch the rest myself.")
+        for c in items("coin"):
+            remove_item(c[0], c[1])
+            give(HUMAN, gold=1)
     say("orrin", de="Alle Taler wieder da! Mit dir als Partnerin, Mädchen, werden wir beide reich.",
                  en="All my coins are back! With you as a partner, girl, we will both get rich.")
 
 
 @on_start
 def story():
-    # Umschalter und „Prüfen“ starten eine Welt bei einer Etappe (world.stage): direkt dorthin
+    # Umschalter und „Prüfen“ starten eine Welt bei einer Etappe (world.stage): Nelia steht schon dort (world.py)
     first = STAGES.index(world.stage) if world.stage in STAGES else 0
-    camera.jump_to(place("a_view"))
-    if first == 0 and world.stage is None:
-        say("orrin", de="Ich bin Orrin, Händler. Um diese Ruine kenne ich eine Abkürzung – ich habe sie mir als Funktion aufgeschrieben.",
-                     en="I am Orrin, a merchant. I know a shortcut round this ruin – I wrote it down as a function.")
+    camera.jump_to(place("view_road") if first == 2 else place("view_ruin"))
     if first == 0:
+        if world.stage is None:
+            say("orrin", de="Ich bin Orrin, Händler. Um diese Ruine kenne ich eine Abkürzung – ich habe sie mir als Funktion aufgeschrieben.",
+                         en="I am Orrin, a merchant. I know a shortcut round this ruin – I wrote it down as a function.")
         program.load(PROGRAM)
         predict()
     if first <= 1:
-        hedge()
-    coins()
+        hedge(first == 0)
+    coins(first <= 1)
     victory()

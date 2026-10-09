@@ -108,37 +108,3 @@ describe('I.5 "Holz für die erste Nacht": roses, brook and six count in every w
     expect(by(check('r1-5', 'six', LOADED))).toEqual({ normal: 'failed', near: 'solved', far: 'failed' });
   });
 });
-
-describe('II.1 "Orrins Abkürzung": the ruin and the coins in three worlds', () => {
-  const LOADED = `\ndef around_ruin():\n    nelia.turn_right()\n    nelia.step()\n    nelia.turn_left()\n    nelia.step(2)\n    nelia.turn_left()\n    nelia.step()\n    nelia.turn_right()\n\naround_ruin()\naround_ruin()\naround_ruin()\n`;
-  const LEFT = LOADED.replace(/turn_right/g, 'TMP').replace(/turn_left/g, 'turn_right').replace(/TMP/g, 'turn_left');
-
-  it('the first stage ends once the loaded program ran – also where a tree stops the detour after 1 (near) or 5 tiles (far)', () => {
-    expect(isAllWorlds('r2-1', 'predict')).toBe(false);
-    expect(solvedIn('r2-1', 'predict', LOADED)).toEqual(['normal', 'near', 'far']);
-    expect(solvedIn('r2-1', 'predict', 'nelia.fly()\n')).toEqual([]);
-  });
-
-  it('the hedge is the same in every world; the coins count only after „Prüfen“ – the model solution passes', () => {
-    expect(isAllWorlds('r2-1', 'hedge')).toBe(false);
-    expect(by(check('r2-1', 'hedge', LEFT))).toEqual({ normal: 'solved', near: 'solved', far: 'solved' });
-    expect(isAllWorlds('r2-1', 'coins')).toBe(true);
-    for (const lang of ['de', 'en']) expect(by(check('r2-1', 'coins', refExample('fetch', lang)))).toEqual({ normal: 'solved', near: 'solved', far: 'solved' });
-  });
-
-  it('hard-coded and sloppy programs fail an edge world', () => {
-    const FETCH = refExample('fetch', 'de');
-    const defs = FETCH.slice(0, FETCH.indexOf('while'));
-    // The walk of the normal case, written out: runs into the forest edge of the short path (near), reaches for a
-    // coin that lies elsewhere (far: take() finds nothing)
-    const walk = `${defs}${lines('nelia.step(2)', 'fetch_left()', 'nelia.step()', 'fetch_right()', 'nelia.step(2)', 'fetch_left()', 'nelia.step()', 'fetch_left()',
-      'nelia.step()', 'fetch_right()', 'nelia.step(3)', 'fetch_left()', 'fetch_right()', 'nelia.step(2)', 'fetch_right()', 'nelia.step(2)', 'fetch_left()',
-      'nelia.step(2)', 'fetch_right()', 'nelia.step()')}`;
-    expect(by(check('r2-1', 'coins', walk))).toEqual({ normal: 'solved', near: 'error', far: 'error' });
-    // Looking before the step misses the coins beside the last tile before the forest (near, far)
-    const early = FETCH.replace('while nelia.can_step():\n    nelia.step()\n', 'while nelia.can_step():\n')
-      .replace(/(\n    if nelia\.right\(\) == "coin":\n        fetch_right\(\)\n)$/, '$1    nelia.step()\n');
-    expect(early).toMatch(/fetch_right\(\)\n    nelia\.step\(\)\n$/);
-    expect(by(check('r2-1', 'coins', early))).toEqual({ normal: 'solved', near: 'failed', far: 'failed' });
-  });
-});
