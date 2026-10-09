@@ -39,22 +39,37 @@ describe('Track texture', () => {
     expect(trackStages(BALANCE.ground.tracks.grass, 1)).toMatchObject({ faint: 1, trodden: 1 });
   });
 
-  it('packs strength and the axis of the footprints from the neighbours', () => {
-    // a row from west to east, a column from north to south, a diagonal
-    const v = 60, low = 4;
-    const t = strengths([[0, 0, v], [1, 0, v], [2, 0, v], [4, 1, v], [4, 2, v], [4, 3, v], [0, 2, v], [1, 3, v], [2, 4, v], [5, 4, low]]);
-    const out = new Uint8Array(W * H * 4);
-    const rows = packTracks(t, out, { W, H, stages: grass });
-    expect(rows).toEqual({ y0: 0, y1: 4 });
-    expect(texel(out, 1, 0)).toEqual([trackShade(v, grass), 0]);   // east–west
-    expect(texel(out, 4, 2)).toEqual([trackShade(v, grass), 85]);  // north–south
-    expect(texel(out, 1, 3)).toEqual([trackShade(v, grass), 255]); // north-west–south-east
-    // below the faint stage of grass: nothing in the picture; with a level threshold of 1 it is one
-    expect(texel(out, 5, 4)).toEqual([0, 0]);
-    expect(packTracks(t, out, { W, H, stages: grass })).toBe(null); // nothing changed, nothing to upload
-    expect(packTracks(t, out, { W, H, stages: snow })).toEqual({ y0: 0, y1: 4 }); // other ground: shades change
-    expect(packTracks(t, out, { W, H, stages: trackStages(BALANCE.ground.tracks.snow, 1) })).not.toBe(null);
-    expect(texel(out, 5, 4)[0]).toBeGreaterThan(0);
+  it('packs the stage, a smoothed field (round bends, diagonals) and the walking direction (doubled angle)', () => {
+    const v = 120, low = 4;
+    const big = 12;
+    const t = new Uint8Array(big * big);
+    const set = (x, y, s) => { t[y * big + x] = s; };
+    for (let x = 0; x < 6; x++) set(x, 1, v);              // west–east
+    for (let y = 3; y < 9; y++) set(10, y, v);             // north–south
+    for (let i = 0; i < 6; i++) set(i, 4 + i, v);          // diagonal north-west → south-east
+    set(8, 0, low);
+    const out = new Uint8Array(big * big * 4);
+    expect(packTracks(t, out, { W: big, H: big, stages: grass })).not.toBe(null);
+    const px = (x, y) => [...out.subarray((y * big + x) * 4, (y * big + x) * 4 + 4)];
+    const angle = (x, y) => { const [, g, , a] = px(x, y); return Math.round(Math.atan2((a - 128) / 127, (g - 128) / 127) / 2 * 180 / Math.PI); };
+    // R: the stage of the tile itself
+    expect(px(2, 1)[0]).toBe(trackShade(v, grass));
+    // direction: along the row 0°, along the column ±90°, along the diagonal 45° (x east, y south)
+    expect(angle(2, 1)).toBe(0);
+    expect(Math.abs(angle(10, 5))).toBe(90);
+    expect(angle(2, 6)).toBe(45);
+    // B: the middle of a straight path keeps about its strength, the corners between diagonal tiles fill in
+    // (no staircase), a tile far away stays empty
+    expect(px(2, 1)[2]).toBeGreaterThanOrEqual(Math.floor(px(2, 1)[0] * 0.9));
+    expect(px(3, 5)[2]).toBeGreaterThan(0);  // beside the diagonal, between two of its tiles
+    expect(px(3, 5)[0]).toBe(0);
+    expect(px(8, 10)[2]).toBe(0);
+    // below the faint stage of grass: nothing in the picture
+    expect(px(8, 0)[0]).toBe(0);
+    expect(packTracks(t, out, { W: big, H: big, stages: grass })).toBe(null); // nothing changed, nothing to upload
+    expect(packTracks(t, out, { W: big, H: big, stages: snow })).not.toBe(null); // other ground: shades change
+    expect(packTracks(t, out, { W: big, H: big, stages: trackStages(BALANCE.ground.tracks.snow, 1) })).not.toBe(null);
+    expect(px(8, 0)[0]).toBeGreaterThan(0);
   });
 
   it('fog: unexplored tiles show nothing, explored ones keep the last seen state', () => {
@@ -70,6 +85,22 @@ describe('Track texture', () => {
     expect(texel(out, 3, 3)[0]).toBe(trackShade(80, grass));
     // a new track out of sight is not revealed either
     expect(packTracks(strengths([[3, 3, 200]]), out, { W, H, stages: grass, visible, explored })).toBe(null);
+  });
+});
+
+describe('Track texture cost', () => {
+  it('a refill of a 256×256 map with paths stays cheap; rows far from any track are skipped', () => {
+    const W2 = 256, t = new Uint8Array(W2 * W2);
+    // a network of winding paths over the whole map (worst realistic case: much more than a real settlement)
+    for (let y = 0; y < W2; y += 8) for (let x = 0; x < W2; x++) t[((y + ((x >> 3) & 3)) % W2) * W2 + x] = 200;
+    const out = new Uint8Array(W2 * W2 * 4);
+    packTracks(t, out, { W: W2, H: W2, stages: trackStages(BALANCE.ground.tracks.grass) });
+    const t0 = performance.now();
+    for (let i = 0; i < 10; i++) { t[i * 1031] ^= 64; packTracks(t, out, { W: W2, H: W2, stages: trackStages(BALANCE.ground.tracks.grass) }); }
+    expect((performance.now() - t0) / 10).toBeLessThan(60);
+    // an empty map after the tracks are gone: nothing left in the texture
+    expect(packTracks(new Uint8Array(W2 * W2), out, { W: W2, H: W2, stages: trackStages(BALANCE.ground.tracks.grass) })).not.toBe(null);
+    expect(out.some((v, i) => (i % 4 === 0 || i % 4 === 2) && v > 0)).toBe(false);
   });
 });
 
