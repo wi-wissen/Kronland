@@ -6,6 +6,8 @@ import { StageSnapshot } from '../../src/sim/stage.js';
 import { ADVENTURES, getScenario } from '../../src/sim/missions/registry.js';
 import { courseNumber } from '../../src/sim/missions/levels/index.js';
 import { refExample } from '../../src/ui/script/reference.js';
+import { checkProgram } from '../../src/sim/check.js';
+import { stageKey } from '../../src/sim/stage.js';
 
 const LANGS = ['de', 'en'];
 
@@ -34,6 +36,13 @@ function runAs(state, code) {
   const next = state.stage.beforeRun(state.sim);
   if (next) state.sim = next;
   state.sim.command({ type: 'script', player: 0, action: 'run', sections: { player: code } });
+}
+
+/** Like the „Prüfen“ button: check in all worlds, the result goes in as a command. */
+function checkAs(state, code) {
+  const r = checkProgram(state.sim.mission.def, stageKey(state.sim), { player: code });
+  state.sim.command({ type: 'script', player: 0, action: 'check', stage: r.stage, passed: r.passed });
+  return r;
 }
 
 const lines = (...l) => `${l.join('\n')}\n`;
@@ -116,26 +125,34 @@ describe('I.5 "Holz für die erste Nacht"', () => {
     // Stage 2: a second variable for the Christmas roses
     runAs(state, note.code);
     until(state.sim, () => said(state.sim, /Es liegt noch etwas im Schnee/));
-    runAs(state, lines(
+    const roses = lines(
       'count = 0', 'flowers = 0',
       'while nelia.can_step():', '    nelia.step()',
       '    if nelia.here() == "coin":', '        nelia.take()', '        count = count + 1',
       '    elif nelia.here() == "flower":', '        nelia.take()', '        flowers = flowers + 1',
-    ));
+    );
+    runAs(state, roses);
+    // Solved here – the stage waits for „Prüfen“ in all three worlds
+    until(state.sim, () => said(state.sim, /Drück jetzt „Prüfen“/));
+    expect(active(state.sim)).toEqual(['roses']);
+    expect(checkAs(state, roses).passed).toBe(true);
     until(state.sim, () => active(state.sim).includes('brook'));
     expect(tile(state.sim)).toEqual([2, 23]);
 
     // Stage 3: count the steps to the brook and walk back just as far
     runAs(state, lines('steps = 0', 'while nelia.can_step():', '    nelia.step()', '    steps = steps + 1'));
     until(state.sim, () => said(state.sim, /aber ich stehe nicht am Start/));
-    runAs(state, refExample('brook', lang));
+    expect(checkAs(state, refExample('brook', lang)).passed).toBe(true);
     until(state.sim, () => active(state.sim).includes('six'));
     expect(tile(state.sim)).toEqual([2, 33]);
 
     // Stage 4: exactly six coins of ten
     runAs(state, lines('while nelia.front() == "coin":', '    nelia.step()', '    nelia.take()'));
     until(state.sim, () => said(state.sim, /Ich habe 10 Taler aufgehoben/));
-    runAs(state, lines('count = 0', 'while count < 6:', '    nelia.step()', '    nelia.take()', '    count = count + 1'));
+    const six = lines('count = 0', 'while count < 6:', '    nelia.step()', '    nelia.take()', '    count = count + 1');
+    runAs(state, six);
+    until(state.sim, () => said(state.sim, /Drück jetzt „Prüfen“/) && coinsIn(state.sim, 30) === 4);
+    expect(checkAs(state, six).passed).toBe(true);
     until(state.sim, () => !!state.sim.mission.state.result, 4000);
     expect(state.sim.mission.state.result).toMatchObject({ won: true });
     expect(coinsIn(state.sim, 30)).toBe(4);
@@ -151,7 +168,10 @@ describe('I.M "Heimweg durchs Unterholz"', () => {
     // Stage 1: walk, turn right when blocked (the way to the ruin of old)
     const simple = lines('while not nelia.is_at(place("exit")):', '    if nelia.can_step():', '        nelia.step()', '    else:', '        nelia.turn_right()');
     runAs(state, simple);
-    until(state.sim, () => active(state.sim).includes('thicket'), 4000);
+    until(state.sim, () => said(state.sim, /Drück jetzt „Prüfen“/), 4000);
+    expect(active(state.sim)).toEqual(['edge']);
+    expect(checkAs(state, simple).passed).toBe(true);
+    until(state.sim, () => active(state.sim).includes('thicket'));
     expect(tile(state.sim)).toEqual([2, 13]);
 
     // Stage 2: the simple rule runs in circles (stopped by hand); the right-hand rule finds the exit
@@ -161,11 +181,15 @@ describe('I.M "Heimweg durchs Unterholz"', () => {
     state.sim.command({ type: 'script', player: 0, action: 'stop' });
     until(state.sim, () => said(state.sim, /Ich drehe mich im Kreis/));
     runAs(state, refExample('thicket', lang));
-    until(state.sim, () => active(state.sim).includes('home'), 6000);
+    until(state.sim, () => said(state.sim, /Drück jetzt „Prüfen“/), 6000);
+    expect(checkAs(state, refExample('thicket', lang)).passed).toBe(true);
+    until(state.sim, () => active(state.sim).includes('home'));
     expect(tile(state.sim)).toEqual([2, 24]);
 
     // Stage 3: the same program in undergrowth that grew differently; the stranger waits on the square
     runAs(state, refExample('thicket', lang));
+    until(state.sim, () => tile(state.sim)[0] === 23 && tile(state.sim)[1] === 26, 6000);
+    expect(checkAs(state, refExample('thicket', lang)).passed).toBe(true);
     until(state.sim, () => !!state.sim.mission.state.result, 6000);
     expect(state.sim.mission.state.result).toMatchObject({ won: true });
     expect(tile(state.sim)).toEqual([23, 26]);
@@ -201,6 +225,9 @@ describe('II.1 "Orrins Abkürzung"', () => {
 
     // Stage 3: own commands fetch the coins left and right of the path
     runAs(state, refExample('fetch', lang));
+    until(state.sim, () => state.sim.players[0].stock.gold === 10, 6000);
+    expect(active(state.sim)).toEqual(['coins']);
+    expect(checkAs(state, refExample('fetch', lang)).passed).toBe(true);
     until(state.sim, () => !!state.sim.mission.state.result, 6000);
     expect(state.sim.mission.state.result).toMatchObject({ won: true });
     expect(state.sim.players[0].stock.gold).toBe(10);

@@ -384,9 +384,10 @@ not stop (in a “find the mistake” task the code may be on purpose; a mission
 ### From the course missions {#ex-adventures}
 
 Model solutions of single stages – but try it yourself first! Every solution is played in its stage in an automated
-test and has to pass it.
+test and has to pass it, the solutions from I.5 on in every world of the mission (“Check”).
 
-I.2 “Coins for the Maids”, stage “slope”: a loop with several commands.
+I.2 “Coins for the Maids”, stage “slope”: a loop with several commands – in the normal case; in the other worlds the
+slope has a different height, only the number in `range()` changes there.
 
 {{ex_zigzag}}
 

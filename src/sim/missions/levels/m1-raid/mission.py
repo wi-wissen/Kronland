@@ -30,14 +30,14 @@ def raid():
     attackers = spawn(BANDITS, "sword1", place("gate"), count=waves + 1, soldiers=3)
     attack(attackers, hq())
 
-@on_objective("army")
+@on_objective("army", "done")
 def ready(id, status):
     show_objective("camp")
     camera.fly_to(place("camp"), seconds=2)
     say("nelia", de="Die Truppen stehen bereit. Auf zum Lager!",
                  en="The troops are ready. To the camp!")
 
-@on_objective("camp")
+@on_objective("camp", "done")
 def won(id, status):
     say("nelia", de="Kunz ist geflohen. Der Hof ist sicher.",
                  en="Kunz has fled. The farm is safe.")
