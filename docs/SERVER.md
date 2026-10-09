@@ -75,6 +75,8 @@ Die Dateien eines Pakets liegen neben `pack.json`. Beim Server-Endpunkt `…/api
    node scripts/build-pack.mjs --id meinname.erste-level --title "Meine Level|My levels" \
         --license CC-BY-4.0 --out ../kronland-level level1.zip level2.zip
    ```
+   Für die Bibliothek optional: `--kind first|stories|code` (Reiter), `--difficulty easy|normal|hard`, `--minutes 90` (Spieldauer des Pakets)
+   und `--added 2026-10-01` (Datum für das „Neu“-Band; nur im Katalog).
 3. `../kronland-level` ist ein Git-Repository mit GitHub Pages (Branch `main`, Ordner `/`); die Adresse
    `https://<name>.github.io/kronland-level/catalog.json` ist die Quelle. Pages sendet `Access-Control-Allow-Origin: *`, eigene Hosts müssen es auch senden.
 4. Eintragen: in `public/kronland.config.json` unter `sources` (Betreiber) oder als Link `play/?source=<Adresse>` (Spieler).

@@ -63,6 +63,8 @@ E2E_GROUP=heavy E2E_PORT=4310 npx playwright test --workers=1     # nur die schw
   das erste Autosave kommt nach 30 Spielsekunden. Zählungen auf den eigenen Spieler beschränken
   (`e.owner === window.__kronland.player`), für Klick- oder Bildvergleiche das Spiel anhalten (`paused = true`),
   Autosave abschalten, wenn Spielstand-Listen gezählt werden.
+- Wege durchs Menü stehen in `e2e/menu.js` (`openSeries`, `playLevel`, `startTutorial`, `openWorkshop`, `openFreePlay`); `e2e/menu.spec.js`
+  prüft Startmenü, Bibliothek (Reiter, Filter, Serien-Detail), Freies Spiel und die Spielstände-Liste (Desktop und Handy).
 - Kein `quality=high`, wenn nicht Modelle oder Effekte dieser Stufe geprüft werden; kleines Fenster
   (`page.setViewportSize`), wenn nur der Bildmittelpunkt oder der Zustand zählt.
 - `test` und `expect` immer aus `e2e/fixtures.js` importieren, nicht aus `@playwright/test`: dessen `page` parkt die
