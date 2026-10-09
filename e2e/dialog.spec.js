@@ -93,9 +93,9 @@ test('Mission 1: Orrin joins on the village square, the conversation can be skip
   // Nelia selected, the figure tapped (as a right click / tap on it would do): she walks there and talks
   await page.evaluate(() => {
     const k = window.__kronland, st = k.sim.mission.state;
-    const n = k.sim.entities.get(st.npcs.stranger.entity);
-    k.selectHero(st.refs.nelia);
-    k.issue({ type: 'order', units: [st.refs.nelia], order: 'talk', target: n.id });
+    const n = k.sim.entities.get(st.npcs.stranger.entity), nelia = [...k.sim.entities.values()].find((x) => x.kind === 'hero' && x.hero === 'nelia' && x.owner === 0);
+    k.selectHero(nelia.id);
+    k.issue({ type: 'order', units: [nelia.id], order: 'talk', target: n.id });
   });
   const objective = (id) => page.evaluate((i) => window.__kronland.sim.mission.state.objectives.find((o) => o.id === i).status, id);
   await expect.poll(() => objective('meet'), { timeout: 60_000 }).toBe('done');
@@ -171,10 +171,10 @@ test('Mission 1 by direct link: every line up to the first objectives is shown a
   // Nelia goes to the stranger (tap on him with her selected); the conversation follows the arrival lines
   await page.evaluate(() => {
     const k = window.__kronland, st = k.sim.mission.state;
-    const n = k.sim.entities.get(st.npcs.stranger.entity), nelia = k.sim.entities.get(st.refs.nelia);
+    const n = k.sim.entities.get(st.npcs.stranger.entity), nelia = [...k.sim.entities.values()].find((x) => x.kind === 'hero' && x.hero === 'nelia' && x.owner === 0);
     nelia.px = n.px + 2000; nelia.py = n.py; nelia.path = [];
-    k.selectHero(st.refs.nelia);
-    k.issue({ type: 'order', units: [st.refs.nelia], order: 'talk', target: n.id });
+    k.selectHero(nelia.id);
+    k.issue({ type: 'order', units: [nelia.id], order: 'talk', target: n.id });
   });
   // Up to the next objective (the old tree): every line of the mission gets its recording, in order
   const lines = 7;

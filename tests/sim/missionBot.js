@@ -38,6 +38,8 @@ export const idle = (sim, owner = P) => serfs(sim, owner).filter((u) => !u.job &
 export const own = (sim, type, owner = P) => [...sim.entities.values()].filter((e) => e.kind === 'building' && e.owner === owner && e.type === type);
 export const leaders = (sim, owner = P) => [...sim.entities.values()].filter((e) => e.kind === 'leader' && e.owner === owner);
 export const hero = (sim, owner = P) => [...sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === owner);
+/** Hero by name (of a player, default the human). */
+export const heroOf = (sim, name, owner = P) => [...sim.entities.values()].find((e) => e.kind === 'hero' && e.hero === name && e.owner === owner);
 
 /** Player command in the next tick; returns the events of this tick. */
 export const act = (sim, cmd) => sim.step([{ player: P, ...cmd }]);
@@ -83,7 +85,7 @@ export const tileOf = (e) => ({ x: Math.floor(e.px / UNIT), y: Math.floor(e.py /
 export const objective = (sim, id) => sim.mission.state.objectives.find((o) => o.id === id);
 
 /**
- * Place or game object of a mission by name: a reference of a mission file (state.refs), a place of a level
+ * Place or game object of a mission by name: a reference of a developer map (state.refs), a place of a level
  * (make_place, scenario.json) or a global variable of its Python program – a game object gives its entity ID, a list
  * of them a list of IDs. Unknown: undefined.
  */
@@ -99,7 +101,26 @@ export function ref(sim, name) {
 }
 
 /** Entity IDs of a reference (single ID or list). */
-export const refIds = (sim, name) => { const v = ref(sim, name); return typeof v === 'number' ? [v] : Array.isArray(v) ? v : []; };
+export const refIds = (sim, name) => { const v = typeof name === 'number' ? name : ref(sim, name); return typeof v === 'number' ? [v] : Array.isArray(v) ? v : []; };
+
+/** Single game object of a reference (name or ID), or null. */
+export const entityRef = (sim, name) => { const ids = refIds(sim, name); return ids.length === 1 ? sim.entities.get(ids[0]) ?? null : null; };
+
+/**
+ * Point or circle for a reference: a circle itself, 'humanHq', a place, or the first existing game object of a name
+ * (buildings with their size as radius).
+ */
+export function point(sim, name) {
+  if (name && typeof name === 'object' && !Array.isArray(name)) return name;
+  if (name === 'humanHq') { const hq = sim.findBuilding(P, 'headquarters'); return hq ? { ...api.centerOf(hq), r: 4 } : null; }
+  const v = typeof name === 'number' ? name : ref(sim, name);
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+  for (const id of [].concat(v ?? [])) {
+    const e = sim.entities.get(id);
+    if (e) return { ...api.tileOf(e), r: e.kind === 'building' ? Math.max(e.w, e.h) : 2 };
+  }
+  return null;
+}
 
 /** Send heroes to a talk figure, as with a tap on it (order 'talk'); only while they are not on the way already. */
 export function talkTo(sim, heroIds, npcId) {
@@ -111,6 +132,36 @@ export function talkTo(sim, heroIds, npcId) {
   return true;
 }
 export const stepId = (sim) => sim.mission.currentStep()?.id ?? null;
+
+/**
+ * Global variable of the mission's Python program as a plain value: numbers, texts, bools, None → null, lists and
+ * tuples → arrays, game objects → their entity ID, places → {x, y, r}. Unknown: undefined.
+ */
+export function py(sim, name) {
+  const v = sim.mission.script?.vms.mission?.globals.get(name);
+  const plain = (x) => {
+    if (x === null || x === undefined || typeof x !== 'object') return typeof x === 'bigint' ? Number(x) : x;
+    if (x.items) return x.items.map(plain);
+    if ('v' in x && Object.keys(x).length === 1) return x.v;
+    if (x.cls === 'Place') return ref(sim, String(x.id)) ?? (() => { const [px, py2, r] = String(x.id).slice(1).split(',').map(Number); return { x: px, y: py2, r }; })();
+    if (x.cls !== undefined) return x.id;
+    if (x.map instanceof Map) return Object.fromEntries([...x.map.values()].map(([k, y]) => [k, plain(y)]));
+    return x;
+  };
+  return plain(v);
+}
+
+/** One tick in which the game reports `ev` as well (e.g. a trade at the market) – the mission program hears it. */
+export function stepWithEvent(sim, ev) {
+  const m = sim.mission, update = m.update;
+  m.update = (s) => { m.update = update; s.events.push({ player: P, ...ev }); update.call(m, s); };
+  sim.step();
+}
+
+/** Take figures or buildings out of the game without a trace (as the mission's remove()). */
+export function takeOut(sim, ids) {
+  for (const id of [].concat(ids)) sim.mission.script.takeOut(sim.entities.get(id));
+}
 
 // ---------------------------------------------------------------------------------------------
 // MissionBot
@@ -170,7 +221,7 @@ export const STRATEGIES = {
       bot.useHero = false;
       const orrin = bot.heroNamed('orrin');
       // first Orrin's clay debt at the merchant, then buy Zacke free (the way without combat)
-      if (orrin && bot.npcAt('merchant') && bot.m.state.npcs.merchant?.state === 'open') bot.moveUnits([orrin.id], bot.npcAt('merchant'), 'move', 'merchant');
+      if (orrin && bot.m.state.npcs.merchant?.state === 'open') talkTo(bot.sim, [orrin.id], 'merchant');
       bot.payTribute('clay', 0);
       // first the market (needs thalers), then buy Zacke free
       if (bot.objective('market')?.status === 'done' && !bot.payTribute('buyShardCheap')) bot.payTribute('buyShard');
@@ -200,9 +251,9 @@ export const STRATEGIES = {
       // mercenaries are not affordable at the start: take in the runaway serfs (cheap, bring supplies) and train own troops
       if (bot.m.state.tributes.refugees === 'open') bot.payTribute('refugees');
       bot.s.army = STRATEGIES.c4.armyLater;
-      if (bot.objective('siege')?.status === 'active') bot.attack(['siegeAGuards', 'siegeBGuards'], { minStrength: 350 });
+      if (bot.objective('siege')?.status === 'active') bot.attack(['front_guards', 'back_guards'], { minStrength: 350 });
       const nelia = bot.heroNamed('nelia');
-      if (nelia && bot.npcAt('miner') && bot.m.state.npcs.miner?.state === 'open') { bot.useHero = false; bot.moveUnits([nelia.id], bot.npcAt('miner'), 'move', 'miner'); }
+      if (nelia && bot.m.state.npcs.miner?.state === 'open') { bot.useHero = false; talkTo(bot.sim, [nelia.id], 'miner'); }
     },
   },
   c5: {
@@ -219,7 +270,7 @@ export const STRATEGIES = {
       bot.s.reserve = Object.values(bot.m.state.tributes).includes('open') ? 600 : 300;
       if (bot.objective('drive')?.status === 'active') bot.attack('loyalists', { minStrength: 250 });
       const nelia = bot.heroNamed('nelia');
-      if (nelia && bot.npcAt('elder') && bot.m.state.npcs.elder?.state === 'open') { bot.useHero = false; bot.moveUnits([nelia.id], bot.npcAt('elder'), 'move', 'elder'); }
+      if (nelia && bot.m.state.npcs.elder?.state === 'open') { bot.useHero = false; talkTo(bot.sim, [nelia.id], 'elder'); }
     },
   },
   c6: {
@@ -248,13 +299,14 @@ export const STRATEGIES = {
  */
 function scriptWeatherworks(bot) {
   const { sim, m } = bot;
-  const st = m.state, refs = st.refs;
+  const st = m.state;
+  const refs = Object.fromEntries(['isle', 'gorgeNear', 'gorgeFar', 'landing', 'ruinsArea'].map((k) => [k, ref(sim, k)]));
   bot.useHero = false;
   bot.heroMicro = true;
   const heroes = bot.heroes.filter((h) => !h.down);
   const troops = bot.leaders.map((L) => L.id);
   const all = [...troops, ...heroes.map((h) => h.id)];
-  const ww = sim.entities.get(refs.weatherworks);
+  const ww = entityRef(sim, 'works');
   const isle = refs.isle;
   const orrin = bot.heroNamed('orrin'), nelia = bot.heroNamed('nelia');
   const near = (e, p, r) => d2(tile(e), p) < r * r;
@@ -266,7 +318,7 @@ function scriptWeatherworks(bot) {
     if (there * 4 >= all.length * 3) bot.c3 = 'ford';
   } else if (bot.c3 === 'ford') {
     // post: Orrin bribes the nearest squad, the others clear the rest
-    const guards = m.idsOf('fordGuards').map((id) => sim.entities.get(id)).filter((e) => e && e.owner === st.bandits);
+    const guards = refIds(sim, 'ford_guards').map((id) => sim.entities.get(id)).filter((e) => e && e.owner === st.bandits);
     if (orrin && !orrin.down && guards.some((g) => near(g, tile(orrin), 4.5)) && (orrin.ready.bribe ?? 0) <= sim.tick && bot.avail('gold') >= 350) {
       bot.cmd({ type: 'ability', hero: orrin.id, ability: 'bribe' });
     }
@@ -310,18 +362,18 @@ function scriptThroneLake(bot) {
   // first the weather power plant, then the army (otherwise the troops eat all thalers)
   bot.armyPlan ??= bot.s.army;
   bot.s.army = bot.placed.weatherPlant ? bot.armyPlan : [];
-  const castle = m.state.refs.castle;
+  const castle = ref(sim, 'castle');
   const ready = bot.leaders.length >= 9;
   const p = sim.players[P];
   // Malvor's power plant first: as long as it stands, he thaws the lake as soon as we go onto the ice
-  const malvorPlant = sim.entities.get(m.state.refs.malvorPlant);
+  const malvorPlant = entityRef(sim, 'malvor_plant');
   const archers = bot.leaders.filter((L) => UNITS[L.def].line === 'bow').map((L) => L.id);
   const go = malvorPlant && archers.length >= 4 && bot.leaders.length >= 8;
   bot.scriptUnits = new Set(go ? archers : []);
   if (go) {
     bot.attackBuilding(archers, malvorPlant);
     // the rest of the army covers the archers at the shore
-    const works = m.state.refs.worksIsle;
+    const works = ref(sim, 'worksIsle');
     const cover = api.findOpen(sim, ...Object.values(api.toward(works, bot.home, works.r + 7)), { maxR: 5, from: bot.home }) ?? bot.home;
     bot.rallyAt = cover;
   } else bot.rallyAt = null;
@@ -356,7 +408,8 @@ export class MissionBot {
   // ---------- Situation picture ----------
 
   objective(id) { return this.m.state.objectives.find((o) => o.id === id); }
-  heroEntity() { return this.sim.entities.get(this.m.state.refs.hero) ?? null; }
+  /** Main hero: the human's first hero (Nelia). */
+  heroEntity() { let h = null; for (const e of this.sim.entities.values()) if (e.kind === 'hero' && e.owner === P && (!h || e.id < h.id)) h = e; return h; }
   /** Own hero with this name (or null). */
   heroNamed(id) { return [...this.sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === P && e.hero === id) ?? null; }
   /** Pay the mission tribute if it is open and affordable (like the button in the UI). */
@@ -367,7 +420,6 @@ export class MissionBot {
     return true;
   }
   /** Position of a conversation figure (or null). */
-  npcAt(id) { const n = this.m.state.npcs[id]; const e = n && this.sim.entities.get(n.entity); return e ? tile(e) : null; }
 
   scan() {
     const sim = this.sim;
@@ -401,7 +453,7 @@ export class MissionBot {
     }
     // enemies that threaten our buildings or protection targets
     const guardPts = [this.home, ...this.buildings.filter((b) => b.type !== 'headquarters').map(api.centerOf)];
-    for (const name of this.s.defend ?? []) { const p = this.m.pointOf(sim, name); if (p) guardPts.push(p); }
+    for (const name of this.s.defend ?? []) { const p = point(sim, name); if (p) guardPts.push(p); }
     // camp guards that stand calmly at their camp are no attack
     const atCamp = new Set();
     for (const c of this.m.state.camps) {
@@ -522,9 +574,9 @@ export class MissionBot {
   /** Building spot centre for a building type. */
   siteFor(type, o = {}) {
     const sim = this.sim;
-    if (o.at) return this.m.pointOf(sim, o.at);
+    if (o.at) return point(sim, o.at);
     if (o.toward) {
-      const to = this.m.pointOf(sim, o.toward);
+      const to = point(sim, o.toward);
       if (to) return api.toward(this.home, to, o.d ?? 8);
     }
     // housing/food/workshops: in a semicircle towards the map centre around the castle
@@ -549,7 +601,7 @@ export class MissionBot {
         if (pos) break;
       }
     } else {
-      const near = o.at ? this.m.pointOf(sim, o.at) : this.home;
+      const near = o.at ? point(sim, o.at) : this.home;
       const list = def.placement === 'settlement' ? sim.spots : sim.shafts.filter((s) => s.res === def.shaftResource);
       const ok = list.filter((s) => !sim.checkPlacement(P, type, s.x, s.y) && !this.isDangerous({ x: s.x + 1, y: s.y + 1 }, type === 'villageCenter' ? 0 : 4) && api.dist(s, this.home) <= 45)
         .sort((a, b) => d2(a, near) - d2(b, near) || a.x - b.x || a.y - b.y);
@@ -798,8 +850,8 @@ export class MissionBot {
     if (this.rallyAt) return this.rallyAt; // set by the mission script
     const r = this.s.rally;
     if (r) {
-      const from = this.m.pointOf(this.sim, r.from) ?? this.home;
-      const to = this.m.pointOf(this.sim, r.toward);
+      const from = point(this.sim, r.from) ?? this.home;
+      const to = point(this.sim, r.toward);
       if (to) return api.findOpen(this.sim, ...Object.values(api.toward(from, to, r.d)), { maxR: 6, from: this.home }) ?? from;
     }
     const mc = { x: this.sim.map.width >> 1, y: this.sim.map.height >> 1 };
@@ -825,7 +877,7 @@ export class MissionBot {
 
     // 1. Defend – unless a small squad disturbs while the army is already attacking (then militia)
     const threatStr = this.strength(this.threats.filter((e) => e.kind !== 'soldier')) + this.threats.filter((e) => e.kind === 'soldier').length * 12;
-    const core = [this.home, ...(this.s.defend ?? []).map((n) => this.m.pointOf(sim, n)).filter(Boolean)];
+    const core = [this.home, ...(this.s.defend ?? []).map((n) => point(sim, n)).filter(Boolean)];
     const nearCore = this.threats.some((e) => core.some((g) => d2(tile(e), g) < 10 * 10));
     const minor = this.attacking && threatStr < Math.max(120, this.strength(army) * 0.3);
     if (this.threats.length && !minor) {
@@ -842,13 +894,13 @@ export class MissionBot {
       if (Array.isArray(goal.ref)) {
         let pick = null;
         for (const r of goal.ref) {
-          const alive = this.m.idsOf(r).map((id) => sim.entities.get(id)).filter(Boolean)
+          const alive = refIds(sim, r).map((id) => sim.entities.get(id)).filter(Boolean)
             .sort((a, b) => d2(tile(a), this.home) - d2(tile(b), this.home) || a.id - b.id);
           if (alive.length) { pick = alive[0].id; break; }
         }
         goal.ref = pick ?? goal.ref.at(-1);
       }
-      const target = this.m.pointOf(sim, goal.ref);
+      const target = point(sim, goal.ref);
       // during an attack only the dispatched group counts; reinforcements wait at the rally point
       const group = this.attacking?.group;
       const inGroup = (e) => !group || group.has(e.id);
@@ -864,14 +916,14 @@ export class MissionBot {
       }
       if (this.attacking && target) {
         // retreat on heavy losses – unless the target is already half destroyed (then push through)
-        const tgt = this.m.entityOf(sim, goal.ref);
+        const tgt = entityRef(sim, goal.ref);
         const nearlyDone = tgt?.kind === 'building' && tgt.hp * 2 < BUILDINGS[tgt.type].levels[tgt.level].hp;
         if ((!nearlyDone && str < this.attacking.start * (goal.retreat ?? 35) / 100) || !units.length) {
           this.attacking = null; // retreat, regroup
           this.retreatUntil = sim.tick + 90 * T;
           this.retreats = (this.retreats ?? 0) + 1;
         } else {
-          const ent = this.m.entityOf(sim, goal.ref);
+          const ent = entityRef(sim, goal.ref);
           if (this.attacking.phase === 'approach') {
             // rally point in front of the target (outside tower range), then strike together
             const stage = api.findOpen(sim, ...Object.values(api.toward(target, this.home, goal.stage)), { maxR: 5 }) ?? target;

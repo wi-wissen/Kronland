@@ -24,7 +24,8 @@ import { TICKS_PER_SECOND, tileCenter, toTile, UNIT } from '../fixed.js';
 import { valueNoise } from '../mapgen.js';
 import * as sapi from '../missions/setupApi.js';
 import { revealArea, canSee, isExplored } from '../systems/vision.js';
-import { hasForecast, forecast as weatherForecast } from '../systems/weather.js';
+import { hasForecast, forecast as weatherForecast, checkWeatherChange } from '../systems/weather.js';
+import { WEATHER_CONTROL } from '../data/weather.js';
 import { isEnemy, changeOwner } from '../systems/military.js';
 import { buildingMaxHp } from '../systems/techs.js';
 import {
@@ -68,7 +69,7 @@ export function toInt(v, name) {
  * Limits for shared levels: a script must not freeze the browser or blow up the save game.
  * World building per call (radius, count), number of places, goals and event handlers, length of texts.
  */
-export const LIMITS = { radius: 64, trees: 2000, spawn: 50, serfs: 100, places: 500, objectives: 100, handlers: 200, text: 2000, npcs: 50, noteCode: 20_000, tributes: 50, steps: 200 };
+export const LIMITS = { radius: 64, trees: 2000, spawn: 50, serfs: 100, places: 500, objectives: 100, handlers: 200, text: 2000, npcs: 50, noteCode: 20_000, tributes: 50, steps: 200, heavy: 200 };
 
 /** Names of places, goals and keys chosen by a script: letters, digits, _ and -, starting with a letter. */
 export const NAME_RE = /^[A-Za-z][\w-]{0,63}$/;
@@ -171,6 +172,7 @@ export const API_DOC = [
   { name: 'troop.attack', sig: 'troop.attack(target)', level: 'player', group: 'village', also: ['unit.attack', 'nelia.attack', 'serf.attack'] },
   { name: 'troop.hold', sig: 'troop.hold() · troop.defend()', level: 'player', group: 'village', also: ['troop.defend', 'nelia.hold', 'nelia.defend'] },
   { name: 'building.upgrade', sig: 'building.upgrade()', level: 'player', group: 'village' },
+  { name: 'building.change_weather', sig: 'building.change_weather(state) · building.can_change_weather(state)', level: 'player', group: 'village', also: ['building.can_change_weather'] },
   // Staging (missions only)
   { name: 'say', sig: 'say(speaker, text=None, de=None, en=None, seconds=None, voice=None, wait=True)', level: 'mission', group: 'story' },
   { name: 'message', sig: 'message(text=None, de=None, en=None)', level: 'mission', group: 'story' },
@@ -195,7 +197,7 @@ export const API_DOC = [
   { name: 'on_talk', sig: '@on_talk(id=None)', level: 'mission', group: 'events' },
   { name: 'on_event', sig: '@on_event(name, …)', level: 'player', group: 'events' },
   // Goals and end
-  { name: 'objective', sig: 'objective(id, condition=None, de=None, en=None, primary=True, hidden=False)', level: 'mission', group: 'goals' },
+  { name: 'objective', sig: 'objective(id, condition=None, de=None, en=None, primary=True, hidden=False, hold=False, clock=False)', level: 'mission', group: 'goals' },
   { name: 'complete', sig: 'complete(id)', level: 'mission', group: 'goals' },
   { name: 'fail', sig: 'fail(id)', level: 'mission', group: 'goals' },
   { name: 'show_objective', sig: 'show_objective(id)', level: 'mission', group: 'goals' },
@@ -204,20 +206,21 @@ export const API_DOC = [
   { name: 'withdraw', sig: 'withdraw(id)', level: 'mission', group: 'goals' },
   { name: 'unlock', sig: 'unlock(*ids)', level: 'mission', group: 'goals' },
   { name: 'victory', sig: 'victory(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
+  { name: 'ending', sig: 'ending(reason)', level: 'mission', group: 'goals' },
   { name: 'defeat', sig: 'defeat(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
   { name: 'program.get', sig: 'program.get(name, default=None) · program.status · program.runs · program.stop()', level: 'mission', group: 'goals' },
   { name: 'note', sig: 'note(speaker, code, title=None, de=None, en=None, editable=True)', level: 'mission', group: 'goals' },
   { name: 'reset', sig: 'reset(on=True)', level: 'mission', group: 'goals' },
   { name: 'hints', sig: 'hints(on=True)', level: 'mission', group: 'goals' },
   // Intervening
-  { name: 'spawn', sig: 'spawn(owner, kind, at, count=1, soldiers=None)', level: 'mission', group: 'power' },
+  { name: 'spawn', sig: 'spawn(owner, kind, at, count=1, soldiers=None, spread=True)', level: 'mission', group: 'power' },
   { name: 'spawn_serfs', sig: 'spawn_serfs(player, count)', level: 'mission', group: 'power' },
   { name: 'give', sig: 'give(player, wood=0, gold=0, …, energy=0)', level: 'mission', group: 'power' },
   { name: 'player', sig: 'player(name)', level: 'mission', group: 'power', query: true },
   { name: 'set_diplomacy', sig: 'set_diplomacy(a, b, "allied"|"neutral"|"hostile")', level: 'mission', group: 'power' },
   { name: 'diplomacy', sig: 'diplomacy(a, b)', level: 'player', group: 'power', query: true },
   { name: 'give_tech', sig: 'give_tech(player, *techs)', level: 'mission', group: 'power' },
-  { name: 'place_building', sig: 'place_building(player, kind, near, done=True, level=0, min_r=0, radius=20, fixed=False)', level: 'mission', group: 'power' },
+  { name: 'place_building', sig: 'place_building(player, kind, near, done=True, level=0, min_r=0, radius=20, fixed=False, margin=1)', level: 'mission', group: 'power' },
   { name: 'camp', sig: 'camp(name, near, units, r=7, anchor=None, on_ice=False)', level: 'mission', group: 'power' },
   { name: 'add_hero', sig: 'add_hero(player, name, at)', level: 'mission', group: 'power' },
   { name: 'convert', sig: 'convert(units, player)', level: 'mission', group: 'power' },
@@ -235,6 +238,7 @@ export const API_DOC = [
   { name: 'find_open', sig: 'find_open(near, min_r=0, max_r=24, clear=1, reachable_from=None, avoid=None, on_ice=False)', level: 'mission', group: 'terrain', query: true },
   { name: 'toward', sig: 'toward(a, b, distance)', level: 'mission', group: 'terrain', query: true },
   { name: 'map_center', sig: 'map_center()', level: 'mission', group: 'terrain', query: true },
+  { name: 'start_spot', sig: 'start_spot(player=HUMAN)', level: 'mission', group: 'terrain', query: true },
   { name: 'plant_trees', sig: 'plant_trees(target, count, radius=5)', level: 'mission', group: 'terrain' },
   { name: 'add_tree', sig: 'add_tree(x, y, amount=None)', level: 'mission', group: 'terrain' },
   { name: 'add_pile', sig: 'add_pile(res, x, y, amount=None)', level: 'mission', group: 'terrain' },
@@ -252,6 +256,17 @@ export const API_DOC = [
   { name: 'world.set_cliff', sig: 'world.set_cliff(x, y, on=True)', level: 'mission', group: 'terrain' },
   { name: 'world.set_track', sig: 'world.set_track(x, y, strength=None)', level: 'mission', group: 'terrain' },
   { name: 'world.noise', sig: 'world.noise(x, y, cell=16, seed=0)', level: 'mission', group: 'terrain', query: true },
+  // Shaping whole landscapes in one call (natives over src/sim/missions/setupApi.js – fast, integer, no randomness)
+  { name: 'world.reachable', sig: 'world.reachable(a, b, frozen=None)', level: 'mission', group: 'terrain', query: true },
+  { name: 'world.nearest_walkable', sig: 'world.nearest_walkable(target, max_r=8)', level: 'mission', group: 'terrain', query: true },
+  { name: 'world.axis_point', sig: 'world.axis_point(a, b, along, side=0)', level: 'mission', group: 'terrain', query: true, also: ['world.axis_coords'] },
+  { name: 'world.soften', sig: 'world.soften(divide=3, floor=150, sites=False)', level: 'mission', group: 'terrain' },
+  { name: 'world.ridge', sig: 'world.ridge(a, b, at, width, wobble=2)', level: 'mission', group: 'terrain' },
+  { name: 'world.ridge_gap', sig: 'world.ridge_gap(ridge, side, width=3, water=False)', level: 'mission', group: 'terrain' },
+  { name: 'world.channel', sig: 'world.channel(a, b, width=3)', level: 'mission', group: 'terrain' },
+  { name: 'world.lake_island', sig: 'world.lake_island(center, inner=6, width=4, shore=3)', level: 'mission', group: 'terrain' },
+  { name: 'world.moat', sig: 'world.moat(center, reachable_from, inner=12, width=4)', level: 'mission', group: 'terrain' },
+  { name: 'world.island', sig: 'world.island(a, b, inner=5, width=2, min_dist=26, keep=None)', level: 'mission', group: 'terrain' },
   // Constants
   { name: 'HUMAN', sig: 'HUMAN, ENEMY, BANDITS', level: 'player', group: 'const' },
 ];
@@ -275,7 +290,7 @@ export const CLASS_METHODS = {
   Troop: { player: [...FIGURE_METHODS, 'attack', 'hold', 'defend'], mission: ['teleport', 'kill'] },
   Worker: { player: ['is_at', 'distance_to'], mission: ['kill'] },
   Soldier: { player: ['is_at', 'distance_to'], mission: [] },
-  Building: { player: ['upgrade', 'distance_to'], mission: ['kill'] },
+  Building: { player: ['upgrade', 'change_weather', 'can_change_weather', 'distance_to'], mission: ['kill'] },
   Tree: { player: ['distance_to'], mission: ['kill'] },
   Pile: { player: ['distance_to'], mission: ['kill'] },
   Ruin: { player: [], mission: [] },
@@ -629,7 +644,10 @@ export function makeApi(host, level) {
 
   def('stock', (ctx, a, kw) => {
     const [r, p] = args('stock', a, kw, ['res', '?player']);
-    return sim().available(isMission ? playerOf(p) : human(), resArg(r));
+    const pl = isMission ? playerOf(p) : human();
+    // "energy": charge of the weather power plant (0 … 1000), like the bar at the plant
+    if (r === 'energy') return sim().players[pl].weatherEnergy ?? 0;
+    return sim().available(pl, resArg(r));
   });
   /**
    * count(kind, player, placed=False, level=0): from the census of the tick (one pass over all entities, shared by every
@@ -803,11 +821,14 @@ export function makeApi(host, level) {
   // ---------- Missions: goals ----------
 
   /**
-   * objective(id, condition, de=…, en=…, primary=True, hidden=False): the condition returns True/False or a pair
-   * (done, needed) for a progress bar. Version 1 order objective(id, text, condition) still works.
+   * objective(id, condition, de=…, en=…, primary=True, hidden=False, hold=False, clock=False): the condition returns
+   * True/False, a pair (done, needed) for a progress bar or a triple (done, needed, finished) that shows a bar but
+   * decides itself when the objective is met. hold=True: an objective to keep (protect something) – it counts as met as
+   * long as the condition holds and fails once it does not; clock=True shows the pair as remaining seconds.
+   * Version 1 order objective(id, text, condition) still works.
    */
   def('objective', (ctx, a, kw) => {
-    const KW = ['id', 'condition', 'text', 'primary', 'hidden', 'de', 'en'];
+    const KW = ['id', 'condition', 'text', 'primary', 'hidden', 'de', 'en', 'hold', 'clock'];
     for (const k of Object.keys(kw)) if (!KW.includes(k)) throw new ScriptError('argUnexpected', { name: 'objective', arg: k, suggestion: suggest(k, KW) });
     if (a.length > 5) throw new ScriptError('argCount', { name: 'objective', max: 5, given: a.length });
     const v1 = a.length >= 2 && a[1] !== null && !isCallable(a[1]);
@@ -823,7 +844,7 @@ export function makeApi(host, level) {
     if (cond !== null && !isCallable(cond)) throw new ScriptError('type', { what: 'callableNeeded', type: typeName(cond) });
     const name = nameArg(v.id, 'id');
     const words = textArg('objective', v.text, v.de, v.en, false);
-    host.addObjective(ctx.vm, name, words ?? name, cond, truthy(v.primary ?? true), truthy(v.hidden ?? false));
+    host.addObjective(ctx.vm, name, words ?? name, cond, truthy(v.primary ?? true), truthy(v.hidden ?? false), { hold: truthy(v.hold ?? false), clock: truthy(v.clock ?? false) });
     return v.id;
   }, true);
   const objectiveAction = (name, action) => def(name, (ctx, a, kw) => {
@@ -915,7 +936,7 @@ export function makeApi(host, level) {
       else if (hasKey(TECHS, id) || hasKey(BUILDING_TECHS, id)) techs.push(id);
       else throw gameErr('kindUnknown', { name: id, suggestion: suggest(id, [...Object.keys(BUILDINGS), ...Object.keys(TECHS), ...Object.keys(BUILDING_TECHS)]) });
     }
-    host.runtime.runAction(sim(), { type: 'unlock', buildings, techs });
+    host.runtime.unlock(sim(), buildings, techs);
     return null;
   }, true);
 
@@ -950,20 +971,44 @@ export function makeApi(host, level) {
   };
   def('victory', finish(true), true);
   def('defeat', finish(false), true);
+  /**
+   * ending(reason): the reason a level that ends by its objectives is won with – it picks victory text and epilogue
+   * (victoryTexts, debriefs) as with victory(reason), e.g. the way the player took. None goes back to "objectives".
+   */
+  def('ending', (ctx, a, kw) => {
+    const [r] = args('ending', a, kw, ['reason']);
+    host.runtime.state.endReason = r === null ? null : nameArg(r, 'reason');
+    return null;
+  }, true);
 
   // ---------- Missions: intervening ----------
 
+  /**
+   * spawn(owner, kind, at, count=1, soldiers=None, spread=True): troops for free. `kind` is a unit or a list like in
+   * camp() – [("sword1", 2, 4), ("bow1", 1, 4)] is one wave of three squads. Several squads stand in rows of three
+   * around `at`; spread=False puts every squad on the nearest free tile at `at` itself.
+   */
   def('spawn', (ctx, a, kw) => {
-    const [o, k, at, n = 1, soldiers] = args('spawn', a, kw, ['owner', 'kind', 'at', '?count', '?soldiers']);
+    const [o, k, at, n = 1, soldiers, spread = true] = args('spawn', a, kw, ['owner', 'kind', 'at', '?count', '?soldiers', '?spread']);
     const owner = playerOf(o);
-    const kind = strArg(k, 'kind');
-    if (!hasKey(UNITS, kind)) throw gameErr('unitUnknown', { name: kind, suggestion: suggest(kind, Object.keys(UNITS)) });
-    const c = pt(at);
+    let groups;
+    if (k instanceof PyList) groups = unitsArg(k);
+    else {
+      const kind = strArg(k, 'kind');
+      if (!hasKey(UNITS, kind)) throw gameErr('unitUnknown', { name: kind, suggestion: suggest(kind, Object.keys(UNITS)) });
+      groups = [{ def: kind, count: capArg(n, 'count', LIMITS.spawn), soldiers: soldiers === undefined || soldiers === null ? undefined : intArg(soldiers, 'soldiers') }];
+    }
+    const total = groups.reduce((t, g) => t + g.count, 0);
+    if (total > LIMITS.spawn) throw new ScriptError('value', { what: 'tooBig', name: 'count', max: LIMITS.spawn, value: String(total) });
+    const c = pt(at), rows = truthy(spread);
     const out = [];
-    const count = capArg(n, 'count', LIMITS.spawn);
-    for (let i = 0; i < count; i++) {
-      const L = sapi.spawnTroop(sim(), owner, kind, { x: c.x + ((i % 3) - 1) * 3, y: c.y + Math.trunc(i / 3) * 3 }, soldiers === undefined || soldiers === null ? undefined : intArg(soldiers, 'soldiers'));
-      if (L) out.push(handle(L));
+    let i = 0;
+    for (const g of groups) {
+      for (let j = 0; j < g.count; j++, i++) {
+        const near = rows ? { x: c.x + ((i % 3) - 1) * 3, y: c.y + Math.trunc(i / 3) * 3 } : { x: c.x, y: c.y };
+        const L = sapi.spawnTroop(sim(), owner, g.def, near, g.soldiers);
+        if (L) out.push(handle(L));
+      }
     }
     sim().events.push({ type: 'wave', owner, count: out.length, player: human() });
     return new PyList(out);
@@ -979,7 +1024,7 @@ export function makeApi(host, level) {
     const pl = sim().players[playerOf(p)];
     for (const k of Object.keys(kw)) {
       // energy: charge of the weather power plant (change the weather without waiting)
-      if (k === 'energy') { pl.weatherEnergy = Math.max(0, Math.min(MAX_GAME_INT, (pl.weatherEnergy ?? 0) + intArg(kw[k], k))); continue; }
+      if (k === 'energy') { pl.weatherEnergy = Math.max(0, Math.min(WEATHER_CONTROL.maxEnergy, (pl.weatherEnergy ?? 0) + intArg(kw[k], k))); continue; }
       const r = resArg(k);
       pl.stock[r] = Math.max(0, Math.min(MAX_GAME_INT, pl.stock[r] + intArg(kw[k], k)));
     }
@@ -1017,12 +1062,14 @@ export function makeApi(host, level) {
    * never tears it down. Without a fitting spot: None.
    */
   def('place_building', (ctx, a, kw) => {
-    const [p, k, nearV, done = true, lv = 0, minR = 0, radius = 20, fixed = false] = args('place_building', a, kw,
-      ['player', 'kind', 'near', '?done', '?level', '?min_r', '?radius', '?fixed']);
+    const [p, k, nearV, done = true, lv = 0, minR = 0, radius = 20, fixed = false, margin = 1] = args('place_building', a, kw,
+      ['player', 'kind', 'near', '?done', '?level', '?min_r', '?radius', '?fixed', '?margin']);
     const kind = buildingArg(k);
     const c = pt(nearV);
     const b = sapi.placeBuilding(sim(), playerOf(p), kind, c, {
       minR: Math.max(0, intArg(minR, 'min_r')), radius: capArg(radius, 'radius', LIMITS.radius), done: truthy(done), level: Math.max(0, intArg(lv, 'level')),
+      // margin: free tiles around it (0 = right next to water or a camp, e.g. on a small island)
+      margin: Math.max(0, capArg(margin, 'margin', 4)),
     });
     // No fitting spot: None (like find_open), so that world building goes on on every map
     if (!b) return null;
@@ -1138,14 +1185,14 @@ export function makeApi(host, level) {
   }, true);
   def('ai', (ctx, a, kw) => {
     const [p, difficulty, aggression, startIn, attackNow = false, forbidV] = args('ai', a, kw, ['player', '?difficulty', '?aggression', '?start_in', '?attack_now', '?forbid']);
-    const act = { type: 'ai', player: playerOf(p) };
+    const act = {};
     if (difficulty) act.difficulty = strArg(difficulty, 'difficulty');
     if (aggression) act.aggression = strArg(aggression, 'aggression');
     if (startIn !== undefined && startIn !== null) act.startIn = toTicks(startIn, 'start_in') / T;
     if (truthy(attackNow)) act.attackNow = true;
     // forbid: building kinds the computer opponent must not build (e.g. no weather power plant)
     if (forbidV !== undefined && forbidV !== null) act.forbid = (forbidV instanceof PyList || forbidV instanceof PyTuple ? forbidV.items : [forbidV]).map((x) => buildingArg(x));
-    host.runtime.runAction(sim(), act);
+    host.runtime.setAi(sim(), playerOf(p), act);
     return null;
   }, true);
 
@@ -1197,6 +1244,15 @@ export function makeApi(host, level) {
     return pointPlace(r.x, r.y, 2);
   }, true);
   def('map_center', () => pointPlace(sim().map.width >> 1, sim().map.height >> 1, 4), true);
+  /** start_spot(player=HUMAN): where a player starts – the castle, or for levels without a castle the start tile. */
+  def('start_spot', (ctx, a, kw) => {
+    const [p] = args('start_spot', a, kw, ['?player']);
+    const pl = playerOf(p);
+    const b = sim().findBuilding(pl, 'headquarters');
+    const s = b ? sapi.centerOf(b) : sim().starts[pl];
+    if (!s) throw gameErr('playerUnknown', { player: pl });
+    return pointPlace(s.x, s.y, 2);
+  }, true);
   def('plant_trees', (ctx, a, kw) => {
     const [t, n, r = 5] = args('plant_trees', a, kw, ['target', 'count', '?radius']);
     const c = pt(t);
@@ -1312,6 +1368,133 @@ export function makeApi(host, level) {
     return valueNoise(intArg(x, 'x'), intArg(y, 'y'), Math.max(1, intArg(cell, 'cell')), (sim().seed + intArg(seed, 'seed')) | 0);
   }, true);
 
+  // world.*: shape whole landscapes in one call – thin wrappers around src/sim/missions/setupApi.js (integer, no
+  // randomness, a whole map in milliseconds instead of a Python loop over every tile). Each counts as a heavy call:
+  // at most LIMITS.heavy per tick (and during world building), so that a level of somebody else cannot freeze the game.
+  const heavy = (name) => {
+    if (--host.heavyLeft < 0) throw new ScriptError('value', { what: 'tooMany', name, max: LIMITS.heavy });
+  };
+  /** Terrain changed in one go: the renderer rebuilds the whole map once. */
+  const shaped = () => { const m = sim().map; host.terrainChanged(0, 0); host.terrainChanged(m.width - 1, m.height - 1); host.natureChanged(); };
+  const xy = (p) => ({ x: p.x, y: p.y });
+  const axisOf = (aV, bV) => sapi.axis(xy(pt(aV)), xy(pt(bV)));
+  const optPlace = (p, r = 1) => (p ? pointPlace(p.x, p.y, r) : null);
+
+  /** world.reachable(a, b, frozen=None): can a figure walk from a to b? frozen=True/False: as in winter/summer. */
+  def('world.reachable', (ctx, a, kw) => {
+    const [p, q, fr] = args('reachable', a, kw, ['a', 'b', '?frozen']);
+    heavy('world.reachable');
+    return sapi.reachable(sim(), xy(pt(p)), xy(pt(q)), fr === undefined || fr === null ? sim().map.frozen : truthy(fr));
+  }, true);
+  def('world.nearest_walkable', (ctx, a, kw) => {
+    const [t, r = 8] = args('nearest_walkable', a, kw, ['target', '?max_r']);
+    const c = pt(t);
+    return optPlace(sapi.nearestWalkable(sim(), c.x, c.y, capArg(r, 'max_r', LIMITS.radius)));
+  }, true);
+  /**
+   * world.axis_point(a, b, along, side=0): the tile `along` tiles from a towards b (also beyond b or behind a), moved
+   * `side` tiles to the right of the way a → b (negative: to the left). world.axis_coords(a, b, target) is the reverse.
+   */
+  def('world.axis_point', (ctx, a, kw) => {
+    const [p, q, along, side = 0] = args('axis_point', a, kw, ['a', 'b', 'along', '?side']);
+    const r = axisOf(p, q).at(intArg(along, 'along'), intArg(side, 'side'));
+    return pointPlace(r.x, r.y, 2);
+  }, true);
+  def('world.axis_coords', (ctx, a, kw) => {
+    const [p, q, t] = args('axis_coords', a, kw, ['a', 'b', 'target']);
+    const ax = axisOf(p, q), c = pt(t);
+    return new PyTuple([ax.p(c.x, c.y), ax.q(c.x, c.y)]);
+  }, true);
+  /** world.soften(divide=3, floor=150, sites=False): flatter relief, no rock and no water; sites=True also removes settlement spots, shafts and bridge sites. */
+  def('world.soften', (ctx, a, kw) => {
+    const [d = 3, f = 150, sites = false] = args('soften', a, kw, ['?divide', '?floor', '?sites']);
+    heavy('world.soften');
+    sapi.soften(sim(), { divide: Math.max(1, capArg(d, 'divide', 100)), floor: Math.max(0, capArg(f, 'floor', 5000)), sites: truthy(sites) });
+    shaped();
+    return null;
+  }, true);
+  /** Ridge as a dict (only numbers and points – it travels with the save game). */
+  const ridgeDict = (ax, r) => {
+    const d = new PyDict();
+    d.set('a', pointPlace(ax.from.x, ax.from.y, 0)); d.set('b', pointPlace(ax.to.x, ax.to.y, 0));
+    for (const k of ['at', 'width', 'wobble', 'foot']) d.set(k, r[k]);
+    return d;
+  };
+  /**
+   * world.ridge(a, b, at, width, wobble=2): a mountain ridge (impassable rock, also over the ice) across the whole map,
+   * at right angles to the way a → b, `at` tiles from a and `width` tiles thick, with wavy edges. Returns the ridge
+   * for world.ridge_gap().
+   */
+  def('world.ridge', (ctx, a, kw) => {
+    const [p, q, at, w, wob = 2] = args('ridge', a, kw, ['a', 'b', 'at', 'width', '?wobble']);
+    heavy('world.ridge');
+    const ax = axisOf(p, q);
+    ax.to = xy(pt(q));
+    const r = sapi.ridge(sim(), ax, intArg(at, 'at'), Math.max(1, capArg(w, 'width', 256)), { wobble: Math.max(0, capArg(wob, 'wobble', 16)) });
+    shaped();
+    return ridgeDict(ax, r);
+  }, true);
+  /**
+   * world.ridge_gap(ridge, side, width=3, water=False): a pass through a ridge `side` tiles beside the way a → b, or with
+   * water=True a gorge with a river (walkable only on the ice). Returns {"center", "near", "far"}: the middle of the
+   * gap and the tiles in front of and behind the ridge.
+   */
+  def('world.ridge_gap', (ctx, a, kw) => {
+    const [rd, side, w = 3, water = false] = args('ridge_gap', a, kw, ['ridge', 'side', '?width', '?water']);
+    if (!(rd instanceof PyDict)) throw new ScriptError('type', { what: 'dictNeeded', name: 'ridge', type: typeName(rd) });
+    heavy('world.ridge_gap');
+    const ax = axisOf(rd.get('a'), rd.get('b'));
+    const r = { ax, at: intArg(rd.get('at'), 'at'), width: intArg(rd.get('width'), 'width'), wobble: intArg(rd.get('wobble'), 'wobble'), foot: intArg(rd.get('foot'), 'foot') };
+    const g = sapi.ridgeGap(sim(), r, intArg(side, 'side'), { width: Math.max(1, capArg(w, 'width', 16)), water: truthy(water) });
+    shaped();
+    const d = new PyDict();
+    d.set('center', pointPlace(g.center.x, g.center.y, 3)); d.set('near', pointPlace(g.near.x, g.near.y, 2)); d.set('far', pointPlace(g.far.x, g.far.y, 2));
+    return d;
+  }, true);
+  /** world.channel(a, b, width=3): a river bed (water) from a to b; tiles outside the map are left out. */
+  def('world.channel', (ctx, a, kw) => {
+    const [p, q, w = 3] = args('channel', a, kw, ['a', 'b', '?width']);
+    heavy('world.channel');
+    sapi.channel(sim(), xy(pt(p)), xy(pt(q)), { width: Math.max(1, capArg(w, 'width', 16)) });
+    shaped();
+    return null;
+  }, true);
+  /** world.lake_island(center, inner=6, width=4, shore=3): a lake ring around a flat island, with a flat shore. Returns the island (r = inner − 1). */
+  def('world.lake_island', (ctx, a, kw) => {
+    const [c, inner = 6, w = 4, shore = 3] = args('lake_island', a, kw, ['center', '?inner', '?width', '?shore']);
+    heavy('world.lake_island');
+    const r = sapi.lakeIsland(sim(), xy(pt(c)), { inner: Math.max(2, capArg(inner, 'inner', LIMITS.radius)), width: Math.max(1, capArg(w, 'width', 16)), shore: Math.max(0, capArg(shore, 'shore', 16)) });
+    shaped();
+    return pointPlace(r.x, r.y, r.r);
+  }, true);
+  /**
+   * world.moat(center, reachable_from, inner=12, width=4): a ring of water around a fixed centre (a castle) so that it
+   * is cut off from `reachable_from` in summer and reachable over the ice in winter. Buildings in the ring or no cut:
+   * nothing changes, None. Otherwise the island (r = inner − 1).
+   */
+  def('world.moat', (ctx, a, kw) => {
+    const [c, fromV, inner = 12, w = 4] = args('moat', a, kw, ['center', 'reachable_from', '?inner', '?width']);
+    heavy('world.moat');
+    const r = sapi.moat(sim(), xy(pt(c)), xy(pt(fromV)), { inner: Math.max(2, capArg(inner, 'inner', LIMITS.radius)), width: Math.max(1, capArg(w, 'width', 16)) });
+    if (r) shaped();
+    return r ? pointPlace(r.x, r.y, r.r) : null;
+  }, true);
+  /**
+   * world.island(a, b, inner=5, width=2, min_dist=26, keep=None): an island on the way from a towards b (at least
+   * `min_dist` tiles from a): a water ring cuts it off from a in summer, the ice carries in winter. Every point in
+   * `keep` must stay reachable from a in summer. None if nothing fits.
+   */
+  def('world.island', (ctx, a, kw) => {
+    const [p, q, inner = 5, w = 2, md = 26, keepV] = args('island', a, kw, ['a', 'b', '?inner', '?width', '?min_dist', '?keep']);
+    heavy('world.island');
+    const keep = keepV === undefined || keepV === null ? [] : listOfHandles(keepV).map((x) => xy(pt(x)));
+    const r = sapi.makeIsland(sim(), xy(pt(p)), xy(pt(q)), {
+      inner: Math.max(2, capArg(inner, 'inner', LIMITS.radius)), width: Math.max(1, capArg(w, 'width', 16)), minDist: Math.max(0, capArg(md, 'min_dist', 256)), keep,
+    });
+    if (r) shaped();
+    return r ? pointPlace(r.x, r.y, r.r) : null;
+  }, true);
+
   // ---------- Missions: talk figures ----------
 
   /**
@@ -1408,7 +1591,8 @@ export function makeApi(host, level) {
 
   const modules = isMission ? {
     camera: ['jump_to', 'fly_to'],
-    world: ['width', 'height', 'water_level', 'height_at', 'set_height', 'set_water', 'set_cliff', 'set_track', 'is_water', 'noise'],
+    world: ['width', 'height', 'water_level', 'height_at', 'set_height', 'set_water', 'set_cliff', 'set_track', 'is_water', 'noise',
+      'reachable', 'nearest_walkable', 'axis_point', 'axis_coords', 'soften', 'ridge', 'ridge_gap', 'channel', 'lake_island', 'moat', 'island'],
     program: ['status', 'runs', 'get', 'stop'],
   } : {};
 
@@ -1543,7 +1727,7 @@ export function makeApi(host, level) {
   /** Methods that only read and may be asked of visible foreign figures too. */
   const READ_ONLY = new Set(['is_at', 'distance_to']);
   /** Methods that change nothing in the game (the census of the tick stays valid). */
-  const SENSORS = new Set([...READ_ONLY, 'front', 'left', 'right', 'here', 'can_step']);
+  const SENSORS = new Set([...READ_ONLY, 'front', 'left', 'right', 'here', 'can_step', 'can_change_weather']);
 
   const isAt = (e, t) => {
     const c = pt(t);
@@ -1700,6 +1884,15 @@ export function makeApi(host, level) {
       case 'upgrade': {
         args(name, a, kw, []);
         command({ type: 'upgradeBuilding', building: e.id, player: e.owner });
+        return null;
+      }
+      // ----- weather power plant: the same command as the button at the plant (energy, waiting time, research) -----
+      case 'can_change_weather': case 'change_weather': {
+        const [stV] = args(name, a, kw, ['state']);
+        const state = strArg(stV, 'state');
+        if (!['summer', 'rain', 'winter'].includes(state)) throw gameErr('weatherUnknown', { name: state.slice(0, 40) });
+        if (name === 'can_change_weather') return checkWeatherChange(s, e.owner, e, state) === null;
+        command({ type: 'changeWeather', building: e.id, state, player: e.owner });
         return null;
       }
       case 'teleport': {

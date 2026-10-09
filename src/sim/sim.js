@@ -169,7 +169,7 @@ export class Sim {
     this.weather = { state: this.weatherCycle[0][0], index: 0, until: this.weatherCycle[0][1] };
     /** @type {number|null} winner team */
     this.winner = null;
-    // Fog of war (missions: entry `fog`/`vision` of the mission file, free play: opts.fog)
+    // Fog of war (missions: `fog`/`vision` of the level, free play: opts.fog)
     const mdef = this.mission?.def;
     createVision(this, { enabled: opts.fog ?? mdef?.fog ?? true, startReveal: opts.startReveal ?? mdef?.vision?.startReveal });
     // Mission: post-process the map, start layout, goals (hook 1 of 3)

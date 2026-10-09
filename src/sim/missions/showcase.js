@@ -6,7 +6,6 @@
 // "show goal" (camera jump) – so they can also be found on the phone. All without fixed coordinates: space is searched
 // from the castle outwards in order (deterministic).
 
-import { t, say } from './campaign/common.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { UNITS } from '../data/units.js';
 import { WORKER as W, PROFESSIONS, professionFor } from '../data/professions.js';
@@ -18,6 +17,15 @@ import { tileCenter, secondsToTicks } from '../fixed.js';
 import { useAbility } from '../systems/military.js';
 import { setupBridges, checkBridgeSite } from '../systems/bridges.js';
 import { buildingMaxHp } from '../systems/techs.js';
+
+/** Bilingual text. */
+const t = (de, en) => ({ de, en });
+
+/** What the two talk figures say when a hero is sent to them. */
+const TALK = {
+  villager: t('Schön, dass sich jemand die Mühe macht, alles anzuschauen!', 'Nice that someone takes the trouble to look at everything!'),
+  merchant: t('Alles ausgestellt, nichts zu verkaufen.', 'Everything on display, nothing for sale.'),
+};
 
 export const SHOWCASE_ID = 'showcase';
 
@@ -184,15 +192,14 @@ export default {
     { kind: 'bandits' },
   ],
 
-  npcs: {
-    villager: {
-      at: 'npcSpot', look: 'serf', hero: 'orrin', speaker: 'villager',
-      onTalk: [say('villager', 'Schön, dass sich jemand die Mühe macht, alles anzuschauen!', 'Nice that someone takes the trouble to look at everything!')],
-    },
-    merchant: {
-      at: 'npcSpot2', look: 'worker', hero: 'orrin', speaker: 'merchant',
-      onTalk: [say('merchant', 'Alles ausgestellt, nichts zu verkaufen.', 'Everything on display, nothing for sale.')],
-    },
+  /** Dialogue lines of this map (for the voice tools, dialogLines.js). */
+  lines: Object.entries(TALK).map(([speaker, text]) => ({ speaker, text })),
+
+  /** A hero sent to a talk figure (developer hook): the figure says its line once. */
+  talk(sim, m, id) {
+    if (!Object.hasOwn(TALK, id)) return;
+    m.say(sim, id, TALK[id]);
+    m.setTalkable(sim, id, false);
   },
 
   setup(ctx) {
@@ -406,12 +413,11 @@ export default {
       if (m.flags[m.idx(p.x, p.y)] & CLIFF) { rock = p; break; }
     }
     if (rock) ctx.ref('rockArea', { ...rock, r: 4 });
-  },
 
-  start: [
-    { type: 'npc', id: 'villager' },
-    { type: 'npc', id: 'merchant' },
-  ],
+    // Talk figures (a hero sent to them talks, see talk())
+    ctx.npc('villager', { at: 'npcSpot', look: 'serf', speaker: 'villager' });
+    ctx.npc('merchant', { at: 'npcSpot2', look: 'worker', speaker: 'merchant' });
+  },
 
   // Signposts: side goals that are never fulfilled – only for "show goal" (camera jump)
   objectives: [
@@ -428,7 +434,5 @@ export default {
     ['freeBridgeArea', 'Freie Brückenstelle', 'Free bridge site'],
     ['robbersArea', 'Räuberlager', 'Bandit camp'],
     ['rockArea', 'Felsen und Berge', 'Rocks and mountains'],
-  ].map(([area, de, en]) => ({ id: `see-${area}`, type: 'flag', flag: 'never', text: t(de, en), hint: { area } })),
-
-  events: [],
+  ].map(([area, de, en]) => ({ id: `see-${area}`, type: 'signpost', text: t(de, en), hint: { area } })),
 };

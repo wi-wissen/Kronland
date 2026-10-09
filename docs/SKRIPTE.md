@@ -18,7 +18,7 @@ Bezeichner sind englisch, Oberfläche, Erklärungen und Fehlermeldungen deutsch 
 | Welten | `src/sim/world.js` | flache Grundkarte, gespeicherte Editor-Karte, Zufallskarte |
 | Editor-Werkzeuge | `src/sim/editor/edit.js` | Heben, Senken, Wasser, Wald … auf einer Vorschau-Simulation |
 | Oberfläche | `src/ui/script/`, `src/ui/editor/`, `src/game/EditorView.js` | Code-Panel, Debugger, Abenteuer-Menü, Welteneditor |
-| Level | `src/sim/missions/levels/<ordner>/` | ein Ordner je Level: Lernabenteuer 1–5, Skript-Mission „Der Überfall“, Kampagne: Tutorial und Mission 1 „Lindgrund“ |
+| Level | `src/sim/missions/levels/<ordner>/` | ein Ordner je Level: Lernabenteuer 1–5, Skript-Mission „Der Überfall“, Kampagne: Tutorial und die Kapitel 1–6 |
 
 Spielen: Startmenü → **Programmier-Abenteuer**. Direktstart: `?mission=adv1` … `?mission=adv5`, `?mission=m1`,
 ein Level von einem anderen Server mit `?level=https://…/lindgrund.zip` (siehe [Level-Ordner](#level-ordner)).
@@ -259,7 +259,7 @@ Rolle des Figuren-Manifests (`"serf"`, `"worker.alchemist"`, `"hero.orrin"`) ode
 vorhanden); bis es geladen ist oder wenn es fehlt, steht die normale Figur da. Mit `name` oder `speakers` in
 scenario.json bekommt die Figur einen Namen im Dialogfenster; `speaker` lässt sie für jemand anderen sprechen (der Fremde auf dem
 Dorfplatz ist Orrin: `speaker="orrin"`, die Dialogkamera schaut zu ihr), `owner` gibt sie einem Spieler (einem
-Dorf). Figuren aus Missionsdateien (Mission 2–6) sprechen bis zu ihrem Umzug noch beim Herankommen.
+Dorf).
 
 **Das Spielerprogramm lesen:** `program.status` (`"idle"`, `"running"`, `"paused"`, `"done"`, `"error"`,
 `"stopped"`), `program.runs` und `program.get(name, default)` – eine Kopie der Variablen (Zahlen, Texte, Listen,
@@ -267,9 +267,11 @@ Wörterbücher, Spielobjekte; Funktionen werden `None`). Damit prüft eine Missi
 
 ## Kampagne in Python
 
-Mission 1 „Lindgrund“ (`levels/c1-lindgrund/`) und das Tutorial (`levels/tutorial/`) sind Level-Ordner wie die
-Abenteuer, mit `"kind": "campaign"` bzw. `"tutorial"`; die Registry reiht sie mit ihren alten IDs, Reihenfolge,
-`next` und Fortschrittsschlüsseln in die Kampagne ein (`?mission=c1`, `?mission=tutorial`). `scenario.json` trägt die
+Die ganze Kampagne – Kapitel 1–6 (`levels/c1-lindgrund/` … `levels/c6-thronsee/`) – und das Tutorial
+(`levels/tutorial/`) sind Level-Ordner wie die Abenteuer, mit `"kind": "campaign"` bzw. `"tutorial"`; die Registry
+reiht sie nach `order` mit ihren IDs, `next` und Fortschrittsschlüsseln in die Kampagne ein (`?mission=c3`,
+`?mission=tutorial`). Eine deklarative Missionssprache (Zieltypen, Auslöser, Aktionen in JS-Dateien) gibt es nicht
+mehr; nur die Entwicklerkarten Schaukasten und Gewimmel bleiben JS mit einem kleinen Haken (docs/MISSIONEN.md). `scenario.json` trägt die
 Daten (Titel, Briefing, Texte je Ende, Spieler mit Dorf und Räubern, Vorrat, `available`, `shafts`, `landmarks`,
 `weatherCycle`), `world.py` baut die Karte um, `mission.py` erzählt. Bausteine:
 
@@ -283,16 +285,77 @@ Daten (Titel, Briefing, Texte je Ende, Spieler mit Dorf und Räubern, Vorrat, `a
 | `offer()`/`withdraw()` + `@on_event("tribute")`, `unlock()` | Tribute (mit Gruppen als Wahl), Freischaltungen |
 | `objective()` + `hint(…, ui_until=…)` | Ziele mit Fortschritt und Zeiger (Ring, Leuchtrahmen bis zur Handlung) |
 | `convert()`, `remove()`/`obj.kill()`, `player("moorbrook")` | Seitenwechsel, spurlos entfernen bzw. mit Ereignis, Dörfer |
-| `count(…, placed, level)`, `researched()`, `Serf.res`, `Building.max_hp` | Abfragen für Bedingungen |
+| `count(…, placed, level)`, `researched()`, `Serf.res`, `Building.max_hp`, `stock("energy")` | Abfragen für Bedingungen |
+| `objective(…, hold=True)`, `clock=True`, `(stand, ziel, erfüllt)` | Halteziele („Schütze …“), Countdown, Ladebalken |
+| `ending(reason)` | Nachgeschichte nach dem gewählten Weg, wenn die Ziele die Mission beenden |
+| `spawn(owner, [("sword1", 2, 4), …], at, spread=False)` | eine Welle aus mehreren Truppenarten, Trupps genau am Ort |
+| `Building.change_weather(state)`, `can_change_weather()`, `give(energy=)` | Wetterkraftwerk nach den Spielregeln (auch für Gegner) |
+| `start_spot()`, `world.*`-Formung (unten) | Landschaft ohne feste Koordinaten |
 | `step()` | geführte Schritte des Tutorials |
 
 `count()` liest den **Zensus** des Takts (`runtime.count`: ein Durchlauf über alle Objekte, geteilt mit allen Zielen
 und Bedingungen); jeder Befehl, der das Spiel ändert, verwirft ihn, damit er nie veraltet ist. Die Dialogzeilen
 bleiben wortgleich mit den Aufnahmen (`public/audio/voice/index.json`, Schlüssel `sprecher|sprache|text`):
 `scripts/asset-gen/voice.mjs` sammelt die `say()`-Zeilen aus dem Python-Syntaxbaum (`scenarioLines` in `outline.js`,
-`src/sim/missions/dialogLines.js`), ein Test prüft, dass jede Zeile von Mission 1 und Tutorial vertont ist.
-Spielstände der früheren Missionsdatei von Mission 1 lassen sich nicht fortsetzen (`saves.err.missionChanged`);
-neue Spielstände tragen das Szenario mit.
+`src/sim/missions/dialogLines.js`), ein Test prüft, dass jede Zeile aller Kapitel und des Tutorials vertont ist
+(außer den Hinweisen für den falschen Helden, die es nie als Aufnahme gab). Spielstände der früheren
+Missionsdateien lassen sich nicht fortsetzen (`saves.err.missionChanged`); neue Spielstände tragen das Szenario mit.
+
+**Zeitpunkte:** `say()` wartet, bis die Zeile gesprochen ist. Was zur selben Zeit geschehen soll wie eine Zeile
+(eine Welle, eine Freischaltung, ein Seitenwechsel), steht darum *vor* den Zeilen; Wiederholungen rechnen von
+einem festen Zeitpunkt aus statt ab dem Ende der Zeilen:
+
+```python
+@on_start
+def sorties():
+    wait_until(lambda: count("troop") > 0 or time() >= 600)    # Meilenstein: erste eigene Truppe
+    first = time() + 120
+    for i in range(3):
+        wait_until(lambda: time() >= first + 300 * i)          # alle fünf Minuten, genau
+        attack(spawn(BANDITS, "sword1", place("siegeB"), count=2, soldiers=3), base)
+        say("taran", de="Schlagt das Lager dieser Prinzessin, bevor es wächst!", en="Hit this princess’s camp before it grows!")
+```
+
+Mehrere `@on_objective(…)`-Handler für dasselbe Ziel laufen als eigene Aufgaben nebeneinander (Mission 3: Zeilen,
+Verstärkung nach 5 s, Warnung nach 45 s, Tauwetter nach 60 s).
+
+### Landschaft formen: `world.*`
+
+Ganze Landschaften entstehen mit wenigen Aufrufen, die jeweils die ganze Karte in einem Schritt bearbeiten
+(Natives über `src/sim/missions/setupApi.js`: ganzzahlig, ohne Zufall, Millisekunden statt einer Python-Schleife
+über jede Kachel; höchstens 200 solcher Aufrufe je Takt bzw. im Weltaufbau). Gelegt wird entlang einer **Achse**
+von einem Punkt zu einem anderen, z. B. vom Start zur gegenüberliegenden Ecke – so passt dieselbe Landschaft auf
+jede Karte. Mission 3 „Das Wetterwerk“ (`levels/c3-hagenfurt/world.py`) baut so ihr Tal:
+
+```python
+start = start_spot()                                         # Burg oder Startkachel
+far = (world.width - 1 - start.x, world.height - 1 - start.y)
+world.soften(sites=True)                                     # flach, ohne Felsen, Wasser und Bauplätze
+front = world.ridge(start, far, 20, 7)                       # Bergkamm quer über die Karte, 20 Kacheln vom Start
+gate = world.ridge_gap(front, 24, width=4)                   # Pass, 24 Kacheln rechts der Achse
+gorge = world.ridge_gap(front, -22, width=3, water=True)     # Schlucht mit Fluss (nur zugefroren begehbar)
+lake = world.axis_point(start, far, 50)                      # 50 Kacheln entlang der Achse
+isle = world.lake_island(lake, inner=6, width=4)             # See mit Insel, im Sommer abgeschnitten
+world.channel(gorge["far"], toward(lake, gorge["far"], 8))   # Fluss von der Schlucht in den See
+print(world.reachable(start, isle, frozen=False), world.reachable(start, isle, frozen=True))   # False True
+```
+
+| Befehl | Wofür |
+|---|---|
+| `world.soften(divide, floor, sites)` | ganze Karte glätten; `sites=True` entfernt Siedlungsplätze, Schächte, Brückenstellen |
+| `world.ridge(a, b, at, width, wobble)` | Bergkamm (Fels, auch über das Eis unpassierbar) rechtwinklig zur Achse a → b; liefert den Kamm als dict |
+| `world.ridge_gap(kamm, side, width, water)` | Pass oder Schlucht; liefert `{"center", "near", "far"}` |
+| `world.channel(a, b, width)` | Flussbett |
+| `world.lake_island(mitte, inner, width, shore)` | See mit flacher Insel |
+| `world.moat(mitte, reachable_from, inner, width)` | Wasserring um eine Burg, nur im Winter erreichbar (sonst None) |
+| `world.island(a, b, inner, width, min_dist, keep)` | Insel auf dem Weg a → b; `keep` bleibt im Sommer erreichbar |
+| `world.axis_point(a, b, along, side)`, `world.axis_coords(a, b, ziel)` | rechnen entlang der Achse und zurück |
+| `world.reachable(a, b, frozen)`, `world.nearest_walkable(ziel, max_r)` | Gegenprobe Wegsuche (Sommer/Winter), nächste begehbare Kachel |
+
+Der Kamm ist ein dict aus Zahlen und Punkten und reist mit dem Spielstand; gleiche Karte und gleiche Aufrufe ergeben
+dieselbe Landschaft (Test `tests/sim/missionApi.test.js`, Hash gleich nach Speichern und Laden). Mission 6 legt den
+Thronsee mit `world.moat` in einer Schleife über `inner` so eng wie möglich um Malvors Burg und Malvors Werkinsel mit
+`world.island(…, keep=…)`, damit Ufer und Hinterland erreichbar bleiben.
 
 ## Level-Ordner
 
@@ -341,9 +404,9 @@ lindgrund/
 | `world.places` | benannte Orte (Kreise), im Code `place("name")`; mit `make_place` eine gemeinsame Tabelle |
 | `players[i].hq` | `false`: ohne Burg, Dorfzentrum und Leibeigene – nur der Held (Lernabenteuer); ohne `stock` mit leerem Lager |
 | `world.tracks` | Spuren im Level: `{ "threshold": 1, "fade": 0, "who": "heroes" }` (Schwelle 1 … 48, Sekunden je Stufe, 0 = verweht nie; wer Spuren macht: `all`, `none`, `heroes`) |
-| `players[i].stock/techs/serfs` | wie in Missionsdateien (`docs/MISSIONEN.md`) |
+| `players[i].stock/techs/serfs` | Startvorrat, Technologien, Leibeigene (alle Spielerfelder: `docs/MISSIONEN.md`) |
 | `available` | Freischaltungen zu Beginn: `{ "buildings": […], "techs": […] }` (sonst alles) |
-| `shafts`, `landmarks`, `weatherCycle` | wie in Missionsdateien |
+| `shafts`, `landmarks`, `weatherCycle` | Grubenplätze nur für diese Rohstoffe, Wahrzeichen, Wetterfolge (`docs/MISSIONEN.md`) |
 | `victoryText`, `defeatText` | Text am Ende; `victoryTexts`, `defeatTexts`, `debriefs` je Grund (`victory("gold")`) |
 | `speakers` | eigene Sprecher: Name, Farbe `#rrggbb`, Porträt `assets/….png` |
 | `sections` | Python-Abschnitte: `file` (Name im Ordner), `level` mission/player, `visibility` open/collapsed/hidden, `editable`. Gepackt (Spielstand, Editor) trägt jeder Abschnitt seinen `code` |

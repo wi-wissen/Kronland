@@ -138,7 +138,7 @@ export function unpackLevel(s) {
 export const endRuleOf = (s) => s.end ?? (s.version >= 2 ? 'objectives' : 'script');
 
 /**
- * Scenario → mission definition (same fields as campaign/*.js).
+ * Scenario → mission definition for the mission runtime (runtime.js).
  * @param {any} s scenario JSON
  */
 export function scenarioToDef(s) {
@@ -179,9 +179,6 @@ export function scenarioToDef(s) {
     vision: world.vision ?? (world.startReveal ? { startReveal: world.startReveal } : undefined),
     weatherCycle: s.weatherCycle,
     players: s.players,
-    objectives: s.objectives ?? [],
-    events: s.events ?? [],
-    start: s.start ?? [],
     scenario: s,
   };
 }

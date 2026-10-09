@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Sim } from '../../src/sim/sim.js';
 import { AiPlayer } from '../../src/ai/AiPlayer.js';
-import { MissionRuntime } from '../../src/sim/missions/runtime.js';
+import { createScenarioSim } from '../../src/sim/missions/runtime.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { VISION, buildingSight } from '../../src/sim/data/vision.js';
 import { COMBAT } from '../../src/sim/data/combat.js';
@@ -122,12 +122,12 @@ describe('Exploration', () => {
     expect(canSee(sim, 2, ally)).toBe(false);
   });
 
-  it('mission: action reveal uncovers a region (explored, visible for a limited time)', () => {
-    const def = {
-      id: 'test', title: { de: 'T', en: 'T' }, players: [{ kind: 'human', hero: 'nelia' }, { kind: 'ai' }], objectives: [], events: [],
-      start: [{ type: 'reveal', area: 'enemyHq', r: 5, seconds: 3 }],
-    };
-    const sim = new Sim({ seed: 4, players: 2, heroes: ['nelia', null], mission: new MissionRuntime(def) });
+  it('mission: reveal() uncovers a region (explored, visible for a limited time)', () => {
+    const sim = createScenarioSim({
+      format: 'kronland-scenario', version: 2, id: 'test', kind: 'mission', end: 'script',
+      world: { base: 'generate', seed: 4, size: 64, fog: true }, players: [{ kind: 'human', hero: 'nelia' }, { kind: 'ai' }],
+      sections: [{ id: 'mission', level: 'mission', code: 'reveal(hq(ENEMY), radius=5, seconds=3)\n' }],
+    });
     const c = center(hqOf(sim, 1));
     expect(isExplored(sim, 0, c.x, c.y)).toBe(true);
     expect(isVisible(sim, 0, c.x, c.y)).toBe(true);
@@ -136,8 +136,7 @@ describe('Exploration', () => {
     sim.run(40);
     expect(isVisible(sim, 0, c.x, c.y)).toBe(false);
     expect(isExplored(sim, 0, c.x, c.y)).toBe(true);
-    // objective variant stays: reveal with id uncovers a hidden goal
-    expect(sim.mission.state.warnings).toEqual([]);
+    expect(sim.mission.script.state.errors).toEqual([]);
   });
 
   it('fog off: everything visible, no snapshots', () => {

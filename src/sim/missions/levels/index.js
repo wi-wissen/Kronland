@@ -40,10 +40,10 @@ export const LEVELS = Object.entries(folders)
 /** Coding adventures in order. */
 export const ADVENTURES = LEVELS.filter((s) => s.kind === 'adventure').sort(byOrder);
 
-/** Scenarios that are played like missions (Python instead of a mission file). */
+/** Script missions: scenarios that are played like missions (normal game, code panel hidden). */
 export const SCRIPT_MISSIONS = LEVELS.filter((s) => s.kind === 'mission').sort(byOrder);
 
 export const SCENARIOS = [...ADVENTURES, ...SCRIPT_MISSIONS];
 
-/** Campaign chapters and the tutorial that are level folders (the registry merges them with the mission files). */
+/** Campaign chapters and the tutorial (the registry makes the campaign from them). */
 export const CAMPAIGN_LEVELS = LEVELS.filter((s) => s.kind === 'campaign' || s.kind === 'tutorial').sort(byOrder);
