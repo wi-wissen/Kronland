@@ -154,420 +154,306 @@ diese Zeilen ersatzlos; jede Mission funktioniert in der neutralen Fassung.
 ---
 # Teil 2 – Die Missionen
 
-> **Stand:** Mission 3 ist neu geschrieben (mit Erzählerin, Figuren sprechen den Spieler nicht an) und gilt als
-> Maßstab, siehe [Leitfaden](LEITFADEN.md). Die Missionen 1, 2, 4, 5 und 6 sind noch die alte Fassung und werden in
-> diesem Stil neu geschrieben.
+> **Stand:** Missionen 1 und 3 sind neu geschrieben (mit Erzählerin, Figuren sprechen den Spieler nicht an) und haben
+> den Kaltleser-Test bestanden, siehe [Leitfaden](LEITFADEN.md). Die Missionen 2, 4, 5 und 6 sind noch die alte Fassung
+> und werden in diesem Stil neu geschrieben.
 
-## Mission 1 – Lindgrund: „Was unter dem Baum liegt“
+## Mission 1 – Lindgrund
 
-**Dramatische Frage:** Kann Nelia ihr verlassenes Dorf wieder zum Leben bringen und das Kronstück unter Vaters Baum
-vor Malvors Eintreibern behalten?
+Die Erzählerin spricht nur zum Spieler: Einleitung, jedes neue Ziel (was und warum), Bedienung, die neu ist. Die Figuren
+reden nur miteinander. In dieser Mission erklärt sie die gesamte Grundsteuerung; Rechner und Handy nennt sie beim
+ersten Mal beide, danach nur noch, was zu tun ist.
 
-**Beats:** Opening Image · Theme Stated · Set-up · Save the Cat · Catalyst · Debate · Break into Two (am Ende).
+### 1. Dramatische Frage und Funktion im Gesamtbogen
 
-**Malvors Ziel hier:** Nichts Besonderes – Lindgrund ist leer, seine Eintreiber holen wie jedes Jahr „den
-Zehnten“ von dem wenigen, was übrig ist. Erst als das Gerücht von einer Prinzessin mit Gold aus dem Boden die Runde
-macht, wollen sie das Kronstück. Malvors Logik: Ein Kronstück in Bauernhand ist eine Kleinigkeit, die man
-einsammelt, bevor sie jemand ernst nimmt.
+**Kann Nelia ihr verlassenes Heimatdorf wieder zum Leben bringen – und das Kronstück unter dem alten Baum vor Malvors
+Eintreibern behalten?** Im Gesamtbogen: **Opening Image** (das leere Dorf im Schnee), **Save the Cat** (Nelia gibt
+einem Fremden ihr letztes Brot), **Catalyst** (der Fund und Orrins Lüge), am Ende **Break into Two** (Nelia bricht auf,
+um Malvor bei den Kronstücken zuvorzukommen).
 
-**Karte und Start (unverändert):** Burg leer, vom Dorfzentrum nur Grundmauern, zwei eingestürzte Häuser mit
-Balkenhaufen daneben, Lehmschacht in Reichweite, der alte Baum zwischen Dorf und Kartenmitte, ein kleines
-Nachbardorf seitlich. Nelia kommt allein, ohne Leibeigene. Vorrat: 400 Taler, 1000 Lehm, 600 Holz, 200 Stein (⚠ Lehm bisher 1400; 1000 reichen genau für Dorfzentrum, zwei Wohnhäuser, zwei Höfe und die Grube – danach ist der Lehm alle).
-Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
+### 2. Einleitungstext (liest die Erzählerin vor)
 
-**Neu für den Spieler**
-
-| Was | Wo erklärt |
-|---|---|
-| Kamera bewegen | Schritt 1 (Zieltext) |
-| Helden auswählen und laufen lassen | Schritt 1 |
-| Gesprächsfiguren (Ausrufezeichen) | Schritt 1 |
-| Ziele-Liste, Knopf „Ziel zeigen“, goldener Ring | Schritt 3 |
-| Leibeigene auswählen („Alle“, Rahmen) | Schritt 4 |
-| Holz abbauen (Balken, Bäume), Vorrat oben | Schritt 4 |
-| Baumenü öffnen, Gebäude setzen („Hier bauen“), Siedlungsplatz | Schritt 5 |
-| Mehr Bauleute = schneller | Schritt 5 |
-| Dorfzentrum: ohne es keine Arbeiter | Schritt 5 |
-| Ausgegraute Gebäude („in dieser Mission nicht verfügbar“) | Schritt 6 |
-| Wohnhaus: Betten; Lagerfeuer als Zeichen | Schritt 6, Auslöser „Erstes Lagerfeuer“ |
-| Bauernhof: Essen | Schritt 7 |
-| Arbeiter kommen von selbst, wenn es Arbeit gibt | Auslöser „Erster Arbeiter“, Schritt 8 |
-| Schacht und Grube | Schritt 8 |
-| Zahltag, Steuern, Taler | Auslöser „Zahltag“ |
-| Burg auswählen, Leibeigene kaufen | Auslöser „Zahltag“, Nebenziel |
-| Zweiten Helden auswählen; nur ein bestimmter Held spricht mit einer Figur; Verbündete | Nebenziel „Nachbardorf“ |
-| „Zu den Waffen!“, Miliz, angreifen, „Entwarnung“ | Schritt 9 |
-| Heldenfähigkeit („Mut machen“) | Schritt 9 |
-| Helden werden bewusstlos, nicht getötet | Schritt 9 |
-
-### Einleitung
-
-> Seit König Edrian im Sturm auf dem Thronsee ertrank, ist Winter im Kronland – seit Jahren. Mit dem König zerbrach
-> seine Krone; die Legende sagt, ihre fünf Stücke seien in alle Provinzen verstreut. Korn wächst nur noch in
-> Hagenfurt, wo Statthalter Malvor herrscht. Wer essen will, arbeitet in seinen Kornlagern – für eine Schüssel am
-> Tag. Auch die Leute aus Lindgrund sind gegangen.
+> Seit Jahren liegt Schnee auf dem Kronland. Seit König Edrian im Sturm auf dem Thronsee ertrank, wird es nicht mehr
+> Frühling. Nur einer hat noch Korn: Malvor, der Statthalter von Hagenfurt. Wer essen will, arbeitet in seinen
+> Kornlagern – für eine Schüssel am Tag.
 >
-> Nelia, Tochter eines Leibeigenen, hat drei Winter in Malvors Kornlager geschuftet. Ihr Vater schlägt dort noch
-> immer Holz für die Öfen. Vor einer Woche ist sie davongelaufen. Jetzt steht sie am Rand ihres Heimatdorfs.
-> Kein Rauch steigt auf. Kein Hund bellt.
+> Auch die Leute aus Lindgrund sind gegangen. Nelia, die Tochter eines Leibeigenen, hat zwei Winter in Malvors
+> Kornlager geschuftet. Ihr Vater ist noch dort. Vor einer Woche ist sie davongelaufen – zurück nach Hause.
+>
+> Jetzt steht sie am Rand ihres Heimatdorfs. Kein Rauch steigt auf. Kein Hund bellt.
 
-### Ablauf
+**Startvorrat:** 400 Taler, 1000 Lehm, 600 Holz, 200 Stein. Keine Leibeigenen.
+
+### 3. Ablauf
 
 #### Start – Kein Rauch
 
-- *Auslöser:* Missionsbeginn. Kamera auf Nelia am Dorfrand; am Dorfplatz sitzt ein Fremder mit Ausrufezeichen.
+- *Auslöser:* Missionsbeginn. Kamera auf Nelia am Dorfrand; auf dem Dorfplatz sitzt ein Fremder mit Ausrufezeichen.
 - *Dialog:*
   > **Nelia:** Lindgrund. Kein Rauch, kein Hund. Alle sind zu Malvor gegangen – für eine Schüssel Korn.
   >
-  > **Orrin:** He! Du da, mit dem Bündel! Hier drüben, am Dorfplatz! Ich beiße nicht, ich handle nur.
+  > **Orrin:** He! Du da, mit dem Bündel! Hier drüben, auf dem Dorfplatz! Ich beiße nicht, ich handle nur.
   >
   > **Nelia:** Ein Fremder? Hier wohnen ja nicht mal mehr Mäuse.
+- *Ziel:* „Schick Nelia zum Fremden auf dem Dorfplatz“
+  > **Erzählerin:** Willkommen in Lindgrund. Du lenkst Nelia. Klicke sie an – oder tippe sie an, wenn du am Handy
+  > spielst.
   >
-  > **Nelia:** Vielleicht weiß er, wo alle hin sind. Ich geh hin.
-
-#### Schritt 1 – Der Fremde auf dem Dorfplatz
-
-- *Auslöser:* direkt nach dem Startdialog.
-- *Ziel (Maus):* „Schick Nelia zum Fremden auf dem Dorfplatz: Nelia anklicken (oder ihr Bild unten links), dann
-  Rechtsklick neben ihn. Karte schieben: WASD oder mittlere Maustaste.“
-- *Ziel (Handy):* „Schick Nelia zum Fremden: Nelia oder ihr Bild antippen, dann neben ihn tippen. Karte mit einem
-  Finger schieben.“
-- *Warum (im Dialog):* Er ist das einzige lebende Wesen in Lindgrund – vielleicht weiß er, wo die Leute geblieben sind.
-- *Erklärung:* Helden auswählen und laufen lassen; Kamera schieben. Zeiger: Nelias Bild im Schnellzugriff
-  (solange Nelia an ihrer Startposition steht); Ring und Ausrufezeichen am Fremden.
-- *Dialog (Hilfe):*
-  > **Orrin:** *[Hilfe, 25 s nach dem Startdialog, entfällt wenn Nelia sich von der Startposition entfernt hat]*
-  > Na komm schon! Hierher, zum Dorfplatz! Da, wo ich winke!
-
-#### Schritt 2 – Orrin
-
-- *Auslöser:* Nelia erreicht den Fremden (Gesprächsfigur, jeder Held).
-- *Ziel:* erfüllt sich mit dem Gespräch.
-- *Warum:* Save the Cat und Thema. Nelia hat selbst nichts – und gibt trotzdem.
-- *Dialog (Block 1, am Dorfplatz):*
-  > **Orrin:** Endlich ein Gesicht! Orrin, Händler in Bändern, Knöpfen und guten Ratschlägen. Mein Karrenrad ist gebrochen.
+  > **Erzählerin:** Dann zeig ihr, wohin sie gehen soll: am Rechner mit einem Rechtsklick auf den Boden, am Handy mit
+  > einem Tipp. Schick sie zu dem Fremden mit dem Ausrufezeichen.
   >
-  > **Nelia:** Nelia. Ich bin hier geboren. Du siehst verfroren aus. Hier – mein letztes Brot.
+  > **Erzählerin:** Die Karte verschiebst du am Rechner mit den Tasten W, A, S, D, am Handy mit einem Finger.
+- *Erklärung:* Rahmen auf Nelias Bild unten links; Ring am Fremden.
+
+#### Schritt 1 – Der Fremde
+
+- *Auslöser:* Nelia erreicht den Fremden.
+- *Dialog:*
+  > **Orrin:** Endlich ein Gesicht! Orrin, Händler in Bändern, Knöpfen und guten Ratschlägen. Mein Karrenrad ist
+  > gebrochen, und hier kauft keiner mehr.
+  >
+  > **Nelia:** Ich bin Nelia. Ich bin hier geboren. Du siehst verfroren aus – hier, mein letztes Brot.
   >
   > **Orrin:** Geschenkt? Wie soll ich das verbuchen? Mir hat noch nie jemand etwas geschenkt.
   >
   > **Nelia:** Dann verbuch es nicht. Iss.
   >
-  > **Orrin:** Gute Knöpfe hab ich. Aber die Leute kaufen nur von Leuten mit Namen.
+  > **Orrin:** Danke. Und was willst du hier, in einem Dorf ohne Leute?
   >
-  > **Orrin:** Die fragen nie, was einer tut. Nur, wessen Kind er ist.
-
-  Orrin schließt sich als zweiter Held an (Merker `orrin`).
-
-- *Dialog (Block 2, nach dem Block: Merker `orrin` + 30 s):*
-  > **Nelia:** Ich bin das Kind eines Leibeigenen. Mich fragt keiner was.
+  > **Nelia:** Mein Vater hat immer unter dem alten Baum am Waldrand versteckt, was wir hatten – wenn die Eintreiber
+  > kamen. Vielleicht liegt dort noch Saatkorn. Mit Saatkorn kann Lindgrund im Frühjahr wieder säen.
   >
-  > **Nelia:** Vater schlägt Holz in Malvors Kornlager. Bevor er ging, hat er unter dem alten Baum versteckt, was wir hatten.
+  > **Orrin:** Saatkorn ist mehr wert als alles in meinem Karren. Ich komme mit.
+- Orrin schließt sich an.
+- *Ziel:* „Schick Nelia zum alten Baum am Waldrand – dort hat ihr Vater versteckt, was die Familie hatte“
+  > **Erzählerin:** Orrin begleitet Nelia jetzt. Dein neues Ziel steht links oben in der Zielliste: Schick Nelia zum
+  > alten Baum am Waldrand.
   >
-  > **Nelia:** Das hat er immer so gemacht, wenn die Eintreiber kamen. Vielleicht liegt da noch Saatkorn.
-  >
-  > **Orrin:** Saatkorn wäre mehr wert als alles in meinem Karren. Geh nachsehen.
+  > **Erzählerin:** Weißt du nicht, wo etwas liegt? Neben jedem Ziel ist ein kleiner Knopf mit einer Zielscheibe –
+  > er fährt die Karte dorthin. Am Handy findest du die Ziele hinter dem Knopf „Ziele“. Der goldene Ring zeigt die Stelle.
+- *Erklärung:* Rahmen auf den Knopf „Ziel zeigen“ (Handy: zuerst „Ziele“).
 
-  Erst jetzt erscheint das Ziel „alter Baum“; der Baum wird kurz aufgedeckt.
+#### Schritt 2 – Der Fund (Catalyst)
 
-#### Schritt 3 – Der alte Baum (Catalyst)
-
-- *Auslöser:* Ende von Block 2 (Anker + 20 s).
-- *Ziel (Maus):* „Schick Nelia zum alten Baum am Waldrand. Der Knopf ‚Ziel zeigen‘ neben diesem Ziel fährt die
-  Karte hin, der goldene Ring zeigt die Stelle.“
-- *Ziel (Handy):* „Schick Nelia zum alten Baum am Waldrand. Unter ‚Ziele‘ fährt ‚Ziel zeigen‘ die Karte hin, der
-  goldene Ring zeigt die Stelle.“
-- *Warum (im Dialog):* Nelia will, was ihr Vater für die Familie versteckt hat – Saatkorn hieße: Lindgrund könnte im
-  Frühjahr wieder säen.
-- *Erklärung:* Ziele-Liste, „Ziel zeigen“, goldener Ring. Zeiger: „Ziel zeigen“ an diesem Ziel (Handy: zuerst
-  „Ziele“).
-- *Dialog (Hilfe):*
-  > **Orrin:** *[Hilfe, kommt immer – 25 s nach dem Ziel, entfällt nur, wenn Nelia schon nah am Baum ist]*
-  > Siehst du den goldenen Schimmer am Waldrand? Dort steht dein Baum.
-
-- *Fund (Nelia erreicht den Ring), Block 1:*
-  > **Nelia:** Kein Korn. Ein Tuch … und darin Gold. Eine Spitze mit einem Stein darin.
+- *Auslöser:* Nelia erreicht den Baum.
+- *Dialog:*
+  > **Nelia:** Kein Korn. Ein Tuch … und darin Gold. Eine goldene Spitze mit einem roten Stein.
   >
   > **Orrin:** Bei allen Märkten. Weißt du, was du da hältst? Ein Kronstück.
   >
-  > **Orrin:** Ein Stück von Edrians Krone. Sie zerbrach in fünf, als er ertrank. In jeder Provinz soll eins liegen.
+  > **Orrin:** Als König Edrian ertrank, zerbrach seine Krone in fünf Stücke. Man erzählt, in jeder Provinz liegt eins.
+  > Und du hast das von Lindgrund gefunden.
   >
-  > **Nelia:** Unter Vaters Baum? Wie kommt das dahin?
-
-  Drei Leibeigene treten aus dem Wald; sie hatten sich dort vor den Eintreibern versteckt. (Baustein: Funktionsaktion
-  setzt sie an den Baum, oder E9 `give` mit `at`.)
-
-- *Fund, Block 2 (sobald die drei da sind):*
-  > **Dorfbewohnerin:** Gold mit Stein? Gehört ihr zu Malvors Leuten? Dann sind wir weg!
+  > **Nelia:** Unter Vaters Baum? Wie kommt so etwas dahin?
+- Drei Leibeigene treten aus dem Wald; sie hatten sich vor den Eintreibern versteckt.
+  > **Dorfbewohnerin:** Gold? Gehört ihr zu Malvors Leuten? Dann sind wir gleich wieder weg!
   >
-  > **Orrin:** Malvors Leute? Seht ihr nicht, wer da steht? Edrian hatte keine *bekannten* Kinder!
+  > **Orrin:** Malvors Leute? Seht ihr nicht, wer da steht? Der König hatte keine *bekannten* Kinder!
   >
-  > **Orrin:** Die verlorene Prinzessin, Leute! Mit dem ersten Kronstück, aus der Erde von Lindgrund!
+  > **Orrin:** Die verlorene Prinzessin, Leute! Mit dem Kronstück von Lindgrund, aus der Erde ihrer Heimat!
   >
-  > **Dorfbewohnerin:** Die Prinzessin … in Lindgrund? Dann bleiben wir. Sag uns, was wir tun sollen!
+  > **Dorfbewohnerin:** Die Prinzessin … in Lindgrund? Dann bleiben wir! Sag uns, was wir tun sollen!
   >
-  > **Nelia:** Ich … Holt Holz. Wir bauen das Dorf wieder auf. Damit die anderen heimkommen können.
-
-  Ziel „Holz“ erscheint.
-
-#### Schritt 4 – Balken aus den Trümmern
-
-- *Auslöser:* Fund am Baum.
-- *Ziel (Maus):* „Schick die Leibeigenen an die Balken bei den Trümmern: ‚Alle‘ unten links (oder Rahmen ziehen),
-  dann Rechtsklick auf die Balken.“
-- *Ziel (Handy):* „Schick die Leibeigenen an die Balken: ‚Alle‘ antippen (hinter dem Kartenknopf), dann die Balken
-  antippen.“
-- *Warum (im Dialog):* Nelia will ein Dorf, in das die Leute aus dem Kornlager heimkehren können. Holz ist knapp:
-  600 im Vorrat, für Dorfzentrum, Häuser, Höfe und Grube braucht man doppelt so viel. Die Balken liegen schon da.
-- *Erklärung:* Leibeigene auswählen, Rohstoffe abbauen. Zeiger: „Alle“ (Handy: Kartenknopf); Ring an den Balken.
-- *Dialog (Hilfe):*
-  > **Orrin:** *[Hilfe, 25 s nach dem Ziel, entfällt wenn Leibeigene Holz abbauen]*
-  > Ruf die drei zusammen und schick sie an die Balken bei den eingestürzten Häusern. Leibeigene tun, was man ihnen zeigt.
+  > **Nelia:** Ich … Wir bauen das Dorf wieder auf. Damit die anderen heimkommen können.
+- *Unter vier Augen, direkt danach:*
+  > **Nelia:** Orrin! Ich bin keine Prinzessin. Warum erzählst du so etwas?
   >
-  > **Orrin:** *[Hilfe, wie oben]* Bäume tun's auch. Aber die Balken sind schon trocken.
-
-#### Schritt 5 – Das Dorfzentrum
-
-- *Auslöser:* Leibeigene tragen Holz (Balken oder Baum; `job wood`).
-- *Ziel (Maus):* „Bau das Dorfzentrum auf den alten Grundmauern wieder auf: Leibeigene wählen → ‚Bauen‘ (B) →
-  Dorfzentrum → Grundmauern anklicken.“
-- *Ziel (Handy):* „Bau das Dorfzentrum auf den alten Grundmauern: Leibeigene wählen → ‚Bauen‘ → Dorfzentrum →
-  Grundmauern antippen → ‚Hier bauen‘.“
-- *Warum (im Dialog):* Freie Leute ziehen nur dorthin, wo ein Dorfzentrum steht. Ohne es kommt niemand aus dem
-  Kornlager zurück. Die Grundmauern sind ein **Siedlungsplatz**: nur dort darf ein Dorfzentrum stehen.
-- *Erklärung:* Baumenü öffnen, Gebäude setzen. Zeiger (Liste, der erste sichtbare gewinnt): „Hier bauen“ →
-  Kachel „Dorfzentrum“ → „Alle“; am Handy leuchten „Bauen“ bzw. der Kartenknopf mit. Ring auf den Grundmauern.
-- *Dialog:*
-  > **Orrin:** Gut. Jetzt der Dorfplatz. Freie Leute ziehen nur her, wo ein Dorfzentrum steht.
-  >
-  > **Nelia:** Die aus Lindgrund sitzen in Malvors Kornlager. Mit einem Dorfzentrum kommen sie heim?
-  >
-  > **Orrin:** Wenn es hier Arbeit, Betten und Essen gibt. Eins nach dem anderen.
-- *Dialog (Hilfe, nach dem Block: 25 s):*
-  > **Orrin:** *[Hilfe, entfällt wenn die Baustelle des Dorfzentrums steht]*
-  > Lass die drei das Dorfzentrum auf die alten Grundmauern setzen. Nur dort passt es hin.
-  >
-  > **Orrin:** *[Hilfe, wie oben]* Wer mitbaut, fängt sofort an. Je mehr Hände am Bau, desto schneller.
-
-- *Während des Baus, Block 1 (Baustelle gesetzt + 15 s):*
-  > **Nelia:** Orrin. Das Kronstück. Davon wird keiner satt.
-  >
-  > **Orrin:** Davon nicht. Aber damit. Es gibt ein altes Recht, Kind.
-  >
-  > **Orrin:** Wer alle fünf Kronstücke vereint, den müssen die Provinzen krönen. Egal, wer er ist.
-  >
-  > **Nelia:** Malvor herrscht doch längst.
-  >
-  > **Orrin:** Als Statthalter. Mit fünf Kronstücken wäre er König. Dann dürfte ihm keiner mehr widersprechen.
-  >
-  > **Nelia:** Dann bekommt er dieses nicht. Und warum hast du den dreien eine Prinzessin erzählt?
-
-- *Während des Baus, Block 2 (nach dem Block: + 30 s, nur solange das Dorfzentrum noch nicht fertig ist; sonst
-  gleich nach Schritt 6):*
-  > **Orrin:** Weil sie sonst weitergelaufen wären. Drei Paar Hände für einen Satz – guter Handel.
+  > **Orrin:** Weil sie sonst weitergelaufen wären. Drei Paar Hände für einen Satz – das ist ein guter Handel.
   >
   > **Nelia:** Und wenn sie merken, dass es nicht stimmt?
   >
-  > **Orrin:** Dann haben sie ein Dach überm Kopf. Wer satt ist, verzeiht viel.
+  > **Orrin:** Dann haben sie ein Dach über dem Kopf. Wer satt ist, verzeiht viel. Aber zuerst brauchen wir Holz.
+  > Die eingestürzten Häuser dort drüben – ihre Balken sind trocken.
 
-#### Schritt 6 – Betten
+#### Schritt 3 – Holz
+
+- *Ziel:* „Schick die Leibeigenen an die Balken bei den eingestürzten Häusern – ohne Holz kein neues Dach“
+  > **Erzählerin:** Dein Ziel: Lindgrund braucht Holz, um Häuser und den Dorfplatz wieder aufzubauen. Die Balken der
+  > eingestürzten Häuser am Dorfrand sind trocken und liegen schon bereit.
+  >
+  > **Erzählerin:** Die drei Leute aus dem Wald sind Leibeigene. Sie sammeln Holz, Lehm und Stein und bauen Häuser –
+  > aber nur, wenn du ihnen sagst, was sie tun sollen.
+  >
+  > **Erzählerin:** Wähle alle drei mit dem Knopf „Alle“ unten links aus. Am Rechner kannst du auch einen Rahmen um sie
+  > ziehen.
+  >
+  > **Erzählerin:** Dann ein Rechtsklick auf die Balkenhaufen – am Handy ein Tipp. Oben siehst du, wie dein Holz wächst.
+- *Erklärung:* Rahmen auf „Alle“ (Handy: hinter dem Kartenknopf); Ring an den Balken.
+
+#### Schritt 4 – Das Dorfzentrum
+
+- *Auslöser:* Die Leibeigenen bauen Holz ab.
+- *Dialog:*
+  > **Orrin:** Gut so. Jetzt der Dorfplatz. Freie Leute – Bauern, Bergleute, Handwerker – ziehen nur dorthin, wo ein
+  > Dorfzentrum steht.
+  >
+  > **Nelia:** Die Leute aus Lindgrund sitzen in Malvors Kornlager. Wenn hier wieder ein Dorfzentrum steht, kommen sie
+  > dann heim?
+  >
+  > **Orrin:** Wenn es hier Arbeit, Betten und Essen gibt. Eins nach dem anderen. Zuerst das Dorfzentrum – auf den
+  > alten Grundmauern.
+- *Ziel:* „Bau das Dorfzentrum auf den alten Grundmauern wieder auf – ohne Dorfzentrum zieht kein Arbeiter her“
+  > **Erzählerin:** Gebaut wird mit Leibeigenen. Wähle sie aus und öffne das Baumenü mit dem Knopf „Bauen“.
+  >
+  > **Erzählerin:** Wähle das Dorfzentrum und setze es auf die alten Grundmauern im Ring. Ein Dorfzentrum passt nur auf
+  > solche Siedlungsplätze. Am Handy bestätigst du mit „Hier bauen“.
+  >
+  > **Erzählerin:** Die ausgewählten Leibeigenen fangen sofort an. Je mehr mitbauen, desto schneller geht es.
+- *Erklärung:* Rahmen auf „Bauen“, dann auf „Dorfzentrum“; Ring auf den Grundmauern.
+
+#### Schritt 5 – Betten
 
 - *Auslöser:* Dorfzentrum fertig.
-- *Ziel (Maus/Handy gleich):* „Baue 2 Wohnhäuser – Arbeiter brauchen ein Bett (Baumenü → ‚Wohnen‘ → Wohnhaus, freier
-  Boden genügt)“
-- *Warum (im Dialog):* Wer heimkehrt, will nicht wieder in einer Scheune schlafen. Ohne Bett hockt ein Arbeiter am
-  Lagerfeuer und schafft kaum ein Siebtel.
-- *Erklärung:* freier Bauplatz; ausgegraute Gebäude. Zeiger: Kachel „Wohnhaus“.
 - *Dialog:*
   > **Nelia:** Das Dorfzentrum steht. Wie früher. Nur leerer.
   >
-  > **Orrin:** Nicht mehr lange. Aber wer hier arbeiten soll, muss schlafen. Sechs Betten hat ein Wohnhaus.
+  > **Orrin:** Nicht mehr lange. Aber wer hier arbeiten soll, braucht ein Bett. Sonst sitzt er die Nacht am
+  > Lagerfeuer und schafft am Tag kaum etwas.
   >
   > **Nelia:** Im Kornlager schliefen wir zu dreißig in einer Scheune. Hier bekommt jeder ein Bett.
+- *Ziel:* „Baue 2 Wohnhäuser – Arbeiter brauchen ein Bett“
+  > **Erzählerin:** Baue zwei Wohnhäuser. In jedem schlafen sechs Arbeiter. Wohnhäuser kannst du auf jeden freien Boden
+  > setzen.
   >
-  > **Orrin:** Ein Wohnhaus braucht keinen alten Grund. Freier Boden genügt.
-  >
-  > **Orrin:** Mehr können wir uns noch nicht leisten. Erst das Nötige, dann das Schöne.
+  > **Erzählerin:** Graue Gebäude im Baumenü gibt es in dieser Mission noch nicht. Sie kommen später dazu.
 
-  (Die letzte Zeile begleitet die ausgegrauten Gebäude; der Grund „in dieser Mission nicht verfügbar“ steht im
-  Menü selbst.)
-
-#### Schritt 7 – Essen
+#### Schritt 6 – Essen
 
 - *Auslöser:* zwei Wohnhäuser fertig.
-- *Ziel:* „Baue 2 Bauernhöfe – Arbeiter brauchen Essen (Baumenü → ‚Wohnen‘ → Bauernhof)“
-- *Warum (im Dialog):* Essen ist das, womit Malvor das Land in der Hand hat. Wer in Lindgrund satt wird, muss nicht
-  zu ihm.
-- *Erklärung:* wie Schritt 6. Zeiger: Kachel „Bauernhof“.
 - *Dialog:*
   > **Orrin:** Wer geschlafen hat, will essen. Und Essen ist alles, womit Malvor das Land festhält.
   >
-  > **Nelia:** Dann bauen wir Höfe. Wer bei uns isst, muss nicht zu ihm.
-  >
-  > **Orrin:** Acht Plätze am Tisch hat ein Hof. Und der Bauer ist gleich unser erster Arbeiter.
-
-- *Auslöser „Erster Arbeiter“ (`workers 1`):*
+  > **Nelia:** Dann bauen wir Höfe. Wer in Lindgrund satt wird, muss nicht zu ihm.
+- *Ziel:* „Baue 2 Bauernhöfe – Arbeiter brauchen Essen“
+  > **Erzählerin:** Baue zwei Bauernhöfe. An jedem Hof essen acht Arbeiter. Und jeder Hof braucht einen Bauern – das
+  > werden deine ersten Arbeiter.
+- *Der erste Arbeiter kommt:*
   > **Nelia:** Da kommt einer! Den hat keiner gerufen.
   >
-  > **Orrin:** Arbeiter kann man nicht rufen, Kind. Man kann ihnen nur einen Grund geben.
+  > **Orrin:** Arbeiter kann man nicht rufen. Man kann ihnen nur einen Grund geben – Arbeit, ein Bett und einen Platz
+  > am Tisch.
 
-#### Schritt 8 – Arbeit für sechs
+#### Schritt 7 – Arbeit und Lehm
 
 - *Auslöser:* zwei Bauernhöfe fertig.
-- *Ziel:* „Gib 6 Arbeitern Arbeit, Bett und Essen – bau eine Lehmgrube auf dem Schacht (Baumenü → ‚Rohstoffe‘)“
-- *Warum (im Dialog):* Mehr Leute kommen nur, wenn es mehr Arbeit gibt; eine Lehmgrube gibt fünf Bergleuten Arbeit.
-  Und der Lehm im Vorrat ist nach Dorfzentrum, Häusern und Höfen fast aufgebraucht – jedes weitere Haus braucht
-  neuen. Wer arbeitet, zahlt außerdem Steuern – Lindgrund hat seit Jahren keinen Taler gesehen.
-- *Erklärung:* Schacht und Grube. Zeiger: Kachel „Lehmgrube“, solange keine Baustelle steht; Ring auf dem Schacht.
 - *Dialog:*
-  > **Orrin:** Zwei Bauern haben wir. Mehr kommen nur, wenn es mehr Arbeit gibt.
-  >
-  > **Orrin:** Dort drüben tritt Lehm zutage – ein Schacht. Darauf passt eine Lehmgrube.
+  > **Orrin:** Zwei Bauern haben wir. Mehr Leute kommen nur, wenn es mehr Arbeit gibt.
   >
   > **Nelia:** Und unser Lehm ist fast weg. Ohne Lehm kein Haus mehr für die, die noch heimkommen.
   >
-  > **Orrin:** Fünf Bergleute, die dort graben. Lehm genug für ganz Lindgrund.
+  > **Orrin:** Dort drüben tritt Lehm aus dem Boden – ein Schacht. Darauf passt eine Lehmgrube. Fünf Bergleute finden
+  > dort Arbeit und graben Lehm genug für ganz Lindgrund.
   >
-  > **Orrin:** Und wer arbeitet, zahlt Steuern. Dann klimpert es endlich mal in Lindgrund.
-- *Dialog (Hilfe, nach dem Block: 25 s):*
-  > **Orrin:** *[Hilfe, entfällt wenn die Baustelle der Lehmgrube steht]*
-  > Die Grube passt nur auf den Schacht, dort, wo der Lehm aus dem Boden tritt.
+  > **Nelia:** Und wer arbeitet, zahlt Steuern.
+  >
+  > **Orrin:** Du lernst schnell. Dann klimpert es endlich mal in Lindgrund.
+- *Ziel:* „Baue eine Lehmgrube auf dem Schacht und gib 6 Arbeitern Arbeit, Bett und Essen“
+  > **Erzählerin:** Baue eine Lehmgrube. Gruben passen nur auf Schächte – Stellen, an denen ein Rohstoff aus dem Boden
+  > tritt. Der Ring zeigt den Lehmschacht.
+  >
+  > **Erzählerin:** Sobald es Arbeit gibt, ziehen neue Arbeiter von selbst ins Dorfzentrum. Brennt irgendwo ein
+  > Lagerfeuer, fehlt jemandem ein Bett oder ein Platz am Tisch.
+- *Erklärung:* Rahmen auf „Lehmgrube“ im Baumenü, bis die Baustelle steht; Ring am Schacht.
 
-- *Auslöser „Erstes Lagerfeuer“ (`event campLit`, einmalig):*
-  > **Orrin:** Siehst du das Feuer? Da sitzt einer, dem ein Bett oder ein Platz am Tisch fehlt.
-  >
-  > **Nelia:** Dann bauen wir, bis keins mehr brennt.
-  >
-  > **Orrin:** Lagerfeuer sind die ehrlichsten Boten im Dorf. Sie sagen immer, was fehlt.
+#### Zwischendurch – Der erste Zahltag
 
-- *Auslöser „Zahltag“ (`event payday` + `workers 1`):*
-  > **Orrin:** Hörst du das? Zahltag. Alle zwei Minuten zahlt jeder Arbeiter seine Steuern.
+- *Auslöser:* erster Zahltag, an dem es Arbeiter gibt.
+- *Dialog:*
+  > **Orrin:** Hörst du das Klimpern? Zahltag. Jeder Arbeiter zahlt Steuern – endlich Taler in Lindgrund.
   >
-  > **Orrin:** Für Taler kauft man in der Burg Leibeigene. Fünfzig das Stück, und das Dorf hat mehr Hände.
+  > **Orrin:** Für Taler bekommst du in der Burg neue Leibeigene. Fünfzig das Stück, und das Dorf hat mehr Hände.
   >
   > **Nelia:** Menschen kaufen. Wie Mehl. Mich hat auch mal einer gekauft.
   >
-  > **Orrin:** So ist das im Kronland. Willst du's ändern, brauchst du erst ein Dorf, das überlebt.
+  > **Orrin:** So ist das im Kronland. Willst du es ändern, brauchst du erst ein Dorf, das überlebt.
+- *Nebenziel:* „Optional: Kauf in der Burg 2 Leibeigene – mehr Hände bauen schneller“
+  > **Erzählerin:** Alle zwei Minuten ist Zahltag: Jeder Arbeiter zahlt Steuern. Wähle die Burg aus und kaufe dort
+  > Leibeigene für je 50 Taler. Mehr Leibeigene bauen schneller.
 
-  Nebenziel „Leibeigene kaufen“ erscheint (siehe unten).
+#### Schritt 8 – Malvors Eintreiber (Break into Two)
 
-#### Schritt 9 – Malvors Eintreiber (Break into Two)
-
-- *Auslöser:* Die Lehmgrube ist fertig – Rauch steigt über Lindgrund auf –, spätestens nach 25 Minuten
-  (`any: [built clayMine, time 1500]`). ⚠ Änderung: bisher kamen die Eintreiber, sobald die zwei Höfe stehen.
-  Begründung: Der Kampf überlagert nicht die Erklärung der Grube, und der Rauch (Gegenbild zum „kein Rauch“ der
-  Einleitung) ist der sichtbare Grund, warum sie kommen.
-- *Ziel (Maus):* „Vertreibe Malvors Eintreiber: Burg wählen → ‚Zu den Waffen!‘, dann die Miliz wählen und Rechtsklick
-  auf die Eintreiber. Nelia allein wählen → ‚Mut machen‘ (C).“
-- *Ziel (Handy):* „Vertreibe Malvors Eintreiber: ‚Burg‘ → ‚Zu den Waffen!‘, Miliz wählen, Eintreiber antippen. Nelia
-  antippen → ‚Mut machen‘.“
-- *Warum (im Dialog):* Die Eintreiber wollen den Zehnten von einem Dorf, das gerade erst wieder isst – und das
-  Kronstück. Gibt Nelia es her, hat Malvor das erste von fünf.
-- *Erklärung:* Miliz, Angriff, Heldenfähigkeit, Bewusstlosigkeit, „Entwarnung“. Zeiger-Phasen (E3): 1. „Burg“ bzw.
-  „Zu den Waffen!“, solange es keine Miliz gibt; 2. Nelias Bild bzw. „Mut machen“, bis die Fähigkeit benutzt ist;
-  3. „Entwarnung“ nach dem Sieg. Ohne E3: nur Phase 1. Kamera springt zu den Eintreibern.
-- *Dialog (Block 1):*
+- *Auslöser:* Die Lehmgrube ist fertig – Rauch steigt über Lindgrund auf. Spätestens nach 25 Minuten.
+- Kamera springt zu den Eintreibern (zwei Trupps Speerträger) am Dorfrand.
+- *Dialog:*
   > **Nelia:** Rauch über Lindgrund. Das sieht man bis zur Straße.
   >
   > **Eintreiber:** Im Namen des Statthalters! Jeder zehnte Sack gehört Malvor.
   >
-  > **Eintreiber:** Und man erzählt sich von Gold aus dem Boden. Her mit dem Kronstück!
+  > **Eintreiber:** Und man erzählt sich, hier hat jemand Gold aus dem Boden gegraben. Her damit!
   >
   > **Nelia:** Was unter Vaters Baum lag, bleibt in Lindgrund.
   >
-  > **Orrin:** Meine Schuld, die Geschichte lief schneller als wir. Das sind nur vier Speerträger, Nelia.
-- *Dialog (Hilfe, nach dem Block: 20 s):*
-  > **Orrin:** *[Hilfe, entfällt wenn es schon Miliz gibt]*
-  > Ruf in der Burg „Zu den Waffen!“. Dann greifen alle Leibeigenen zu Mistgabeln.
-- *Dialog (sobald Miliz steht, oder 30 s nach Block 1):*
-  > **Nelia:** Ich gehe vorneweg. Wenn sie mich sehen, fassen sie Mut.
+  > **Orrin:** Meine Schuld – die Geschichte von der Prinzessin lief schneller als wir. Aber das sind nur ein paar
+  > Speerträger. Wenn alle zusammen anpacken, jagen wir sie davon.
   >
-  > **Orrin:** *[Hilfe, entfällt wenn „Mut machen“ benutzt wurde]* Dann tu's. Wer bei dir steht, schlägt doppelt so hart – eine Minute lang.
+  > **Nelia:** Und ich gehe vorneweg. Wenn sie mich sehen, fassen sie Mut.
+- *Ziel:* „Vertreibe Malvors Eintreiber – sie wollen das Kronstück“
+  > **Erzählerin:** Malvors Eintreiber wollen das Kronstück. Vertreibe sie.
   >
-  > **Orrin:** Und keine Angst. Wir fallen höchstens in Ohnmacht. Sind die Feinde fort, stehen wir wieder auf.
+  > **Erzählerin:** Wähle die Burg und drücke „Zu den Waffen!“. Dann greifen alle Leibeigenen zu Mistgabeln und werden
+  > zur Miliz.
+  >
+  > **Erzählerin:** Wähle die Miliz und Nelia aus und schick sie mit Rechtsklick – am Handy mit einem Tipp – auf die
+  > Eintreiber.
+  >
+  > **Erzählerin:** Nelia kann ihren Leuten Mut machen: Wähle sie allein und drücke „Mut machen“. Wer in ihrer Nähe
+  > kämpft, schlägt eine Minute lang doppelt so hart zu.
+  >
+  > **Erzählerin:** Keine Sorge um Nelia und Orrin: Helden sterben nicht. Werden sie verwundet, stehen sie nach einer
+  > Weile wieder auf.
+- *Erklärung:* Rahmen auf die Burg, dann „Zu den Waffen!“, dann „Mut machen“.
+- *Eintreiber vertrieben:*
+  > **Eintreiber:** Das wird Malvor erfahren! Und ihr seid nicht die Einzigen. Sein Herold kauft die Kronstücke längst
+  > – in Beaucroix bietet er schon für das nächste!
+  >
+  > **Nelia:** Malvor sammelt die Kronstücke? Orrin, was passiert, wenn er alle fünf hat?
+  >
+  > **Orrin:** Dann wird er König. Das alte Recht sagt: Wer alle fünf Kronstücke vereint, den müssen die Provinzen
+  > krönen. Und einem König darf keiner mehr widersprechen.
+  >
+  > **Nelia:** Dann bekommt er dieses nicht. Und das in Beaucroix auch nicht.
+  >
+  > **Erzählerin:** Vergiss nicht: In der Burg rufst du mit „Entwarnung“ die Miliz zurück an die Arbeit.
+- Damit sind alle Hauptziele erfüllt; die Mission ist gewonnen.
 
-- *Sieg über die Eintreiber:*
-  > **Eintreiber:** Das wird Malvor erfahren! Sein Herold kauft die Kronstücke längst – in Beaucroix bietet er schon für das nächste!
-  >
-  > **Nelia:** Dann muss er sich beeilen.
-  >
-  > **Orrin:** *[Hilfe, entfällt wenn keine Miliz mehr da ist]* Und jetzt „Entwarnung“ in der Burg. Mistgabeln fällen keine Bäume.
+### 4. Nebenziel: Das Nachbardorf
 
-### Nebenziele
-
-**Optional: Leibeigene kaufen**
-- *Auslöser:* Zahltag-Dialog.
-- *Ziel:* „Optional: Kauf in der Burg 2 Leibeigene – mehr Hände bauen schneller (‚Burg‘ (H) → ‚Leibeigenen kaufen‘)“
-- *Warum (im Dialog):* Orrin im Zahltag-Block: „… und das Dorf hat mehr Hände.“
-- *Baustein:* Merker zählt `event serfBought` hoch, `custom`-Ziel „0/2“. Zeiger `buy-serf` nur mit E4 (sonst verdeckt
-  das Hauptziel ihn).
-- *Abschluss (beim zweiten Kauf):*
-  > **Nelia:** Zwei mehr. Ich werde mich nie daran gewöhnen.
-
-**Optional: Das Nachbardorf – Wahl**
-- *Auslöser:* Fund am Baum (das Gerücht läuft). Die Dorfälteste nebenan bekommt ein Ausrufezeichen, ihr Dorf wird
-  kurz aufgedeckt.
-- *Ziel:* „Optional: Schick **einen** zur Dorfältesten nebenan – Orrin oder Nelia (Bild unten links wählt den
-  Helden)“
-- *Warum (im Dialog):* Das Nachbardorf hat Holz und Leute, aber es hat Angst vor Malvor. Wer es überzeugt, gewinnt
-  Verbündete.
-- *Erklärung:* einen bestimmten Helden auswählen. Zeiger `quick-hero-orrin` nur mit E4.
-- *Dialog (beim Erscheinen):*
-  > **Orrin:** Nebenan wohnt noch jemand! Die haben Holz und Leute. Lass mich hin, ich erzähl ihr von unserer Prinzessin.
+- *Auslöser:* nach dem Fund am Baum; die Dorfälteste im Nachbardorf bekommt ein Ausrufezeichen, ihr Dorf wird kurz
+  aufgedeckt.
+- *Dialog:*
+  > **Orrin:** Sieh mal, dort drüben steigt Rauch auf. Ein Nachbardorf – da wohnt noch jemand!
   >
-  > **Nelia:** Oder ich geh selbst. Und sag ihr, wer ich wirklich bin.
+  > **Orrin:** Lass mich mit ihnen reden. Ein guter Händler bekommt Holz und Leute, wo andere nur Türen sehen.
+- *Ziel:* „Optional: Schick Orrin zur Dorfältesten im Nachbardorf – sie könnte Leute und Holz schicken“
+  > **Erzählerin:** Ein freiwilliges Ziel: Schick Orrin zur Dorfältesten im Nachbardorf. Du hast jetzt zwei Helden –
+  > wähle Orrin über sein Bild unten links aus.
+- *Wenn Nelia hingeht:*
+  > **Dorfälteste:** Schick mir den Händler, Kind. Der redet für zwei.
+- *Gespräch mit Orrin:*
+  > **Orrin:** Ehrwürdige Mutter! Ihr habt es gehört: Die verlorene Prinzessin ist zurück, und sie friert in Lindgrund.
   >
-  > **Orrin:** Aber nur einer von uns. Zwei Fremde auf einmal machen den Leuten Angst.
-- ⚠ Änderung: Die Dorfälteste spricht mit Orrin **oder** Nelia (bisher nur Orrin), und nur, wenn **genau ein** Held
-  in Reichweite ist (E7); kommen beide, sagt sie: „Einer von euch soll reden. Der andere wartet draußen.“ Ausgang über
-  `npcTalked.hero`, Merker `neighborsLie` bzw. `neighborsTruth`. Begründung: erste spürbare Wahl zum Thema.
+  > **Dorfälteste:** Prinzessin oder nicht – ein Mädchen, das Malvors Kornlager davonläuft und ihr Dorf wieder
+  > aufbaut, verdient Hilfe. Wir schicken drei Leute und Holz nach Lindgrund.
+- *Folge:* Das Nachbardorf wird verbündet, 3 Leibeigene und 300 Holz.
+  > **Erzählerin:** Das Nachbardorf ist jetzt mit dir verbündet: Es hilft dir und greift dich nicht an. Die drei
+  > neuen Leibeigenen warten an deiner Burg – setz sie gleich beim Aufbau von Lindgrund ein.
 
-- **Wahl A – Orrin erzählt von der Prinzessin** (Merker `neighborsLie`):
-  > **Orrin:** Ehrwürdige Mutter! Die verlorene Prinzessin ist zurück – und sie friert in Lindgrund.
-  >
-  > **Dorfälteste:** Eine Prinzessin! Dann schicken wir Leute. Und Holz für ihre Dächer.
-  >
-  > **Orrin:** Sie glaubt es. Alle glauben es gern.
-
-  Folge: Bündnis, 3 Leibeigene und 300 Holz.
-
-- **Wahl B – Nelia sagt die Wahrheit** (Merker `neighborsTruth`):
-  > **Nelia:** Ich bin keine Prinzessin. Ich bin Nelia, die Tochter vom Holzfäller. Wir brauchen Hilfe.
-  >
-  > **Dorfälteste:** Eine Leibeigene, die nicht lügt, wenn's ihr nützen würde. Das ist seltener als eine Prinzessin.
-  >
-  > **Dorfälteste:** Holz haben wir selbst zu wenig. Aber Leute schick ich dir. Und ich halte den Mund.
-
-  Folge: Bündnis, 3 Leibeigene, kein Holz.
-
-### Niederlage
+### 5. Niederlage
 
 - *Burg gefallen:* „Die Eintreiber haben die Burg genommen. Lindgrund gehört wieder niemandem – und das erste
   Kronstück reitet in einer Satteltasche nach Hagenfurt.“
 
-### Abschluss
+### 6. Abschlusstext (liest die Erzählerin vor)
 
-*Sieg, wenn alle Hauptziele erfüllt sind. Drei Fassungen für den ersten Absatz, dann ein gemeinsamer Teil.*
-
-> **Wahl A (`neighborsLie`):** Das Gerücht von der verlorenen Prinzessin läuft schneller durch den Schnee als jeder
-> Bote. Aus dem Nachbardorf kommen Leute, aus dem Wald noch mehr. Am Abend steigt Rauch aus vier Schornsteinen. Nelia
-> hört, wie die Kinder „Prinzessin“ rufen, und widerspricht nicht mehr – es hat ja doch keiner zugehört.
+> Am Abend steigt Rauch aus vier Schornsteinen. Aus dem Wald kommen Leute, aus dem Nachbardorf noch mehr. Die Kinder
+> rufen „Prinzessin“, und Nelia widerspricht – aber niemand hört zu.
 >
-> **Wahl B (`neighborsTruth`):** Am Abend steigt Rauch aus vier Schornsteinen. Die Leute nennen sie Prinzessin, und
-> Nelia widerspricht – aber nur die Alte aus dem Nachbardorf nickt, als wüsste sie es besser.
+> Sie sitzt unter dem alten Baum, das Kronstück in der Hand. Eines von fünf. Wie es hierher kam, weiß sie nicht. Sie
+> weiß nur: Wenn Malvor alle fünf bekommt, wird er König, und keiner darf ihm je wieder widersprechen. Und in Beaucroix
+> bietet sein Herold schon für das nächste.
 >
-> **Ohne Nachbardorf:** Am Abend steigt Rauch aus vier Schornsteinen. Die drei aus dem Wald nennen sie Prinzessin,
-> und bald sagen es alle. Nelia widerspricht, einmal, zweimal. Dann lässt sie es.
->
-> **Gemeinsam:** Nelia sitzt unter dem alten Baum, das erste Kronstück in der Hand. Wie es hierherkam, weiß sie nicht.
-> Sie weiß nur: Wenn Malvor alle fünf Kronstücke bekommt, wird er König, und keiner darf ihm je wieder widersprechen.
-> Und er kauft sie schon. „In Beaucroix bietet sein Herold“, hat der Eintreiber gerufen.
->
-> „Dann gehen wir nach Beaucroix“, sagt Nelia. – „Wir?“, fragt Orrin. „Mein Karrenrad ist gebrochen.“ – „Dann
-> gehst du zu Fuß.“ Am nächsten Morgen ziehen sie los, mit zehn Leibeigenen und dreihundert Talern.
-
-*Antwort auf die dramatische Frage:* Ja – Lindgrund lebt wieder, das erste Kronstück ist sicher. Aber nur dank einer
-Lüge, die Nelia nicht wollte.
+> „Dann gehen wir nach Beaucroix“, sagt Nelia. – „Wir?“, fragt Orrin. „Mein Karrenrad ist gebrochen.“ – „Dann gehst du
+> zu Fuß.“ Am nächsten Morgen ziehen sie los, mit zehn Leibeigenen und dreihundert Talern.
 
 ---
 ## Mission 2 – Beaucroix: „Wer zahlt, hat recht“
@@ -948,6 +834,7 @@ den Hunger, und greift ab jetzt zum Schwert. Und Nelia erfährt, dass das letzte
 - *Auslöser:* Die Gruppe erreicht den Talboden hinter der Schlucht. Kamera zeigt den See mit der Insel, dann die Ruinen.
 - *Dialog:*
   > **Nelia:** Wir sind drin. Da, mitten im See, auf der Insel – das ist das Wetterwerk. Hörst du das Brummen?
+  > Solange das läuft, schneit es im ganzen Kronland.
   >
   > **Orrin:** Und dort drüben am Talrand die Ruinen. Das war Hrimgars Festung – der Mann, der das Werk vor Jahrhunderten
   > gebaut hat.
@@ -961,7 +848,8 @@ den Hunger, und greift ab jetzt zum Schwert. Und Nelia erfährt, dass das letzte
   > **Erzähler:** Zwei Ziele im Tal: Zerstöre das Wetterwerk auf der Insel. Und schick Nelia oder Orrin zu den Ruinen
   > am Talrand – dort liegen die Baupläne der Maschine.
 - *Pläne gefunden (ein Held erreicht die Ruinen):*
-  > **Orrin:** Türme, Röhren, Kessel … und überall dasselbe Wort: Schwefel. Ich verstehe kein Wort, aber ich hebe es auf.
+  > **Orrin:** Hier sind die Pläne! Türme, Röhren, Kessel … und überall dasselbe Wort: Schwefel. Ich verstehe kaum
+  > etwas davon, aber ich hebe die Blätter gut auf.
   >
   > **Nelia:** Gut. Jetzt das Werk.
 
@@ -988,6 +876,9 @@ den Hunger, und greift ab jetzt zum Schwert. Und Nelia erfährt, dass das letzte
   > **Wache:** Eindringlinge am Werk! Alarm! Torwache, zum See!
   >
   > **Nelia:** Jetzt kommen sie vom Tor über das Eis. Schnell – das Werk zuerst, bevor sie hier sind!
+  >
+  > **Erzählerin:** Die Wachen haben Alarm geschlagen: Vom Tor kommen zwei weitere Trupps. Greif das Wetterwerk an –
+  > wähle deine Truppen und klicke mit Rechtsklick auf das Gebäude – bevor die Verstärkung da ist.
 
 #### Schritt 7 – Tauwetter
 
@@ -1000,11 +891,15 @@ den Hunger, und greift ab jetzt zum Schwert. Und Nelia erfährt, dass das letzte
   > **Erzähler:** Das Eis taut! Bring Nelia und Orrin in 60 Sekunden auf festes Ufer – nicht auf die Insel. Wer auf
   > dem Eis bleibt, ertrinkt.
 - *Nach 5 Sekunden:*
-  > **Wache:** Das Werk brennt! Fangt sie am Ufer ab!
+  > **Wache:** Das Wetterwerk brennt! Fangt sie am Ufer ab, bevor sie entkommen!
 - *15 Sekunden vor Schluss, falls ein Held noch auf dem Eis oder der Insel steht:*
   > **Orrin:** Das Eis wird grau! Lauf, Nelia, lauf!
 - *Tauwetter überstanden:*
   > **Nelia:** Wir stehen auf festem Boden. Und schau – es tropft von den Felsen. Zum ersten Mal seit Jahren.
+- *Nur wenn die Baupläne noch fehlen:*
+  > **Erzählerin:** Das Wetterwerk ist zerstört. Jetzt fehlen nur noch Hrimgars Baupläne – die Zeichnungen der
+  > Maschine. Schick Nelia oder Orrin zu den Ruinen am Talrand.
+- *Sind die Pläne schon gesichert, ist die Mission gewonnen.*
 
 ### 4. Nebenziel: Die Gefangenen
 
