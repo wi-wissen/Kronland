@@ -28,7 +28,7 @@ npm run build   # Produktionsbuild nach dist/ (statische Website, alle Pfade rel
 Online unter **https://kronland.wi7.net/** – jeder Push auf `main` wird per GitHub Pages veröffentlicht, Links
 zeigen beim Teilen eine Vorschau (Open Graph).
 
-Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Veröffentlichung: [docs/WEBSITE.md](docs/WEBSITE.md). Laden und Caching (Inhalts-Hash, Datenmengen): [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Veröffentlichung: [docs/WEBSITE.md](docs/WEBSITE.md). Levelpakete aus Quellen, Anmeldung am Server, Cloud-Spielstände und Mock-Server: [docs/SERVER.md](docs/SERVER.md). Laden und Caching (Inhalts-Hash, Datenmengen): [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Stand
 
@@ -82,6 +82,7 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   durcheinanderreden, ganze Landschaften mit `world.ridge`/`world.lake_island`/`world.moat`, Seitenwechsel nach den
   Spielregeln, Wetterkraftwerke des Gegners mit `change_weather`).
   Direktstart: `play/?mission=r1-2`, `r1-4`, `r1-5`, `r1-m`, `r2-1`, `r3-m`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
+- **Level entdecken** (Startmenü, sobald eine Quelle eingerichtet ist): Levelpakete aus statischen Quellen und vom Server, geprüft per SHA-256, offline spielbar; Quellen in den Einstellungen. Optional Anmeldung (OAuth/PKCE), Cloud-Spielstände, Fortschritt und „Auf Server speichern“ im Editor. Ohne `server`/`sources` in `public/kronland.config.json` bleibt alles wie bisher – [docs/SERVER.md](docs/SERVER.md).
 - **Sonderkarten** (Startmenü → „Sonderkarten“): fertige Einzelkarten ohne Sieg und Niederlage, ohne Nebel.
   - **Schaukasten** (`play/?mission=showcase`): jedes Gebäude in jeder Ausbaustufe, Baustellen, Ruinen, Brücke,
     Rohstoffe, Arbeiter jedes Berufs, alle Truppen, die vier Helden, Räuber und ein Lagerfeuer – zum Prüfen der Modelle.

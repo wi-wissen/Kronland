@@ -12,7 +12,7 @@ const CI = !!process.env.CI;
  * no portrait camera): they run in the desktop project only. Everything else runs on desktop and phone.
  */
 export const DESKTOP_ONLY = process.env.E2E_ALL_PROJECTS ? [] // phone evidence pictures of these specs
-  : ['cavalry', 'circle', 'figures', 'moving-parts', 'showcase', 'spots', 'update', 'winter'].map((n) => `**/${n}.spec.js`);
+  : ['cavalry', 'circle', 'figures', 'moving-parts', 'server', 'showcase', 'spots', 'update', 'winter'].map((n) => `**/${n}.spec.js`);
 
 /**
  * Heavy specs: high graphics level or the showcase map under software WebGL, minutes per test. CI runs them as a

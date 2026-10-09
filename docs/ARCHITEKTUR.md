@@ -18,6 +18,7 @@ src/
   i18n/       Wörterbücher de.js/en.js, t(key, params), tr({ de, en }), reaktive Sprache
   ai/         Computergegner – erzeugt nur Befehle
   save/       Spielstände: Speicherformat (Umschlag, Prüfung, Migration), Plätze, Kompression, Import/Export
+  net/        Netz (optional, auf Abruf geladen): Quellen, Kataloge, Levelpakete, Anmeldung (PKCE), Cloud-Spielstände, Fortschritt – docs/SERVER.md; Vertrag in contract/
   render/     Three.js-Darstellung, liest den Zustand der Simulation
   game/       Engine (Spielschleife, Auswahl, Bauvorschau) und Eingabe (Maus, Tastatur, Touch);
               buildingUi.js liefert die Gebäude-Daten selection.techs/market/weather/repair
@@ -188,6 +189,11 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
 | `fog` | `off` (auch `0`, `no`, `false`) | an | nur `fog=off` |
 | `mission` | Kennung aus `src/sim/missions/registry.js` (Kampagne, Tutorial, Kursmissionen, Sonderkarten) | unbekannt: freies Spiel, falls `seed` da, sonst Startmenü | ja |
 | `level` | Adresse einer Level-`.zip` oder eines Level-Ordners (`http(s)` oder Pfad dieser Seite, docs/SKRIPTE.md#level-ordner); geht vor `mission`/`seed` | nicht ladbar: Abenteuer-Menü mit Grund | ja |
+| `source` | Adresse eines Katalogs (`https` oder localhost); fragt vor dem Hinzufügen, docs/SERVER.md | ungültig: ignoriert | nein |
+| `play` | Paket-ID aus den Katalogen oder vom Server → „Level entdecken“ | unbekannt: Fehler dort | nein |
+| `save` | Adresse eines Cloud-Spielstands des Servers (fremde: schreibgeschützt) | Fehler im Startmenü | nein |
+| `config` | Ersatz für `kronland.config.json`, nur auf localhost (Entwicklung, Mock-Server) | – | nein (bleibt in der Adresszeile) |
+| `code`, `state` | Antwort der Anmeldung am Server (wird sofort aus der Adresse entfernt) | – | nein |
 | `quality` (`low`/`medium`/`high`), `nature` (`off`), `dev`/`debug`, `no-models` | Darstellung, Fehlersuche | – | nein (bleiben nur in der Adresszeile) |
 
 - Freies Spiel: `?seed=62921&ai=hard&players=3&hero=orrin&fog=off`. Missionen haben einen festen Seed
