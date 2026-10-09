@@ -62,7 +62,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   nach Reihen geordnet: I.2 „Taler für die Mägde“ (Zählschleife), I.4 „Im Schneetreiben“ (`while`), I.5 „Holz für die
   erste Nacht“ (Variablen), I.M „Heimweg durchs Unterholz“ (Meisterstück, Rechte-Hand-Regel), II.1 „Orrins Abkürzung“
   (eigene Funktionen), III.M „Lindgrund steht wieder“ (Listen, ein Dorf per Programm); je drei bis vier Etappen auf
-  einer Karte, Zettel der Figuren, Vorhersagen mit `guess`. Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
+  einer Karte, Zettel der Figuren, Vorhersagen mit `guess`. Mehrere **Welten** je Mission (Normalfall und Randfälle,
+  Umschalter im Panel), **Prüfen** spielt das Programm ohne Bild in allen Welten durch und zeigt, wo es scheitert – erst
+  dann zählt die Etappe. Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
   mit Einzelschritt, Haltepunkten und Variablenansicht, Knopf „Referenz“ zur Website, Befehlserklärung beim Überfahren (Strg+Klick öffnet die
   Referenz, am Handy langes Drücken), Fehlermeldungen mit Vorschlag, bernsteinfarbene Hinweise (Programm läuft weiter),
   Taler und Christrosen zum Aufheben, Trampelpfade und Fußabdrücke im Schnee, am Handy folgt die Kamera der gesteuerten Figur,

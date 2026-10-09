@@ -475,6 +475,14 @@ for i in range(10):
 Schreibst du etwas, das zwar läuft, aber fast nie gemeint ist – etwa `nelia.left()` (schaut nur, dreht nicht) oder
 `nelia.step` ohne Klammern –, erscheint ein **Hinweis** in Bernstein an der Zeile. Das Programm läuft trotzdem weiter.
 
+**Welten und Prüfen.** Manche Missionen gibt es in mehreren **Welten**: dem Normalfall und Randfällen – der Wald
+steht direkt vor Nelia, der Taler liegt unter ihr, die Spur biegt anders ab. Oben im Panel schaltest du um
+(„Welt 1 · 2 · 3“); die Etappe beginnt dann in der anderen Welt von vorn, dein Code bleibt. **Prüfen** spielt dein
+Programm ohne Bild in allen Welten durch und zeigt je Welt ✓ oder ✗ – mit der Zeile, wenn es einen Fehler gab;
+„Ansehen“ wechselt in eine Welt, in der es noch scheitert. Ist ein Auftrag mit „in allen Welten“ markiert, geht es
+erst weiter, wenn Prüfen überall ✓ zeigt. Ein fest abgezähltes Programm klappt meist nur in einer Welt – ein
+allgemeines (`while nelia.here() != "coin":`) in allen.
+
 Am Handy hilft eine Tastenleiste mit Einrücken, Doppelpunkt, Klammern und Anführungszeichen. Dein Code wird im
 Browser gemerkt – du kannst jederzeit weitermachen.
 
@@ -485,7 +493,8 @@ Browser gemerkt – du kannst jederzeit weitermachen.
 Unter **Programmier-Abenteuer → Welteneditor** baust du eigene Karten: Gelände heben und senken, Wasser, Wald,
 Rohstoffe, Startplätze und benannte Orte setzen. Den Ablauf schreibst du ebenfalls in Python – Dialoge,
 Kamerafahrten, Ziele, Angriffswellen, Gesprächsfiguren. Unter **Dateien** legst du eigene Bilder, Töne und
-3D-Modelle bei. **Testspielen** startet deine Welt sofort; speichern kannst du sie als **.zip** und unter
+3D-Modelle bei. Unter **Szenario → Welten** legst du Normalfall und Randfälle an; der Weltcode fragt `world.id` ab,
+gewählt wird die Welt für Vorschau und Testspielen. **Testspielen** startet deine Welt sofort; speichern kannst du sie als **.zip** und unter
 **Level öffnen** wieder spielen oder weitergeben – oder die .zip ins Netz stellen und den Link teilen.
 
 > **Für Lehrkräfte:** Welche Teile von Python es gibt und alle Befehle stehen in der

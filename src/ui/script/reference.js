@@ -268,6 +268,8 @@ export const EXAMPLES = {
   remove_item: 'add_item("coin", 6, 20)\nprint(remove_item(6, 20), remove_item(6, 20))',
   items: 'add_item("coin", 6, 20)\nadd_item("flower", 7, 20)\nprint(items(), items("coin"))\nobjective("coins", lambda: not items("coin"), de="Sammle alle Taler", en="Collect all thalers")',
   'world.set_track': 'for x in range(5, 15):\n    world.set_track(x, 20)\nworld.set_track(15, 20, 0)\nprint(tile(5, 20), tile(15, 20))',
+  'world.id': '# Weltcode: Normalfall und Randfall aus demselben Code (ohne "worlds" ist world.id None)\nif world.id == "near":\n    add_item("coin", 5, 5)\nelse:\n    add_item("coin", 9, 5)\nprint("Welt:", world.id, "– gestartet bei Etappe:", world.stage)',
+  'objective_status': 'objective("coin", lambda: len(items("coin")) == 0, de="Heb den Taler auf", en="Pick up the coin")\n\n@on_start\ndef story():\n    wait_until(lambda: objective_status("coin") != "active")\n    print("Ziel coin:", objective_status("coin"))',
   'world.width': 'print(world.width, "×", world.height, "Kacheln")\nprint("Wasserspiegel:", world.water_level)',
   'world.height_at': 'h = world.height_at(10, 10)\nprint("Höhe:", h, "cm")',
   'world.is_water': 'water = 0\nfor x in range(world.width):\n    if world.is_water(x, 20):\n        water += 1\nprint(water, "Wasserkacheln in Zeile 20")',

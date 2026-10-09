@@ -464,6 +464,14 @@ for i in range(10):
 If you write something that runs but is almost never meant – such as `nelia.left()` (only looks, does not turn) or
 `nelia.step` without parentheses –, an amber **hint** appears at the line. The program keeps running anyway.
 
+**Worlds and Check.** Some missions come in several **worlds**: the normal case and edge cases – the forest stands
+right in front of Nelia, the coin lies under her, the track bends differently. At the top of the panel you switch
+(“World 1 · 2 · 3”); the stage then starts over in the other world, your code stays. **Check** plays your program
+through all worlds without pictures and shows ✓ or ✗ per world – with the line if there was an error; “Show” switches
+to a world where it still fails. If a task says “in every world”, the mission only goes on once Check shows ✓
+everywhere. A program that counts fixed steps usually works in one world only – a general one
+(`while nelia.here() != "coin":`) in all of them.
+
 On a phone a key bar helps with indentation, colon, brackets and quotes. Your code is remembered in the browser –
 you can carry on at any time.
 
@@ -473,7 +481,9 @@ you can carry on at any time.
 
 Under **Coding Adventures → World editor** you build your own maps: raise and lower terrain, place water, forest,
 resources, start positions and named places. You write the story in Python as well – dialogues, camera flights,
-objectives, attack waves, talk figures. Under **Files** you add your own pictures, sounds and 3D models.
+objectives, attack waves, talk figures. Under **Files** you add your own pictures, sounds and 3D models. Under
+**Scenario → Worlds** you add the normal case and edge cases; the world code asks `world.id`, and you pick the world for
+preview and test play.
 **Test play** starts your world right away; you can save it as a **.zip** and play or share it again via
 **Open level** – or put the .zip online and share the link.
 
