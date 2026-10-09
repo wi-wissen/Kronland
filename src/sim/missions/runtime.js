@@ -34,6 +34,7 @@ const byReason = (table, reason) => (table && Object.hasOwn(table, reason) ? tab
 
 /** Kinds of goals that "hold" instead of "reach": they are fulfilled as long as they do not fail. */
 const HOLD_TYPES = new Set(['protect']);
+const holds = (d) => HOLD_TYPES.has(d.type) || !!d.hold;
 /** Longest wait for a running conversation once all objectives are done (ticks). */
 const END_WAIT = 60 * T;
 
@@ -211,7 +212,11 @@ export class MissionRuntime {
       ref: (name, value) => { if (value !== undefined) m.state.refs[name] = value; return m.state.refs[name]; },
       warn: (msg) => m.state.warnings.push(msg),
       /** Bandit camp with guards. @returns {{x,y,r}|null} */
-      camp: (name, near, units, o = {}) => m.addCamp(sim, name, near, units, o),
+      camp: (name, near, units, o = {}) => {
+        const c = m.addCamp(sim, name, near, units, o);
+        if (c) { m.state.refs[name] = c.id; m.state.refs[`${name}Guards`] = c.guards; m.state.refs[`${name}Area`] = { x: c.x, y: c.y, r: c.r }; }
+        return c;
+      },
     };
   }
 
@@ -244,10 +249,7 @@ export class MissionRuntime {
     }
     const camp = { name, id: b.id, guards, x: c.x, y: c.y, r: o.r ?? 7, alarm: 0 };
     st.camps.push(camp);
-    st.refs[name] = b.id;
-    st.refs[`${name}Guards`] = guards;
-    st.refs[`${name}Area`] = { x: c.x, y: c.y, r: camp.r };
-    return { x: c.x, y: c.y, r: camp.r, guards };
+    return { id: b.id, x: c.x, y: c.y, r: camp.r, guards };
   }
 
   // ---------- Hook 2: commands ----------
@@ -497,7 +499,12 @@ export class MissionRuntime {
       }
       case 'flag': return { cur: this.state.flags[def.flag] ? 1 : 0, target: 1 };
       case 'custom': return def.progress(sim, this);
-      case 'script': return this.script ? this.script.objectiveProgress(def.id) : { cur: 0, target: 1 };
+      case 'script': {
+        const r = this.script ? this.script.objectiveProgress(def.id) : { cur: 0, target: 1, none: true };
+        // hold=True: met as long as the condition holds, failed once it does not (without condition: until fail())
+        if (def.hold) return r.none ? { cur: 1, target: 1, hold: true } : { ...r, failed: r.cur < r.target, hold: true };
+        return r;
+      }
       default:
         return { cur: 0, target: 1 };
     }
@@ -904,7 +911,7 @@ export class MissionRuntime {
     }
     const prim = st.objectives.filter((o) => this.objectiveDef(o.id).primary);
     if (!prim.length) return;
-    const ok = prim.every((o) => o.status === 'done' || (o.status === 'active' && HOLD_TYPES.has(this.objectiveDef(o.id).type)));
+    const ok = prim.every((o) => o.status === 'done' || (o.status === 'active' && holds(this.objectiveDef(o.id))));
     if (!ok || !prim.some((o) => o.status === 'done')) return;
     // A conversation of the script still running (e.g. the lines after the last objective) is heard to its end
     // first – at most END_WAIT ticks
@@ -912,7 +919,8 @@ export class MissionRuntime {
       st.endWait ??= sim.tick;
       if (sim.tick - st.endWait < END_WAIT) return;
     }
-    this.finish(sim, true, 'objectives');
+    // ending(reason) of the script picks the texts of the way taken
+    this.finish(sim, true, st.endReason ?? 'objectives');
   }
 
   /** @param {string} reason picks the texts (victoryTexts/defeatTexts/debriefs) @param {any} [text] own text instead */
@@ -921,7 +929,7 @@ export class MissionRuntime {
     if (st.result) return;
     st.result = { won, tick: sim.tick, reason, ...(text ? { text } : {}) };
     if (won) {
-      for (const o of st.objectives) if (o.status === 'active' && HOLD_TYPES.has(this.objectiveDef(o.id).type)) o.status = 'done';
+      for (const o of st.objectives) if (o.status === 'active' && holds(this.objectiveDef(o.id))) o.status = 'done';
       if (this.def.onVictory) this.runActions(sim, this.def.onVictory);
     }
     sim.events.push({ type: won ? 'missionWon' : 'missionLost', reason, player: st.human });
@@ -935,6 +943,7 @@ export class MissionRuntime {
     h.str('m').str(st.id).int(st.seq).int(st.result ? (st.result.won ? 2 : 1) : 0);
     for (const o of st.objectives) { h.str(o.status).int(o.count); if (o.uiOff) h.int(1); }
     if (st.endWait !== undefined) h.int(st.endWait);
+    if (st.endReason) h.str(st.endReason);
     for (const k of Object.keys(st.fireCount)) h.str(k).int(st.fireCount[k]);
     if (st.tutorial) h.int(st.tutorial.index).str(st.tutorial.step?.result ?? '');
     for (const k of Object.keys(st.tributes ?? {})) h.str(k).str(st.tributes[k]);
@@ -954,7 +963,7 @@ export class MissionRuntime {
         return {
           id: o.id, text: d.text, primary: !!d.primary, status: o.status,
           progress: d.showProgress === false || !o.progress || o.progress[1] <= 1 ? null : o.progress,
-          time: d.type === 'survive',
+          time: d.type === 'survive' || !!d.clock,
           // Where to? Goals of type reach show their area, others an own hint (hint: { area } | { entity } | { ui })
           hint: o.status === 'active' ? this.resolveHint(sim, this.objectiveHint(sim, d, o)) : null,
         };
