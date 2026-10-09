@@ -180,21 +180,6 @@
           <details class="ed-help"><summary>{{ $t('editor.commands') }}</summary><ApiHelp level="mission" @insert="insertCode" /></details>
         </section>
 
-        <!-- Texts: keys for say(), objective() … bilingual -->
-        <section v-else-if="tab === 'texts'" class="ed-form">
-          <p class="ed-note">{{ $t('editor.textsNote') }}</p>
-          <div v-for="(tx, key) in scenario.texts" :key="key" class="ed-text">
-            <code>{{ key }}</code>
-            <textarea v-model="tx.de" rows="2" :aria-label="key + ' de'"></textarea>
-            <textarea v-model="tx.en" rows="2" :aria-label="key + ' en'"></textarea>
-            <button class="icon-btn ghost" :aria-label="$t('editor.remove')" @click="delete scenario.texts[key]"><Icon name="close" /></button>
-          </div>
-          <div class="ed-row">
-            <input v-model="newTextKey" :placeholder="$t('editor.textKey')" @keydown.enter="addText">
-            <button :disabled="!/^[\w-]+$/.test(newTextKey)" @click="addText"><Icon name="plus" />{{ $t('editor.add') }}</button>
-          </div>
-        </section>
-
         <!-- Files: pictures, recordings and 3D models of the level (assets/…), saved in the .zip -->
         <section v-else-if="tab === 'files'" class="ed-form">
           <p class="ed-note">{{ $t('editor.filesNote') }}</p>
@@ -287,8 +272,6 @@ function normalize(s) {
   c.world.places ??= {};
   if (Array.isArray(c.worlds)) c.worlds = c.worlds.map((w) => ({ ...w, title: typeof w.title === 'string' ? { de: w.title, en: w.title } : { de: '', en: '', ...(w.title ?? {}) } }));
   c.sections = (c.sections ?? []).map((x) => ({ level: 'mission', visibility: 'open', editable: false, ...x, title: typeof x.title === 'string' ? { de: x.title, en: x.title } : { de: x.id, en: x.id, ...(x.title ?? {}) } }));
-  // Text table only in version-1 scenarios (since version 2 texts stand in the code: say("…", de=…, en=…))
-  if (c.texts) for (const t of Object.values(c.texts)) { t.de ??= ''; t.en ??= ''; }
   return c;
 }
 
@@ -307,7 +290,7 @@ export default {
       scenario: normalize(this.initial ?? loadDraft() ?? emptyScenario({ size: 32 })),
       ui: null, view: null, loading: true, tab: 'scenario', sideOpen: false, grid: false,
       newOpen: false, newBase: 'flat', newSize: 32, newSeed: 42,
-      placeDraft: null, newTextKey: '', message: '', fileVersion: 0,
+      placeDraft: null, message: '', fileVersion: 0,
       compact: false, tools: TOOLS, items: ITEMS, resources: RESOURCES, heroes: HERO_IDS, examples: SCENARIOS,
       blocks: BLOCKS, freeMenu: FREE_MENU,
       /** Code from the map: menu for a free tile, confirmation, tile for the building blocks */
@@ -321,7 +304,7 @@ export default {
     };
   },
   computed: {
-    tabs() { return ['scenario', 'places', 'code', ...(this.scenario.texts ? ['texts'] : []), 'files', 'examples']; },
+    tabs() { return ['scenario', 'places', 'code', 'files', 'examples']; },
     fileList() {
       void this.fileVersion;
       return [...files].map(([path, b]) => ({ path, size: b.size >= 1e6 ? `${(b.size / 1e6).toFixed(1)} MB` : `${Math.ceil(b.size / 1e3)} KB` }));
@@ -444,16 +427,10 @@ export default {
     removeAsset(path) { files.delete(path); this.fileVersion++; this.useFiles(); },
     /** Preview and test play show the files of the level. */
     useFiles() { const s = this.plainScenario(); useLevelAssets({ scenario: s, assets: files }, s); },
-    addText() {
-      const k = this.newTextKey.trim();
-      if (!/^[\w-]+$/.test(k) || this.scenario.texts[k]) return;
-      this.scenario.texts[k] = { de: '', en: '' };
-      this.newTextKey = '';
-    },
     addSection(level) {
       let n = 1;
       while (this.scenario.sections.some((s) => s.id === `${level}${n}`)) n++;
-      this.scenario.sections.push({ id: `${level}${n}`, title: { de: level === 'player' ? 'Dein Programm' : 'Skript', en: level === 'player' ? 'Your program' : 'Script' }, level, visibility: 'open', editable: level === 'player', code: level === 'player' ? 'hero.step()\n' : '# …\n' });
+      this.scenario.sections.push({ id: `${level}${n}`, title: { de: level === 'player' ? 'Dein Programm' : 'Skript', en: level === 'player' ? 'Your program' : 'Script' }, level, visibility: 'open', editable: level === 'player', code: level === 'player' ? 'nelia.step()\n' : '# …\n' });
     },
     moveSection(i, d) {
       const s = this.scenario.sections;
@@ -706,13 +683,12 @@ export default {
 .ed-note { margin: 0; font-size: var(--fs-sm); color: var(--ink-dim); line-height: 1.4; }
 .ed-player, .ed-place { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.375rem 0.5rem; border-radius: var(--r-md); background: var(--inset-bg); }
 .ed-place label { flex-direction: row; align-items: center; gap: 0.25rem; }
-.ed-place code, .ed-text code { color: var(--gold-100); min-width: 5rem; }
+.ed-place code { color: var(--gold-100); min-width: 5rem; }
 .ed-place-new { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; padding: 0.5rem; border: 1px dashed var(--gold-500); border-radius: var(--r-md); }
 .ed-section { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.375rem; border-radius: var(--r-md); background: rgba(0, 0, 0, 0.18); }
 .ed-sec-head { display: flex; gap: 0.25rem; flex-wrap: wrap; align-items: center; }
 .ed-sec-head select { min-height: 2rem; padding-top: 0; padding-bottom: 0; }
 .ed-sec-title { flex: 1; min-width: 8rem; }
-.ed-text { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 0.375rem; align-items: start; }
 .ed-example { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 0.125rem; padding: 0.5rem 0.75rem; }
 .ed-example b { color: var(--gold-200); }
 .ed-example small { color: var(--ink-muted); }
@@ -756,5 +732,4 @@ export default {
 .editor.compact .ed-status { left: 0.5rem; bottom: calc(5.75rem + var(--safe-b)); font-size: var(--fs-xs); }
 .editor.compact .ed-side { left: var(--safe-l); right: var(--safe-r); top: auto; bottom: 0; width: auto; height: min(70dvh, 36rem); border-radius: var(--r-lg) var(--r-lg) 0 0; z-index: 8; }
 .editor.compact .ed-two { grid-template-columns: 1fr; }
-.editor.compact .ed-text { grid-template-columns: 1fr; }
 </style>

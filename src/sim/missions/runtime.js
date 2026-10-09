@@ -15,7 +15,7 @@ import { TICKS_PER_SECOND, UNIT, tileCenter } from '../fixed.js';
 import * as api from './setupApi.js';
 import { getMission } from './registry.js';
 import { ScriptHost } from '../scripting/host.js';
-import { scenarioToDef, playerSetupOf } from '../scripting/scenario.js';
+import { scenarioToDef, playerSetupOf, SCENARIO_VERSION } from '../scripting/scenario.js';
 import { WEATHER_EFFECTS } from '../data/weather.js';
 
 const T = TICKS_PER_SECOND;
@@ -104,7 +104,8 @@ export class MissionRuntime {
     const custom = state.custom ?? !!state.scenario;
     const base = custom ? null : getMission(state.id);
     // A mission that moved from a mission file into a level folder: its old saves carry no scenario and cannot go on
-    if (!custom && !state.scenario && base?.scenario) {
+    // … as do saves of a level in an older scenario format (version 1: text table)
+    if ((!custom && !state.scenario && base?.scenario) || (state.scenario && state.scenario.version !== SCENARIO_VERSION)) {
       throw Object.assign(new Error(`Mission ${state.id} was rewritten, the save game is too old`), { code: 'saves.err.missionChanged' });
     }
     const def = state.scenario ? { ...scenarioToDef(state.scenario), next: base?.next ?? null, custom } : base;

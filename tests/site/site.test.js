@@ -40,8 +40,8 @@ describe('Markdown', () => {
   });
 
   it('code blocks stay verbatim with indentation', () => {
-    const { html, headings } = renderMarkdown('```\nfor i in range(3):\n    # kein Titel\n    hero.step() < 2\n```\nDanach');
-    expect(html).toContain('<pre><code>for i in range(3):\n    # kein Titel\n    hero.step() &lt; 2</code></pre>');
+    const { html, headings } = renderMarkdown('```\nfor i in range(3):\n    # kein Titel\n    nelia.step() < 2\n```\nDanach');
+    expect(html).toContain('<pre><code>for i in range(3):\n    # kein Titel\n    nelia.step() &lt; 2</code></pre>');
     expect(headings).toEqual([]);
     expect(html).toContain('<p>Danach</p>');
   });

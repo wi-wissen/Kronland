@@ -16,7 +16,7 @@ import { suggest } from './errors.js';
 
 /**
  * @typedef {{ queryFunctions: Set<string>, queryMethods: Set<string>, answers: Record<string, string[]>,
- *   turns: Record<string, string>, objects: Record<string, string[]>, methods: Set<string> }} HintVocab
+ *   turns: Record<string, string>, objects: Record<string, string[]>, methods: Set<string>, renamed?: Record<string, string> }} HintVocab
  * @typedef {{ code: string, params: Record<string, string>, line: number, col: number }} Hint
  */
 
@@ -152,7 +152,7 @@ export function findHints(tree, vocab) {
       case 'Attribute':
         if (n.value.type === 'Name' && Object.hasOwn(vocab.objects, n.value.id) && !bound.has(n.value.id)) {
           const attrs = vocab.objects[n.value.id];
-          if (!attrs.includes(n.attr)) add('unknownMethod', { obj: n.value.id, name: n.attr, suggestion: suggest(n.attr, attrs) ?? '' }, n);
+          if (!attrs.includes(n.attr)) add('unknownMethod', { obj: n.value.id, name: n.attr, suggestion: (Object.hasOwn(vocab.renamed ?? {}, n.attr) ? vocab.renamed[n.attr] : suggest(n.attr, attrs)) ?? '' }, n);
         }
         break;
       default: break;

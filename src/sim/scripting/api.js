@@ -126,22 +126,22 @@ export const API_DOC = [
   { name: 'print', sig: 'print(*values)', level: 'player', group: 'flow' },
   { name: 'notify', sig: 'notify(text)', level: 'player', group: 'flow' },
   // Figures: heroes under their name, step by step; serfs and troops have the same basic commands
-  { name: 'nelia', sig: 'nelia · orrin · taran · malvor', level: 'player', group: 'hero', also: ['hero', 'orrin', 'taran', 'malvor'] },
-  { name: 'nelia.step', sig: 'nelia.step(n=1)', level: 'player', group: 'hero', also: ['hero.step'] },
-  { name: 'nelia.turn_left', sig: 'nelia.turn_left()', level: 'player', group: 'hero', also: ['hero.turn_left'] },
-  { name: 'nelia.turn_right', sig: 'nelia.turn_right()', level: 'player', group: 'hero', also: ['hero.turn_right'] },
-  { name: 'nelia.turn_to', sig: 'nelia.turn_to(direction)', level: 'player', group: 'hero', also: ['hero.turn_to'] },
-  { name: 'nelia.front', sig: 'nelia.front()', level: 'player', group: 'hero', query: true, answers: 'tile', also: ['hero.front', 'nelia.ahead', 'hero.ahead'] },
-  { name: 'nelia.left', sig: 'nelia.left() · nelia.right()', level: 'player', group: 'hero', query: true, answers: 'tile', also: ['nelia.right', 'hero.left', 'hero.right'] },
-  { name: 'nelia.here', sig: 'nelia.here()', level: 'player', group: 'hero', query: true, answers: 'tile', also: ['hero.here'] },
-  { name: 'nelia.can_step', sig: 'nelia.can_step()', level: 'player', group: 'hero', query: true, also: ['hero.can_step'] },
-  { name: 'nelia.move_to', sig: 'nelia.move_to(target, wait=True)', level: 'player', group: 'hero', also: ['hero.move_to', 'unit.move_to'] },
-  { name: 'nelia.is_at', sig: 'nelia.is_at(target)', level: 'player', group: 'hero', query: true, also: ['hero.is_at', 'unit.is_at'] },
-  { name: 'nelia.take', sig: 'nelia.take()', level: 'player', group: 'hero', also: ['hero.take'] },
-  { name: 'nelia.put', sig: 'nelia.put(kind="coin")', level: 'player', group: 'hero', also: ['hero.put'] },
-  { name: 'nelia.say', sig: 'nelia.say(text)', level: 'player', group: 'hero', also: ['hero.say'] },
-  { name: 'nelia.facing', sig: 'nelia.facing', level: 'player', group: 'hero', answers: 'dir', also: ['hero.facing'] },
-  { name: 'nelia.x', sig: 'nelia.x, nelia.y', level: 'player', group: 'hero', also: ['hero.x', 'nelia.y', 'hero.y'] },
+  { name: 'nelia', sig: 'nelia · orrin · taran · malvor', level: 'player', group: 'hero', also: ['orrin', 'taran', 'malvor'] },
+  { name: 'nelia.step', sig: 'nelia.step(n=1)', level: 'player', group: 'hero' },
+  { name: 'nelia.turn_left', sig: 'nelia.turn_left()', level: 'player', group: 'hero' },
+  { name: 'nelia.turn_right', sig: 'nelia.turn_right()', level: 'player', group: 'hero' },
+  { name: 'nelia.turn_to', sig: 'nelia.turn_to(direction)', level: 'player', group: 'hero' },
+  { name: 'nelia.front', sig: 'nelia.front()', level: 'player', group: 'hero', query: true, answers: 'tile' },
+  { name: 'nelia.left', sig: 'nelia.left() · nelia.right()', level: 'player', group: 'hero', query: true, answers: 'tile', also: ['nelia.right'] },
+  { name: 'nelia.here', sig: 'nelia.here()', level: 'player', group: 'hero', query: true, answers: 'tile' },
+  { name: 'nelia.can_step', sig: 'nelia.can_step()', level: 'player', group: 'hero', query: true },
+  { name: 'nelia.move_to', sig: 'nelia.move_to(target, wait=True)', level: 'player', group: 'hero' },
+  { name: 'nelia.is_at', sig: 'nelia.is_at(target)', level: 'player', group: 'hero', query: true },
+  { name: 'nelia.take', sig: 'nelia.take()', level: 'player', group: 'hero' },
+  { name: 'nelia.put', sig: 'nelia.put(kind="coin")', level: 'player', group: 'hero' },
+  { name: 'nelia.say', sig: 'nelia.say(text)', level: 'player', group: 'hero' },
+  { name: 'nelia.facing', sig: 'nelia.facing', level: 'player', group: 'hero', answers: 'dir' },
+  { name: 'nelia.x', sig: 'nelia.x, nelia.y', level: 'player', group: 'hero', also: ['nelia.y'] },
   // Read world
   { name: 'place', sig: 'place(name)', level: 'player', group: 'world' },
   { name: 'places', sig: 'places()', level: 'player', group: 'world', query: true },
@@ -151,7 +151,7 @@ export const API_DOC = [
   { name: 'place.contains', sig: 'place.contains(target)', level: 'player', group: 'world', query: true },
   { name: 'trees_near', sig: 'trees_near(target, radius=6)', level: 'player', group: 'world', query: true },
   { name: 'piles_near', sig: 'piles_near(target, radius=6, res=None)', level: 'player', group: 'world', query: true },
-  { name: 'figures_near', sig: 'figures_near(target, radius=6, kind=None, side=None)', level: 'player', group: 'world', query: true, also: ['units_in'] },
+  { name: 'figures_near', sig: 'figures_near(target, radius=6, kind=None, side=None)', level: 'player', group: 'world', query: true },
   { name: 'items_near', sig: 'items_near(target, radius=6, kind=None)', level: 'player', group: 'world', query: true },
   { name: 'weather', sig: 'weather()', level: 'player', group: 'world', query: true, answers: 'weather' },
   { name: 'forecast', sig: 'forecast()', level: 'player', group: 'world', query: true },
@@ -168,8 +168,8 @@ export const API_DOC = [
   { name: 'build', sig: 'build(kind, x, y)', level: 'player', group: 'village' },
   { name: 'buy_serf', sig: 'buy_serf(count=1)', level: 'player', group: 'village' },
   { name: 'serf.chop', sig: 'serf.chop()', level: 'player', group: 'village' },
-  { name: 'serf.work_on', sig: 'serf.work_on(target)', level: 'player', group: 'village', also: ['unit.work_on'] },
-  { name: 'troop.attack', sig: 'troop.attack(target)', level: 'player', group: 'village', also: ['unit.attack', 'nelia.attack', 'serf.attack'] },
+  { name: 'serf.work_on', sig: 'serf.work_on(target)', level: 'player', group: 'village' },
+  { name: 'troop.attack', sig: 'troop.attack(target)', level: 'player', group: 'village', also: ['nelia.attack', 'serf.attack'] },
   { name: 'troop.hold', sig: 'troop.hold() · troop.defend()', level: 'player', group: 'village', also: ['troop.defend', 'nelia.hold', 'nelia.defend'] },
   { name: 'building.upgrade', sig: 'building.upgrade()', level: 'player', group: 'village' },
   { name: 'building.change_weather', sig: 'building.change_weather(state) · building.can_change_weather(state)', level: 'player', group: 'village', also: ['building.can_change_weather'] },
@@ -226,7 +226,7 @@ export const API_DOC = [
   { name: 'add_hero', sig: 'add_hero(player, name, at)', level: 'mission', group: 'power' },
   { name: 'convert', sig: 'convert(units, player)', level: 'mission', group: 'power' },
   { name: 'remove', sig: 'remove(thing)', level: 'mission', group: 'power' },
-  { name: 'nelia.teleport', sig: 'nelia.teleport(target)', level: 'mission', group: 'power', also: ['hero.teleport'] },
+  { name: 'nelia.teleport', sig: 'nelia.teleport(target)', level: 'mission', group: 'power' },
   { name: 'obj.kill', sig: 'obj.kill()', level: 'mission', group: 'power' },
   { name: 'attack', sig: 'attack(units, target)', level: 'mission', group: 'power' },
   { name: 'move', sig: 'move(units, target)', level: 'mission', group: 'power' },
@@ -300,8 +300,13 @@ export const CLASS_METHODS = {
   Place: { player: ['distance_to', 'contains'], mission: [] },
 };
 
-/** Old names that still work but are no longer shown (version-1 levels): ahead() = front(). */
-export const DEPRECATED_METHODS = { ahead: 'front' };
+/**
+ * Names that no longer exist: the error says what to write instead (err.script.nameUnknown.<what>, Meintest du …?).
+ * They are not part of the API – using one is always an error.
+ */
+export const REMOVED_NAMES = { hero: { what: 'removedHero' }, units_in: { what: 'removed', suggestion: 'figures_near' } };
+/** Removed methods of figures and the method to use instead (err.script.attr.removed). */
+export const REMOVED_METHODS = { ahead: 'front' };
 
 /** Properties per class (for dir(), suggestions and the scripting reference). */
 export const CLASS_PROPS = {
@@ -322,7 +327,7 @@ export const ANSWERS = { tile: [...TILE_WORDS, 'unknown'], dir: DIR_NAMES, weath
 
 /**
  * Vocabulary of the game API for the hints (src/script/hints.js): which calls only read, their possible answers,
- * look → turn pairs, the methods of figures and the attributes of the predefined game objects (nelia, hero …).
+ * look → turn pairs, the methods of figures and the attributes of the predefined game objects (nelia, orrin …).
  * @param {'mission'|'player'} level
  */
 export function hintVocab(level) {
@@ -336,12 +341,12 @@ export function hintVocab(level) {
     }
   }
   const heroAttrs = [...CLASS_PROPS.common, ...CLASS_PROPS.Hero, ...CLASS_METHODS.Hero.player,
-    ...(level === 'mission' ? CLASS_METHODS.Hero.mission : []), ...Object.keys(DEPRECATED_METHODS)];
+    ...(level === 'mission' ? CLASS_METHODS.Hero.mission : [])];
   const objects = {};
-  for (const id of ['hero', ...HERO_IDS]) objects[id] = heroAttrs;
+  for (const id of HERO_IDS) objects[id] = heroAttrs;
   const methods = new Set();
   for (const cls of ['Hero', 'Serf', 'Troop']) for (const m of [...CLASS_METHODS[cls].player, ...CLASS_METHODS[cls].mission]) methods.add(m);
-  return { queryFunctions, queryMethods, answers, turns: { left: 'turn_left', right: 'turn_right' }, objects, methods };
+  return { queryFunctions, queryMethods, answers, turns: { left: 'turn_left', right: 'turn_right' }, objects, methods, renamed: REMOVED_METHODS };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -483,7 +488,7 @@ export function makeApi(host, level) {
     return s;
   };
   /**
-   * Text of say/message/objective: one string (one language, or a key of the version-1 table `texts`),
+   * Text of say/message/objective: one string (one language),
    * a dict {"de": …, "en": …} or the keywords de=/en= – then both languages travel along.
    */
   const textArg = (fname, text, de, en, need = true) => {
@@ -827,14 +832,12 @@ export function makeApi(host, level) {
    * True/False, a pair (done, needed) for a progress bar or a triple (done, needed, finished) that shows a bar but
    * decides itself when the objective is met. hold=True: an objective to keep (protect something) – it counts as met as
    * long as the condition holds and fails once it does not; clock=True shows the pair as remaining seconds.
-   * Version 1 order objective(id, text, condition) still works.
    */
   def('objective', (ctx, a, kw) => {
     const KW = ['id', 'condition', 'text', 'primary', 'hidden', 'de', 'en', 'hold', 'clock', 'all_worlds'];
     for (const k of Object.keys(kw)) if (!KW.includes(k)) throw new ScriptError('argUnexpected', { name: 'objective', arg: k, suggestion: suggest(k, KW) });
     if (a.length > 5) throw new ScriptError('argCount', { name: 'objective', max: 5, given: a.length });
-    const v1 = a.length >= 2 && a[1] !== null && !isCallable(a[1]);
-    const pos = v1 ? ['id', 'text', 'condition', 'primary', 'hidden'] : ['id', 'condition', 'text', 'primary', 'hidden'];
+    const pos = ['id', 'condition', 'text', 'primary', 'hidden'];
     const v = {};
     a.forEach((x, i) => { v[pos[i]] = x; });
     for (const k of Object.keys(kw)) {
@@ -843,6 +846,8 @@ export function makeApi(host, level) {
     }
     if (v.id === undefined) throw new ScriptError('argMissing', { name: 'objective', arg: 'id' });
     const cond = v.condition ?? null;
+    // The text comes after de=/en= – a text in the place of the condition gets its own error
+    if (typeof cond === 'string') throw new ScriptError('type', { what: 'objectiveText', type: 'str' });
     if (cond !== null && !isCallable(cond)) throw new ScriptError('type', { what: 'callableNeeded', type: typeName(cond) });
     const name = nameArg(v.id, 'id');
     const words = textArg('objective', v.text, v.de, v.en, false);
@@ -1170,11 +1175,6 @@ export function makeApi(host, level) {
   }, true);
   order('attack', 'attack');
   order('move', 'move');
-  def('units_in', (ctx, a, kw) => {
-    const [t, p, who = 'any'] = args('units_in', a, kw, ['target', '?player', '?who']);
-    const c = pt(t);
-    return new PyList(sapi.unitsInArea(sim(), playerOf(p), { ...c, r: Math.max(1, c.r) }, strArg(who, 'who')).sort((x, y) => x.id - y.id).map(handle));
-  }, true);
   def('alive', (ctx, a, kw) => {
     const [u] = args('alive', a, kw, ['units']);
     return listOfHandles(u).filter((x) => alive(entityOf(x, false))).length;
@@ -1578,7 +1578,6 @@ export function makeApi(host, level) {
     const ai = host.runtime.def.players.findIndex((p) => p.kind === 'ai');
     return { HUMAN: human(), ENEMY: ai, BANDITS: host.runtime.state.bandits };
   };
-  const heroEntity = () => [...sim().entities.values()].find((e) => e.kind === 'hero' && e.owner === human());
   // Every hero also under their name (nelia, orrin …): own first, otherwise that of another player (player
   // programs: only while the player sees them)
   const heroNamed = (id) => {
@@ -1595,7 +1594,6 @@ export function makeApi(host, level) {
     HUMAN: () => human(),
     ENEMY: () => consts().ENEMY,
     BANDITS: () => consts().BANDITS,
-    hero: () => { const h = heroEntity(); return h ? handle(h) : null; },
   };
   for (const id of HERO_IDS) dynamic[id] = () => { const e = heroNamed(id); return e ? handle(e) : null; };
 
@@ -1609,8 +1607,12 @@ export function makeApi(host, level) {
   // ---------- Methods and properties of the handles ----------
 
   const methodsOf = (cls) => [...(CLASS_METHODS[cls]?.player ?? []), ...(isMission ? CLASS_METHODS[cls]?.mission ?? [] : [])];
-  /** Shown methods plus old names that still work (ahead → front) for steerable figures. */
-  const callable = (cls, name) => methodsOf(cls).includes(name) || (Object.hasOwn(DEPRECATED_METHODS, name) && methodsOf(cls).includes(DEPRECATED_METHODS[name]));
+  const callable = (cls, name) => methodsOf(cls).includes(name);
+  /** A removed method (ahead): error that names the new one, if the object has it. */
+  const checkRemoved = (cls, name) => {
+    const now = Object.hasOwn(REMOVED_METHODS, name) ? REMOVED_METHODS[name] : null;
+    if (now && callable(cls, now)) throw new ScriptError('attr', { type: cls, name, what: 'removed', suggestion: now });
+  };
   const propsOf = (cls) => [...(cls === 'Place' ? [] : CLASS_PROPS.common), ...(CLASS_PROPS[cls] ?? [])];
 
   const hostHooks = {
@@ -1646,6 +1648,7 @@ export function makeApi(host, level) {
     },
     getattr(ctx, obj, name) {
       if (callable(obj.cls, name)) return new PyBoundMethod(obj, name);
+      checkRemoved(obj.cls, name);
       if (obj.cls === 'Place') {
         const p = placeHandle(obj);
         if (!p) throw gameErr('placeUnknown', { name: String(obj.id) });
@@ -1712,8 +1715,10 @@ export function makeApi(host, level) {
     },
     setattr() { return false; },
     callMethod(ctx, obj, name, a, kw) {
-      if (!callable(obj.cls, name)) throw new ScriptError('attr', { type: obj.cls, name, suggestion: suggest(name, methodsOf(obj.cls)) });
-      if (Object.hasOwn(DEPRECATED_METHODS, name)) name = DEPRECATED_METHODS[name];
+      if (!callable(obj.cls, name)) {
+        checkRemoved(obj.cls, name);
+        throw new ScriptError('attr', { type: obj.cls, name, suggestion: suggest(name, methodsOf(obj.cls)) });
+      }
       if (name === 'distance_to') {
         const [t] = args(name, a, kw, ['target']);
         const A = pt(obj), B = pt(t);
@@ -1937,6 +1942,6 @@ export function makeApi(host, level) {
     return list.filter(visibleTo).sort((x, y) => x.id - y.id).map(handle);
   };
 
-  const known = [...Object.keys(globals), 'HUMAN', 'ENEMY', 'BANDITS', 'hero', ...HERO_IDS];
-  return { natives, globals, dynamic, hostHooks, known, modules, vocab: hintVocab(level), inArea };
+  const known = [...Object.keys(globals), 'HUMAN', 'ENEMY', 'BANDITS', ...HERO_IDS];
+  return { natives, globals, dynamic, hostHooks, known, removed: REMOVED_NAMES, modules, vocab: hintVocab(level), inArea };
 }

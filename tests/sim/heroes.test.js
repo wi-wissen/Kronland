@@ -39,9 +39,9 @@ describe('Hero selection', () => {
     expect([0, 1, 2].map((p) => heroOf(sim, p).hero)).toEqual(['nelia', 'orrin', 'taran']);
   });
 
-  it('several heroes per player, each under their name in the mission program (main hero = first)', () => {
+  it('several heroes per player, each under their name in the mission program', () => {
     const sim = missionSim([{ kind: 'human', heroes: ['nelia', 'orrin'] }, { kind: 'ai', hero: 'malvor' }],
-      'print(hero.name, nelia.owner, orrin.owner, malvor.owner, nelia.distance_to(orrin) > 0)\n');
+      'print(nelia.name, nelia.owner, orrin.owner, malvor.owner, nelia.distance_to(orrin) > 0)\n');
     const n = heroOf(sim, 0, 'nelia'), o = heroOf(sim, 0, 'orrin');
     expect(n && o).toBeTruthy();
     expect(n.px !== o.px || n.py !== o.py).toBe(true);
@@ -49,12 +49,12 @@ describe('Hero selection', () => {
     expect(out(sim)).toEqual(['nelia 0 0 1 True']);
   });
 
-  it('objectives and conditions know individual heroes: units_in with who = hero name, Hero.down', () => {
+  it('objectives and conditions know individual heroes: figures_near with kind = hero name, Hero.down', () => {
     const code = [
       'spot = find_open(map_center(), clear=3)',
       'make_place("spot", spot.x, spot.y, 2)',
       'nelia_down = False',
-      'objective("goal", lambda: len(units_in(place("spot"), who="orrin")) > 0, de="x", en="x")',
+      'objective("goal", lambda: len(figures_near(place("spot"), 2, kind="orrin", side="own")) > 0, de="x", en="x")',
       '@on_start',
       'def watch():',
       '    global nelia_down',

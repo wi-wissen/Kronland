@@ -9,8 +9,8 @@ const at = (src, needle, delta = 0) => commandAt(src, src.indexOf(needle) + delt
 
 describe('identAt', () => {
   it('finds the identifier around a character', () => {
-    expect(identAt('hero.step(2)', 6)).toEqual({ from: 5, to: 9, word: 'step' });
-    expect(identAt('hero.step(2)', 4)).toBeNull(); // the dot
+    expect(identAt('nelia.step(2)', 6)).toEqual({ from: 6, to: 10, word: 'step' });
+    expect(identAt('nelia.step(2)', 5)).toBeNull(); // the dot
     expect(identAt('x = 42', 4)).toBeNull(); // numbers are no names
     expect(identAt('größe = 1', 2)).toEqual({ from: 0, to: 5, word: 'größe' });
   });
@@ -18,10 +18,12 @@ describe('identAt', () => {
 
 describe('commandAt', () => {
   it('resolves dotted game commands and their object', () => {
-    const src = 'while hero.can_step():\n    hero.step()\n';
-    expect(at(src, 'hero.step()', 6)).toMatchObject({ name: 'hero.step' });
-    expect(at(src, 'can_step')).toMatchObject({ name: 'hero.can_step', from: src.indexOf('can_step'), to: src.indexOf('can_step') + 8 });
-    expect(at(src, 'hero')).toMatchObject({ name: 'hero' });
+    const src = 'while nelia.can_step():\n    nelia.step()\n';
+    expect(at(src, 'nelia.step()', 7)).toMatchObject({ name: 'nelia.step' });
+    expect(at(src, 'can_step')).toMatchObject({ name: 'nelia.can_step', from: src.indexOf('can_step'), to: src.indexOf('can_step') + 8 });
+    expect(at(src, 'nelia')).toMatchObject({ name: 'nelia' });
+    expect(at('orrin.step()', 'orrin')).toMatchObject({ name: 'orrin' });
+    expect(at('orrin.step()', 'step')).toMatchObject({ name: 'nelia.step' });
     // Any figure: the basic commands are explained once under nelia.…, serf and troop commands under their class
     expect(at('bran.front()', 'front')).toMatchObject({ name: 'nelia.front' });
     expect(at('s.chop()', 'chop')).toMatchObject({ name: 'serf.chop' });
@@ -44,8 +46,8 @@ describe('commandAt', () => {
   });
 
   it('ignores strings, comments, keywords, unknown names and methods that do not exist', () => {
-    expect(at('print("hero.step")', 'step')).toBeNull();
-    expect(at('# hero.step()', 'step')).toBeNull();
+    expect(at('print("nelia.step")', 'step')).toBeNull();
+    expect(at('# nelia.step()', 'step')).toBeNull();
     expect(at('for i in range(3):', 'for')).toBeNull();
     expect(at('wood = 3', 'wood')).toBeNull();
     expect(at('x.wiggle()', 'wiggle')).toBeNull();
@@ -80,8 +82,6 @@ describe('doc cards', () => {
     for (const lang of ['de', 'en']) {
       const c = cardFor('nelia.step', lang);
       expect(c.sig).toBe('nelia.step(n=1)');
-      // The old name leads to the same entry
-      expect(cardFor('hero.step', lang).sig).toBe('nelia.step(n=1)');
       expect(c.shortHtml.length).toBeGreaterThan(5);
       expect(c.descHtml).toContain('<code>');
       expect(c.params[0].name).toBe('n');
@@ -89,6 +89,8 @@ describe('doc cards', () => {
       expect(c.url).toMatch(/scripting\/#nelia\.step$/);
     }
     expect(cardFor('nope', 'de')).toBeNull();
+    // Removed names have no entry
+    for (const n of ['hero', 'hero.step', 'units_in', 'nelia.ahead']) expect(cardFor(n, 'de')).toBeNull();
     expect(commandList('en').some((c) => c.name === 'str.split' && c.py)).toBe(true);
   });
 });
