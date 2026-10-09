@@ -46,16 +46,12 @@ export function scenarioGoals(scenario) {
     const id = literal(node.args[0] ?? kw.id);
     if (typeof id !== 'string' || seen.has(id)) continue;
     seen.add(id);
-    // Version 1 order: objective(id, text, condition)
-    const second = node.args[1];
-    const v1 = second && textOf(second) !== undefined;
     let text;
     if (kw.de || kw.en) {
       text = {};
       if (typeof literal(kw.de) === 'string') text.de = literal(kw.de);
       if (typeof literal(kw.en) === 'string') text.en = literal(kw.en);
-    } else text = textOf(kw.text ?? (v1 ? second : node.args[2]));
-    if (typeof text === 'string' && scenario.texts && Object.hasOwn(scenario.texts, text)) text = scenario.texts[text];
+    } else text = textOf(kw.text ?? node.args[2]);
     const primary = literal(kw.primary ?? node.args[3]);
     const hidden = literal(kw.hidden ?? node.args[4]);
     out.push({ id, text: text && (typeof text === 'string' || Object.keys(text).length) ? text : id, primary: primary !== false, hidden: hidden === true });

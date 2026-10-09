@@ -49,7 +49,9 @@ describe('Hints at compile time', () => {
 
   it('unknown methods on the known game objects already at compile time', () => {
     expect(hints('nelia.turnleft()\n')[0]).toMatchObject({ code: 'script.hint.unknownMethod', params: { obj: 'nelia', name: 'turnleft', suggestion: 'turn_left' } });
-    expect(codes('nelia.ahead()\nprint(nelia.x, hero.name)\n')).toEqual(['unusedResult:1']);
+    expect(codes('nelia.front()\nprint(nelia.x, orrin.name)\n')).toEqual(['unusedResult:1']);
+    // Removed names point to the new one
+    expect(hints('nelia.ahead()\n')[0]).toMatchObject({ code: 'script.hint.unknownMethod', params: { obj: 'nelia', name: 'ahead', suggestion: 'front' } });
     // A name of the program hides the game object
     expect(codes('nelia = [1]\nnelia.append(2)\nfor hero in serfs():\n    hero.chop()\n')).toEqual([]);
   });
@@ -64,7 +66,8 @@ describe('Hints at compile time', () => {
 
   it('the vocabulary covers every sensor of the API', () => {
     const v = hintVocab('player');
-    for (const m of ['front', 'left', 'right', 'here', 'can_step', 'is_at', 'ahead']) expect(v.queryMethods.has(m), m).toBe(true);
+    for (const m of ['front', 'left', 'right', 'here', 'can_step', 'is_at']) expect(v.queryMethods.has(m), m).toBe(true);
+    expect(v.queryMethods.has('ahead')).toBe(false);
     for (const f of ['tile', 'weather', 'forecast', 'figures_near', 'items_near']) expect(v.queryFunctions.has(f), f).toBe(true);
     expect(v.answers.front).toContain('track');
     expect(API_DOC.filter((e) => e.answers).length).toBeGreaterThanOrEqual(5);

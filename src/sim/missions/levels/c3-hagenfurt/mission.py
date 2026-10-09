@@ -46,7 +46,7 @@ objective("escape", lambda: (min(THAW_AFTER, int(time() - thaw_from)), THAW_AFTE
           de="Tauwetter! Bring Nelia und Orrin auf festen Talboden – runter vom Eis und von der Insel",
           en="Thaw! Get Nelia and Orrin onto firm valley ground – off the ice and off the island")
 hint("escape", area="landing")
-objective("plans", lambda: len(units_in(place("ruinsArea"), who="hero")) > 0,
+objective("plans", lambda: len(figures_near(place("ruinsArea"), place("ruinsArea").r, kind="hero", side="own")) > 0,
           de="Sichere Hrimgars Bauplan-Bruchstücke in den Ruinen am Talrand",
           en="Secure Hrimgar’s plan fragments in the ruins at the valley edge")
 objective("heroes", lambda: alive(heroes) > 0, hold=True,

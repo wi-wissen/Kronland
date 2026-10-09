@@ -20,13 +20,15 @@ export const BUILTIN_NAMES = Object.keys(BUILTINS).filter((n) => !n.includes('.'
 /**
  * Translate source text. Built-in functions and modules are always known.
  * @param {string} source
- * @param {{ known?: Iterable<string>, modules?: Record<string, string[]>, vocab?: any }} [opts] vocab: hints (program.hints)
+ * @param {{ known?: Iterable<string>, modules?: Record<string, string[]>, vocab?: any, removed?: Record<string, object> }} [opts]
+ *   vocab: hints (program.hints); removed: names that no longer exist (NameError with the new spelling)
  */
 export function compile(source, opts = {}) {
   return compileRaw(source, {
     known: [...BUILTIN_NAMES, ...(opts.known ?? [])],
     modules: { ...MODULES, ...(opts.modules ?? {}) },
     vocab: opts.vocab,
+    removed: opts.removed,
   });
 }
 

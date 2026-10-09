@@ -29,7 +29,7 @@ export function identAt(src, offset) {
 }
 
 /**
- * Candidate names for the identifier at `offset`, best first: dotted chain (`hero.step`, `math.sqrt`),
+ * Candidate names for the identifier at `offset`, best first: dotted chain (`nelia.step`, `math.sqrt`),
  * method on a literal (`"a b".split` → `str.split`), method on an unknown value (`xs.append` → `str.append`,
  * `list.append` …) or the bare name (`len`). Inside strings and comments: none.
  * @param {string} src @param {number} offset

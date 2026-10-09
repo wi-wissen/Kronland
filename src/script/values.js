@@ -24,7 +24,7 @@ export class PyFunction {
 export class PyBuiltin { constructor(name) { this.name = name; } }
 /** Partially applied built-in function, e.g. a decorator with arguments: @on_building_done("farm"). */
 export class PyPartial { constructor(fn, args = [], kwargs = []) { this.fn = fn; this.args = args; this.kwargs = kwargs; } }
-/** Method with bound object: [1, 2].append, hero.step. */
+/** Method with bound object: [1, 2].append, nelia.step. */
 export class PyBoundMethod { constructor(self, name) { this.self = self; this.name = name; } }
 /** Game object (figure, building, place …): only a handle, the data lives in the simulation. */
 export class PyHost { constructor(cls, id) { this.cls = cls; this.id = id; } }

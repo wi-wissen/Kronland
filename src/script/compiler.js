@@ -52,8 +52,9 @@ export const CMP_OPS = ['==', '!=', '<', '>', '<=', '>=', 'in', 'not in', 'is', 
 /**
  * Compile source text.
  * @param {string} source
- * @param {{ known?: Iterable<string>, modules?: Record<string, string[]>, vocab?: any }} [opts]
+ * @param {{ known?: Iterable<string>, modules?: Record<string, string[]>, vocab?: any, removed?: Record<string, object> }} [opts]
  *   known: names available at run time (built-in functions, game API);
+ *   removed: names that no longer exist → parameters of their NameError (what to write instead);
  *   modules: modules for import/from … import * with their names;
  *   vocab: vocabulary of the game API for hints (src/script/hints.js) – program.hints
  * @returns {Program}
@@ -89,6 +90,7 @@ class Compiler {
     this.source = source;
     this.known = new Set(opts.known ?? []);
     this.modules = opts.modules ?? {};
+    this.removed = opts.removed ?? {};
     /** @type {Code[]} */
     this.codes = [];
     this.hidden = 0;
@@ -318,6 +320,7 @@ class Compiler {
       const n = node.id;
       if (n.startsWith('.') || this.globalNames.has(n) || this.known.has(n) || this.modules[n]) continue;
       if (node.isLoad === false) continue;
+      if (Object.hasOwn(this.removed, n)) throw this.err('nameUnknown', { name: n, ...this.removed[n] }, node);
       const cands = new Set([...this.globalNames, ...this.known, ...Object.keys(this.modules)]);
       for (let s = scope; s; s = s.parent) for (const l of s.locals) cands.add(l);
       // true/false/none: Python writes them with a capital letter

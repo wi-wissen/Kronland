@@ -108,7 +108,7 @@ def lake_frozen():
 @on_start
 def orrin_falls():
     global orrin_wounded
-    wait_until(lambda: weather() == "winter" and len(units_in(isle, who="army")) > 0)
+    wait_until(lambda: weather() == "winter" and len(figures_near(isle, isle.r, kind="troop", side="own") + figures_near(isle, isle.r, kind="hero", side="own")) > 0)
     if orrin is not None:
         remove(orrin)
     orrin_wounded = True
