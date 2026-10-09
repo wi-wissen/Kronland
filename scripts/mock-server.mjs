@@ -29,12 +29,13 @@ export async function startMockServer({ port = 0, game = 'http://localhost:4173/
   const secret = rand();
   /** State, visible to tests as `state`. */
   const state = {
-    codes: new Map(), access: new Map(), refresh: new Map(),
+    codes: new Map(), access: new Map(), refresh: new Map(), revoked: [], // log of /oauth/revoke calls
     saves: new Map(), packs: new Map(), media: new Map(), progress: [], origin: '',
   };
   const reset = () => {
     for (const k of ['codes', 'saves', 'packs', 'media']) state[k].clear(); // tokens stay: a reset is not a sign-out
     state.progress.length = 0;
+    state.revoked.length = 0;
     for (const e of json('fixtures/saves.json').saves) {
       const { etag, ...entry } = e;
       const envelope = json('fixtures/save-s1.json');
@@ -117,6 +118,7 @@ export async function startMockServer({ port = 0, game = 'http://localhost:4173/
       const f = await formOrJson(req);
       const bad = (error) => send(res, 400, { error });
       if (f.client_id !== 'kronland-game') return bad('invalid_client');
+      let grant = null;
       if (f.grant_type === 'authorization_code') {
         const c = state.codes.get(f.code);
         state.codes.delete(f.code); // single use
@@ -124,12 +126,29 @@ export async function startMockServer({ port = 0, game = 'http://localhost:4173/
         // PKCE: BASE64URL(SHA-256(code_verifier)) must equal the code_challenge of the authorization request
         if (!f.code_verifier || createHash('sha256').update(f.code_verifier).digest('base64url') !== c.challenge) return bad('invalid_grant');
       } else if (f.grant_type === 'refresh_token') {
-        if (!state.refresh.delete(f.refresh_token)) return bad('invalid_grant');
+        const old = state.refresh.get(f.refresh_token);
+        if (!old) return bad('invalid_grant');
+        state.refresh.delete(f.refresh_token); // rotation: every refresh token is single use
+        grant = old.grant;
       } else return bad('unsupported_grant_type');
       const access = 'at_' + rand(), refresh = 'rt_' + rand();
-      state.access.set(access, { expires: Date.now() + tokenTtl * 1000 });
-      state.refresh.set(refresh, true);
+      grant ??= rand(8);
+      state.access.set(access, { expires: Date.now() + tokenTtl * 1000, grant });
+      state.refresh.set(refresh, { grant });
       return send(res, 200, { token_type: 'Bearer', access_token: access, refresh_token: refresh, expires_in: tokenTtl });
+    }
+    if (path === '/oauth/revoke' && method === 'POST') { // RFC 7009: unknown tokens are fine; revoking a token ends its whole grant
+      const f = await formOrJson(req);
+      const bad = (error) => send(res, 400, { error });
+      if (!f.token) return bad('invalid_request');
+      if (f.client_id !== 'kronland-game') return bad('invalid_client');
+      if (f.token_type_hint && !['access_token', 'refresh_token'].includes(f.token_type_hint)) return bad('unsupported_token_type');
+      const grant = (state.refresh.get(f.token) ?? state.access.get(f.token))?.grant;
+      if (grant) {
+        for (const m of [state.access, state.refresh]) for (const [k, v] of m) if (v.grant === grant) m.delete(k);
+      }
+      state.revoked.push({ token: f.token, hint: f.token_type_hint ?? null, grant: grant ?? null });
+      return send(res, 200, null);
     }
     if (path === '/broadcasting/auth') return fail(res, 501, 'net.err.notImplemented');
 

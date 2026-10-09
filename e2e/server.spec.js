@@ -109,8 +109,15 @@ test('server: sign in with PKCE, locked pack with "Learn more", progress reaches
   // sign out
   await page.goto(playUrl(), { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('account')).toContainText('Löwe 7', SLOW);
+  const live = [...mock.state.access.keys()].at(-1);
+  expect((await fetch(`${mock.url}/api/v1/me`, { headers: { Authorization: `Bearer ${live}` } })).status).toBe(200);
   await page.getByTestId('sign-out').click();
   await expect(page.getByTestId('sign-in')).toBeVisible();
+  // the server saw the revocation of the refresh token, and the old access token is dead
+  await expect.poll(() => mock.state.revoked.length, { timeout: 15_000 }).toBe(1);
+  expect(mock.state.revoked[0]).toMatchObject({ hint: 'refresh_token' });
+  expect(mock.state.revoked[0].token).toMatch(/^rt_/);
+  expect((await fetch(`${mock.url}/api/v1/me`, { headers: { Authorization: `Bearer ${live}` } })).status).toBe(401);
   expect(errors).toEqual([]);
 });
 

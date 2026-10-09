@@ -167,3 +167,50 @@ describe('API', () => {
     await expect(api.put('/api/v1/packs/zz9998', { ...doc, id: 'zz9998', media: { ['0'.repeat(64) + '.png']: { type: 'image/png', bytes: 3 } } })).rejects.toMatchObject({ code: 'packs.err.media' });
   });
 });
+
+describe('token revocation (RFC 7009)', () => {
+  const revoke = (params) => fetch(`${base}/oauth/revoke`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(params) });
+  const tokenOf = async (kv) => kv.get('tokens');
+
+  it('revoking the refresh token ends the whole grant: access token 401, refresh refused', async () => {
+    const { kv } = await signIn(base);
+    const t = await tokenOf(kv);
+    const me = (a) => fetch(`${base}/api/v1/me`, { headers: { Authorization: `Bearer ${a}` } });
+    expect((await me(t.access)).status).toBe(200);
+    const res = await revoke({ token: t.refresh, token_type_hint: 'refresh_token', client_id: 'kronland-game' });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('');
+    expect(res.headers.get('access-control-allow-origin')).toBe('*');
+    expect(mock.state.revoked.at(-1)).toMatchObject({ token: t.refresh, hint: 'refresh_token' });
+    expect((await me(t.access)).status).toBe(401);
+    const again = await fetch(`${base}/oauth/token`, { method: 'POST', body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: t.refresh, client_id: 'kronland-game' }) });
+    expect(again.status).toBe(400);
+    expect((await again.json()).error).toBe('invalid_grant');
+  });
+
+  it('revoking an access token also ends the grant', async () => {
+    const { kv } = await signIn(base);
+    const t = await tokenOf(kv);
+    expect((await revoke({ token: t.access, token_type_hint: 'access_token', client_id: 'kronland-game' })).status).toBe(200);
+    const again = await fetch(`${base}/oauth/token`, { method: 'POST', body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: t.refresh, client_id: 'kronland-game' }) });
+    expect(again.status).toBe(400);
+  });
+
+  it('other grants stay valid; unknown tokens answer 200', async () => {
+    const a = await tokenOf((await signIn(base)).kv), b = await tokenOf((await signIn(base)).kv);
+    expect((await revoke({ token: a.refresh, client_id: 'kronland-game' })).status).toBe(200);
+    expect((await fetch(`${base}/api/v1/me`, { headers: { Authorization: `Bearer ${b.access}` } })).status).toBe(200);
+    const n = mock.state.revoked.length;
+    expect((await revoke({ token: 'rt_nope', token_type_hint: 'refresh_token', client_id: 'kronland-game' })).status).toBe(200);
+    expect(mock.state.revoked).toHaveLength(n + 1);
+  });
+
+  it('errors follow RFC 6749 section 5.2', async () => {
+    expect(await (await revoke({ client_id: 'kronland-game' })).json()).toEqual({ error: 'invalid_request' });
+    const bad = await revoke({ token: 'x', token_type_hint: 'password', client_id: 'kronland-game' });
+    expect(bad.status).toBe(400);
+    expect(await bad.json()).toEqual({ error: 'unsupported_token_type' });
+    expect((await revoke({ token: 'x', client_id: 'other' })).status).toBe(400);
+  });
+});
+

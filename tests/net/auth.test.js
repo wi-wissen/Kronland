@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createVerifier, challengeFor, createAuth, CLIENT_ID } from '../../src/net/auth.js';
 import { memoryKv } from '../../src/net/kv.js';
 import { FakeStorage } from './helpers.js';
@@ -128,3 +128,89 @@ describe('sign-in flow', () => {
     expect(await s.kv.get('tokens')).toBeUndefined();
   });
 });
+
+describe('logout and token revocation (RFC 7009)', () => {
+  async function make(revoke, opts = {}, tokenJson) {
+    const kv = memoryKv().kv, session = new FakeStorage(), revokes = [];
+    const fetch = async (url, init) => {
+      if (url.endsWith('/oauth/revoke')) { revokes.push({ url, init, body: Object.fromEntries(new URLSearchParams(init.body)) }); return revoke ? revoke(init) : new Response('', { status: 200 }); }
+      return new Response(JSON.stringify(tokenJson ?? { access_token: 'at1', refresh_token: 'rt1', token_type: 'Bearer', expires_in: 3600 }), { status: 200 });
+    };
+    const auth = createAuth({ server: SERVER, fetch, kv, session, here: () => GAME, now: () => 1_000_000, ...opts });
+    await auth.loginUrl();
+    await auth.handleRedirect(`?code=C&state=${JSON.parse(session.getItem('kronland-pkce')).state}`);
+    return { auth, kv, session, revokes };
+  }
+
+  it('revokes the refresh token with a form body, no secret, and clears the device', async () => {
+    const s = await make();
+    await s.auth.logout();
+    expect(s.revokes).toHaveLength(1);
+    const { url, init, body } = s.revokes[0];
+    expect(url).toBe(`${SERVER}/oauth/revoke`);
+    expect(init.method).toBe('POST');
+    expect(init.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
+    expect(body).toEqual({ token: 'rt1', token_type_hint: 'refresh_token', client_id: CLIENT_ID });
+    expect(s.auth.signedIn).toBe(false);
+    expect(await s.kv.get('tokens')).toBeUndefined();
+  });
+
+  it('without a refresh token the access token is revoked', async () => {
+    const s = await make(null, {}, { access_token: 'at9', token_type: 'Bearer', expires_in: 3600 });
+    await s.auth.logout();
+    expect(s.revokes[0].body).toEqual({ token: 'at9', token_type_hint: 'access_token', client_id: CLIENT_ID });
+  });
+
+  it('clears pending PKCE state', async () => {
+    const s = await make();
+    await s.auth.loginUrl();
+    expect(s.session.getItem('kronland-pkce')).toBeTruthy();
+    await s.auth.logout();
+    expect(s.session.getItem('kronland-pkce')).toBeNull();
+  });
+
+  it.each([
+    ['fetch throws', () => { throw new TypeError('Failed to fetch'); }],
+    ['server answers 500', () => new Response('boom', { status: 500 })],
+  ])('tokens are cleared when %s; only a warning is logged', async (_n, revoke) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const s = await make(revoke);
+    await expect(s.auth.logout()).resolves.toBeUndefined();
+    expect(s.auth.signedIn).toBe(false);
+    expect(await s.kv.get('tokens')).toBeUndefined();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('does not hang: a request that never answers is aborted after the timeout', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let signal;
+    const s = await make((init) => { signal = init.signal; return new Promise(() => {}); }, { revokeTimeoutMs: 20 });
+    await s.auth.logout();
+    expect(signal.aborted).toBe(true);
+    expect(s.auth.signedIn).toBe(false);
+    expect(await s.kv.get('tokens')).toBeUndefined();
+    warn.mockRestore();
+  });
+
+  it('signed out: nothing to revoke, no request', async () => {
+    const s = await make();
+    await s.auth.logout();
+    await s.auth.logout();
+    expect(s.revokes).toHaveLength(1);
+  });
+
+  it('keeps the newest refresh token after a rotation', async () => {
+    let n = 0;
+    const kv = memoryKv().kv, session = new FakeStorage();
+    let t = 1_000_000;
+    const fetch = async () => { n++; return new Response(JSON.stringify({ access_token: `at${n}`, refresh_token: `rt${n}`, token_type: 'Bearer', expires_in: 60 }), { status: 200 }); };
+    const auth = createAuth({ server: SERVER, fetch, kv, session, here: () => GAME, now: () => t });
+    await auth.loginUrl();
+    await auth.handleRedirect(`?code=C&state=${JSON.parse(session.getItem('kronland-pkce')).state}`);
+    t += 120_000;
+    expect(await auth.token()).toBe('at2');
+    expect((await kv.get('tokens')).refresh).toBe('rt2');
+  });
+});
+

@@ -86,7 +86,17 @@ nie fehl. Ohne Quellen (Standard) passiert nichts. `sitemap-levels.xml` muss in 
 2. Zurück auf der Spielseite mit `?code=&state=`: der `state` muss passen, dann `POST {server}/oauth/token` (Code + Verifier), Tokens in IndexedDB,
    die Adresse wird bereinigt (ein mitgegebener Start-Link bleibt).
 3. Der Zugriffstoken wird kurz vor Ablauf per Refresh-Token erneuert (parallele Anfragen teilen eine Erneuerung); lehnt der Server den Refresh-Token ab, endet die Sitzung.
-4. „Abmelden“ vergisst die Tokens auf dem Gerät. Tokens gelten nur für den konfigurierten Server.
+4. „Abmelden“ löscht die Tokens sofort auf dem Gerät (auch offline oder bei Fehlern) und widerruft sie nach RFC 7009:
+   `POST {server}/oauth/revoke` mit `token=<refresh_token>&token_type_hint=refresh_token&client_id=kronland-game`
+   (ohne Refresh-Token: der Zugriffstoken mit `access_token`). Timeout 5 s; ein fehlgeschlagener Widerruf wird nur
+   mit `console.warn` protokolliert und blockiert nie. Tokens gelten nur für den konfigurierten Server.
+   Der Server muss beim Widerruf des Refresh-Tokens die ganze Berechtigung beenden (Zugriffstoken und Refresh-Token
+   desselben Grants) und auch bei unbekannten oder schon ungültigen Tokens mit 200 und leerem Body antworten;
+   Fehler als `{"error":"invalid_request"}` bzw. `unsupported_token_type` (400). Der Client speichert bei jeder
+   Erneuerung den neuesten Refresh-Token (Rotation).
+   Laravel Passport hat keinen RFC-7009-Endpunkt: der Server braucht eine kleine Route, die den Token anhand von
+   `token` findet und über `TokenRepository::revokeAccessToken()` bzw. `RefreshTokenRepository::revokeRefreshTokensByAccessTokenId()`
+   den Zugriffstoken samt Refresh-Tokens widerruft.
 
 Angemeldet zeigt das Startmenü „Angemeldet als <Name>“ und „Konto verwalten“ (öffnet `accountUrl` aus `GET /api/v1/me`).
 Der Redirect-URI ist die Spielseite ohne Query (`…/play/`), am Server für den Client zu registrieren (plus `http://localhost:<Port>/play/` für die Entwicklung).
@@ -153,5 +163,5 @@ Fehler tragen einen JSON-Pointer (`/levels/0/file`), der als `path` in `packs.er
 
 ## Offen
 
-Abmelden widerruft die Tokens am Server nicht (kein Endpunkt im Vertrag); Multiplayer/Relay (Stufe 3); Folgelevel eines Pakets nach dem Sieg
+Multiplayer/Relay (Stufe 3); Folgelevel eines Pakets nach dem Sieg
 (`next`) gibt es nicht, das Spiel kehrt zu „Level entdecken“ zurück.

@@ -176,6 +176,29 @@ paths:
                   token_type: { const: Bearer }
                   expires_in: { type: integer, description: seconds }
         '400': { description: 'OAuth error (invalid_grant), body {"error":"invalid_grant"}' }
+  /oauth/revoke:
+    post:
+      summary: Revoke a token on sign-out (RFC 7009)
+      description: >
+        The game sends the refresh token (`token_type_hint=refresh_token`), without one the access token (`access_token`).
+        The server must revoke the whole grant: revoking the refresh token also invalidates the access tokens issued
+        for the same grant, and the refresh token can no longer be used at `/oauth/token`. Unknown or already invalid
+        tokens are answered with 200 as well (RFC 7009 section 2.2), so the answer reveals nothing about a token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [token, client_id]
+              properties:
+                token: { type: string }
+                token_type_hint: { enum: [refresh_token, access_token] }
+                client_id: { const: kronland-game }
+      responses:
+        '200': { description: Revoked (or the token was not known); empty body }
+        '400': { description: 'OAuth error as in RFC 6749 section 5.2, body {"error":"invalid_request"} (token missing) or {"error":"unsupported_token_type"}' }
   /broadcasting/auth:
     post:
       summary: Relay channel authorisation (Laravel standard, multiplayer - not used by the game yet)

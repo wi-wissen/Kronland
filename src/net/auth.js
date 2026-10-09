@@ -3,7 +3,7 @@
 //   1. login():           code_verifier + state into sessionStorage, redirect to {server}/oauth/authorize
 //   2. handleRedirect():  back at the game with ?code=&state= -> POST {server}/oauth/token -> tokens in IndexedDB
 //   3. token():           valid access token, refreshed shortly before it expires
-//   4. logout():          forget the tokens
+//   4. logout():          forget the tokens on the device, then revoke them at the server (RFC 7009)
 // Tokens belong to one server; a different server in the configuration ignores them.
 
 import { NetError } from './errors.js';
@@ -14,6 +14,8 @@ const SESSION_KEY = 'kronland-pkce';
 const TOKEN_KEY = 'tokens';
 /** Refresh this long before the access token runs out. */
 const SKEW_MS = 30_000;
+/** Give up revoking after this long: signing out must never hang. */
+const REVOKE_TIMEOUT_MS = 5000;
 
 const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
@@ -36,6 +38,7 @@ export async function challengeFor(verifier) {
  * @property {() => string} [here] address of the game page (default: location)
  * @property {(url: string) => void} [go] navigate (default: location.assign)
  * @property {() => number} [now]
+ * @property {number} [revokeTimeoutMs] limit for the revoke request on logout
  */
 
 /** @param {AuthEnv} env */
@@ -124,6 +127,32 @@ export function createAuth(env) {
       return refreshing;
     },
 
-    async logout() { tokens = null; await env.kv.delete(TOKEN_KEY).catch(() => {}); },
+    /**
+     * Sign out. The tokens are gone on the device in every case; the server is then asked to revoke them (RFC 7009:
+     * the refresh token, which ends the whole grant, else the access token). A failed revoke is only logged.
+     */
+    async logout() {
+      const old = tokens;
+      tokens = null;
+      try { session.removeItem(SESSION_KEY); } catch { /* no session storage */ }
+      await env.kv.delete(TOKEN_KEY).catch(() => {});
+      const token = old?.refresh || old?.access;
+      if (!token) return;
+      const ctl = new AbortController();
+      let timer;
+      try {
+        const request = f(`${old.server}/oauth/revoke`, {
+          method: 'POST', signal: ctl.signal,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+          body: new URLSearchParams({ token, token_type_hint: old.refresh ? 'refresh_token' : 'access_token', client_id: CLIENT_ID }),
+        });
+        const limit = new Promise((_, reject) => { timer = setTimeout(() => { ctl.abort(); reject(new Error('timeout')); }, env.revokeTimeoutMs ?? REVOKE_TIMEOUT_MS); });
+        request.catch(() => {}); // a late failure after the timeout is not an unhandled rejection
+        const res = await Promise.race([request, limit]);
+        if (!res.ok) console.warn(`Kronland: token revocation answered ${res.status}`);
+      } catch (e) {
+        console.warn('Kronland: token revocation failed', e);
+      } finally { clearTimeout(timer); }
+    },
   };
 }
