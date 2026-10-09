@@ -624,6 +624,24 @@ function updateHero(sim, h) {
   updateCommander(sim, h);
 }
 
+/** Squad a bribe would win over: the nearest enemy squad leader in range of the hero, or null. */
+export function bribeTarget(sim, h) {
+  const def = HEROES.orrin.abilities.bribe;
+  let best = null, bd = def.radius + 1;
+  for (const e of sim.entities.values()) {
+    if (e.kind !== 'leader' || !isEnemy(sim, h.owner, e.owner)) continue;
+    const d = distTo(h, e);
+    if (d < bd) { bd = d; best = e; }
+  }
+  return best;
+}
+
+/** Taler a bribe of this squad costs (base price + per soldier). */
+export function bribeCost(leader) {
+  const def = HEROES.orrin.abilities.bribe;
+  return def.gold + def.goldPerSoldier * leader.soldiers.length;
+}
+
 /** Trigger ability. @returns {string|null} error code (see src/i18n) */
 export function useAbility(sim, h, ability, x, y) {
   const abilities = HEROES[h.hero]?.abilities;
@@ -655,14 +673,9 @@ export function useAbility(sim, h, ability, x, y) {
       break;
     case 'bribe': {
       // nearest enemy squad (squad leader with soldiers) in range switches sides for taler
-      let best = null, bd = def.radius + 1;
-      for (const e of sim.entities.values()) {
-        if (e.kind !== 'leader' || !isEnemy(sim, h.owner, e.owner)) continue;
-        const d = distTo(h, e);
-        if (d < bd) { bd = d; best = e; }
-      }
+      const best = bribeTarget(sim, h);
       if (!best) return 'err.noTarget';
-      if (!sim.pay(h.owner, { gold: def.gold + def.goldPerSoldier * best.soldiers.length })) return 'err.notEnoughGold';
+      if (!sim.pay(h.owner, { gold: bribeCost(best) })) return 'err.notEnoughGold';
       const from = best.owner;
       changeOwner(sim, best, h.owner);
       sim.events.push({ type: 'bribed', leader: best.id, from, to: h.owner });

@@ -472,7 +472,8 @@ Bleibst du mit der Maus auf einem Befehl (am Handy: lange drücken), erklärt ih
 mit Parametern, Rückgabewerten, Fehlern und vielen Beispielen – erklärt sie die [Programmier-Referenz](scripting/) (Knopf **Referenz** im Code-Fenster). Die wichtigsten:
 `nelia.step()`, `nelia.turn_left()`, `nelia.turn_right()`, `nelia.front()`, `nelia.left()`, `nelia.take()` und `print()`.
 Dein Held heißt im Code wie im Spiel (`nelia`, `orrin` …); Leibeigene (`serfs()`) haben dieselben Grundbefehle und
-fällen mit `chop()` Bäume.
+fällen mit `chop()` Bäume. Fähigkeiten setzt ein Held wie mit seinen Knöpfen ein (`nelia.use("courage")`, vorher
+`nelia.ready("courage")` fragen), `militia(True)` ruft wie in der Burg „Zu den Waffen!“, `militia(False)` gibt Entwarnung.
 
 ```
 for i in range(10):

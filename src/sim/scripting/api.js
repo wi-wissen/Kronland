@@ -14,19 +14,19 @@ import {
   iterItems, isNum, num, typeName, truthy, suggest,
 } from '../../script/index.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { UNITS, HERO_IDS } from '../data/units.js';
+import { UNITS, HERO_IDS, HEROES } from '../data/units.js';
 import { RESOURCES } from '../data/resources.js';
 import { TECHS } from '../data/technologies.js';
 import { BUILDING_TECHS } from '../data/buildingTechs.js';
 import { BALANCE } from '../data/balance.js';
 import { WATER, CLIFF, OCCUPIED } from '../map.js';
-import { TICKS_PER_SECOND, tileCenter, toTile, UNIT } from '../fixed.js';
+import { TICKS_PER_SECOND, tileCenter, toTile, UNIT, isqrt } from '../fixed.js';
 import { valueNoise } from '../mapgen.js';
 import * as sapi from '../missions/setupApi.js';
 import { revealArea, canSee, isExplored } from '../systems/vision.js';
 import { hasForecast, forecast as weatherForecast, checkWeatherChange } from '../systems/weather.js';
 import { WEATHER_CONTROL } from '../data/weather.js';
-import { isEnemy, changeOwner } from '../systems/military.js';
+import { isEnemy, changeOwner, bribeTarget, bribeCost, ABILITY_RANGE } from '../systems/military.js';
 import { buildingMaxHp } from '../systems/techs.js';
 import {
   DIRS, DIR_NAMES, TILE_WORDS, ITEM_KINDS, tileKind, tileToward, faceOf, figureTile, itemAt, itemList, addItem, removeItem,
@@ -43,6 +43,19 @@ const T = TICKS_PER_SECOND;
 export { DIRS, DIR_NAMES, TILE_WORDS };
 
 const gameErr = (reason, reasonParams = {}) => new ScriptError('game', { reason: `script.game.${reason}`, reasonParams });
+
+/**
+ * Hero abilities in scripts: snake_case like the rest of the API ("shield_bash", "field_gun"); the data and the sim
+ * command use the IDs of src/sim/data/units.js ("shieldBash"). Events (@on_event("ability")) report the script name.
+ */
+export const abilityScriptName = (id) => id.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+/** Ability ID for a script name, or null. */
+export function abilityIdOf(name) {
+  for (const h of HERO_IDS) for (const id of Object.keys(HEROES[h].abilities)) if (abilityScriptName(id) === name) return id;
+  return null;
+}
+/** All ability names of the scripting API ("farsight", "courage" … "shield_bash"). */
+export const ABILITY_NAMES = HERO_IDS.flatMap((h) => Object.keys(HEROES[h].abilities).map(abilityScriptName));
 
 // ---------------------------------------------------------------------------------------------
 // Boundary Python → simulation: the simulation only knows whole numbers. Every number from a script
@@ -82,12 +95,16 @@ export const EVENTS = {
   // Only as @on_event(name, …): payday, trade, serf bought, research and upgrade started, hero ability, tribute paid
   payday: 'on_payday', trade: 'on_trade', serf_bought: 'on_serf_bought', research_started: 'on_research_started',
   upgrade_started: 'on_upgrade_started', ability: 'on_ability', tribute: 'on_tribute',
+  // Own figure or building hit by an enemy (the alarm of the UI) – at most once per ALARM_SECONDS and handler
+  attacked: 'on_attacked',
 };
+/** Shortest gap between two @on_event("attacked") calls of one handler (seconds). */
+export const ALARM_SECONDS = 5;
 
 /** Filters of the events that have no decorator of their own (kind → filter names, as in decorator()). */
 const EVENT_ONLY = {
   on_payday: ['?player'], on_trade: ['?player'], on_serf_bought: ['?player'], on_research_started: ['?tech', '?player'],
-  on_upgrade_started: ['?player'], on_ability: ['?ability', '?player'], on_tribute: ['?id'],
+  on_upgrade_started: ['?player'], on_ability: ['?ability', '?player'], on_tribute: ['?id'], on_attacked: ['?player'],
 };
 /** Events only mission programs hear (the player's UI shows no talk, no start, no tribute of the mission). */
 const MISSION_EVENTS = new Set(['on_start', 'on_talk', 'on_tribute']);
@@ -141,6 +158,10 @@ export const API_DOC = [
   { name: 'nelia.put', sig: 'nelia.put(kind="coin")', level: 'player', group: 'hero' },
   { name: 'nelia.say', sig: 'nelia.say(text)', level: 'player', group: 'hero' },
   { name: 'nelia.facing', sig: 'nelia.facing', level: 'player', group: 'hero', answers: 'dir' },
+  // Abilities: the same command as the buttons in the hero panel (cooldown, taler, range)
+  { name: 'nelia.use', sig: 'nelia.use(ability, target=None)', level: 'player', group: 'hero' },
+  { name: 'nelia.ready', sig: 'nelia.ready(ability) · nelia.cooldown(ability)', level: 'player', group: 'hero', query: true, also: ['nelia.cooldown'] },
+  { name: 'nelia.abilities', sig: 'nelia.abilities()', level: 'player', group: 'hero', query: true },
   { name: 'nelia.x', sig: 'nelia.x, nelia.y', level: 'player', group: 'hero', also: ['nelia.y'] },
   // Read world
   { name: 'place', sig: 'place(name)', level: 'player', group: 'world' },
@@ -171,6 +192,7 @@ export const API_DOC = [
   { name: 'serf.work_on', sig: 'serf.work_on(target)', level: 'player', group: 'village' },
   { name: 'troop.attack', sig: 'troop.attack(target)', level: 'player', group: 'village', also: ['nelia.attack', 'serf.attack'] },
   { name: 'troop.hold', sig: 'troop.hold() · troop.defend()', level: 'player', group: 'village', also: ['troop.defend', 'nelia.hold', 'nelia.defend'] },
+  { name: 'militia', sig: 'militia(on, serfs=None)', level: 'player', group: 'village' },
   { name: 'building.upgrade', sig: 'building.upgrade()', level: 'player', group: 'village' },
   { name: 'building.change_weather', sig: 'building.change_weather(state) · building.can_change_weather(state)', level: 'player', group: 'village', also: ['building.can_change_weather'] },
   // Staging (missions only)
@@ -285,7 +307,7 @@ export const FIGURE_METHODS = ['step', 'turn_left', 'turn_right', 'turn_to', 'fr
 /** Names of the methods per handle class and level (also read by the scripting reference on the website). */
 export const CLASS_METHODS = {
   Hero: {
-    player: [...FIGURE_METHODS, 'take', 'put', 'attack', 'hold', 'defend'],
+    player: [...FIGURE_METHODS, 'take', 'put', 'attack', 'hold', 'defend', 'use', 'ready', 'cooldown', 'abilities'],
     mission: ['teleport', 'kill'],
   },
   Serf: { player: [...FIGURE_METHODS, 'take', 'put', 'chop', 'work_on', 'attack', 'hold', 'defend'], mission: ['teleport', 'kill'] },
@@ -313,7 +335,7 @@ export const CLASS_PROPS = {
   common: ['id', 'kind', 'owner', 'x', 'y', 'alive', 'hp'],
   Hero: ['name', 'facing', 'down', 'side'],
   Troop: ['type', 'soldiers', 'facing', 'idle', 'side'],
-  Serf: ['idle', 'job', 'res', 'facing', 'side'],
+  Serf: ['idle', 'job', 'res', 'facing', 'side', 'militia'],
   Worker: ['profession', 'side'],
   Building: ['type', 'level', 'done', 'w', 'h', 'max_hp'],
   Tree: ['res', 'amount'],
@@ -727,6 +749,35 @@ export function makeApi(host, level) {
     const [n = 1] = args('buy_serf', a, kw, ['?count']);
     command({ type: 'buySerf', count: intArg(n, 'count') });
     return null;
+  });
+  /**
+   * militia(on, serfs=None): the "To arms!" button at the castle (sim command `militia`) – with True all serfs or the
+   * given ones take up pitchforks, with False they go back to work. Returns how many serfs switched.
+   */
+  def('militia', (ctx, a, kw) => {
+    const fname = 'militia';
+    const [onArg, list, p] = args(fname, a, kw, ['on', '?serfs', '?player']);
+    const on = truthy(onArg);
+    const s = sim();
+    /** @type {Map<number, number[]|null>} owner → serf IDs (null = all) */
+    const byOwner = new Map();
+    if (list === undefined || list === null) byOwner.set(isMission ? playerOf(p) : human(), null);
+    else {
+      for (const h of listOfHandles(list)) {
+        const e = entityOf(h);
+        if (e.kind !== 'unit') throw gameErr('notSerf', { name: fname, figure: CLASS_OF[e.kind] ?? 'Entity' });
+        if (!isMission && e.owner !== human()) throw gameErr('notYours', {});
+        if (!byOwner.has(e.owner)) byOwner.set(e.owner, []);
+        byOwner.get(e.owner).push(e.id);
+      }
+    }
+    const armed = () => { let n = 0; for (const e of s.entities.values()) if (e.kind === 'unit' && byOwner.has(e.owner) && e.militia) n++; return n; };
+    const before = armed();
+    for (const [owner, ids] of [...byOwner].sort((x, y) => x[0] - y[0])) {
+      if (ids && !ids.length) continue;
+      command({ type: 'militia', on, ...(ids ? { units: ids } : {}), player: owner });
+    }
+    return Math.abs(armed() - before);
   });
 
   // ---------- Missions: staging ----------
@@ -1688,6 +1739,8 @@ export function makeApi(host, level) {
           if (name === 'job') return e.job?.kind ?? null;
           // what the serf is cutting or digging right now ("wood", "clay" …)
           if (name === 'res') return e.job?.kind === 'gather' ? e.job.res ?? null : null;
+          // took up arms ("To arms!", militia(True))
+          if (name === 'militia') return !!e.militia;
           break;
         case 'Worker':
           if (name === 'profession') return e.prof;
@@ -1745,7 +1798,24 @@ export function makeApi(host, level) {
   /** Methods that only read and may be asked of visible foreign figures too. */
   const READ_ONLY = new Set(['is_at', 'distance_to']);
   /** Methods that change nothing in the game (the census of the tick stays valid). */
-  const SENSORS = new Set([...READ_ONLY, 'front', 'left', 'right', 'here', 'can_step', 'can_change_weather']);
+  const SENSORS = new Set([...READ_ONLY, 'front', 'left', 'right', 'here', 'can_step', 'can_change_weather', 'ready', 'cooldown', 'abilities']);
+
+  /** Ability of this hero by its script name; unknown names and abilities of another hero are readable errors. */
+  const abilityArg = (e, v) => {
+    const name = strArg(v, 'ability');
+    const own = Object.keys(HEROES[e.hero].abilities);
+    const list = own.map(abilityScriptName).join(', ');
+    const id = abilityIdOf(name);
+    if (id && own.includes(id)) return id;
+    const holder = id ? HERO_IDS.find((h) => Object.hasOwn(HEROES[h].abilities, id)) : null;
+    if (holder) throw gameErr('abilityOther', { ability: id, holder, hero: e.hero, list });
+    // the ID of the data ("shieldBash") → the script name
+    const camel = HERO_IDS.some((h) => Object.hasOwn(HEROES[h].abilities, name)) ? abilityScriptName(name) : null;
+    throw gameErr('abilityUnknown', { name: name.slice(0, 40), hero: e.hero, list, suggestion: camel ?? suggest(name, ABILITY_NAMES) });
+  };
+  /** Ticks until the ability is ready again (0 = ready). */
+  const cooldownLeft = (e, id) => Math.max(0, (e.ready?.[id] ?? 0) - sim().tick);
+  const wholeSeconds = (ticks) => Math.trunc((ticks + T - 1) / T);
 
   const isAt = (e, t) => {
     const c = pt(t);
@@ -1892,6 +1962,43 @@ export function makeApi(host, level) {
           command({ type: 'assignWork', units: [e.id], target: entityOf(t).id, player: e.owner });
         } else if (isThing) command({ type: 'order', units: [e.id], order: 'attack', target: entityOf(t).id, player: e.owner });
         else { const c = pt(t); command({ type: 'order', units: [e.id], order: 'attackMove', x: c.x, y: c.y, player: e.owner }); }
+        return null;
+      }
+      // ----- hero abilities: the same command as the buttons in the hero panel (the effect starts at once) -----
+      case 'abilities':
+        args(name, a, kw, []);
+        return new PyList(Object.keys(HEROES[e.hero].abilities).map(abilityScriptName));
+      case 'ready': case 'cooldown': {
+        const [n] = args(name, a, kw, ['ability']);
+        const left = cooldownLeft(e, abilityArg(e, n));
+        return name === 'cooldown' ? wholeSeconds(left) : !e.down && left === 0;
+      }
+      case 'use': {
+        const [n, t] = args(name, a, kw, ['ability', '?target']);
+        const id = abilityArg(e, n);
+        const ab = HEROES[e.hero].abilities[id];
+        checkUp(e);
+        const left = cooldownLeft(e, id);
+        if (left > 0) throw gameErr('abilityNotReady', { ability: id, s: wholeSeconds(left) });
+        const cmd = { type: 'ability', hero: e.id, ability: id, player: e.owner };
+        if (t !== undefined && t !== null) {
+          if (!ab.aimed) throw gameErr('abilityNoTarget', { ability: id, hero: e.hero });
+          const c = pt(t);
+          if (!s.map.inBounds(c.x, c.y)) throw gameErr('outside', { x: c.x, y: c.y });
+          const dx = tileCenter(c.x) - e.px, dy = tileCenter(c.y) - e.py;
+          if (dx * dx + dy * dy > ABILITY_RANGE * ABILITY_RANGE) {
+            throw gameErr('abilityFar', { ability: id, max: ABILITY_RANGE / UNIT, d: Math.trunc(isqrt(dx * dx + dy * dy) / UNIT) });
+          }
+          cmd.x = c.x; cmd.y = c.y;
+        }
+        if (id === 'bribe') {
+          const target = bribeTarget(s, e);
+          if (!target) throw gameErr('bribeNoTroop', { ability: id, hero: e.hero, r: ab.radius / UNIT });
+          const cost = bribeCost(target), have = s.available(e.owner, 'gold');
+          if (have < cost) throw gameErr('bribeGold', { ability: id, cost, have });
+        }
+        command(cmd);
+        host.focusOn(e.id);
         return null;
       }
       case 'hold': case 'defend': {

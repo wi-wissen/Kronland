@@ -88,7 +88,8 @@ export const HEROES = {
   nelia: {
     name: 'Nelia', title: 'Leibeigenentochter', attack: 16, armor: 4, hp: 600, range: 1300, cooldown: 14, speed: 220,
     abilities: {
-      farsight: { name: 'Weitblick', cooldown: 900, reveal: 18, duration: 300 },
+      // aimed: may take a target point (command x/y, at most ABILITY_RANGE from the hero); otherwise the hero's position
+      farsight: { name: 'Weitblick', aimed: true, cooldown: 900, reveal: 18, duration: 300 },
       courage: { name: 'Mut machen', cooldown: 1200, radius: 6000, duration: 600, attackPercent: 200 },
     },
   },
@@ -114,8 +115,8 @@ export const HEROES = {
   malvor: {
     name: 'Malvor', title: 'Statthalter', attack: 20, armor: 5, hp: 700, range: 1300, cooldown: 14, speed: 210,
     abilities: {
-      fieldGun: { name: 'Feldgeschütz', cooldown: 1800, attack: 14, range: 6000, shots: 4 },
-      caltrops: { name: 'Fußangeln', cooldown: 1800, damage: 36, radius: 2500, hp: 500 },
+      fieldGun: { name: 'Feldgeschütz', aimed: true, cooldown: 1800, attack: 14, range: 6000, shots: 4 },
+      caltrops: { name: 'Fußangeln', aimed: true, cooldown: 1800, damage: 36, radius: 2500, hp: 500 },
     },
   },
 };

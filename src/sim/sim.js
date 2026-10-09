@@ -1059,6 +1059,10 @@ export class Sim {
       h.int(e.id).str(e.kind).int(e.owner ?? -1);
       if (e.fearUntil !== undefined) h.int(e.fearUntil);
       if (e.fleeUntil !== undefined) h.int(e.fleeUntil).int(e.fleeGoal);
+      // Hero abilities: cooldowns and the courage buff (also on squads)
+      if (e.ready) for (const k of Object.keys(e.ready).sort()) h.str(k).int(e.ready[k]);
+      if (e.buff) h.int(e.buff.attackPercent).int(e.buff.until);
+      if (e.militia) h.int(1);
       if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp).int(e.spot ?? -1).int(e.slot ?? -1).int(e.face ?? -1);
       else if (e.kind === 'leader') h.int(e.px).int(e.py).int(e.hp).int(e.targetId).int(e.cooldown).int(e.xp ?? 0).int(e.face ?? -1);
       else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state).int(e.slot ?? -1);
