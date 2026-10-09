@@ -84,11 +84,46 @@ let gestureArmed = false;
 function onFirstGesture() {
   const go = blocked;
   blocked = null;
-  go?.();
+  if (go) go();
+  else unlockPlayer();
+}
+
+/**
+ * One <audio> element for all recordings: stricter browsers (iOS Safari, some Android browsers) allow sound only on an
+ * element that once started inside a tap – a new element per line would be blocked again after the first one.
+ */
+let player = null;
+/** Number of the current line on the player: events of an earlier line are ignored. */
+let playerLine = 0;
+/** The player has played once (inside a gesture or allowed by the browser) */
+let unlocked = false;
+/** 20 ms of silence (8 kHz, 8 bit) */
+const SILENCE = 'data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
+function getPlayer() {
+  if (typeof Audio === 'undefined') return null;
+  // kept across games: a new element would have to be unlocked again (only tests swap Audio)
+  if (!(player instanceof Audio)) { player = new Audio(); unlocked = false; }
+  return player;
+}
+/** Start the player once inside the first gesture (silence), so later lines may play without a tap. */
+function unlockPlayer() {
+  const a = getPlayer();
+  if (!a || unlocked || audio === a) return;
+  playerLine++;
+  a.kronlandOn = null;
+  try {
+    a.src = SILENCE;
+    a.play()?.then?.(() => { unlocked = true; if (audio !== a) a.pause(); }, () => {});
+  } catch { /* without audio */ }
 }
 function waitForGesture(go) {
   blocked = go;
   if (gestureArmed || typeof window === 'undefined') return;
+  gestureArmed = true;
+  for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, onFirstGesture, { capture: true });
+}
+// Unlock the player with the first gesture even when no line waits yet (lines that start later play at once)
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   gestureArmed = true;
   for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, onFirstGesture, { capture: true });
 }
@@ -99,7 +134,18 @@ export function stopSpeech() {
   blocked = null;
   clearInterval(fadeTimer);
   heldAudio = null;
-  try { if (audio) { audio.pause(); audio = null; } } catch { /* without audio */ }
+  try {
+    const a = audio;
+    if (a) {
+      audio = null;
+      if (!a.paused) {
+        a.kronlandSkip = (a.kronlandSkip ?? 0) + 1;
+        a.pause();
+        a.kronlandOn?.stop?.();
+      }
+      a.kronlandOn = null;
+    }
+  } catch { /* without audio */ }
   try { globalThis.speechSynthesis?.cancel(); } catch { /* without speech output */ }
 }
 
@@ -134,27 +180,44 @@ export function speak(msg, lang, opts = {}) {
   const end = once(opts.onEnd);
   if (url && typeof Audio !== 'undefined') {
     try {
-      const a = new Audio(url);
+      const a = getPlayer();
+      const id = ++playerLine;
+      const mine = () => playerLine === id && audio === a;
       audio = a;
-      a.volume = volume;
-      audioVol = volume;
       // The recording does not load (missing file, offline): the browser reads the text instead
       let failed = false;
       const fail = () => {
-        if (failed) return;
+        if (failed || playerLine !== id) return;
         failed = true;
         if (audio === a) audio = null;
         if (!readAloud(msg, lang, volume, end)) end();
       };
-      a.addEventListener('ended', end);
-      a.addEventListener('error', fail);
-      // also when paused (clicked away, next dialogue) – but not when held by a game pause
-      a.addEventListener('pause', () => { if (heldAudio !== a && !failed) end(); });
+      if (!a.kronlandWired) {
+        // Listeners once per element; they hand the event to the current line
+        a.kronlandWired = true;
+        for (const k of ['ended', 'error', 'pause']) {
+          a.addEventListener(k, () => {
+            // the pause of a line stopped by stopSpeech arrives late: it is not the current line's
+            if (k === 'pause' && a.kronlandSkip > 0) { a.kronlandSkip--; return; }
+            a.kronlandOn?.[k]?.();
+          });
+        }
+      }
+      a.kronlandOn = {
+        ended: () => { if (mine()) end(); },
+        error: fail,
+        // also when paused (clicked away, next dialogue) – but not when held by a game pause
+        pause: () => { if (mine() && heldAudio !== a && !failed) end(); },
+        stop: end,
+      };
+      a.src = url;
+      a.volume = volume;
+      audioVol = volume;
       if (holds.size) { heldAudio = a; a.volume = 0; return true; } // starts once the game resumes
-      a.play().catch((e) => {
+      a.play().then(() => { unlocked = true; }, (e) => {
         // No gesture yet: play with the first tap (unless the dialogue is gone by then)
-        if (notAllowed(e)) waitForGesture(() => { if (audio === a) a.play().catch(fail); });
-        else fail();
+        if (notAllowed(e)) waitForGesture(() => { if (mine()) a.play().then(() => { unlocked = true; }, fail); });
+        else if (e?.name !== 'AbortError') fail();
       });
       return true;
     } catch { audio = null; }
