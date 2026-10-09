@@ -131,7 +131,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   dauerhaft eingeebnet; die Bauvorschau zeigt grün (eben), gelb (wird eingeebnet) oder rot (zu steil).
   Regeln und Recherche: [Spielregeln §6a](docs/SPIELREGELN.md#6a-bauen-am-hang).
 - **Trampelpfade und Fußspuren**: Häufig begangene Wege werden erst niedergetretenes Gras, dann Erdpfad; im Schnee
-  bleibt jeder Schritt sichtbar, viele werden zur festgetretenen Spur. Einstellung Aus / Verblassend / Dauerhaft
+  bleibt jeder Schritt sichtbar, viele Fußabdrücke verschmelzen zur festgetretenen Spur. Wie stark getreten wird,
+  richtet sich nach der Größe der Siedlung (ein Dorf hat schnell Pfade, eine Stadt nur auf den Hauptwegen); die Wege
+  schlängeln sich in Kurven statt im Kachelraster. Einstellung Aus / Verblassend / Dauerhaft
   (Spieloption der Simulation, ein Level kann sie festlegen) – [Spielregeln §14](docs/SPIELREGELN.md#14-spuren-und-gegenstände).
 - **Spielstände**: beliebig viele im Browser (IndexedDB, komprimiert) mit Vorschaubild, Datum, Spielzeit und Modus;
   speichern, überschreiben, umbenennen, löschen über Menü → „Spiel speichern“ bzw. „Gespeichertes Spiel laden“
