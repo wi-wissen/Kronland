@@ -2,7 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { Sim } from '../../src/sim/sim.js';
-import { AiPlayer } from '../../src/ai/AiPlayer.js';
+import { addAi } from '../../src/ai/runner.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { createMissionSim } from '../../src/sim/missions/runtime.js';
 import { saveVision } from '../../src/sim/systems/vision.js';
@@ -29,59 +29,56 @@ function slopeSite(sim, type, lo = 150, hi = BALANCE.maxSlope) {
 const rich = (sim, p = 0) => { for (const r of Object.keys(sim.players[p].stock)) sim.players[p].stock[r] = 100000; };
 
 /** Like an exported file (readable JSON) via the import path (file → check → trial load). */
-async function viaFile(sim, ais) {
-  const text = stringifyDoc(createSaveDoc(saveGame(sim, { ais: ais.map((a) => a.getState()) }), { name: 'Datei' }));
+async function viaFile(sim) {
+  const text = stringifyDoc(createSaveDoc(saveGame(sim), { name: 'Datei' }));
   const doc = await readSaveFile(new Blob([text], { type: 'application/json' }));
   const sim2 = loadGame(doc.state);
-  return { sim2, ais2: doc.state.extra.ais.map((st) => AiPlayer.fromState(sim2, st)), doc };
+  return { sim2, doc };
 }
 
-const tick = (sim, ais) => { for (const ai of ais) if (!sim.players[ai.player]?.defeated) ai.update(); sim.step(); };
 const visionOf = (sim) => JSON.stringify(saveVision(sim, (a) => Array.from(a).join(',')));
 
 /** Save via the save-game store (compressed) and load again. */
-async function viaStore(sim, ais) {
+async function viaStore(sim) {
   const store = new SaveStore(new MemoryBackend());
-  const entry = await store.save(saveGame(sim, { ais: ais.map((a) => a.getState()) }), { name: 'Test' });
+  const entry = await store.save(saveGame(sim), { name: 'Test' });
   const doc = await store.load(entry.id);
   const sim2 = loadGame(doc.state);
-  return { sim2, ais2: doc.state.extra.ais.map((st) => AiPlayer.fromState(sim2, st)), entry, doc };
+  return { sim2, entry, doc };
 }
 
 describe('Save game round trip', () => {
   it('free game (3 players, fog): saved and loaded continues the same as unsaved', async () => {
-    const sim = new Sim({ seed: 42, players: 3, fog: true });
-    const ais = [0, 1, 2].map((p) => new AiPlayer(sim, p, 'normal'));
-    for (let i = 0; i < 3000; i++) tick(sim, ais);
-    const { sim2, ais2, entry } = await viaStore(sim, ais);
+    const sim = new Sim({ seed: 42, players: 3, fog: true, ai: ['normal', 'normal', 'normal'] });
+    for (let i = 0; i < 3000; i++) sim.step();
+    const { sim2, entry } = await viaStore(sim);
     expect(entry).toMatchObject({ mode: 'free', seed: 42, players: 3, fog: true, tick: 3000 });
     expect(sim2.hash()).toBe(sim.hash());
-    for (let i = 0; i < 2500; i++) { tick(sim, ais); tick(sim2, ais2); }
+    for (let i = 0; i < 2500; i++) { sim.step(); sim2.step(); }
     expect(sim2.hash()).toBe(sim.hash());
     expect(visionOf(sim2)).toBe(visionOf(sim));
   });
 
   it('mission with fog and ongoing market trade', async () => {
     const sim = createMissionSim('c2');
-    const ais = sim.mission.def.players.map((p, i) => (p.kind === 'ai' ? new AiPlayer(sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
     expect(sim.vision.enabled).toBe(true);
-    for (let i = 0; i < 1500; i++) tick(sim, ais);
+    for (let i = 0; i < 1500; i++) sim.step();
     // market with traders, save with trade in progress
     const m = quickBuild(sim, 'storehouse');
     m.level = 1;
     sim.players[0].stock.gold += 5000;
     let t = 0;
-    while (m.workers.length < 2 && t++ < 3000) tick(sim, ais);
+    while (m.workers.length < 2 && t++ < 3000) sim.step();
     sim.step([{ type: 'trade', player: 0, building: m.id, give: 'gold', take: 'wood', amount: 100 }]);
-    for (let i = 0; i < 40; i++) tick(sim, ais);
+    for (let i = 0; i < 40; i++) sim.step();
     expect(m.trade).toBeTruthy();
 
-    const { sim2, ais2, entry } = await viaStore(sim, ais);
+    const { sim2, entry } = await viaStore(sim);
     expect(entry.mode).toBe('mission');
     expect(entry.mission).toBe('c2');
     expect(sim2.mission.def.id).toBe('c2');
     expect(sim2.hash()).toBe(sim.hash());
-    for (let i = 0; i < 2000; i++) { tick(sim, ais); tick(sim2, ais2); }
+    for (let i = 0; i < 2000; i++) { sim.step(); sim2.step(); }
     expect(sim2.hash()).toBe(sim.hash());
     expect(sim2.market.prices).toEqual(sim.market.prices);
     expect(sim2.market.prices.wood).not.toBe(createMissionSim('c2').market.prices.wood);
@@ -103,17 +100,17 @@ describe('Save game round trip', () => {
 
   it('free game with levelled terrain: heights survive file export/import, same hash afterwards', async () => {
     const sim = new Sim({ seed: 42, players: 2, fog: true });
-    const ais = [new AiPlayer(sim, 1, 'normal')];
+    addAi(sim, 1, 'normal');
     rich(sim);
     const fresh = sim.map.heights.slice();
     const site = slopeSite(sim, 'residence');
     expect(site).not.toBeNull();
     const ev = sim.step([{ type: 'placeBuilding', player: 0, building: 'residence', x: site.x, y: site.y }]);
     expect(ev.some((e) => e.type === 'terrainChanged')).toBe(true);
-    for (let i = 0; i < 300; i++) tick(sim, ais);
+    for (let i = 0; i < 300; i++) sim.step();
     expect(sim.map.heights).not.toEqual(fresh);
 
-    const { sim2, ais2, doc } = await viaFile(sim, ais);
+    const { sim2, doc } = await viaFile(sim);
     expect(doc.meta).toMatchObject({ mode: 'free', fog: true, tick: sim.tick });
     expect(sim2.map.heights).toEqual(sim.map.heights);
     expect(sim2.hash()).toBe(sim.hash());
@@ -121,25 +118,24 @@ describe('Save game round trip', () => {
     const next = slopeSite(sim, 'residence');
     const cmd = { type: 'placeBuilding', player: 0, building: 'residence', x: next.x, y: next.y };
     sim.step([cmd]); sim2.step([{ ...cmd }]);
-    for (let i = 0; i < 1200; i++) { tick(sim, ais); tick(sim2, ais2); }
+    for (let i = 0; i < 1200; i++) { sim.step(); sim2.step(); }
     expect(sim2.map.heights).toEqual(sim.map.heights);
     expect(sim2.hash()).toBe(sim.hash());
   });
 
   it('mission with levelled terrain via the save slot', async () => {
     const sim = createMissionSim('c2');
-    const ais = sim.mission.def.players.map((p, i) => (p.kind === 'ai' ? new AiPlayer(sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
     rich(sim);
-    for (let i = 0; i < 200; i++) tick(sim, ais);
+    for (let i = 0; i < 200; i++) sim.step();
     const site = slopeSite(sim, 'residence');
     expect(site).not.toBeNull();
     const ev = sim.step([{ type: 'placeBuilding', player: 0, building: 'residence', x: site.x, y: site.y }]);
     expect(ev.some((e) => e.type === 'terrainChanged')).toBe(true);
-    for (let i = 0; i < 200; i++) tick(sim, ais);
-    const { sim2, ais2, entry } = await viaStore(sim, ais);
+    for (let i = 0; i < 200; i++) sim.step();
+    const { sim2, entry } = await viaStore(sim);
     expect(entry).toMatchObject({ mode: 'mission', mission: 'c2' });
     expect(sim2.map.heights).toEqual(sim.map.heights);
-    for (let i = 0; i < 1500; i++) { tick(sim, ais); tick(sim2, ais2); }
+    for (let i = 0; i < 1500; i++) { sim.step(); sim2.step(); }
     expect(sim2.hash()).toBe(sim.hash());
     expect(sim2.mission.getState()).toEqual(sim.mission.getState());
   });

@@ -12,7 +12,7 @@ import { averageMotivation, workerSlots, maxMotivation } from '../sim/systems/wo
 import { UNITS, LINES, HEROES, HERO_IDS, unitOf, fullCost, LINE_UPGRADE_COST } from '../sim/data/units.js';
 import { targetable, isEnemy } from '../sim/systems/military.js';
 import { countWorkers, countLeaders, taxIncome } from '../sim/systems/payday.js';
-import { AiPlayer } from '../ai/AiPlayer.js';
+import { addAi, aisOf } from '../ai/runner.js';
 import { saveGame, loadGame } from '../sim/serialize.js';
 import { createMissionSim, createScenarioSim } from '../sim/missions/runtime.js';
 import { StageSnapshot } from '../sim/stage.js';
@@ -112,18 +112,16 @@ export class Engine {
     const heroes = [...HERO_IDS, ...HERO_IDS];
     if (opts.hero && HEROES[opts.hero]) { const i = heroes.indexOf(opts.hero); if (i > 0) [heroes[0], heroes[i]] = [heroes[i], heroes[0]]; }
     if (opts.load) {
+      // Computer opponents are part of the simulation (sim.ai, src/ai/runner.js)
       this.sim = loadGame(opts.load);
-      this.ais = (opts.load.extra?.ais ?? []).map((st) => AiPlayer.fromState(this.sim, st));
     } else if (opts.mission || opts.scenario) {
       // Mission or scenario (world editor, file): players, opponents and setup come from the definition
+      // (players of kind 'ai' become computer opponents inside the simulation)
       this.sim = opts.scenario ? createScenarioSim(opts.scenario, { seed: opts.seed }) : createMissionSim(opts.mission.id, { seed: opts.mission.seed });
-      this.ais = this.sim.mission.def.players
-        .map((p, i) => (p.kind === 'ai' ? new AiPlayer(this.sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
     } else {
       this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes, fog: opts.fog ?? true });
-      /** AI opponents for all other players */
-      this.ais = [];
-      for (let p = 1; p < players; p++) this.ais.push(new AiPlayer(this.sim, p, opts.difficulty ?? 'normal'));
+      // AI opponents for all other players (inside the simulation)
+      for (let p = 1; p < players; p++) addAi(this.sim, p, opts.difficulty ?? 'normal');
     }
     applyPlayerColor(this.player); // player colour (pure rendering, no sim state)
     this.renderer = new Renderer(canvas, this.sim, { player: this.player });
@@ -280,16 +278,15 @@ export class Engine {
   stepOnce() {
     this.prev = new Map();
     for (const e of this.sim.entities.values()) if (e.px !== undefined) this.prev.set(e.id, { px: e.px, py: e.py });
-    const t0 = this.dev ? performance.now() : 0;
-    // Eliminated AI opponents stop thinking; an error in one AI does not halt the game
-    for (const ai of this.ais) {
-      if (this.sim.players[ai.player]?.defeated) continue;
-      try { ai.update(); } catch (err) { this.faults.fail('ai', err); }
-    }
+    // The computer opponents think inside sim.step (src/ai/runner.js); sim.clock lets it measure their time
+    this.sim.clock ??= () => performance.now();
     const t1 = this.dev ? performance.now() : 0;
     const events = this.sim.step(this.queue);
-    if (this.dev) this.dev.afterTick(performance.now() - t1, t1 - t0);
+    if (this.dev) { const ai = this.sim.aiMs ?? 0; this.dev.afterTick(performance.now() - t1 - ai, ai); }
     this.queue = [];
+    // An error in an AI does not halt the game: the simulation drops that decision (after 3 in a row it switches
+    // the AI off, on every client alike); here it is only logged
+    for (const ev of events) if (ev.type === 'aiError') this.faults.fail('ai', Object.assign(new Error(`AI player ${ev.player}: ${ev.message}`), { stack: ev.stack }));
     // Read-only consequences of the tick: count errors there, but do not abort the tick
     const g = this.faults;
     g.run('render', () => this.renderer.onEvents(events), (f) => f && this.fault('render'));
@@ -413,6 +410,7 @@ export class Engine {
       if (ev.type === 'payday' && ev.player === me) this.lastPayday = { income: ev.income, wages: ev.wages, tick: sim.tick };
       if (ev.type === 'bridgeBuilt' && ev.player === me) this.toast('toast.bridgeBuilt', null, { icon: 'b-bridge', tone: 'good', pos: { x: ev.x + ev.w / 2, y: ev.y + ev.h / 2 } });
       if (ev.type === 'bridgeCollapsed' && this.tileVisible(ev.x + ev.w / 2, ev.y + ev.h / 2)) this.toast('toast.bridgeCollapsed', null, { icon: 'b-bridge', tone: 'warn', pos: { x: ev.x + ev.w / 2, y: ev.y + ev.h / 2 } });
+      if (ev.type === 'aiDisabled') this.toast('toast.aiDisabled', { player: ev.player + 1 }, { icon: 'warning', tone: 'warn' });
       if (ev.player !== me) continue;
       if (ev.type === 'rejected') this.toast(ev.reason, ev.params ?? null, { icon: 'warning', tone: 'warn', ttl: 3500 });
       if (ev.type === 'buildingDone' && ev.buildingType !== 'bridge') { // bridge: own notice (bridgeBuilt)
@@ -1023,6 +1021,9 @@ export class Engine {
 
   setSpeed(s) { this.speed = s; this.paused = false; this.emitUi(); }
 
+  /** Computer opponents of the simulation (brains over sim.ai; read-only for developer mode and tests). */
+  get ais() { return aisOf(this.sim); }
+
   /**
    * Save game as a JSON-capable object.
    * @param {{ clone?: boolean }} [opts] clone: false – without deep copy, convert to text immediately (saveGame)
@@ -1030,24 +1031,22 @@ export class Engine {
   save({ clone = true } = {}) {
     const stage = this.stage?.toJSON() ?? null;
     return saveGame(this.sim, {
-      ais: this.ais.map((a) => a.getState()),
       camera: { ...this.renderer.rig.target, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist, pitch: this.renderer.rig.pitch },
       ...(stage ? { stage } : {}),
     }, { clone });
   }
 
   /**
-   * Swap the simulation without a loading screen (stage restart, src/sim/stage.js): renderer and computer opponents
-   * are built anew for the new world; camera, grid, code panel, code and breakpoints stay.
-   * @param {import('../sim/sim.js').Sim} sim @param {{ ais?: any[] }} [extra] extra data of the save game
+   * Swap the simulation without a loading screen (stage restart, src/sim/stage.js): the renderer is built anew for the
+   * new world (computer opponents come with the simulation); camera, grid, code panel, code and breakpoints stay.
+   * @param {import('../sim/sim.js').Sim} sim
    */
-  restart(sim, extra = {}) {
+  restart(sim) {
     const rig = this.renderer.rig;
     const cam = { x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist, pitch: rig.pitch };
     const grid = !!this.renderer.grid;
     try { this.renderer.dispose(); } catch { /* disposal must never prevent the restart */ }
     this.sim = sim;
-    this.ais = (extra.ais ?? []).map((st) => AiPlayer.fromState(sim, st));
     this.renderer = new Renderer(this.canvas, sim, { player: this.player });
     const r = this.renderer.rig;
     r.lookAt(cam.x, cam.z); r.yaw = cam.yaw; r.dist = cam.dist; r.pitch = cam.pitch; r.clamp();
@@ -1305,8 +1304,8 @@ export class Engine {
    */
   scriptRun(sections, debug = null) {
     // "Run" starts the stage over: the first run of a stage remembers the world, every further one restores it
-    const next = this.stage.beforeRun(this.sim, { ais: this.ais.map((a) => a.getState()) });
-    if (next) this.restart(next, this.stage.data?.extra ?? {});
+    const next = this.stage.beforeRun(this.sim);
+    if (next) this.restart(next);
     this.issue({ type: 'script', action: 'run', sections, ...(debug ? { debug } : {}) });
     if (this.debugHalt) { this.paused = false; this.debugHalt = false; }
     this.emitUi();

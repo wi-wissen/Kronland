@@ -7,6 +7,7 @@ import { TileMap } from './map.js';
 import { MissionRuntime } from './missions/runtime.js';
 import { createMarket } from './systems/market.js';
 import { saveVision, loadVision } from './systems/vision.js';
+import { normalizeAiState } from '../ai/AiPlayer.js';
 
 const toB64 = (typed) => {
   const bytes = new Uint8Array(typed.buffer, typed.byteOffset, typed.byteLength);
@@ -24,7 +25,7 @@ const fromB64 = (b64, Type) => {
 /** 2: campaign "Krone aus Eis" (new heroes), expansion without inn/specialists/rifleman */
 export const SAVE_VERSION = 2;
 
-/** @param {Sim} sim @param {any} [extra] e.g. state of the AI opponents */
+/** @param {Sim} sim @param {any} [extra] data of the engine (camera, stage), not part of the simulation */
 export function saveGame(sim, extra = {}, { clone = true } = {}) {
   // Deep copy: the save game shares no objects with the running simulation. Without the copy (clone: false)
   // the result points to the running state and must be turned into text immediately, within the same tick
@@ -60,6 +61,8 @@ export function saveGame(sim, extra = {}, { clone = true } = {}) {
     mission: sim.mission ? sim.mission.getState() : null,
     // Fog of war: explored/visible tiles as bitfields, last seen buildings
     vision: saveVision(sim, toB64),
+    // Computer opponents: memory per AI player (src/ai/runner.js)
+    ai: sim.ai ?? [],
     extra,
   };
   return clone ? structuredClone(state) : state;
@@ -105,6 +108,8 @@ export function loadGame(data) {
   sim.entities = new Map(data.entities.map((e) => [e.id, migrateEntity(e)]));
   sim.mission = data.mission ? MissionRuntime.fromState(data.mission) : null;
   loadVision(sim, data.vision, fromB64);
+  // Computer opponents; older save games kept them outside the simulation (extra.ais)
+  sim.ai = (data.ai ?? data.extra?.ais ?? []).map(normalizeAiState).sort((a, b) => a.player - b.player);
   // Scripts (VM states) need the finished simulation
   sim.mission?.afterLoad(sim);
   return sim;

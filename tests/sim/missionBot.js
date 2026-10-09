@@ -13,7 +13,6 @@
 
 import { UNIT } from '../../src/sim/fixed.js';
 import { createMissionSim } from '../../src/sim/missions/runtime.js';
-import { AiPlayer } from '../../src/ai/AiPlayer.js';
 import { BUILDINGS, buildersOf, isUpgrading } from '../../src/sim/data/buildings.js';
 import { TECHS } from '../../src/sim/data/technologies.js';
 import { UNITS, unitOf, fullCost, LINE_UPGRADE_COST, HEROES } from '../../src/sim/data/units.js';
@@ -1054,7 +1053,6 @@ export const TIME_LIMITS = { c1: 20, c2: 30, c3: 20, c4: 40, c5: 40, c6: 60 };
 export function playMission(id, seed, opts = {}) {
   const sim = createMissionSim(id, seed ? { seed } : {});
   const m = sim.mission;
-  const ais = m.def.players.map((p, i) => (p.kind === 'ai' ? new AiPlayer(sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
   const bot = new MissionBot(sim, opts);
   const maxTicks = (opts.maxMinutes ?? TIME_LIMITS[id] * 1.5) * 600;
   const sampleEvery = (opts.sample ?? 60) * T;
@@ -1079,7 +1077,6 @@ export function playMission(id, seed, opts = {}) {
   };
   for (let i = 0; i < maxTicks && !m.state.result; i++) {
     bot.update();
-    for (const a of ais) if (!sim.players[a.player].defeated) a.update();
     const ev = sim.step();
     for (const e of ev) {
       if (e.type === 'objective' && !report.objectives[e.id]) {

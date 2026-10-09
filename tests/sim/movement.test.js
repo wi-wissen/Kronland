@@ -170,13 +170,12 @@ describe('Stuck figures', () => {
 
 describe('Serfs and workers stay on land', () => {
   it('AI economy 6 min on maps with rivers: nobody stands on water or buildings', async () => {
-    const { AiPlayer } = await import('../../src/ai/AiPlayer.js');
+    const { addAi } = await import('../../src/ai/runner.js');
     for (const seed of [3, 7]) {
       const sim = newSim(seed);
-      const ais = [new AiPlayer(sim, 0, 'hard'), new AiPlayer(sim, 1, 'hard')];
+      addAi(sim, 0, 'hard'); addAi(sim, 1, 'hard');
       let bad = null;
       for (let t = 0; t < 3600 && !bad; t++) {
-        for (const a of ais) a.update();
         sim.step();
         if (sim.map.frozen) continue; // ice is walkable in winter
         if (t % 5 === 0) bad = offGround(sim);
