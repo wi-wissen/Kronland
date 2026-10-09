@@ -85,6 +85,8 @@ test('Split screen, narrow window: notices stay within the game area and leave t
   await page.goto(playUrl('?mission=r1-m&no-models'), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await expect(page.locator('.game.split.compact')).toBeAttached(SLOW);
+  // the goals button appears once the mission has built its world (three worlds: takes a moment longer)
+  await expect(page.getByTestId('objectives')).toBeVisible(SLOW);
   await page.evaluate(() => window.__kronland.toast('err.popLimit', null, { ttl: 60000 }));
   await expect(page.getByTestId('toasts').locator('.toast').first()).toBeVisible();
   const r = await page.evaluate(() => {
