@@ -369,9 +369,11 @@ describe('Save games of rewritten missions', () => {
   it('an old save of a mission that is a level folder now cannot be continued (readable error)', () => {
     const sim = level('');
     const data = JSON.parse(JSON.stringify(saveGame(sim)));
-    // as an old JS save of mission 1 would look: no scenario, not an own level
-    const state = { ...data.mission, id: 'c1', scenario: null, custom: false };
-    expect(() => MissionRuntime.fromState(state)).toThrow(expect.objectContaining({ code: 'saves.err.missionChanged' }));
+    // as an old JS save of a campaign mission would look: no scenario, not an own level
+    for (const id of ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'tutorial']) {
+      const state = { ...data.mission, id, scenario: null, custom: false };
+      expect(() => MissionRuntime.fromState(state), id).toThrow(expect.objectContaining({ code: 'saves.err.missionChanged' }));
+    }
   });
 
   it('frozen water is never chosen by find_open in winter unless on_ice', () => {

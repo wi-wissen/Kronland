@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Sim } from '../../src/sim/sim.js';
-import { MissionRuntime, createMissionSim } from '../../src/sim/missions/runtime.js';
+import { MissionRuntime, createMissionSim, createScenarioSim } from '../../src/sim/missions/runtime.js';
 import { CAMPAIGN, allMissions, getMission } from '../../src/sim/missions/registry.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { AiPlayer } from '../../src/ai/AiPlayer.js';
@@ -8,14 +8,6 @@ import { tr } from '../../src/i18n/tr.js';
 import * as api from '../../src/sim/missions/setupApi.js';
 import { act, build, own, hero, objective, stepId, until, idle, P, ref, refIds, talkTo, py, stepWithEvent, takeOut, heroOf } from './missionBot.js';
 import { playTutorial, playMission1, meetOrrin } from './playthroughs.js';
-
-/** Small test mission directly from a definition (without registry). */
-function testSim(def, seed = 42) {
-  const full = { id: 'test', title: { de: 'T', en: 'T' }, players: [{ kind: 'human', hero: 'nelia' }], objectives: [], events: [], ...def };
-  const real = full.players.filter((p) => p.kind !== 'bandits');
-  const m = new MissionRuntime(full);
-  return new Sim({ seed, players: real.length, heroes: real.map((p) => p.hero ?? null), mission: m });
-}
 
 /** Collect all texts of a mission (recursively). */
 function texts(obj, out = []) {
@@ -44,14 +36,24 @@ describe('Translation helper', () => {
   });
 });
 
+/** Small test level: a generated map, the mission program `code` (Python), more scenario fields in `extra`. */
+function testSim(code, extra = {}, seed = 42) {
+  return createScenarioSim({
+    format: 'kronland-scenario', version: 2, id: 'test', kind: 'mission', end: 'objectives',
+    world: { base: 'generate', seed, size: 64, fog: true },
+    players: [{ kind: 'human', hero: 'nelia' }],
+    sections: [{ id: 'mission', level: 'mission', code }],
+    ...extra,
+  });
+}
+const scriptErrors = (sim) => sim.mission.script.state.errors.map((e) => `${e.code} ${JSON.stringify(e.params)} line ${e.sline}`);
+
 describe('Objectives', () => {
   it('build objective with progress; victory when all main objectives are fulfilled', () => {
-    const sim = testSim({
-      objectives: [
-        { id: 'farm', type: 'build', building: 'farm', primary: true, text: { de: 'x', en: 'x' } },
-        { id: 'opt', type: 'build', building: 'residence', count: 2, text: { de: 'x', en: 'x' } },
-      ],
-    });
+    const sim = testSim([
+      'objective("farm", lambda: (count("farm"), 1), de="x", en="x")',
+      'objective("opt", lambda: (count("residence"), 2), primary=False, de="x", en="x")',
+    ].join('\n'));
     sim.step();
     expect(objective(sim, 'farm').progress).toEqual([0, 1]);
     const id = build(sim, 'farm');
@@ -61,70 +63,64 @@ describe('Objectives', () => {
     expect(sim.mission.state.result).toMatchObject({ won: true, reason: 'objectives' });
   });
 
-  it('resource, research, workers, motivation, population', () => {
-    const sim = testSim({
-      players: [{ kind: 'human', hero: 'nelia', stock: { gold: 100, clay: 0, wood: 0, stone: 0, iron: 0, sulfur: 0 } }],
-      objectives: [
-        { id: 'gold', type: 'stock', res: 'gold', amount: 500, primary: true, text: { de: 'x', en: 'x' } },
-        { id: 'edu', type: 'research', tech: 'education', primary: true, text: { de: 'x', en: 'x' } },
-        { id: 'w', type: 'workers', count: 1, primary: true, text: { de: 'x', en: 'x' } },
-        { id: 'mot', type: 'motivation', value: 100, primary: true, text: { de: 'x', en: 'x' } },
-        { id: 'pop', type: 'population', count: 5, primary: true, text: { de: 'x', en: 'x' } },
-      ],
-    });
+  it('resource, research, workers: conditions read the game', () => {
+    const sim = testSim([
+      'objective("gold", lambda: (stock("gold"), 500), de="x", en="x")',
+      'objective("edu", lambda: researched("education"), de="x", en="x")',
+      'objective("w", lambda: (count("worker"), 1), de="x", en="x")',
+    ].join('\n'), { players: [{ kind: 'human', hero: 'nelia', stock: { gold: 100, clay: 0, wood: 0, stone: 0, iron: 0, sulfur: 0 } }] });
     sim.step();
     expect(objective(sim, 'gold').progress).toEqual([100, 500]);
-    expect(objective(sim, 'mot').status).toBe('done'); // without workers the start motivation applies
     sim.players[0].stock.gold = 600;
     sim.players[0].techs.add('education');
     sim.step();
     expect(objective(sim, 'gold').status).toBe('done');
     expect(objective(sim, 'edu').status).toBe('done');
     expect(objective(sim, 'w').status).toBe('active');
-    act(sim, { type: 'buySerf', count: 1 });
-    sim.step();
-    expect(objective(sim, 'pop').status).toBe('done');
   });
 
-  it('recruiting only counts matching troops from the reveal on', () => {
-    const sim = testSim({
-      players: [{ kind: 'human', hero: 'nelia', techs: ['conscription'], stock: { gold: 5000, wood: 5000, iron: 5000, stone: 5000, clay: 5000, sulfur: 0 } }],
-      objectives: [{ id: 'swords', type: 'recruit', line: 'sword', count: 2, primary: true, text: { de: 'x', en: 'x' } }],
-    });
+  it('recruiting: @on_recruited counts only matching troops', () => {
+    const sim = testSim([
+      'swords = 0',
+      'objective("swords", lambda: (swords, 2), de="x", en="x")',
+      '@on_recruited',
+      'def recruited(troop):',
+      '    global swords',
+      '    if troop.type.startswith("sword"):',
+      '        swords += 1',
+    ].join('\n'), { players: [{ kind: 'human', hero: 'nelia', techs: ['conscription'], stock: { gold: 5000, wood: 5000, iron: 5000, stone: 5000, clay: 5000, sulfur: 0 } }] });
     const b = api.placeBuilding(sim, 0, 'barracks', api.centerOf(sim.findBuilding(0, 'headquarters')), { minR: 5 });
     act(sim, { type: 'recruit', building: b.id, line: 'spear', full: false });
     act(sim, { type: 'recruit', building: b.id, line: 'sword', full: false });
+    sim.step();
     expect(objective(sim, 'swords').progress).toEqual([1, 2]);
     act(sim, { type: 'recruit', building: b.id, line: 'sword', full: false });
+    sim.run(2);
     expect(objective(sim, 'swords').status).toBe('done');
   });
 
-  it('survive, reach region, archers (defeat on loss)', () => {
-    const sim = testSim({
-      setup(ctx) {
-        const hq = ctx.hqCenter();
-        ctx.ref('goal', { ...ctx.api.findOpen(ctx.sim, hq.x + 8, hq.y + 8, { from: hq }), r: 4 });
-        ctx.ref('vc', ctx.sim.findBuilding(0, 'villageCenter').id);
-      },
-      objectives: [
-        { id: 'live', type: 'survive', seconds: 30, primary: true, text: { de: 'x', en: 'x' } },
-        { id: 'go', type: 'reach', area: 'goal', who: 'hero', primary: true, text: { de: 'x', en: 'x' } },
-        { id: 'keep', type: 'protect', ref: 'vc', primary: true, text: { de: 'x', en: 'x' } },
-      ],
-    });
-    const g = sim.mission.state.refs.goal;
+  it('survive (clock), reach region, protect (hold, defeat on loss)', () => {
+    const code = [
+      'goal = find_open((hq().x + 8, hq().y + 8), reachable_from=hq())',
+      'make_place("goal", goal.x, goal.y, 4)',
+      'centre = buildings("villageCenter")[0]',
+      'objective("live", lambda: (min(30, int(time())), 30), clock=True, de="x", en="x")',
+      'objective("go", lambda: len(units_in(place("goal"), who="hero")) > 0, de="x", en="x")',
+      'objective("keep", lambda: centre.alive, hold=True, de="x", en="x")',
+    ].join('\n');
+    const sim = testSim(code);
+    expect(scriptErrors(sim)).toEqual([]);
+    const g = ref(sim, 'goal');
     act(sim, { type: 'order', units: [hero(sim).id], order: 'move', x: g.x, y: g.y });
     until(sim, () => objective(sim, 'go').status === 'done', 1000);
     expect(objective(sim, 'go').status).toBe('done');
     expect(sim.mission.state.result).toBeNull();
+    expect(sim.mission.uiState(sim).objectives.find((o) => o.id === 'live').time).toBe(true);
     until(sim, () => sim.mission.state.result, 400);
     expect(sim.mission.state.result.won).toBe(true);
     expect(objective(sim, 'keep').status).toBe('done'); // held goals count as fulfilled on victory
 
-    const sim2 = testSim({
-      setup(ctx) { ctx.ref('vc', ctx.sim.findBuilding(0, 'villageCenter').id); },
-      objectives: [{ id: 'keep', type: 'protect', ref: 'vc', primary: true, text: { de: 'x', en: 'x' } }],
-    });
+    const sim2 = testSim(code);
     sim2.step();
     sim2.removeEntity(sim2.findBuilding(0, 'villageCenter'));
     sim2.step();
@@ -132,14 +128,15 @@ describe('Objectives', () => {
     expect(sim2.mission.state.result).toMatchObject({ won: false, reason: 'keep' });
   });
 
-  it('hidden objectives only appear through a trigger', () => {
-    const sim = testSim({
-      objectives: [
-        { id: 'a', type: 'stock', res: 'gold', amount: 1, primary: true, hidden: true, text: { de: 'x', en: 'x' } },
-        { id: 'b', type: 'survive', seconds: 100, primary: true, text: { de: 'x', en: 'x' } },
-      ],
-      events: [{ id: 'show', when: { type: 'time', at: 5 }, do: { type: 'reveal', id: 'a' } }],
-    });
+  it('hidden objectives only appear through show_objective()', () => {
+    const sim = testSim([
+      'objective("a", lambda: stock("gold") >= 1, hidden=True, de="x", en="x")',
+      'objective("b", lambda: time() >= 100, de="x", en="x")',
+      '@on_start',
+      'def show():',
+      '    wait(5)',
+      '    show_objective("a")',
+    ].join('\n'));
     sim.run(10);
     expect(objective(sim, 'a').status).toBe('hidden');
     expect(sim.mission.uiState(sim).objectives.map((o) => o.id)).toEqual(['b']);
@@ -148,7 +145,7 @@ describe('Objectives', () => {
   });
 
   it('castle destroyed: defeat; enemy castle destroyed: victory', () => {
-    const lose = testSim({ objectives: [{ id: 's', type: 'survive', seconds: 100, primary: true, text: { de: 'x', en: 'x' } }] });
+    const lose = testSim('objective("s", lambda: time() >= 100, de="x", en="x")');
     const hq = lose.findBuilding(0, 'headquarters');
     lose.step();
     hq.hp = 1;
@@ -156,9 +153,8 @@ describe('Objectives', () => {
     lose.step();
     expect(lose.mission.state.result).toMatchObject({ won: false, reason: 'hq' });
 
-    const win = testSim({
+    const win = testSim('objective("k", lambda: hq(ENEMY) is None, de="x", en="x")', {
       players: [{ kind: 'human', hero: 'nelia' }, { kind: 'ai', difficulty: 'easy', aggression: 'passive' }],
-      objectives: [{ id: 'k', type: 'destroyHq', target: 'enemy', primary: true, text: { de: 'x', en: 'x' } }],
     });
     win.step();
     const ehq = win.findBuilding(1, 'headquarters');
@@ -168,19 +164,33 @@ describe('Objectives', () => {
   });
 });
 
-describe('Triggers and actions', () => {
-  it('time, goal fulfilled, building built, resource reached; actions dialogue, resources, tech, weather, camera', () => {
-    const sim = testSim({
-      players: [{ kind: 'human', hero: 'nelia' }, { kind: 'bandits' }],
-      objectives: [{ id: 'g', type: 'stock', res: 'gold', amount: 900, text: { de: 'x', en: 'x' } }],
-      events: [
-        { id: 't', when: { type: 'time', at: 2 }, do: [{ type: 'dialog', speaker: 'ottilie', text: { de: 'Hallo', en: 'Hi' } }, { type: 'give', res: { gold: 1000 }, techs: ['alchemy'] }] },
-        { id: 'o', when: { type: 'objective', id: 'g' }, do: [{ type: 'weather', state: 'winter', seconds: 30 }, { type: 'camera', at: 'humanHq' }] },
-        { id: 'r', when: { type: 'resource', res: 'gold', amount: 1400 }, do: { type: 'flag', name: 'rich' } },
-        { id: 'b', when: { type: 'built', building: 'residence', placed: true }, do: { type: 'flag', name: 'house' } },
-        { id: 'rep', when: { type: 'time', at: 1 }, every: 1, times: 3, do: { type: 'give', res: { wood: 1 } } },
-      ],
-    });
+describe('Mission program: events and actions', () => {
+  it('time, objective, building placed; dialogue, resources, tech, weather, camera, repeated events', () => {
+    const sim = testSim([
+      'house = False',
+      'ticks = 0',
+      'objective("g", lambda: stock("gold") >= 900, primary=False, de="x", en="x")',
+      '@on_start',
+      'def later():',
+      '    wait(2)',
+      '    say("ottilie", de="Hallo", en="Hi", wait=False)',
+      '    give(HUMAN, gold=1000)',
+      '    give_tech(HUMAN, "alchemy")',
+      '@on_objective("g", "done")',
+      'def rich(id, status):',
+      '    set_weather("winter", 30)',
+      '    camera.jump_to(hq())',
+      '@on_building_placed("residence")',
+      'def placed(b):',
+      '    global house',
+      '    house = True',
+      '@every(1)',
+      'def count_up():',
+      '    global ticks',
+      '    if ticks < 3:',
+      '        ticks += 1',
+      '        give(HUMAN, wood=1)',
+    ].join('\n'), { players: [{ kind: 'human', hero: 'nelia' }, { kind: 'bandits' }] });
     const wood0 = sim.players[0].stock.wood;
     sim.run(25);
     const st = sim.mission.state;
@@ -190,33 +200,32 @@ describe('Triggers and actions', () => {
     expect(sim.weather.state).toBe('winter');
     expect(sim.map.frozen).toBe(true);
     expect(st.camera).toMatchObject({ x: expect.any(Number) });
-    expect(st.flags.rich).toBe(true);
-    expect(st.flags.house).toBeUndefined();
+    expect(py(sim, 'house')).toBe(false);
     sim.run(30);
-    expect(st.fireCount.rep).toBe(3);
+    expect(py(sim, 'ticks')).toBe(3);
     expect(sim.players[0].stock.wood).toBe(wood0 + 3);
     build(sim, 'residence');
     sim.step();
-    expect(st.flags.house).toBe(true);
+    expect(py(sim, 'house')).toBe(true);
     sim.run(300);
     expect(sim.weather.state).not.toBe('winter'); // after 30 s the cycle again
   });
 
-  it('attack wave with attack-move reaches the castle; death of all attackers triggers', () => {
-    const sim = testSim({
-      players: [{ kind: 'human', hero: null }, { kind: 'bandits' }],
-      setup(ctx) {
-        const hq = ctx.hqCenter();
-        const p = ctx.api.findOpen(ctx.sim, hq.x + 18, hq.y + 18, { from: hq, clear: 2 });
-        ctx.ref('gate', { ...p, r: 2 });
-      },
-      events: [
-        { id: 'w', when: { type: 'time', at: 1 }, do: { type: 'spawn', owner: 'bandits', at: 'gate', units: [{ def: 'sword1', count: 2, soldiers: 4 }], order: 'attackMove', target: 'humanHq', ref: 'wave' } },
-        { id: 'gone', when: { type: 'dead', ref: 'wave' }, do: { type: 'victory' } },
-      ],
-    });
+  it('attack wave with attack-move reaches the castle; once all attackers are gone the mission is won', () => {
+    const sim = testSim([
+      'gate = find_open((hq().x + 18, hq().y + 18), reachable_from=hq(), clear=2)',
+      '@on_start',
+      'def raid():',
+      '    global wave',
+      '    wait(1)',
+      '    wave = spawn(BANDITS, "sword1", gate, count=2, soldiers=4)',
+      '    attack(wave, (hq().x, hq().y))',
+      '    wait_until(lambda: alive(wave) == 0)',
+      '    victory()',
+      'wave = []',
+    ].join('\n'), { end: 'script', players: [{ kind: 'human', hero: null }, { kind: 'bandits' }] });
     sim.run(15);
-    const ids = sim.mission.idsOf('wave');
+    const ids = refIds(sim, 'wave');
     expect(ids.length).toBe(2);
     expect(sim.entities.get(ids[0]).order.type).toBe('attackMove');
     // the wave marches off and damages buildings at the castle (castle or village centre)
@@ -224,45 +233,41 @@ describe('Triggers and actions', () => {
     const hp0 = mine().reduce((s, b) => s + b.hp, 0);
     until(sim, () => mine().reduce((s, b) => s + b.hp, 0) < hp0, 1500);
     expect(mine().reduce((s, b) => s + b.hp, 0)).toBeLessThan(hp0);
-    for (const id of ids) { const L = sim.entities.get(id); if (!L) continue; for (const s of L.soldiers) sim.entities.delete(s); sim.entities.delete(id); }
+    takeOut(sim, ids);
     sim.step();
     expect(sim.mission.state.result).toMatchObject({ won: true });
   });
 
   it('bandits never build, defend their camp and do not count as a winning team', () => {
-    const sim = testSim({
-      players: [{ kind: 'human', hero: 'nelia' }, { kind: 'bandits' }],
-      setup(ctx) {
-        const hq = ctx.hqCenter();
-        ctx.camp('c', ctx.api.toward(hq, ctx.mapCenter(), 20), [{ def: 'spear1', count: 1, soldiers: 2 }], { from: hq });
-      },
-      objectives: [{ id: 'c', type: 'destroy', ref: 'c', primary: true, text: { de: 'x', en: 'x' } }],
-    });
+    const sim = testSim([
+      'guards = camp("c", toward(hq(), map_center(), 20), [("spear1", 1, 2)], reachable_from=hq())',
+      'objective("c", lambda: alive(guards) == 0, de="x", en="x")',
+    ].join('\n'), { players: [{ kind: 'human', hero: 'nelia' }, { kind: 'bandits' }] });
     const b = sim.mission.state.bandits;
     expect(b).toBe(1);
     expect(sim.players[b].neutral).toBe(true);
     expect(sim.findBuilding(b, 'headquarters')).toBeNull();
-    const guard = sim.entities.get(sim.mission.state.refs.cGuards[0]);
-    const g0 = { ...guard.anchor };
+    const guard = sim.entities.get(refIds(sim, 'guards')[0]);
     sim.run(200);
     expect(guard.order.type).toBe('idle'); // without a reason they stay put
     // hero approaches → alarm
-    const area = sim.mission.state.refs.cArea;
+    const area = ref(sim, 'c');
     act(sim, { type: 'order', units: [hero(sim).id], order: 'move', x: area.x, y: area.y + 2 });
     until(sim, () => sim.mission.state.camps[0].alarm > 0, 1500);
     expect(sim.mission.state.camps[0].alarm).toBeGreaterThan(0);
     expect(guard.order.type === 'attackMove' || guard.targetId > 0).toBe(true);
-    expect(g0).toBeTruthy();
     expect(sim.winner).toBeNull();
     // bandits give no commands to build: no construction sites
     expect([...sim.entities.values()].filter((e) => e.kind === 'building' && e.owner === b).length).toBe(1);
   });
 
-  it('AI opponent: start delay, aggression and build bans from the mission', () => {
-    const sim = testSim({
-      players: [{ kind: 'human', hero: 'nelia' }, { kind: 'ai', difficulty: 'normal', startDelay: 30, forbid: ['residence'] }],
-      events: [{ id: 'mad', when: { type: 'time', at: 60 }, do: { type: 'ai', player: 'enemy', aggression: 'aggressive', difficulty: 'hard' } }],
-    });
+  it('AI opponent: start delay and build bans from scenario.json, ai() changes difficulty and aggression', () => {
+    const sim = testSim([
+      '@on_start',
+      'def mad():',
+      '    wait(60)',
+      '    ai(ENEMY, difficulty="hard", aggression="aggressive")',
+    ].join('\n'), { end: 'script', players: [{ kind: 'human', hero: 'nelia' }, { kind: 'ai', difficulty: 'normal', startDelay: 30, forbid: ['residence'] }] });
     const ai = new AiPlayer(sim, 1, 'normal');
     for (let i = 0; i < 290; i++) { ai.update(); sim.step(); }
     expect([...sim.entities.values()].filter((e) => e.kind === 'building' && e.owner === 1).length).toBe(2); // still waiting
@@ -347,8 +352,8 @@ describe('Campaign', () => {
     CAMPAIGN.forEach((m, i) => {
       expect(m.briefing?.de && m.victoryText?.de && m.defeatText?.de).toBeTruthy();
       expect(m.next ?? null).toBe(CAMPAIGN[i + 1]?.id ?? null);
-      // mission files declare their objectives, level folders in Python (read from the code)
-      const goals = m.objectives?.length ? m.objectives : m.goals;
+      // objectives in Python (read from the code)
+      const goals = m.goals;
       expect(goals.some((o) => o.primary)).toBe(true);
       expect(goals.some((o) => !o.primary)).toBe(true); // every mission has side objectives
     });
@@ -359,23 +364,21 @@ describe('Campaign', () => {
     const st = sim.mission.state;
     expect(st.warnings).toEqual([]);
     const def = getMission(id);
-    // every reference points to something existing
-    for (const [k, v] of Object.entries(st.refs)) {
-      if (typeof v === 'number') expect(sim.entities.has(v), k).toBe(true);
-    }
-    // all target regions are reachable (in the matching weather) – from the castle or from the start spot
+    // The Python world building ran without errors; the places it made can be reached (in the matching weather) –
+    // from the castle or from the start spot
+    expect(sim.mission.script.state.errors, id).toEqual([]);
     const hqB = sim.findBuilding(0, 'headquarters');
     const hq = hqB ? api.centerOf(hqB) : sim.starts[0];
-    for (const name of Object.keys(st.refs).filter((k) => k.endsWith('Area') || ['spot', 'isle', 'clayShaft'].includes(k))) {
-      const a = st.refs[name];
-      expect(api.reachable(sim, hq, a, true), `${id}/${name}`).toBe(true);
-    }
-    // Level folders: the Python world building ran without errors, its places can be reached
-    if (sim.mission.script) {
-      expect(sim.mission.script.state.errors, id).toEqual([]);
-      for (const [name, p] of Object.entries(sim.mission.script.places)) {
-        if (name.endsWith('Area') || ['clayShaft', 'oldRoot', 'orrinSeat', 'collectorFrom'].includes(name)) expect(api.reachable(sim, hq, p, true), `${id}/${name}`).toBe(true);
-      }
+    const places = sim.mission.script.places;
+    const WANT = {
+      c1: ['clayShaft', 'oldRoot', 'orrinSeat', 'collectorFrom', 'square', 'villageArea'], c2: ['townArea', 'robbers'],
+      c3: ['isle', 'gate', 'gorge', 'valley', 'ruinsArea', 'landing', 'prison', 'gateCamp', 'worksCamp', 'ford'],
+      c4: ['town', 'siegeA', 'siegeB'], c5: ['moorbrookArea', 'reedhamArea', 'alderfarmArea', 'taranCamp'],
+      c6: ['isle', 'worksIsle', 'shore', 'northGate'],
+    };
+    for (const name of WANT[id]) {
+      expect(Object.hasOwn(places, name), `${id}/${name}`).toBe(true);
+      expect(api.reachable(sim, hq, places[name], true), `${id}/${name}`).toBe(true);
     }
     sim.run(100);
     expect(st.result).toBeNull();
@@ -397,7 +400,7 @@ describe('Campaign', () => {
     meetOrrin(sim);
     // root reached → conversation figure stands
     const r = ref(sim, 'oldRoot');
-    const nelia = sim.entities.get(st.refs.nelia);
+    const nelia = heroOf(sim, 'nelia');
     nelia.px = r.x * 1000 + 500; nelia.py = r.y * 1000 + 500;
     until(sim, () => st.npcs.elder, 50);
     const elder = sim.entities.get(st.npcs.elder.entity);
@@ -698,7 +701,6 @@ describe('Determinism and save games', () => {
   it('mission state is saved and loaded; afterwards everything continues identically', () => {
     // Morvale: villages (diplomacy), tributes, conversation figures and Taran's side change after loading
     const { sim, ais } = runMission('c5', 1600);
-    sim.mission.state.flags.test = 1;
     const data = JSON.parse(JSON.stringify(saveGame(sim, { ais: ais.map((a) => a.getState()) })));
     expect(data.mission.id).toBe('c5');
     const sim2 = loadGame(data);

@@ -159,7 +159,8 @@ describe('Voiced lines', () => {
       }
     }
     expect(missing).toEqual([]);
-    expect(n).toBeGreaterThanOrEqual(2 * 37);
+    expect(CAMPAIGN_LEVELS.map((x) => x.id).sort()).toEqual(['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'tutorial']);
+    expect(n).toBeGreaterThanOrEqual(2 * 130);
     // The voice tools collect the same lines (from the Python syntax tree)
     const all = missionLines();
     for (const s of CAMPAIGN_LEVELS) expect(all.filter((l) => l.mission === s.id).length, s.id).toBe(scenarioLines(s).length);

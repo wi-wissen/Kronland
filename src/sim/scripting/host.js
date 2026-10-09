@@ -672,7 +672,7 @@ export class ScriptHost {
 
   objectiveAction(action, id) {
     if (!this.runtime.state.objectives.some((o) => o.id === id)) throw new ScriptError('game', { reason: 'script.game.objectiveUnknown', reasonParams: { id } });
-    this.runtime.runAction(this.sim, { type: action, id });
+    this.runtime.objectiveAction(this.sim, action, id);
   }
 
   /**

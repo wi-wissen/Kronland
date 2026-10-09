@@ -3,7 +3,7 @@
 // The full matrix (4 maps, table) is delivered by `node scripts/campaign-matrix.js`.
 
 import { describe, it, expect } from 'vitest';
-import { playMission, TIME_LIMITS, ref, refIds, objective, until, py, stepWithEvent, takeOut } from './missionBot.js';
+import { playMission, TIME_LIMITS, ref, refIds, objective, until, py, stepWithEvent, takeOut, heroOf } from './missionBot.js';
 import { meetOrrin } from './playthroughs.js';
 import { getMission } from '../../src/sim/missions/registry.js';
 import { createMissionSim } from '../../src/sim/missions/runtime.js';
@@ -37,7 +37,7 @@ describe('Campaign: setup and texts', () => {
   it('mission 1: the whole find conversation reaches the UI in order, line by line, the serfs come with the villager', () => {
     const sim = createMissionSim('c1');
     meetOrrin(sim);
-    const r = ref(sim, 'oldRoot'), nelia = sim.entities.get(sim.mission.state.refs.nelia);
+    const r = ref(sim, 'oldRoot'), nelia = heroOf(sim, 'nelia');
     nelia.px = r.x * 1000 + 500; nelia.py = r.y * 1000 + 500; nelia.path = [];
     expect(until(sim, () => objective(sim, 'root').status === 'done', 50)).toBe(true);
     const serfs = () => [...sim.entities.values()].filter((e) => e.kind === 'unit' && e.owner === 0).length;
@@ -163,7 +163,7 @@ describe('Campaign with bot', () => {
     expect(report.minutes).toBeLessThanOrEqual(TIME_LIMITS[id]);
     // all main objectives fulfilled
     const def = getMission(id);
-    for (const o of (def.objectives?.length ? def.objectives : def.goals).filter((x) => x.primary)) expect(report.objectives[o.id]?.status, `${id}/${o.id}`).toBe('done');
+    for (const o of def.goals.filter((x) => x.primary)) expect(report.objectives[o.id]?.status, `${id}/${o.id}`).toBe('done');
   }, 120000);
 
   it('Mission 5: without deliveries and troops Morvale stays lost (the villages do not return)', () => {

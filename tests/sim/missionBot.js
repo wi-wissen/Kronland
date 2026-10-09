@@ -85,7 +85,7 @@ export const tileOf = (e) => ({ x: Math.floor(e.px / UNIT), y: Math.floor(e.py /
 export const objective = (sim, id) => sim.mission.state.objectives.find((o) => o.id === id);
 
 /**
- * Place or game object of a mission by name: a reference of a mission file (state.refs), a place of a level
+ * Place or game object of a mission by name: a reference of a developer map (state.refs), a place of a level
  * (make_place, scenario.json) or a global variable of its Python program – a game object gives its entity ID, a list
  * of them a list of IDs. Unknown: undefined.
  */
@@ -420,7 +420,6 @@ export class MissionBot {
     return true;
   }
   /** Position of a conversation figure (or null). */
-  npcAt(id) { const n = this.m.state.npcs[id]; const e = n && this.sim.entities.get(n.entity); return e ? tile(e) : null; }
 
   scan() {
     const sim = this.sim;

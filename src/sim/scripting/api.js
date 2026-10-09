@@ -936,7 +936,7 @@ export function makeApi(host, level) {
       else if (hasKey(TECHS, id) || hasKey(BUILDING_TECHS, id)) techs.push(id);
       else throw gameErr('kindUnknown', { name: id, suggestion: suggest(id, [...Object.keys(BUILDINGS), ...Object.keys(TECHS), ...Object.keys(BUILDING_TECHS)]) });
     }
-    host.runtime.runAction(sim(), { type: 'unlock', buildings, techs });
+    host.runtime.unlock(sim(), buildings, techs);
     return null;
   }, true);
 
@@ -1185,14 +1185,14 @@ export function makeApi(host, level) {
   }, true);
   def('ai', (ctx, a, kw) => {
     const [p, difficulty, aggression, startIn, attackNow = false, forbidV] = args('ai', a, kw, ['player', '?difficulty', '?aggression', '?start_in', '?attack_now', '?forbid']);
-    const act = { type: 'ai', player: playerOf(p) };
+    const act = {};
     if (difficulty) act.difficulty = strArg(difficulty, 'difficulty');
     if (aggression) act.aggression = strArg(aggression, 'aggression');
     if (startIn !== undefined && startIn !== null) act.startIn = toTicks(startIn, 'start_in') / T;
     if (truthy(attackNow)) act.attackNow = true;
     // forbid: building kinds the computer opponent must not build (e.g. no weather power plant)
     if (forbidV !== undefined && forbidV !== null) act.forbid = (forbidV instanceof PyList || forbidV instanceof PyTuple ? forbidV.items : [forbidV]).map((x) => buildingArg(x));
-    host.runtime.runAction(sim(), act);
+    host.runtime.setAi(sim(), playerOf(p), act);
     return null;
   }, true);
 
