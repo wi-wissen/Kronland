@@ -242,7 +242,7 @@ describe('Game option: off / fading / permanent', () => {
     const sim = createMissionSim('r1-4', { tracks: 'off' });
     expect(sim.trackMode).toBe('permanent');
     expect(sim.trackModeFixed).toBe(true);
-    expect(tileKind(sim, 7, 22)).toBe('track');
+    expect(tileKind(sim, 7, 10)).toBe('track');
   });
 });
 
