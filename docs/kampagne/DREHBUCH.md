@@ -154,6 +154,10 @@ diese Zeilen ersatzlos; jede Mission funktioniert in der neutralen Fassung.
 ---
 # Teil 2 – Die Missionen
 
+> **Stand:** Mission 3 ist neu geschrieben (mit Erzählerin, Figuren sprechen den Spieler nicht an) und gilt als
+> Maßstab, siehe [Leitfaden](LEITFADEN.md). Die Missionen 1, 2, 4, 5 und 6 sind noch die alte Fassung und werden in
+> diesem Stil neu geschrieben.
+
 ## Mission 1 – Lindgrund: „Was unter dem Baum liegt“
 
 **Dramatische Frage:** Kann Nelia ihr verlassenes Dorf wieder zum Leben bringen und das Kronstück unter Vaters Baum
@@ -846,220 +850,198 @@ Lehmgrube, Lager (Ausbau zum Marktplatz), Steingrube; die Kaserne kommt mit dem 
 Macht steht.
 
 ---
-## Mission 3 – Das Wetterwerk: „Hrimgars Winter“
+## Mission 3 – Das Wetterwerk
 
-**Dramatische Frage:** Kann eine Handvoll Leute ohne Burg Malvors Winter brechen – und rechtzeitig vom Eis kommen?
+**Neu: ein Erzähler.** Er spricht nur zum Spieler: Er sagt jedes neue Ziel an (was und warum, ein bis zwei Sätze) und
+erklärt Bedienung, die neu ist. Die Figuren reden nur miteinander und sprechen den Spieler nie an.
 
-**Beats:** Fun and Games (zweite Hälfte) · Midpoint (falscher Sieg am Ende).
+### 1. Dramatische Frage und Funktion im Gesamtbogen
 
-**Malvors Ziel hier:** Das Werk muss laufen. Solange Winter ist, wächst Korn nur in Hagenfurt, und wer essen will,
-arbeitet für ihn. Er bewacht das Tal mit einem starken Tor; die Schlucht hält er für unpassierbar und lässt dort nur
-einen kleinen Posten auf dem Eis stehen. Bei Alarm schickt er die Torwache an den See.
+**Kann eine Handvoll Leute ohne Burg Malvors Winter brechen – und lebend vom Eis kommen?** Im Gesamtbogen ist das der
+**Midpoint**: ein großer Sieg, der alles verändert. Der Winter endet, aber Malvor verliert damit seine stillste Waffe,
+den Hunger, und greift ab jetzt zum Schwert. Und Nelia erfährt, dass das letzte Kronstück an Malvors eigenem Hals hängt.
 
-**Karte und Start (unverändert):** Bergkamm vor dem Tal; das **Tor** (Pass, fünf Trupps, Ballistaturm) und die
-**Schlucht** (zugefrorener Fluss, Posten aus zwei Trupps). Im Tal der See mit dem Wetterwerk auf der Insel,
-Hrimgars Ruinen am anderen Rand, ein Gefangenenlager. Keine Burg, keine Wirtschaft. Nelia, Orrin, zwei Trupps
-Schwertkämpfer und ein Trupp Bogenschützen; 400 Taler in Orrins Börse.
+### 2. Einleitungstext
 
-**Neu für den Spieler**
-
-| Was | Wo erklärt |
-|---|---|
-| Mission ohne Burg: nichts nachkaufen, jede Truppe zählt | Einleitung, Start |
-| Alle Truppen und Helden wählen („Truppen“), mehrere Truppen führen | Start (Zieltext von Schritt 2) |
-| Nelias „Weitblick“ | Schritt 1 |
-| Eis trägt im Winter – Seen und Flüsse werden zu Wegen | Schritt 1–2 |
-| Orrins „Bestechen“ (kostet Taler) | Schritt 2, Weg „Schlucht“ |
-| Steuergruppen (für Fortgeschrittene) | Schritt 2 (nur Zieltext) |
-| Tauwetter: Wer auf dem Eis steht, ertrinkt | Start, Schritt 4, Schritt 5 |
-| Gefangene befreien → kämpfen mit | Nebenziel |
-
-### Einleitung
-
-> **Bisher:** Zwei Kronstücke von fünf hat Nelia – aus Lindgrund und aus Beaucroix. Malvor hat keins von beiden
-> bekommen. Noch nicht. Doch in Beaucroix hat Nelia erfahren, worauf seine Macht wirklich steht: Der Winter ist
-> gemacht. *(Nur mit K1: „Der Räuberhauptmann hat es ihr für Taler verraten.“ bzw. „Ein gefangener Räuber hat es ihr
-> verraten.“ Ohne K1 entfällt der Satz.)*
+> Zwei von fünf Kronstücken trägt Nelia bei sich, aus Lindgrund und aus Beaucroix. Doch in Beaucroix hat sie etwas
+> erfahren, das schwerer wiegt als Gold: Der Winter ist nicht echt. Seit Jahren läuft hinter Hagenfurt, in einem Tal
+> im Gebirge, eine alte Maschine – das Wetterwerk. Solange es läuft, liegt Schnee auf allen Feldern, und wer essen
+> will, muss in Malvors Kornlager.
 >
-> Vor Jahrhunderten hungerte der Kriegsherr Hrimgar das Kronland mit einem Wetterwerk aus. Malvor hat es wieder
-> angeworfen. Solange Schnee liegt, wächst Korn nur in Hagenfurt, und wer essen will, muss zu ihm.
->
-> Das Werk steht auf einer Insel in einem Bergsee hinter Hagenfurt. Zwei Wege führen ins Tal: das bewachte Tor und
-> der zugefrorene Fluss durch die Schlucht. Nelia und Orrin haben keine Burg und keinen Nachschub – nur drei Trupps
-> Freiwillige aus Lindgrund und Beaucroix und vierhundert Taler in Orrins Börse.
+> Nelia und Orrin sind mit drei Trupps Freiwilliger aus Lindgrund und Beaucroix aufgebrochen, um das Werk zu
+> zerstören. Eine Burg gibt es hier nicht, kein Dorf, keinen Nachschub. Wer fällt, ist fort. Nur Orrins Börse ist
+> dabei: 400 Taler.
 
-### Ablauf
+### 3. Ablauf
 
 #### Start – Vor dem Bergkamm
 
-- *Auslöser:* Missionsbeginn; das Tor wird kurz aufgedeckt, die Kamera fährt hin.
+- *Auslöser:* Missionsbeginn. Kamera auf die Gruppe vor dem Bergkamm, dann kurzer Schwenk über den Kamm.
 - *Dialog:*
-  > **Orrin:** Kein Dach, kein Feuer, kein Markt. Ich hasse Abenteuer.
+  > **Nelia:** Da ist der Bergkamm. Dahinter liegt das Tal mit dem Wetterwerk – der Maschine, die den Winter macht.
   >
-  > **Nelia:** Hinter dem Kamm liegt das Tal. Das Tor dort ist zu stark für uns.
+  > **Orrin:** Zerstören wir sie, taut es im ganzen Kronland. Dann wächst überall Korn, und keiner muss mehr zu Malvor
+  > betteln gehen.
   >
-  > **Orrin:** Und merk dir eins, bevor wir loslaufen: Fällt das Werk, kommt das Tauwetter.
+  > **Nelia:** Drei Trupps, wir zwei, keine Burg im Rücken. Wer hier fällt, kommt nicht wieder.
   >
-  > **Orrin:** Wer dann auf dem Eis steht, ertrinkt. Wir alle. Auch die mit Schwertern.
-  >
-  > **Nelia:** Dann laufen wir schnell. Hier gibt es keine Burg, Leute. Wer fällt, kommt nicht wieder.
-  >
-  > **Nelia:** Wir bleiben zusammen. Wer geht, geht mit allen.
+  > **Orrin:** Und vierhundert Taler. Das ist alles, was zwischen uns und dem Heldentod steht.
+- *Ziel:* „Zerstöre das Wetterwerk im Tal hinter dem Bergkamm – damit der Winter endet“
+  > **Erzähler:** Dein Ziel: Zerstöre das Wetterwerk im Tal hinter dem Bergkamm. In dieser Mission hast du keine Burg –
+  > du kannst keine neuen Soldaten ausbilden. Gib auf jeden Trupp acht.
 
-#### Schritt 1 – Weitblick
+#### Schritt 1 – Wie kommen wir ins Tal?
 
-- *Auslöser:* nach dem Start.
-- *Ziel (Maus):* „Sieh mit Nelias Weitblick über den Bergkamm: Nelia allein wählen → ‚Weitblick‘ (X)“
-- *Ziel (Handy):* „Sieh mit Nelias Weitblick über den Bergkamm: Nelias Bild antippen → ‚Weitblick‘“
-- *Warum (im Dialog):* Wer blind ins Tal läuft, läuft in eine Wache.
-- *Erklärung:* Fähigkeit eines einzeln gewählten Helden. Zeiger (Liste): „Weitblick“ → Nelias Bild.
-- *Baustein:* Hauptziel mit Merker über `event ability` (`farsight`). **Nach 60 s ohne Weitblick erledigt es sich
-  selbst** (`complete`), mit der Zeile unten; so blockiert es nie den Sieg.
-- *Dialog (nach dem Startblock: + 25 s):*
-  > **Orrin:** Bevor wir hineinlaufen: Schau nach, wer da steht. Du siehst doch weiter als wir alle.
-  >
-  > **Nelia:** *[Hilfe, entfällt wenn „Weitblick“ benutzt wurde]* Lasst mich allein vorn stehen. Dann seh ich weit übers Land.
-- *Erfüllt (Fähigkeit benutzt):* Die Schlucht wird aufgedeckt, die Kamera schwenkt hin.
-  > **Nelia:** Da. Der Fluss läuft durch die Schlucht ins Tal. Und er ist zugefroren.
-  >
-  > **Orrin:** Ein gefrorener Fluss ist eine Straße. Hrimgars Winter baut uns den Weg zu seinem eigenen Werk.
-- *Selbst erledigt (60 s):* Schlucht aufdecken, Kamera hin.
-  > **Orrin:** Dann schau ich eben selbst. … Da! Der Fluss in der Schlucht – zugefroren. Eine Straße ins Tal.
-
-#### Schritt 2 – Ins Tal (Wahl: Tor oder Schlucht)
-
-- *Auslöser:* Schritt 1 erledigt.
-- *Ziel (Maus):* „Bring die Gruppe ins Tal – durchs Tor oder über den gefrorenen Fluss. ‚Truppen‘ wählt alle, dann
-  Rechtsklick aufs Ziel. Tipp: Umschalt + Zahl merkt eine Truppe, die Zahl holt sie zurück.“
-- *Ziel (Handy):* „Bring die Gruppe ins Tal – durchs Tor oder über den gefrorenen Fluss. ‚Truppen‘ antippen, dann
-  das Ziel. ‚Als Gruppe merken‘ merkt eine Truppe.“
-- *Zwei Wegweiser (optionale Ziele, je mit „Ziel zeigen“):* „Weg A: das Tor“ · „Weg B: die Schlucht“. Den Ring trägt
-  nur das erste offene; das andere erreicht man über „Ziel zeigen“. Beide erledigen sich, wenn das Hauptziel erfüllt
-  ist.
-- *Warum (im Dialog):* Nur aus dem Tal erreicht man die Insel.
-- **Wahl A – Das Tor** (`area gate who army`):
-  > **Nelia:** Ein Turm und fünf Trupps. Hier durch kommen wir nur mit viel Mut.
-  >
-  > **Orrin:** Mut kostet nichts. Leute schon. Rechne gut, Nelia.
-
-  Folge: harter Kampf, „Mut machen“ fast Pflicht; Orrins Börse bleibt voll für später (etwa einen Trupp am See).
-- **Wahl B – Die Schlucht** (`area gorge who army`):
-  > **Orrin:** Nur zwei Trupps auf dem Eis. Und die frieren für Malvors Sold. Das ist ein Angebot.
-  >
-  > **Orrin:** *[Hilfe, entfällt wenn „Bestechen“ benutzt wurde]* Lass mich nah ran. Zweihundert Taler und fünfzig je Mann, dann wechseln sie die Seite.
-  >
-  > **Nelia:** Du kaufst Soldaten wie Knöpfe.
-  >
-  > **Orrin:** Ich kaufe Leben. Ihre und unsere. Billiger geht's heute nicht.
-
-  Zieltext-Zusatz: „(Orrin allein wählen → ‚Bestechen‘, X)“. Folge: Ein bestochener Trupp kämpft für uns, die
-  Börse ist fast leer – oder kämpfen: kleine Verluste, Börse voll für später.
-- *Bestechen* setzt unabhängig vom Weg den Merker `bribed` (`event ability`, `bribe`).
-
-#### Schritt 3 – Hrimgars Pläne
-
-- *Auslöser:* Ankunft im Tal (die Ruinen werden aufgedeckt).
-- *Ziel:* „Sichere Hrimgars Pläne in den Ruinen am Talrand (ein Held genügt)“
-- *Warum (im Dialog):* Malvor hat Hrimgars Pläne gefunden, so hat er das Werk wieder angeworfen. Was er weiß, soll
-  Nelia auch wissen.
+- *Auslöser:* direkt nach dem Startgespräch.
 - *Dialog:*
-  > **Nelia:** Da drüben, die Ruinen. Hrimgars Festung.
+  > **Orrin:** Der Kamm ist zu steil zum Klettern. Irgendwo muss es einen Durchgang geben. Nur wo?
   >
-  > **Orrin:** Wo ein Werk gebaut wurde, liegen Zeichnungen. Wissen ist die einzige Ware, die man verkaufen und behalten kann.
-  >
-  > **Nelia:** Malvor hat seine. Wir brauchen unsere.
-- *Erfüllt:*
-  > **Orrin:** Türme, Röhren, Zahlen … und hier: „Schwefel“. Immer wieder Schwefel.
-  >
-  > **Nelia:** Pass gut darauf auf. Vielleicht brauchen wir sie noch.
+  > **Nelia:** Lass mich schauen. In Lindgrund sagen sie, ich sehe weiter als jeder andere im Dorf.
+- *Ziel:* „Sieh mit Nelias Weitblick über den Bergkamm“
+  > **Erzähler:** Nelia hat eine besondere Fähigkeit: Weitblick. Wähle Nelia allein aus und drücke den Knopf
+  > „Weitblick“ – dann siehst du ein großes Stück Land hinter dem Kamm.
+- *Erklärung:* Rahmen erst auf Nelias Bild, dann auf den Knopf „Weitblick“.
+- *Falls nach einer Minute nichts passiert ist:* Das Spiel deckt Tor und Schlucht selbst auf; Nelia sagt: „Ich klettere
+  auf den Felsen hier und schau selbst.“
 
-#### Schritt 4 – Das Wetterwerk
+#### Schritt 2 – Zwei Wege
 
-- *Auslöser:* Ankunft im Tal (gleichzeitig mit Schritt 3).
-- *Ziel:* „Zerstöre das Wetterwerk auf der Insel“
-- *Warum (im Dialog):* Ohne Winter wächst überall Korn, und niemand muss mehr für eine Schüssel in Malvors Kornlager.
-- *Erklärung:* Gebäude angreifen; Wiederholung: Tauwetter.
-- *Dialog (das Werk kommt in Sicht):*
-  > **Nelia:** Da ist es. Mitten im See. Hörst du das Brummen?
+- *Auslöser:* Weitblick benutzt. Tor und Schlucht werden aufgedeckt, die Kamera zeigt erst das Tor, dann die Schlucht.
+- *Dialog:*
+  > **Nelia:** Zwei Wege führen hinein. Da vorn das Tor: fünf Trupps und ein Turm mit einer Riesenarmbrust.
   >
-  > **Nelia:** Fällt das, wächst überall wieder Korn. Dann muss keiner mehr zu Malvor. Vater auch nicht.
+  > **Orrin:** Fünf Trupps gegen unsere drei? Da rechne ich nicht lange. Und der zweite Weg?
   >
-  > **Orrin:** Ein Sturm mitten im Sommer hat König Edrian ertränkt. Kurz darauf lief das hier wieder.
+  > **Nelia:** Die Schlucht dort links. Durch sie fließt der Fluss ins Tal, und der ist zugefroren. Im Winter trägt das
+  > Eis uns wie eine Straße.
   >
-  > **Nelia:** Du meinst, Malvor …
+  > **Orrin:** Malvors eigener Winter baut uns den Weg zu seiner Maschine. Das gefällt mir.
   >
-  > **Orrin:** Ich meine gar nichts. Ich zähle nur Zufälle. Das ist mein Beruf.
-- *Alarm (jemand von uns betritt die Insel):*
-  > **Wache:** Eindringlinge am Werk! Torwache, zum See!
+  > **Nelia:** Aber wenn das Werk fällt, taut das Eis. Wer dann darauf steht, ertrinkt.
+- *Ziel:* „Bring die Gruppe durch die Schlucht ins Tal – über den gefrorenen Fluss“
+  > **Erzähler:** Im Winter sind Flüsse und Seen zugefroren, und man kann über das Eis laufen. Führe die Gruppe durch
+  > die Schlucht ins Tal. Das Tor ist zu stark bewacht.
   >
-  > **Nelia:** Sie kommen übers Eis. Schnell – bevor die anderen da sind!
-- *Werk zerstört:*
+  > **Erzähler:** Mit dem Knopf „Truppen“ wählst du alle Soldaten und beide Helden auf einmal aus.
+
+#### Schritt 3 – Der Posten in der Schlucht
+
+- *Auslöser:* Der Posten am Ausgang der Schlucht kommt in Sicht.
+- *Dialog:*
+  > **Nelia:** Zwei Trupps Wachen auf dem Eis, am Ende der Schlucht. Die lassen uns nicht einfach durch.
+  >
+  > **Orrin:** Die stehen seit Wochen in der Kälte, für Malvors Sold. Leute, die frieren, kann man kaufen.
+  >
+  > **Nelia:** Und wenn sie nicht wollen?
+  >
+  > **Orrin:** Jeder will. Es ist nur eine Frage des Preises.
+  >
+  > **Erzähler:** Orrin kann einen feindlichen Trupp bestechen: Wähle Orrin allein, führe ihn nah an den Trupp und
+  > drücke „Bestechen“. Das kostet 200 Taler und 50 je Soldat. Du kannst den Posten auch im Kampf besiegen – dann
+  > behältst du das Geld, verlierst aber vielleicht Leute.
+- *Erklärung:* Rahmen auf Orrins Bild, dann auf „Bestechen“.
+- *Nach dem Bestechen:*
+  > **Orrin:** Bezahlt und umgedreht. Der beste Handel, den ich diesen Winter gemacht habe.
+
+#### Schritt 4 – Im Tal
+
+- *Auslöser:* Die Gruppe erreicht den Talboden hinter der Schlucht. Kamera zeigt den See mit der Insel, dann die Ruinen.
+- *Dialog:*
+  > **Nelia:** Wir sind drin. Da, mitten im See, auf der Insel – das ist das Wetterwerk. Hörst du das Brummen?
+  >
+  > **Orrin:** Und dort drüben am Talrand die Ruinen. Das war Hrimgars Festung – der Mann, der das Werk vor Jahrhunderten
+  > gebaut hat.
+  >
+  > **Orrin:** Wer so eine Maschine baut, hinterlässt Zeichnungen. Holen wir sie, bevor wir das Werk zerschlagen.
+  >
+  > **Nelia:** Wozu brauchen wir die Pläne einer Maschine, die wir kaputt machen wollen?
+  >
+  > **Orrin:** Weil Malvor sie auch hat. Was er weiß, sollten wir auch wissen.
+- *Ziele:* „Zerstöre das Wetterwerk auf der Insel im See“ · „Hol Hrimgars Baupläne aus den Ruinen am Talrand“
+  > **Erzähler:** Zwei Ziele im Tal: Zerstöre das Wetterwerk auf der Insel. Und schick Nelia oder Orrin zu den Ruinen
+  > am Talrand – dort liegen die Baupläne der Maschine.
+- *Pläne gefunden (ein Held erreicht die Ruinen):*
+  > **Orrin:** Türme, Röhren, Kessel … und überall dasselbe Wort: Schwefel. Ich verstehe kein Wort, aber ich hebe es auf.
+  >
+  > **Nelia:** Gut. Jetzt das Werk.
+
+#### Schritt 5 – Vor dem Angriff
+
+- *Auslöser:* Die Gruppe nähert sich dem Seeufer.
+- *Dialog:*
+  > **Nelia:** Bevor wir aufs Eis gehen: Fällt das Werk, haben wir eine Minute, bis das Eis bricht.
+  >
+  > **Orrin:** Und auf der Insel bleiben geht auch nicht. Sobald das Wasser offen ist, sitzen wir dort fest.
+  >
+  > **Nelia:** Also zuschlagen und sofort zurück ans Ufer.
+  >
+  > **Orrin:** Ich schwimme wie ein Sack Mehl. Nur dass du's weißt.
+  >
+  > **Erzähler:** Merke dir den Weg zurück: Nach der Zerstörung des Wetterwerks hast du 60 Sekunden, um Nelia und Orrin
+  > auf festes Ufer zu bringen. Der Ring zeigt eine sichere Stelle.
+- *Erklärung:* Ein Ring markiert das feste Ufer.
+
+#### Schritt 6 – Alarm
+
+- *Auslöser:* Jemand von uns betritt die Insel.
+- *Dialog:*
+  > **Wache:** Eindringlinge am Werk! Alarm! Torwache, zum See!
+  >
+  > **Nelia:** Jetzt kommen sie vom Tor über das Eis. Schnell – das Werk zuerst, bevor sie hier sind!
+
+#### Schritt 7 – Tauwetter
+
+- *Auslöser:* Das Wetterwerk ist zerstört. Eine Uhr läuft 60 Sekunden.
+- *Dialog:*
   > **Nelia:** Es ist still. Das Brummen ist weg … und das Eis knackt.
   >
   > **Orrin:** Runter vom See! Alle! In einer Minute ist das hier Wasser!
+- *Ziel:* „Tauwetter! Bring Nelia und Orrin in 60 Sekunden auf festes Ufer“
+  > **Erzähler:** Das Eis taut! Bring Nelia und Orrin in 60 Sekunden auf festes Ufer – nicht auf die Insel. Wer auf
+  > dem Eis bleibt, ertrinkt.
+- *Nach 5 Sekunden:*
+  > **Wache:** Das Werk brennt! Fangt sie am Ufer ab!
+- *15 Sekunden vor Schluss, falls ein Held noch auf dem Eis oder der Insel steht:*
+  > **Orrin:** Das Eis wird grau! Lauf, Nelia, lauf!
+- *Tauwetter überstanden:*
+  > **Nelia:** Wir stehen auf festem Boden. Und schau – es tropft von den Felsen. Zum ersten Mal seit Jahren.
 
-#### Schritt 5 – Tauwetter
+### 4. Nebenziel: Die Gefangenen
 
-- *Auslöser:* Werk zerstört. Die Uhr läuft 60 Sekunden (`survive`).
-- *Ziel:* „Tauwetter! Bring Nelia und Orrin auf festen Talboden – runter vom Eis und von der Insel“
-- *Warum (im Dialog):* Hrimgars Winter rächt sich: Wer auf dem Eis steht, ertrinkt; wer auf der Insel bleibt, sitzt
-  fest, bis Malvors Leute kommen.
-- *Erklärung:* Ring am festen Ufer („Ziel zeigen“). Truppen auf dem Eis ertrinken ebenfalls (keine Niederlage, aber
-  Verlust).
+- *Auslöser:* Das Gefangenenlager am Talrand kommt in Sicht.
 - *Dialog:*
-  > **Wache:** *(5 s danach)* Das Werk brennt! Fangt sie am Ufer ab!
+  > **Nelia:** Da drüben, hinter dem Zaun – Gefangene. Leute aus den Dörfern. Malvor lässt sie hier das Werk heizen.
   >
-  > **Orrin:** *(15 s vor Schluss)* Das Eis wird grau! Lauf, Nelia!
-- *Tauwetter:* Das Wetter wechselt auf Sommer. **Der Sieg folgt erst 5 s später** (Merker beim Tauen, Sieg über
-  `delay`), damit Ertrinken und Wetterwechsel zu sehen sind und die Zeile Platz hat.
-- *Ertrinkt eine eigene Truppe* (Baustein: in der Tau-Funktion eigene Hauptleute vorher/nachher zählen, oder E5):
-  > **Nelia:** Sie waren aus Lindgrund. Ich vergesse ihre Namen nicht.
+  > **Orrin:** Nur zwei Trupps Wachen. Und Leute, die man befreit, kämpfen gern mit.
+- *Ziel:* „Optional: Vertreib die Wachen am Gefangenenlager – die Befreiten kämpfen mit dir“
+  > **Erzähler:** Ein freiwilliges Ziel: Besiege die Wachen am Gefangenenlager. Die Befreiten schließen sich dir mit
+  > zwei Trupps Speerträgern an.
+- *Befreit:*
+  > **Gefangener:** Ihr kommt aus Lindgrund? Dann seid ihr die mit der Prinzessin! Wir holen unsere Speere.
+  >
+  > **Nelia:** Holt eure Speere. Und dann helft uns, die Maschine abzustellen, die euch hierher gebracht hat.
 
-### Nebenziele
+### 5. Niederlagentexte
 
-**Optional: Die Gefangenen**
-- *Auslöser:* Das Gefangenenlager kommt in Sicht.
-- *Ziel:* „Optional: Vertreibe die Wachen am Gefangenenlager – die Befreiten kämpfen mit dir“
-- *Warum (im Dialog):* Dort sitzen Leute aus den Dörfern, die Malvor ins Gebirge geschleppt hat, um sein Werk zu
-  heizen.
-- *Dialog (Sichten):*
-  > **Nelia:** Da drüben, ein Lager mit Gefangenen. Leute aus den Dörfern.
-  >
-  > **Nelia:** Vertreiben wir die Wachen, kämpfen sie mit uns. Und vielleicht ist einer aus Lindgrund dabei.
-- *Befreit (zwei Trupps Speerträger schließen sich an):*
-  > **Gefangener:** Ihr seid aus Lindgrund? … Nelia? Die Holzfällertochter! Und die nennen dich Prinzessin?
-  >
-  > **Nelia:** Nicht ich. Er.
-  >
-  > **Orrin:** Später, später. Erst das Werk, dann die Familiengeschichten.
-  >
-  > **Gefangener:** Dein Vater lebt, Nelia. Er schlägt Holz in Hagenfurt und fragt jeden nach dir.
-  >
-  > **Nelia:** Dann hat sich der Weg schon gelohnt.
-
-### Niederlage
-
-- *Beide Helden bewusstlos:* „Nelia und Orrin liegen im Schnee, und die Wachen kommen. Der Winter bleibt.“
-- *Ein Held auf dem Eis beim Tauwetter:* „Das Eis ist gebrochen – mitten auf dem See. Hrimgars Winter hat sich
-  gerächt.“
-- *Ein Held auf der Insel beim Tauwetter:* „Das Eis ist geschmolzen. Auf der Insel sitzen Nelia und Orrin fest, bis
+- *Nelia und Orrin bewusstlos:* „Nelia und Orrin liegen im Schnee, und Malvors Wachen kommen. Das Werk brummt weiter.
+  Der Winter bleibt.“
+- *Ein Held beim Tauwetter auf dem Eis:* „Das Eis bricht mitten auf dem See. Der Winter hat sich ein letztes Opfer
+  geholt.“
+- *Ein Held beim Tauwetter auf der Insel:* „Das Wasser ist offen. Auf der Insel sitzen Nelia und Orrin fest – bis
   Malvors Leute mit Booten kommen.“
 
-### Abschluss (Midpoint)
+### 6. Abschlusstext
 
-> Zum ersten Mal seit Jahren tropft es von den Dächern. Über den Bergen reißt der Himmel auf, und in den Tälern
-> riecht es nach nasser Erde. In Lindgrund, erzählt man später, hat jemand gesät.
+> Zum ersten Mal seit Jahren tropft es von den Dächern. Über den Bergen reißt der Himmel auf, und in den Tälern riecht
+> es nach nasser Erde. In Lindgrund, erzählt man später, hat jemand gesät.
 >
-> In Orrins Tasche knistern Hrimgars Pläne. Ein gefangener Wächter verrät noch etwas, für ein Stück Brot: Malvor
-> trägt selbst ein Kronstück – das von Hagenfurt, an einer Kette um den Hals. Er legt es nie ab.
+> In Orrins Tasche knistern Hrimgars Pläne. Ein gefangener Wächter verrät für ein Stück Brot noch etwas: Malvor trägt
+> selbst ein Kronstück – das von Hagenfurt –, an einer Kette um den Hals. Er legt es nie ab.
 >
-> *(Merker `bribed`: Die bestochenen Soldaten bleiben. „Wer einmal die Seite wechselt“, sagt Orrin, „hat Übung.“)*
-> *(Tor ohne Bestechung: Am Tor liegen viele. Orrin zählt sie nicht laut.)*
+> Zwei von fünf Kronstücken hat Nelia. Eines hängt an Malvors Hals. Die anderen beiden liegen noch irgendwo im Land.
 >
-> In Hagenfurt erfährt Malvor in derselben Nacht, wer ihm den Winter genommen hat. Er sagt nur einen Satz, so
-> erzählt man: „Wenn der Hunger sie nicht mehr hält, dann eben das Eisen.“
-
-*Antwort:* Ja – der Winter ist gebrochen. Aber Malvor ist jetzt gewarnt, und er greift zum Schwert.
+> In Hagenfurt erfährt Malvor in derselben Nacht, wer ihm den Winter genommen hat. Er sagt nur einen Satz: „Wenn der
+> Hunger sie nicht mehr hält, dann eben das Eisen.“ Am nächsten Morgen marschiert Hauptmann Taran nach Eisenhain.
 
 ---
 ## Mission 4 – Eisenhain: „Das rechte Blut“
