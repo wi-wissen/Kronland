@@ -389,6 +389,12 @@ place with “Show objective”.
 **Settings** (main menu and game menu) contain language (German/English), graphics quality (Automatic, Low,
 Medium, High), volumes for music and effects, interface size, edge scrolling and help texts.
 
+**Tracks on the ground** (Settings → Graphics): where serfs, workers and soldiers walk often, the grass is first
+flattened and then worn down to an earth path; in snow every step leaves footprints, many steps a trodden lane.
+**Off** – no tracks; **Fading** (default) – rarely used ways grow over again, fresh snow covers tracks, the thaw takes
+them along; **Permanent** – nothing fades. The setting applies to the whole match and can be changed at any time. A
+level that needs tracks (such as a trail in the snow) decides the setting itself; the menu then says so.
+
 **Sharing a map:** the game menu (pause) shows the map, e.g. “Map: 62921”, with **“Copy link”** below (on phones
 **“Share link”**). Whoever opens the link starts the same map with the same settings **from the beginning** – your
 current game is not included. For missions the link only names the mission; loaded saves have no link.

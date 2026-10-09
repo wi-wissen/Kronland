@@ -130,6 +130,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
 - **Bauen am Hang**: Mäßige Hänge (bis 4 m Höhenunterschied unter dem Gebäude) werden beim Setzen der Baustelle
   dauerhaft eingeebnet; die Bauvorschau zeigt grün (eben), gelb (wird eingeebnet) oder rot (zu steil).
   Regeln und Recherche: [Spielregeln §6a](docs/SPIELREGELN.md#6a-bauen-am-hang).
+- **Trampelpfade und Fußspuren**: Häufig begangene Wege werden erst niedergetretenes Gras, dann Erdpfad; im Schnee
+  bleibt jeder Schritt sichtbar, viele werden zur festgetretenen Spur. Einstellung Aus / Verblassend / Dauerhaft
+  (Spieloption der Simulation, ein Level kann sie festlegen) – [Spielregeln §14](docs/SPIELREGELN.md#14-spuren-und-gegenstände).
 - **Spielstände**: beliebig viele im Browser (IndexedDB, komprimiert) mit Vorschaubild, Datum, Spielzeit und Modus;
   speichern, überschreiben, umbenennen, löschen über Menü → „Spiel speichern“ bzw. „Gespeichertes Spiel laden“
   und im Startmenü unter „Spielstände“. „Weiterspielen“ lädt den neuesten Stand. **Autosave** 30 Spielsekunden nach dem Start, danach alle
