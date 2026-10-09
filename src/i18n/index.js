@@ -115,6 +115,10 @@ function nameParams(params) {
   if (params.res) out.res = resName(params.res);
   if (params.line) out.line = lineName(params.line);
   if (params.unit) out.unit = unitName(params.unit);
+  // Script errors about hero abilities: IDs of abilities and heroes → names ("courage" → "Mut machen")
+  if (typeof params.ability === 'string') out.ability = abilityName(params.ability);
+  if (typeof params.hero === 'string') out.hero = heroName(params.hero);
+  if (typeof params.holder === 'string') out.holder = heroName(params.holder);
   // Parser tokens in words: "found: end of line" instead of "found: NEWLINE"
   if (TOKEN_WORDS.has(params.got)) out.got = t(`script.token.${params.got.toLowerCase()}`);
   return out;

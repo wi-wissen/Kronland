@@ -152,6 +152,15 @@ export const EXAMPLES = {
   'nelia.say': L('nelia.say("Hier lang!")', 'nelia.say("This way!")'),
   'nelia.facing': 'if nelia.facing != "north":\n    nelia.turn_to("north")',
   'nelia.x': 'print(f"Nelia steht bei ({nelia.x}, {nelia.y})")\nprint(tile(nelia.x + 1, nelia.y))',
+  'nelia.use': L(
+    'if nelia.ready("courage"):\n    nelia.use("courage")\nnelia.use("farsight", (nelia.x + 4, nelia.y))\nprint("Mut machen wieder in", nelia.cooldown("courage"), "s")',
+    'if nelia.ready("courage"):\n    nelia.use("courage")\nnelia.use("farsight", (nelia.x + 4, nelia.y))\nprint("Rally again in", nelia.cooldown("courage"), "s")',
+  ),
+  'nelia.ready': 'for a in nelia.abilities():\n    print(a, nelia.ready(a), nelia.cooldown(a))\nnelia.use("farsight")\nwait_until(lambda: nelia.ready("farsight"), timeout=5)\nprint(nelia.cooldown("farsight"), "s")',
+  'nelia.abilities': L(
+    'print(nelia.abilities())\nfor a in nelia.abilities():\n    if nelia.ready(a):\n        print(a, "ist bereit")',
+    'print(nelia.abilities())\nfor a in nelia.abilities():\n    if nelia.ready(a):\n        print(a, "is ready")',
+  ),
   // ---------- World ----------
   place: 'goal = place("goal")\nprint(goal.x, goal.y, goal.r)\nnelia.move_to(goal)',
   places: 'for name in places():\n    p = place(name)\n    print(name, p.x, p.y)',
@@ -180,6 +189,10 @@ export const EXAMPLES = {
   'serf.work_on': 'trees = trees_near(hq(), radius=15)\nfor s, t in zip(serfs(idle=True), trees):\n    s.work_on(t)',
   'troop.attack': 'for t in troops():\n    if t.soldiers >= 3:\n        t.attack(place("camp"))',
   'troop.hold': 'for t in troops():\n    t.hold()\nwait(5)\nfor t in troops():\n    t.defend()\nprint(len(troops()), "Trupps")',
+  call_to_arms: L(
+    '@on_event("attacked")\ndef alarm(target, attacker):\n    call_to_arms()\n    if nelia.ready("courage"):\n        nelia.use("courage")\n\nprint(call_to_arms(serfs()[:1]), "Leibeigener an den Waffen")\nwait(5)\nback_to_work()\nprint([s.militia for s in serfs()])',
+    '@on_event("attacked")\ndef alarm(target, attacker):\n    call_to_arms()\n    if nelia.ready("courage"):\n        nelia.use("courage")\n\nprint(call_to_arms(serfs()[:1]), "serf took up arms")\nwait(5)\nback_to_work()\nprint([s.militia for s in serfs()])',
+  ),
   'building.change_weather': 'for plant in buildings("weatherPlant"):\n    if plant.can_change_weather("winter"):\n        plant.change_weather("winter")\nprint(weather(), stock("energy"))',
   'building.upgrade': 'for b in buildings("residence"):\n    if b.done and b.level == 1:\n        b.upgrade()\n        break',
   // ---------- Staging ----------
@@ -384,6 +397,10 @@ export const ERRORS = {
   'nelia.turn_to': ['script.game.dirUnknown'],
   'nelia.move_to': ['err.script.type.targetNeeded', 'script.game.placeUnknown', 'script.game.notYours'],
   'nelia.take': ['err.script.game'],
+  'nelia.use': ['script.game.abilityNotReady', 'script.game.abilityUnknown', 'script.game.abilityOther', 'script.game.abilityNoTarget',
+    'script.game.abilityFar', 'script.game.bribeNoTroop', 'script.game.bribeGold', 'script.game.heroDown'],
+  'nelia.ready': ['script.game.abilityUnknown', 'script.game.abilityOther'],
+  call_to_arms: ['script.game.notSerf', 'script.game.notYours'],
   'nelia.put': ['err.script.game', 'script.game.itemUnknown'],
   'serf.chop': ['script.game.noTree', 'script.game.interrupted'],
   figures_near: ['script.game.sideUnknown'],

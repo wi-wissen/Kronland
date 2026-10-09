@@ -113,6 +113,8 @@ nelia.front()  nelia.left()  nelia.right()  nelia.here()   # "free", "tree", "wa
 nelia.can_step()  nelia.move_to(ziel, wait=True)  nelia.is_at(ziel)  nelia.take()  nelia.put()  nelia.say(text)
 for s in serfs():  s.step()  s.chop()  s.work_on(baum)      # Leibeigene fällen nach Spielregeln
 t = troops()[0]    t.move_to(ziel, wait=False)  t.attack(feind)  t.hold()  t.defend()
+nelia.use("courage")  nelia.use("farsight", (x, y))  nelia.ready("courage")  nelia.cooldown("courage")  nelia.abilities()
+call_to_arms()  call_to_arms(serfs()[:3])  back_to_work()  serf.militia   # „Zu den Waffen!“ wie in der Burg
 place("goal")  tile(x, y)  trees_near(ziel)  figures_near(ziel, 8, side="enemy")  items_near(ziel, kind="coin")
 weather()  forecast()  stock("wood")  count("farm")  serfs(idle=True)
 hq()  find_spot("residence", hq())  build("residence", x, y)  serf.work_on(baustelle)
@@ -154,6 +156,7 @@ world.width  world.height_at(x, y)  world.set_height(x, y, h)  world.set_water(x
 @on_event("talk", id="alchemist")    # ein Dekorator für jedes Ereignis, die Namen oben sind Kurzformen
 @on_event("payday")  @on_event("serf_bought")  @on_event("research_started")  @on_event("upgrade_started")
 @on_event("ability", ability="courage")  @on_event("trade")  @on_event("tribute", id="buy")   # nur als @on_event
+@on_event("attacked")              # Alarm: Feind trifft eigene Figur/Gebäude (getroffen, Angreifer), höchstens alle 5 s
 ```
 
 Spielobjekte sind Handles (`Hero`, `Serf`, `Troop`, `Building`, `Tree`, `Pile`, `Npc`, `Place`) mit Eigenschaften
@@ -169,7 +172,7 @@ folgen. Jede Aktion ist ein vorhandener Sim-Befehl (Leibeigene `move`, Helden, T
 
 | Art | zusätzlich |
 |---|---|
-| Held | `take()`, `put()`, `attack()`, `hold()`, `defend()` – **kein Fällen** |
+| Held | `take()`, `put()`, `attack()`, `hold()`, `defend()`, Fähigkeiten `use()`, `ready()`, `cooldown()`, `abilities()` – **kein Fällen** |
 | Leibeigener | `take()`, `put()`, `chop()` (Baum vorn, nach den Spielregeln, echte Dauer), `work_on()`, `attack()` (Fäuste) |
 | Trupp | `attack()`, `hold()`, `defend()` |
 
@@ -184,6 +187,32 @@ die das Programm gerade wartet; laufende Aufträge bleiben.
 (`REMOVED_NAMES`, `REMOVED_METHODS` in `api.js`): `hero` → Name des Helden (`nelia` …), `units_in` → `figures_near`,
 `ahead()` → `front()`. Ein Ziel nimmt seinen Text nur hinter `de=`/`en=` (oder `text=`), an zweiter Stelle steht die
 Bedingung.
+
+### Fähigkeiten und Miliz
+
+Heldenfähigkeiten und „Zu den Waffen!“ gehen im Programm genauso wie mit den Knöpfen von Heldenmenü und Burg: Jeder
+Aufruf ist derselbe Sim-Befehl (`ability`, `militia` mit `units`), mit Abklingzeit, Reichweite und Talern nach den
+Spielregeln. Passt Kursreihe IV (Wachrunden, die Höfe schützen): `@every` als Wachrunde, `@on_event("attacked")` als
+Alarm, `call_to_arms()` und `nelia.use("courage")` als Antwort.
+
+- **Namen** in snake_case wie die übrige API: `farsight`, `courage`, `bribe`, `salve`, `shield_bash`, `intimidate`,
+  `field_gun`, `caltrops` (`abilityScriptName` in `api.js`; Daten und Sim-Befehl behalten die IDs aus `units.js`).
+  `@on_event("ability")` meldet und filtert ebenfalls den Skriptnamen.
+- `hero.use(name, target=None)` – Befehl, kehrt sofort zurück (die Wirkung beginnt im selben Tick). Ein Ziel nehmen
+  nur Fähigkeiten mit `aimed: true` in den Daten (Weitblick, Feldgeschütz, Fußangeln; höchstens `ABILITY_RANGE` = 6
+  Kacheln vom Helden), sonst wirkt sie am Helden. Vorab-Prüfungen mit lesbaren Fehlern: noch nicht bereit
+  (`abilityNotReady` „Mut machen ist erst in 12 s wieder bereit“), unbekannt (mit Vorschlag, auch `shieldBash` →
+  `shield_bash`), Fähigkeit eines anderen Helden (`abilityOther`), Ziel nicht nötig / zu weit, Bestechen ohne Trupp in
+  Reichweite oder ohne genug Taler (`bribeTarget`/`bribeCost` aus `military.js`, dieselbe Wahl wie die Sim).
+- `hero.ready(name)` (False auch, solange bewusstlos), `hero.cooldown(name)` (ganze Sekunden, aufgerundet wie der
+  Knopf), `hero.abilities()` – nur lesen. Spielerprogramme steuern nur eigene Helden (`notYours`).
+- `call_to_arms(serfs=None)` / `back_to_work(serfs=None)` – alle oder die genannten eigenen Leibeigenen; liefert die
+  Zahl der Gewechselten. Missionen können zusätzlich `player=` angeben bzw. Leibeigene anderer Spieler nennen.
+  `serf.militia` liest den Zustand.
+- `@on_event("attacked")`: aus den `hit`-Ereignissen der Sim, wenn ein Feind eine Figur oder ein Gebäude des
+  gefilterten Spielers trifft (Spielerprogramm: immer HUMAN). Je Funktion höchstens alle `ALARM_SECONDS` = 5 s (Stand
+  in `state.alarm` bzw. `state.player.alarm`, im Save und im Hash). Argumente: Getroffenes, Angreifer (im
+  Spielerprogramm `None`, wenn der Spieler ihn nicht sieht).
 
 ### Boden: Sensoren, Gegenstände, Spuren
 
@@ -442,7 +471,7 @@ dabei als Befehl `{ type: 'script', action: 'run', sections }` in die Simulation
 
 Auch das Spielerprogramm kennt die Ereignisse, die seine Oberfläche sieht: `@every`, `@on_enter`,
 `@on_building_done`, `@on_building_placed`, `@on_destroyed`, `@on_killed`, `@on_recruited`, `@on_research`,
-`@on_objective`, `@on_weather` und `@on_event` (nicht `start` und `talk`). Der Host bedient beide Programme mit
+`@on_objective`, `@on_weather` und `@on_event` (nicht `start` und `talk`, dafür `attacked` als Alarm). Der Host bedient beide Programme mit
 derselben Mechanik (`.handlers` je VM), erst die Mission, dann den Spieler, beide in fester Reihenfolge aus
 `sim.events`; `@every`/`@on_enter` des Spielers stehen in `state.player.every/enter` und beginnen mit jedem Lauf neu.
 
