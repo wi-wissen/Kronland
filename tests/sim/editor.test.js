@@ -6,6 +6,7 @@ import { itemList } from '../../src/sim/systems/ground.js';
 import { emptyScenario, validateScenario } from '../../src/sim/scripting/scenario.js';
 import { createScenarioSim } from '../../src/sim/missions/runtime.js';
 import { WATER, CLIFF } from '../../src/sim/map.js';
+import { BALANCE } from '../../src/sim/data/balance.js';
 
 const fresh = () => emptyScenario({ size: 32 });
 
@@ -107,13 +108,13 @@ describe('World editor', () => {
     expect(tileInfo(sim, 16, 16)).toMatchObject({ kind: 'track', track: 12 });
     // level is clamped to the strongest track
     applyEdit(sim, { tool: 'track', x: 4, y: 4, r: 0, level: 500 });
-    expect(m.tracks[m.idx(4, 4)]).toBe(48);
+    expect(m.tracks[m.idx(4, 4)]).toBe(BALANCE.ground.tracks.max);
     applyEdit(sim, { tool: 'water', x: 16, y: 16, r: 0 });
     expect(m.tracks[m.idx(16, 16)]).toBe(0);
     expect(applyEdit(sim, { tool: 'track', x: 16, y: 16, r: 0 }).changed).toBe(false);
     applyEdit(sim, { tool: 'erase', x: 17, y: 16, r: 1 });
     expect(m.tracks[m.idx(17, 16)]).toBe(0);
-    expect(m.tracks[m.idx(4, 4)]).toBe(48);
+    expect(m.tracks[m.idx(4, 4)]).toBe(BALANCE.ground.tracks.max);
   });
 
   it('undo snapshot of the ground restores items and tracks', () => {

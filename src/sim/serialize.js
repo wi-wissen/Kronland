@@ -7,6 +7,8 @@ import { TileMap } from './map.js';
 import { MissionRuntime } from './missions/runtime.js';
 import { createMarket } from './systems/market.js';
 import { saveVision, loadVision } from './systems/vision.js';
+import { levelTrackMode } from './systems/ground.js';
+import { BALANCE } from './data/balance.js';
 import { normalizeAiState } from '../ai/AiPlayer.js';
 
 const toB64 = (typed) => {
@@ -43,6 +45,9 @@ export function saveGame(sim, extra = {}, { clone = true } = {}) {
     // Bridge sites
     bridgeSites: sim.bridgeSites ?? [],
     weather: sim.weather,
+    // Game option "tracks" and whether the level fixes it
+    trackMode: sim.trackMode,
+    trackModeFixed: sim.trackModeFixed,
     weatherCycle: sim.weatherCycle,
     winner: sim.winner,
     market: sim.market,
@@ -107,6 +112,10 @@ export function loadGame(data) {
   sim.diplomacy = data.diplomacy ?? {};
   sim.entities = new Map(data.entities.map((e) => [e.id, migrateEntity(e)]));
   sim.mission = data.mission ? MissionRuntime.fromState(data.mission) : null;
+  // Older save games: the mode of the level (world.tracks) or the default
+  const fixedTracks = levelTrackMode(sim.mission?.def?.tracks);
+  sim.trackMode = data.trackMode ?? fixedTracks ?? BALANCE.ground.tracks.defaultMode;
+  sim.trackModeFixed = data.trackModeFixed ?? !!fixedTracks;
   loadVision(sim, data.vision, fromB64);
   // Computer opponents; older save games kept them outside the simulation (extra.ais)
   sim.ai = (data.ai ?? data.extra?.ais ?? []).map(normalizeAiState).sort((a, b) => a.player - b.player);

@@ -10,6 +10,7 @@ export const SCENARIO_VERSION = 2;
 export const END_RULES = ['objectives', 'script'];
 
 import { assetPathOk } from '../../paths.js';
+import { BALANCE } from '../data/balance.js';
 import { scenarioGoals, scenarioSteps } from './outline.js';
 
 /** Who leaves tracks (world.tracks.who): everyone, nobody (only tracks set by the mission) or only heroes. */
@@ -80,10 +81,11 @@ export function validateScenario(s) {
   if (w.tracks !== undefined) {
     const t = w.tracks;
     const ok = t && typeof t === 'object' && !Array.isArray(t)
-      && (t.threshold === undefined || (Number.isInteger(t.threshold) && t.threshold >= 1 && t.threshold <= 48))
-      && (t.fade === undefined || (typeof t.fade === 'number' && t.fade >= 0 && t.fade <= 3600))
+      && (t.mode === undefined || BALANCE.ground.tracks.modes.includes(t.mode))
+      && (t.threshold === undefined || (Number.isInteger(t.threshold) && t.threshold >= 1 && t.threshold <= BALANCE.ground.tracks.max))
+      && (t.fade === undefined || t.fade === 0)
       && (t.who === undefined || TRACK_WHO.includes(t.who));
-    if (!ok) out.push(`world.tracks: threshold 1…48, fade 0…3600 seconds, who ${TRACK_WHO.join('/')}`);
+    if (!ok) out.push(`world.tracks: mode ${BALANCE.ground.tracks.modes.join('/')}, threshold 1…${BALANCE.ground.tracks.max}, who ${TRACK_WHO.join('/')} (fade only 0 = mode permanent)`);
   }
   return out;
 }
@@ -190,7 +192,7 @@ export function scenarioToDef(s) {
       terrain: world.terrain ?? null, starts: world.starts ?? null,
     },
     fog: world.fog ?? s.fog ?? true,
-    // Tracks: { threshold, fade (seconds per level, 0 = never), who } – otherwise the rules of the game
+    // Tracks: { mode (fixes the game option), threshold, who } – otherwise the rules and the setting of the player
     tracks: world.tracks ?? null,
     vision: world.vision ?? (world.startReveal ? { startReveal: world.startReveal } : undefined),
     weatherCycle: s.weatherCycle,

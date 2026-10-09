@@ -507,19 +507,66 @@ Kampagne und Skript-Missionen. Werte: `src/sim/data/bridges.js`, `buildings.js`,
 Nur Optik und Information für Skripte – keine Wirkung auf Tempo, Wegsuche oder Balance. Code: `src/sim/systems/ground.js`,
 Werte: `BALANCE.ground` (alle (A)).
 
-- **Spuren:** Verlässt eine Figur (Held, Leibeigener, Arbeiter draußen, Hauptmann, Soldat) eine Kachel zu einer
-  Nachbarkachel, wird die Spur dort um 1 stärker (höchstens 48, ein Byte je Kachel). Sprünge (Teleport, Rückkehr zur
-  Burg) hinterlassen nichts. Ein umlaufender „Besen“ nimmt jeder Kachel alle 30 s eine Stufe; seine Position folgt aus
-  dem Takt, es gibt keine Liste. Als Spur zählt eine Kachel ab Stärke 8 (Trampelpfad), im Winter ab 1 (Fußabdrücke im
-  Schnee). Tauwetter löscht Spuren auf dem Eis. Ein Level stellt das mit `world.tracks` ein (`threshold`, `fade` in
-  Sekunden je Stufe, 0 = verweht nie, `who`: `all`, `none`, `heroes`).
+- **Spuren:** Ein Byte Stärke je Kachel (0 … 255, `BALANCE.ground.tracks`). Verlässt eine Figur (Held,
+  Leibeigener, Arbeiter draußen, Hauptmann, Soldat) eine Kachel zu einer Nachbarkachel, wächst die Stärke dort um
+  `gain · p/100 · (255 − Stärke) / 255` (aufgerundet, mindestens 1): erst schnell, dann immer langsamer – nur häufige
+  Wege werden zu Pfaden. `p` richtet das Trampeln nach der Größe der Siedlung: `p = √(20 / Läufer) · 100`, begrenzt
+  auf 35 … 200 % (`BALANCE.ground.tracks.walkers`); Läufer = Figuren des Spielers draußen, gezählt einmal je Takt in
+  derselben Schleife über die Figuren. Ein Dorf mit einer Handvoll Leibeigener tritt nach wenigen Gängen kleine Pfade
+  aus, eine Stadt mit 150 Figuren nur noch ihre Hauptwege. Sprünge (Teleport, Rückkehr zur Burg) hinterlassen nichts. Ein umlaufender „Besen“ besucht jede
+  Kachel alle 10 s und nimmt `decay` weg (auf Pfaden `pathDecay`: blanke Erde wächst langsamer zu als
+  niedergetretenes Gras); seine Position folgt aus dem Takt, je Takt nur Kacheln/100, keine Liste.
+
+  | | Sommer, Regen (Gras) | Winter (Schnee) |
+  |---|---|---|
+  | Zuwachs erster Durchgang | 16 | 48 |
+  | kaum sichtbar ab | 8 | – |
+  | „getreten“ = Sensor `track` ab | 48 (4 Durchgänge) | 16 (jeder Schritt: Fußabdrücke) |
+  | Pfad bzw. festgetretene Spur ab | 128 (11 Durchgänge) | 144 (4 Durchgänge) |
+  | Verblassen je 10 s (unter / ab Pfad) | 3 / 2 | 5 / 5 |
+  | ein einzelner Gang verschwindet nach | 1 min (kaum sichtbar nur ½ min) | 100 s (Fußabdrücke ≈ 1 min) |
+  | voller Pfad verschwindet nach | ≈ 18 min (≈ 11 min bleibt er Pfad) | ≈ 8½ min |
+  | Gleichgewicht bei einem Durchgang alle … | Pfad ≲ 27 s (einmal Pfad: bis 40 s), getreten ≲ 43 s, nichts ab 52 s | Spur ≲ 42 s, Fußabdrücke ≲ 90 s |
+
+  Regen wie Sommer (Gras wächst nicht schneller nach). Neuschnee deckt beim Wetterwechsel zu Winter alle Spuren zu,
+  Tauwetter nimmt die Schneespuren mit – Spuren gehören zur Oberfläche, das Gras darunter merkt sich nichts
+  (einfach und sichtbar: nach dem Winter entstehen die Pfade auf den belebten Wegen in wenigen Minuten neu).
+  Die Tabelle oben gilt für 20 Läufer (p = 100 %). Je nach Siedlungsgröße (Durchgänge ohne Verblassen, Gleichgewicht:
+  wie oft eine Kachel mindestens begangen werden muss, damit sie Pfad bleibt):
+
+  | Läufer | p | Gras: getreten / Pfad nach | Pfad bleibt bei einem Gang alle | Schnee: Spur nach |
+  |---|---|---|---|---|
+  | 5 | 200 % | 2 / 6 Gängen | ≲ 53 s | 2 Gängen |
+  | 20 | 100 % | 4 / 11 | ≲ 27 s | 4 |
+  | 60 | 57 % | 6 / 18 | ≲ 17 s | 8 |
+  | 150 | 36 % | 9 / 27 | ≲ 10 s | 12 |
+
+  Fußabdrücke im Schnee zeigt auch in der größten Stadt schon ein einzelner Schritt. Gesetzte Spuren
+  (`world.set_track`, Editor) sind absolute Stärken. Gemessen: 8 Leibeigene auf zwei Wegen haben nach 1 min erste
+  Pfade; eine KI-Stadt (96×96, 20 min, 40–80 Läufer) tritt die Gassen zwischen den Gebäuden und die Hauptwege aus.
+- **Spieloption Spuren** (Einstellungen, `sim.trackMode`, gespeichert und im State-Hash): **aus** – Figuren
+  hinterlassen nichts, beim Umschalten verschwinden alle Spuren (Spuren, die ein Level mit `world.set_track` setzt,
+  bleiben Leveldaten); **verblassend** (Standard) – das Modell oben; **dauerhaft** – nichts verblasst, auch kein
+  Zudecken durch Neuschnee und kein Tauen (nur Spuren auf dem Eis gehen beim Tauwetter mit unter). Beim Spielstart
+  gilt die Einstellung; eine Änderung im laufenden Spiel ist der Befehl `setTracks` (Lockstep-sicher), ein geladener
+  Spielstand übernimmt eine abweichende Einstellung ebenso per Befehl. Ein Level, das Spuren braucht, legt den Modus
+  mit `world.tracks.mode` fest (Befehl wird mit `err.trackModeFixed` abgelehnt, das Menü zeigt „Dieses Level legt die
+  Spuren fest“); `threshold` (1 … 255) verschiebt die Sensorschwelle, `who` (`all`, `none`, `heroes`) wählt, wer
+  Spuren macht. Ältere Level: `fade: 0` = `mode: "permanent"`.
 - **Gegenstände:** Taler und Blumen liegen auf Kacheln (höchstens einer je Kachel, nur auf begehbarem Boden, im
   Winter auch auf dem Eis). Helden und Leibeigene heben auf, worauf sie stehen (Befehl `item`, 0,5 s): ein Taler bringt
   1 Gold, eine Blume wird gepflückt. Ablegen geht nur mit Talern (kostet 1 Gold). Ein Baum, Haufen oder Gebäude auf der
   Kachel nimmt den Gegenstand weg, ebenso Tauwetter auf dem Eis und eine einstürzende Brücke. Gegenstände setzen nur
   Missionen und der Weltaufbau.
-- **Darstellung:** Spuren zeigt das Gelände als Trampelpfad (Sommer, Regen) bzw. getretenen Schnee mit Fußabdrücken
-  (Winter), nur soweit der Spieler sie sieht oder zuletzt gesehen hat. Taler und Christrosen liegen sichtbar auf
+- **Darstellung:** Die Simulation bleibt je Kachel, das Bild nicht: Die Datentextur (`src/render/ground.js`) trägt
+  je Kachel die Stufe, dieselbe über die Nachbarn geglättet und die Laufrichtung (Strukturtensor des Gradienten). Der
+  Geländeshader liest das geglättete Feld bikubisch, verschiebt den Zugriff mit Rauschen in Weltkoordinaten (der Weg
+  schlängelt sich um bis zu eine halbe Kachel) und franst Ränder, Breite und Abnutzung mit Rauschen aus – Kurven
+  statt Ecken, Diagonalen statt Treppen, ab und zu eine ausgetretene Stelle daneben. Sommer und Regen: erst
+  niedergelegte, hellere Halme in Laufrichtung, dann ausgetretene Flecken, die zusammenwachsen, ab der Pfadschwelle
+  blanke Erde. Winter: Fußabdrücke in Laufrichtung, mit wachsender Stärke weitere Lagen (je Lage leicht gedreht und
+  versetzt), bis sie zur festgetretenen, grauen Spur verschmelzen. Niedrige Grafikstufe: ein linearer statt des
+  bikubischen Zugriffs. Nur soweit der Spieler die Kacheln sieht oder zuletzt gesehen hat. Taler und Christrosen liegen sichtbar auf
   ihren Kacheln, sobald die Kachel erkundet ist. Im Welteneditor setzt man beides mit „Gegenstand“ und „Spur“.
 - **Kursmissionen ohne Burg** beginnen mit leerem Lager (außer `players[].stock` setzt einen Vorrat) – `stock("gold")` zählt
   genau die gesammelten Taler.

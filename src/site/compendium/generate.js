@@ -444,7 +444,18 @@ function weatherSection(lang, names, f) {
     }),
   };
   const ctl = constTable(WEATHER_CONTROL, f, 'weather-control', `${names.building('weatherTower')} / ${names.building('weatherPlant')}`);
-  return { id: 'weather', icon: 'weather-winter', blocks: [cycle, fx, ctl], entries: [], vars: weatherVars() };
+  // Tracks per weather (BALANCE.ground.tracks): ground, gain, thresholds, fading per round of the broom
+  const T = BALANCE.ground.tracks;
+  const tracks = {
+    type: 'table', id: 'weather-tracks', caption: `${f.L('cap.tracks')} – ${f.ticks(T.sweepSeconds * 10)}`,
+    cols: [{ label: f.L('col.state') }, { label: f.L('col.ground') }, { label: f.L('col.gain'), num: true }, { label: f.L('col.trodden'), num: true },
+      { label: f.L('col.pathFrom'), num: true }, { label: f.L('col.decay'), num: true }],
+    rows: Object.entries(T.weather).map(([s, w]) => {
+      const g = T[w.ground];
+      return { cells: [{ t: names.weather(s), icon: `weather-${s}` }, f.L(`ground.${w.ground}`), g.gain, g.trodden, g.path, `${w.decay} / ${w.pathDecay}`] };
+    }),
+  };
+  return { id: 'weather', icon: 'weather-winter', blocks: [cycle, fx, ctl, tracks], entries: [], vars: weatherVars() };
 }
 
 /** Weather effects as text placeholders (introductions of units and weather). */

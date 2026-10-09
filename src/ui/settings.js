@@ -7,6 +7,7 @@ import { reactive } from 'vue';
 import { i18n, setLang } from '../i18n/index.js';
 import { setQuality } from '../render/quality.js';
 import { setPlayerColors, PLAYER_COLOR_IDS } from '../render/playerColors.js';
+import { BALANCE } from '../sim/data/balance.js';
 
 const KEY = 'kronland-settings';
 const QUALITY_KEY = 'kronland.quality';
@@ -29,6 +30,8 @@ const QUALITY_KEY = 'kronland.quality';
  * @property {'off'|'short'|'normal'|'long'} musicPause pause between two peaceful music pieces
  * @property {number} playerColor colour of the human (index in PLAYER_COLOR_IDS: 0 blue, 1 red, 2 green, 3 ochre); applies from the next game start
  * @property {'off'|'rare'|'often'} barks how often figures say something when selected and on commands
+ * @property {'off'|'fading'|'permanent'} tracks footpaths and footprints: game option of the simulation, taken at
+ *   the game start and sent as a command when changed during the game (a level may fix it, docs/SPIELREGELN.md §14)
  * @property {boolean} serfBuildView serfs selected: true = build view (build menu), false = serf action bar;
  *   remembered silently (not in the settings dialog)
  * @property {string} serfBuildTab last tab of the build menu (category id) when it shows tabs; remembered silently
@@ -38,10 +41,12 @@ const QUALITY_KEY = 'kronland.quality';
 const coarse = () => { try { return globalThis.matchMedia?.('(pointer: coarse)').matches ?? false; } catch { return false; } };
 
 /** @type {Omit<Settings, 'lang'|'quality'>} */
-export const DEFAULTS = { master: 0.8, music: 0.6, effects: 0.8, uiScale: 1, edgeScroll: true, hints: true, labels: coarse(), speech: true, dialogCamera: true, autosave: true, muted: false, musicPause: 'normal', playerColor: 0, barks: 'rare', serfBuildView: true, serfBuildTab: 'home' };
+export const DEFAULTS = { master: 0.8, music: 0.6, effects: 0.8, uiScale: 1, edgeScroll: true, hints: true, labels: coarse(), speech: true, dialogCamera: true, autosave: true, muted: false, musicPause: 'normal', playerColor: 0, barks: 'rare', tracks: BALANCE.ground.tracks.defaultMode, serfBuildView: true, serfBuildTab: 'home' };
 
 export const MUSIC_PAUSE_OPTIONS = ['off', 'short', 'normal', 'long'];
 export const BARK_OPTIONS = ['off', 'rare', 'often'];
+/** Game option "tracks" (src/sim/data/balance.js) */
+export const TRACK_OPTIONS = BALANCE.ground.tracks.modes;
 
 const LIMITS = { master: [0, 1], music: [0, 1], effects: [0, 1], uiScale: [0.9, 1.3] };
 
@@ -71,6 +76,7 @@ function sanitize(key, value) {
   if (key === 'musicPause') return MUSIC_PAUSE_OPTIONS.includes(value) ? value : DEFAULTS.musicPause;
   if (key === 'serfBuildTab') return typeof value === 'string' && /^[a-z]+$/i.test(value) ? value : DEFAULTS.serfBuildTab;
   if (key === 'barks') return BARK_OPTIONS.includes(value) ? value : DEFAULTS.barks;
+  if (key === 'tracks') return TRACK_OPTIONS.includes(value) ? value : DEFAULTS.tracks;
   if (key === 'edgeScroll' || key === 'hints' || key === 'labels' || key === 'speech' || key === 'dialogCamera' || key === 'autosave' || key === 'muted' || key === 'serfBuildView') return !!value;
   return value;
 }

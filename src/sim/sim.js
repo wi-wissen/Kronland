@@ -27,7 +27,7 @@ import { checkWeatherChange, changeWeather } from './systems/weather.js';
 import { createVision, updateVision, revealStart, hashVision } from './systems/vision.js';
 import { setupBridges, hashBridges, checkBridgeSite, bridgeSiteAt, bridgeDone, bridgeGone } from './systems/bridges.js';
 import { levelSite } from './systems/terrain.js';
-import { updateTracks, thawGround, takeItem, putItem, addItem, setTrack, ITEM_KINDS } from './systems/ground.js';
+import { updateTracks, thawGround, takeItem, putItem, addItem, setTrack, ITEM_KINDS, TRACK_MODES, levelTrackMode, setTrackMode, weatherTracks } from './systems/ground.js';
 import { addAi, runAi, hashAi } from '../ai/runner.js';
 
 /** Own key of a data table? Protects against commands like { building: 'constructor' }. */
@@ -101,6 +101,7 @@ export class Sim {
    * @param {{ seed?: number, players?: number, size?: number, mission?: any, fog?: boolean, startReveal?: number, world?: any, playerSetup?: any[], ai?: Array<string|null|undefined> }} [opts]
    *   ai: difficulty of the computer opponent per player (null = no AI); the AI runs inside step (src/ai/runner.js)
    *   fog: fog of war (default on); startReveal: explored radius around each castle at the start
+   *   tracks: game option 'off' | 'fading' | 'permanent' (settings; a level with world.tracks.mode fixes it)
    *   world: world instead of random map (src/sim/world.js: flat base map or saved editor map)
    *   playerSetup: per player { hq: false } = without castle, village centre and serfs (coding adventure)
    *   mission: optional mission script (src/sim/missions/runtime.js). It gets exactly three
@@ -134,6 +135,12 @@ export class Sim {
     this.pending = [];
     /** Market prices (the same for all players) */
     this.market = createMarket();
+    // Tracks (game option, ground.js): the level may fix the mode, otherwise the setting at the game start
+    const fixedTracks = levelTrackMode(this.mission?.def?.tracks);
+    /** @type {'off'|'fading'|'permanent'} */
+    this.trackMode = fixedTracks ?? (TRACK_MODES.includes(opts.tracks) ? opts.tracks : BALANCE.ground.tracks.defaultMode);
+    /** The level decides the mode (command setTracks is rejected) */
+    this.trackModeFixed = !!fixedTracks;
 
     for (const f of gen.features) {
       if (f.kind === 'spot') this.spots.push({ x: f.x, y: f.y });
@@ -439,6 +446,12 @@ export class Sim {
       case 'item': return this.cmdItem(cmd);
       case 'trade': return this.cmdTrade(cmd);
       case 'changeWeather': return this.cmdChangeWeather(cmd);
+      // Game option "tracks" (settings during the game; lockstep-safe as a command)
+      case 'setTracks':
+        if (!TRACK_MODES.includes(cmd.mode)) return this.reject(cmd, 'err.badTrackMode');
+        if (this.trackModeFixed) return this.reject(cmd, 'err.trackModeFixed');
+        setTrackMode(this, cmd.mode);
+        return true;
       // Mission: e.g. confirm or skip a tutorial step (hook 2 of 3)
       case 'mission': return this.mission ? this.mission.command(this, cmd) : this.reject(cmd, 'err.noMission');
       // Python scripts of the scenario: start/stop the player program, debugger, skip dialogue
@@ -919,6 +932,8 @@ export class Sim {
    */
   setWeather(state, dur, index = this.weather.index) {
     const wasWinter = !!WEATHER_EFFECTS[this.weather.state]?.freezesWater;
+    // Tracks: fresh snow covers them, the thaw takes them along (not in mode "permanent")
+    weatherTracks(this, this.weather.state, state);
     this.weather = { state, index, until: this.tick + dur };
     this.map.frozen = !!WEATHER_EFFECTS[state]?.freezesWater;
     this.events.push({ type: 'weather', state });
@@ -1063,6 +1078,7 @@ export class Sim {
     h.int(items.length);
     for (const k of items) h.int(k).str(this.map.items.get(k));
     for (const v of this.map.tracks) h.int(v);
+    h.str(this.trackMode ?? '').int(this.trackModeFixed ? 1 : 0);
     hashVision(this, h);
     hashBridges(this, h);
     this.mission?.hash(h);

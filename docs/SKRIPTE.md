@@ -195,8 +195,11 @@ Bedingung.
 - Gegenstände: `TileMap.items` (Kachel → `"coin"`/`"flower"`), `occupy()` räumt sie, Tauwetter und eingestürzte
   Brücken auch. Befehl `{ type: 'item', action: 'take'|'put', unit, kind }` mit `err.nothingHere`, `err.somethingHere`,
   `err.onlyCoins`, `err.notEnoughGold`, `err.cannotCarry`.
-- Spuren: `TileMap.tracks` (ein Byte je Kachel), `updateTracks` einmal je Takt nach dem Militär; Schwelle je Wetter,
-  Besen aus dem Takt. `world.tracks` in scenario.json (`threshold`, `fade`, `who`).
+- Spuren: `TileMap.tracks` (ein Byte je Kachel, 0 … 255), `updateTracks` einmal je Takt nach dem Militär: Zuwachs
+  je Durchgang abnehmend, Besen aus dem Takt, Schwelle „getreten“ je Boden (Gras 48, Schnee 16; Modell und Zahlen in
+  [SPIELREGELN.md §14](SPIELREGELN.md#14-spuren-und-gegenstände)). Spieloption `sim.trackMode` (`off`, `fading`,
+  `permanent`) aus den Einstellungen, im Spiel per Befehl `{ type: 'setTracks', mode }`; `world.tracks` in
+  scenario.json (`mode`, `threshold`, `who`).
 - Beides steht im Spielstand und im State-Hash.
 - Darstellung (liest nur): `src/render/ground.js` füllt eine Datentextur mit einem Texel je Kachel (R = Stärke ab der
   Schwelle, G = Achse der Fußabdrücke aus den Nachbarkacheln), höchstens alle 5 Takte und nur hochgeladen, wenn sich
@@ -409,7 +412,7 @@ lindgrund/
 | `world.base` | `flat` (Wiese, `width`/`height`), `generate` (Zufallskarte, `seed`/`size`) oder `terrain` (Editor-Karte in `world.terrain`) |
 | `world.places` | benannte Orte (Kreise), im Code `place("name")`; mit `make_place` eine gemeinsame Tabelle |
 | `players[i].hq` | `false`: ohne Burg, Dorfzentrum und Leibeigene – nur der Held (Kursmissionen); ohne `stock` mit leerem Lager |
-| `world.tracks` | Spuren im Level: `{ "threshold": 1, "fade": 0, "who": "heroes" }` (Schwelle 1 … 48, Sekunden je Stufe, 0 = verweht nie; wer Spuren macht: `all`, `none`, `heroes`) |
+| `world.tracks` | Spuren im Level: `{ "mode": "permanent", "threshold": 16, "who": "heroes" }` – `mode` legt die Spieloption fest (`off`, `fading`, `permanent`; ohne `mode` gilt die Einstellung des Spielers, das Menü zeigt die Festlegung an), `threshold` 1 … 255 ab wann `"track"` gilt (Standard: Gras 48, Schnee 16), wer Spuren macht: `all`, `none`, `heroes`. Ältere Level: `"fade": 0` = `"mode": "permanent"`. Braucht ein Level eine Spur (Fährte, Kurs), immer `mode` setzen. |
 | `players[i].stock/techs/serfs` | Startvorrat, Technologien, Leibeigene (alle Spielerfelder: `docs/MISSIONEN.md`) |
 | `available` | Freischaltungen zu Beginn: `{ "buildings": […], "techs": […] }` (sonst alles) |
 | `shafts`, `landmarks`, `weatherCycle` | Grubenplätze nur für diese Rohstoffe, Wahrzeichen, Wetterfolge (`docs/MISSIONEN.md`) |
@@ -610,7 +613,8 @@ Hütte), **Alles weit weg** (14 Schritte, Taler kurz vor dem Wald, lange Spur mi
 2. Ein Taler im Schnee: den Zettel ändern, damit Nelia auf ihm stehen bleibt (`while nelia.here() != "coin"`) und
    ihn aufhebt.
 3. Der Spur der Geflohenen folgen, durch alle Kurven bis zur Hütte (`front()/left()/right() == "track"`); im Schnee
-   hinterlässt auch Nelia Fußabdrücke (`world.tracks.fade: 0`).
+   hinterlässt auch Nelia Fußabdrücke (`world.tracks.mode: "permanent"` – die Fährte bleibt unabhängig von der
+   Spuren-Einstellung des Spielers).
 
 Etappe 1 gilt in der gespielten Welt (die Vorhersage ist je Welt eine andere Zahl), Etappen 2 und 3 erst nach
 bestandenem „Prüfen“ in allen drei Welten.
@@ -721,7 +725,7 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
 - **Werkzeuge:** Kamera, Heben, Senken, Ebnen, Glätten (gedrückt halten wirkt weiter), Wasser und Land (Wasser
   und Felsen folgen aus der Höhe wie im Kartengenerator), Wald, Radierer, Rohstoffhaufen, Schacht,
   Siedlungsplatz, **Gegenstand** (Taler oder Christrose auf die Kachel unter dem Zeiger, Ziehen legt eine Reihe),
-  **Spur** (Pinsel mit Stärke 1 … 48: ab 8 auch im Sommer sichtbar, darunter nur Fußabdrücke im Schnee), Startplatz,
+  **Spur** (Pinsel mit Stärke 1 … 255: ab 16 Fußabdrücke im Schnee, ab 48 niedergetretenes Gras, ab 128 Erdpfad), Startplatz,
   Ort. Der Radierer nimmt auch Gegenstände und Spuren, Wasser und Felsen ebenso. Pinselgröße und Stärke. Rückgängig/Wiederholen (Strg+Z/Strg+Y), Raster (`#`).
 - **Panel:** Szenario (Titel, Art, Auftrag zweisprachig, Spieler mit/ohne Burg, Nebel), Orte,
   Code (Abschnitte mit Stufe, Sichtbarkeit, bearbeitbar; Befehlsreferenz), Dateien (Bilder, Töne, 3D-Modelle

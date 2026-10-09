@@ -35,7 +35,7 @@
         </div>
 
         <div v-else-if="view === 'settings'" class="dialog-body scroll-y">
-          <SettingsPanel in-game @close="view = 'main'" />
+          <SettingsPanel in-game :track-fixed="trackFixed" @close="view = 'main'" />
         </div>
 
         <div v-else class="dialog-body scroll-y gm-help">
@@ -70,6 +70,8 @@ export default {
   emits: ['close', 'saved', 'load', 'quit', 'update'],
   data() { return { view: 'main', confirmQuit: false, copied: false, showField: false }; },
   computed: {
+    /** The running level fixes the tracks (world.tracks.mode): its mode for the settings, otherwise null */
+    trackFixed() { const sim = this.engine?.sim; return sim?.trackModeFixed ? sim.trackMode : null; },
     /** On phones the system's share menu (navigator.share), otherwise the clipboard */
     canShare() { return !!(this.touch && typeof navigator !== 'undefined' && navigator.share); },
     title() {

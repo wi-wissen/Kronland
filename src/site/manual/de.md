@@ -394,6 +394,13 @@ Unter **Einstellungen** (Startmenü und Spielmenü) findest du Sprache (Deutsch/
 (Automatisch, Niedrig, Mittel, Hoch), Lautstärken für Musik und Effekte, Größe der Oberfläche, Randscrollen
 und Hilfetexte.
 
+**Spuren im Gelände** (Einstellungen → Grafik): Wo Leibeigene, Arbeiter und Soldaten oft entlanglaufen, wird das
+Gras erst niedergetreten und dann zum Erdpfad; im Schnee hinterlässt jeder Schritt Fußabdrücke, viele Schritte
+eine festgetretene Spur. **Aus** – keine Spuren; **Verblassend** (Standard) – selten begangene Wege wachsen wieder
+zu, Neuschnee deckt Spuren zu, Tauwetter nimmt sie mit; **Dauerhaft** – nichts verblasst. Die Einstellung gilt für
+die ganze Partie und lässt sich jederzeit ändern. Braucht ein Level Spuren (z. B. eine Fährte im Schnee), legt es
+die Einstellung fest; das Menü zeigt das dann an.
+
 **Karte teilen:** Im Spielmenü (Pause) steht die Karte, z. B. „Karte: 62921“, darunter **„Link kopieren“** (am
 Handy **„Link teilen“**). Wer den Link öffnet, beginnt dieselbe Karte mit denselben Einstellungen **von vorn** –
 dein aktueller Spielstand ist nicht enthalten. Bei Missionen enthält der Link nur die Mission; geladene

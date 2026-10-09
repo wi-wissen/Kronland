@@ -33,7 +33,7 @@
     "height": 28,
     "fog": false,
     "starts": [{ "x": 2, "y": 3 }],
-    "tracks": { "fade": 0 },
+    "tracks": { "mode": "permanent" },
     "places": {
       "a_start": { "x": 2, "y": 3, "r": 0 },
       "a_view": { "x": 9, "y": 4, "r": 4 },
