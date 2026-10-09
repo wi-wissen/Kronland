@@ -56,9 +56,15 @@ vorgegeben) und „keine Erklärbär-Sätze“. Ein Gespräch ist so lang, wie e
 ## Die Erzählerin
 
 Eine eigene Stimme, die nur zum Spieler spricht (Entscheidung Oktober 2026).
-- **Wer:** Frau zwischen 40 und 50 mit voller Stimme, nah am Mikrofon wie bei einem Hörbuch oder Podcast (nicht
-  älter – 60 klang zu alt; keine „Außenstimme“). Hörproben Runde 2 mit drei Beschreibungen, Wahl offen. Bei neuen
-  Stimmen zuerst nur den Vorlagensatz erzeugen, erst nach der Wahl weitere Sätze klonen (spart Kosten).
+- **Stimme (gewählt Oktober 2026):** Runde 3, Variante A, Fassung 1 der Hörproben
+  (Artefakt „Erzählerin Hörproben“, dritte Runde). Beschreibung für das Stimmmodell: „Erwachsene Frau mit sonorer,
+  warmer, eher dunkler Stimme, entspannt und natürlich, erzählt fließend und mit Wärme wie eine gute
+  Hörbuchsprecherin, nah am Mikrofon, kein Vorlesen, keine übertriebene Betonung“. Wortlaut der Vorlage: „Ich erzähle
+  euch eine Geschichte, die vor langer Zeit begonnen hat und bis heute nicht zu Ende ist. Vielleicht kennt ihr sie
+  schon.“ Die Aufnahme gehört als Vorlage nach `assets-src/voices/narrator/voice.wav` (Rohdateien, nicht in Git).
+- **Was beim Beschreiben von Stimmen schadet:** „deutliche Aussprache“, „klar“, „ruhig“ erzeugen überdeutliches,
+  langsames Vorlesen; ein festes Alter macht die Stimme schnell zu alt. Besser: sonor, warm, entspannt, natürlicher
+  Sprechfluss, nah am Mikrofon, keine übertriebene Betonung. Fassungen, die lang und gedehnt sprechen, aussortieren.
 - **Was sie spricht:** den **Einleitungstext** jeder Mission (vorgelesen) und sonst **nur, was sich nicht aus dem
   Gespräch oder der Zielliste ergibt** – meist Bedienung, die neu ist, in **einem kurzen Satz** („Wähle Nelia aus und
   klicke mit der rechten Maustaste auf den Fremden“). Keine Begrüßung, kein Wiederholen dessen, was Figuren gerade
@@ -91,8 +97,8 @@ Eine eigene Stimme, die nur zum Spieler spricht (Entscheidung Oktober 2026).
 | Mission 1 | Startlehm 1000 (statt 1400), damit die Lehmgrube auch für Lehm gebraucht wird |
 | Stil | Claudes Fassung von Mission 3 (mit Erzählerin) ist der Maßstab; Vergleich mit GPT: Claude kompakter und besser zu folgen |
 | Drehbuch | alle sechs Missionen in diesem Stil neu geschrieben und kalt gelesen; Teil 1 und 3 des Drehbuchs noch an die lineare Fassung anzugleichen |
-| Erzählerin | Frau 40–50, volle Hörbuch-/Podcaststimme nah am Mikrofon; Hörproben Runde 2, Wahl offen. Liest Einleitungen vor, sagt Ziele und Bedienung an, allgemeine Sätze nach Sieg/Niederlage |
+| Erzählerin | Stimme gewählt: Hörproben Runde 3, A, Fassung 1 (sonor, warm, nah am Mikrofon). Liest Einleitungen vor, sonst nur Bedienung und Unklares, je ein kurzer Satz; allgemeine Sätze nach Sieg/Niederlage |
 | Kosten | OpenRouter-Limit: nach den Hörproben noch etwa 10 $ übrig – für die Vertonung (rund 350 Sätze × 2 Sprachen) muss es erhöht werden |
 | Erweiterungen der Technik | nur „Ertrinken melden“ (das Missionsskript erfährt, wer beim Tauwetter ertrinkt) und „Zeiger auf alle Steuerknöpfe“; alle anderen gestrichen |
 | Älteste von Moorbrook | gleiche Stimme wie die Älteste von Erlenhof |
-| Offen | Stimme der Erzählerin (Hörproben); ob Bedienhinweise vertont werden; ob Nelias Vater als Figur auftritt; Übungsmission (spricht Orrin dort weiter direkt zum Spieler?) |
+| Offen | ob Nelias Vater als Figur auftritt; Übungsmission (spricht Orrin dort weiter direkt zum Spieler?) |
