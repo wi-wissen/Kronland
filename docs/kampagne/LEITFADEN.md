@@ -9,18 +9,23 @@ Gespräche ohne Zusammenhang). Technik der Missionen: [Missionen](../MISSIONEN.m
 1. **Weltbeschreibung** ([WELT.md](WELT.md)) lesen bzw. ergänzen: Spielmechanik im Überblick, Wirtschaft, Gebäude,
    Militär, Wetter, Provinzen, Gegenstände, Figuren, Vorgeschichte. Jedes Missionsziel ist eine Handlung in dieser Welt;
    die Welt liefert den Grund dafür.
-2. **Drehbuch** schreiben ([DREHBUCH.md](DREHBUCH.md)): nur Inhalt – Einleitung, Schritte, Gespräche, Erzählerin,
+2. **Kette** je Mission schreiben und abnehmen lassen ([KETTEN.md](KETTEN.md)), bevor ein Gespräch entsteht: Wer will
+   was? Warum jetzt? Was steht im Weg? Was muss der Spieler dafür tun, und warum jeweils? Was ist neu für den
+   Spieler? Wann ist der Gegner besiegt? Gebäude und Fähigkeiten stehen nur in der letzten Frage, nie am Anfang.
+   Danach eine Logikprüfung: Ein anderes Modell bekommt Welt und Kette und nennt Stellen, die der Welt oder sich selbst
+   widersprechen.
+3. **Drehbuch** schreiben ([DREHBUCH.md](DREHBUCH.md)): nur Inhalt – Einleitung, Schritte, Gespräche, Erzählerin,
    Niederlage, Abschluss. Kein Code.
-3. **Kaltleser-Test:** Ein anderes Modell (z. B. GPT über OpenRouter) bekommt nur die Sätze eines Gesprächs, ohne
+4. **Kaltleser-Test:** Ein anderes Modell (z. B. GPT über OpenRouter) bekommt nur die Sätze eines Gesprächs, ohne
    jeden Zusammenhang, und muss beantworten: Wo sind wir? Was ist das Ziel? Warum? Was ist als Nächstes zu tun?
    Kann es eine Frage nicht beantworten, wird das Gespräch neu geschrieben. Skript:
    `python3 scripts/story-coldread.py <mission.md> openai/gpt-6.1-sol <ergebnis.json>` (je Mission eine Datei im
    Format des Drehbuchs; der Ort muss nur bei Missionsbeginn oder Ortswechsel genannt werden, kurze Reaktionen auf ein
    Ereignis brauchen kein neues Ziel). Ein Durchgang je Mission kostet etwa 0,30 $.
-4. **Machbarkeit** gegen die Missions-Technik prüfen ([PRUEFUNG.md](PRUEFUNG.md)): Was geht mit vorhandenen
+5. **Machbarkeit** gegen die Missions-Technik prüfen ([PRUEFUNG.md](PRUEFUNG.md)): Was geht mit vorhandenen
    Funktionen, was braucht eine Erweiterung, was nicht.
-5. **Abnahme** durch den Projektinhaber – als Artefakt zum Lesen, Entscheidungen verständlich vorgelegt (siehe unten).
-6. **Umsetzen** in `src/sim/missions/levels/<id>/` (Python), danach vertonen.
+6. **Abnahme** durch den Projektinhaber – als Artefakt zum Lesen, Entscheidungen verständlich vorgelegt (siehe unten).
+7. **Umsetzen** in `src/sim/missions/levels/<id>/` (Python), danach vertonen.
 
 ## Regeln für die Geschichte
 
