@@ -1,7 +1,6 @@
 // Directory of all missions. New mission: create a level folder in levels/ (levels/index.js) – campaign chapters and
 // the tutorial are found by their kind; older chapters are still mission files in campaign/ registered here.
 
-import c6 from './campaign/c6-thronsee.js';
 import showcase from './showcase.js';
 import stress from './stress.js';
 import { SCENARIOS, ADVENTURES as ADVENTURE_JSON, SCRIPT_MISSIONS as SCRIPT_JSON, CAMPAIGN_LEVELS } from './levels/index.js';
@@ -15,6 +14,7 @@ const c2 = LEVEL_DEFS.c2;
 const c3 = LEVEL_DEFS.c3;
 const c4 = LEVEL_DEFS.c4;
 const c5 = LEVEL_DEFS.c5;
+const c6 = LEVEL_DEFS.c6;
 
 export const TUTORIAL_ID = tutorial.id;
 

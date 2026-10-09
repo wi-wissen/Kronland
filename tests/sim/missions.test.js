@@ -613,14 +613,13 @@ describe('Campaign', () => {
 
   it.each([6606, 7])('mission 6 on map %i: island castle only via the ice, Malvor\'s power plant within shooting range from the shore', (seed) => {
     const sim = createMissionSim('c6', { seed });
-    const st = sim.mission.state;
-    expect(st.warnings).toEqual([]);
+    expect(sim.mission.script.state.errors).toEqual([]);
     const me = api.centerOf(sim.findBuilding(0, 'headquarters'));
-    const castle = api.centerOf(sim.entities.get(st.refs.castle));
+    const castle = api.centerOf(sim.entities.get(ref(sim, 'castle')));
     expect(api.reachable(sim, me, castle, false)).toBe(false);
     expect(api.reachable(sim, me, castle, true)).toBe(true);
     // Malvor's power plant: on the works island (unreachable in summer), fully charged, reachable from the shore for archers
-    const plant = sim.entities.get(st.refs.malvorPlant);
+    const plant = sim.entities.get(ref(sim, 'malvor_plant'));
     expect(plant?.type).toBe('weatherPlant');
     expect(plant.owner).toBe(1);
     expect(api.reachable(sim, me, api.centerOf(plant), false)).toBe(false);
@@ -638,7 +637,7 @@ describe('Campaign', () => {
 
   /** Mission 6: bring about winter and place a serf on the ice in front of the island castle. */
   const serfOnIce = (sim) => {
-    const st = sim.mission.state, isle = st.refs.isle;
+    const isle = ref(sim, 'isle');
     sim.setWeather('winter', 1800);
     sim.run(2);
     const ice = [...api.rings(isle.x, isle.y, isle.r + 2, isle.r + 4)].find((p) => sim.map.inBounds(p.x, p.y) && (sim.map.flags[sim.map.idx(p.x, p.y)] & 1));
@@ -649,13 +648,12 @@ describe('Campaign', () => {
 
   it('mission 6: Malvor thaws the lake as soon as someone stands on the ice, then he has to reload and wait', () => {
     const sim = createMissionSim('c6');
-    const st = sim.mission.state;
     const u = serfOnIce(sim);
     sim.run(15);
     expect(sim.weather.state).toBe('summer');
     expect(sim.entities.has(u.id)).toBe(false); // drowned
     expect(sim.players[1].weatherEnergy).toBeLessThan(100);
-    expect(st.fired.firstThaw).toBeDefined();
+    expect(py(sim, 'thawed_once')).toBe(true);
     // immediately winter again: Malvor cannot (no energy, wait time) – the lake stays frozen
     serfOnIce(sim);
     sim.run(600);
@@ -670,17 +668,16 @@ describe('Campaign', () => {
 
   it('mission 6: without his power plant Malvor no longer thaws; in the storm Orrin gets wounded', () => {
     const sim = createMissionSim('c6');
-    const st = sim.mission.state;
-    sim.mission.runAction(sim, { type: 'remove', ref: 'malvorPlant' });
+    takeOut(sim, ref(sim, 'malvor_plant'));
     sim.run(3);
     expect(objective(sim, 'malvorPlant').status).toBe('done');
     serfOnIce(sim);
     sim.run(50);
     expect(sim.weather.state).toBe('winter');
-    const nelia = sim.entities.get(st.refs.nelia), isle = st.refs.isle;
+    const nelia = heroOf(sim, 'nelia'), orrin = heroOf(sim, 'orrin'), isle = ref(sim, 'isle');
     nelia.px = isle.x * 1000 + 500; nelia.py = (isle.y + isle.r - 1) * 1000 + 500; nelia.path = [];
-    until(sim, () => st.flags.orrinWounded, 200);
-    expect(sim.entities.has(st.refs.orrin)).toBe(false);
+    until(sim, () => py(sim, 'orrin_wounded'), 200);
+    expect(sim.entities.has(orrin.id)).toBe(false);
   });
 });
 

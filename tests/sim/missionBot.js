@@ -362,18 +362,18 @@ function scriptThroneLake(bot) {
   // first the weather power plant, then the army (otherwise the troops eat all thalers)
   bot.armyPlan ??= bot.s.army;
   bot.s.army = bot.placed.weatherPlant ? bot.armyPlan : [];
-  const castle = m.state.refs.castle;
+  const castle = ref(sim, 'castle');
   const ready = bot.leaders.length >= 9;
   const p = sim.players[P];
   // Malvor's power plant first: as long as it stands, he thaws the lake as soon as we go onto the ice
-  const malvorPlant = sim.entities.get(m.state.refs.malvorPlant);
+  const malvorPlant = entityRef(sim, 'malvor_plant');
   const archers = bot.leaders.filter((L) => UNITS[L.def].line === 'bow').map((L) => L.id);
   const go = malvorPlant && archers.length >= 4 && bot.leaders.length >= 8;
   bot.scriptUnits = new Set(go ? archers : []);
   if (go) {
     bot.attackBuilding(archers, malvorPlant);
     // the rest of the army covers the archers at the shore
-    const works = m.state.refs.worksIsle;
+    const works = ref(sim, 'worksIsle');
     const cover = api.findOpen(sim, ...Object.values(api.toward(works, bot.home, works.r + 7)), { maxR: 5, from: bot.home }) ?? bot.home;
     bot.rallyAt = cover;
   } else bot.rallyAt = null;
