@@ -5,51 +5,92 @@
   "kind": "adventure",
   "end": "script",
   "order": 12,
-  "title": { "de": "Taler für die Mägde", "en": "Coins for the Maids" },
+  "title": {
+    "de": "Taler für die Mägde",
+    "en": "Coins for the Maids"
+  },
   "summary": {
-    "de": "Die Zählschleife: Nelia legt den Mägden einen Weg aus Talern – fünf, neun, im Zickzack und rund ums Feuer.",
-    "en": "The counting loop: Nelia lays a path of coins for the maids – five, nine, in a zigzag and around the fire."
+    "de": "Die Zählschleife: Nelia legt den Mägden einen Weg aus Talern – fünf, neun, im Zickzack den Hang hinauf und rund ums Feuer.",
+    "en": "The counting loop: Nelia lays a path of coins for the maids – five, nine, in a zigzag up the slope and around the fire."
   },
   "briefing": {
-    "de": "Nelia ist aus dem Kornlager entkommen. Zwei Mägde wollen nachkommen und brauchen ein Zeichen im Schnee: Taler. nelia.put() legt einen Taler auf die Kachel, auf der Nelia steht. Statt zehnmal dasselbe zu schreiben, wiederholt „for i in range(10):“ die eingerückten Zeilen zehnmal. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Weg, Hang und Holzstoß gibt es in drei Welten – mit dem Umschalter siehst du, wie sich nur die Zahl in range() ändert.",
-    "en": "Nelia has escaped from the granary. Two maids want to follow and need a sign in the snow: coins. nelia.put() lays a coin on the tile Nelia stands on. Instead of writing the same thing ten times, “for i in range(10):” repeats the indented lines ten times. Run starts the stage over every time: think first, then run. Path, slope and woodpile come in three worlds – the switcher shows how only the number in range() changes."
+    "de": "Nelia ist aus dem Kornlager entkommen. Zwei Mägde wollen nachkommen und brauchen ein Zeichen im Schnee: Taler. nelia.put() legt einen Taler auf die Kachel, auf der Nelia steht. Statt zehnmal dasselbe zu schreiben, wiederholt „for i in range(10):“ die eingerückten Zeilen zehnmal. Die vier Etappen sind eine Reise: Schnee, Weg, Hang, Lagerfeuer – wo die eine endet, beginnt die nächste, und dein Programm wächst mit. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Die Reise gibt es in drei Welten – mit dem Umschalter siehst du, wie sich nur die Zahl in range() ändert.",
+    "en": "Nelia has escaped from the granary. Two maids want to follow and need a sign in the snow: coins. nelia.put() lays a coin on the tile Nelia stands on. Instead of writing the same thing ten times, “for i in range(10):” repeats the indented lines ten times. The four stages are one journey: snow, path, slope, campfire – where one ends the next begins, and your program grows along. Run starts the stage over every time: think first, then run. The journey comes in three worlds – the switcher shows how only the number in range() changes."
   },
   "victoryText": {
     "de": "Die Mägde haben den Weg aus Talern gefunden – zu dritt geht es weiter durch den Schnee.",
     "en": "The maids found the path of coins – the three of them go on through the snow."
   },
   "learn": {
-    "de": ["for-Schleife", "range()", "Vorhersagen", "Schleife mit mehreren Befehlen"],
-    "en": ["for loop", "range()", "predicting", "loop with several commands"]
+    "de": [
+      "for-Schleife",
+      "range()",
+      "Vorhersagen",
+      "Schleife mit mehreren Befehlen"
+    ],
+    "en": [
+      "for loop",
+      "range()",
+      "predicting",
+      "loop with several commands"
+    ]
   },
   "worlds": [
-    { "id": "normal", "title": { "de": "Normalfall", "en": "Normal case" } },
-    { "id": "near", "title": { "de": "Alles ganz nah", "en": "Everything close" } },
-    { "id": "far", "title": { "de": "Alles weit weg", "en": "Everything far away" } }
+    {
+      "id": "normal",
+      "title": {
+        "de": "Normalfall",
+        "en": "Normal case"
+      }
+    },
+    {
+      "id": "near",
+      "title": {
+        "de": "Alles ganz nah",
+        "en": "Everything close"
+      }
+    },
+    {
+      "id": "far",
+      "title": {
+        "de": "Alles weit weg",
+        "en": "Everything far away"
+      }
+    }
   ],
   "world": {
     "base": "flat",
-    "width": 26,
-    "height": 38,
+    "width": 38,
+    "height": 18,
     "fog": false,
-    "starts": [{ "x": 2, "y": 3 }],
-    "places": {
-      "a_start": { "x": 2, "y": 3, "r": 0 },
-      "a_view": { "x": 9, "y": 4, "r": 4 },
-      "b_start": { "x": 2, "y": 13, "r": 0 },
-      "b_view": { "x": 11, "y": 14, "r": 4 },
-      "c_start": { "x": 2, "y": 26, "r": 0 },
-      "c_view": { "x": 7, "y": 24, "r": 4 },
-      "d_start": { "x": 4, "y": 34, "r": 0 },
-      "d_view": { "x": 7, "y": 33, "r": 4 }
-    }
+    "starts": [
+      {
+        "x": 2,
+        "y": 13
+      }
+    ],
+    "places": {}
   },
-  "weatherCycle": [["winter", 3600000]],
-  "players": [{ "kind": "human", "hero": "nelia", "hq": false, "stock": { "gold": 5 } }],
+  "weatherCycle": [
+    [
+      "winter",
+      3600000
+    ]
+  ],
+  "players": [
+    {
+      "kind": "human",
+      "hero": "nelia",
+      "hq": false
+    }
+  ],
   "sections": [
     {
       "id": "world",
-      "title": { "de": "Welt aufbauen", "en": "Build the world" },
+      "title": {
+        "de": "Welt aufbauen",
+        "en": "Build the world"
+      },
       "level": "mission",
       "visibility": "collapsed",
       "editable": false,
@@ -57,7 +98,10 @@
     },
     {
       "id": "mission",
-      "title": { "de": "Mission", "en": "Mission" },
+      "title": {
+        "de": "Mission",
+        "en": "Mission"
+      },
       "level": "mission",
       "visibility": "hidden",
       "editable": false,
@@ -65,7 +109,10 @@
     },
     {
       "id": "player",
-      "title": { "de": "Dein Programm", "en": "Your program" },
+      "title": {
+        "de": "Dein Programm",
+        "en": "Your program"
+      },
       "level": "player",
       "visibility": "open",
       "editable": true,
