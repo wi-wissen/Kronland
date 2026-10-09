@@ -41,12 +41,12 @@ export function cleanSeed(v) {
  * @param {any} o @returns {FreeStart}
  */
 export function normalizeFree(o = {}) {
-  const players = Math.trunc(Number(o.players));
+  const players = o.players === '' || o.players === null ? NaN : Math.trunc(Number(o.players));
   return {
     kind: 'free',
     seed: cleanSeed(o.seed) ?? 1,
     difficulty: DIFFICULTIES.includes(o.difficulty) ? o.difficulty : 'normal',
-    players: Number.isFinite(players) ? Math.min(4, Math.max(2, players)) : 2,
+    players: Number.isFinite(players) ? Math.min(4, Math.max(1, players)) : 2,
     hero: HERO_IDS.includes(o.hero) ? o.hero : HERO_IDS[0],
     fog: o.fog !== false,
   };

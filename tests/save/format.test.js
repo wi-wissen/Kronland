@@ -122,7 +122,7 @@ describe('Helpers', () => {
   it('name suggestion by mode and play time', () => {
     const tt = (k, p) => t(k, p, 'de');
     expect(defaultSaveName({ tick: 25200, mode: 'mission', mission: 'c2', seed: 1 }, tt)).toBe('Mission 2 – 42:00');
-    expect(defaultSaveName({ tick: 36610, mode: 'free', mission: null, seed: 42 }, tt)).toBe('Freies Spiel Seed 42 – 1:01:01');
+    expect(defaultSaveName({ tick: 36610, mode: 'free', mission: null, seed: 42 }, tt)).toBe('Freies Spiel, Karte 42 – 1:01:01');
     expect(defaultSaveName({ tick: 0, mode: 'mission', mission: 'tutorial', seed: 1 }, tt)).toBe('Tutorial – 0:00');
   });
 

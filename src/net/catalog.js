@@ -14,6 +14,10 @@ export const CATALOG_VERSION = 1;
  * @property {{ de: string, en: string }} [summary]
  * @property {string|null} preview absolute address
  * @property {number} [levels]
+ * @property {'first'|'stories'|'code'} [kind] library tab (missing: stories)
+ * @property {'easy'|'normal'|'hard'} [difficulty]
+ * @property {number} [minutes] estimated play time
+ * @property {string} [added] date YYYY-MM-DD, for the "New" badge
  * @property {string} [minClient]
  * @property {'open'|'locked'} access
  * @property {string} [manifest] absolute address of pack.json

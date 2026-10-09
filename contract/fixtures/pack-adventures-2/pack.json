@@ -13,27 +13,30 @@
   "author": "wi7",
   "license": "CC-BY-4.0",
   "minClient": "1.0.0",
+  "kind": "code",
+  "difficulty": "normal",
+  "minutes": 90,
   "preview": "996c3d8a4b7769dbe098d763d05512054dd321215cddb89c003954c40e54b7f0.png",
   "levels": [
     {
       "id": "r1-2",
-      "file": "4ed2b20bf14065126045cc1bb9e68ebe20b4301017e6191dda93b8e45385e1e1.json"
+      "file": "43790e70726f55ce2691e7e58e4729b50bcfa8fb7e8dc28f8fb11da922d820ac.json"
     },
     {
       "id": "r1-4",
-      "file": "7530ec722e5694d49f5f979f34e13045f21a2a5801ddf12e94928bcdc5ee29a2.json"
+      "file": "bc2f66c2381014c986aeeb0d9d00f17f589f92b6055ee4ec66158b588959307e.json"
     },
     {
       "id": "r1-5",
-      "file": "3d85dd14c9c52ba9179f0a9f068996d186c8eed061df43f61e3a58a6b39b6fd2.json"
+      "file": "95bb6e2eef4c0dcc9a8f03968c215266e55cb32255bf17ffc6ed810863ab4add.json"
     },
     {
       "id": "r1-m",
-      "file": "a91f03048c63579a859a291ae040c2024eef3b7a47fcf2f23051ed081e4edd22.json"
+      "file": "b856fe90021fe7cbbb42bb37a9fcb330a111fd4b9256822c9411153aec62907e.json"
     },
     {
       "id": "r2-1",
-      "file": "257d248c48dcab0309aa761a6bee1ea5dab210faec3b5d9a0e779d58c77e301f.json"
+      "file": "cacf056621731fe50ecee594ba8ad30d6e8ef46bd1dc0b706ceb2ca34c57ca50.json"
     }
   ],
   "media": {

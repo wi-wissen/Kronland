@@ -34,7 +34,7 @@ export function bothLanguages(t, fallback = '') {
 
 /**
  * Files of a pack from levels: pack.json and every level and media file named after its SHA-256.
- * @param {{ id: string, title: any, summary?: any, author?: string, license?: string, minClient?: string }} info
+ * @param {{ id: string, title: any, summary?: any, author?: string, license?: string, minClient?: string, kind?: string, difficulty?: string, minutes?: number }} info
  * @param {Array<{ scenario: any, files?: Map<string, Blob> }>} levels
  * @returns {Promise<{ manifest: string, hash: string, files: Map<string, Uint8Array|Blob>, pack: any }>}
  */
@@ -56,6 +56,7 @@ export async function buildPackFiles(info, levels) {
     ...(info.summary ? { summary: bothLanguages(info.summary) } : {}),
     ...(info.author ? { author: info.author } : {}), ...(info.license ? { license: info.license } : {}),
     ...(info.minClient ? { minClient: info.minClient } : {}),
+    ...(info.kind ? { kind: info.kind } : {}), ...(info.difficulty ? { difficulty: info.difficulty } : {}), ...(Number.isInteger(info.minutes) ? { minutes: info.minutes } : {}),
     ...(preview ? { preview } : {}), levels: list, ...(Object.keys(media).length ? { media } : {}),
   };
   const manifest = JSON.stringify(pack, null, 2) + '\n';

@@ -7,6 +7,7 @@ import extras from './extras.de.js';
 import { devDe } from './dev.js';
 import { scriptDe } from './script.js';
 import { netDe } from './net.js';
+import { libDe } from './library.js';
 
 export default {
   // Developer mode (own namespace dev.*, src/i18n/dev.js)
@@ -958,7 +959,7 @@ export default {
   'saves.players': '{n} Spieler',
   'saves.fogOff': 'ohne Nebel',
   'saves.size': '{kb} kB',
-  'saves.mode.free': 'Freies Spiel Seed {seed}',
+  'saves.mode.free': 'Freies Spiel, Karte {seed}',
   'saves.mode.mission': 'Mission {n}',
   'saves.mode.missionId': 'Mission {id}',
   'saves.mode.tutorial': 'Tutorial',
@@ -999,6 +1000,8 @@ export default {
   'menu.continueLatest': 'Weiterspielen',
   // Network features (src/i18n/net.js)
   ...netDe,
+  // Start menu, library, free play, saves list (src/i18n/library.js)
+  ...libDe,
   // Expansion content (own file)
   ...extras,
 };

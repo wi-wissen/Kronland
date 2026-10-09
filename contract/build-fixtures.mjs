@@ -50,7 +50,7 @@ export function buildPack() {
     format: 'kronland-pack', version: 1, id: PACK_ID,
     title: { de: 'Programmier-Abenteuer 2', en: 'Coding Adventures 2' },
     summary: { de: 'Fünf Lernabenteuer: Schleifen, Bedingungen und Funktionen mit Nelia.', en: 'Five learning adventures: loops, conditions and functions with Nelia.' },
-    author: 'wi7', license: 'CC-BY-4.0', minClient: '1.0.0', preview: mediaName, levels,
+    author: 'wi7', license: 'CC-BY-4.0', minClient: '1.0.0', kind: 'code', difficulty: 'normal', minutes: 90, preview: mediaName, levels,
     media: { [mediaName]: { type: 'image/png', bytes: png.length } },
   };
   const manifest = JSON.stringify(pack, null, 2) + '\n';

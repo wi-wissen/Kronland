@@ -20,6 +20,8 @@
         "kind": "adventure",
         "end": "script",
         "order": 14,
+        "difficulty": "easy",
+        "minutes": 15,
         "title": {
           "de": "Im Schneetreiben",
           "en": "In the Blizzard"

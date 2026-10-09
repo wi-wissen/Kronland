@@ -6,6 +6,7 @@ import extras from './extras.en.js';
 import { devEn } from './dev.js';
 import { scriptEn } from './script.js';
 import { netEn } from './net.js';
+import { libEn } from './library.js';
 
 export default {
   // Developer mode (own namespace dev.*, src/i18n/dev.js)
@@ -957,7 +958,7 @@ export default {
   'saves.players': '{n} players',
   'saves.fogOff': 'no fog',
   'saves.size': '{kb} kB',
-  'saves.mode.free': 'Free play seed {seed}',
+  'saves.mode.free': 'Free play, map {seed}',
   'saves.mode.mission': 'Mission {n}',
   'saves.mode.missionId': 'Mission {id}',
   'saves.mode.tutorial': 'Tutorial',
@@ -998,6 +999,8 @@ export default {
   'menu.continueLatest': 'Continue',
   // Network features (src/i18n/net.js)
   ...netEn,
+  // Start menu, library, free play, saves list (src/i18n/library.js)
+  ...libEn,
   // Expansion content (own file)
   ...extras,
 };

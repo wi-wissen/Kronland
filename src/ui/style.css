@@ -265,7 +265,7 @@ input[type='range']::-moz-range-thumb { width: 1.375rem; height: 1.375rem; borde
 input[type='range']:focus-visible { outline: none; }
 input[type='range']:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--gold-100); outline-offset: 2px; }
 
-input[type='number'], input[type='text'], input:where(:not([type])) {
+input[type='number'], input[type='text'], input[type='search'], input[type='url'], input:where(:not([type])) {
   font: inherit; color: var(--ink); background: var(--inset-bg); box-shadow: var(--inset-edge);
   border: 1px solid var(--wood-950); border-radius: var(--r-md); padding: 0.4375rem 0.625rem; min-width: 0; min-height: var(--ctl);
   font-variant-numeric: tabular-nums;

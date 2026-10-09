@@ -5,6 +5,8 @@
   "kind": "adventure",
   "end": "script",
   "order": 19,
+  "difficulty": "easy",
+  "minutes": 20,
   "title": { "de": "Heimweg durchs Unterholz", "en": "Home through the Undergrowth" },
   "summary": {
     "de": "Meisterstück der Reihe I: ohne Zettel durch dreimal anders gewachsenes Unterholz – mit while, if und der rechten Hand.",

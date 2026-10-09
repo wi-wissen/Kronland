@@ -11,6 +11,8 @@
     "id": { "type": "string", "pattern": "^[\\w-]+$", "maxLength": 64 },
     "kind": { "enum": ["adventure", "mission", "campaign", "tutorial"] },
     "end": { "enum": ["objectives", "script"] },
+    "difficulty": { "enum": ["easy", "normal", "hard"], "description": "Optional, shown in the library and used by its filters." },
+    "minutes": { "type": "integer", "minimum": 1, "maximum": 6000, "description": "Optional, estimated play time in minutes." },
     "title": { "$ref": "#/$defs/anyText" },
     "summary": { "$ref": "#/$defs/anyText" },
     "briefing": { "$ref": "#/$defs/anyText" },

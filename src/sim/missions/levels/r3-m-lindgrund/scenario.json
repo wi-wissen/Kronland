@@ -5,6 +5,8 @@
   "kind": "adventure",
   "end": "script",
   "order": 39,
+  "difficulty": "normal",
+  "minutes": 30,
   "reset": false,
   "title": { "de": "Lindgrund steht wieder", "en": "Lindgrund Stands Again" },
   "summary": {

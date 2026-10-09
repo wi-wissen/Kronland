@@ -2,7 +2,7 @@
 // Loaded on demand (dynamic import from the UI); components read the small reactive `net` state (state.js).
 // Without a server and without sources nothing here changes the game (stage 0).
 
-import { net } from './state.js';
+import { net, seen, library, canDiscover } from './state.js';
 import { NetError } from './errors.js';
 import { loadConfig, configOverride, loadPlayerSources, addPlayerSource, removePlayerSource, sourceList, sourceParam } from './config.js';
 import { loadAll, parseCatalog } from './catalog.js';
@@ -10,6 +10,7 @@ import { openKv } from './kv.js';
 import { createAuth } from './auth.js';
 import { createApi } from './api.js';
 import { createProgress, createTracker, markDone } from './progress.js';
+import { createSeen } from './seen.js';
 
 /** @type {Promise<any>|null} */
 let ctxPromise = null;
@@ -27,7 +28,8 @@ async function build({ location = globalThis.location, fetch: f = globalThis.fet
   net.sources = config.sources;
   net.playerSources = loadPlayerSources();
   const kv = await openKv();
-  const ctx = { config, kv, fetch: f, auth: null, api: null, progress: null, tracker: null, location, history };
+  const ctx = { config, kv, fetch: f, auth: null, api: null, progress: null, tracker: null, location, history, seen: createSeen(kv.kv, seen) };
+  await ctx.seen.load();
   if (config.server) {
     ctx.auth = createAuth({ server: config.server, fetch: f, kv: kv.kv });
     ctx.api = createApi({ server: config.server, auth: ctx.auth, fetch: f });
@@ -95,6 +97,20 @@ export async function listPacks() {
   }
   const out = await loadAll({ sources, fetch: ctx.api?.fetch ?? ctx.fetch, first });
   return { packs: out.packs, errors: [...extra, ...out.errors] };
+}
+
+/** Fill the reactive `library` with the packs of all sources (the library and the start menu read it). Never throws. */
+export async function refreshLibrary() {
+  library.loading = true;
+  try {
+    if (!canDiscover()) { library.packs = []; library.errors = []; return; }
+    const r = await listPacks();
+    library.packs = r.packs;
+    library.errors = r.errors;
+  } catch (e) {
+    library.packs = [];
+    library.errors = [{ source: net.server ?? '', error: e }];
+  } finally { library.loading = false; library.loaded = true; }
 }
 
 /** Load a pack (hash-checked, cached for offline). @param {import('./catalog.js').PackEntry} entry */
@@ -170,3 +186,6 @@ export const track = {
   finish: (type, ref) => { if (ref && type === 'completed') markDone(ref); if (net.signedIn && ref) ctxPromise?.then((c) => c.tracker?.finish(type)); },
   stop: () => { ctxPromise?.then((c) => c.tracker?.stop()); },
 };
+
+/** The player opened a pack: the "New" badge goes away and stays away. */
+export async function markSeen(id) { await (await initNet()).seen.mark(id); }

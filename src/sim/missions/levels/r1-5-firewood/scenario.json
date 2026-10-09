@@ -5,6 +5,8 @@
   "kind": "adventure",
   "end": "script",
   "order": 15,
+  "difficulty": "easy",
+  "minutes": 15,
   "title": { "de": "Holz für die erste Nacht", "en": "Wood for the First Night" },
   "summary": {
     "de": "Variablen: Taler zählen, Christrosen zählen, Schritte zählen – und genau sechs Scheite kaufen.",
