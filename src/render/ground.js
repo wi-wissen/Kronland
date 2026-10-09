@@ -1,7 +1,8 @@
 // Tracks in the rendering (docs/SPIELREGELN.md §Spuren und Gegenstände): a data texture with one texel per tile,
-// like the fog of war. R = how strongly the tile is trodden (0 = no track; from the threshold of the simulation on),
-// G = axis of the footprints (from the neighbouring track tiles). The terrain shader (terrain.js) turns it into
-// packed earth paths in summer and rain and into trodden snow with footprints in winter.
+// like the fog of war. R = stage of the track in the picture (trackShade: the thresholds of the ground in
+// BALANCE.ground.tracks mapped onto fixed values the shader knows), G = axis of the footprints (from the neighbouring
+// track tiles). The terrain shader (terrain.js) turns it into flattened grass and then bare earth paths in summer and
+// rain, into footprints and then a trodden lane in the snow.
 //
 // Fog: only tiles the player currently sees take over the strength of the simulation; explored tiles keep the
 // last seen state (no movements revealed through the fog), unexplored ones show nothing.
@@ -10,11 +11,9 @@
 
 import * as THREE from 'three';
 import { BALANCE } from '../sim/data/balance.js';
-import { trackThreshold } from '../sim/systems/ground.js';
+import { trackThreshold, trackGround } from '../sim/systems/ground.js';
 import { visionOf, fogEnabled } from '../sim/systems/vision.js';
 
-/** Strength steps above the threshold until a track is fully trodden in the picture. */
-export const TRACK_RAMP = 16;
 /** Ticks between two refills of the texture (0.5 s). */
 export const TRACK_REFRESH_TICKS = 5;
 
@@ -22,27 +21,49 @@ export const TRACK_REFRESH_TICKS = 5;
 const AXES = [[[-1, 0], [1, 0]], [[0, -1], [0, 1]], [[1, -1], [-1, 1]], [[-1, -1], [1, 1]]];
 
 /**
- * Brightness of a track in the picture (0…255): 0 below the threshold, from 40 % at the threshold up to full
- * after TRACK_RAMP more steps.
- * @param {number} strength @param {number} threshold
+ * Values of R in the picture at the stages of a track (0…255; the shader in terrain.js uses the same numbers):
+ * faint (barely visible) → trodden (counts as "track") → path (bare earth / trodden lane) → full.
  */
-export function trackShade(strength, threshold) {
-  if (strength < threshold || strength <= 0) return 0;
-  const f = Math.min(1, (strength - threshold) / TRACK_RAMP);
-  return Math.round(255 * (0.4 + 0.6 * f));
+export const TRACK_SHADE = { faint: 16, trodden: 96, path: 176, full: 255 };
+
+/**
+ * Stages of the ground (BALANCE.ground.tracks.grass/snow) for the picture; a level threshold moves "trodden" (and
+ * "faint" never lies above it).
+ * @param {{faint:number, trodden:number, path:number, full:number}} ground @param {number} [threshold]
+ */
+export function trackStages(ground, threshold = ground.trodden) {
+  const trodden = Math.max(1, Math.min(threshold, BALANCE.ground.tracks.max));
+  const path = Math.max(trodden + 1, ground.path), full = Math.max(path + 1, ground.full);
+  return { faint: Math.max(1, Math.min(ground.faint, trodden)), trodden, path, full };
+}
+
+/**
+ * Brightness of a track in the picture (0…255): piecewise linear between the stages – 0 below "faint",
+ * TRACK_SHADE.faint … trodden … path … full.
+ * @param {number} strength @param {{faint:number, trodden:number, path:number, full:number}} st trackStages()
+ */
+export function trackShade(strength, st) {
+  if (strength < st.faint || strength <= 0) return 0;
+  const S = TRACK_SHADE;
+  const lerp = (a, b, va, vb) => Math.round(va + (vb - va) * (Math.min(strength, b) - a) / Math.max(1, b - a));
+  if (strength < st.trodden) return lerp(st.faint, st.trodden, S.faint, S.trodden);
+  if (strength < st.path) return lerp(st.trodden, st.path, S.trodden, S.path);
+  return lerp(st.path, st.full, S.path, S.full);
 }
 
 /**
  * Fill the texel bytes (RGBA per tile) from the track strengths of the simulation.
  * @param {Uint8Array} tracks strength per tile (sim.map.tracks)
  * @param {Uint8Array} out RGBA bytes per tile (kept where the player does not see: last seen state)
- * @param {{ W: number, H: number, threshold: number, visible?: Uint8Array|null, explored?: Uint8Array|null }} o
- *   visible/explored: vision of the player (null = no fog, everything counts as visible)
+ * @param {{ W: number, H: number, stages: {faint:number, trodden:number, path:number, full:number},
+ *   visible?: Uint8Array|null, explored?: Uint8Array|null }} o stages: trackStages(); visible/explored: vision of
+ *   the player (null = no fog, everything counts as visible)
  * @returns {{ y0: number, y1: number }|null} rows that changed (inclusive) or null
  */
-export function packTracks(tracks, out, { W, H, threshold, visible = null, explored = null }) {
+export function packTracks(tracks, out, { W, H, stages, visible = null, explored = null }) {
   let y0 = -1, y1 = -1;
-  const on = (x, y) => x >= 0 && y >= 0 && x < W && y < H && tracks[y * W + x] >= threshold;
+  const lo = stages.faint;
+  const on = (x, y) => x >= 0 && y >= 0 && x < W && y < H && tracks[y * W + x] >= lo;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const k = y * W + x;
@@ -50,7 +71,7 @@ export function packTracks(tracks, out, { W, H, threshold, visible = null, explo
       if (explored && !explored[k]) { r = 0; g = 0; }
       else if (visible && !visible[k]) continue; // last seen state stays
       else {
-        r = trackShade(tracks[k], threshold);
+        r = trackShade(tracks[k], stages);
         g = 0;
         if (r) {
           // footprints along the path: the axis with the most track neighbours (straight before diagonal)
@@ -105,14 +126,14 @@ export class TrackLayer {
   /** Per frame: refill the texture when the simulation went on a few ticks or a script set tracks. */
   update(force = false) {
     const sim = this.sim, m = sim.map;
-    const threshold = trackThreshold(sim);
+    const stages = trackStages(trackGround(sim), trackThreshold(sim));
     const vis = fogEnabled(sim) && !this.revealed ? visionOf(sim, this.player) : null;
-    const key = `${m.groundVersion}|${threshold}|${sim.vision?.version ?? 0}|${vis ? 1 : 0}`;
+    const key = `${m.groundVersion}|${stages.faint}|${stages.trodden}|${stages.path}|${sim.vision?.version ?? 0}|${vis ? 1 : 0}`;
     if (!force && key === this.key && sim.tick - this.tick < TRACK_REFRESH_TICKS) return false;
     this.key = key;
     this.tick = sim.tick;
     const changed = packTracks(m.tracks, this.data, {
-      W: this.W, H: this.H, threshold: Math.max(1, Math.min(BALANCE.ground.tracks.max, threshold)),
+      W: this.W, H: this.H, stages,
       visible: vis?.visible ?? null, explored: vis?.explored ?? null,
     });
     if (changed) this.tex.needsUpdate = true;

@@ -480,10 +480,11 @@ float wSnow = max(vSplatB.x, uSnow * flatness * (1.0 - wRock * 0.55) * smoothste
 // Tracks: smooth path strength (linear between tile centres), only on the map
 vec2 kIn2 = step(vec2(0.0), vWPos.xz) * step(vWPos.xz, uMapSize);
 float kTr = texture2D(tTrack, vWPos.xz / uMapSize).r * kIn2.x * kIn2.y * uTrackOn;
-// Summer and rain: packed earth paths instead of grass
-float kPath = smoothstep(0.12, 0.55, kTr + (m - 0.5) * 0.2) * (1.0 - uSnow);
+// Summer and rain (stages: ground.js TRACK_SHADE 16/96/176/255): flattened grass first, bare earth from the path on
+float kFlat = smoothstep(0.05, 0.42, kTr) * (1.0 - uSnow);
+float kPath = smoothstep(0.64, 0.95, kTr + (m - 0.5) * 0.14) * (1.0 - uSnow);
 wDirt = max(wDirt, kPath * 0.92);
-wMeadow *= 1.0 - kPath;
+wMeadow *= 1.0 - max(kPath, kFlat * 0.8);
 float wGrass = max(0.0, 1.0 - wMeadow - wDirt - wSand - wRock);
 wMeadow *= (1.0 - wDirt) * (1.0 - wSand) * (1.0 - wRock);
 // Height-based blending: bright texture spots win first (sharp, natural transitions)
@@ -497,23 +498,30 @@ float bG = max(aG - aMax, 0.0);
 float bSum = bA.x + bA.y + bA.z + bA.w + bG + 1e-4;
 vec3 albedo = (cGrass * bG + cMeadow * bA.x + cDirt * bA.y + cSand * bA.z + cRock * bA.w) / bSum;
 kH = (hG * bG + dot(hA, bA)) / bSum;
+// Flattened grass: stalks lie down – lighter, straw-coloured and smoother (only where grass or meadow shows)
+float kGr = kFlat * (1.0 - kPath) * (bG + bA.x) / bSum;
+albedo = mix(albedo, albedo * vec3(1.22, 1.14, 0.7) + vec3(0.05, 0.04, 0.0), kGr * 0.75);
+kH = mix(kH, 0.35 + kH * 0.3, kGr * 0.6);
 // Snow lies on top
 float sMask = smoothstep(0.3, 0.6, wSnow + (kLum(cSnow) - 0.8) * 0.6 + (1.0 - kH) * 0.25 * wSnow);
 albedo = mix(albedo, cSnow, sMask);
 kH = mix(kH, kLum(cSnow) * 0.3, sMask);
-// Winter: trodden snow (greyer and bluish) with footprints per tile
+// Winter: footprints per tile from the first step, a trodden lane (greyer, bluish, flat) from the path stage on
 if (uSnow > 0.5 && kTr > 0.001) {
-  float kSn = sMask * kTr;
-  albedo = mix(albedo, cSnow * vec3(0.46, 0.53, 0.66), kSn * 0.6);
-  // footprints (all graphics levels: only here in winter, one more texture read)
+  float kLane = smoothstep(0.45, 0.85, kTr);
+  float kSn = sMask * max(kLane, smoothstep(0.3, 0.6, kTr) * 0.25);
+  albedo = mix(albedo, mix(cSnow * vec3(0.42, 0.46, 0.55), cDirt, 0.3 * kLane), kSn * 0.85);
+  kH = mix(kH, kH * 0.4, kSn);
+  // footprints (all graphics levels: only here in winter, one more texture read); in the lane they blur
   vec2 kCell = floor(vWPos.xz) + 0.5;
   vec4 kT = texture2D(tTrack, kCell / uMapSize);
-  float kP = kPrints(vWPos.xz - kCell, floor(kT.g * 3.0 + 0.5)) * step(0.01, kT.r) * sMask * kIn2.x * kIn2.y;
+  float kP = kPrints(vWPos.xz - kCell, floor(kT.g * 3.0 + 0.5)) * step(0.3, kT.r) * sMask * kIn2.x * kIn2.y;
+  kP *= 1.0 - 0.55 * smoothstep(0.7, 1.0, kT.r);
   albedo = mix(albedo, cSnow * vec3(0.24, 0.3, 0.42), kP * 0.9);
   kH -= kP * 0.25;
 }
-// Summer paths: a little darker and smoother where they are well trodden
-albedo *= 1.0 - kPath * kTr * 0.12;
+// Summer paths: a little darker where they are well trodden
+albedo *= 1.0 - kPath * smoothstep(0.7, 1.0, kTr) * 0.12;
 // Large-scale colour variation (sun patches, richer hollows)
 albedo *= 0.88 + macro.r * 0.24;
 albedo = mix(albedo, albedo * vec3(1.06, 1.0, 0.86), smoothstep(0.55, 0.85, macro.b) * (1.0 - sMask) * 0.6);
