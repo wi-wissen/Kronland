@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import { Terrain } from './terrain.js';
+import { collectHeld } from './retain.js';
 import { Water } from './water.js';
 import { Environment } from './environment.js';
 import { getQuality } from './quality.js';
@@ -201,14 +202,7 @@ export class Renderer {
     if (successor) {
       // Keep what other worlds use as well: shared models/materials/textures and everything the successor holds
       const keep = new Set([...sharedModelMaterials(), ...sharedMarkerMaterials(), ...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), this.arrowMat, this.ballGeo, this.arrowGeo, this.boomGeo]);
-      const hold = (root) => root?.traverse?.((o) => {
-        if (o.geometry) keep.add(o.geometry);
-        for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) {
-          keep.add(m);
-          for (const v of Object.values(m)) if (v?.isTexture) keep.add(v);
-        }
-      });
-      for (const root of [...sharedAssetRoots(), ...sharedCharacterRoots(), successor.scene]) hold(root);
+      collectHeld([...sharedAssetRoots(), ...sharedCharacterRoots(), successor.scene], keep);
       for (const x of keep) seen.add(x);
       freeTree(this.scene);
       this.env?.dispose?.();
