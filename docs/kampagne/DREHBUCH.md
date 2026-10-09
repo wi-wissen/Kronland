@@ -154,8 +154,9 @@ diese Zeilen ersatzlos; jede Mission funktioniert in der neutralen Fassung.
 ---
 # Teil 2 – Die Missionen
 
-> **Stand (Oktober 2026):** Alle sechs Missionen sind nach dem [Leitfaden](LEITFADEN.md) vollständig neu
-> geschrieben: Die Erzählerin liest nur die Einleitungen und sagt sonst Bedienung; die Figuren sprechen nur
+> **Stand (Oktober 2026):** Mission 1 und 2 sind aus den abgenommenen [Ketten](KETTEN.md) neu geschrieben und auf
+> Widersprüche geprüft. Mission 3 bis 6 stammen aus der vorigen Runde und werden nach Abnahme ihrer Ketten neu
+> geschrieben. Für alle gilt der [Leitfaden](LEITFADEN.md): Die Erzählerin liest nur die Einleitungen und sagt sonst Bedienung; die Figuren sprechen nur
 > miteinander; jede Mission endet mit normalen Szenen statt mit vorgelesenem Text. Der Kaltleser-Test steht für diese
 > Fassung noch aus. Teil 1 und Teil 3 beschreiben noch die alte Fassung mit zusätzlichen Wahlen und werden nach der
 > Abnahme angeglichen.
@@ -172,7 +173,7 @@ um Malvor bei den Kronstücken zuvorzukommen).
 ### 2. Einleitungstext (liest die Erzählerin vor)
 
 > Seit Jahren liegt Schnee auf dem Kronland. Seit König Edrian im Sturm auf dem Thronsee ertrank, wird es nicht mehr
-> Frühling. Nur einer hat noch Korn: Malvor, der Statthalter von Hagenfurt. Wer essen will, arbeitet in seinen
+> Frühling. Nur einer hat noch Korn genug für alle: Malvor, der Statthalter von Hagenfurt. Wer essen will, arbeitet in seinen
 > Kornlagern – für eine Schüssel am Tag.
 
 **Startvorrat:** 400 Taler, 1000 Lehm, 600 Holz, 200 Stein. Keine Leibeigenen.
@@ -201,8 +202,7 @@ um Malvor bei den Kronstücken zuvorzukommen).
   > **Orrin:** Endlich ein Gesicht! Orrin, Händler in Bändern, Knöpfen und guten Ratschlägen. Mein Karrenrad ist
   > gebrochen, und hier kauft keiner mehr.
   >
-  > **Nelia:** Ich bin Nelia. Ich bin hier geboren, und zwei Winter war ich in Malvors Kornlager. Du siehst verfroren
-  > aus – hier, mein letztes Brot.
+  > **Nelia:** Ich bin Nelia. Ich bin hier geboren. Du siehst verfroren aus – hier, mein letztes Brot.
   >
   > **Orrin:** Geschenkt? Wie soll ich das verbuchen? Mir hat noch nie jemand etwas geschenkt.
   >
@@ -210,8 +210,9 @@ um Malvor bei den Kronstücken zuvorzukommen).
   >
   > **Orrin:** Danke. Und was willst du hier, in einem Dorf ohne Leute?
   >
-  > **Nelia:** Vor einer Woche bin ich dort davongelaufen. Mein Vater ist noch im Lager. Er hat immer unter dem alten
-  > Baum am Waldrand versteckt, was wir hatten – wenn die Eintreiber kamen. Vielleicht liegt dort noch Saatkorn. Mit Saatkorn kann Lindgrund im Frühjahr wieder säen.
+  > **Nelia:** Ich war zwei Winter in Malvors Kornlager. Vor einer Woche bin ich davongelaufen, nach Hause. Mein Vater
+  > ist noch dort. Er hat immer unter dem alten Baum am Waldrand versteckt, was wir hatten, wenn die Eintreiber kamen.
+  > Vielleicht liegt dort noch Saatkorn, Winterkorn. Damit könnte Lindgrund wieder etwas anbauen.
   >
   > **Orrin:** Saatkorn ist mehr wert als alles in meinem Karren. Ich komme mit.
 - Orrin schließt sich an.
@@ -231,7 +232,8 @@ um Malvor bei den Kronstücken zuvorzukommen).
   >
   > **Nelia:** Unter Vaters Baum? Wie kommt so etwas dahin?
 - Drei Leibeigene treten aus dem Wald; sie hatten sich vor den Eintreibern versteckt.
-  > **Dorfbewohnerin:** Gold? Gehört ihr zu Malvors Leuten? Dann sind wir gleich wieder weg!
+  > **Dorfbewohnerin:** Gold? Gehört ihr zu Malvors Leuten? Wir haben uns vor den Eintreibern versteckt, mit dem letzten
+  > Sack Winterkorn. Den bekommen sie nicht!
   >
   > **Orrin:** Malvors Leute? Seht ihr nicht, wer da steht? Der König hatte keine *bekannten* Kinder!
   >
@@ -247,8 +249,9 @@ um Malvor bei den Kronstücken zuvorzukommen).
   >
   > **Nelia:** Und wenn sie merken, dass es nicht stimmt?
   >
-  > **Orrin:** Dann haben sie ein Dach über dem Kopf. Wer satt ist, verzeiht viel. Aber zuerst brauchen wir Holz.
-  > Die eingestürzten Häuser dort drüben – ihre Balken sind trocken.
+  > **Orrin:** Dann haben sie ein Dach über dem Kopf. Wer satt ist, verzeiht viel. Das alte Verwalterhaus am Dorfrand
+  > steht noch, dort richten wir uns ein. Und für alles Weitere brauchen wir Holz: Bei den eingestürzten Häusern
+  > liegen trockene Balken.
 
 #### Schritt 3 – Holz
 
@@ -290,7 +293,8 @@ um Malvor bei den Kronstücken zuvorzukommen).
 
 - *Auslöser:* zwei Wohnhäuser fertig.
 - *Dialog:*
-  > **Orrin:** Wer geschlafen hat, will essen. Und Essen ist alles, womit Malvor das Land festhält.
+  > **Orrin:** Wer geschlafen hat, will essen. Der Sack Winterkorn der drei reicht für die ersten Höfe. Und Essen ist
+  > alles, womit Malvor das Land festhält.
   >
   > **Nelia:** Dann bauen wir Höfe. Wer in Lindgrund satt wird, muss nicht zu ihm.
 - *Ziel:* „Baue 2 Bauernhöfe“
@@ -304,7 +308,7 @@ um Malvor bei den Kronstücken zuvorzukommen).
 
 - *Auslöser:* zwei Bauernhöfe fertig.
 - *Dialog:*
-  > **Orrin:** Zwei Höfe ernähren nur zwei Bauern. Mehr Leute kommen nur, wenn es mehr Arbeit gibt.
+  > **Orrin:** Zwei Höfe geben nur zwei Bauern Arbeit. Mehr Leute kommen nur, wenn es mehr Arbeit gibt.
   >
   > **Nelia:** Und der Lehm geht zur Neige. Ohne Lehm kein Haus mehr für die, die noch heimkommen.
   >
@@ -362,10 +366,10 @@ um Malvor bei den Kronstücken zuvorzukommen).
   > **Eintreiber:** Das wird Malvor erfahren! Und ihr seid nicht die Einzigen. Sein Herold kauft die Kronstücke längst
   > – in Beaucroix bietet er schon für das nächste!
   >
-  > **Nelia:** Malvor sammelt die Kronstücke? Orrin, was passiert, wenn er alle fünf hat?
+  > **Nelia:** Malvor sammelt die Kronstücke? Dann will er König werden.
   >
-  > **Orrin:** Dann wird er König. Das alte Recht sagt: Wer alle fünf Kronstücke vereint, den müssen die Provinzen
-  > krönen. Und einem König darf keiner mehr widersprechen.
+  > **Orrin:** Das alte Recht sagt: Wer alle fünf Kronstücke vereint, den müssen die Provinzen krönen. Und einem König
+  > darf keiner mehr widersprechen.
   >
   > **Nelia:** Dann bekommt er dieses nicht. Und das in Beaucroix auch nicht.
   >
@@ -383,7 +387,7 @@ um Malvor bei den Kronstücken zuvorzukommen).
 - *Wenn Nelia hingeht:*
   > **Dorfälteste:** Schick mir den Händler, Kind. Der redet für zwei.
 - *Gespräch mit Orrin:*
-  > **Orrin:** Ehrwürdige Mutter! Ihr habt es gehört: Die verlorene Prinzessin ist zurück, und sie friert in Lindgrund.
+  > **Orrin:** Ehrwürdige Mutter! Ihr habt es gehört: Die verlorene Prinzessin ist zurück. Aus Malvors Kornlager entkommen, und jetzt baut sie Lindgrund wieder auf.
   >
   > **Dorfälteste:** Prinzessin oder nicht – ein Mädchen, das Malvors Kornlager davonläuft und ihr Dorf wieder
   > aufbaut, verdient Hilfe. Wir schicken drei Leute und Holz nach Lindgrund.
@@ -416,7 +420,6 @@ um Malvor bei den Kronstücken zuvorzukommen).
   > **Nelia:** Dann gehst du zu Fuß.
 - *Übergabe an Mission 2:* zehn Leibeigene, dreihundert Taler.
 
-
 ---
 
 ## Mission 2 – Beaucroix
@@ -430,11 +433,11 @@ gemacht.
 
 ### 2. Einleitungstext (liest die Erzählerin vor)
 
-> Eines von fünf Kronstücken hat Nelia – das von Lindgrund. Das alte Recht sagt: Wer alle fünf vereint, den müssen die
-> Provinzen krönen. Darum kauft Malvor sie zusammen.
+> Eines von fünf Kronstücken hat Nelia – das von Lindgrund. Die Krone des toten Königs ist zerbrochen, und wer alle fünf
+> Stücke wieder zusammensetzt, den müssen die Provinzen krönen. Darum jagt Malvor ihnen nach.
 >
 > Das nächste liegt in Beaucroix, der Handelsstadt am großen Fluss. Räuber haben es aus der Stadtkasse gestohlen und
-> verkaufen es an den, der am meisten zahlt. Malvors Herold ist schon unterwegs.
+> verkaufen es an den, der am meisten zahlt.
 
 **Startvorrat:** 300 Taler, 1800 Lehm, 2000 Holz, 1200 Stein, 400 Eisen; 10 Leibeigene. Burg vor der Stadt, das
 Kaufmannsviertel von Beaucroix ist verbündet, das Räuberlager liegt im Flusswald.
@@ -447,14 +450,17 @@ Kaufmannsviertel von Beaucroix ist verbündet, das Räuberlager liegt im Flusswa
 - *Dialog:*
   > **Orrin:** Beaucroix! Hier riecht sogar der Schnee nach Geld.
   >
-  > **Nelia:** Ich rieche nur Hunger. Malvors Leute kaufen das ganze Korn auf, und die Stadt sieht zu.
+  > **Nelia:** Ich rieche nur Hunger. Die Straßen sind zugeschneit, und die Stadt kauft ihr Korn bei Malvor – für Gold.
   >
-  > **Nelia:** Und wir haben dreihundert Taler. Malvor zahlt für das Kronstück, was die Räuber verlangen.
+  > **Orrin:** Und mit diesem Gold bezahlt Malvor seine Gebote für das Kronstück. Beaucroix finanziert seinen eigenen
+  > Verlust.
   >
-  > **Orrin:** Dann verdienen wir mehr als er. Wir bauen einen eigenen Markt. Lehm und Stein haben wir reichlich – am
-  > Markt werden daraus Taler.
+  > **Nelia:** Wir haben dreihundert Taler. Das reicht nicht, um mitzubieten.
   >
-  > **Nelia:** Ein Markt braucht Händler, und Händler wollen essen. Also zuerst Höfe.
+  > **Orrin:** Dann verdienen wir. Die Lehmgruben der Stadt graben in gefrorenem Boden, bei uns kommt der Lehm aus dem
+  > Schacht. Beaucroix zahlt gut dafür. Dafür bauen wir einen Markt.
+  >
+  > **Nelia:** Zuerst Höfe, wie in Lindgrund.
 - *Ziele:* „Baue 3 Bauernhöfe“ · „Errichte einen Marktplatz“
 
 #### Schritt 1 – Der Marktplatz
@@ -462,7 +468,7 @@ Kaufmannsviertel von Beaucroix ist verbündet, das Räuberlager liegt im Flusswa
 - *Auslöser:* direkt nach dem Start (parallel zu den Höfen).
   > **Erzählerin:** Ein Marktplatz entsteht aus einem Lager. Baue zuerst ein Lager.
 - *Lager fertig:*
-  > **Orrin:** Ein Lager. Schön trocken. Jetzt fehlt nur noch ein Dach, unter dem man feilschen kann.
+  > **Orrin:** Ein Lager. Daraus wird der Marktplatz.
   >
   > **Erzählerin:** Wähle das Lager aus und drücke „Ausbauen“. Das geht von selbst, ohne Leibeigene.
 - *Erklärung:* Rahmen erst auf „Lager“ im Baumenü, nach dem Bau auf „Ausbauen“.
@@ -475,14 +481,11 @@ Kaufmannsviertel von Beaucroix ist verbündet, das Räuberlager liegt im Flusswa
   >
   > **Nelia:** Dann rechne. Wir brauchen viele Taler.
   >
-  > **Orrin:** Lehm und Stein liegen bei uns herum wie Schnee. Den Leuten hier fehlen sie. Also verkaufen wir.
+  > **Orrin:** Beaucroix braucht Lehm und Stein, und wir haben genug davon. Also verkaufen wir.
 - *Ziel:* „Tausche Waren am Markt gegen Taler“
   > **Erzählerin:** Wähle den Marktplatz: bei „Bezahlen mit“ Lehm, bei „Kaufen“ Taler, dann „Handeln“.
   >
   > **Erzählerin:** Wer viel auf einmal verkauft, drückt den Preis.
-- *Keine Händler da (der Marktplatz meldet „Noch keine Händler“):*
-  > **Orrin:** Keine Händler? Dann fehlt ihnen Bett oder Tisch. Händler sind wie ich: Mit leerem Magen wird nicht
-  > gefeilscht.
 - *Erster Handel abgeschlossen:*
   > **Orrin:** Taler, die klimpern. Der schönste Klang der Welt.
 
@@ -494,16 +497,21 @@ Kaufmannsviertel von Beaucroix ist verbündet, das Räuberlager liegt im Flusswa
   > **Herold:** Hört, Leute von Beaucroix! Statthalter Malvor zahlt tausend Taler für das Kronstück, das die Räuber im
   > Flusswald haben.
   >
-  > **Räuberhauptmann:** Tausend vom Statthalter, hört ihr? Wer zwölfhundert bietet, bekommt es. Sonst geht es nach
-  > Hagenfurt.
+  > **Räuberhauptmann:** Tausend? Wer zwölfhundert bietet, bekommt es. Sonst geht es nach Hagenfurt.
   >
-  > **Nelia:** Zwölfhundert. Orrin, so viel verdienen wir nicht in einer Woche.
+  > **Orrin:** Ich kenne den Mann: Malvors Herold, sein Ausrufer und Einkäufer. Seine Vollmacht reicht bis tausend Taler.
+  > Für mehr muss er nach Hagenfurt reiten und fragen.
   >
-  > **Orrin:** Am Markt schon – wenn wir fleißig handeln. Oder …
+  > **Nelia:** Dann bleibt uns ein wenig Zeit. Zwölfhundert Taler verdienen wir trotzdem nicht in einer Woche.
   >
-  > **Nelia:** Oder wir holen es uns. Es gehört sowieso der Stadt, nicht den Räubern. Dafür bräuchten wir Soldaten.
+  > **Orrin:** Am Markt schon, wenn wir fleißig handeln. Oder …
   >
-  > **Orrin:** Zwei Wege. Taler oder Schwerter. Nur warten dürfen wir nicht – sonst kauft es Malvor.
+  > **Ratsherr:** Der Rat von Beaucroix kann das Kronstück nicht zurückholen, die Räuber sind zu stark. Aber er gibt sein
+  > Wort: Wer es ihnen abnimmt, darf es behalten. In dieser Stadt wäre es nicht sicher.
+  >
+  > **Nelia:** Dann holen wir es uns. Dafür bräuchten wir Soldaten.
+  >
+  > **Orrin:** Zwei Wege. Taler oder Schwerter. Nur zu lange warten dürfen wir nicht.
 - *Ziel:* „Hol das Kronstück: Kauf es frei (1200 Taler) oder stürme das Räuberlager“
   > **Erzählerin:** Den Freikauf findest du unter „Angebote“.
   >
@@ -516,7 +524,7 @@ Kaufmannsviertel von Beaucroix ist verbündet, das Räuberlager liegt im Flusswa
 - *Dialog:*
   > **Räuberhauptmann:** Taler sind Taler. Nimm dein Goldstück, Händler.
   >
-  > **Herold:** Statthalter Malvor wird sich merken, wer ihn überboten hat.
+  > **Herold:** Statthalter Malvor wird sich merken, wer ihm das Kronstück weggeschnappt hat.
   >
   > **Nelia:** Soll er. Das zweite Kronstück gehört jetzt uns.
 
@@ -526,21 +534,22 @@ Kaufmannsviertel von Beaucroix ist verbündet, das Räuberlager liegt im Flusswa
   > **Nelia:** Das sind unsere ersten Soldaten. Sie kämpfen für Beaucroix, nicht für Malvor.
   >
   > **Erzählerin:** Der Knopf „Truppen“ wählt alle Soldaten und Helden aus. Klicke mit rechts auf das Räuberlager.
-- *Wachen am Lager besiegt:*
-  > **Gefangener:** Gnade! Hier, nehmt das Ding. Es hat uns nur Unglück gebracht.
+- *Lager erobert (alle Wachen besiegt):*
+  > **Gefangener Räuber:** Gnade! Hier, nehmt das Ding. Es hat uns nur Unglück gebracht.
   >
-  > **Herold:** Statthalter Malvor wird sich merken, wer ihm seine Ware gestohlen hat.
+  > **Herold:** Statthalter Malvor wird sich merken, wer ihm zuvorgekommen ist.
   >
-  > **Nelia:** Seine Ware? Es lag in der Stadtkasse von Beaucroix. Das zweite Kronstück gehört jetzt uns.
+  > **Nelia:** Soll er. Das zweite Kronstück gehört jetzt uns.
 
 #### Die Überfälle
 
-- *Auslöser:* 5 Minuten nach dem Herold, danach alle 5 Minuten, höchstens dreimal – solange die Räuber das Kronstück
-  haben. Jeweils zwei Trupps Schwertkämpfer greifen Nelias Lager an.
+- *Auslöser:* 5 Minuten nach dem Herold, danach alle 5 Minuten, höchstens dreimal – solange die Entscheidung nicht
+  gefallen ist (Weg A oder B). Jeweils zwei Trupps Schwertkämpfer der Räuber greifen Nelias Lager an.
 - *Erster Überfall:*
-  > **Räuberhauptmann:** Malvors Anzahlung reicht für neue Klingen. Holt euch, was die Prinzessin hortet!
+  > **Räuberhauptmann:** Die Prinzessin bietet mit? Dann nehmen wir ihr das Geld ab, bevor sie es ausgibt! Auf sie!
   >
-  > **Orrin:** Er bezahlt die Räuber dafür, uns arm zu machen. Billiger kann man keinen Krieg führen.
+  > **Orrin:** Malvors Anzahlung bezahlt ihre Klingen, wetten wir? Einen Mitbieter ausräumen zu lassen ist billiger, als
+  > ihn zu überbieten.
   >
   > **Erzählerin:** Orrins „Wundsalbe“ heilt alle Verwundeten in seiner Nähe.
 - *Erstes Gebäude brennt:*
@@ -548,11 +557,11 @@ Kaufmannsviertel von Beaucroix ist verbündet, das Räuberlager liegt im Flusswa
 
 ### 4. Nebenziel: Orrins Lehmschuld
 
-- *Auslöser:* nach dem Herold. Der Kaufmann am Marktplatz von Beaucroix bekommt ein Ausrufezeichen.
-  > **Kaufmann:** Orrin! Ich sehe dich doch! Komm her, du alter Fuchs!
-- *Ziel:* „Optional: Schick Orrin zum Kaufmann am Marktplatz“
+- *Auslöser:* nach dem Herold. Der Ratsherr am Marktplatz von Beaucroix bekommt ein Ausrufezeichen.
+  > **Ratsherr:** Orrin! Ich sehe dich doch! Komm her, du alter Fuchs!
+- *Ziel:* „Optional: Schick Orrin zum Ratsherrn am Marktplatz“
 - *Gespräch (nur Orrin; schickt man Nelia: „Ich warte auf Orrin. Er schuldet mir etwas.“):*
-  > **Kaufmann:** Achthundert Lehm hast du mir verkauft, Orrin. Vor einem Monat. Bezahlt habe ich. Wo ist der Lehm?
+  > **Ratsherr:** Achthundert Lehm hast du mir verkauft, Orrin. Vor einem Monat. Bezahlt habe ich. Wo ist der Lehm?
   >
   > **Orrin:** Unterwegs! Sozusagen. Er … liegt noch in der Erde.
   >
@@ -562,11 +571,11 @@ Kaufmannsviertel von Beaucroix ist verbündet, das Räuberlager liegt im Flusswa
   >
   > **Nelia:** Wir liefern ihm den Lehm. Sonst glaubt dir hier keiner mehr – und mir auch nicht.
   >
-  > **Kaufmann:** Liefert ihr, dann rede ich mit den Räubern. Für ehrliche Leute machen sie den Preis billiger.
-- *Ziel:* „Optional: Liefere dem Kaufmann 800 Lehm“
+  > **Ratsherr:** Liefert ihr, dann rede ich mit den Räubern. Für ehrliche Leute machen sie den Preis billiger.
+- *Ziel:* „Optional: Liefere dem Ratsherrn 800 Lehm“
   > **Erzählerin:** Die Lieferung steht unter „Angebote“.
 - *Geliefert:*
-  > **Kaufmann:** Der Lehm ist da – und sogar trocken! Ich rede mit den Räubern.
+  > **Ratsherr:** Der Lehm ist da, und sogar trocken! Ich rede mit den Räubern.
   >
   > **Orrin:** Ehrlichkeit ist mein zweiter Vorname. Gleich nach Gewinn.
   >
@@ -576,33 +585,29 @@ Kaufmannsviertel von Beaucroix ist verbündet, das Räuberlager liegt im Flusswa
 
 ### 5. Niederlage
 
-- *Burg gefallen:* „Euer Lager ist gefallen. Malvors Herold zahlt die tausend Taler, und das Kronstück von Beaucroix
-  fährt den Fluss hinauf nach Hagenfurt.“
+- *Burg gefallen:* „Euer Lager ist gefallen. Malvors Herold holt sich in Hagenfurt die Vollmacht für zwölfhundert Taler,
+  und das Kronstück von Beaucroix reitet nach Hagenfurt.“
 
 ### 6. Abschluss (normale Szene)
 
-- *Auslöser:* Das Kronstück ist in Nelias Hand. Es wird Abend, Kamera auf Nelia und Orrin am Fluss.
-- *Freigekauft, davor kurz:*
-  > **Räuberhauptmann:** Wisst ihr, warum euer Statthalter so gern Korn verkauft? Weil nur er welches hat. Der Winter
-  > ist nicht echt.
-  >
-  > **Räuberhauptmann:** Im Gebirge hinter Hagenfurt steht ein altes Wetterwerk, eine Maschine, die den Schnee macht.
-  > Malvor hat sie wieder angeworfen.
-- *Gestürmt, davor kurz:*
-  > **Gefangener:** Wir haben für Malvor Fuhren ins Gebirge geschützt. Hinter Hagenfurt steht eine Maschine, ein
-  > Wetterwerk. Es brummt Tag und Nacht. Seitdem schneit es.
+- *Auslöser:* Das Kronstück ist in Nelias Hand. Abend, Kamera auf Nelia und Orrin am Fluss.
+- *Weg A, davor kurz:*
+  > **Räuberhauptmann:** Zum Abschied ein Rat umsonst. Wir haben für Malvor Fuhren ins Gebirge hinter Hagenfurt
+  > geschützt. Dort steht eine Maschine, ein Wetterwerk. Es brummt Tag und Nacht. Seitdem schneit es.
+- *Weg B, davor kurz:*
+  > **Gefangener Räuber:** Wir haben für Malvor Fuhren ins Gebirge hinter Hagenfurt geschützt. Dort steht eine
+  > Maschine, ein Wetterwerk. Es brummt Tag und Nacht. Seitdem schneit es.
 - *Dialog (beide Wege):*
   > **Orrin:** Ein gemachter Winter. Dann sind Malvors Kornlager kein Glück, sondern eine Falle.
   >
-  > **Nelia:** Solange diese Maschine läuft, muss jeder zu Malvor, der essen will. Erst das Wetterwerk. Dann die
-  > Kronstücke.
+  > **Nelia:** Solange diese Maschine läuft, hängt das Land an Malvors Korn. Ein Dorf wie Lindgrund kann sich vielleicht
+  > selbst ernähren, ein ganzes Land nicht. Erst das Wetterwerk. Dann die Kronstücke.
   >
   > **Orrin:** Ins Gebirge, mitten im Winter. Das nenne ich ein Geschäft ohne Gewinn.
   >
   > **Nelia:** Das Geschäft heißt Frühling.
   >
   > **Orrin:** Klingt nach etwas, das ich nicht verkaufen kann.
-
 
 ---
 

@@ -1,7 +1,7 @@
 # Ketten – warum geschieht was?
 
 Zu jeder Mission steht hier zuerst die Ursache-Wirkung-Kette, bevor ein Gespräch geschrieben wird. Aufbau, Regeln und
-Ablauf: [Leitfaden](LEITFADEN.md). Welt: [WELT.md](WELT.md). Stand: Entwurf zur Abnahme.
+Ablauf: [Leitfaden](LEITFADEN.md). Welt: [WELT.md](WELT.md). Stand: Ketten 1 und 2 abgenommen, 3 bis 6 zur Abnahme; Schwefel bestätigt.
 
 ## Die Krone und die fünf Kronstücke
 
@@ -192,16 +192,15 @@ anders zu, und es wird jedes Mal härter.
 - **Wann ist der Gegner besiegt?** Das Schloss ist erobert und Malvor gefallen.
 - **Was danach geschieht:** Nelia wird gekrönt, Orrin stirbt, Nelia hebt die Leibeigenschaft auf, Lindgrund lebt.
 
-## Eine neue Festlegung zur Welt (bitte bestätigen)
+## Festlegung „Schwefel nur in Eisenhain“ (bestätigt, jetzt in WELT.md)
 
-**Schwefel gibt es nur in Eisenhain.** Malvor hat nur Reste, die für Pulver und ein kleines Kraftwerk reichen, nicht für
-ein neues Wetterwerk. Dann ergeben die Schwefelgrube in Mission 4 und der Schwefel in Mission 6 (Nelia hat welchen,
-Malvor nur Reste) Sinn. In `WELT.md` steht bisher „Eisen und
-Schwefel“ bei Eisenhain; „nur dort“ wäre die Ergänzung.
+Malvor hat nur Reste, die für Pulver und ein kleines Kraftwerk reichen, nicht für ein neues Wetterwerk.
 
 ## Offene Entscheidungen für dich
 
-1. Passt die Festlegung „Schwefel gibt es nur in Eisenhain“?
-2. Passen die Ketten der Missionen 1 bis 6?
+1. Passen die Ketten der Missionen 3 bis 6?
+2. Neuer Name für Eisenhain, weil die Stadt nicht nur durch Eisen, sondern auch durch den Schwefel besonders ist.
+   Vorschläge im Chat.
 
-Danach werden die Gespräche aus den Ketten geschrieben.
+Danach werden die Gespräche für Mission 3 bis 6 aus den Ketten geschrieben. Mission 1 und 2 sind geschrieben und auf
+Widersprüche geprüft.

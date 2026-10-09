@@ -236,7 +236,8 @@ liegt, so die Legende, eines der fünf Kronstücke**.
   sicher.
 
 ### Eisenhain – die Bergwerksstadt
-- **Land:** Berge, Stollen, Schmieden. Eisen und Schwefel.
+- **Land:** Berge, Stollen, Schmieden. Eisen und Schwefel – der einzige Schwefel im Kronland. Malvor hat nur Reste, die für
+  Pulver und ein kleines Kraftwerk reichen, nicht für ein neues Wetterwerk.
 - **Leute:** Bergleute, stur, zäh, stolz. Sie gehorchen nur ihrem **Bergmeister**.
 - **Wer herrscht:** der Bergmeister.
 - **Zu Malvor:** Wer Eisenhain hat, hat Eisen für Schwerter. Malvor braucht es für sein Heer – und er will das
