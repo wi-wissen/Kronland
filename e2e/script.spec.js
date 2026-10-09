@@ -40,29 +40,37 @@ async function tool(page, id) {
 
 const gridAttr = (page) => (page.viewportSize().width < 760 ? 'aria-checked' : 'aria-pressed');
 
-test('Adventure from the menu: write a program, run it, win', async ({ page }) => {
+test('Course missions in the menu by row: start I.2, run the maid\'s note, the next stage follows', async ({ page }) => {
+  test.setTimeout(180_000); // the intro line comes before the note, then a whole stage runs
   const errors = await fresh(page);
   await page.goto(playUrl());
   await page.getByTestId('menu-adventures').click();
   await expect(page.getByTestId('adventure-menu')).toBeVisible();
-  await expect(page.getByTestId('adventure-adv1')).toBeVisible();
+  // Rows with their missions, I.2 first and selected
+  await expect(page.getByTestId('adventure-row-1')).toHaveText('Reihe I · Spuren im Schnee');
+  await expect(page.getByTestId('adventure-row-3')).toBeVisible();
+  await expect(page.getByTestId('adventure-r1-2')).toHaveClass(/active/);
+  await expect(page.getByTestId('adventure-r1-m').locator('.seal')).toHaveText('M');
+  await expect(page.getByTestId('adventure-brief')).toContainText('Mission I.2');
+  await page.screenshot({ path: test.info().outputPath('menu.png') });
   await page.getByTestId('adventure-start').click();
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
-  // World setup is folded and locked, the own program editable
+  // World setup is folded and locked; the maid's note replaces the own program
   await expect(page.getByTestId('fold-world')).toBeVisible();
+  await expect(page.getByTestId('script-note')).toBeVisible({ timeout: 60_000 });
   const ta = page.getByTestId('section-player').getByTestId('code-input');
-  await ta.fill('for i in range(10):\n    nelia.step()\nprint("arrived")\n');
+  await expect(ta).toHaveValue(/for i in range\(5\):/);
+  await ta.fill((await ta.inputValue()).replace('guess = 0', 'guess = 5'));
   await page.getByTestId('script-run').click();
-  await expect(page.getByTestId('mission-result')).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByTestId('mission-result-title')).toHaveText('Sieg!');
-  await expect(page.getByTestId('next-mission')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'predict')?.status), { timeout: 90_000 }).toBe('done');
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'path')?.status), SLOW).toBe('active');
   expect(errors).toEqual([]);
 });
 
 test('Error message with line and suggestion, single step with variables', async ({ page }) => {
   const errors = await fresh(page);
-  await page.goto(playUrl('?mission=adv1&no-models'));
+  await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
   // Grid is on in the adventure and can be switched off; the hero looks east (view = step direction)
@@ -96,7 +104,7 @@ test('Error message with line and suggestion, single step with variables', async
 
 test('Call stack shows arguments and folds deep recursion, endless recursion names the function', async ({ page }) => {
   const errors = await fresh(page);
-  await page.goto(playUrl('?mission=adv1&no-models'));
+  await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
   const sec = page.getByTestId('section-player');
@@ -129,7 +137,7 @@ test('Call stack shows arguments and folds deep recursion, endless recursion nam
 
 test('print() to the console, notify() as a notice, error clears after editing, save and open .py', async ({ page }) => {
   const errors = await fresh(page);
-  await page.goto(playUrl('?mission=adv1&no-models'));
+  await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
   const sec = page.getByTestId('section-player');
@@ -169,7 +177,7 @@ test('print() to the console, notify() as a notice, error clears after editing, 
 
   // Save as .py
   const [dl] = await Promise.all([page.waitForEvent('download'), tool(page, 'script-download')]);
-  expect(dl.suggestedFilename()).toBe('adv1.py');
+  expect(dl.suggestedFilename()).toBe('r1-m.py');
   const fs = await import('node:fs/promises');
   expect(await fs.readFile(await dl.path(), 'utf8')).toContain('notify(f"Meldung {i}")');
 

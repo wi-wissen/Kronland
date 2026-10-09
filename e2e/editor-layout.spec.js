@@ -29,7 +29,7 @@ async function start(page) {
       sessionStorage.setItem('e2e-init', '1');
     }
   });
-  await page.goto(playUrl('?mission=adv1&no-models'), SLOW);
+  await page.goto(playUrl('?mission=r1-m&no-models'), SLOW);
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await expect(page.getByTestId('script-panel')).toBeAttached(SLOW);
   return errors;

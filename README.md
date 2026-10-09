@@ -58,8 +58,11 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   Gebäude und Forschungen frei (der Rest steht ausgegraut im Menü), Figuren stellen Neues vor, ein Zeiger zeigt auf
   den Knopf; der Gegner legt erst nach einem Meilenstein des Spielers los. Story und Mechanik: [Kampagne](docs/KAMPAGNE.md). Fortschritt und Bestzeiten
   speichert der Browser. Direktstart: `play/?mission=c1` … `play/?mission=c6`, `play/?mission=tutorial`.
-- **Programmier-Abenteuer**: Nelia mit Python steuern – fünf Lernabenteuer (Schleifen, Bedingungen, Funktionen,
-  Listen) und die erste Kursmission „Im Schneetreiben“ (drei Etappen, Zettel der Magd, Vorhersage), Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
+- **Programmier-Abenteuer**: Nelia mit Python steuern – sechs Kursmissionen aus den Reihen des Programmierkurses, im Menü
+  nach Reihen geordnet: I.2 „Taler für die Mägde“ (Zählschleife), I.4 „Im Schneetreiben“ (`while`), I.5 „Holz für die
+  erste Nacht“ (Variablen), I.M „Heimweg durchs Unterholz“ (Meisterstück, Rechte-Hand-Regel), II.1 „Orrins Abkürzung“
+  (eigene Funktionen), III.M „Lindgrund steht wieder“ (Listen, ein Dorf per Programm); je drei bis vier Etappen auf
+  einer Karte, Zettel der Figuren, Vorhersagen mit `guess`. Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
   mit Einzelschritt, Haltepunkten und Variablenansicht, Knopf „Referenz“ zur Website, Befehlserklärung beim Überfahren (Strg+Klick öffnet die
   Referenz, am Handy langes Drücken), Fehlermeldungen mit Vorschlag, bernsteinfarbene Hinweise (Programm läuft weiter),
   Taler und Christrosen zum Aufheben, Trampelpfade und Fußabdrücke im Schnee, am Handy folgt die Kamera der gesteuerten Figur,
@@ -76,7 +79,7 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   Kapitel der Kampagne sind solche Level-Ordner in Python (Lager, Tribute, Zeiger, Gespräche, die nie
   durcheinanderreden, ganze Landschaften mit `world.ridge`/`world.lake_island`/`world.moat`, Seitenwechsel nach den
   Spielregeln, Wetterkraftwerke des Gegners mit `change_weather`).
-  Direktstart: `play/?mission=adv1` … `adv5`, `play/?mission=r1-4`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
+  Direktstart: `play/?mission=r1-2`, `r1-4`, `r1-5`, `r1-m`, `r2-1`, `r3-m`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
 - **Sonderkarten** (Startmenü → „Sonderkarten“): fertige Einzelkarten ohne Sieg und Niederlage, ohne Nebel.
   - **Schaukasten** (`play/?mission=showcase`): jedes Gebäude in jeder Ausbaustufe, Baustellen, Ruinen, Brücke,
     Rohstoffe, Arbeiter jedes Berufs, alle Truppen, die vier Helden, Räuber und ein Lagerfeuer – zum Prüfen der Modelle.

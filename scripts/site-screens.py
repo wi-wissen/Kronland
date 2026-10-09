@@ -410,7 +410,7 @@ def run(pw):
         ctx.add_init_script(init % 'de')
         page = ctx.new_page()
         page.set_default_timeout(600000)
-        page.goto(f'{BASE}/play/?mission=adv3&quality=high')
+        page.goto(f'{BASE}/play/?mission=r1-5&quality=high')
         page.wait_for_function('() => !!window.__kronland', timeout=240000)
         page.get_by_test_id('script-panel').wait_for()
         page.wait_for_timeout(3000)
