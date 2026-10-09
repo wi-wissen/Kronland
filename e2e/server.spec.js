@@ -176,6 +176,8 @@ test('editor: "Save to server" stores the level as a pack, it comes back under D
   const [id, doc] = [...mock.state.packs].at(-1);
   expect(id).toMatch(/^[a-z0-9]{7}$/);
   expect(doc.title.de).toBe('Mein Server-Level');
+  // the extra button must not widen the page (phone: the action bar scrolls)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await shot(page, 'editor-to-server');
 
   await page.getByTestId('editor-back').click();
