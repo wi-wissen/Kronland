@@ -32,7 +32,7 @@ Gesprächsfiguren, Zeiger); Abweichungen sind mit **⚠ Änderung:** markiert un
   beim Fund in Mission 1 und wird dort sofort erklärt. Fremde Figuren zählen nicht aus Nelias Sicht: Sie sagen „das
   Kronstück in Beaucroix“, nicht „das zweite“.
 - **Ohne Entscheidung spielbar:** Wo eine offene Frage besteht (Teil 3), ist die Fassung geschrieben, die ohne
-  Entscheidung funktioniert (K1 neutral, Malvor gefangen).
+  Entscheidung funktioniert (K1 neutral).
 
 ---
 
@@ -71,7 +71,7 @@ nie bewiesen. Am Ende stellt Nelia die Frage nach ihrer Herkunft bewusst nicht m
 | **Nelia** | Ihr Dorf satt durch den Winter bringen und die Leute aus Malvors Kornlager heimholen – auch ihren Vater. Später: Malvor die Kronstücke wegnehmen, bevor er König wird. | Glauben, dass eine Leibeigene etwas zu sagen hat – mit eigener Stimme statt mit Orrins Geschichte. | „Ich bin das Kind eines Leibeigenen. Mich fragt keiner was.“ Lässt Orrin reden, widerspricht leise, nimmt den Vorteil der Lüge stillschweigend mit. | Gibt die Lüge öffentlich zu, gewinnt die Dörfer durch Taten, führt den Sturm auch ohne Orrin weiter. Wird als Leibeigene gekrönt und schafft die Leibeigenschaft ab. Fragt ihren Vater nicht, woher das Kronstück kam. |
 | **Orrin** | Geschäft: ein heiles Karrenrad, Kunden, ein voller Beutel. | An etwas glauben, das man nicht verkaufen kann. | Verkauft eine Prinzessin wie Knöpfe; rechnet sogar ein geschenktes Brot nach, das er „nicht verbuchen“ kann. | Glaubt an Nelia, nicht an ihr Blut. Bricht im Sturm auf das Schloss ins Eis ein, erlebt die Krönung, stirbt in der Nacht danach – „Jetzt sind wir quitt. Das Brot.“ |
 | **Taran** | Ordnung und volle Speicher, damit nie wieder ein Kind verhungert wie seine Schwester. | Erkennen, dass Malvors Ordnung den Hunger selbst als Waffe benutzt; sich für Menschen entscheiden statt für Befehle. | Malvors Hauptmann, belagert Eisenhain, erkennt Nelia und meldet ihre Herkunft – aus Pflicht. | Verweigert den Befehl, Höfe zu verbrennen, läuft über, gesteht seinen Anteil an der Enthüllung, führt den Sturm übers Eis, zieht Orrin heraus. Wacht danach über offene Speicher – „für alle“. |
-| **Malvor** | König werden, damit ihm niemand mehr widerspricht; Ordnung durch Korn. | (Was er nie bekommt:) Vertrauen statt Gehorsam. | Unsichtbar, spürbar durch Boten: Eintreiber, Herold, Wachen, Befehle. Höflich, rechnend, nie grausam ohne Zweck. | Verteidigt sein Schloss selbst mit denselben Waffen wie Nelia (Wetterkraftwerk) und verliert, weil ihm keiner aus freien Stücken folgt. Wird gefangen; das fünfte Kronstück nimmt man ihm vom Hals. |
+| **Malvor** | König werden, damit ihm niemand mehr widerspricht; Ordnung durch Korn. | (Was er nie bekommt:) Vertrauen statt Gehorsam. | Unsichtbar, spürbar durch Boten: Eintreiber, Herold, Wachen, Befehle. Höflich, rechnend, nie grausam ohne Zweck. | Verteidigt sein Schloss selbst mit denselben Waffen wie Nelia (Wetterkraftwerk) und verliert, weil ihm keiner aus freien Stücken folgt. Fällt in der letzten Schlacht um sein Schloss; Nelia nimmt das fünfte Kronstück von seinem Hals. |
 
 **Malvors Logik, Stufe für Stufe.** Er eskaliert nur, wenn das billigere Mittel versagt:
 **nehmen** (Eintreiber, M1) → **kaufen** (Herold bietet Taler, M2) → **aushungern** (Wetterwerk, M3) → **Gewalt**
@@ -169,7 +169,7 @@ einsammelt, bevor sie jemand ernst nimmt.
 
 **Karte und Start (unverändert):** Burg leer, vom Dorfzentrum nur Grundmauern, zwei eingestürzte Häuser mit
 Balkenhaufen daneben, Lehmschacht in Reichweite, der alte Baum zwischen Dorf und Kartenmitte, ein kleines
-Nachbardorf seitlich. Nelia kommt allein, ohne Leibeigene. Vorrat: 400 Taler, 1400 Lehm, 600 Holz, 200 Stein.
+Nachbardorf seitlich. Nelia kommt allein, ohne Leibeigene. Vorrat: 400 Taler, 1000 Lehm, 600 Holz, 200 Stein (⚠ Lehm bisher 1400; 1000 reichen genau für Dorfzentrum, zwei Wohnhäuser, zwei Höfe und die Grube – danach ist der Lehm alle).
 Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
 
 **Neu für den Spieler**
@@ -413,15 +413,17 @@ Freigeschaltet: Dorfzentrum, Wohnhaus, Bauernhof, Lehmgrube.
 - *Auslöser:* zwei Bauernhöfe fertig.
 - *Ziel:* „Gib 6 Arbeitern Arbeit, Bett und Essen – bau eine Lehmgrube auf dem Schacht (Baumenü → ‚Rohstoffe‘)“
 - *Warum (im Dialog):* Mehr Leute kommen nur, wenn es mehr Arbeit gibt; eine Lehmgrube gibt fünf Bergleuten Arbeit.
-  Und wer arbeitet, zahlt Steuern – Lindgrund hat seit Jahren keinen Taler gesehen. (Lehm liegt genug im Vorrat; die
-  Grube ist um der Arbeit willen da, nicht um des Lehms willen – siehe offene Frage 3.)
+  Und der Lehm im Vorrat ist nach Dorfzentrum, Häusern und Höfen fast aufgebraucht – jedes weitere Haus braucht
+  neuen. Wer arbeitet, zahlt außerdem Steuern – Lindgrund hat seit Jahren keinen Taler gesehen.
 - *Erklärung:* Schacht und Grube. Zeiger: Kachel „Lehmgrube“, solange keine Baustelle steht; Ring auf dem Schacht.
 - *Dialog:*
   > **Orrin:** Zwei Bauern haben wir. Mehr kommen nur, wenn es mehr Arbeit gibt.
   >
   > **Orrin:** Dort drüben tritt Lehm zutage – ein Schacht. Darauf passt eine Lehmgrube.
   >
-  > **Nelia:** Fünf Bergleute, die dort graben. Und Lehm für jedes Haus, das noch kommt.
+  > **Nelia:** Und unser Lehm ist fast weg. Ohne Lehm kein Haus mehr für die, die noch heimkommen.
+  >
+  > **Orrin:** Fünf Bergleute, die dort graben. Lehm genug für ganz Lindgrund.
   >
   > **Orrin:** Und wer arbeitet, zahlt Steuern. Dann klimpert es endlich mal in Lindgrund.
 - *Dialog (Hilfe, nach dem Block: 25 s):*
@@ -1778,6 +1780,10 @@ Orrin, Taran. Alles ist freigeschaltet.
   > **Nelia:** Und Edrian? Der Sturm mitten im Sommer?
   >
   > **Malvor:** Stürme kommen, Mädchen. Man muss nur bereit sein.
+- *Das Schloss fällt (Malvors letzte Worte, dann Sieg):*
+  > **Malvor:** Ohne mich … wer gibt ihnen dann Korn?
+  >
+  > **Nelia:** Sie selbst. Das hätten sie immer gekonnt.
 
 ### Nebenziele
 
@@ -1793,9 +1799,9 @@ Orrin, Taran. Alles ist freigeschaltet.
 
 ### Abschluss (Finale und Final Image)
 
-> Das Inselschloss ist gefallen. Taran bringt Malvor in Ketten über das Eis, und Nelia nimmt ihm die Kette vom Hals.
-> Fünf Kronstücke von fünf. Malvor sagt kein Wort. Über ihn sollen die Provinzen richten, nach altem Recht, nicht
-> eine Königin allein.
+> Das Inselschloss ist gefallen, und mit ihm Malvor. Er hat bis zuletzt auf der Treppe seines Schlosses gekämpft,
+> mit seiner Garde, die ihm gehorchte, bis keiner mehr stand. Nelia kniet neben ihm und nimmt die Kette von seinem
+> Hals. Fünf Kronstücke von fünf. Ob er am Tod des alten Königs schuld war, hat er mitgenommen.
 >
 > Nach dem alten Recht krönen die Provinzen Nelia zur Königin des Kronlands. Die Dorfälteste aus Lindgrunds
 > Nachbardorf ist da, der Kaufmann aus Beaucroix, der Bergmeister aus Eisenhain, die Älteste von Erlenhof – und für
@@ -1932,7 +1938,7 @@ Missionsdateien (⚠ 2 zusätzlich E7 für den Fall, dass beide Helden zugleich 
   gesteht die Meldung an Malvor; Nebenziel „4 Höfe“ erscheint nach der ersten Lieferung.
 - M6: Forschung als drei Zwischenziele (Kauf erledigt sie, Ausbau per `complete`); Merker `knowledgeBought`;
   Ertrunkene über Zählen in `malvorThaws` bzw. E5; Malvors Fähigkeiten über `event ability` (`player: 'enemy'`);
-  Malvor wird gefangen.
+  Malvor fällt in der Schlacht (Schloss zerstört = Sieg; im Spiel verschwinden seine Figuren mit der Burg).
 - Alle: Kronstück statt Zacke; jede Einleitung beginnt mit „Bisher“ und dem Zählstand; Hilfe gesprochen
   geräteneutral, Handgriffe im Zieltext.
 
@@ -1966,11 +1972,7 @@ formuliert werden („Orrin zeigt dir, wie ein Dorf wächst“), ohne Nelia als 
 
 Für jede Frage ist die Fassung geschrieben, die ohne Entscheidung funktioniert.
 
-1. **Malvors Ende:** Er wird gefangen, über ihn richten die Provinzen (geschrieben). Soll er stattdessen sterben
-   (WELT.md: „Malvor fällt“)?
-2. **K1/E1 umsetzen?** Geschrieben ist alles so, dass die Rückbezüge ersatzlos entfallen können.
-3. **Lehm in Mission 1:** Der Startvorrat (1400) reicht für alle Bauten; die Grube ist mit „Arbeit und Steuern“
-   begründet (geschrieben). Startlehm senken (etwa 1000), damit auch der Lehm zählt?
-4. **Vertonung:** ~340 Zeilen, doppelt so viele mit Englisch. Hilfe-Zeilen mitvertonen (geschrieben: ja, sie sind
+1. **K1/E1 umsetzen?** Geschrieben ist alles so, dass die Rückbezüge ersatzlos entfallen können.
+2. **Vertonung:** ~340 Zeilen, doppelt so viele mit Englisch. Hilfe-Zeilen mitvertonen (geschrieben: ja, sie sind
    kurz) oder nur als Text?
-5. **Nelias Vater** bleibt eine Figur nur in Texten (geschrieben). Im Schlussbild sichtbar machen?
+3. **Nelias Vater** bleibt eine Figur nur in Texten (geschrieben). Im Schlussbild sichtbar machen?
