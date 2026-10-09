@@ -52,7 +52,7 @@ test('Adventure from the menu: write a program, run it, win', async ({ page }) =
   // World setup is folded and locked, the own program editable
   await expect(page.getByTestId('fold-world')).toBeVisible();
   const ta = page.getByTestId('section-player').getByTestId('code-input');
-  await ta.fill('for i in range(10):\n    hero.step()\nprint("arrived")\n');
+  await ta.fill('for i in range(10):\n    nelia.step()\nprint("arrived")\n');
   await page.getByTestId('script-run').click();
   await expect(page.getByTestId('mission-result')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('mission-result-title')).toHaveText('Sieg!');
@@ -94,6 +94,39 @@ test('Error message with line and suggestion, single step with variables', async
   expect(errors).toEqual([]);
 });
 
+test('Call stack shows arguments and folds deep recursion, endless recursion names the function', async ({ page }) => {
+  const errors = await fresh(page);
+  await page.goto(playUrl('?mission=adv1&no-models'));
+  await page.waitForFunction(() => !!window.__kronland, null, SLOW);
+  await openPanel(page);
+  const sec = page.getByTestId('section-player');
+  const ta = sec.getByTestId('code-input');
+
+  // Breakpoint in the deepest call: main, count(20), "… 12 more calls …", count(7) … count(0)
+  await ta.fill('def count(n):\n    if n == 0:\n        return 0\n    return count(n - 1)\nprint(count(20))\n');
+  await sec.getByTestId('ce-line-3').click();
+  await page.getByTestId('script-run').click();
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'paused', SLOW);
+  const stack = page.getByTestId('script-vars').locator('.sp-frame');
+  await expect(stack).toHaveCount(11);
+  await expect(stack.nth(1)).toHaveText('count(20)');
+  await expect(stack.nth(2)).toContainText('12');
+  await expect(stack.last()).toHaveText('count(0)');
+  await stack.last().scrollIntoViewIfNeeded();
+  await page.screenshot({ path: test.info().outputPath('stack.png') });
+  await sec.getByTestId('ce-line-3').click();
+  await page.getByTestId('script-continue').click();
+  await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'done', SLOW);
+
+  // Endless recursion: the error names the function and asks for a stop condition
+  await ta.fill('def walk(n):\n    return walk(n + 1)\nwalk(0)\n');
+  await page.getByTestId('script-run').click();
+  await expect(page.getByTestId('script-error')).toContainText('RecursionError', SLOW);
+  await expect(page.getByTestId('script-error')).toContainText('walk');
+  await page.screenshot({ path: test.info().outputPath('recursion.png') });
+  expect(errors).toEqual([]);
+});
+
 test('print() to the console, notify() as a notice, error clears after editing, save and open .py', async ({ page }) => {
   const errors = await fresh(page);
   await page.goto(playUrl('?mission=adv1&no-models'));
@@ -123,6 +156,8 @@ test('print() to the console, notify() as a notice, error clears after editing, 
   await expect(page.getByTestId('script-console')).not.toContainText('NameError');
   await expect(page.getByTestId('script-panel')).toHaveAttribute('data-status', 'done', SLOW);
   await expect(note).toHaveCount(0);
+  // Phone: Run switched to "watch game" – back to the code
+  if (await page.getByTestId('script-watch-code').isVisible()) await page.getByTestId('script-watch-code').click();
   // notify(): one notice in the game (newest wins, bundled), not in the console
   await ta.fill('print("Hallo Kronland")\nfor i in range(3):\n    notify(f"Meldung {i}")\n    wait(0.1)\n');
   await page.getByTestId('script-run').click();
@@ -139,8 +174,8 @@ test('print() to the console, notify() as a notice, error clears after editing, 
   expect(await fs.readFile(await dl.path(), 'utf8')).toContain('notify(f"Meldung {i}")');
 
   // Open a .py file from the device
-  await page.getByTestId('script-file').setInputFiles({ name: 'weg.py', mimeType: 'text/x-python', buffer: Buffer.from('\uFEFFfor i in range(2):\r\n    hero.step()\r\n') });
-  await expect(ta).toHaveValue('for i in range(2):\n    hero.step()\n');
+  await page.getByTestId('script-file').setInputFiles({ name: 'weg.py', mimeType: 'text/x-python', buffer: Buffer.from('\uFEFFfor i in range(2):\r\n    nelia.step()\r\n') });
+  await expect(ta).toHaveValue('for i in range(2):\n    nelia.step()\n');
   expect(errors).toEqual([]);
 });
 

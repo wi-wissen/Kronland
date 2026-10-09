@@ -5,30 +5,45 @@
 // Input:    mouse left = tool (with the "Kamera" tool: pan), right drag = rotate,
 //           middle drag = pan, wheel = zoom, WASD/arrows, Q/E.
 //           Touch: 1 finger = tool (or pan), 2 fingers = zoom, rotate, pan.
+//           Double-click (touch: long press) = code for what is there (onCode), the tool's clicks are undone.
 
 import * as THREE from 'three';
 import { Renderer } from '../render/Renderer.js';
-import { applyEdit, editorSim, withTerrain, tileInfo, deriveFlags } from '../sim/editor/edit.js';
+import { applyEdit, editorSim, withTerrain, tileInfo, deriveFlags, groundSnapshot, restoreGround } from '../sim/editor/edit.js';
 import { createScenarioSim } from '../sim/missions/runtime.js';
 import { fromB64 } from '../sim/world.js';
 import { OCCUPIED, RESERVED } from '../sim/map.js';
 import { BALANCE } from '../sim/data/balance.js';
 
-const PAINT_TOOLS = new Set(['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase']);
+const PAINT_TOOLS = new Set(['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase', 'item', 'track']);
+/** Tools that work on exactly the tile under the pointer (brush size does not apply) */
+const ONE_TILE = new Set(['item']);
 const CLICK_TOOLS = new Set(['pile', 'shaft', 'spot', 'start', 'place']);
 const UNDO_MAX = 30;
+/** Holding these keeps working on touch: no long press for code with them */
+const REPEAT_TOOLS = new Set(['raise', 'lower', 'smooth', 'flatten']);
+/** Long press on touch (ms) and allowed finger movement (px), as in the code editor */
+const PRESS_MS = 550;
+const PRESS_SLOP = 10;
+/** Strokes this young (ms) belong to a double-click and are undone by it */
+const DOUBLE_MS = 800;
 
 export class EditorView {
   /**
    * @param {HTMLCanvasElement} canvas
    * @param {any} scenario
-   * @param {{ onUi?: (ui: any) => void, onPick?: (tool: string, x: number, y: number) => void }} [opts]
+   * @param {{ onUi?: (ui: any) => void, onPick?: (tool: string, x: number, y: number) => void,
+   *   onCode?: (target: any, client: { x: number, y: number }) => void }} [opts]
+   *   onCode: double-click/long press on the map, target see targetAt()
    */
   constructor(canvas, scenario, opts = {}) {
     this.canvas = canvas;
     this.onUi = opts.onUi ?? (() => {});
     this.onPick = opts.onPick ?? (() => {});
-    this.tool = { tool: 'raise', r: 2, strength: 60, res: 'stone', amount: BALANCE.pile.amount, player: 0 };
+    this.onCode = opts.onCode ?? (() => {});
+    /** Recent strokes { t, snap, moved } – a double-click undoes its own clicks */
+    this.recent = [];
+    this.tool = { tool: 'raise', r: 2, strength: 60, res: 'stone', amount: BALANCE.pile.amount, player: 0, item: 'coin', level: BALANCE.ground.tracks.max };
     this.undoStack = [];
     this.redoStack = [];
     this.preview = false;
@@ -80,6 +95,7 @@ export class EditorView {
   dispose() {
     this.running = false;
     cancelAnimationFrame(this.raf);
+    clearTimeout(this.pressTimer);
     this.ro?.disconnect();
     for (const f of this.off ?? []) f();
     this.disposeRenderer();
@@ -125,6 +141,7 @@ export class EditorView {
       heights: m.heights.slice(), flags: m.flags.slice(),
       nodes: [...this.sim.entities.values()].filter((e) => e.kind === 'tree' || e.kind === 'pile').map((e) => ({ kind: e.kind, x: e.x, y: e.y, res: e.res, amount: e.amount })),
       spots: this.sim.spots.map((s) => ({ ...s })), shafts: this.sim.shafts.map((s) => ({ ...s })),
+      ground: groundSnapshot(m),
     };
   }
 
@@ -139,6 +156,7 @@ export class EditorView {
       const e = sim.addNode(n.kind, n.x, n.y, n.res, n.amount);
       if (e && n.kind === 'pile') m.reserve(n.x, n.y, 1, 1);
     }
+    restoreGround(m, snap.ground);
     sim.spots = snap.spots.map((s) => ({ ...s }));
     sim.shafts = snap.shafts.map((s) => ({ ...s }));
     m.heightVersion++;
@@ -163,9 +181,62 @@ export class EditorView {
   }
 
   beginStroke() {
-    this.undoStack.push(this.snapshot());
+    const snap = this.snapshot();
+    this.undoStack.push(snap);
     if (this.undoStack.length > UNDO_MAX) this.undoStack.shift();
     this.redoStack = [];
+    this.recent = [...this.recent.slice(-2), { t: performance.now(), snap, moved: false }];
+  }
+
+  /** Undo the strokes of the last `ms` milliseconds (the clicks of a double-click, a long press). */
+  undoRecent(ms = DOUBLE_MS) {
+    const now = performance.now();
+    const young = this.recent.filter((r) => now - r.t < ms);
+    this.recent = [];
+    if (!young.length || young.some((r) => r.moved)) return;
+    const k = this.undoStack.indexOf(young[0].snap);
+    if (k < 0) return;
+    this.undoStack.length = k;
+    this.restore(young[0].snap);
+    this.emit();
+  }
+
+  /**
+   * What is at a screen point / tile, for code: a figure, a place, the own castle, a building, a start spot, a
+   * settlement spot, a shaft, a tree, a pile, an item, a track – or a free tile.
+   * @returns {{ kind: string, x: number, y: number, name?: string, hero?: string, npc?: string }|null}
+   */
+  targetAt(clientX, clientY, g) {
+    const sim = this.sim, x = g.x, y = g.y;
+    if (!sim.map.inBounds(x, y)) return null;
+    let e = null;
+    try { e = sim.entities.get(this.renderer.pickEntity(clientX, clientY)) ?? null; } catch { /* no picking (tests) */ }
+    if (e?.kind === 'hero') return { kind: 'hero', hero: e.hero, x, y };
+    if (e?.kind === 'npc') return { kind: 'npc', npc: e.npc, x, y };
+    const d2 = (p) => (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
+    const places = Object.entries(this.preview ? sim.mission?.script?.state.places ?? {} : this.scenario.world?.places ?? {})
+      .map(([name, p]) => ({ name, ...p })).filter((p) => d2(p) <= Math.max(1, p.r ?? 0) ** 2).sort((a, b) => d2(a) - d2(b));
+    if (places.length) return { kind: 'place', name: places[0].name, x, y };
+    if (e?.kind === 'building') return { kind: e.type === 'headquarters' && e.owner === 0 ? 'hq' : 'building', x, y };
+    if (e && e.kind !== 'tree' && e.kind !== 'pile') return { kind: 'unit', x, y };
+    if (sim.starts.some((s) => s.x === x && s.y === y)) return { kind: 'start', x, y };
+    const info = tileInfo(sim, x, y);
+    if (info.kind === 'building') {
+      const b = sim.entities.get(sim.map.owner[sim.map.idx(x, y)]);
+      return { kind: b?.type === 'headquarters' && b.owner === 0 ? 'hq' : 'building', x, y };
+    }
+    if (sim.spots.some((s) => d2(s) <= 4)) return { kind: 'spot', x, y };
+    if (sim.shafts.some((s) => d2(s) <= 2)) return { kind: 'shaft', x, y };
+    if (['tree', 'pile', 'coin', 'flower', 'track'].includes(info.kind)) return { kind: info.kind, x, y };
+    return { kind: 'free', x, y };
+  }
+
+  /** Code for the point: undo the tool's clicks, report the target. */
+  codeAt(clientX, clientY) {
+    const g = this.renderer.pickGround(clientX, clientY);
+    if (!g) return;
+    const t = this.targetAt(clientX, clientY, { x: Math.floor(g.x), y: Math.floor(g.z) });
+    if (t) this.onCode(t, { x: clientX, y: clientY });
   }
 
   /** Apply a tool to a tile. */
@@ -173,7 +244,7 @@ export class EditorView {
     if (this.preview) return;
     const t = this.tool;
     if (CLICK_TOOLS.has(t.tool) && (t.tool === 'start' || t.tool === 'place')) { this.onPick(t.tool, x, y); return; }
-    const r = applyEdit(this.sim, { tool: t.tool, x, y, r: t.r, strength: t.strength, res: t.res, amount: t.amount, seed: (x * 31 + y) | 0 });
+    const r = applyEdit(this.sim, { tool: t.tool, x, y, r: t.r, strength: t.strength, res: t.res, amount: t.amount, seed: (x * 31 + y) | 0, item: t.item, level: t.level });
     if (r.events.length) this.renderer.onEvents(r.events);
     if (r.changed) this.dirty = true;
   }
@@ -189,6 +260,13 @@ export class EditorView {
     on(window, 'pointercancel', (e) => this.up(e));
     on(c, 'wheel', (e) => { e.preventDefault(); const d = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY; this.renderer.rig.zoom(Math.exp(Math.max(-300, Math.min(300, d)) * 0.001)); }, { passive: false });
     on(c, 'contextmenu', (e) => e.preventDefault());
+    on(c, 'dblclick', (e) => {
+      // Touch has its long press (some browsers turn a double tap into dblclick)
+      if (this.lastPointerType === 'touch') return;
+      e.preventDefault();
+      if (!['start', 'place'].includes(this.tool.tool)) this.undoRecent();
+      this.codeAt(e.clientX, e.clientY);
+    });
     on(window, 'keydown', (e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); return; }
@@ -210,6 +288,19 @@ export class EditorView {
     this.canvas.setPointerCapture?.(e.pointerId);
     const p = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, button: e.button, type: e.pointerType, moved: false };
     this.pointers.set(e.pointerId, p);
+    this.lastPointerType = e.pointerType;
+    clearTimeout(this.pressTimer);
+    if (e.pointerType !== 'mouse' && this.pointers.size === 1 && (this.preview || !REPEAT_TOOLS.has(this.tool.tool))) {
+      // Long press: code for the point (the tool's touch is undone)
+      this.pressTimer = setTimeout(() => {
+        if (this.pointers.get(e.pointerId) !== p || p.moved || this.pointers.size !== 1) return;
+        p.pressed = true;
+        if (this.stroke) { clearInterval(this.stroke.timer); this.stroke = null; }
+        this.clickTool = null;
+        if (!['start', 'place'].includes(this.tool.tool)) this.undoRecent(PRESS_MS + 400);
+        this.codeAt(p.x, p.y);
+      }, PRESS_MS);
+    }
     if (e.pointerType === 'touch' && this.pointers.size === 2) {
       // second finger: abort the brush, gesture begins
       this.stroke = null;
@@ -240,7 +331,7 @@ export class EditorView {
     if (!p) return;
     const dx = e.clientX - p.x, dy = e.clientY - p.y;
     p.x = e.clientX; p.y = e.clientY;
-    if (Math.hypot(p.x - p.sx, p.y - p.sy) > 6) p.moved = true;
+    if (Math.hypot(p.x - p.sx, p.y - p.sy) > (p.type === 'mouse' ? 6 : PRESS_SLOP)) p.moved = true;
     const rig = this.renderer.rig, H = this.canvas.clientHeight || 600;
     if (p.type === 'touch' && this.pointers.size >= 2 && this.pinch) {
       const [a, b] = [...this.pointers.values()];
@@ -255,7 +346,11 @@ export class EditorView {
     if (this.stroke && g) {
       const key = `${g.x},${g.y}`;
       this.stroke.g = g;
-      if (key !== this.stroke.last) { this.stroke.last = key; this.applyAt(g.x, g.y); }
+      if (key !== this.stroke.last) {
+        this.stroke.last = key;
+        if (this.recent.length) this.recent[this.recent.length - 1].moved = true;
+        this.applyAt(g.x, g.y);
+      }
       return;
     }
     if (this.clickTool) return;
@@ -267,7 +362,9 @@ export class EditorView {
     const p = this.pointers.get(e.pointerId);
     if (!p) return;
     this.pointers.delete(e.pointerId);
+    clearTimeout(this.pressTimer);
     if (this.pointers.size < 2) this.pinch = null;
+    if (p.pressed) { this.clickTool = null; return; }
     if (this.stroke) { clearInterval(this.stroke.timer); this.stroke = null; this.emit(); }
     if (this.clickTool && !p.moved) {
       const g = this.clickTool;
@@ -299,7 +396,7 @@ export class EditorView {
   updateBrush() {
     const b = this.brush, h = this.hoverTile;
     if (!b || !h || this.preview || this.tool.tool === 'camera') { if (b) b.visible = false; return; }
-    const r = PAINT_TOOLS.has(this.tool.tool) ? this.tool.r + 0.5 : this.tool.tool === 'shaft' ? 1.5 : this.tool.tool === 'spot' ? 2 : 0.5;
+    const r = ONE_TILE.has(this.tool.tool) ? 0.5 : PAINT_TOOLS.has(this.tool.tool) ? this.tool.r + 0.5 : this.tool.tool === 'shaft' ? 1.5 : this.tool.tool === 'spot' ? 2 : 0.5;
     const cx = h.x + 0.5, cz = h.y + 0.5;
     const pos = b.geometry.attributes.position;
     for (let i = 0; i < 65; i++) {
@@ -338,9 +435,11 @@ export class EditorView {
       preview: this.preview,
       errors: this.preview ? sim.mission?.script?.state.errors ?? [] : [],
       console: this.preview ? (sim.mission?.script?.state.console ?? []).slice(-40) : [],
+      hints: this.preview ? sim.mission?.script?.state.missionHints ?? [] : [],
       counts: {
         trees: [...sim.entities.values()].filter((e) => e.kind === 'tree').length,
         piles: [...sim.entities.values()].filter((e) => e.kind === 'pile').length,
+        items: sim.map.items.size,
         spots: sim.spots.length, shafts: sim.shafts.length,
       },
       starts: sim.starts.map((s, i) => ({ i, x: s.x, y: s.y, screen: this.screenOf(s.x, s.y) })),

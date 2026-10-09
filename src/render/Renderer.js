@@ -27,6 +27,7 @@ import {
 } from './models.js';
 import { UNITS, HEROES, HERO_IDS } from '../sim/data/units.js';
 import { figureRole } from './variants.js';
+import { LevelModels } from './levelModels.js';
 import { sharedModelMaterials } from './models.js';
 import { playerHex } from './playerColors.js';
 import { sharedAssetRoots, assetState, hasAsset, ownAsset, loadNatureModels } from './assets.js';
@@ -36,9 +37,12 @@ import { sharedTerrainTextures } from './textures.js';
 import { sharedNatureTextures } from './naturetex.js';
 import { HintMarker, NpcMarks } from './hints.js';
 import { FogOfWar, patchFog, patchFogTree } from './fog.js';
+import { TrackLayer } from './ground.js';
+import { ItemLayer, itemScale } from './items.js';
 import { TileGrid, overviewDist } from './grid.js';
 import { knownBuildings } from '../sim/systems/vision.js';
 import { jitterOffset, jitterTarget, JITTER_FADE } from './jitter.js';
+import { updateSeparation } from './separation.js';
 import { COMBAT } from '../sim/data/combat.js';
 import { wrapAngle } from './angle.js';
 import { pickFigure, inDepth } from './pick.js';
@@ -54,7 +58,7 @@ import { findSpinners, turnParts } from './movingParts.js';
 export const figureSync = (kind) => (kind === 'unit' || kind === 'worker' || kind === 'npc' ? 'unit' : 'fighter');
 /** Rotation per viewing direction from scripts (0 = north/−z, 1 = east/+x, 2 = south/+z, 3 = west). */
 /** No offset / intermediate value for jitter() (read immediately, never stored). */
-const NO_JITTER = Object.freeze({ dx: 0, dz: 0 }), JITTER_TMP = { dx: 0, dz: 0 };
+const NO_JITTER = Object.freeze({ dx: 0, dz: 0 }), JITTER_TMP = { dx: 0, dz: 0 }, OFFSET_TMP = { dx: 0, dz: 0 };
 const FACE_YAW = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
@@ -88,6 +92,9 @@ export class Renderer {
     this.fog = new FogOfWar(sim, this.viewer);
     patchFog(this.terrain.mesh.material);
     patchFog(this.water.material);
+    // Tracks (texture in the terrain shader) and items on tiles (coins, flowers)
+    this.tracks = new TrackLayer(sim, this.viewer, this.terrain.uniforms);
+    this.items = new ItemLayer(this.scene, this.terrain, patchFogTree);
     // Draw terrain and water in tiles: areas outside the screen drop out
     this.terrainChunks = splitGridMesh(this.terrain.mesh, 24);
     this.waterChunks = splitGridMesh(this.water.mesh, 32);
@@ -180,6 +187,8 @@ export class Renderer {
     for (const x of [...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), this.ballGeo, this.arrowGeo, this.boomGeo]) free(x);
     this.env?.dispose?.();
     this.fog?.dispose();
+    this.tracks?.dispose();
+    this.items?.dispose();
     this.grid?.dispose();
     this.terrain?.dispose?.();
     this.water?.dispose?.();
@@ -706,6 +715,7 @@ export class Renderer {
       m.g.position.y = t.rectHeight(m.x, m.y, w, w) - 0.1;
     }
     if (this.view) this.view.pos.set(Infinity, 0, 0); // collect chunks anew
+    this.items?.invalidate(); // items onto the new ground
   }
 
   /**
@@ -755,6 +765,10 @@ export class Renderer {
       else if (ev.type === 'buildingDone') this.onBuildingDone(ev);
       else if (ev.type === 'terrainChanged') (this.pendingTerrain ??= []).push({ x: ev.x, y: ev.y, w: ev.w, h: ev.h });
       else if (ev.type === 'natureChanged') this.natureDirty = true;
+      else if (ev.type === 'item' && ev.action === 'take' && fog.visibleAt(ev.x + 0.5, ev.y + 0.5)) {
+        const x = ev.x + 0.5, z = ev.y + 0.5;
+        this.fx.glint(x, this.terrain.heightAt(x, z) + 0.3, z, ev.kind === 'coin' ? 0xffd75a : 0xfff6f0);
+      }
       if (ev.type === 'nodeDepleted') {
         this.removeTree(ev.node);
         const p = this.piles.get(ev.node);
@@ -846,6 +860,9 @@ export class Renderer {
     if (view.revealAll) fog.revealAll();
     fog.update(realDt);
     const fogOn = fog.active, me = this.viewer;
+    if (view.revealAll) this.tracks.revealAll();
+    this.tracks.update();
+    this.items.update(sim.map, this.time, fogOn ? (x, z) => fog.exploredAt(x, z) : null, fogOn ? String(sim.vision?.version ?? 0) : '', itemScale(this.rig.dist));
     const mine = (o) => o !== undefined && o >= 0 && !!sim.players[o] && sim.allied(o, me);
     const talkers = [];
 
@@ -891,12 +908,16 @@ export class Renderer {
     }
     for (const [id, g] of this.buildings) if (!seen.has(id)) { this.scene.remove(g); this.buildings.delete(id); this.buildProgress.delete(id); }
     for (const [id, g] of this.units) if (!seen.has(id)) { this.scene.remove(g); this.units.delete(id); }
+    this.levelModels?.prune(seen);
     for (const [id, g] of this.simRuins ?? []) if (!seen.has(id)) { this.scene.remove(g); this.simRuins.delete(id); }
     for (const [id, g] of this.camps ?? []) if (!seen.has(id)) { this.scene.remove(g); this.camps.delete(id); }
     // clean up per-unit markers (occasionally is enough)
     if ((this.frameNo = (this.frameNo ?? 0) + 1) % 120 === 0) {
       for (const m of [this.unitYaw, this.hitAt, this.shotAt, this.jitterW]) if (m) for (const id of m.keys()) if (!seen.has(id)) m.delete(id);
     }
+    // figures close to each other step aside (rendering only, applied in the next frame)
+    updateSeparation(this.sepPts ?? [], (this.sepOff ??= new Map()), dt);
+    if (this.sepPts) this.sepPts.length = 0;
     this.chars.prune();
 
     // hide markers as soon as something is built there (in fog the last seen state stays)
@@ -1276,6 +1297,20 @@ export class Renderer {
     return JITTER_TMP;
   }
 
+  /**
+   * Drawn offset of a figure in tiles: jitter plus the sidestep from separation.js (figures close to each other
+   * step aside). Collects the figure for the separation pass after the entity loop (one frame delay).
+   */
+  drawOffset(e, moving, prev, px, py) {
+    const j = this.jitter(e, moving);
+    const w = this.jitterW.get(e.id) ?? 0;
+    (this.sepPts ??= []).push({ id: e.id, x: px / UNIT + j.dx, z: py / UNIT + j.dz,
+      vx: moving ? e.px - prev.px : 0, vz: moving ? e.py - prev.py : 0, w });
+    const s = this.sepOff?.get(e.id);
+    OFFSET_TMP.dx = j.dx + (s ? s.dx * w : 0); OFFSET_TMP.dz = j.dz + (s ? s.dz * w : 0);
+    return OFFSET_TMP;
+  }
+
   /** Ground speed in tiles per real-time second (for the walking pace of the legs); 0 when standing. */
   groundSpeed(e, prev) {
     if (!prev) return 0;
@@ -1286,7 +1321,7 @@ export class Renderer {
     const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
     const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
     const moving = prev && (prev.px !== e.px || prev.py !== e.py);
-    const j = this.jitter(e, moving);
+    const j = this.drawOffset(e, moving, prev, px, py);
     const x = px / UNIT + j.dx, z = py / UNIT + j.dz;
     const st = (this.unitYaw ??= new Map());
     let yaw = st.get(e.id) ?? 0;
@@ -1318,6 +1353,11 @@ export class Renderer {
     }
     st.set(e.id, yaw);
     const tint = e.kind === 'worker' ? PROF_COLORS[e.prof] ?? null : null;
+    // Talk figure with an own model of the level: it replaces the figure once loaded
+    if (e.kind === 'npc' && e.look?.startsWith('assets/')) {
+      this.levelModels ??= new LevelModels(this.scene, patchFogTree);
+      if (this.levelModels.sync(e, x, this.groundY(x, z), z, yaw, dt ?? 0)) visible = false;
+    }
     this.chars.set(e.id, this.roleOf(e), { x, y: this.groundY(x, z), z, yaw, clip, team: playerHex(e.owner), tint, visible, speed: 1, ground: this.groundSpeed(e, prev) });
   }
 
@@ -1326,7 +1366,7 @@ export class Renderer {
     const px = prev ? prev.px + (e.px - prev.px) * alpha : e.px;
     const py = prev ? prev.py + (e.py - prev.py) * alpha : e.py;
     const moving = prev && (prev.px !== e.px || prev.py !== e.py);
-    const j = this.jitter(e, moving);
+    const j = this.drawOffset(e, moving, prev, px, py);
     const x = px / UNIT + j.dx, z = py / UNIT + j.dz;
     const y = this.groundY(x, z);
     const st = (this.unitYaw ??= new Map());
@@ -1646,7 +1686,7 @@ export class Renderer {
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
     // last seen buildings in fog are not selectable (otherwise they would reveal the current state)
-    const objs = [...this.units.values(), ...[...this.buildings.values()].filter((g) => !g.userData.ghost)];
+    const objs = [...this.units.values(), ...[...this.buildings.values()].filter((g) => !g.userData.ghost), ...(this.levelModels?.objects() ?? [])];
     // only visible things (invisible meshes are also hit by the raycaster otherwise)
     const hit = this.raycaster.intersectObjects(objs, true).find((h) => shownInScene(h.object));
     const view = { width: rect.width, height: rect.height, touch: !!matchMedia?.('(pointer: coarse)').matches };

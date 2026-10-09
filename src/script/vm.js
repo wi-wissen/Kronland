@@ -13,7 +13,7 @@ import { ScriptError, suggest } from './errors.js';
 import {
   PyFloat, PyList, PyTuple, PyDict, PySlice, PyFunction, PyBuiltin, PyPartial, PyBoundMethod, PyHost, PyModule,
   Cell, binary, unary, compare, truthy, makeIter, iterNext, DONE, iterItems, getItem, setItem, delItem, toStr,
-  formatValue, typeName, keyOf,
+  formatValue, typeName, keyOf, pushAll,
 } from './values.js';
 import { BUILTINS, METHODS, MODULES, moduleAttr } from './builtins.js';
 
@@ -23,11 +23,19 @@ export class Suspend {
   constructor(wait) { this.wait = wait; }
 }
 
-const MAX_DEPTH = 200;
+/** Calls nested inside each other, as in CPython (flood fill on a 31×31 field still fits). */
+const MAX_DEPTH = 1000;
 /** Upper limit for synchronous calls from natives (sorted(key=…), conditions) */
 const SYNC_LIMIT = 2_000_000;
+/**
+ * Synchronous calls nested inside each other (map(f, …) in f …). Each level costs JS stack, so the limit is
+ * small and the same everywhere – the JS stack of the device must never decide where a program fails.
+ */
+const MAX_SYNC_NESTING = 50;
 /** Limits for documentation (scripting reference): call depth and instructions of a synchronous call. */
 export const BUDGET_LIMITS = { maxDepth: MAX_DEPTH, syncLimit: SYNC_LIMIT };
+/** Call stack in error reports: first and last entries, runs of the same call merged. */
+const TRACE_HEAD = 3, TRACE_TAIL = 10;
 
 /**
  * @typedef {Object} Frame
@@ -48,10 +56,12 @@ export const BUDGET_LIMITS = { maxDepth: MAX_DEPTH, syncLimit: SYNC_LIMIT };
 export class VM {
   /**
    * @param {import('./compiler.js').Program} program
-   * @param {{ host?: any, natives?: Record<string, Function>, globals?: Record<string, any>, seed?: number }} [opts]
+   * @param {{ host?: any, natives?: Record<string, Function>, globals?: Record<string, any>, dynamic?: Record<string, () => any>, seed?: number }} [opts]
    *   host: { getattr(ctx, obj, name), setattr(ctx, obj, name, v), callMethod(ctx, obj, name, args, kw), repr(obj), print(text, task), dir(obj) }
    *   natives: additional functions (game API) – name → fn(ctx, args, kwargs)
    *   globals: predefined names (game API: functions as PyBuiltin, modules, constants)
+   *   dynamic: predefined names whose value is looked up on every access (heroes that join later, player numbers),
+   *     so a program behaves the same before and after loading a save game
    */
   constructor(program, opts = {}) {
     this.program = program;
@@ -61,6 +71,10 @@ export class VM {
     /** Predefined names (not saved – come back from the game API on loading) */
     this.predef = new Map(Object.entries(opts.globals ?? {}));
     for (const name of Object.keys(BUILTINS)) if (!name.includes('.') && !this.predef.has(name)) this.predef.set(name, new PyBuiltin(name));
+    /** Instructions left for synchronous calls (conditions, sorted(key=…)) – the host resets it every tick */
+    this.syncBudget = Infinity;
+    /** @type {Map<string, () => any>} predefined names resolved on access (not saved) */
+    this.dynamic = new Map(Object.entries(opts.dynamic ?? {}));
     /** @type {Map<string, any>} global variables assigned by the program */
     this.globals = new Map();
     /** @type {Map<number, Task>} */
@@ -208,16 +222,47 @@ export class VM {
       if (r instanceof Suspend) throw new ScriptError('type', { what: 'waitInSync' });
       return r;
     }
-    const task = { id: 0, frames: [this.bindFrame(fn, args, kw)], state: 'ready', wait: null, result: null, error: null, debug: null, meta: parent?.meta ?? null, sync: true, parent };
-    this.execute(task, SYNC_LIMIT, true);
+    // The depth counts on across synchronous calls (base = frames of the calling tasks)
+    const base = parent ? parent.frames.length + (parent.base ?? 0) : 0;
+    if (base >= MAX_DEPTH) throw this.recursionError(parent, fn);
+    if ((this.syncNesting ?? 0) >= MAX_SYNC_NESTING) throw new ScriptError('recursion', { what: 'callbacks', max: MAX_SYNC_NESTING });
+    // All synchronous calls of a tick share the host's budget (syncBudget, reset by the host every tick)
+    const limit = Math.min(SYNC_LIMIT, this.syncBudget);
+    if (limit <= 0) throw new ScriptError('tooLong', {});
+    const task = { id: 0, frames: [this.bindFrame(fn, args, kw)], state: 'ready', wait: null, result: null, error: null, debug: null, meta: parent?.meta ?? null, sync: true, parent, base };
+    this.syncNesting = (this.syncNesting ?? 0) + 1;
+    try {
+      this.syncBudget -= this.execute(task, limit, true);
+    } finally {
+      this.syncNesting--;
+    }
     if (task.state === 'error') {
       const e = new ScriptError(task.error.code.replace('err.script.', ''), task.error.params, task.error);
       e.traceback = task.error.traceback;
       e.inner = true;
       throw e;
     }
-    if (task.state !== 'done') throw new ScriptError(task.state === 'waiting' ? 'type' : 'recursion', task.state === 'waiting' ? { what: 'waitInSync' } : { what: 'tooLong' });
+    if (task.state !== 'done') throw task.state === 'waiting' ? new ScriptError('type', { what: 'waitInSync' }) : new ScriptError('tooLong', {});
     return task.result;
+  }
+
+  /** RecursionError for a call that would go too deep; names the function if it calls itself. */
+  recursionError(task, fn) {
+    let self = false;
+    for (let t = task; t && !self; t = t.parent) self = t.frames.some((f) => f.code === fn.code);
+    return new ScriptError('recursion', self ? { what: 'self', name: this.codes[fn.code].name, max: MAX_DEPTH } : { what: 'depth', max: MAX_DEPTH });
+  }
+
+  /** Call stack for an error report: runs of the same call merged ({ repeat }), long stacks shortened ({ skipped }). */
+  static traceback(entries) {
+    const runs = [];
+    for (const e of entries) {
+      const last = runs[runs.length - 1];
+      if (last && last.name === e.name && last.line === e.line) last.repeat = (last.repeat ?? 1) + 1;
+      else runs.push({ ...e });
+    }
+    if (runs.length <= TRACE_HEAD + TRACE_TAIL + 1) return runs;
+    return [...runs.slice(0, TRACE_HEAD), { name: '…', line: 0, skipped: runs.length - TRACE_HEAD - TRACE_TAIL }, ...runs.slice(-TRACE_TAIL)];
   }
 
   fail(task, e, frame) {
@@ -232,11 +277,10 @@ export class VM {
         const c = this.codes[frame.code];
         e.line = c.lines[Math.max(0, frame.pc - 1)] ?? e.line;
       }
-      e.traceback = task.frames.map((f, i) => {
+      e.traceback = VM.traceback(task.frames.map((f) => {
         const c = this.codes[f.code];
-        const pc = i === task.frames.length - 1 ? Math.max(0, f.pc - 1) : Math.max(0, f.pc - 1);
-        return { name: c.name, line: c.lines[pc] ?? 0 };
-      });
+        return { name: c.name, line: c.lines[Math.max(0, f.pc - 1)] ?? 0 };
+      }));
     } else if (!e.line && frame) {
       const c = this.codes[frame.code];
       e.line = c.lines[Math.max(0, frame.pc - 1)];
@@ -255,7 +299,7 @@ export class VM {
     const debug = !sync && task.debug;
     loop: for (;;) {
       if (used >= budget) {
-        if (sync) { this.fail(task, new ScriptError('recursion', { what: 'tooLong' }), frame); }
+        if (sync) { this.fail(task, new ScriptError('tooLong', {}), frame); }
         break;
       }
       const pc = frame.pc;
@@ -308,7 +352,7 @@ export class VM {
           case OP.INPLACE: {
             const b = stack.pop(), a = stack.pop();
             // list += extends the same list (as in Python)
-            if (a instanceof PyList && BIN_OPS[arg] === '+') { a.items.push(...iterItems(b)); stack.push(a); }
+            if (a instanceof PyList && BIN_OPS[arg] === '+') { pushAll(a.items, iterItems(b)); stack.push(a); }
             else stack.push(binary(BIN_OPS[arg], a, b));
             break;
           }
@@ -352,7 +396,7 @@ export class VM {
           case OP.LIST_APPEND: { const v = stack.pop(); stack[stack.length - 1 - arg].items.push(v); break; }
           case OP.DICT_SET: { const v = stack.pop(), k = stack.pop(); stack[stack.length - 1 - arg].set(k, v); break; }
           case OP.LIST_PUSH: { const v = stack.pop(); stack[stack.length - 1].items.push(v); break; }
-          case OP.LIST_EXTEND: { const v = stack.pop(); stack[stack.length - 1].items.push(...iterItems(v)); break; }
+          case OP.LIST_EXTEND: { const v = stack.pop(); pushAll(stack[stack.length - 1].items, iterItems(v)); break; }
           case OP.LIST_TO_TUPLE: stack.push(new PyTuple(stack.pop().items)); break;
           case OP.MAKE_FUNCTION: {
             const c = this.codes[arg];
@@ -390,7 +434,7 @@ export class VM {
             }
             const fn = stack.pop();
             if (fn instanceof PyFunction) {
-              if (task.frames.length >= MAX_DEPTH) throw new ScriptError('recursion', { what: 'depth', max: MAX_DEPTH });
+              if (task.frames.length + (task.base ?? 0) >= MAX_DEPTH) throw this.recursionError(task, fn);
               const nf = this.bindFrame(fn, args, kw);
               task.frames.push(nf);
               frame = nf; code = this.codes[nf.code]; stack = nf.stack;
@@ -481,10 +525,12 @@ export class VM {
   loadGlobal(name) {
     const v = this.globals.get(name);
     if (v !== undefined) return v;
+    const d = this.dynamic.get(name);
+    if (d) return d() ?? null;
     const p = this.predef.get(name);
     if (p !== undefined) return p;
     if (MODULES[name]) return new PyModule(name);
-    throw new ScriptError('nameUnbound', { name, suggestion: suggest(name, [...this.globals.keys(), ...this.predef.keys()]) });
+    throw new ScriptError('nameUnbound', { name, suggestion: suggest(name, [...this.globals.keys(), ...this.dynamic.keys(), ...this.predef.keys()]) });
   }
 
   importModule(name) {
@@ -558,7 +604,7 @@ export class VM {
     const table = METHODS[t];
     if (table && Object.hasOwn(table, name)) return new PyBoundMethod(obj, name);
     if (obj instanceof PyFloat && (name === 'real')) return obj;
-    throw new ScriptError('attr', { type: t, name, suggestion: table ? suggest(name, Object.keys(table)) : null });
+    throw new ScriptError('attr', { type: t, name, suggestion: table ? suggest(name, Object.keys(table)) : null, ...(obj === null || obj === undefined ? { what: 'none' } : {}) });
   }
 
   setattr(task, obj, name, v) {
@@ -608,10 +654,22 @@ export class VM {
       if (v instanceof PyFunction || v instanceof PyBuiltin || v instanceof PyModule) continue;
       globals.push(item(k, v));
     }
-    const frames = task ? task.frames.map((f) => {
+    // Call stack with simple arguments (ice(4, 3, […])); deep stacks shortened to the first 2 and last 8 calls
+    const simple = (v) => (v === null || typeof v === 'boolean' || typeof v === 'number' || typeof v === 'bigint' || v instanceof PyFloat
+      || (typeof v === 'string' && v.length <= 12) ? short(v) : '…');
+    const callOf = (f) => {
       const c = this.codes[f.code];
-      return { name: c.name, line: c.lines[Math.min(f.pc, c.lines.length - 1)] };
-    }) : [];
+      const args = c.module ? null : c.params.map((p, i) => {
+        const ci = c.cellvars.indexOf(p);
+        const v = ci >= 0 ? f.cells[ci]?.v : f.locals[i];
+        return v === undefined ? '…' : simple(v);
+      }).join(', ');
+      return { name: c.name, line: c.lines[Math.min(f.pc, c.lines.length - 1)], args };
+    };
+    const all = task ? task.frames : [];
+    const frames = all.length > 12
+      ? [...all.slice(0, 2).map(callOf), { name: '…', line: 0, args: null, skipped: all.length - 10 }, ...all.slice(-8).map(callOf)]
+      : all.map(callOf);
     const top = task?.frames[task.frames.length - 1];
     const args = [], locals = [];
     if (top && !this.codes[top.code].module) {

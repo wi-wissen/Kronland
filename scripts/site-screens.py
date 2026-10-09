@@ -415,7 +415,7 @@ def run(pw):
         page.get_by_test_id('script-panel').wait_for()
         page.wait_for_timeout(3000)
         code = page.get_by_test_id('section-player').get_by_test_id('code-input')
-        code.fill('wood = 0\nhero.step()\nwhile hero.ahead() == "tree":\n    hero.chop()\n    wood = wood + 1\n    hero.step()\nprint(wood)\n')
+        code.fill('count = 0\nwhile nelia.front() == "coin":\n    nelia.step()\n    nelia.take()\n    count = count + 1\nprint(count)\n')
         # breakpoint in the loop, then run until it stops
         page.get_by_test_id('section-player').get_by_test_id('ce-line-5').click()
         page.get_by_test_id('script-run').click()

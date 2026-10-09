@@ -102,7 +102,7 @@ test('Phone: the goals sheet covers the run strip of a running program', async (
   await page.goto(playUrl('?mission=adv1&no-models'), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await page.getByTestId('script-open').click();
-  await page.getByTestId('section-player').getByTestId('code-input').fill('for i in range(40):\n    hero.step()\n');
+  await page.getByTestId('section-player').getByTestId('code-input').fill('for i in range(40):\n    nelia.step()\n');
   await page.getByTestId('script-run').click();
   const strip = page.getByTestId('script-watch-strip');
   await expect(strip).toBeVisible(SLOW);

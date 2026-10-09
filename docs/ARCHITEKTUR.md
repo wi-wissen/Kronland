@@ -10,7 +10,7 @@ src/
     data/     Balancing-Werte (Gebäude, Rohstoffe, Einheiten, Techs)
     systems/  Ablauf pro Takt (Bauen, Ausbau ohne Leibeigene, Abbau, Zahltag, Gebäude-Forschung, Markt, Wetter, Brand/Reparatur, …)
     reasons.js Ablehnungsgründe der neuen Systeme in einer Tabelle (für i18n-Umstellung)
-    missions/ Missionslaufzeit, Tutorial, Kampagne (siehe docs/MISSIONEN.md), scenarios/ (Lernabenteuer)
+    missions/ Missionslaufzeit (docs/MISSIONEN.md), levels/ (ein Ordner je Level in Python: Kampagne c1–c6, Tutorial, Lernabenteuer, Skript-Missionen), Entwicklerkarten showcase.js/stress.js
     scripting/ Python-Skripte in der Simulation: ScriptHost, Spiel-API, Szenario-Format (docs/SKRIPTE.md)
     editor/   Werkzeuge des Welteneditors auf einer Vorschau-Simulation
     world.js  Welten: Zufallskarte, flache Grundkarte, gespeicherte Editor-Karte
@@ -41,7 +41,11 @@ docs/         Spielregeln und Architektur
 2. **Determinismus.** Gleicher Seed + gleiche Befehle = gleicher Zustand, auf jedem Browser.
    - fester Takt (100 ms), nur Ganzzahlen in der Logik (Positionen in 1/1000 Kachel),
    - eigener Zufallsgenerator (`sim/rng.js`), kein `Math.random`, kein `Date.now`,
-   - keine `Math.sin/cos/atan2` in der Logik (Lookup-Tabellen in `sim/fixed.js`),
+   - nur exakt gerundete Rechenarten: `+ − * /`, `Math.sqrt`, `** 2`; keine `Math.hypot/pow/sin/cos/atan2/exp/log`
+     (Richtungstabellen in `sim/dirs.js`, Abstände als Quadrat in Milli-Kacheln: `dist2`, `isqrt`, `toward` in `sim/fixed.js`).
+     Das gilt auch für den Computergegner (`src/ai`) und die Skript-VM (`src/script`); `tests/sim/rules.test.js` prüft den
+     Quelltext, `tests/sim/integers.test.js` prüft, dass im Spielstand nur ganze Zahlen stehen und die KI in zwei Läufen und
+     nach dem Laden dieselben Befehle gibt,
    - feste Iterationsreihenfolge (Entities nach ID).
    - `sim/hash.js` bildet pro Takt einen Zustands-Hash; Golden-Tests sichern das ab.
    - Befehle können aus dem Netz kommen: IDs aus Datentabellen nur mit `hasKey()` (sim.js) nachschlagen,
@@ -98,6 +102,7 @@ docs/         Spielregeln und Architektur
 | `models.js`, `assets.js` | prozedurale Modelle und das Laden der GLB-Modelle |
 | `playerColors.js` | Spielerfarben: einzige Abbildung Spieler → Farbe (siehe unten) |
 | `jitter.js` | Darstellungs-Versatz: Figuren am selben Sim-Punkt werden je ID fest um bis zu 0,16 Kacheln versetzt gezeichnet (siehe unten) |
+| `separation.js` | Ausweichen nur in der Darstellung: Figuren, die sich näher als 0,42 Kacheln kommen, treten seitlich zur Seite (siehe unten) |
 | `devHook` | Haken des Entwicklermodus (`src/dev/`, [ENTWICKLERMODUS.md](ENTWICKLERMODUS.md)): vor/nach dem Zeichnen, sonst `null` |
 
 Pro Bild: Kamera → Sichtprüfung (Frustum) → Entities abgleichen → Detailstufen wählen → Instanzdaten
@@ -112,6 +117,15 @@ Gebäude (genauer Punkt aus `src/sim/systems/spots.js`, Blick zur Gebäudemitte)
 (Gewicht 0…1 je Figur, `JITTER_FADE` je Sekunde). Auswahlringe, Lebensbalken, Picking (`pickEntity`),
 Rahmenauswahl (`Engine.selectBox`), Treffer-Funken und die Blickrichtung zum Ziel lesen die gezeichnete Lage
 (`chars.records`), damit alles zusammenpasst. Der State-Hash bleibt unberührt.
+
+Ausweichen (`separation.js`, nur Renderer): Dazu kommt ein weicher Ausweich-Versatz (`Renderer.drawOffset()`).
+Nach dem Abgleich aller Figuren sucht `updateSeparation` über ein grobes Raster Paare näher als `SEP_RADIUS`
+(0,42 Kacheln, unter dem Abstand der Soldaten in der Reihe) und schiebt sie auseinander, höchstens `SEP_MAX`
+(0,26 Kacheln), weich nachgeführt (`SEP_RATE`), wirksam ab dem nächsten Bild. Laufende Figuren weichen vor
+allem quer zur Laufrichtung aus, auf die Seite ohne Nachbarn, frontal beide nach rechts, so dass Begegnungen
+wie ein Ausweichen statt eines Durchlaufens aussehen; stehende Figuren rücken nebeneinander. Das Gewicht des
+Versatzes (`jitterTarget`) gilt auch hier: Wer genau stehen muss (Arbeit, Helden), bleibt stehen, der andere
+weicht allein aus. Tempo und Laufzeit in der Sim ändern sich nicht.
 
 Nebel des Krieges in der Darstellung: Der Renderer zeichnet aus Sicht von `opts.player`. Feindliche Figuren,
 Fallen, Geschosse, Treffer und Explosionen nur in sichtbaren Kacheln; feindliche Gebäude außerhalb der Sicht
@@ -173,12 +187,14 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
 | `hero` | `nelia`, `orrin`, `taran`, `malvor` | `nelia` | ja |
 | `fog` | `off` (auch `0`, `no`, `false`) | an | nur `fog=off` |
 | `mission` | Kennung aus `src/sim/missions/registry.js` (Kampagne, Tutorial, Lernabenteuer, Sonderkarten) | unbekannt: freies Spiel, falls `seed` da, sonst Startmenü | ja |
+| `level` | Adresse einer Level-`.zip` oder eines Level-Ordners (`http(s)` oder Pfad dieser Seite, docs/SKRIPTE.md#level-ordner); geht vor `mission`/`seed` | nicht ladbar: Abenteuer-Menü mit Grund | ja |
 | `quality` (`low`/`medium`/`high`), `nature` (`off`), `dev`/`debug`, `no-models` | Darstellung, Fehlersuche | – | nein (bleiben nur in der Adresszeile) |
 
 - Freies Spiel: `?seed=62921&ai=hard&players=3&hero=orrin&fog=off`. Missionen haben einen festen Seed
   (`def.seed`), ihr Link ist nur `?mission=<id>`.
-- **Kein Link** für geladene Spielstände (nicht aus einem Seed nachbaubar) und Szenario-Dateien/Welteneditor
-  (in keinem Verzeichnis): die Abfrage wird geleert, das Spielmenü zeigt keine Karte.
+- **Kein Link** für geladene Spielstände (nicht aus einem Seed nachbaubar) und Level-Dateien/Welteneditor
+  (in keinem Verzeichnis): die Abfrage wird geleert, das Spielmenü zeigt keine Karte. Ein per `?level=` geöffnetes
+  Level behält seinen Link.
 - Freischaltung: `?mission=c5` startet ein Kampagnenkapitel auch ohne die Vorgänger gewonnen zu haben (wie schon
   bisher). Bewusst so belassen – ein geteilter Link soll für jeden funktionieren; der Fortschritt wird nur durch
   einen Sieg eingetragen, spätere Kapitel bleiben im Kampagnenmenü gesperrt, bis die Vorgänger gewonnen sind.
@@ -401,7 +417,9 @@ Ablegen (fensterweit, damit eine danebengeworfene Datei nicht das Spiel verläss
 ## Multiplayer (später)
 
 Lockstep: Alle Clients rechnen dieselbe Simulation, ausgetauscht werden nur Befehle pro Takt.
-Ein kleiner WebSocket-Relay genügt. Desyncs erkennt der Zustands-Hash.
+Ein kleiner WebSocket-Relay genügt. Desyncs erkennt der Zustands-Hash. Der Computergegner läuft auf jedem Client
+im selben Takt mit (`Engine.stepOnce`: erst `ai.update()`, dann `sim.step()`) und rechnet nur ganzzahlig; seine
+Einstellungen, die die Simulation betreffen (Bonus-Taler der Stufe „Schwer“, `Sim.setAi`), stehen im Spielstand und im Hash.
 
 ## JavaScript mit Typ-Hinweisen
 

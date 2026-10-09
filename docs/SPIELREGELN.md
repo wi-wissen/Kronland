@@ -11,7 +11,7 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
 ## 1. Grundprinzip
 
 - Keine Wege, keine Träger, kein Territorium. Gebaut wird frei auf freiem Gelände; mäßige Hänge werden
-  beim Bauen eingeebnet (§6a).
+  beim Bauen eingeebnet (§6a). Trampelpfade und Fußspuren sind nur Optik (§14).
 - Rohstoffe werden beim Abbau sofort dem Spieler gutgeschrieben.
 - Ausnahmen beim Bauen: Dorfzentren nur auf **Siedlungsplätzen**, Minen nur auf **Schächten**.
 - Spielzeit läuft in festen Takten (10 Takte pro Sekunde).
@@ -67,7 +67,10 @@ sie sind Balancing-Stellschrauben und stehen gebündelt in `src/sim/data/`.
   frei sind (`siteRoom`). Im Kampf und bei Laufbefehlen gilt das nicht (dort fächern Formationen bzw.
   Zielkacheln auf).
 - Laufbefehle fächern auf: Jede Figur bekommt eine eigene Zielkachel um den Klickpunkt (Leibeigene
-  1 Kachel Abstand, Truppen und Helden 3 Kacheln, damit die Soldaten dahinter Platz haben).
+  1 Kachel Abstand, Truppen und Helden 3 Kacheln, damit die Soldaten dahinter Platz haben). Bei einem Klick
+  des Spielers (Befehlsfeld `avoid`) bleiben Kacheln frei, auf denen schon eine andere Figur steht oder auf die
+  ein Leibeigener gerade läuft (`takenTiles`, bei Trupps zählen nur Hauptleute und Helden): Wer auf eine besetzte
+  Kachel geschickt wird, bleibt auf der Nachbarkachel stehen. Skripte und KI laufen weiter genau aufs Ziel.
 - Beim Platzieren eines Gebäudes mit ausgewählten Leibeigenen fangen diese sofort an zu bauen.
 - Über jeder Baustelle (auch beim Ausbau) zeigt ein blauer Balken den Baufortschritt. Ausbauten nehmen keine
   Leibeigenen an (`err.upgradeNoSerfs`), siehe §6.
@@ -496,3 +499,24 @@ Kampagne und Skript-Missionen. Werte: `src/sim/data/bridges.js`, `buildings.js`,
 - **Meldungen**: Brücke fertig, Brücke eingestürzt.
 - **Computergegner**: baut nach Kaserne und drei Hauptleuten eine Brücke Richtung Gegner (falls es eine Brückenstelle
   gibt) sowie Brunnen und Denkmal, sobald er sie sich leisten kann.
+
+## 14. Spuren und Gegenstände
+
+Nur Optik und Information für Skripte – keine Wirkung auf Tempo, Wegsuche oder Balance. Code: `src/sim/systems/ground.js`,
+Werte: `BALANCE.ground` (alle (A)).
+
+- **Spuren:** Verlässt eine Figur (Held, Leibeigener, Arbeiter draußen, Hauptmann, Soldat) eine Kachel zu einer
+  Nachbarkachel, wird die Spur dort um 1 stärker (höchstens 48, ein Byte je Kachel). Sprünge (Teleport, Rückkehr zur
+  Burg) hinterlassen nichts. Ein umlaufender „Besen“ nimmt jeder Kachel alle 30 s eine Stufe; seine Position folgt aus
+  dem Takt, es gibt keine Liste. Als Spur zählt eine Kachel ab Stärke 8 (Trampelpfad), im Winter ab 1 (Fußabdrücke im
+  Schnee). Tauwetter löscht Spuren auf dem Eis. Ein Level stellt das mit `world.tracks` ein (`threshold`, `fade` in
+  Sekunden je Stufe, 0 = verweht nie, `who`: `all`, `none`, `heroes`).
+- **Gegenstände:** Taler und Blumen liegen auf Kacheln (höchstens einer je Kachel, nur auf begehbarem Boden, im
+  Winter auch auf dem Eis). Helden und Leibeigene heben auf, worauf sie stehen (Befehl `item`, 0,5 s): ein Taler bringt
+  1 Gold, eine Blume wird gepflückt. Ablegen geht nur mit Talern (kostet 1 Gold). Ein Baum, Haufen oder Gebäude auf der
+  Kachel nimmt den Gegenstand weg, ebenso Tauwetter auf dem Eis und eine einstürzende Brücke. Gegenstände setzen nur
+  Missionen und der Weltaufbau.
+- **Darstellung:** Spuren zeigt das Gelände als Trampelpfad (Sommer, Regen) bzw. getretenen Schnee mit Fußabdrücken
+  (Winter), nur soweit der Spieler sie sieht oder zuletzt gesehen hat. Taler und Christrosen liegen sichtbar auf
+  ihren Kacheln, sobald die Kachel erkundet ist. Im Welteneditor setzt man beides mit „Gegenstand“ und „Spur“.
+- **Lernabenteuer ohne Burg** beginnen mit leerem Lager – `stock("gold")` zählt genau die gesammelten Taler.

@@ -448,12 +448,17 @@ you see all variables and the call stack. On an error the line turns red; a box 
 makes a suggestion (“Did you mean `turn_left`?”).
 
 Hovering over a command (on a phone: long press) shows a card explaining it. The [scripting reference](scripting/) – the **Reference** button in the code panel – explains them in detail – with parameters, return values, errors and many examples. The most important:
-`hero.step()`, `hero.turn_left()`, `hero.turn_right()`, `hero.ahead()`, `hero.chop()`, `hero.take()` and `print()`.
+`nelia.step()`, `nelia.turn_left()`, `nelia.turn_right()`, `nelia.front()`, `nelia.left()`, `nelia.take()` and `print()`.
+In the code your hero has the same name as in the game (`nelia`, `orrin` …); serfs (`serfs()`) have the same basic
+commands and fell trees with `chop()`.
 
 ```
 for i in range(10):
-    hero.step()
+    nelia.step()
 ```
+
+If you write something that runs but is almost never meant – such as `nelia.left()` (only looks, does not turn) or
+`nelia.step` without parentheses –, an amber **hint** appears at the line. The program keeps running anyway.
 
 On a phone a key bar helps with indentation, colon, brackets and quotes. Your code is remembered in the browser –
 you can carry on at any time.
@@ -464,8 +469,9 @@ you can carry on at any time.
 
 Under **Coding Adventures → World editor** you build your own maps: raise and lower terrain, place water, forest,
 resources, start positions and named places. You write the story in Python as well – dialogues, camera flights,
-objectives, attack waves. **Test play** starts your world right away; you can save it as a file and play or share
-it again via **Open scenario file**.
+objectives, attack waves, talk figures. Under **Files** you add your own pictures, sounds and 3D models.
+**Test play** starts your world right away; you can save it as a **.zip** and play or share it again via
+**Open level** – or put the .zip online and share the link.
 
 > **For teachers:** Which parts of Python are available and every command are described in the
 > [scripting documentation](https://github.com/wi-wissen/Kronland/blob/main/docs/SKRIPTE.md).

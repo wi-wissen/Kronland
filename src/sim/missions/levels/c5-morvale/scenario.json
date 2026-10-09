@@ -1,0 +1,163 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "c5",
+  "kind": "campaign",
+  "end": "objectives",
+  "order": 5,
+  "next": "c6",
+  "title": {
+    "de": "Morvale",
+    "en": "Morvale"
+  },
+  "summary": {
+    "de": "Halte die Moordörfer – auch wenn sie dir nicht mehr glauben.",
+    "en": "Hold the moor villages – even when they no longer believe you."
+  },
+  "briefing": {
+    "de": "Morvale: Wälder, Moore und Dörfer, die niemandem gehorchen. Sie folgen Nelia, weil sie die verlorene Prinzessin sein soll. In der Nähe lagert Hauptmann Taran mit seinen Männern. Malvor hat einen Herold geschickt. Was er verkünden wird, ahnt Nelia schon.",
+    "en": "Morvale: forests, moors and villages that obey no one. They follow Nelia because she is said to be the lost princess. Nearby, Captain Taran is camped with his men. Malvor has sent a herald. Nelia already suspects what he will proclaim."
+  },
+  "victoryText": {
+    "de": "Die Dörfer stehen wieder hinter Nelia – diesmal ihrer Taten wegen.",
+    "en": "The villages stand behind Nelia again – this time for what she has done."
+  },
+  "debrief": {
+    "de": "Taran steht abseits. Er hat nicht gelächelt, seit er hier ist. Aber er ist geblieben. Nelia hält vier Zacken in der Hand. Die fünfte trägt Malvor.",
+    "en": "Taran stands apart. He hasn’t smiled since he arrived. But he has stayed. Nelia holds four shards in her hand. The fifth is worn by Malvor."
+  },
+  "defeatText": {
+    "de": "Morvale ist verloren.",
+    "en": "Morvale is lost."
+  },
+  "defeatTexts": {
+    "hq": {
+      "de": "Euer Lager ist gefallen.",
+      "en": "Your camp has fallen."
+    },
+    "granaries": {
+      "de": "Die Höfe von Moorbrook sind niedergebrannt. Die Dörfer werden Nelia nie wieder folgen.",
+      "en": "Moorbrook’s farms have burned down. The villages will never follow Nelia again."
+    }
+  },
+  "world": {
+    "base": "generate",
+    "seed": 5505,
+    "size": 96,
+    "fog": true
+  },
+  "weatherCycle": [
+    [
+      "summer",
+      3600
+    ],
+    [
+      "rain",
+      1500
+    ],
+    [
+      "summer",
+      3600
+    ],
+    [
+      "winter",
+      1800
+    ]
+  ],
+  "available": {
+    "buildings": [
+      "villageCenter",
+      "residence",
+      "farm",
+      "clayMine",
+      "storehouse",
+      "stoneMine",
+      "barracks",
+      "ironMine",
+      "sulfurMine",
+      "university",
+      "archery",
+      "tower"
+    ],
+    "techs": [
+      "standingArmy"
+    ]
+  },
+  "shafts": [
+    "clay",
+    "stone",
+    "iron"
+  ],
+  "players": [
+    {
+      "kind": "human",
+      "heroes": [
+        "nelia",
+        "orrin"
+      ],
+      "serfs": 12,
+      "techs": [
+        "conscription",
+        "education",
+        "construction"
+      ],
+      "stock": {
+        "gold": 800,
+        "clay": 1200,
+        "wood": 1500,
+        "stone": 1000,
+        "iron": 0,
+        "sulfur": 0
+      }
+    },
+    {
+      "kind": "bandits",
+      "look": "soldiers"
+    },
+    {
+      "kind": "village",
+      "name": "moorbrook",
+      "diplomacy": {
+        "human": "allied"
+      }
+    },
+    {
+      "kind": "village",
+      "name": "reedham",
+      "diplomacy": {
+        "human": "allied"
+      }
+    },
+    {
+      "kind": "village",
+      "name": "alderfarm",
+      "diplomacy": {
+        "human": "allied"
+      }
+    }
+  ],
+  "sections": [
+    {
+      "id": "world",
+      "title": {
+        "de": "Morvale aufbauen",
+        "en": "Build Morvale"
+      },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": {
+        "de": "Ablauf",
+        "en": "Story"
+      },
+      "level": "mission",
+      "visibility": "open",
+      "editable": false,
+      "file": "mission.py"
+    }
+  ]
+}

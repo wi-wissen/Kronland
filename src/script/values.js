@@ -108,6 +108,18 @@ export function typeName(v) {
 export const TYPE_NAMES = new Set(['int', 'float', 'str', 'bool', 'list', 'tuple', 'dict', 'range', 'type']);
 
 /** Key for dictionaries (Python: 1 == 1.0 == True are the same key). */
+/**
+ * Nesting depth for eq, lt, keyOf and str/repr on nested data (x = [x] in a loop). The limit is the same on
+ * every device – without it the JS stack would decide where the program fails, and clients in lockstep could disagree.
+ */
+export const DATA_DEPTH = 500;
+let dataDepth = 0;
+function nested(fn) {
+  if (dataDepth >= DATA_DEPTH) throw err('recursion', { what: 'nested', max: DATA_DEPTH });
+  dataDepth++;
+  try { return fn(); } finally { dataDepth--; }
+}
+
 export function keyOf(v) {
   if (v === null) return 'N';
   switch (typeof v) {
@@ -117,7 +129,7 @@ export function keyOf(v) {
     default: break;
   }
   if (v instanceof PyFloat) return Number.isInteger(v.v) ? `i${Number.isSafeInteger(v.v) ? v.v : BigInt(v.v)}` : `f${v.v}`;
-  if (v instanceof PyTuple) return `t(${v.items.map(keyOf).join(',')})`;
+  if (v instanceof PyTuple) return nested(() => `t(${v.items.map(keyOf).join(',')})`);
   if (v instanceof PyHost) return `h${v.cls}:${v.id}`;
   if (v instanceof PyBuiltin) return `b${v.name}`;
   throw err('unhashable', { type: typeName(v) });
@@ -146,12 +158,14 @@ export function eq(a, b) {
   if (a === b) return !(a instanceof PyFloat && Number.isNaN(a.v));
   if (isNum(a) && isNum(b)) return numEq(num(a), num(b));
   if (typeof a === 'string' || typeof b === 'string') return false;
-  if (a instanceof PyList && b instanceof PyList) return seqEq(a.items, b.items);
-  if (a instanceof PyTuple && b instanceof PyTuple) return seqEq(a.items, b.items);
+  if (a instanceof PyList && b instanceof PyList) return nested(() => seqEq(a.items, b.items));
+  if (a instanceof PyTuple && b instanceof PyTuple) return nested(() => seqEq(a.items, b.items));
   if (a instanceof PyDict && b instanceof PyDict) {
     if (a.size !== b.size) return false;
-    for (const [k, [, v]] of a.map) { const o = b.map.get(k); if (!o || !eq(v, o[1])) return false; }
-    return true;
+    return nested(() => {
+      for (const [k, [, v]] of a.map) { const o = b.map.get(k); if (!o || !eq(v, o[1])) return false; }
+      return true;
+    });
   }
   if (a instanceof PyRange && b instanceof PyRange) return seqEq(rangeItems(a), rangeItems(b));
   if (a instanceof PyHost && b instanceof PyHost) return a.cls === b.cls && a.id === b.id;
@@ -172,10 +186,12 @@ export function lt(a, b, op = '<') {
   if (typeof a === 'string' && typeof b === 'string') return a < b;
   if ((a instanceof PyList && b instanceof PyList) || (a instanceof PyTuple && b instanceof PyTuple)) {
     const x = a.items, y = b.items;
-    for (let i = 0; i < Math.min(x.length, y.length); i++) {
-      if (!eq(x[i], y[i])) return lt(x[i], y[i], op);
-    }
-    return x.length < y.length;
+    return nested(() => {
+      for (let i = 0; i < Math.min(x.length, y.length); i++) {
+        if (!eq(x[i], y[i])) return lt(x[i], y[i], op);
+      }
+      return x.length < y.length;
+    });
   }
   throw err('compare', { op, a: typeName(a), b: typeName(b) });
 }
@@ -222,8 +238,20 @@ export function rangeLen(r) {
   if (r.step > 0) return r.stop > r.start ? Math.floor((r.stop - r.start - 1) / r.step) + 1 : 0;
   return r.stop < r.start ? Math.floor((r.start - r.stop - 1) / -r.step) + 1 : 0;
 }
+/** Most elements a list may get, longest text (memory of a shared level stays bounded). */
+export const MAX_ITEMS = 1_000_000;
+export const MAX_STR = 10_000_000;
+
+/** Append all items with a loop: spreading a huge array depends on the engine's argument limit. */
+export function pushAll(target, items) {
+  if (target.length + items.length > MAX_ITEMS) throw err('overflow', {});
+  for (let i = 0; i < items.length; i++) target.push(items[i]);
+}
+
 export function rangeItems(r) {
-  const n = rangeLen(r), out = new Array(n);
+  const n = rangeLen(r);
+  if (n > MAX_ITEMS) throw err('overflow', {});
+  const out = new Array(n);
   for (let i = 0; i < n; i++) out[i] = r.start + i * r.step;
   return out;
 }
@@ -309,7 +337,8 @@ function sliceSeq(items, sl) {
 
 function normIndex(i, len, what) {
   const k = i < 0 ? i + len : i;
-  if (k < 0 || k >= len) throw err('index', { what });
+  // Index and length in the message: "the list has 3 elements (index 0 to 2)"
+  if (k < 0 || k >= len) throw err('index', { what: `${what}${len ? 'Range' : 'Empty'}`, index: i, len, last: len - 1 });
   return k;
 }
 
@@ -335,6 +364,7 @@ export function getItem(obj, idx) {
     }
     return obj.start + normIndex(toIndex(idx), rangeLen(obj), 'range') * obj.step;
   }
+  if (obj instanceof PyBuiltin || obj instanceof PyFunction) throw err('notSubscriptable', { what: 'function', type: typeName(obj), name: obj.name.replace(/^.*[.:]/, '') });
   throw err('notSubscriptable', { type: typeName(obj) });
 }
 
@@ -380,7 +410,7 @@ export function delItem(obj, idx) {
 
 // ---------- Arithmetic ----------
 
-const opErr = (op, a, b) => err('operand', { op, a: typeName(a), b: typeName(b) });
+const opErr = (op, a, b) => err('operand', { op, a: typeName(a), b: typeName(b), ...(a === null || b === null || a === undefined || b === undefined ? { what: 'none' } : {}) });
 
 /** Integer power by squaring (exact, with overflow check). */
 function ipow(a, b) {
@@ -400,7 +430,7 @@ function bigPow(a, b) {
   // Estimate the result size in advance: bits(a) * b
   const bits = a === 0n || a === 1n || a === -1n ? 0 : a.toString(2).length * Number(b);
   if (bits > BIG_LIMIT * 4) throw err('overflow', {});
-  return normBig(a ** b);
+  return normBig(a ** b); // rules-ok: BigInt
 }
 
 /** Calculation with large integers. */
@@ -428,6 +458,12 @@ function bigOp(op, x, y) {
     default: return null;
   }
 }
+
+/** Exact powers of ten up to 1e22 (representable without rounding). */
+const POW10 = [1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22];
+
+/** 10 ** n for an integer n ≥ 0, correctly rounded on every engine (BigInt beyond the table). */
+export const pow10 = (n) => (n < POW10.length ? POW10[n] : Number(10n ** BigInt(n))); // rules-ok: BigInt
 
 /** Float to an integer exponent (squaring – deterministic, unlike Math.pow). */
 function fpow(a, b) {
@@ -497,26 +533,28 @@ export function binary(op, a, b) {
       case '//': { if (y === 0) throw err('zeroDivision', { op: 'floordiv' }); const r = imod(x, y); return checkInt((x - r) / y); }
       case '%': if (y === 0) throw err('zeroDivision', { op: 'mod' }); return checkInt(imod(x, y));
       case '**':
-        if (y < 0) { if (x === 0) throw err('zeroDivision', { op: 'pow' }); return new PyFloat(1 / ipow(x, -y)); }
+        if (y < 0) { if (x === 0) throw err('zeroDivision', { op: 'pow' }); return new PyFloat(1 / Number(ipow(x, -y))); }
         return ipow(x, y);
       default: return bigBits(op, a, b);
     }
   }
   switch (op) {
     case '+':
-      if (typeof a === 'string' && typeof b === 'string') return a + b;
-      if (a instanceof PyList && b instanceof PyList) return new PyList(a.items.concat(b.items));
-      if (a instanceof PyTuple && b instanceof PyTuple) return new PyTuple(a.items.concat(b.items));
+      if (typeof a === 'string' && typeof b === 'string') { if (a.length + b.length > MAX_STR) throw err('overflow', {}); return a + b; }
+      if ((a instanceof PyList && b instanceof PyList) || (a instanceof PyTuple && b instanceof PyTuple)) {
+        if (a.items.length + b.items.length > MAX_ITEMS) throw err('overflow', {});
+        return a instanceof PyList ? new PyList(a.items.concat(b.items)) : new PyTuple(a.items.concat(b.items));
+      }
       break;
     case '*': {
       const [s, n0] = isInt(b) ? [a, num(b)] : isInt(a) ? [b, num(a)] : [null, 0];
       if (typeof n0 === 'bigint' && s !== null && (typeof s === 'string' || s instanceof PyList || s instanceof PyTuple)) throw err('overflow', {});
       const n = Number(n0);
-      if (typeof s === 'string') { if (s.length * Math.max(0, n) > 10_000_000) throw err('overflow', {}); return n > 0 ? s.repeat(n) : ''; }
+      if (typeof s === 'string') { if (s.length * Math.max(0, n) > MAX_STR) throw err('overflow', {}); return n > 0 ? s.repeat(n) : ''; }
       if (s instanceof PyList || s instanceof PyTuple) {
-        if (s.items.length * Math.max(0, n) > 1_000_000) throw err('overflow', {});
+        if (s.items.length * Math.max(0, n) > MAX_ITEMS) throw err('overflow', {});
         const out = [];
-        for (let i = 0; i < n; i++) out.push(...s.items);
+        for (let i = 0; i < n; i++) pushAll(out, s.items);
         return s instanceof PyList ? new PyList(out) : new PyTuple(out);
       }
       break;
@@ -615,7 +653,7 @@ export function toFixedExact(x, f) {
   let mant = (BigInt(hi & 0xfffff) << 32n) | BigInt(lo);
   let e;
   if (expBits === 0) e = -1074; else { mant |= 1n << 52n; e = expBits - 1075; }
-  let n = mant * 10n ** BigInt(f), d = 1n;
+  let n = mant * 10n ** BigInt(f), d = 1n; // rules-ok: BigInt
   if (e >= 0) n <<= BigInt(e); else d <<= BigInt(-e);
   let q = n / d;
   const r2 = (n % d) * 2n;
@@ -623,6 +661,26 @@ export function toFixedExact(x, f) {
   let s = q.toString();
   if (f > 0) { s = s.padStart(f + 1, '0'); s = `${s.slice(0, -f)}.${s.slice(-f)}`; }
   return (neg ? '-' : '') + s;
+}
+
+/** x rounded to a multiple of 10^k (k > 0), exact as in CPython: half to even, then the nearest float. */
+function roundToTens(x, k) {
+  const neg = x < 0 || Object.is(x, -0);
+  const dv = new DataView(new ArrayBuffer(8));
+  dv.setFloat64(0, Math.abs(x));
+  const hi = dv.getUint32(0), lo = dv.getUint32(4);
+  const expBits = (hi >>> 20) & 0x7ff;
+  let mant = (BigInt(hi & 0xfffff) << 32n) | BigInt(lo);
+  let e;
+  if (expBits === 0) e = -1074; else { mant |= 1n << 52n; e = expBits - 1075; }
+  const p = 10n ** BigInt(k); // rules-ok: BigInt
+  let n = mant, d = p;
+  if (e >= 0) n <<= BigInt(e); else d <<= BigInt(-e);
+  let q = n / d;
+  const r2 = (n % d) * 2n;
+  if (r2 > d || (r2 === d && (q & 1n) === 1n)) q += 1n;
+  const v = Number(q * p);
+  return neg ? -v : v;
 }
 
 /** round() like Python (even number at exactly .5, relative to the exact binary number). */
@@ -633,8 +691,7 @@ export function roundFloat(x, nd) {
   }
   if (nd === null) return normBig(BigInt(toFixedExact(x, 0)));
   if (nd >= 0) return Number(toFixedExact(x, Math.min(nd, 330)));
-  const p = 10 ** -nd;
-  return Number(toFixedExact(x / p, 0)) * p;
+  return roundToTens(x, -nd);
 }
 
 /**
@@ -654,12 +711,15 @@ export function toStr(v, asRepr = false, hostRepr = null, seen = new Set()) {
   if (v instanceof PyList || v instanceof PyTuple || v instanceof PyDict) {
     if (seen.has(v)) return v instanceof PyList ? '[...]' : v instanceof PyDict ? '{...}' : '(...)';
     seen.add(v);
-    let s;
-    if (v instanceof PyList) s = `[${v.items.map(rec).join(', ')}]`;
-    else if (v instanceof PyTuple) s = v.items.length === 1 ? `(${rec(v.items[0])},)` : `(${v.items.map(rec).join(', ')})`;
-    else s = `{${v.entries().map(([k, x]) => `${rec(k)}: ${rec(x)}`).join(', ')}}`;
-    seen.delete(v);
-    return s;
+    try {
+      return nested(() => {
+        if (v instanceof PyList) return `[${v.items.map(rec).join(', ')}]`;
+        if (v instanceof PyTuple) return v.items.length === 1 ? `(${rec(v.items[0])},)` : `(${v.items.map(rec).join(', ')})`;
+        return `{${v.entries().map(([k, x]) => `${rec(k)}: ${rec(x)}`).join(', ')}}`;
+      });
+    } finally {
+      seen.delete(v);
+    }
   }
   if (v instanceof PyRange) return v.step === 1 ? `range(${v.start}, ${v.stop})` : `range(${v.start}, ${v.stop}, ${v.step})`;
   if (v instanceof PyFunction) return `<function ${v.name}>`;

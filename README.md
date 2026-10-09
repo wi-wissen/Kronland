@@ -59,13 +59,24 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   den Knopf; der Gegner legt erst nach einem Meilenstein des Spielers los. Story und Mechanik: [Kampagne](docs/KAMPAGNE.md). Fortschritt und Bestzeiten
   speichert der Browser. Direktstart: `play/?mission=c1` … `play/?mission=c6`, `play/?mission=tutorial`.
 - **Programmier-Abenteuer**: Nelia mit Python steuern – fünf Lernabenteuer (Schleifen, Bedingungen, Funktionen,
-  Listen), Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
+  Listen) und die erste Kursmission „Im Schneetreiben“ (drei Etappen, Zettel der Magd, Vorhersage), Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
   mit Einzelschritt, Haltepunkten und Variablenansicht, Knopf „Referenz“ zur Website, Befehlserklärung beim Überfahren (Strg+Klick öffnet die
-  Referenz, am Handy langes Drücken), Fehlermeldungen mit Vorschlag,
-  `print()` in die Konsole, `notify()` als Meldung im Spiel, Programm als `.py` speichern und öffnen.
-  Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Orte, Missionen programmieren,
-  Welt aus Code erzeugen, als JSON speichern, testspielen) und eigene Szenario-Dateien.
-  Direktstart: `play/?mission=adv1` … `adv5`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
+  Referenz, am Handy langes Drücken), Fehlermeldungen mit Vorschlag, bernsteinfarbene Hinweise (Programm läuft weiter),
+  Taler und Christrosen zum Aufheben, Trampelpfade und Fußabdrücke im Schnee, am Handy folgt die Kamera der gesteuerten Figur,
+  `print()` in die Konsole, `notify()` als Meldung im Spiel, Programm als `.py` speichern und öffnen. **Ausführen startet
+  die Etappe neu** (Schnappschuss je Unterziel), der aktive Auftrag steht oben im Panel, Figuren stecken **Zettel** mit
+  Code zu („Zurück zu meinem Code“), Ereignisse (`@every`, `@on_enter` …) auch im eigenen Programm mit Haltepunkten,
+  Zeilen verschieben mit Alt+↑/↓ bzw. ⇡ ⇣ in der Tastenleiste.
+  Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Gegenstände, Spuren, Orte, Missionen programmieren,
+  Welt aus Code erzeugen, Doppelklick bzw. langes Drücken auf die Karte fügt Code ein – `place("camp")`, `(x, y)`,
+  Ort oder Gesprächsfigur –, Bausteine für Gesprächsfigur, Ziel, Angriffswelle, Dialog und Talerspur, Bilder, Töne und 3D-Modelle beilegen, als `.zip` speichern, testspielen). Ein Level ist
+  ein Ordner (`scenario.json`, `.py`-Dateien, `assets/`) und reist als `.zip` – auch per Link von einem statischen
+  Host (`play/?level=https://…/level.zip`). Missionen in Python: Ziele mit Fortschritt, Gesprächsfiguren (`npc()`,
+  `@on_talk`), `@on_event`, Texte zweisprachig direkt im Code. Auch das Tutorial (`step()`) und alle sechs
+  Kapitel der Kampagne sind solche Level-Ordner in Python (Lager, Tribute, Zeiger, Gespräche, die nie
+  durcheinanderreden, ganze Landschaften mit `world.ridge`/`world.lake_island`/`world.moat`, Seitenwechsel nach den
+  Spielregeln, Wetterkraftwerke des Gegners mit `change_weather`).
+  Direktstart: `play/?mission=adv1` … `adv5`, `play/?mission=r1-4`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
 - **Sonderkarten** (Startmenü → „Sonderkarten“): fertige Einzelkarten ohne Sieg und Niederlage, ohne Nebel.
   - **Schaukasten** (`play/?mission=showcase`): jedes Gebäude in jeder Ausbaustufe, Baustellen, Ruinen, Brücke,
     Rohstoffe, Arbeiter jedes Berufs, alle Truppen, die vier Helden, Räuber und ein Lagerfeuer – zum Prüfen der Modelle.

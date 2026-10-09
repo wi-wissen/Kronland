@@ -2,7 +2,7 @@
 
 import { createMissionSim } from '../../src/sim/missions/runtime.js';
 import { BUILDINGS } from '../../src/sim/data/buildings.js';
-import { P, act, build, gatherWood, idle, serfs, own, leaders, hero, until, attackMove, tileOf, stepId } from './missionBot.js';
+import { P, act, build, gatherWood, idle, serfs, own, leaders, hero, until, attackMove, tileOf, stepId, ref, refIds, talkTo, objective, heroOf } from './missionBot.js';
 
 /** Play the tutorial from start to finish. @returns {{ sim, log: string[] }} */
 export function playTutorial(seed) {
@@ -26,12 +26,12 @@ export function playTutorial(seed) {
   act(sim, { type: 'mission', action: 'ui', check: 'selectSerfs' });
   sim.step();
   expectStep('wood');
-  const tree = sim.entities.get(m.state.refs.tutTree);
+  const tree = sim.entities.get(ref(sim, 'tree'));
   const [s1, s2, s3, s4] = serfs(sim);
   act(sim, { type: 'assignWork', units: [s1.id, s2.id], target: tree.id });
   sim.step();
   expectStep('pile');
-  act(sim, { type: 'assignWork', units: [s3.id], target: m.state.refs.tutPile });
+  act(sim, { type: 'assignWork', units: [s3.id], target: ref(sim, 'pile') });
   sim.step();
   expectStep('residence');
   act(sim, { type: 'buySerf', count: 4 }); // more hands (the step for it comes later, but does no harm)
@@ -46,7 +46,7 @@ export function playTutorial(seed) {
   act(sim, { type: 'assignWork', units: idle(sim).map((u) => u.id), target: farm.id });
   waitStep('workers', 3000);
   expectStep('mine');
-  const sh = m.state.refs.tutShaft;
+  const sh = ref(sim, 'shaft');
   build(sim, 'clayMine', 3, sh);
   sim.step();
   expectStep('refiner');
@@ -56,7 +56,7 @@ export function playTutorial(seed) {
   act(sim, { type: 'buySerf', count: 1 });
   sim.step();
   expectStep('research');
-  act(sim, { type: 'research', building: m.state.refs.uni, tech: 'education' });
+  act(sim, { type: 'research', building: ref(sim, 'college'), tech: 'education' });
   sim.step();
   expectStep('taxes');
   act(sim, { type: 'mission', action: 'next' });
@@ -68,11 +68,11 @@ export function playTutorial(seed) {
   act(sim, { type: 'upgradeBuilding', building: home.id, units: idle(sim).slice(0, 4).map((u) => u.id) });
   sim.step();
   expectStep('recruit');
-  act(sim, { type: 'recruit', building: m.state.refs.barracks, line: 'sword', full: true });
+  act(sim, { type: 'recruit', building: ref(sim, 'barracks'), line: 'sword', full: true });
   sim.step();
   expectStep('fight');
   const army = [...leaders(sim).map((l) => l.id), hero(sim).id];
-  const foes = m.idsOf('tutBandits');
+  const foes = refIds(sim, 'bandits');
   const target = sim.entities.get(foes[0]);
   attackMove(sim, army, tileOf(target));
   waitStep('fight', 2500);
@@ -85,26 +85,32 @@ export function playTutorial(seed) {
   return { sim, log };
 }
 
-/** Win mission 1 with a simple build-up strategy: Nelia to the root, both heroes against the collectors. */
-/** Mission 1: put Nelia next to Orrin on the village square until he joins. */
+/** Mission 1: put Nelia next to Orrin on the village square and send her to him (tap) until he has joined. */
 export function meetOrrin(sim) {
   const st = sim.mission.state;
-  const n = sim.entities.get(st.npcs.stranger.entity), nelia = sim.entities.get(st.refs.nelia);
+  const n = sim.entities.get(st.npcs.stranger.entity), nelia = heroOf(sim, 'nelia');
   nelia.px = n.px + 1000; nelia.py = n.py; nelia.path = [];
-  until(sim, () => st.flags.orrin, 50);
+  talkTo(sim, [nelia.id], 'stranger');
+  // The conversation runs (after the arrival lines), then Orrin is a hero
+  until(sim, () => hero(sim) && [...sim.entities.values()].some((e) => e.kind === 'hero' && e.hero === 'orrin' && e.owner === P), 2000);
 }
+
+/** Win mission 1 with a simple build-up strategy: Nelia to the root, both heroes against the collectors. */
 
 export function playMission1(seed) {
   const sim = createMissionSim('c1', seed ? { seed } : {});
   const m = sim.mission;
   const hq = sim.findBuilding(P, 'headquarters');
   meetOrrin(sim);
-  const heroIds = () => [m.state.refs.nelia, m.state.refs.orrin];
+  const orrinId = () => [...sim.entities.values()].find((e) => e.kind === 'hero' && e.hero === 'orrin' && e.owner === P)?.id;
+  const neliaId = heroOf(sim, 'nelia').id;
+  const heroIds = () => [neliaId, orrinId()].filter(Boolean);
   let phase = '';
   const keepBusy = () => {
-    const col = m.idsOf('collectors').map((id) => sim.entities.get(id)).find(Boolean);
-    if (col && phase !== 'fight') { phase = 'fight'; attackMove(sim, heroIds(), tileOf(col)); }
-    else if (!col && phase === '') { phase = 'root'; const r = m.state.refs.oldRoot; act(sim, { type: 'order', units: [m.state.refs.nelia], order: 'move', x: r.x, y: r.y }); }
+    const col = refIds(sim, 'collectors').map((id) => sim.entities.get(id)).find(Boolean);
+    // both heroes follow the collectors until they are gone
+    if (col) { phase = 'fight'; attackMove(sim, heroIds(), tileOf(col)); }
+    else if (!col && phase === '') { phase = 'root'; const r = ref(sim, 'oldRoot'); act(sim, { type: 'order', units: [neliaId], order: 'move', x: r.x, y: r.y }); }
     // construction sites first, then wood
     const sites = [...sim.entities.values()].filter((e) => e.kind === 'building' && e.owner === P && !e.done && e.builders.length < 4);
     for (const s of sites) {
@@ -116,10 +122,10 @@ export function playMission1(seed) {
     gatherWood(sim);
   };
   // The old tree brings three serfs; first the village centre on the old foundations
-  const r = m.state.refs.oldRoot;
-  act(sim, { type: 'order', units: [m.state.refs.nelia], order: 'move', x: r.x, y: r.y });
-  until(sim, () => m.state.flags.shard1, 1500);
-  const vc = m.state.refs.vcRuin;
+  const r = ref(sim, 'oldRoot');
+  act(sim, { type: 'order', units: [neliaId], order: 'move', x: r.x, y: r.y });
+  until(sim, () => objective(sim, 'root').status === 'done', 1500);
+  const vc = ref(sim, 'vcRuin');
   act(sim, { type: 'placeBuilding', building: 'villageCenter', x: vc.x, y: vc.y, units: idle(sim).map((u) => u.id) });
   until(sim, () => sim.findBuilding(P, 'villageCenter')?.done, 3000, () => gatherWood(sim));
   act(sim, { type: 'buySerf', count: 4 });
@@ -128,7 +134,7 @@ export function playMission1(seed) {
     until(sim, () => sim.canPay(P, BUILDINGS[type].levels[0].cost), 3000, keepBusy);
     build(sim, type, 3, near);
   };
-  const shaft = m.state.refs.clayShaft;
+  const shaft = ref(sim, 'clayShaft');
   later('residence', { x: hq.x + 2, y: hq.y + 9 });
   later('farm', { x: hq.x + 8, y: hq.y + 6 });
   later('clayMine', shaft);

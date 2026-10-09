@@ -132,7 +132,7 @@ test('Manual: table of contents, anchors, search', async ({ page }) => {
   await expect(manual.locator('#sec-saving')).toContainText('Autosave');
   // Coding adventure, bridges and ornaments
   await expect(manual.locator('h2#coding')).toHaveText('Programmier-Abenteuer');
-  await expect(manual.locator('#sec-coding pre')).toContainText('hero.step()');
+  await expect(manual.locator('#sec-coding pre')).toContainText('nelia.step()');
   await expect(manual.locator('h2#bridges')).toHaveText('Brücken und Zierden');
   await expect(manual.locator('#sec-bridges')).toContainText('Prozentpunkte');
   await page.getByTestId('manual-search').fill('Winter');

@@ -1,7 +1,7 @@
 // Terrain mesh from the simulation's height map. 1 tile = 1 world unit.
 // One draw call: smooth mesh (optionally subdivided more finely), texture blending in the shader from
 // grass, meadow, earth, sand, rock (triplanar) and snow via weights per corner.
-// Around buildings the ground is trodden (small data texture). The levelling under buildings
+// Tracks (paths, footprints in the snow) come from a data texture with one texel per tile (ground.js). The levelling under buildings
 // is computed by the simulation (sim/systems/terrain.js); updateArea() takes changed heights into the mesh.
 
 import * as THREE from 'three';
@@ -54,6 +54,8 @@ export class Terrain {
     this.uniforms = {
       uSnow: { value: 0 }, uWet: { value: 0 },
       uMapSize: { value: new THREE.Vector2(W, H) }, uWaterY: { value: this.waterY },
+      // Tracks (ground.js): one texel per tile, R = strength in the picture, G = axis of the footprints
+      tTrack: { value: /** @type {THREE.Texture|null} */ (null) }, uTrackOn: { value: 0 },
     };
     this.mesh = this.buildMesh();
   }
@@ -404,8 +406,8 @@ vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
 vWNrm = normalize(mat3(modelMatrix) * objectNormal);`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
-uniform sampler2D tGrass, tMeadow, tDirt, tSand, tRock, tSnow, tMacro;
-uniform float uRep, uRockRep, uSnow, uWet, uWaterY;
+uniform sampler2D tGrass, tMeadow, tDirt, tSand, tRock, tSnow, tMacro, tTrack;
+uniform float uRep, uRockRep, uSnow, uWet, uWaterY, uTrackOn;
 uniform vec2 uMapSize;
 varying vec4 vSplatA;
 varying vec4 vSplatB;
@@ -424,6 +426,15 @@ vec3 kSample(sampler2D t, vec2 uv, float m) {
 #endif
 }
 float kLum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+// Footprints within a tile: two rows of small ovals along the axis of the path (ax 0…3, see ground.js)
+float kPrints(vec2 p, float ax) {
+  vec2 d = ax < 0.5 ? vec2(1.0, 0.0) : ax < 1.5 ? vec2(0.0, 1.0) : ax < 2.5 ? vec2(0.7071, -0.7071) : vec2(0.7071, 0.7071);
+  float u = dot(p, d), v = dot(p, vec2(-d.y, d.x));
+  float i = floor(u / 0.3 + 0.5);
+  float side = mod(i, 2.0) * 2.0 - 1.0;
+  vec2 q = vec2((u - i * 0.3) / 0.095, (v - side * 0.1) / 0.058);
+  return 1.0 - smoothstep(0.55, 1.0, dot(q, q));
+}
 vec3 kPerturb(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDirection) {
   vec3 vSigmaX = normalize(dFdx(surf_pos.xyz));
   vec3 vSigmaY = normalize(dFdy(surf_pos.xyz));
@@ -466,6 +477,13 @@ float wMeadow = vSplatA.x, wDirt = vSplatA.y, wSand = vSplatA.z, wRock = vSplatA
 // Winter: snow on flat ground, rock on steep slopes and cliffs stays visible, paths shimmer through
 float flatness = 1.0 - smoothstep(0.18, 0.42, 1.0 - normalize(vWNrm).y);
 float wSnow = max(vSplatB.x, uSnow * flatness * (1.0 - wRock * 0.55) * smoothstep(0.0, 0.1, vWPos.y - uWaterY));
+// Tracks: smooth path strength (linear between tile centres), only on the map
+vec2 kIn2 = step(vec2(0.0), vWPos.xz) * step(vWPos.xz, uMapSize);
+float kTr = texture2D(tTrack, vWPos.xz / uMapSize).r * kIn2.x * kIn2.y * uTrackOn;
+// Summer and rain: packed earth paths instead of grass
+float kPath = smoothstep(0.12, 0.55, kTr + (m - 0.5) * 0.2) * (1.0 - uSnow);
+wDirt = max(wDirt, kPath * 0.92);
+wMeadow *= 1.0 - kPath;
 float wGrass = max(0.0, 1.0 - wMeadow - wDirt - wSand - wRock);
 wMeadow *= (1.0 - wDirt) * (1.0 - wSand) * (1.0 - wRock);
 // Height-based blending: bright texture spots win first (sharp, natural transitions)
@@ -483,6 +501,19 @@ kH = (hG * bG + dot(hA, bA)) / bSum;
 float sMask = smoothstep(0.3, 0.6, wSnow + (kLum(cSnow) - 0.8) * 0.6 + (1.0 - kH) * 0.25 * wSnow);
 albedo = mix(albedo, cSnow, sMask);
 kH = mix(kH, kLum(cSnow) * 0.3, sMask);
+// Winter: trodden snow (greyer and bluish) with footprints per tile
+if (uSnow > 0.5 && kTr > 0.001) {
+  float kSn = sMask * kTr;
+  albedo = mix(albedo, cSnow * vec3(0.46, 0.53, 0.66), kSn * 0.6);
+  // footprints (all graphics levels: only here in winter, one more texture read)
+  vec2 kCell = floor(vWPos.xz) + 0.5;
+  vec4 kT = texture2D(tTrack, kCell / uMapSize);
+  float kP = kPrints(vWPos.xz - kCell, floor(kT.g * 3.0 + 0.5)) * step(0.01, kT.r) * sMask * kIn2.x * kIn2.y;
+  albedo = mix(albedo, cSnow * vec3(0.24, 0.3, 0.42), kP * 0.9);
+  kH -= kP * 0.25;
+}
+// Summer paths: a little darker and smoother where they are well trodden
+albedo *= 1.0 - kPath * kTr * 0.12;
 // Large-scale colour variation (sun patches, richer hollows)
 albedo *= 0.88 + macro.r * 0.24;
 albedo = mix(albedo, albedo * vec3(1.06, 1.0, 0.86), smoothstep(0.55, 0.85, macro.b) * (1.0 - sMask) * 0.6);

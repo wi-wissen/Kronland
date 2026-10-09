@@ -3,10 +3,11 @@
 //
 // Saved map (scenario JSON, world.terrain):
 //   { w, h, waterLevel, heights: Base64(Int32Array), flags: Base64(Uint8Array, without OCCUPIED),
-//     features: [{ kind: 'tree'|'pile'|'spot'|'shaft', x, y, res?, amount? }], starts: [{x,y}], hqs: [{x,y}] }
+//     features: [{ kind: 'tree'|'pile'|'spot'|'shaft'|'coin'|'flower'|'track', x, y, res?, amount?, strength? }], starts: [{x,y}], hqs: [{x,y}] }
 
 import { TileMap, OCCUPIED, RESERVED } from './map.js';
 import { generateMap } from './mapgen.js';
+import { itemList } from './systems/ground.js';
 
 /** Height of the flat base map above the water level (cm). */
 export const FLAT_HEIGHT = 300;
@@ -88,7 +89,10 @@ export function terrainOf(sim) {
   }
   for (const s of sim.spots) features.push({ kind: 'spot', x: s.x, y: s.y });
   for (const s of sim.shafts) features.push({ kind: 'shaft', x: s.x, y: s.y, res: s.res });
-  features.sort((a, b) => (a.y - b.y) || (a.x - b.x) || a.kind.localeCompare(b.kind));
+  // Ground: items (coins, flowers) and track strength per tile (src/sim/systems/ground.js)
+  for (const it of itemList(m)) features.push({ kind: it.kind, x: it.x, y: it.y });
+  for (let k = 0; k < m.tracks.length; k++) if (m.tracks[k]) features.push({ kind: 'track', x: k % m.width, y: (k / m.width) | 0, strength: m.tracks[k] });
+  features.sort((a, b) => (a.y - b.y) || (a.x - b.x) || (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0));
   return {
     w: m.width, h: m.height, waterLevel: sim.waterLevel,
     heights: toB64(m.heights), flags: toB64(flags), features,

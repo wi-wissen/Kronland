@@ -1,0 +1,48 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "m1",
+  "kind": "mission",
+  "end": "script",
+  "order": 1,
+  "title": { "de": "Der Überfall", "en": "The Raid" },
+  "summary": {
+    "de": "Eine Beispielmission, ganz in Python geschrieben: Räuber bedrohen den Hof.",
+    "en": "An example mission written entirely in Python: bandits threaten the farm."
+  },
+  "briefing": {
+    "de": "Räuberhauptmann Kunz hat sein Lager im Wald aufgeschlagen und will den Hof plündern. Baue eine Kaserne, hebe Truppen aus und halte die Angriffe auf. Dann zerstöre das Lager. (Diese Mission ist ein Beispiel für Missionsskripte – im Welteneditor kannst du ihren Code ansehen.)",
+    "en": "Bandit captain Kunz has set up camp in the woods and wants to plunder the farm. Build a barracks, recruit troops and hold off the raids. Then destroy the camp. (This mission is an example of mission scripts – you can view its code in the world editor.)"
+  },
+  "victoryText": { "de": "Das Räuberlager ist zerstört.", "en": "The bandit camp is destroyed." },
+  "defeatText": { "de": "Der Hof ist verloren.", "en": "The farm is lost." },
+  "world": { "base": "generate", "seed": 2202, "size": 96, "fog": true },
+  "players": [
+    {
+      "kind": "human",
+      "hero": "nelia",
+      "serfs": 8,
+      "techs": ["conscription", "construction"],
+      "stock": { "gold": 1300, "clay": 1800, "wood": 2200, "stone": 1200, "iron": 600, "sulfur": 0 }
+    },
+    { "kind": "bandits" }
+  ],
+  "sections": [
+    {
+      "id": "world",
+      "title": { "de": "Aufbau", "en": "Setup" },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": { "de": "Ablauf", "en": "Story" },
+      "level": "mission",
+      "visibility": "open",
+      "editable": false,
+      "file": "mission.py"
+    }
+  ]
+}

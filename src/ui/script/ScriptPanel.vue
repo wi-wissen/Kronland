@@ -45,13 +45,14 @@
         </header>
 
         <div v-if="split" class="sp-tools" role="toolbar" :aria-label="$t('script.tools')">
-          <button v-if="!busy" class="primary sp-run" :aria-label="$t('script.run')" data-testid="script-run" @click="run(false)"><Icon name="play" /><span class="sp-run-lbl">{{ $t('script.run') }}</span></button>
+          <button v-if="!busy" v-tip="restarts ? $t('script.restartTip') : null" class="primary sp-run" :aria-label="$t('script.run')" data-testid="script-run" @click="run(false)"><Icon name="play" /><span class="sp-run-lbl">{{ $t('script.run') }}</span></button>
           <button v-else-if="paused" class="primary sp-run" :aria-label="$t('script.continue')" data-testid="script-continue" @click="debug('continue')"><Icon name="play" /><span class="sp-run-lbl">{{ $t('script.continue') }}</span></button>
           <button v-else class="sp-run" :aria-label="$t('script.pause')" data-testid="script-pause" @click="debug('pause')"><Icon name="pause" /><span class="sp-run-lbl">{{ $t('script.pause') }}</span></button>
           <button v-tip="$t('script.stepTip')" :aria-label="$t('script.step')" data-testid="script-step" @click="step('into')"><span class="sp-glyph" aria-hidden="true">⤵</span><span class="sp-lbl">{{ $t('script.step') }}</span></button>
           <button v-tip="$t('script.overTip')" :aria-label="$t('script.over')" :disabled="!paused" data-testid="script-over" @click="step('over')"><span class="sp-glyph" aria-hidden="true">↷</span><span class="sp-lbl sp-lbl-dbg">{{ $t('script.over') }}</span></button>
           <button v-tip="$t('script.outTip')" :aria-label="$t('script.out')" :disabled="!paused" data-testid="script-out" @click="step('out')"><span class="sp-glyph" aria-hidden="true">↥</span><span class="sp-lbl sp-lbl-dbg">{{ $t('script.out') }}</span></button>
           <button v-tip="$t('script.stopTip')" :aria-label="$t('script.stop')" :disabled="!busy" data-testid="script-stop" @click="stop"><span class="sp-glyph" aria-hidden="true">■</span><span class="sp-lbl">{{ $t('script.stop') }}</span></button>
+          <span v-if="listening" v-tip="$t('script.status.listening')" class="sp-listen" role="status" :aria-label="$t('script.status.listening')" data-testid="script-listening"><i aria-hidden="true"></i><span class="sp-listen-lbl">{{ $t('script.status.listening') }}</span></span>
           <span class="sp-sep" aria-hidden="true"></span>
           <button v-tip="$t('script.downloadTip')" class="ghost" :disabled="!fileSection" :aria-label="$t('script.download')" data-testid="script-download" @click="download"><Icon name="download" /><span class="sp-lbl sp-lbl-file">{{ $t('script.download') }}</span></button>
           <button v-tip="$t('script.openTip')" class="ghost" :disabled="!fileSection" :aria-label="$t('script.open')" data-testid="script-open-file" @click="$refs.file.click()"><Icon name="upload" /><span class="sp-lbl sp-lbl-file">{{ $t('script.open') }}</span></button>
@@ -68,6 +69,16 @@
 
         <div class="sp-main">
           <div v-show="split || tab === 'code'" ref="body" class="sp-body scroll-y">
+            <!-- The active sub-goal, like the goal list in the game (phones: here in the sheet) -->
+            <div v-if="goals.length" class="sp-goal" role="status" data-testid="script-goal">
+              <Icon name="objective" class="sp-goal-ico" />
+              <div class="sp-goal-main">
+                <small class="sp-goal-lbl">{{ $t('script.goal') }}<template v-if="goalCount.total > 1"> · {{ $t('script.goalCount', goalCount) }}</template></small>
+                <p v-for="o in goals" :key="o.id" class="sp-goal-text" :data-testid="'script-goal-' + o.id">
+                  {{ $tr(o.text) }}<em v-if="o.progress" class="num sp-goal-prog">{{ o.progress[0] }}/{{ o.progress[1] }}</em>
+                </p>
+              </div>
+            </div>
             <p v-if="scenario.briefing && showBriefing" class="sp-brief parchment">
               {{ $tr(scenario.briefing) }}
               <button class="ghost sp-brief-x" :aria-label="$t('common.close')" @click="showBriefing = false"><Icon name="close" /></button>
@@ -81,17 +92,37 @@
                   <span v-if="!s.editable" class="sp-locked" data-testid="section-locked"><Icon name="lock" />{{ $t('script.locked') }}</span>
                 </span>
               </button>
-              <h3 v-else-if="sections.length > 1" class="sp-sec-title">
+              <h3 v-else-if="sections.length > 1 && !(note && s.id === noteSection)" class="sp-sec-title">
                 <span class="sp-fold-title">{{ $tr(s.title) }}</span>
                 <span v-if="!s.editable" class="sp-locked"><Icon name="lock" />{{ $t('script.locked') }}</span>
               </h3>
+              <!-- Note of a figure (note()): seal and title; the own code stays one tap away -->
+              <div v-if="note && s.id === noteSection" class="sp-note" :class="{ mine: noteView !== 'note' }" :style="{ '--sp': seal.color }" data-testid="script-note" :data-view="noteView">
+                <template v-if="noteView === 'note'">
+                  <span class="sp-seal" :class="{ pic: seal.portrait }" aria-hidden="true">
+                    <img v-if="seal.portrait" :src="seal.portrait" alt="" draggable="false" @error="brokenPortrait = seal.portrait"><template v-else>{{ seal.initial }}</template>
+                  </span>
+                  <span class="sp-note-txt">
+                    <b class="sp-note-title" data-testid="script-note-title">{{ noteTitle }}</b>
+                    <small v-if="note.editable === false" class="sp-note-sub">{{ $t('script.note.locked') }}</small>
+                  </span>
+                  <button class="ghost sp-note-btn" data-testid="script-note-back" @click="backToOwn"><Icon name="back" />{{ $t('script.note.back') }}</button>
+                </template>
+                <template v-else>
+                  <span class="sp-note-txt"><b class="sp-note-title">{{ $t('script.note.mine') }}</b></span>
+                  <button class="ghost sp-note-btn" data-testid="script-note-show" @click="toNote">
+                    <span class="sp-seal sm" aria-hidden="true">{{ seal.initial }}</span>{{ $t('script.note.show') }}
+                  </button>
+                </template>
+              </div>
               <CodeEditor
                 v-if="!foldable(s) || unfolded[s.id]"
                 :ref="(el) => setEditor(s.id, el)"
                 v-model="codes[s.id]"
-                :readonly="!s.editable"
+                :readonly="!s.editable || (noteView === 'note' && s.id === noteSection && note?.editable === false)"
                 :running-line="runningLine(s)"
                 :error-line="errorLine(s)"
+                :hint-lines="hints.lines[s.id] ?? []"
                 :breakpoints="bps[s.id] ?? []"
                 :label="$tr(s.title)"
                 @update:model-value="edited(s.id)"
@@ -104,6 +135,12 @@
               <b>{{ errorText.title }}</b>
               <p>{{ errorText.text }}</p>
             </div>
+            <!-- Hints: amber, the program keeps running; vanish when their section is edited (like errors) -->
+            <div v-for="h in hints.list" :key="h.seq" class="sp-hint" role="status" data-testid="script-hint">
+              <b>{{ hintTitle(h) }}</b>
+              <p>{{ hintText(h) }}</p>
+            </div>
+            <p v-if="hints.more" class="sp-hint-more" data-testid="script-hint-more">{{ $t('script.hint.more', { n: hints.more }) }}</p>
             <div v-if="vars" class="sp-vars" data-testid="script-vars">
               <div class="sp-var-col">
                 <h4>{{ $t('script.vars.globals') }}</h4>
@@ -118,7 +155,7 @@
                 <p v-for="v in vars.locals" :key="'l' + v.name"><b>{{ v.name }}</b> <code :class="v.type">{{ v.value }}</code></p>
                 <p v-if="!vars.locals.length" class="sp-none">{{ $t('script.vars.none') }}</p>
                 <h4>{{ $t('script.vars.stack') }}</h4>
-                <p v-for="(f, i) in vars.frames" :key="'f' + i" class="sp-frame">{{ f.name === '<module>' ? $t('script.vars.main') : f.name + '()' }}</p>
+                <p v-for="(f, i) in vars.frames" :key="'f' + i" class="sp-frame">{{ f.skipped ? $t('script.vars.skipped', { n: f.skipped }) : f.name === '<module>' ? $t('script.vars.main') : `${f.name}(${f.args ?? ''})` }}</p>
               </div>
             </div>
             <button v-if="split" class="ghost sp-reset" data-testid="script-reset" @click="resetCode">{{ $t('script.reset') }}</button>
@@ -138,6 +175,7 @@
         </div>
 
         <template v-if="!split">
+          <p v-if="listening" class="sp-listen sheet" role="status" data-testid="script-listening"><i aria-hidden="true"></i>{{ $t('script.status.listening') }}</p>
           <KeyBar v-if="touch && focused && tab === 'code'" @key="key" />
           <div class="sp-actbar" role="toolbar" :aria-label="$t('script.tools')">
             <button v-if="!busy" class="primary sp-run" data-testid="script-run" @click="run(false)"><Icon name="play" />{{ $t('script.run') }}</button>
@@ -168,7 +206,7 @@
       <div class="sp-watch-line" :class="status">
         <i v-if="watchLine" class="num">{{ watchLine.n }}</i>
         <code data-testid="script-watch-line">{{ watchLine?.text ?? '' }}</code>
-        <span class="sp-watch-status">{{ $t('script.status.' + status) }}</span>
+        <span class="sp-watch-status" data-testid="script-watch-status">{{ $t('script.status.' + shownLabel) }}</span>
       </div>
       <div class="sp-watch-row">
         <template v-if="busy">
@@ -177,6 +215,7 @@
           <button data-testid="script-watch-stop" @click="stop"><span class="sp-glyph" aria-hidden="true">■</span>{{ $t('script.stop') }}</button>
         </template>
         <button v-else class="ghost" data-testid="script-watch-hide" @click="stripHidden = true"><Icon name="close" />{{ $t('script.hide') }}</button>
+        <button v-if="hints.list.length" class="sp-watch-hint" data-testid="script-watch-hint" @click="toCode"><span class="sp-glyph" aria-hidden="true">!</span>{{ $t('script.hint.title') }}</button>
         <button class="primary" data-testid="script-watch-code" @click="toCode"><span class="sp-code-ico" aria-hidden="true">&lt;/&gt;</span>{{ $t('script.code') }}</button>
       </div>
     </div>
@@ -187,9 +226,13 @@
 import CodeEditor from './CodeEditor.vue';
 import KeyBar from './KeyBar.vue';
 import { refUrl } from './reference.js';
-import { scriptErrorText, tr } from '../../i18n/index.js';
-import { shownError, shownStatus, consoleView, fileName, sourceFromFile, MAX_FILE_BYTES } from './panelState.js';
+import { scriptErrorText, tr, t } from '../../i18n/index.js';
+import { shownError, shownStatus, shownHints, consoleView, fileName, sourceFromFile, MAX_FILE_BYTES } from './panelState.js';
 import { loadSplit, saveSplit, panelWidth, widthFromPointer, guideOffset, clampWidth } from './splitLayout.js';
+import { SPEAKERS } from '../../sim/missions/speakers.js';
+import { speakerPortrait } from '../icons/index.js';
+import { siteUrl } from '../../paths.js';
+import { levelAssetUrl } from '../../levels/assets.js';
 
 /** Arrow keys on the divider: the width is applied this long after the last key press (ms) */
 const KEY_DELAY = 250;
@@ -214,6 +257,12 @@ export default {
     /** Sheet: open (otherwise the game is shown, "watch game") */
     open: Boolean,
     touch: Boolean,
+    /** ui.mission.objectives – the active sub-goal is shown at the top */
+    objectives: { type: Array, default: () => [] },
+    /** ui.mission.speakers – own speakers of the level (seal of a note) */
+    speakers: { type: Object, default: () => ({}) },
+    /** Stage restarts so far (Engine.restarts) */
+    restarts: { type: Number, default: 0 },
   },
   emits: ['update:open', 'width'],
   data() {
@@ -221,6 +270,8 @@ export default {
     const codes = {};
     for (const s of this.scenario.sections ?? []) codes[s.id] = s.editable && typeof saved[s.id] === 'string' ? saved[s.id] : s.code;
     return {
+      /** Note of a figure (script.note): seq taken over, what the section shows ('note' | 'own'), the other code */
+      noteSeq: 0, noteView: null, ownCode: null, noteCode: null, brokenPortrait: null,
       codes, bps: {}, unfolded: {}, tab: 'code', grid: store.get('kronland-grid') ?? true, focused: null,
       showBriefing: true, dirty: {}, editors: {},
       /** Split screen: share of the window and collapsed state (localStorage) */
@@ -245,11 +296,43 @@ export default {
     },
     player() { return this.script.player; },
     status() { return shownStatus(this.player, this.dirty); },
+    /** Main program finished, event functions registered: "waits for events" */
+    listening() { return this.status === 'running' && !!this.player?.listening; },
+    shownLabel() { return this.listening ? 'listening' : this.status; },
+    /** Active sub-goals (main goals first; optional ones only if no main goal is open) */
+    goals() {
+      const active = (this.objectives ?? []).filter((o) => o.status === 'active');
+      const main = active.filter((o) => o.primary);
+      return main.length ? main : active;
+    },
+    goalCount() {
+      const main = (this.objectives ?? []).filter((o) => o.primary);
+      return { done: main.filter((o) => o.status === 'done').length, total: main.length };
+    },
+    note() { return this.script.note ?? null; },
+    /** Section a note goes into: the first editable section of the player program */
+    noteSection() { return (this.scenario.sections ?? []).find((s) => s.level === 'player' && s.editable)?.id ?? null; },
+    /** Seal of the figure that wrote the note: portrait or initial in its colour (like the dialogue box) */
+    seal() {
+      const id = this.note?.speaker;
+      const known = id && Object.hasOwn(SPEAKERS, id) ? SPEAKERS[id] : null;
+      const own = id && !known && Object.hasOwn(this.speakers ?? {}, id) ? this.speakers[id] : null;
+      const name = known?.name ?? own?.name ?? id ?? '';
+      const pic = own?.portrait ? levelAssetUrl(own.portrait) : speakerPortrait(id) ? siteUrl(speakerPortrait(id)) : null;
+      return {
+        name, color: known?.color ?? own?.color ?? '#e0a93b',
+        initial: (tr(name)[0] ?? '?').toUpperCase(),
+        portrait: pic && pic !== this.brokenPortrait ? pic : null,
+      };
+    },
+    noteTitle() { return this.note?.title ? tr(this.note.title) : t('script.note.from', { name: tr(this.seal.name) }); },
     busy() { return this.status === 'running' || this.status === 'paused'; },
     paused() { return this.status === 'paused'; },
     vars() { return this.paused ? this.player.vars : null; },
     error() { return shownError(this.player, this.dirty); },
     errorText() { return this.error ? this.errText(this.error, true) : { title: '', text: '' }; },
+    /** Hints of the current run (and of the mission sections in the editor), see panelState.shownHints */
+    hints() { return shownHints(this.script, { mode: this.mode, dirty: this.dirty }); },
     consoleLines() {
       // Only the current run; the current error is already in the error box above
       return consoleView(this.script.console, { mode: this.mode, since: this.player?.since ?? 0, error: this.error, dirty: this.dirty });
@@ -284,6 +367,10 @@ export default {
       if (s === 'paused' && before !== 'paused' && !this.split && !this.open) { this.tab = 'code'; this.$emit('update:open', true); }
     },
     open(o) { if (o) this.menu = false; },
+    // A figure hands over a note: it replaces the program, the own code is kept for "back to my code"
+    'script.note.seq': { immediate: true, handler(seq) { if (seq && seq !== this.noteSeq) this.applyNote(this.script.note); } },
+    // Phone, watching the game: the camera follows the figure the program controls (Engine.followWatched)
+    showStrip(on) { this.followWatch(on); },
     consoleLines(now, before) {
       // New output: keep the end of the console in view
       const last = now[now.length - 1]?.seq ?? 0;
@@ -300,6 +387,7 @@ export default {
   },
   beforeUnmount() {
     this.engine?.setGrid?.(false);
+    this.engine?.setWatchFollow?.(null);
     window.removeEventListener('resize', this.onResize);
     clearTimeout(this.keyTimer);
     this.$emit('width', 0);
@@ -321,6 +409,15 @@ export default {
       return l && l.section === s.id && this.busy ? l.line : -1;
     },
     errorLine(s) { return this.error && this.error.section === s.id ? this.error.sline : -1; },
+    /** "Hint · line 4" (with the section if there are several). */
+    hintTitle(h) {
+      const sec = (this.scenario.sections ?? []).find((x) => x.id === h.section);
+      if (!h.sline) return t('script.hint.title');
+      return sec && this.sections.length > 1
+        ? t('script.hint.whereSection', { section: tr(sec.title), line: h.sline })
+        : t('script.hint.where', { line: h.sline });
+    },
+    hintText(h) { return t(h.code, h.params ?? {}); },
     errText(e, full = false) {
       const sec = (this.scenario.sections ?? []).find((x) => x.id === e.section);
       const r = scriptErrorText(e, { section: sec && this.sections.length > 1 ? tr(sec.title) : undefined, line: e.sline || undefined });
@@ -346,7 +443,39 @@ export default {
     persist() {
       const out = {};
       for (const s of this.scenario.sections ?? []) if (s.editable) out[s.id] = this.codes[s.id];
+      // While a note is shown, the own code is what the browser keeps
+      if (this.noteView === 'note' && this.noteSection && this.ownCode !== null) out[this.noteSection] = this.ownCode;
       store.set(this.storeKey(), out);
+    },
+    /** Take over a note of a figure: replaces the program in its section, the own code is kept. */
+    applyNote(n) {
+      const id = this.noteSection;
+      if (!n || !id) return;
+      if (this.noteView !== 'note') this.ownCode = this.codes[id] ?? '';
+      this.noteSeq = n.seq;
+      this.noteCode = n.code;
+      this.noteView = 'note';
+      this.codes[id] = n.code;
+      this.dirty = { ...this.dirty, [id]: true };
+      this.tab = 'code';
+      this.persist();
+    },
+    /** "Back to my code": the own code returns, the (possibly changed) note stays one tap away. */
+    backToOwn() {
+      const id = this.noteSection;
+      if (!id || this.noteView !== 'note') return;
+      this.noteCode = this.codes[id];
+      this.codes[id] = this.ownCode ?? (this.scenario.sections.find((s) => s.id === id)?.code ?? '');
+      this.noteView = 'own';
+      this.edited(id);
+    },
+    toNote() {
+      const id = this.noteSection;
+      if (!id || this.noteView === 'note') return;
+      this.ownCode = this.codes[id];
+      this.codes[id] = this.noteCode ?? this.note?.code ?? '';
+      this.noteView = 'note';
+      this.edited(id);
     },
     editable() {
       const out = {};
@@ -381,6 +510,13 @@ export default {
     watchGame() {
       this.$emit('update:open', false);
       this.$nextTick(() => requestAnimationFrame(() => this.engine?.watchFocus?.(this.$refs.strip?.getBoundingClientRect().height ?? 0)));
+    },
+    /** Camera follows the controlled figure while the run strip is shown (phone), with its height as covered area. */
+    followWatch(on) {
+      if (!on) { this.engine?.setWatchFollow?.(null); return; }
+      this.$nextTick(() => requestAnimationFrame(() => {
+        if (this.showStrip) this.engine?.setWatchFollow?.(this.$refs.strip?.getBoundingClientRect().height ?? 0);
+      }));
     },
     /** Run strip → back to the code */
     toCode() { this.tab = 'code'; this.$emit('update:open', true); },
@@ -504,6 +640,7 @@ export default {
       if (!ed) return;
       if (k.indent) ed.indent(false);
       else if (k.dedent) ed.indent(true);
+      else if (k.move) ed.moveLines(k.move);
       else ed.insert(k.text, k.back ?? 0);
     },
   },
@@ -574,6 +711,38 @@ export default {
 .sp-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.625rem; padding-right: 0.125rem; }
 /* The body scrolls; its blocks keep their height */
 .sp-body > * { flex-shrink: 0; }
+/* Active sub-goal at the top of the panel */
+.sp-goal { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: rgba(243, 200, 94, 0.1); box-shadow: inset 3px 0 0 var(--gold-400); }
+.sp-goal-ico { flex: none; width: 1.125rem !important; height: 1.125rem !important; margin-top: 0.125rem; color: var(--gold-300); }
+.sp-goal-main { flex: 1; min-width: 0; }
+.sp-goal-lbl { display: block; color: var(--gold-300); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.sp-goal-text { margin: 0.125rem 0 0; font-size: var(--fs-sm); line-height: 1.4; color: var(--ink); }
+.sp-goal-prog { margin-left: 0.5rem; font-style: normal; color: var(--gold-200); }
+/* Note of a figure: seal, title, "back to my code" */
+.sp-note { display: flex; align-items: center; gap: 0.625rem; padding: 0.375rem 0.5rem 0.375rem 0.375rem; border-radius: var(--r-md); background: linear-gradient(90deg, color-mix(in srgb, var(--sp) 22%, transparent), rgba(0, 0, 0, 0.2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sp) 45%, transparent); }
+.sp-note.mine { background: rgba(0, 0, 0, 0.22); box-shadow: inset 0 0 0 1px rgba(225, 168, 58, 0.2); }
+.sp-seal {
+  flex: none; width: 2.25rem; height: 2.25rem; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--display); font-size: 1.0625rem; font-weight: 700; color: #fff8e6; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--sp) 60%, #fff), var(--sp) 70%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3), 0 0 0 2px var(--gold-500), 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.sp-seal.pic { overflow: hidden; background: #f1ece4; }
+.sp-seal.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sp-seal.sm { width: 1.375rem; height: 1.375rem; font-size: 0.75rem; box-shadow: 0 0 0 1px var(--gold-500); }
+.sp-note-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sp-note-title { font-family: var(--display); color: var(--gold-200); font-size: var(--fs-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-note-sub { color: var(--ink-muted); font-size: var(--fs-xs); }
+.sp-note-btn { flex: none; display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.25rem; padding: 0 0.625rem; font-size: var(--fs-sm); }
+.sp-note-btn .ico { width: 0.875rem; height: 0.875rem; }
+/* "Waits for events" */
+.sp-listen { display: inline-flex; align-items: center; gap: 0.375rem; font-size: var(--fs-xs); color: var(--good); white-space: nowrap; }
+.sp-listen i { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--good); box-shadow: 0 0 6px var(--good); animation: sp-pulse 1.6s ease-in-out infinite; }
+.sp-listen.sheet { margin: 0; justify-content: center; }
+@keyframes sp-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .sp-listen i { animation: none; } }
+/* Narrow toolbar: only the pulsing dot (the label is its tooltip) */
+@container (max-width: 56rem) { .sp-listen-lbl { display: none; } }
 .sp-brief { position: relative; margin: 0; padding: 0.625rem 2.25rem 0.625rem 0.75rem; font-size: var(--fs-sm); line-height: 1.45; }
 .sp-brief-x { position: absolute; top: 0.25rem; right: 0.25rem; min-height: 1.75rem !important; min-width: 1.75rem; padding: 0; color: var(--parch-ink); }
 .sp-sec { display: flex; flex-direction: column; gap: 0.25rem; container-type: inline-size; }
@@ -596,6 +765,11 @@ export default {
 .sp-locked .ico { width: 0.75rem; height: 0.75rem; opacity: 0.8; }
 /* Narrow panel: the badge keeps only its lock */
 @container (max-width: 22rem) { .sp-fold-lines { display: none; } }
+.sp-hint { padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: rgba(196, 140, 30, 0.2); box-shadow: inset 3px 0 0 #f0b43c; }
+.sp-hint b { color: #f5c46a; font-size: var(--fs-sm); }
+.sp-hint p { margin: 0.125rem 0 0; font-size: var(--fs-sm); line-height: 1.4; }
+.sp-hint-more { margin: 0; font-size: var(--fs-xs); color: #d9b46a; }
+.sp-watch-hint { color: #2a1a04; background: #f0b43c; border-color: #f5c46a; }
 .sp-error { padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: rgba(163, 50, 31, 0.28); box-shadow: inset 3px 0 0 var(--bad); }
 .sp-error b { color: #ffc2b5; font-size: var(--fs-sm); }
 .sp-error p { margin: 0.125rem 0 0; font-size: var(--fs-sm); line-height: 1.4; }

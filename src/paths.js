@@ -22,6 +22,12 @@ export function siteRoot() {
 const clean = (path) => String(path ?? '').replace(/^(\.\/|\/)+/, '');
 
 /**
+ * File path a level may name (voice recordings, pictures): relative, inside the level or the game,
+ * never another website (that would tell a foreign server the players' address) and never `..`.
+ */
+export const assetPathOk = (p) => typeof p === 'string' && p.length > 0 && p.length <= 200 && !/^[a-z][\w+.-]*:|^[/\\]|\\|(^|\/)\.\.?(\/|$)/i.test(p);
+
+/**
  * Logical path (relative to the root) → served path with content hash; unknown paths (folders, pages,
  * files without hash) stay as they are.
  * @param {string} path e.g. 'models/buildings/castle.glb'

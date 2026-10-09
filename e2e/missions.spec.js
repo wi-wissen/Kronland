@@ -158,7 +158,11 @@ test('Mission 2: later buildings are greyed out, the pointer shows the farm, the
   await expect(barracks).toHaveAttribute('aria-label', /In dieser Mission nicht verfügbar/);
   await page.screenshot({ path: testInfo.outputPath('c2-locked.png') });
   // Milestone: first trade – the herald comes, the barracks is free
-  await page.evaluate(() => { window.__kronland.sim.mission.state.flags.traded = true; });
+  // (as if the market reported a trade: the mission program hears the event in the next tick)
+  await page.evaluate(() => {
+    const m = window.__kronland.sim.mission, update = m.update;
+    m.update = (s) => { m.update = update; s.events.push({ type: 'tradeDone', player: 0, give: 'wood', take: 'gold', amount: 100 }); update.call(m, s); };
+  });
   await expect(barracks).not.toHaveClass(/locked/, SLOW);
   await expect(page.getByTestId('tribute-buyShard')).toBeVisible(SLOW);
   expect(errors).toEqual([]);
@@ -169,30 +173,34 @@ test('Conversation figure: Orrin talks to the village elder, the neighbouring vi
   const errors = await fresh(page);
   await page.goto(playUrl('?mission=c1&no-models'));
   await page.waitForFunction(() => window.__kronland?.sim.mission?.state.id === 'c1');
-  // Nelia already stands with Orrin on the village square, then almost at the old root (the walking is not
-  // the subject here); afterwards Orrin goes to the village elder by command, as with a right click
+  // Nelia already stands next to the stranger and is sent to him (tap with her selected), then almost at the old
+  // root (the walking is not the subject here); afterwards Orrin is sent to the village elder, as with a tap on her.
+  // The conversations in between are skipped ("Gespräch überspringen"), as a player may.
+  const skipping = setInterval(() => page.evaluate(() => window.__kronland?.skipDialog(true)).catch(() => {}), 1000);
   await page.evaluate(() => {
-    const e = window.__kronland, st = e.sim.mission.state, n = e.sim.entities.get(st.refs.nelia);
+    const e = window.__kronland, st = e.sim.mission.state, n = [...e.sim.entities.values()].find((x) => x.kind === 'hero' && x.hero === 'nelia' && x.owner === 0);
     const o = e.sim.entities.get(st.npcs.stranger.entity);
     n.px = o.px + 1000; n.py = o.py; n.path = [];
+    e.issue({ type: 'order', units: [n.id], order: 'talk', target: o.id });
   });
-  await page.waitForFunction(() => window.__kronland.sim.mission.state.flags.orrin, null, { timeout: 60_000 });
+  const orrinId = () => page.evaluate(() => [...window.__kronland.sim.entities.values()].find((x) => x.kind === 'hero' && x.hero === 'orrin')?.id ?? null);
+  await expect.poll(orrinId, { timeout: 90_000 }).not.toBeNull();
   await page.evaluate(() => {
-    const e = window.__kronland, st = e.sim.mission.state, n = e.sim.entities.get(st.refs.nelia);
-    n.px = st.refs.oldRoot.x * 1000 + 500; n.py = st.refs.oldRoot.y * 1000 + 1500; n.path = [];
+    const e = window.__kronland, n = [...e.sim.entities.values()].find((x) => x.kind === 'hero' && x.hero === 'nelia' && x.owner === 0), r = e.sim.mission.script.places.oldRoot;
+    n.px = r.x * 1000 + 500; n.py = r.y * 1000 + 1500; n.path = [];
   });
   await page.waitForFunction(() => window.__kronland.sim.mission.state.npcs.elder, null, { timeout: 60_000 });
   await page.evaluate(() => {
     const e = window.__kronland, st = e.sim.mission.state;
     const npc = e.sim.entities.get(st.npcs.elder.entity);
-    const o = e.sim.entities.get(st.refs.orrin);
-    o.px = npc.px + 6000; o.py = npc.py;
-    e.issue({ type: 'order', units: [st.refs.orrin], order: 'move', x: Math.floor(npc.px / 1000), y: Math.floor(npc.py / 1000) + 1 });
+    const o = [...e.sim.entities.values()].find((x) => x.kind === 'hero' && x.hero === 'orrin');
+    o.px = npc.px + 3000; o.py = npc.py; o.path = [];
+    e.issue({ type: 'order', units: [o.id], order: 'talk', target: npc.id });
   });
-  await page.waitForFunction(() => window.__kronland.sim.mission.state.npcs.elder.state === 'talked', null, { timeout: 120_000 });
+  await page.waitForFunction(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'neighbors').status === 'done', null, { timeout: 150_000 });
+  clearInterval(skipping);
   // The conversation is in the notices (the display itself changes quickly depending on speed)
   expect(await page.evaluate(() => window.__kronland.sim.mission.state.messages.some((m) => m.speaker === 'elder'))).toBe(true);
-  await expect(page.getByTestId('dialog').first()).toBeVisible(SLOW);
   const rel = await page.evaluate(() => { const s = window.__kronland.sim; return s.relation(0, s.mission.playerOf('neighbors')); });
   expect(rel).toBe('allied');
   expect(errors).toEqual([]);
@@ -211,11 +219,12 @@ async function openObjectives(page) {
   if (await page.getByTestId('objectives-toggle').getAttribute('aria-expanded') !== 'true') await page.getByTestId('objectives-toggle').click();
 }
 
-/** Point the camera at a mission reference; reveal the region for it (fog of war). */
+/** Point the camera at a place of the level; reveal the region for it (fog of war). */
 async function lookAt(page, ref, dist = null) {
   await page.evaluate(([ref, dist]) => {
     const e = window.__kronland, p = e.sim.mission.pointOf(e.sim, ref), r = e.renderer.rig;
-    e.sim.mission.runAction(e.sim, { type: 'reveal', area: ref, r: 34, seconds: 120 });
+    // the mission's own reveal(place, radius=34, seconds=120): explored for good, visible for a while
+    e.sim.mission.script.apis.mission.natives.reveal({}, [ref], { radius: 34, seconds: 120 });
     for (let i = 0; i < 6; i++) e.stepOnce();
     r.lookAt(p.x, p.y); if (dist) r.dist = dist; r.update(0);
   }, [ref, dist]);
@@ -233,9 +242,9 @@ test('Mission 3: Valley behind the ridge - after the weather works the clock run
   await expect(page.getByTestId('objective-escape')).toHaveCount(0);
   // Mountain ridge with steep slope, passage at the gate (land) and in the gorge (ice)
   const ok = await page.evaluate(() => {
-    const s = window.__kronland.sim, st = s.mission.state, m = s.map;
+    const s = window.__kronland.sim, m = s.map;
     const cliff = [...m.flags].filter((f) => f & 8).length;
-    const gate = st.refs.gate, gorge = st.refs.gorge;
+    const gate = s.mission.script.places.gate, gorge = s.mission.script.places.gorge;
     return { cliff, gate: !(m.flags[m.idx(gate.x, gate.y)] & (1 | 8)), gorge: !!(m.flags[m.idx(gorge.x, gorge.y)] & 1) };
   });
   expect(ok.cliff).toBeGreaterThan(500);
@@ -244,7 +253,7 @@ test('Mission 3: Valley behind the ridge - after the weather works the clock run
   await lookAt(page, 'gorge', 30);
   await shot(page, testInfo, 'c3-gorge');
   // Works destroyed: the escape objective with clock appears
-  await page.evaluate(() => { const e = window.__kronland; e.sim.mission.runAction(e.sim, { type: 'remove', ref: 'weatherworks' }); });
+  await page.evaluate(() => { const e = window.__kronland, h = e.sim.mission.script; h.takeOut(e.sim.entities.get(h.vms.mission.globals.get('works').id)); });
   await expect(page.getByTestId('objective-escape')).toBeVisible(SLOW);
   await expect(page.getByTestId('objective-escape')).toContainText(/\d:\d\d/);
   await lookAt(page, 'isle', 28);
@@ -262,7 +271,7 @@ test('Mission 6: Malvor\'s weather power plant with loading bar on the works isl
   const goal = page.getByTestId('objective-malvorPlant');
   await expect(goal).toBeVisible(SLOW);
   await expect(goal).toContainText('1000/1000');
-  const owner = await page.evaluate(() => { const s = window.__kronland.sim; return s.entities.get(s.mission.state.refs.malvorPlant)?.owner; });
+  const owner = await page.evaluate(() => { const s = window.__kronland.sim; return s.entities.get(s.mission.script.vms.mission.globals.get('malvor_plant').id)?.owner; });
   expect(owner).toBe(1);
   await lookAt(page, 'worksIsle', 22);
   await shot(page, testInfo, 'c6-plant');

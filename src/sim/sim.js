@@ -12,7 +12,7 @@ import { UNIT, tileCenter, toTile, secondsToTicks } from './fixed.js';
 import { Hasher } from './hash.js';
 import { updateSerf, clearJob, assignJob, assignGather } from './systems/serfs.js';
 import { updateUpgrades } from './systems/upgrades.js';
-import { unstickAll, nearestWalkable, formationTiles } from './systems/movement.js';
+import { unstickAll, nearestWalkable, formationTiles, takenTiles } from './systems/movement.js';
 import { updatePayday } from './systems/payday.js';
 import { updateSpawning, updateWorker, removeWorker, workersOf, maxMotivation, updateCamps } from './systems/workers.js';
 import { updateMilitary, setMilitia, useAbility, slotOffset } from './systems/military.js';
@@ -27,6 +27,7 @@ import { checkWeatherChange, changeWeather } from './systems/weather.js';
 import { createVision, updateVision, revealStart, hashVision } from './systems/vision.js';
 import { setupBridges, hashBridges, checkBridgeSite, bridgeSiteAt, bridgeDone, bridgeGone } from './systems/bridges.js';
 import { levelSite } from './systems/terrain.js';
+import { updateTracks, thawGround, takeItem, putItem, addItem, setTrack, ITEM_KINDS } from './systems/ground.js';
 
 /** Own key of a data table? Protects against commands like { building: 'constructor' }. */
 export const hasKey = (table, key) => typeof key === 'string' && Object.hasOwn(table, key);
@@ -137,6 +138,8 @@ export class Sim {
       else if (f.kind === 'shaft') this.shafts.push({ x: f.x, y: f.y, res: f.res });
       else if (f.kind === 'tree') this.addNode('tree', f.x, f.y, 'wood', BALANCE.tree.wood);
       else if (f.kind === 'pile') this.addNode('pile', f.x, f.y, f.res, f.amount ?? BALANCE.pile.amount);
+      else if (ITEM_KINDS.includes(f.kind)) addItem(this, f.x, f.y, f.kind);
+      else if (f.kind === 'track' && this.map.inBounds(f.x, f.y)) setTrack(this.map, f.x, f.y, f.strength ?? BALANCE.ground.tracks.max);
     }
 
     for (let p = 0; p < gen.starts.length; p++) {
@@ -166,7 +169,7 @@ export class Sim {
     this.weather = { state: this.weatherCycle[0][0], index: 0, until: this.weatherCycle[0][1] };
     /** @type {number|null} winner team */
     this.winner = null;
-    // Fog of war (missions: entry `fog`/`vision` of the mission file, free play: opts.fog)
+    // Fog of war (missions: `fog`/`vision` of the level, free play: opts.fog)
     const mdef = this.mission?.def;
     createVision(this, { enabled: opts.fog ?? mdef?.fog ?? true, startReveal: opts.startReveal ?? mdef?.vision?.startReveal });
     // Mission: post-process the map, start layout, goals (hook 1 of 3)
@@ -212,9 +215,17 @@ export class Sim {
       const ring = this.map.ring(hq.x, hq.y, hq.w, hq.h);
       t = ring[((ring.length >> 1) + 2 * n) % ring.length];
     } else {
-      // Without castle (coding adventure): on the start spot or the nearest walkable tile
+      // Without castle (coding adventure): on the start spot or the nearest walkable tile; further heroes of the
+      // same player on the nearest free tile below (never two on one tile)
       const s = this.starts[owner] ?? { x: 1, y: 1 };
-      t = nearestWalkable(this.map, s.x, s.y, tileCenter(s.x), tileCenter(s.y), 12);
+      const taken = new Set();
+      for (const e of this.entities.values()) if (e.kind === 'hero' && e.owner === owner) taken.add(this.map.idx(toTile(e.px), toTile(e.py)));
+      t = -1;
+      for (let i = 0; i <= 2 * n && t < 0; i++) {
+        const y = s.y + (i & 1 ? (i + 1) >> 1 : -(i >> 1)) * 2;
+        const k = nearestWalkable(this.map, s.x, y, tileCenter(s.x), tileCenter(y), 12);
+        if (k >= 0 && !taken.has(k)) t = k;
+      }
       if (t < 0) t = this.map.idx(s.x, s.y);
     }
     const h = {
@@ -420,6 +431,7 @@ export class Sim {
       case 'order': return this.cmdOrder(cmd);
       case 'ability': return this.cmdAbility(cmd);
       case 'militia': setMilitia(this, cmd.player, !!cmd.on, Array.isArray(cmd.units) ? cmd.units : null); return true;
+      case 'item': return this.cmdItem(cmd);
       case 'trade': return this.cmdTrade(cmd);
       case 'changeWeather': return this.cmdChangeWeather(cmd);
       // Mission: e.g. confirm or skip a tutorial step (hook 2 of 3)
@@ -543,7 +555,10 @@ export class Sim {
     if (t.kind === 'building' && t.done && t.owner === cmd.player && t.builders.length >= buildersOf(t.type)
       && !serfs.some((u) => t.builders.includes(u.id))) return this.reject(cmd, REASONS.repairFull);
     let ok = 0;
-    if (t.kind === 'tree' || t.kind === 'pile') ok = assignGather(this, serfs, t);
+    // once (scripts: serf.chop()): exactly this node, and afterwards no follow-up work
+    if (cmd.once && (t.kind === 'tree' || t.kind === 'pile')) {
+      for (const u of serfs) if (assignJob(this, u, t)) { u.job.once = true; ok++; }
+    } else if (t.kind === 'tree' || t.kind === 'pile') ok = assignGather(this, serfs, t);
     else for (const u of serfs) if (assignJob(this, u, t)) ok++;
     if (!ok) {
       // Own construction site without a free spot all around (or already fully staffed)
@@ -553,12 +568,27 @@ export class Sim {
     return true;
   }
 
+  /**
+   * Pick up or put down an item on the tile of a figure: { type: 'item', action: 'take'|'put', unit, kind? }.
+   * Heroes and serfs only (troops carry nothing). A coin is one thaler.
+   */
+  cmdItem(cmd) {
+    const e = this.entities.get(cmd.unit);
+    if (!e || e.owner !== cmd.player || !(e.kind === 'hero' || e.kind === 'unit')) return this.reject(cmd, 'err.cannotCarry');
+    if (e.kind === 'hero' && e.down) return this.reject(cmd, 'err.heroDown');
+    const r = cmd.action === 'take' ? takeItem(this, e) : cmd.action === 'put' ? putItem(this, e, cmd.kind ?? 'coin') : { code: 'err.unknownCommand' };
+    if (typeof r !== 'string') return this.reject(cmd, r);
+    return true;
+  }
+
   cmdMove(cmd) {
     const serfs = this.ownSerfs(cmd);
     if (!serfs.length) return this.reject(cmd, 'err.noUnits');
     if (!Number.isInteger(cmd.x) || !Number.isInteger(cmd.y) || !this.map.walkable(cmd.x, cmd.y)) return this.reject(cmd, 'err.notWalkable');
-    // Fan out targets: each serf gets their own tile around the click point
-    const goals = formationTiles(this.map, cmd.x, cmd.y, serfs, 1);
+    // Fan out targets: each serf gets their own tile around the click point; with `avoid` (click by the player,
+    // not scripts) not where other figures already stand, so nobody walks onto someone else
+    const taken = cmd.avoid ? takenTiles(this, new Set(serfs.map((u) => u.id))) : null;
+    const goals = formationTiles(this.map, cmd.x, cmd.y, serfs, 1, taken);
     serfs.forEach((u, i) => {
       clearJob(this, u);
       u.goal = goals[i] >= 0 ? goals[i] : this.map.idx(cmd.x, cmd.y);
@@ -807,13 +837,18 @@ export class Sim {
     if (!units.length) return this.reject(cmd, 'err.noTroops');
     if ((cmd.order === 'move' || cmd.order === 'attackMove')
       && !(Number.isInteger(cmd.x) && Number.isInteger(cmd.y) && this.map.inBounds(cmd.x, cmd.y))) return this.reject(cmd, 'err.notWalkable');
+    // Talk: heroes walk to a talk figure; once there the mission decides what happens (MissionRuntime.updateTalks)
+    if (cmd.order === 'talk') return this.cmdTalk(cmd, units);
     // Fan out targets so that the squads do not stand on top of each other: spacing 3 tiles, because the
     // soldiers of a squad leader stand in two rows behind him (slotOffset)
     const moving = cmd.order === 'move' || cmd.order === 'attackMove';
     const active = units.filter((e) => !(e.kind === 'hero' && e.down));
-    const goals = moving ? formationTiles(this.map, cmd.x, cmd.y, active, 3) : [];
+    // `avoid` (click by the player): skip tiles where other figures stand
+    const taken = moving && cmd.avoid ? takenTiles(this, new Set(active.map((e) => e.id)), false) : null;
+    const goals = moving ? formationTiles(this.map, cmd.x, cmd.y, active, 3, taken) : [];
     active.forEach((e, i) => {
       e.path = []; e.targetId = 0;
+      if (e.talkTo !== undefined) delete e.talkTo;
       // Look direction from a script only applies until the hero is sent elsewhere
       if (e.face !== undefined) delete e.face;
       if (moving) {
@@ -822,6 +857,35 @@ export class Sim {
       } else if (cmd.order === 'attack') e.order = { type: 'attack', target: cmd.target };
       else if (cmd.order === 'hold') e.order = { type: 'hold' };
       else { e.order = { type: 'idle' }; e.anchor = { x: e.px, y: e.py }; }
+    });
+    return true;
+  }
+
+  /** Send heroes to a talk figure (order 'talk', target = figure). Other figures in the command are ignored. */
+  cmdTalk(cmd, units) {
+    const npc = this.entities.get(cmd.target);
+    if (!npc || npc.kind !== 'npc' || !npc.talk) return this.reject(cmd, 'err.noTalk');
+    const heroes = units.filter((e) => e.kind === 'hero' && !e.down);
+    if (!heroes.length) return this.reject(cmd, 'err.talkHeroOnly');
+    // Stand next to the figure, not on it: free tiles of the first rings, each hero takes the nearest one
+    const m = this.map, nx = toTile(npc.px), ny = toTile(npc.py);
+    const spots = [];
+    for (let r = 1; r <= 2 && spots.length < heroes.length; r++) {
+      for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) if (Math.max(Math.abs(i), Math.abs(j)) === r && m.walkable(nx + i, ny + j)) spots.push(m.idx(nx + i, ny + j));
+    }
+    const fallback = formationTiles(m, nx, ny, heroes, 1);
+    heroes.forEach((e, i) => {
+      let best = -1, bd = Infinity;
+      for (const k of spots) {
+        const d = (tileCenter(k % m.width) - e.px) ** 2 + (tileCenter((k / m.width) | 0) - e.py) ** 2;
+        if (d < bd) { bd = d; best = k; }
+      }
+      if (best >= 0) spots.splice(spots.indexOf(best), 1);
+      const k = best >= 0 ? best : fallback[i] >= 0 ? fallback[i] : m.idx(nx, ny);
+      e.path = []; e.targetId = 0;
+      if (e.face !== undefined) delete e.face;
+      e.order = { type: 'move', x: tileCenter(k % m.width), y: tileCenter((k / m.width) | 0) };
+      e.talkTo = npc.id;
     });
     return true;
   }
@@ -854,6 +918,8 @@ export class Sim {
     this.map.frozen = !!WEATHER_EFFECTS[state]?.freezesWater;
     this.events.push({ type: 'weather', state });
     if (wasWinter && !this.map.frozen) {
+      // Thaw: items and tracks on the ice are gone
+      thawGround(this);
       // Thaw: whoever stands on the ice drowns; heroes return to the castle
       for (const e of [...this.entities.values()]) {
         const f = e.px === undefined ? 0 : this.map.flags[this.map.idx(toTile(e.px), toTile(e.py))];
@@ -917,6 +983,8 @@ export class Sim {
     updateUpgrades(this);
     updateCamps(this);
     updateMilitary(this);
+    // Tracks: figures that left a tile, broom (after all movement of the tick)
+    updateTracks(this);
     updateBuildingResearch(this);
     updateMarket(this);
     updateDamage(this);
@@ -927,7 +995,18 @@ export class Sim {
     // Mission: goals, triggers, bandits (hook 3 of 3)
     this.mission?.update(this);
     this.tick++;
+    // Bonus thalers of computer opponents (Sim.setAi), at the start of the tick the AI sees
+    if (this.tick % BALANCE.aiBonusTicks === 0 && this.winner === null) for (const p of this.players) if (p.aiBonus && !p.defeated) p.stock.gold += p.aiBonus;
     return this.events;
+  }
+
+  /**
+   * Computer opponent setting: thalers it receives every BALANCE.aiBonusTicks (0 = none). Called by the AI
+   * on every client alike; part of the save game and the state hash.
+   */
+  setAi(player, bonusGold) {
+    const p = this.players[player];
+    if (p) p.aiBonus = Math.max(0, Math.trunc(bonusGold || 0));
   }
 
   /** Compute several ticks. */
@@ -944,7 +1023,7 @@ export class Sim {
     for (const v of this.rng.getState()) h.int(v);
     for (const p of this.players) {
       for (const r of RESOURCES) h.int(p.stock[r]).int(p.raw[r]);
-      h.int(p.taxLevel).int(p.faith).int(p.techs.size).int(p.weatherEnergy ?? 0).int(p.weatherReadyAt ?? 0);
+      h.int(p.taxLevel).int(p.faith).int(p.techs.size).int(p.weatherEnergy ?? 0).int(p.weatherReadyAt ?? 0).int(p.aiBonus ?? 0);
     }
     for (const r of RESOURCES) h.int(this.market.prices[r]);
     for (const k of Object.keys(this.diplomacy ?? {}).sort()) h.str(k).str(this.diplomacy[k]);
@@ -958,10 +1037,10 @@ export class Sim {
       h.int(e.id).str(e.kind).int(e.owner ?? -1);
       if (e.fearUntil !== undefined) h.int(e.fearUntil);
       if (e.fleeUntil !== undefined) h.int(e.fleeUntil).int(e.fleeGoal);
-      if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp).int(e.spot ?? -1).int(e.slot ?? -1);
-      else if (e.kind === 'leader') h.int(e.px).int(e.py).int(e.hp).int(e.targetId).int(e.cooldown).int(e.xp ?? 0);
+      if (e.kind === 'unit') h.int(e.px).int(e.py).int(e.timer).int(e.job ? e.job.target : 0).int(e.path.length).int(e.hp).int(e.spot ?? -1).int(e.slot ?? -1).int(e.face ?? -1);
+      else if (e.kind === 'leader') h.int(e.px).int(e.py).int(e.hp).int(e.targetId).int(e.cooldown).int(e.xp ?? 0).int(e.face ?? -1);
       else if (e.kind === 'worker') h.int(e.px).int(e.py).int(e.timer).int(e.stamina).int(e.motivation).int(e.carry).str(e.state).int(e.slot ?? -1);
-      else if (e.px !== undefined) h.int(e.px).int(e.py).int(e.hp ?? 0).int(e.targetId ?? 0).int(e.cooldown ?? 0).int(e.face ?? -1);
+      else if (e.px !== undefined) h.int(e.px).int(e.py).int(e.hp ?? 0).int(e.targetId ?? 0).int(e.cooldown ?? 0).int(e.face ?? -1).int(e.talkTo ?? 0).int(e.talk ? 1 : 0);
       else if (e.kind === 'building') {
         h.str(e.type).int(e.x).int(e.y).int(e.progress).int(e.done ? 1 : 0).int(e.level).int(e.hp).int(e.burning ? 1 : 0);
         h.int(e.research ? e.research.progress : -1).int(e.trade ? e.trade.progress : -1);
@@ -969,8 +1048,14 @@ export class Sim {
       else if (e.kind === 'camp') h.int(e.x).int(e.y);
       else h.int(e.x).int(e.y).int(e.amount);
     }
-    // Terrain heights (change through levelling when building)
+    // Terrain heights (change through levelling when building) and tile flags (water, cliff, occupied … – scripts can change them)
     for (const v of this.map.heights) h.int(v);
+    for (const v of this.map.flags) h.int(v);
+    // Items (sorted, the Map order differs after loading) and tracks
+    const items = [...this.map.items.keys()].sort((a, b) => a - b);
+    h.int(items.length);
+    for (const k of items) h.int(k).str(this.map.items.get(k));
+    for (const v of this.map.tracks) h.int(v);
     hashVision(this, h);
     hashBridges(this, h);
     this.mission?.hash(h);

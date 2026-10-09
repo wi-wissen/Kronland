@@ -134,6 +134,38 @@ describe('Voiced lines', () => {
     }
   });
 
+  it('every say() line of the campaign levels in Python (all chapters, tutorial) has its recording in German and English', async () => {
+    const { CAMPAIGN_LEVELS } = await import('../../src/sim/missions/levels/index.js');
+    const { scenarioLines } = await import('../../src/sim/scripting/outline.js');
+    const { missionLines } = await import('../../src/sim/missions/dialogLines.js');
+    const { files } = JSON.parse(fs.readFileSync(new URL('../../public/audio/voice/index.json', import.meta.url), 'utf8'));
+    // Lines that were never voiced as mission files either: the hints of talk figures for the wrong hero
+    const UNVOICED = new Set([
+      'Schick mir den Händler, Kind. Der redet für zwei.', 'Ich warte auf Orrin. Er schuldet mir etwas.',
+      'Die Prinzessin soll selbst kommen.', 'Nelia soll selbst kommen.',
+    ]);
+    const missing = [];
+    let n = 0;
+    for (const s of CAMPAIGN_LEVELS) {
+      const lines = scenarioLines(s);
+      expect(lines.length, s.id).toBeGreaterThan(0);
+      for (const l of lines) {
+        expect(typeof l.text.de === 'string' && typeof l.text.en === 'string', `${s.id}: ${JSON.stringify(l.text)}`).toBe(true);
+        if (UNVOICED.has(l.text.de)) continue;
+        for (const lang of ['de', 'en']) {
+          n++;
+          if (!files[voiceKey(speakerVoice(l.speaker), lang, l.text[lang])]) missing.push(`${s.id} ${l.speaker} ${lang}: ${l.text[lang]}`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+    expect(CAMPAIGN_LEVELS.map((x) => x.id).sort()).toEqual(['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'tutorial']);
+    expect(n).toBeGreaterThanOrEqual(2 * 130);
+    // The voice tools collect the same lines (from the Python syntax tree)
+    const all = missionLines();
+    for (const s of CAMPAIGN_LEVELS) expect(all.filter((l) => l.mission === s.id).length, s.id).toBe(scenarioLines(s).length);
+  });
+
   it('the index only points to existing files', () => {
     const url = new URL('../../public/audio/voice/index.json', import.meta.url);
     if (!fs.existsSync(url)) return;

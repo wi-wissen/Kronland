@@ -1,0 +1,70 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "r1-4",
+  "kind": "adventure",
+  "end": "script",
+  "order": 6,
+  "title": { "de": "Im Schneetreiben", "en": "In the Blizzard" },
+  "summary": {
+    "de": "Schleifen mit Bedingung: Wie weit ist es bis zum Waldrand? Ein Zettel der Magd, ein Taler im Schnee und eine Spur durch alle Kurven.",
+    "en": "Loops with a condition: how far is it to the edge of the forest? A note from the maid, a coin in the snow and a track through every bend."
+  },
+  "briefing": {
+    "de": "Schneetreiben. Niemand weiß, wie weit es bis zum Waldrand ist – „while nelia.can_step():“ läuft, solange vorn frei ist. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen.",
+    "en": "Blizzard. Nobody knows how far it is to the edge of the forest – “while nelia.can_step():” runs as long as the way ahead is free. Run starts the stage over every time: think first, then run."
+  },
+  "victoryText": {
+    "de": "Die Geflohenen sind gefunden – gemeinsam geht es weiter nach Lindgrund.",
+    "en": "The runaways are found – together they go on to Lindgrund."
+  },
+  "learn": {
+    "de": ["while-Schleife mit Bedingung", "Zählen in der Schleife", "Vorhersagen", "Sensoren in der Bedingung"],
+    "en": ["while loop with a condition", "counting in the loop", "predicting", "sensors in the condition"]
+  },
+  "world": {
+    "base": "flat",
+    "width": 20,
+    "height": 28,
+    "fog": false,
+    "starts": [{ "x": 2, "y": 3 }],
+    "tracks": { "fade": 0 },
+    "places": {
+      "a_start": { "x": 2, "y": 3, "r": 0 },
+      "a_view": { "x": 9, "y": 4, "r": 4 },
+      "b_start": { "x": 2, "y": 13, "r": 0 },
+      "b_view": { "x": 9, "y": 14, "r": 4 },
+      "c_start": { "x": 2, "y": 23, "r": 0 },
+      "c_view": { "x": 9, "y": 24, "r": 4 },
+      "hut": { "x": 16, "y": 25, "r": 0 }
+    }
+  },
+  "weatherCycle": [["winter", 3600000]],
+  "players": [{ "kind": "human", "hero": "nelia", "hq": false }],
+  "sections": [
+    {
+      "id": "world",
+      "title": { "de": "Welt aufbauen", "en": "Build the world" },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": { "de": "Mission", "en": "Mission" },
+      "level": "mission",
+      "visibility": "hidden",
+      "editable": false,
+      "file": "mission.py"
+    },
+    {
+      "id": "player",
+      "title": { "de": "Dein Programm", "en": "Your program" },
+      "level": "player",
+      "visibility": "open",
+      "editable": true,
+      "file": "player.py"
+    }
+  ]
+}

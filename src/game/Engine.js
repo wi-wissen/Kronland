@@ -15,6 +15,7 @@ import { countWorkers, countLeaders, taxIncome } from '../sim/systems/payday.js'
 import { AiPlayer } from '../ai/AiPlayer.js';
 import { saveGame, loadGame } from '../sim/serialize.js';
 import { createMissionSim, createScenarioSim } from '../sim/missions/runtime.js';
+import { StageSnapshot } from '../sim/stage.js';
 import { resetSpeech, stopSpeech } from '../audio/speech.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
@@ -52,6 +53,8 @@ const DIALOG_DIST = 8, DIALOG_FLY_MS = 1100, DIALOG_BACK_MS = 1200;
 /** Figures checked for the clear view of a scripted camera move: kinds, search radius (tiles), at most this many. */
 const VIEW_FIGURES = new Set(['unit', 'worker', 'soldier', 'leader', 'hero', 'npc']);
 const VIEW_RADIUS = 2.5, VIEW_MAX = 6;
+/** Phone "watch game": after a manual camera move the camera stops following the figure this long (ms). */
+const WATCH_MANUAL_MS = 5000;
 
 /** Build preview yellow ("will be levelled") if a tile deviates from the plane by more than this many cm. */
 export const LEVEL_NOTICE = 40;
@@ -179,6 +182,10 @@ export class Engine {
     this.dialogCam = null;
     /** Halt of the mission script in the debugger has paused the game */
     this.debugHalt = false;
+    /** Snapshot of the current stage: "Run" starts it over (src/sim/stage.js); travels in the save game envelope */
+    this.stage = new StageSnapshot(opts.load?.extra?.stage ?? null);
+    /** Number of stage restarts (the UI resets what it remembers of the old world) */
+    this.restarts = 0;
     resetSpeech();
   }
 
@@ -239,7 +246,7 @@ export class Engine {
       this.droppedTicks += r.dropped;
     }
     const g = this.faults;
-    g.run('ui', () => { this.input.edgeScroll(dt); this.followFocus(now); this.flyCamera(now); }, (f) => f && this.fault('ui'));
+    g.run('ui', () => { this.input.edgeScroll(dt); this.followFocus(now); this.followWatched(now, dt); this.flyCamera(now); }, (f) => f && this.fault('ui'));
     g.run('render', () => this.renderer.frame(this.paused ? 1 : this.acc / TICK_MS, dt, this.prev, {
       selected: this.selected,
       ghost: this.placing?.hasPos ? this.placing : null,
@@ -526,7 +533,64 @@ export class Engine {
     if (!s.behind && sx >= m && sx <= vp.w - m && sy >= top + m && sy <= bottom - m) return false;
     r.rig.lookAtScreen(x, z, (top + bottom) / 2, vp.h);
     this.pendingFocus = null;
+    if (this.watchFollow) this.watchFollow.cam = null; // our own move, not the player's
     return true;
+  }
+
+  /**
+   * Phone, "watch game" of the code panel: the camera keeps following the figure the player program controlled last
+   * (step, turn, take …; otherwise the own hero). bottomPx: height covered by the run strip; null switches it off.
+   */
+  setWatchFollow(bottomPx) {
+    this.watchFollow = bottomPx === null || bottomPx === undefined ? null : { bottom: Math.max(0, bottomPx), manualUntil: 0, cam: null, moving: false };
+  }
+
+  /** Figure the player program controls (last command), else the own hero. */
+  watchedFigure() {
+    const id = this.sim.mission?.script?.focus;
+    const e = id ? this.sim.entities.get(id) : null;
+    if (e && e.owner === this.player && e.px !== undefined) return e;
+    for (const h of this.sim.entities.values()) if (h.kind === 'hero' && h.owner === this.player) return h;
+    return null;
+  }
+
+  /**
+   * Per frame while watching on the phone: when the figure leaves the free area (below the header, above the strip),
+   * the camera glides after it until it is in the middle again. A manual camera move (pan, zoom, rotate) pauses this
+   * for a few seconds – the player's view wins.
+   */
+  followWatched(now, dt) {
+    const f = this.watchFollow, r = this.renderer, rig = r?.rig, vp = r?.viewport;
+    if (!f || !rig || !vp) return;
+    // scripted moves and the dialogue camera have the view; their return is not a manual move
+    if (this.camFly || this.dialogCam) { f.cam = null; f.moving = false; return; }
+    const cam = { x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist, pitch: rig.pitch };
+    const same = (a, b) => a && Math.abs(a.x - b.x) < 1e-3 && Math.abs(a.z - b.z) < 1e-3 && Math.abs(a.yaw - b.yaw) < 1e-4 && Math.abs(a.dist - b.dist) < 1e-3 && Math.abs(a.pitch - b.pitch) < 1e-4;
+    if (f.cam && !same(f.cam, cam)) { f.manualUntil = now + WATCH_MANUAL_MS; f.moving = false; }
+    f.cam = cam;
+    if (now < f.manualUntil) return;
+    const e = this.watchedFigure();
+    if (!e) return;
+    const rec = r.chars?.records.get(e.id);
+    const x = rec ? rec.position.x : e.px / UNIT, z = rec ? rec.position.z : e.py / UNIT;
+    const top = Math.min(this.hudInsets().top, vp.h * 0.3), bottom = vp.h - f.bottom;
+    if (!f.moving) {
+      const s = r.project(x, r.terrain.heightAt(x, z) + 0.3, z);
+      const c = r.renderer.domElement.getBoundingClientRect();
+      const sx = s.x - c.left, sy = s.y - c.top, mx = vp.w * 0.18, my = (bottom - top) * 0.18;
+      if (!s.behind && sx >= mx && sx <= vp.w - mx && sy >= top + my && sy <= bottom - my) return;
+      f.moving = true;
+    }
+    // glide: where the camera would have to look, approached smoothly
+    const from = { x: rig.target.x, z: rig.target.z };
+    rig.lookAtScreen(x, z, (top + bottom) / 2, vp.h);
+    const k = Math.min(1, dt * 4), tx = rig.target.x, tz = rig.target.z;
+    rig.target.x = from.x + (tx - from.x) * k;
+    rig.target.z = from.z + (tz - from.z) * k;
+    rig.clamp();
+    if (Math.abs(tx - rig.target.x) < 0.05 && Math.abs(tz - rig.target.z) < 0.05) f.moving = false;
+    f.cam = { x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist, pitch: rig.pitch };
+    this.pendingFocus = null;
   }
 
   /** After a camera jump: if the panel height changes, place the target in the free area again. */
@@ -787,6 +851,17 @@ export class Engine {
 
   planArmy(plan, units, hitId, g, cx, cy, attackMove) {
     const hit = this.selectable(hitId);
+    // Talk figure with an exclamation mark: heroes go there and talk, the others walk to the spot
+    if (hit?.kind === 'npc' && hit.talk && !attackMove) {
+      const heroes = units.filter((id) => this.sim.entities.get(id)?.kind === 'hero');
+      if (heroes.length) {
+        plan.cmds.push({ type: 'order', units: heroes, order: 'talk', target: hit.id });
+        const rest = units.filter((id) => !heroes.includes(id));
+        if (rest.length && g) plan.cmds.push({ type: 'order', units: rest, order: 'move', x: Math.floor(g.x), y: Math.floor(g.z) });
+        plan.walk = { x: hit.px / UNIT, y: hit.py / UNIT };
+        return;
+      }
+    }
     if (hit && hit.owner !== this.player && hit.owner !== undefined && targetable(this.sim, hit.kind === 'leader' && hit.soldiers.length ? this.sim.entities.get(hit.soldiers[0]) : hit)) {
       const target = hit.kind === 'leader' && hit.soldiers.length ? hit.soldiers[0] : hit.id;
       plan.cmds.push({ type: 'order', units, order: 'attack', target });
@@ -801,7 +876,7 @@ export class Engine {
       return;
     }
     if (!g) return;
-    plan.cmds.push({ type: 'order', units, order: attackMove ? 'attackMove' : 'move', x: Math.floor(g.x), y: Math.floor(g.z) });
+    plan.cmds.push({ type: 'order', units, order: attackMove ? 'attackMove' : 'move', x: Math.floor(g.x), y: Math.floor(g.z), avoid: true });
     plan.walk = { x: g.x, y: g.z };
     if (attackMove) plan.cursor = 'attack';
   }
@@ -832,7 +907,7 @@ export class Engine {
     const occ = this.sim.entities.get(m.owner[m.idx(tx, ty)]);
     if (buildSite(occ)) return work(occ, 'build');
     if (m.walkable(tx, ty)) {
-      plan.cmds.push({ type: 'move', units, x: tx, y: ty });
+      plan.cmds.push({ type: 'move', units, x: tx, y: ty, avoid: true });
       plan.walk ??= { x: g.x, y: g.z };
     }
   }
@@ -864,9 +939,9 @@ export class Engine {
     tx = t.x; ty = t.y;
     let done = false;
     const army = this.ownArmyIds();
-    if (army.length) { this.issue({ type: 'order', units: army, order: attackMove ? 'attackMove' : 'move', x: tx, y: ty }); done = true; }
+    if (army.length) { this.issue({ type: 'order', units: army, order: attackMove ? 'attackMove' : 'move', x: tx, y: ty, avoid: true }); done = true; }
     const serfs = this.ownSerfIds();
-    if (serfs.length) { this.issue({ type: 'move', units: serfs, x: tx, y: ty }); done = true; }
+    if (serfs.length) { this.issue({ type: 'move', units: serfs, x: tx, y: ty, avoid: true }); done = true; }
     if (done) this.renderer?.orderMarker?.(tx + 0.5, ty + 0.5);
     this.emitUi();
     return done ? t : null;
@@ -953,7 +1028,47 @@ export class Engine {
    * @param {{ clone?: boolean }} [opts] clone: false – without deep copy, convert to text immediately (saveGame)
    */
   save({ clone = true } = {}) {
-    return saveGame(this.sim, { ais: this.ais.map((a) => a.getState()), camera: { ...this.renderer.rig.target, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist, pitch: this.renderer.rig.pitch } }, { clone });
+    const stage = this.stage?.toJSON() ?? null;
+    return saveGame(this.sim, {
+      ais: this.ais.map((a) => a.getState()),
+      camera: { ...this.renderer.rig.target, yaw: this.renderer.rig.yaw, dist: this.renderer.rig.dist, pitch: this.renderer.rig.pitch },
+      ...(stage ? { stage } : {}),
+    }, { clone });
+  }
+
+  /**
+   * Swap the simulation without a loading screen (stage restart, src/sim/stage.js): renderer and computer opponents
+   * are built anew for the new world; camera, grid, code panel, code and breakpoints stay.
+   * @param {import('../sim/sim.js').Sim} sim @param {{ ais?: any[] }} [extra] extra data of the save game
+   */
+  restart(sim, extra = {}) {
+    const rig = this.renderer.rig;
+    const cam = { x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist, pitch: rig.pitch };
+    const grid = !!this.renderer.grid;
+    try { this.renderer.dispose(); } catch { /* disposal must never prevent the restart */ }
+    this.sim = sim;
+    this.ais = (extra.ais ?? []).map((st) => AiPlayer.fromState(sim, st));
+    this.renderer = new Renderer(this.canvas, sim, { player: this.player });
+    const r = this.renderer.rig;
+    r.lookAt(cam.x, cam.z); r.yaw = cam.yaw; r.dist = cam.dist; r.pitch = cam.pitch; r.clamp();
+    this.input.rig = r;
+    this.resize();
+    if (grid) this.renderer.setGrid(true);
+    if (sim.weather.state !== 'summer') this.renderer.applyWeather(sim.weather.state);
+    this.prev = new Map();
+    this.acc = 0;
+    this.placing = null;
+    this.selected = new Set([...this.selected].filter((id) => sim.entities.has(id)));
+    this.burning = null;
+    this.mmCache = null;
+    this.mmFog = null;
+    // The remembered camera of the old world is no order to jump
+    this.missionView = { ...this.missionView, cameraSeq: sim.mission?.state.camera?.seq ?? 0, hint: null };
+    this.camFly = null;
+    this.debugHalt = false;
+    this.restarts++;
+    if (this.dev) { this.dev.dispose(); this.dev = null; this.setDevMode(true); }
+    this.emitUi();
   }
   togglePause() { this.paused = !this.paused; this.emitUi(); }
 
@@ -1189,6 +1304,9 @@ export class Engine {
    * @param {{ mode?: 'run'|'step', bps?: Record<string, number[]> }} [debug]
    */
   scriptRun(sections, debug = null) {
+    // "Run" starts the stage over: the first run of a stage remembers the world, every further one restores it
+    const next = this.stage.beforeRun(this.sim, { ais: this.ais.map((a) => a.getState()) });
+    if (next) this.restart(next, this.stage.data?.extra ?? {});
     this.issue({ type: 'script', action: 'run', sections, ...(debug ? { debug } : {}) });
     if (this.debugHalt) { this.paused = false; this.debugHalt = false; }
     this.emitUi();
@@ -1240,8 +1358,9 @@ export class Engine {
   /** Show tile grid (coding adventure: count steps). Pure rendering. */
   setGrid(on) { this.renderer?.setGrid(!!on); }
 
-  skipDialog() {
-    if (this.sim.mission?.script) this.issue({ type: 'script', action: 'skipDialog' });
+  /** End the dialogue line the mission script waits for; `all`: the rest of its conversation too. */
+  skipDialog(all = false) {
+    if (this.sim.mission?.script) this.issue({ type: 'script', action: 'skipDialog', ...(all ? { all: true } : {}) });
   }
 
   /** Smooth camera move (script: camera.fly_to; dialogue camera also with distance). */
@@ -1307,10 +1426,12 @@ export class Engine {
 
   /** Location of a speaking figure if it can be seen: hero with this name (own first) or conversation figure. */
   speakerPos(speaker) {
-    const npcs = this.sim.mission?.def?.npcs ?? {};
+    const npcs = this.sim.mission?.def?.npcs ?? {}, own = this.sim.mission?.state?.npcs ?? {};
     let best = null;
     for (const e of this.sim.entities.values()) {
-      const match = (e.kind === 'hero' && e.hero === speaker) || (e.kind === 'npc' && (npcs[e.npc]?.speaker ?? e.npc) === speaker);
+      // Talk figures speak with the voice of their speaker (npc(…, speaker="orrin")), otherwise under their own name
+      const as = e.kind === 'npc' ? (Object.hasOwn(npcs, e.npc) ? npcs[e.npc].speaker : Object.hasOwn(own, e.npc) ? own[e.npc].speaker : null) ?? e.npc : null;
+      const match = (e.kind === 'hero' && e.hero === speaker) || (e.kind === 'npc' && as === speaker);
       if (!match || !this.canSee(e)) continue;
       if (!best || (e.owner === this.player && best.owner !== this.player)) best = e;
     }
@@ -1324,6 +1445,8 @@ export class Engine {
    */
   scriptCamera(x, z, fly = 0) {
     const rig = this.renderer.rig, view = this.viewTurn(x, z, rig.dist);
+    // A running dialogue camera returns to the scripted target afterwards, not to where the view was before
+    if (this.dialogCam && !this.dialogCam.taken) { this.dialogCam.x = x; this.dialogCam.z = z; }
     if (fly > 0) {
       // camera move: duration in game time (ticks), shorter accordingly at faster speed
       this.camFly = { fx: rig.target.x, fz: rig.target.z, tx: x, tz: z, view, t0: performance.now(), ms: (fly * 100) / Math.max(0.25, this.speed) };
@@ -1381,15 +1504,17 @@ export class Engine {
     // Breakpoint in the mission script (world editor, test play): halt the game until the debugger continues
     if (ui.script?.mission.paused && !this.debugHalt) { this.debugHalt = true; this.paused = true; }
     else if (!ui.script?.mission.paused && this.debugHalt) { this.debugHalt = false; this.paused = false; }
-    const step = m.currentStep();
-    const check = step?.done?.type === 'ui' ? step.done.check : null;
-    if (check && !mv.checks[`${step.id}`]) {
+    // UI check the current step waits for (step(ui=…) in the mission program): reported once as a command
+    const step = ui.tutorial;
+    const check = step?.watch ?? null;
+    const key = step ? `${step.index}:${step.id}` : '';
+    if (check && !mv.checks[key]) {
       const rig = this.renderer.rig;
-      if (!mv.camStart || mv.camStart.step !== step.id) mv.camStart = { step: step.id, x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist };
+      if (!mv.camStart || mv.camStart.step !== key) mv.camStart = { step: key, x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist };
       const c = mv.camStart;
       const moved = Math.hypot(rig.target.x - c.x, rig.target.z - c.z) > 3 || Math.abs(rig.yaw - c.yaw) > 0.35 || Math.abs(rig.dist - c.dist) > 6;
       const ok = check === 'camera' ? moved : check === 'selectSerfs' ? this.ownSerfIds().length > 0 : false;
-      if (ok) { mv.checks[step.id] = true; this.issue({ type: 'mission', action: 'ui', check }); }
+      if (ok) { mv.checks[key] = true; this.issue({ type: 'mission', action: 'ui', check }); }
     }
     // Marker: hint of the tutorial, otherwise the first open objective with a location (main objectives first)
     const has = (h) => !!(h && (h.entity || h.area));
@@ -1579,6 +1704,8 @@ export class Engine {
       paused: this.paused,
       /** paused by the script debugger (breakpoint), not by the player */
       halted: this.debugHalt,
+      /** stage restarts so far (src/sim/stage.js) */
+      restarts: this.restarts,
       selection,
       ...quick,
       buildOptions,

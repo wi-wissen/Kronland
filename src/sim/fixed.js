@@ -27,6 +27,19 @@ export function dist(ax, ay, bx, by) {
   return isqrt(dx * dx + dy * dy);
 }
 
+/** Squared distance between two points (exact; compare against r * r instead of taking a root). */
+export function dist2(ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  return dx * dx + dy * dy;
+}
+
+/** Point `d` units from a towards b (integer; a itself if a and b coincide). */
+export function toward(a, b, d) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = isqrt(dx * dx + dy * dy) || 1;
+  return { x: a.x + Math.trunc((dx * d) / len), y: a.y + Math.trunc((dy * d) / len) };
+}
+
 /** Integer division truncating towards 0. */
 export const idiv = (a, b) => Math.trunc(a / b);
 

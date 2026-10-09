@@ -132,6 +132,8 @@ export class GameAudio {
         case 'buildingPlaced': if (own) a.play('place'); break;
         case 'upgradeStarted': case 'lineUpgraded': if (own) a.play('upgrade'); break;
         case 'payday': if (own) a.play('coin'); break;
+        // coding adventures: picking up a coin or flower
+        case 'item': if (own && ev.action === 'take') this.at(ev.kind === 'coin' ? 'coin' : 'confirm', { x: ev.x + 0.5, z: ev.y + 0.5 }, { gain: 0.7, important: true }); break;
         case 'researchDone': if (own) a.play('research'); break;
         case 'workerArrived': if (own) this.notify.run('workerArrived', now, () => a.play('workerArrived')); break;
         case 'serfBought': if (own) a.play('serfBought'); break;

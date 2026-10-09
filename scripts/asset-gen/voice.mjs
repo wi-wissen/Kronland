@@ -154,13 +154,8 @@ export async function sampleLines(role) {
   // short templates clone badly), plus a bark or a mission sentence
   const refLine = cast().roles[role]?.refLine;
   if (b && refLine) return [refLine, (b.grumble ?? b.attack ?? b.select)[0].de];
-  const { allMissions } = await import(path.join(ROOT, 'src/sim/missions/registry.js'));
-  const lines = [];
-  const walk = (o) => {
-    if (Array.isArray(o)) o.forEach(walk);
-    else if (o && typeof o === 'object') { if (o.type === 'dialog' && o.speaker === role) lines.push(o.text.de); Object.values(o).forEach(walk); }
-  };
-  allMissions().forEach(walk);
+  const { missionLines } = await import(path.join(ROOT, 'src/sim/missions/dialogLines.js'));
+  const lines = missionLines().filter((l) => l.speaker === role && typeof l.text?.de === 'string').map((l) => l.text.de);
   // Prefer short and medium-length sentences; with only one sentence add a bark
   const out = lines.sort((x, y) => Math.abs(x.length - 60) - Math.abs(y.length - 60)).slice(0, 2);
   if (refLine) return [refLine, out[0]];
@@ -222,10 +217,13 @@ function pick(role, nr, from = role) {
 export const lineKey = (voice, lang, text) => `${voice}|${lang}|${text}`;
 const fnv = (str) => { let h = 0x811c9dc5; for (const ch of str) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
 
-/** Everything that is spoken: mission dialogues (speaker → voice) and barks (bark role → voices). */
+/**
+ * Everything that is spoken: mission dialogues (speaker → voice) – say() lines of the level folders (Python syntax
+ * tree) and the lines of the developer maps (src/sim/missions/dialogLines.js) – and barks (bark role → voices).
+ */
 export async function collectLines() {
   const c = cast();
-  const { allMissions } = await import(path.join(ROOT, 'src/sim/missions/registry.js'));
+  const { missionLines } = await import(path.join(ROOT, 'src/sim/missions/dialogLines.js'));
   const { BARKS } = await import(path.join(ROOT, 'src/audio/barks.js'));
   const out = new Map(), skipped = new Set();
   const add = (voice, text) => {
@@ -236,17 +234,10 @@ export async function collectLines() {
       if (!out.has(key)) out.set(key, { voice, lang, text: t, file: `${lang}/${voice}-${fnv(key)}.mp3` });
     }
   };
-  const walk = (o) => {
-    if (Array.isArray(o)) o.forEach(walk);
-    else if (o && typeof o === 'object') {
-      if (o.type === 'dialog' && o.speaker && o.text) {
-        const voice = SPEAKER_ALIAS[o.speaker] ?? o.speaker;
-        if (c.roles[voice]) add(voice, o.text); else skipped.add(o.speaker);
-      }
-      Object.values(o).forEach(walk);
-    }
-  };
-  allMissions().forEach(walk);
+  for (const l of missionLines()) {
+    const voice = SPEAKER_ALIAS[l.speaker] ?? l.speaker;
+    if (c.roles[voice]) add(voice, l.text); else skipped.add(l.speaker);
+  }
   for (const [textRole, events] of Object.entries(BARKS)) {
     for (const voice of c.speakers?.[textRole] ?? [textRole]) for (const lines of Object.values(events)) lines.forEach((l) => add(voice, l));
   }

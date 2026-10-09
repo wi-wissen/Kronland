@@ -72,6 +72,12 @@ test('Abilities and herald are painted', async ({ page }, info) => {
   // Herald speaks (mission 5): portrait instead of a seal with initial letter
   await page.goto(playUrl('?mission=c5&no-models'));
   await page.waitForFunction(() => window.__kronland?.sim.mission?.state.id === 'c5', null, SLOW);
+  // the arrival conversation of the mission program comes first: skip it ("Gespräch überspringen"), then the herald
+  const skipAll = page.locator('[data-testid=dialog]:not(.dlg-leave-active) [data-testid=dialog-skip-all]');
+  await expect(skipAll).toBeVisible(SLOW);
+  await skipAll.click();
+  await page.waitForFunction(() => !window.__kronland.sim.mission.script.talking(), null, SLOW);
+  await expect(page.locator('[data-testid=dialog]:not(.dlg-leave-active)')).toHaveCount(0, SLOW);
   await page.evaluate(() => {
     const e = window.__kronland, st = e.sim.mission.state;
     st.messages.push({ seq: ++st.seq, tick: e.sim.tick + 1000, speaker: 'herald', text: { de: 'Hört, Leute von Morvale!', en: 'Hear, people of Morvale!' } });

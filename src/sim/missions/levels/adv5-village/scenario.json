@@ -1,0 +1,61 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "adv5",
+  "kind": "adventure",
+  "end": "script",
+  "order": 5,
+  "reset": false,
+  "title": { "de": "Ein Dorf per Programm", "en": "A Village by Program" },
+  "summary": {
+    "de": "Baue mit Listen und Befehlen Wohnhaus und Bauernhof.",
+    "en": "Use lists and commands to build a residence and a farm."
+  },
+  "briefing": {
+    "de": "Orrin möchte wissen, ob man ein Dorf auch mit einem Programm bauen kann. find_spot(\"residence\", hq()) sucht einen Bauplatz, build(…) legt die Baustelle an. Bauen müssen aber Leibeigene: serfs(idle=True) liefert eine Liste der untätigen, und serf.work_on(baustelle) schickt einen zur Arbeit. Baue zwei Wohnhäuser und einen Bauernhof.",
+    "en": "Orrin wants to know whether a village can be built by a program. find_spot(\"residence\", hq()) finds a building site, build(…) lays out the construction site. But serfs have to do the building: serfs(idle=True) returns a list of idle serfs, and serf.work_on(site) sends one to work. Build two residences and a farm."
+  },
+  "victoryText": {
+    "de": "Das Dorf wächst – ganz ohne Mausklick.",
+    "en": "The village grows – without a single mouse click."
+  },
+  "learn": {
+    "de": ["Listen", "Objekte und Methoden", "Rückgabewerte"],
+    "en": ["lists", "objects and methods", "return values"]
+  },
+  "world": { "base": "flat", "width": 40, "height": 40, "fog": false, "starts": [{ "x": 12, "y": 12 }], "places": {} },
+  "players": [
+    {
+      "kind": "human",
+      "hero": "nelia",
+      "hq": true,
+      "stock": { "gold": 600, "clay": 800, "wood": 900, "stone": 600, "iron": 0, "sulfur": 0 }
+    }
+  ],
+  "sections": [
+    {
+      "id": "world",
+      "title": { "de": "Welt aufbauen", "en": "Build the world" },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": { "de": "Mission", "en": "Mission" },
+      "level": "mission",
+      "visibility": "hidden",
+      "editable": false,
+      "file": "mission.py"
+    },
+    {
+      "id": "player",
+      "title": { "de": "Dein Programm", "en": "Your program" },
+      "level": "player",
+      "visibility": "open",
+      "editable": true,
+      "file": "player.py"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "adv4",
+  "kind": "adventure",
+  "end": "script",
+  "order": 4,
+  "title": {
+    "de": "Taler am Wegesrand",
+    "en": "Thalers by the Wayside"
+  },
+  "summary": {
+    "de": "Schreibe eine eigene Funktion, die Taler links und rechts vom Weg holt.",
+    "en": "Write your own function that fetches thalers left and right of the path."
+  },
+  "briefing": {
+    "de": "Auf dem Weg nach Osten liegen links und rechts Taler – jedes Mal an anderen Stellen. Nelia soll alle einsammeln. nelia.left() und nelia.right() verraten, was neben ihr liegt, ohne dass sie sich dreht; nelia.take() hebt auf, worauf sie steht. Schreibe eine Funktion fetch(turn), die Nelia zur Seite dreht, hingehen, aufheben und zurück auf den Weg gehen lässt. Als turn gibst du nelia.turn_left oder nelia.turn_right mit – ohne Klammern, die Funktion ruft sie selbst auf.",
+    "en": "On the way east there are thalers to the left and right – in different places every time. Nelia should collect them all. nelia.left() and nelia.right() tell what lies beside her without turning her; nelia.take() picks up what she stands on. Write a function fetch(turn) that turns Nelia sideways, lets her go there, pick up and return to the path. As turn you pass nelia.turn_left or nelia.turn_right – without parentheses, the function calls it itself."
+  },
+  "victoryText": {
+    "de": "Alle Taler eingesammelt!",
+    "en": "All thalers collected!"
+  },
+  "learn": {
+    "de": ["Funktionen (def)", "Parameter", "Wiederverwendung"],
+    "en": ["functions (def)", "parameters", "reuse"]
+  },
+  "world": {
+    "base": "flat",
+    "width": 28,
+    "height": 11,
+    "fog": false,
+    "starts": [{ "x": 3, "y": 5 }],
+    "places": { "end": { "x": 24, "y": 5, "r": 0 } }
+  },
+  "players": [{ "kind": "human", "hero": "nelia", "hq": false }],
+  "sections": [
+    {
+      "id": "world",
+      "title": { "de": "Welt aufbauen", "en": "Build the world" },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": { "de": "Mission", "en": "Mission" },
+      "level": "mission",
+      "visibility": "hidden",
+      "editable": false,
+      "file": "mission.py"
+    },
+    {
+      "id": "player",
+      "title": { "de": "Dein Programm", "en": "Your program" },
+      "level": "player",
+      "visibility": "open",
+      "editable": true,
+      "file": "player.py"
+    }
+  ]
+}

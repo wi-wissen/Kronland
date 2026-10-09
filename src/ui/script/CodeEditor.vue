@@ -8,7 +8,7 @@
         v-for="n in lineCount"
         :key="n"
         class="ce-ln"
-        :class="{ error: n === errorLine, running: n === runningLine, bp: breakpoints.includes(n) }"
+        :class="{ error: n === errorLine, running: n === runningLine, bp: breakpoints.includes(n), hint: hintLines.includes(n) && n !== errorLine }"
         :data-testid="'ce-line-' + n"
         @click="toggleBreakpoint(n)"
       >
@@ -17,7 +17,7 @@
     </div>
     <div class="ce-area">
       <div class="ce-bg" aria-hidden="true">
-        <div v-for="n in lineCount" :key="n" class="ce-bgl" :class="{ error: n === errorLine, running: n === runningLine }"></div>
+        <div v-for="n in lineCount" :key="n" class="ce-bgl" :class="{ error: n === errorLine, running: n === runningLine, hint: hintLines.includes(n) && n !== errorLine && n !== runningLine }"></div>
       </div>
       <!-- eslint-disable-next-line vue/no-v-html -->
       <pre ref="pre" class="ce-pre" aria-hidden="true" v-html="html"></pre>
@@ -66,6 +66,7 @@ import DocCard from './DocCard.vue';
 import { commandAt, offsetAt } from './hoverDoc.js';
 import { docs, loadDocs } from './docsLoader.js';
 import { refUrl } from './reference.js';
+import { moveLines } from './editText.js';
 
 const INDENT = '    ';
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -114,6 +115,8 @@ export default {
     readonly: Boolean,
     /** 1-based lines */
     errorLine: { type: Number, default: -1 },
+    /** Lines with a hint (amber marker, the program keeps running) */
+    hintLines: { type: Array, default: () => [] },
     runningLine: { type: Number, default: -1 },
     breakpoints: { type: Array, default: () => [] },
     /** Number of the first line (display) */
@@ -321,6 +324,48 @@ export default {
       this.$emit('update:modelValue', ta.value);
     },
 
+    /** Current selection { start, end } (also while the editor has no focus), or null. */
+    selection() {
+      const ta = this.$refs.ta;
+      return ta ? { start: ta.selectionStart, end: ta.selectionEnd } : null;
+    },
+
+    /**
+     * Replace code[from, to) by text and select [a, b] afterwards (world editor: code from the map, building blocks).
+     * With focus the browser's undo keeps the change; without (phones: no keyboard popping up) it is set directly.
+     */
+    replace(from, to, text, select, focus = true) {
+      const ta = this.$refs.ta;
+      if (this.readonly || !ta) return false;
+      const expected = ta.value.slice(0, from) + text + ta.value.slice(to);
+      if (focus) ta.focus({ preventScroll: true });
+      ta.selectionStart = from;
+      ta.selectionEnd = to;
+      const ok = focus && document.execCommand?.('insertText', false, text);
+      if (!ok || ta.value !== expected) ta.value = expected;
+      ta.selectionStart = select[0];
+      ta.selectionEnd = select[1];
+      this.$emit('update:modelValue', ta.value);
+      this.$nextTick(() => this.reveal(ta.value.slice(0, select[0]).split('\n').length));
+      return true;
+    },
+
+    /** Move the selected lines one up (-1) or down (+1): Alt+↑/↓ and the key bar (undo is preserved). */
+    moveLines(dir) {
+      const ta = this.$refs.ta;
+      if (this.readonly || !ta) return;
+      const r = moveLines(ta.value, ta.selectionStart, ta.selectionEnd, dir);
+      if (!r) return;
+      ta.focus();
+      ta.selectionStart = r.from;
+      ta.selectionEnd = r.to;
+      const ok = document.execCommand?.('insertText', false, r.replacement);
+      if (!ok || ta.value !== r.text) { ta.value = r.text; }
+      ta.selectionStart = r.start;
+      ta.selectionEnd = r.end;
+      this.$emit('update:modelValue', ta.value);
+    },
+
     /** Indent or unindent selected lines. */
     indent(out = false) {
       const ta = this.$refs.ta;
@@ -355,6 +400,9 @@ export default {
       if (e.key === 'Tab') {
         e.preventDefault();
         this.indent(e.shiftKey);
+      } else if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        this.moveLines(e.key === 'ArrowUp' ? -1 : 1);
       } else if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
         // Take over the indentation of the line, one level deeper after a colon
         e.preventDefault();
@@ -405,11 +453,13 @@ export default {
 .ce-ln.bp .ce-dot { background: #e2533f; box-shadow: 0 0 0 1px #2a0e08; }
 .ce-ln.running { color: #b9f29e; }
 .ce-ln.error { color: #ffb3a6; }
+.ce-ln.hint { color: #f5c46a; }
 .ce-area { position: relative; flex: 1; min-width: 0; }
 .ce-bg { position: absolute; inset: 0; padding: 0.5rem 0; pointer-events: none; }
 .ce-bgl { height: var(--ce-lh); }
 .ce-bgl.running { background: rgba(120, 200, 90, 0.22); box-shadow: inset 3px 0 0 #8bd96f; }
 .ce-bgl.error { background: rgba(243, 122, 100, 0.22); box-shadow: inset 3px 0 0 #f37a64; }
+.ce-bgl.hint { background: rgba(240, 180, 60, 0.14); box-shadow: inset 3px 0 0 #f0b43c; }
 .ce-pre, .ce-input {
   margin: 0; padding: 0.5rem 0.625rem; border: 0; font: inherit; line-height: inherit; letter-spacing: normal;
   white-space: pre; tab-size: 4; font-variant-ligatures: none; overflow-wrap: normal;

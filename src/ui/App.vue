@@ -2,8 +2,8 @@
   <StartMenu v-if="screen === 'menu'" :latest="latest" :recovered="recovered" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" @adventures="screen = 'adventures'" @special="screen = 'special'" />
   <CampaignMenu v-else-if="screen === 'campaign'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @tutorial="startMission('tutorial')" />
   <SpecialMapsMenu v-else-if="screen === 'special'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" />
-  <AdventureMenu v-else-if="screen === 'adventures'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @editor="openEditor()" @open="startScenario($event)" />
-  <WorldEditor v-else-if="screen === 'editor'" :initial="editorScenario" :touch="touchDevice" @back="closeEditor" @play="startScenario($event, 'editor')" @change="editorScenario = $event" />
+  <AdventureMenu v-else-if="screen === 'adventures'" :lang="$i18n.lang" :notice="levelError" @back="screen = 'menu'" @start="startMission" @editor="openEditor()" @open="openLevel($event)" @link="openLink($event)" />
+  <WorldEditor v-else-if="screen === 'editor'" :initial="editorScenario" :touch="touchDevice" @back="closeEditor" @play="openLevel($event, 'editor')" @change="editorScenario = $event" />
 
   <div v-else-if="screen === 'loading' || finishing" class="loading backdrop" data-testid="loading">
     <div class="ld-card frame">
@@ -66,7 +66,7 @@
         </div>
       </Teleport>
 
-      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" :compact="compact" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog()" @line="engine.dialogFocus($event)" @focus="engine.focusHint($event)" @tribute="engine.payTribute($event)" />
+      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" :compact="compact" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog($event)" @line="engine.dialogFocus($event)" @focus="engine.focusHint($event)" @tribute="engine.payTribute($event)" />
       <MissionResult
         v-if="ui.mission?.result"
         :result="ui.mission.result"
@@ -112,6 +112,9 @@
     :engine="engine"
     :scenario="scenarioOf"
     :script="ui.mission.script"
+    :objectives="ui.mission.objectives"
+    :speakers="ui.mission.speakers ?? {}"
+    :restarts="ui.restarts ?? 0"
     :mode="origin === 'editor' ? 'editor' : 'adventure'"
     v-model:open="scriptOpen"
     :layout="scriptLayout"
@@ -153,6 +156,7 @@ import { devState, setDevMode, isDevHotkey } from '../dev/state.js';
 import { missing, pauseBannerVisible } from './hud/hudLayout.js';
 import { buildStartLink, parseStartLink, normalizeFree, addressFor, shareUrl } from './startLink.js';
 import { siteUrl } from '../paths.js';
+import { useLevelAssets } from '../levels/assets.js';
 import { layoutMode } from './script/splitLayout.js';
 import { update as appUpdate, setReloadPolicy, updateIfIdle, applyUpdate } from '../pwa.js';
 /** Levels by window width (CSS px at UI size 100 %), as classes on .game:
@@ -207,6 +211,10 @@ export default {
       origin: null,
       /** Scenario in the world editor (kept during test play) */
       editorScenario: null,
+      /** Level opened from a .zip, a link or the world editor: { scenario, assets: Map, base } (outside reactivity) */
+      levelPackage: null,
+      /** Why a level from a file or link could not be opened (shown in the adventure menu) */
+      levelError: '',
       touchDevice: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
       /** Game halted after a permanent error (Engine.crash): error dialog */
       crash: null,
@@ -326,7 +334,8 @@ export default {
     // Direct start via address (start links, tests): ?seed=…&ai=easy|normal|hard&players=2&hero=…&fog=off
     // or ?mission=<id>[&seed=…]; invalid values → default (src/ui/startLink.js, docs/ARCHITEKTUR.md#url-parameter)
     const link = parseStartLink(location.search, { hasMission: (id) => !!getMission(id) });
-    if (link?.kind === 'mission') this.startMission(link.id, { noAssets: link.noAssets, seed: link.seed });
+    if (link?.kind === 'level') this.openLink(link.url, link.noAssets);
+    else if (link?.kind === 'mission') this.startMission(link.id, { noAssets: link.noAssets, seed: link.seed });
     else if (link) this.newGame({ ...link, noAssets: link.noAssets });
   },
   beforeUnmount() {
@@ -410,27 +419,57 @@ export default {
       this.recorded = false;
       this.record = false;
       // Special maps (showcase, stress test) have their own menu: return there
-      this.origin = SPECIAL_MAPS.includes(def) ? 'special' : def.scenario ? 'adventures' : 'campaign';
+      // Campaign chapters and the tutorial return to the campaign, even when they are level folders
+      this.origin = SPECIAL_MAPS.includes(def) ? 'special' : def.scenario && !['campaign', 'tutorial'].includes(def.kind) ? 'adventures' : 'campaign';
       const players = def.players.filter((p) => p.kind !== 'bandits').length + (def.players.some((p) => p.kind === 'bandits') ? 1 : 0);
       // Fixed mission map: link only ?mission=<id>; a deviating seed comes along with it
       const seed = extra.seed !== undefined && extra.seed !== def.seed ? extra.seed : undefined;
       this.setStart({ kind: 'mission', id, ...(seed !== undefined ? { seed } : {}) });
+      useLevelAssets(null, def.scenario ?? null);
       this.boot({ mission: { id, seed: extra.seed }, players, noAssets: extra.noAssets });
     },
+    /**
+     * Play a level from a .zip, a scenario file, a link or the world editor.
+     * @param {{ scenario: any, assets?: Map<string, Blob>, base?: string|null }} pkg
+     */
+    openLevel(pkg, origin = 'adventures', extra = {}) {
+      this.levelError = '';
+      this.levelPackage = markRaw({ assets: new Map(), base: null, ...pkg });
+      this.startScenario(pkg.scenario, origin, extra);
+    },
+    /** Open a level by link (?level=…): a .zip or a folder on a static host. */
+    async openLink(url, noAssets = false) {
+      this.levelError = '';
+      this.screen = 'adventures';
+      let pkg;
+      try {
+        const { fetchLevel } = await import('../levels/package.js');
+        pkg = await fetchLevel(url);
+      } catch (e) { pkg = { scenario: null, problems: [e.message] }; }
+      if (!pkg.scenario) { this.levelError = t('adv.loadFailed', { why: pkg.problems?.[0] ?? '?' }); return; }
+      this.openLevel(pkg, 'adventures', { noAssets });
+      // A link describes the start: reloading the page opens the level again
+      this.setStart({ kind: 'level', url });
+    },
     /** Play scenario JSON (file or world editor). */
-    startScenario(json, origin = 'adventures') {
+    startScenario(json, origin = 'adventures', extra = {}) {
       this.recorded = false;
       this.record = false;
       this.origin = origin;
       // Scenario file / world editor: is in no directory, hence no start link
       this.setStart(null);
+      useLevelAssets(this.levelPackage, json);
       const players = json.players.filter((p) => p.kind !== 'bandits').length + (json.players.some((p) => p.kind === 'bandits') ? 1 : 0);
-      this.boot({ scenario: json, players });
+      this.boot({ scenario: json, players, noAssets: extra.noAssets });
     },
     /** Again: mission from the directory or the same scenario JSON. */
     retry() {
       const def = this.engine?.sim.mission?.def;
-      if (def?.custom) this.startScenario(def.scenario, this.origin ?? 'adventures');
+      if (def?.custom) {
+        const start = this.start;
+        this.startScenario(def.scenario, this.origin ?? 'adventures');
+        if (start?.kind === 'level') this.setStart(start);
+      }
       else this.startMission(this.ui.mission.id, { seed: this.start?.kind === 'mission' ? this.start.seed : undefined });
     },
     openEditor(scenario = null) {
@@ -454,6 +493,8 @@ export default {
       this.record = false;
       // Save game: cannot be rebuilt from a seed – no start link
       this.setStart(null);
+      // Files of the level (portraits, recordings): bundled ones or those of the package still open; otherwise placeholders
+      useLevelAssets(this.levelPackage, doc.state.mission?.scenario ?? null);
       this.boot({ load: doc.state });
     },
     onSaved(entry) {

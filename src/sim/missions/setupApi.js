@@ -10,7 +10,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { BALANCE } from '../data/balance.js';
 import { UNITS, HEROES } from '../data/units.js';
 import { findPath } from '../pathfinding.js';
-import { tileCenter, toTile, isqrt } from '../fixed.js';
+import { tileCenter, toTile, isqrt, toward } from '../fixed.js';
 import { TECHS } from '../data/technologies.js';
 
 /** Centre of a building as a tile. */
@@ -70,12 +70,8 @@ export function nearestWalkable(sim, x, y, maxR = 8) {
   return null;
 }
 
-/** Point on the line from a to b at distance `dist` (tiles) from a. */
-export function toward(a, b, dist) {
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const d = isqrt(dx * dx + dy * dy) || 1;
-  return { x: a.x + Math.trunc((dx * dist) / d), y: a.y + Math.trunc((dy * dist) / d) };
-}
+/** Point on the line from a to b at distance `dist` (tiles) from a (shared with the AI, see fixed.js). */
+export { toward };
 
 export const dist = (a, b) => isqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 

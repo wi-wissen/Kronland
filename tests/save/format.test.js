@@ -44,6 +44,12 @@ describe('Save format', () => {
     expect(codeOf(docText((d) => { d.state.entities = {}; return d; }))).toBe('saves.err.broken');
     expect(codeOf(docText((d) => { d.state.players = []; return d; }))).toBe('saves.err.broken');
     expect(codeOf(docText((d) => { d.state.mission = { id: 'doesnotexist' }; return d; }))).toBe('saves.err.unknownMission');
+    // mission 1 moved from a mission file into a level folder (Python): its old saves carry no scenario
+    expect(codeOf(docText((d) => { d.state.mission = { id: 'c1', scenario: null }; return d; }))).toBe('saves.err.missionChanged');
+    try { parseSaveText(docText((d) => { d.state.mission = { id: 'c1' }; return d; })); } catch (e) {
+      expect(t(e.code, e.params, 'de')).toContain('Lindgrund');
+      expect(t(e.code, e.params, 'en')).not.toMatch(/\{\w+\}/);
+    }
     // save game from the time before "Krone aus Eis" (game state version 1): outdated, not damaged
     expect(codeOf(docText((d) => { d.state.version = 1; return d; }))).toBe('saves.err.outdated');
     // truncated file
@@ -58,7 +64,7 @@ describe('Save format', () => {
   });
 
   it('error messages exist in both languages and fill placeholders', () => {
-    for (const code of ['notJson', 'wrongFormat', 'newer', 'outdated', 'broken', 'unknownMission', 'tooLarge', 'quota', 'storage', 'missing', 'read']) {
+    for (const code of ['notJson', 'wrongFormat', 'newer', 'outdated', 'broken', 'unknownMission', 'missionChanged', 'tooLarge', 'quota', 'storage', 'missing', 'read']) {
       expect(de['saves.err.' + code]).toBeTruthy();
       expect(en['saves.err.' + code]).toBeTruthy();
     }

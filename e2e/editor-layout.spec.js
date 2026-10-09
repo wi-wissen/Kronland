@@ -194,16 +194,16 @@ test.describe('desktop split screen', () => {
     const errors = await start(page);
     const sec = page.getByTestId('section-player');
     const ta = sec.getByTestId('code-input');
-    await ta.fill('hero.step()\nn = len("ab".split())\n');
+    await ta.fill('nelia.step()\nn = len("ab".split())\n');
     const editor = sec.getByTestId('code-editor');
     const p = await wordPoint(page, editor, 'step');
     await page.mouse.move(p.x, p.y);
     await page.waitForTimeout(150);
     await expect(page.getByTestId('doc-card')).toHaveCount(0);
     await expect(page.getByTestId('doc-card')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId('doc-card')).toHaveAttribute('data-name', 'hero.step');
-    await expect(page.getByTestId('doc-card')).toContainText('hero.step(n=1)');
-    await expect(page.getByTestId('doc-card-ref')).toHaveAttribute('href', '../scripting/#hero.step');
+    await expect(page.getByTestId('doc-card')).toHaveAttribute('data-name', 'nelia.step');
+    await expect(page.getByTestId('doc-card')).toContainText('nelia.step(n=1)');
+    await expect(page.getByTestId('doc-card-ref')).toHaveAttribute('href', '../scripting/#nelia.step');
     await shot(page, 'hover');
     await ta.focus();
     await page.keyboard.press('Escape');
@@ -229,7 +229,7 @@ test.describe('desktop split screen', () => {
     const [popup] = await Promise.all([page.waitForEvent('popup'), page.mouse.click(p.x + 1, p.y)]);
     await page.keyboard.up(mod);
     await popup.waitForLoadState('domcontentloaded').catch(() => {});
-    expect(popup.url()).toMatch(/\/scripting\/#hero\.step$/);
+    expect(popup.url()).toMatch(/\/scripting\/#nelia\.step$/);
     await expect(editor.locator('.ce-link')).toHaveCount(0);
     expect(errors).toEqual([]);
   });
@@ -260,11 +260,11 @@ test.describe('phone sheet', () => {
 
     // Run: the game is shown with the run strip
     const ta = page.getByTestId('section-player').getByTestId('code-input');
-    await ta.fill('for i in range(4):\n    hero.step()\n');
+    await ta.fill('for i in range(4):\n    nelia.step()\n');
     await page.getByTestId('script-run').click();
     await expect(panel).toBeHidden();
     await expect(page.getByTestId('script-watch-strip')).toBeVisible();
-    await expect(page.getByTestId('script-watch-line')).toContainText('hero.step()', SLOW);
+    await expect(page.getByTestId('script-watch-line')).toContainText('nelia.step()', SLOW);
     // The hero is in view above the run strip
     const strip = await page.getByTestId('script-watch-strip').boundingBox();
     const hero = await page.evaluate(() => {
@@ -300,7 +300,7 @@ test.describe('phone sheet', () => {
     const errors = await start(page);
     await page.getByTestId('script-open').click();
     const sec = page.getByTestId('section-player');
-    await sec.getByTestId('code-input').fill('hero.step()\nprint(len("ab"))\n');
+    await sec.getByTestId('code-input').fill('nelia.step()\nprint(len("ab"))\n');
     await page.evaluate(() => document.activeElement?.blur());
     const p = await wordPoint(page, sec.getByTestId('code-editor'), 'step');
     const cdp = await page.context().newCDPSession(page);
@@ -308,8 +308,8 @@ test.describe('phone sheet', () => {
     await page.waitForTimeout(900);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await expect(page.getByTestId('doc-card')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId('doc-card')).toHaveAttribute('data-name', 'hero.step');
-    await expect(page.getByTestId('doc-card-ref')).toHaveAttribute('href', '../scripting/#hero.step');
+    await expect(page.getByTestId('doc-card')).toHaveAttribute('data-name', 'nelia.step');
+    await expect(page.getByTestId('doc-card-ref')).toHaveAttribute('href', '../scripting/#nelia.step');
     await shot(page, 'longpress');
     await page.getByTestId('doc-card-close').click();
     await expect(page.getByTestId('doc-card')).toHaveCount(0);
