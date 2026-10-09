@@ -68,7 +68,8 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   Code zu („Zurück zu meinem Code“), Ereignisse (`@every`, `@on_enter` …) auch im eigenen Programm mit Haltepunkten,
   Zeilen verschieben mit Alt+↑/↓ bzw. ⇡ ⇣ in der Tastenleiste.
   Dazu die Skript-Mission „Der Überfall“, der **Welteneditor** (Gelände, Wald, Gegenstände, Spuren, Orte, Missionen programmieren,
-  Welt aus Code erzeugen, Bilder, Töne und 3D-Modelle beilegen, als `.zip` speichern, testspielen). Ein Level ist
+  Welt aus Code erzeugen, Doppelklick bzw. langes Drücken auf die Karte fügt Code ein – `place("camp")`, `(x, y)`,
+  Ort oder Gesprächsfigur –, Bausteine für Gesprächsfigur, Ziel, Angriffswelle, Dialog und Talerspur, Bilder, Töne und 3D-Modelle beilegen, als `.zip` speichern, testspielen). Ein Level ist
   ein Ordner (`scenario.json`, `.py`-Dateien, `assets/`) und reist als `.zip` – auch per Link von einem statischen
   Host (`play/?level=https://…/level.zip`). Missionen in Python: Ziele mit Fortschritt, Gesprächsfiguren (`npc()`,
   `@on_talk`), `@on_event`, Texte zweisprachig direkt im Code.
