@@ -64,6 +64,8 @@ test('Hint in the code panel: amber line and box, the program keeps running, edi
   await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
+  // I.M stops the player's program when it places Nelia at the first section: run only after that
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'edge')?.status), { timeout: 60_000 }).toBe('active');
   const sec = page.getByTestId('section-player');
   const ta = sec.getByTestId('code-input');
   await ta.fill('nelia.left()\nfor i in range(3):\n    nelia.step()\n');

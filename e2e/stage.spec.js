@@ -100,6 +100,8 @@ test('Events in the player program: the panel shows "waits for events"', async (
   await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
+  // I.M stops the player's program when it places Nelia at the first section: run only after that
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'edge')?.status), { timeout: 60_000 }).toBe('active');
   const ta = page.getByTestId('section-player').getByTestId('code-input');
   await ta.fill('@every(1)\ndef turn():\n    nelia.turn_left()\nprint("ready")\n');
   await page.getByTestId('script-run').click();
