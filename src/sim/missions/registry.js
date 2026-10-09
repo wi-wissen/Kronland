@@ -1,8 +1,6 @@
-// Directory of all missions. New mission: create a file and register it here.
-// Levels (coding adventures, script missions) are folders in levels/ (levels/index.js).
+// Directory of all missions. New mission: create a level folder in levels/ (levels/index.js) – campaign chapters and
+// the tutorial are found by their kind; older chapters are still mission files in campaign/ registered here.
 
-import tutorial from './tutorial.js';
-import c1 from './campaign/c1-lindgrund.js';
 import c2 from './campaign/c2-beaucroix.js';
 import c3 from './campaign/c3-hagenfurt.js';
 import c4 from './campaign/c4-eisenhain.js';
@@ -10,8 +8,13 @@ import c5 from './campaign/c5-morvale.js';
 import c6 from './campaign/c6-thronsee.js';
 import showcase from './showcase.js';
 import stress from './stress.js';
-import { SCENARIOS, ADVENTURES as ADVENTURE_JSON, SCRIPT_MISSIONS as SCRIPT_JSON } from './levels/index.js';
+import { SCENARIOS, ADVENTURES as ADVENTURE_JSON, SCRIPT_MISSIONS as SCRIPT_JSON, CAMPAIGN_LEVELS } from './levels/index.js';
 import { scenarioToDef } from '../scripting/scenario.js';
+
+/** Campaign chapters and tutorial from level folders (Python), by id. */
+const LEVEL_DEFS = Object.fromEntries(CAMPAIGN_LEVELS.map((s) => [s.id, scenarioToDef(s)]));
+const tutorial = LEVEL_DEFS.tutorial;
+const c1 = LEVEL_DEFS.c1;
 
 export const TUTORIAL_ID = tutorial.id;
 
@@ -37,6 +40,6 @@ const ALL = new Map([tutorial, ...CAMPAIGN, ...SPECIAL_MAPS, ...ADVENTURES, ...S
 export const getMission = (id) => ALL.get(id) ?? null;
 
 /** Scenario JSON of a bundled mission (or null). */
-export const getScenario = (id) => SCENARIOS.find((s) => s.id === id) ?? null;
+export const getScenario = (id) => SCENARIOS.find((s) => s.id === id) ?? CAMPAIGN_LEVELS.find((s) => s.id === id) ?? null;
 
 export const allMissions = () => [...ALL.values()];

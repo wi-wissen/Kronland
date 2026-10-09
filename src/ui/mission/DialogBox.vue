@@ -7,7 +7,7 @@
       <div class="dlg-body">
         <b class="dlg-name" data-testid="dialog-speaker">{{ $tr(speaker.name) }}</b>
         <p data-testid="dialog-text">{{ $tr(current.text) }}</p>
-        <button v-if="waiting > 0" class="dlg-skip" data-testid="dialog-skip-all" @click="skipAll">{{ $t('mission.skipAll', { n: waiting }) }}</button>
+        <button v-if="waiting > 0 || (scripted && current.dur)" class="dlg-skip" data-testid="dialog-skip-all" @click="skipAll">{{ waiting > 0 ? $t('mission.skipAll', { n: waiting }) : $t('mission.skipTalk') }}</button>
       </div>
       <button class="icon-btn ghost dlg-close" :aria-label="$t('mission.dismiss')" data-testid="dialog-close" @click="dismiss"><Icon name="close" /></button>
     </div>
@@ -44,11 +44,12 @@ export default {
   computed: {
     /** Oldest message not yet read (order is preserved). */
     current() {
-      // Unread ones in sequence; anything more than 10 s of game time older than the newest is obsolete
-      const open = this.messages.filter((x) => x.seq > this.seen);
+      // Unread ones in sequence (lines of a skipped conversation never show); a loose line more than 10 s of game time
+      // older than the newest is obsolete – lines of a script conversation (dur) are paced by the game and all shown
+      const open = this.messages.filter((x) => x.seq > this.seen && !x.skipped);
       if (!open.length) return null;
       const newest = open[open.length - 1].tick;
-      return open.find((x) => x.tick >= newest - 100) ?? null;
+      return open.find((x) => x.dur || x.tick >= newest - 100) ?? null;
     },
     /** Painted portrait of the speaker (heroes, side characters), otherwise a seal with initial letter. */
     portrait() {
@@ -115,7 +116,8 @@ export default {
       if (!cur) return;
       this.seen = this.messages[this.messages.length - 1].seq;
       stopSpeech();
-      if (this.scripted && cur.dur) this.$emit('skip', cur.seq);
+      // The script goes on at once and leaves out the rest of this conversation
+      if (this.scripted && cur.dur) this.$emit('skip', cur.seq, true);
     },
     /** @param {boolean} [auto] expired by itself (not clicked away) */
     dismiss(auto = false) {

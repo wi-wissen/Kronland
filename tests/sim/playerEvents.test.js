@@ -80,7 +80,7 @@ describe('Events in the player program', () => {
       world: { base: 'flat', width: 32, height: 20, fog: false, starts: [{ x: 4, y: 8 }] },
       players: [{ kind: 'human', hero: 'nelia', hq: false }, { kind: 'bandits' }],
       sections: [
-        { id: 'm', level: 'mission', code: 'mine = place_building(HUMAN, "residence", (14, 4))\ntheirs = place_building(BANDITS, "residence", (14, 14))\n@on_start\ndef go():\n    wait(1)\n    remove(theirs)\n    remove(mine)\n    set_weather("winter")\n' },
+        { id: 'm', level: 'mission', code: 'mine = place_building(HUMAN, "residence", (14, 4))\ntheirs = place_building(BANDITS, "residence", (14, 14))\n@on_start\ndef go():\n    wait(1)\n    theirs.kill()\n    mine.kill()\n    set_weather("winter")\n' },
         { id: 'player', level: 'player', editable: true, code: '' },
       ],
     });

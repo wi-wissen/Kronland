@@ -169,30 +169,34 @@ test('Conversation figure: Orrin talks to the village elder, the neighbouring vi
   const errors = await fresh(page);
   await page.goto(playUrl('?mission=c1&no-models'));
   await page.waitForFunction(() => window.__kronland?.sim.mission?.state.id === 'c1');
-  // Nelia already stands with Orrin on the village square, then almost at the old root (the walking is not
-  // the subject here); afterwards Orrin goes to the village elder by command, as with a right click
+  // Nelia already stands next to the stranger and is sent to him (tap with her selected), then almost at the old
+  // root (the walking is not the subject here); afterwards Orrin is sent to the village elder, as with a tap on her.
+  // The conversations in between are skipped ("Gespräch überspringen"), as a player may.
+  const skipping = setInterval(() => page.evaluate(() => window.__kronland?.skipDialog(true)).catch(() => {}), 1000);
   await page.evaluate(() => {
     const e = window.__kronland, st = e.sim.mission.state, n = e.sim.entities.get(st.refs.nelia);
     const o = e.sim.entities.get(st.npcs.stranger.entity);
     n.px = o.px + 1000; n.py = o.py; n.path = [];
+    e.issue({ type: 'order', units: [st.refs.nelia], order: 'talk', target: o.id });
   });
-  await page.waitForFunction(() => window.__kronland.sim.mission.state.flags.orrin, null, { timeout: 60_000 });
+  const orrinId = () => page.evaluate(() => [...window.__kronland.sim.entities.values()].find((x) => x.kind === 'hero' && x.hero === 'orrin')?.id ?? null);
+  await expect.poll(orrinId, { timeout: 90_000 }).not.toBeNull();
   await page.evaluate(() => {
-    const e = window.__kronland, st = e.sim.mission.state, n = e.sim.entities.get(st.refs.nelia);
-    n.px = st.refs.oldRoot.x * 1000 + 500; n.py = st.refs.oldRoot.y * 1000 + 1500; n.path = [];
+    const e = window.__kronland, st = e.sim.mission.state, n = e.sim.entities.get(st.refs.nelia), r = e.sim.mission.script.places.oldRoot;
+    n.px = r.x * 1000 + 500; n.py = r.y * 1000 + 1500; n.path = [];
   });
   await page.waitForFunction(() => window.__kronland.sim.mission.state.npcs.elder, null, { timeout: 60_000 });
   await page.evaluate(() => {
     const e = window.__kronland, st = e.sim.mission.state;
     const npc = e.sim.entities.get(st.npcs.elder.entity);
-    const o = e.sim.entities.get(st.refs.orrin);
-    o.px = npc.px + 6000; o.py = npc.py;
-    e.issue({ type: 'order', units: [st.refs.orrin], order: 'move', x: Math.floor(npc.px / 1000), y: Math.floor(npc.py / 1000) + 1 });
+    const o = [...e.sim.entities.values()].find((x) => x.kind === 'hero' && x.hero === 'orrin');
+    o.px = npc.px + 3000; o.py = npc.py; o.path = [];
+    e.issue({ type: 'order', units: [o.id], order: 'talk', target: npc.id });
   });
-  await page.waitForFunction(() => window.__kronland.sim.mission.state.npcs.elder.state === 'talked', null, { timeout: 120_000 });
+  await page.waitForFunction(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'neighbors').status === 'done', null, { timeout: 150_000 });
+  clearInterval(skipping);
   // The conversation is in the notices (the display itself changes quickly depending on speed)
   expect(await page.evaluate(() => window.__kronland.sim.mission.state.messages.some((m) => m.speaker === 'elder'))).toBe(true);
-  await expect(page.getByTestId('dialog').first()).toBeVisible(SLOW);
   const rel = await page.evaluate(() => { const s = window.__kronland.sim; return s.relation(0, s.mission.playerOf('neighbors')); });
   expect(rel).toBe('allied');
   expect(errors).toEqual([]);

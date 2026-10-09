@@ -3,7 +3,8 @@
 // The full matrix (4 maps, table) is delivered by `node scripts/campaign-matrix.js`.
 
 import { describe, it, expect } from 'vitest';
-import { playMission, TIME_LIMITS } from './missionBot.js';
+import { playMission, TIME_LIMITS, ref, objective, until } from './missionBot.js';
+import { meetOrrin } from './playthroughs.js';
 import { getMission } from '../../src/sim/missions/registry.js';
 import { createMissionSim } from '../../src/sim/missions/runtime.js';
 import { WATER } from '../../src/sim/map.js';
@@ -33,14 +34,26 @@ describe('Campaign: setup and texts', () => {
     }
   });
 
-  it('mission 1: the whole find conversation reaches the UI, also its first sentence (many lines in one tick)', () => {
+  it('mission 1: the whole find conversation reaches the UI in order, line by line, the serfs come with the villager', () => {
     const sim = createMissionSim('c1');
-    sim.mission.runActions(sim, sim.mission.def.objectives.find((o) => o.id === 'root').onDone);
+    meetOrrin(sim);
+    const r = ref(sim, 'oldRoot'), nelia = sim.entities.get(sim.mission.state.refs.nelia);
+    nelia.px = r.x * 1000 + 500; nelia.py = r.y * 1000 + 500; nelia.path = [];
+    expect(until(sim, () => objective(sim, 'root').status === 'done', 50)).toBe(true);
+    const serfs = () => [...sim.entities.values()].filter((e) => e.kind === 'unit' && e.owner === 0).length;
+    expect(serfs()).toBe(0);
+    let at = null;
+    until(sim, () => { if (at === null && serfs() === 3) at = sim.mission.state.messages.at(-1)?.text.de; return objective(sim, 'wood').status !== 'hidden'; }, 3000);
     const texts = sim.mission.uiState(sim).messages.map((m) => m.text.de);
     const find = texts.findIndex((x) => x.startsWith('Unter der Wurzel'));
     expect(find).toBeGreaterThanOrEqual(0);
-    expect(texts.length - find).toBeGreaterThan(8); // more than the old limit of 8 messages
+    expect(texts.slice(find).length).toBe(12); // nothing lost, nothing in between
     expect(texts[find + 1]).toMatch(/^Bei allen Märkten/);
+    expect(texts.at(-1)).toMatch(/^Holz zuerst/);
+    // the three serfs come back with the cheering villager (after the princess is proclaimed)
+    expect(at).toMatch(/^Die Prinzessin!/);
+    // every line is a script line: the dialogue box shows it for its time (dur), lines of a conversation never mix
+    expect(sim.mission.state.messages.slice(-12).every((m) => m.dur > 0)).toBe(true);
   });
 
   it('the guard at the weatherworks speaks with the collector\'s voice and portrait', async () => {
@@ -126,13 +139,16 @@ describe('Campaign: step-by-step unlocks and pointers', () => {
     const st = sim.mission.state;
     st.objectives.find((o) => o.id === 'workers').status = 'active';
     const hint = () => sim.mission.uiState(sim).objectives.find((o) => o.id === 'workers').hint;
+    sim.step();
     expect(hint().ui).toEqual(['build-clayMine', 'quick-all']);
     expect(hint().area).toBeTruthy();
     const s = sim.shafts.find((q) => q.res === 'clay');
     sim.createBuilding(0, 'clayMine', s.x, s.y, false);
-    sim.mission.census = null;
+    // checked in the next tick (hint(…, ui_until=…) in the mission program); then for good
+    sim.step();
     expect(hint().ui).toBeUndefined();
     expect(hint().area).toBeTruthy();
+    expect(st.objectives.find((o) => o.id === 'workers').uiOff).toBe(true);
   });
 });
 
@@ -143,7 +159,8 @@ describe('Campaign with bot', () => {
     expect(report.won, `${id}/${seed}: ${report.reason} after ${report.minutes} min`).toBe(true);
     expect(report.minutes).toBeLessThanOrEqual(TIME_LIMITS[id]);
     // all main objectives fulfilled
-    for (const o of getMission(id).objectives.filter((x) => x.primary)) expect(report.objectives[o.id]?.status, `${id}/${o.id}`).toBe('done');
+    const def = getMission(id);
+    for (const o of (def.objectives?.length ? def.objectives : def.goals).filter((x) => x.primary)) expect(report.objectives[o.id]?.status, `${id}/${o.id}`).toBe('done');
   }, 120000);
 
   it('Mission 5: without deliveries and troops Morvale stays lost (the villages do not return)', () => {

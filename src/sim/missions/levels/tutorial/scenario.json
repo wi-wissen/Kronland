@@ -1,0 +1,78 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "tutorial",
+  "kind": "tutorial",
+  "end": "script",
+  "order": 0,
+  "next": "c1",
+  "noDefeat": true,
+  "title": {
+    "de": "Erste Schritte",
+    "en": "First Steps"
+  },
+  "summary": {
+    "de": "Der Händler Orrin zeigt Nelia, wie ein Dorf wächst: Leibeigene, Bauen, Arbeiter, Forschung und ein erstes Gefecht.",
+    "en": "The merchant Orrin shows Nelia how a village grows: serfs, building, workers, research and a first skirmish."
+  },
+  "briefing": {
+    "de": "Willkommen in Kronland! Dieses Tal gehört jetzt dir und Nelia. Orrin, ein wandernder Händler, führt dich Schritt für Schritt. Du kannst nichts falsch machen.",
+    "en": "Welcome to Kronland! This valley now belongs to you and Nelia. Orrin, a travelling merchant, guides you step by step. You cannot fail here."
+  },
+  "victoryText": {
+    "de": "Das Dorf steht, die Räuber sind vertrieben. Du bist bereit für die Kampagne.",
+    "en": "The village stands and the bandits are gone. You are ready for the campaign."
+  },
+  "defeatText": {
+    "de": "Das Tutorial wurde beendet.",
+    "en": "The tutorial has ended."
+  },
+  "world": {
+    "base": "generate",
+    "seed": 4242,
+    "size": 96,
+    "fog": true,
+    "startReveal": 34
+  },
+  "players": [
+    {
+      "kind": "human",
+      "hero": "nelia",
+      "stock": {
+        "gold": 1200,
+        "clay": 2400,
+        "wood": 2400,
+        "stone": 1200,
+        "iron": 200,
+        "sulfur": 100
+      }
+    },
+    {
+      "kind": "bandits"
+    }
+  ],
+  "sections": [
+    {
+      "id": "world",
+      "title": {
+        "de": "Übungstal aufbauen",
+        "en": "Build the practice valley"
+      },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": {
+        "de": "Schritte",
+        "en": "Steps"
+      },
+      "level": "mission",
+      "visibility": "open",
+      "editable": false,
+      "file": "mission.py"
+    }
+  ]
+}

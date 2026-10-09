@@ -6,7 +6,7 @@
     <ObjectivePanel v-if="mission.objectives.length" :objectives="mission.objectives" :lang="lang" :compact="compact" @focus="$emit('focus', $event)" />
     <TributePanel v-if="mission.tributes?.length" :tributes="mission.tributes" :lang="lang" @pay="$emit('tribute', $event)" />
     <UiPointer :ids="mission.pointer ?? []" />
-    <DialogBox :messages="mission.messages" :lang="lang" :speed="speed" :scripted="!!mission.script" :speakers="mission.speakers ?? {}" @skip="$emit('skipDialog')" @line="$emit('line', $event)" />
+    <DialogBox :messages="mission.messages" :lang="lang" :speed="speed" :scripted="!!mission.script" :speakers="mission.speakers ?? {}" @skip="(seq, all) => $emit('skipDialog', !!all)" @line="$emit('line', $event)" />
   </div>
 </template>
 
