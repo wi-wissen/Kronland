@@ -1,0 +1,45 @@
+{
+  "format": "kronland-pack",
+  "version": 1,
+  "id": "wi7.adventures-2",
+  "title": {
+    "de": "Programmier-Abenteuer 2",
+    "en": "Coding Adventures 2"
+  },
+  "summary": {
+    "de": "Fünf Lernabenteuer: Schleifen, Bedingungen und Funktionen mit Nelia.",
+    "en": "Five learning adventures: loops, conditions and functions with Nelia."
+  },
+  "author": "wi7",
+  "license": "CC-BY-4.0",
+  "minClient": "1.0.0",
+  "preview": "996c3d8a4b7769dbe098d763d05512054dd321215cddb89c003954c40e54b7f0.png",
+  "levels": [
+    {
+      "id": "r1-2",
+      "file": "4ed2b20bf14065126045cc1bb9e68ebe20b4301017e6191dda93b8e45385e1e1.json"
+    },
+    {
+      "id": "r1-4",
+      "file": "7530ec722e5694d49f5f979f34e13045f21a2a5801ddf12e94928bcdc5ee29a2.json"
+    },
+    {
+      "id": "r1-5",
+      "file": "3d85dd14c9c52ba9179f0a9f068996d186c8eed061df43f61e3a58a6b39b6fd2.json"
+    },
+    {
+      "id": "r1-m",
+      "file": "a91f03048c63579a859a291ae040c2024eef3b7a47fcf2f23051ed081e4edd22.json"
+    },
+    {
+      "id": "r2-1",
+      "file": "257d248c48dcab0309aa761a6bee1ea5dab210faec3b5d9a0e779d58c77e301f.json"
+    }
+  ],
+  "media": {
+    "996c3d8a4b7769dbe098d763d05512054dd321215cddb89c003954c40e54b7f0.png": {
+      "type": "image/png",
+      "bytes": 12493
+    }
+  }
+}

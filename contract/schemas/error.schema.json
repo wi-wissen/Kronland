@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kronland.wi7.net/contract/schemas/error.schema.json",
+  "title": "error",
+  "description": "Error format of the game API (HTTP 4xx/5xx). `code` is an i18n key of the game (packs.err.*, saves.err.*, auth.err.*, net.err.*), `params` fills its placeholders.",
+  "type": "object",
+  "required": ["error"],
+  "properties": {
+    "error": {
+      "type": "object", "required": ["code"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[a-z]+(\\.[A-Za-z0-9_]+)+$", "maxLength": 80 },
+        "params": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
