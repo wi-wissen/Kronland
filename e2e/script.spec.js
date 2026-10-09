@@ -40,6 +40,11 @@ async function tool(page, id) {
 
 const gridAttr = (page) => (page.viewportSize().width < 760 ? 'aria-checked' : 'aria-pressed');
 
+/** I.M stops the player's program when it moves Nelia to the first section after the intro line: wait for that first. */
+async function sectionReady(page) {
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'edge')?.status), { timeout: 60_000 }).toBe('active');
+}
+
 test('Course missions in the menu by row: start I.2, run the maid\'s note, the next stage follows', async ({ page }) => {
   test.setTimeout(180_000); // the intro line comes before the note, then a whole stage runs
   const errors = await fresh(page);
@@ -73,6 +78,7 @@ test('Error message with line and suggestion, single step with variables', async
   await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
+  await sectionReady(page);
   // Grid is on in the adventure and can be switched off; the hero looks east (view = step direction)
   if (page.viewportSize().width < 760) await page.getByTestId('script-menu').click();
   await expect(page.getByTestId('script-grid')).toHaveAttribute(gridAttr(page), 'true');
@@ -107,6 +113,7 @@ test('Call stack shows arguments and folds deep recursion, endless recursion nam
   await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
+  await sectionReady(page);
   const sec = page.getByTestId('section-player');
   const ta = sec.getByTestId('code-input');
 
@@ -140,6 +147,7 @@ test('print() to the console, notify() as a notice, error clears after editing, 
   await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
+  await sectionReady(page);
   const sec = page.getByTestId('section-player');
   const ta = sec.getByTestId('code-input');
 
