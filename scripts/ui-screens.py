@@ -90,8 +90,9 @@ def run(pw, dev, lang):
             shot(page, 'settings', dev, lang)
             page.click('[data-testid=settings-done]')
         if want('campaign'):
-            page.click('[data-testid=menu-campaign]')
-            page.wait_for_selector('[data-testid=briefing]')
+            page.click('[data-testid=menu-kind-stories]')
+            page.click('[data-testid=series-campaign]')
+            page.wait_for_selector('[data-testid=series-detail]')
             page.wait_for_timeout(300)
             shot(page, 'campaign', dev, lang)
 
