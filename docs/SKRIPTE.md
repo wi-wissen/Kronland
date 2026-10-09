@@ -494,11 +494,26 @@ derselben Mechanik (`.handlers` je VM), erst die Mission, dann den Spieler, beid
 Etappen sind Unterziele. **Ausführen startet die Etappe neu** (`src/sim/stage.js`, Test `tests/sim/stage.test.js`):
 Beim ersten Ausführen nach einem neuen aktiven Unterziel merkt sich die Engine die Welt als normalen Spielstand
 (`saveGame`, Schlüssel = die aktiven Ziele), jedes weitere Ausführen – auch „Schritt“ – lädt ihn wieder
-(`loadGame`) und tauscht die Simulation mit `Engine.restart` ohne Ladebildschirm: Renderer und KI neu, Kamera,
-Raster, Code und Haltepunkte bleiben. Der wiederhergestellte Stand hat denselben State-Hash wie beim Merken; nur die
-Zähler für die Anzeige (`seq` von Dialog, Konsole) laufen weiter, damit Panel und Dialogbox alles Neue als neu
-erkennen. Auch `program.runs` und damit die Zufallszahlen des Spielerprogramms kommen aus dem Schnappschuss – dasselbe
-Programm gibt denselben Lauf. Der Schnappschuss reist im Umschlag des Spielstands mit (`extra.stage`).
+(`loadGame`) und tauscht die Simulation mit `Engine.restart` ohne Ladebildschirm: Kamera, Raster, Code und
+Haltepunkte bleiben, die KI kommt mit der Simulation. Der wiederhergestellte Stand hat denselben State-Hash wie ein
+frisch geladener Schnappschuss; nur die Zähler für die Anzeige (`seq` von Dialog, Konsole) laufen weiter, damit
+Panel und Dialogbox alles Neue als neu erkennen (`mission.seq` geht in den Hash ein: war seit dem Merken ein Dialog,
+weicht der Hash vom Moment des Merkens ab, nicht aber vom Hash des geladenen Schnappschusses). Auch `program.runs` und
+damit die Zufallszahlen des Spielerprogramms kommen aus dem Schnappschuss – dasselbe Programm gibt denselben Lauf. Der
+Schnappschuss reist im Umschlag des Spielstands mit (`extra.stage`).
+
+**Schnell neu starten:** Die Szene (Gelände, Wasser, Nebel, Bäume, Spuren, Figuren) wird neu aufgebaut, alles
+Teure bleibt aber erhalten (`new Renderer(…, { from: alter })`): der WebGL-Renderer mit allen übersetzten Shadern, die
+Figurenmodelle samt gebackenen Animationen (`CharacterSystem.adoptVariants`), Baum- und Dekomodelle
+(`natureCache`) und die gemeinsamen Texturen. Die alte Welt wird erst 2,5 s später freigegeben (`Engine.retire`),
+sonst verlöre sie Shader, die die neue erst beim ersten Zeichnen eines Talers oder einer Markierung braucht. Messwerte
+in [PERFORMANCE.md](PERFORMANCE.md#schnell-neu-starten-je-etappe-und-weltwechsel).
+
+**Zwischen zwei Unterzielen (Schlüssel leer):** Zwischen dem Ende eines Unterziels und dem nächsten `objective(...)`
+ist der Schlüssel leer. Wer dort „Ausführen“ drückt, merkt sich den Zustand *vor* dem, was die Mission noch tut
+(Wartezeit eines `say`, `camera.fly_to`, `teleport`); jedes weitere Ausführen springt dorthin zurück, der Dialog läuft
+erneut. Missionen sollten das nächste Ziel deshalb vor langen Wartezeiten und Teleports setzen (oder `reset(False)`
+dazwischen rufen). Das Verhalten der Engine bleibt bewusst so, Läufe vor dem ersten Ziel (Einführung) brauchen es.
 
 Abschalten: `"reset": false` in scenario.json (z. B. `r3-m`) oder `reset(False)` im Missionsprogramm.
 

@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import { Terrain } from './terrain.js';
+import { collectHeld } from './retain.js';
 import { Water } from './water.js';
 import { Environment } from './environment.js';
 import { getQuality } from './quality.js';
@@ -67,7 +68,9 @@ const tmpBox = new THREE.Box3();
 export class Renderer {
   /**
    * @param {HTMLCanvasElement} canvas @param {import('../sim/sim.js').Sim} sim
-   * @param {{ player?: number }} [opts] player: from whose point of view it is drawn (fog of war)
+   * @param {{ player?: number, from?: Renderer }} [opts] player: from whose point of view it is drawn (fog of war);
+   *   from: the renderer of the old world (stage restart, world switch) – its WebGL renderer, with all compiled
+   *   shader programs, is taken over instead of creating a new one (see Renderer.dispose)
    */
   constructor(canvas, sim, opts = {}) {
     this.sim = sim;
@@ -75,7 +78,9 @@ export class Renderer {
     this.viewer = opts.player ?? 0;
     /** Graphics level (pixel density, shadows, textures, decoration density, water) */
     const q = this.quality = getQuality();
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: 'high-performance' });
+    this.renderer = opts.from?.renderer ?? new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: 'high-performance' });
+    /** The WebGL renderer was taken over from the previous world: programs and uploaded textures are still there */
+    this.adopted = !!opts.from;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, q.maxPixelRatio));
 
     this.scene = new THREE.Scene();
@@ -83,7 +88,13 @@ export class Renderer {
     this.env = new Environment(this.renderer, this.scene, q);
     this.sun = this.env.sun;
     /** Shared uniforms of nature (wind, snow) */
-    this.natureUniforms = { uTime: { value: 0 }, uSnow: { value: 0 } };
+    this.natureUniforms = opts.from?.natureUniforms ?? { uTime: { value: 0 }, uSnow: { value: 0 } };
+    /**
+     * Tree and decoration models (geometries, materials) do not depend on the world: built once, handed on to the
+     * renderer of the next world and rebuilt only when the graphics level changes (about 90 ms per build with models)
+     * @type {{ trees?: { detail: boolean, variants: any[] }, scatter?: Record<string, any> }}
+     */
+    this.natureCache = opts.from?.natureCache ?? {};
 
     this.terrain = new Terrain(sim.map, sim.waterLevel, q);
     this.water = new Water(this.terrain, q);
@@ -130,6 +141,7 @@ export class Renderer {
     /** @type {ChunkedInstances[]} */
     this.chunked = [];
     this.chars = new CharacterSystem(this.scene, q, { procedural: proceduralFigures() });
+    if (opts.from?.chars) this.chars.adoptVariants(opts.from.chars);
     this.fx = new Effects(this.scene, q);
     this.bars = new HealthBars(this.scene);
     this.marks = new GroundMarks(this.scene);
@@ -152,14 +164,23 @@ export class Renderer {
       this.rig.lookAt(w / 2, h / 2 + 1);
       this.rig.clamp?.();
     }
+    // Same canvas size as before: no new buffers; projection and figure LOD as in setSize
+    const vp = opts.from?.viewport;
+    if (vp) this.applyViewport(vp.w, vp.h);
   }
 
   /**
    * Free GPU resources (game end, new game, loading). The canvas and with it the WebGL context
    * are reused for the next game; without disposal buffers, textures and programs of
    * every game would stay in the context. Jointly cached models are re-uploaded by three.js on demand.
+   *
+   * Stage restart and world switch pass the successor that took over the WebGL renderer (`new Renderer(…, { from })`):
+   * the WebGL renderer, the shared models, materials and textures stay alive, only what belongs to this world
+   * goes. Disposing a shared material would drop its compiled shader program and cost a recompile (about a second).
+   * Call it only after the successor drew once (startup()), so that its materials already hold the programs.
+   * @param {{ successor?: Renderer }} [opts]
    */
-  dispose() {
+  dispose({ successor = null } = {}) {
     this.disposed = true;
     this.devHook = null;
     const seen = new Set();
@@ -167,7 +188,7 @@ export class Renderer {
     const props = this.renderer.properties;
     const freeMaterial = (m) => {
       // three.js r186 attaches a listener per renderer to its global DFG table (PBR materials)
-      const lut = props.get(m)?.uniforms?.dfgLUT?.value;
+      const lut = successor ? null : props.get(m)?.uniforms?.dfgLUT?.value;
       if (lut?.isTexture) free(lut);
       for (const v of Object.values(m)) if (v?.isTexture) free(v);
       if (m.uniforms) for (const u of Object.values(m.uniforms)) if (u?.value?.isTexture) free(u.value);
@@ -178,6 +199,22 @@ export class Renderer {
       for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) freeMaterial(m);
       if (o.isInstancedMesh) free(o);
     });
+    if (successor) {
+      // Keep what other worlds use as well: shared models/materials/textures and everything the successor holds
+      const keep = new Set([...sharedModelMaterials(), ...sharedMarkerMaterials(), ...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), this.arrowMat, this.ballGeo, this.arrowGeo, this.boomGeo]);
+      collectHeld([...sharedAssetRoots(), ...sharedCharacterRoots(), successor.scene], keep);
+      for (const x of keep) seen.add(x);
+      freeTree(this.scene);
+      this.env?.dispose?.();
+      this.fog?.dispose();
+      this.tracks?.dispose();
+      this.items?.dispose();
+      this.grid?.dispose();
+      this.terrain?.dispose?.();
+      this.water?.dispose?.();
+      this.scene.environment = null;
+      return;
+    }
     freeTree(this.scene);
     // Also module-wide cached resources: three.js attaches a 'dispose' listener of this renderer to every used geometry,
     // material and texture. If they stay, the
@@ -209,7 +246,11 @@ export class Renderer {
       this.env.follow(this.rig.target, this.rig.dist, nearFactor(this.rig.dist), this.rig.yaw);
       const r = this.renderer;
       const size = r.getSize(new THREE.Vector2());
-      r.setSize(32, 32, false);
+      // Taken-over WebGL renderer (stage restart): a small viewport instead of a smaller drawing buffer – resizing
+      // the buffers twice is by far the most expensive part (about 1.4 s of 1.7 s measured under SwiftShader)
+      const port = this.adopted ? r.getViewport(new THREE.Vector4()) : null;
+      if (port) { r.setViewport(0, 0, 32, 32); r.setScissor(0, 0, 32, 32); r.setScissorTest(true); }
+      else r.setSize(32, 32, false);
       const cull = [], hidden = [];
       this.chars.prewarm(true);
       for (const lv of this.buildingLods?.values() ?? []) for (const m of lv) if (!m.visible) { hidden.push(m); m.visible = true; }
@@ -218,8 +259,9 @@ export class Renderer {
       // Models that only appear in the middle of the game (campfire, construction site, scaffolding, ruin): draw once along,
       // so that their shaders are compiled now and do not later stop the running game for seconds
       // (measured on a crowd: new shader "campfire" in the middle of the game, see docs/PERFORMANCE.md)
+      // (not for a taken-over WebGL renderer: its programs of these models exist already)
       const extras = new THREE.Group();
-      for (const make of [() => campfireModel(), () => scaffold(3, 3), () => constructionStage(0, 2.6, 2.6), () => constructionStage(1, 2.6, 2.6), () => constructionStage(2, 2.6, 2.6), () => ruinModel(3, 3, 'residence')]) {
+      if (!this.adopted) for (const make of [() => campfireModel(), () => scaffold(3, 3), () => constructionStage(0, 2.6, 2.6), () => constructionStage(1, 2.6, 2.6), () => constructionStage(2, 2.6, 2.6), () => ruinModel(3, 3, 'residence')]) {
         try { const g = make(); if (g) { patchFogTree(g); extras.add(g); } } catch { /* model missing: then later */ }
       }
       extras.position.copy(this.rig.target ?? new THREE.Vector3());
@@ -227,10 +269,13 @@ export class Renderer {
       this.scene.traverse((o) => { if (o.frustumCulled) { cull.push(o); o.frustumCulled = false; } });
       r.render(this.scene, this.camera);
       this.scene.remove(extras);
+      // Only the buffers: the materials keep their compiled programs for the models that appear later in the game
+      extras.traverse((o) => o.geometry?.dispose());
       for (const o of cull) o.frustumCulled = true;
       for (const o of hidden) o.visible = false;
       this.chars.prewarm(false);
-      r.setSize(Math.max(1, size.x), Math.max(1, size.y), false);
+      if (port) { r.setScissorTest(false); r.setViewport(port); }
+      else r.setSize(Math.max(1, size.x), Math.max(1, size.y), false);
     } catch { /* without GL context */ }
   }
 
@@ -270,6 +315,7 @@ export class Renderer {
     const old = new Set(this.scatter);
     // Decoration geometries and materials are created anew per build (scatterKinds) and are disposed with it
     for (const ci of this.scatter) for (const m of ci.meshes) { m.parent?.remove(m); m.geometry.dispose(); m.material.dispose(); m.dispose(); }
+    this.natureCache.scatter = null;
     this.chunked = this.chunked.filter((c) => !old.has(c));
     this.buildScatter();
     for (const id of this.padIds) {
@@ -303,6 +349,11 @@ export class Renderer {
     // Same size again (ResizeObserver, layout passes of the code panel): no new buffers, no projection update
     if (this.viewport && this.viewport.w === w && this.viewport.h === h) return;
     this.renderer.setSize(w, h, false);
+    this.applyViewport(w, h);
+  }
+
+  /** Projection and figure LOD for a canvas size (the drawing buffer itself is set by setSize). */
+  applyViewport(w, h) {
     this.camera.aspect = w / h;
     this.camera.fov = w < h ? 55 : 40;
     this.camera.updateProjectionMatrix();
@@ -333,7 +384,9 @@ export class Renderer {
   buildTrees() {
     const q = this.quality;
     const trees = [...this.sim.entities.values()].filter((e) => e.kind === 'tree');
-    const variants = treeLodVariants(q.treeDetail, this.natureUniforms);
+    const cache = this.natureCache;
+    if (cache.trees?.detail !== q.treeDetail) cache.trees = { detail: q.treeDetail, variants: treeLodVariants(q.treeDetail, this.natureUniforms) };
+    const variants = cache.trees.variants;
     const byKind = { leafy: [], birch: [], conifer: [] };
     variants.forEach((v, i) => byKind[v.kind].push(i));
     const byModel = {};
@@ -482,7 +535,7 @@ export class Renderer {
     const { map } = this.sim;
     const W = map.width, H = map.height;
     const t = this.terrain;
-    const kinds = scatterKinds(this.natureUniforms);
+    const kinds = this.natureCache.scatter ??= scatterKinds(this.natureUniforms);
     const dens = this.quality.scatter;
     const r = rng(this.sim.seed * 13 + 1);
     /** @type {Record<string, {x:number,z:number,s:number,rot:number,tile:number}[]>} */
@@ -826,17 +879,24 @@ export class Renderer {
    * @param {{ selected: Set<number>, ghost: null|{type:string,x:number,y:number,valid:boolean}, paused?: boolean, speed?: number }} view
    *   paused: world animations (figures, fire, water, wind, projectiles) freeze; camera, fog and markers keep running
    */
+  /**
+   * Build the static world and compile the shaders – once, at the first frame (or earlier: a stage restart calls it
+   * before the old renderer is disposed, so that the programs of the old world are reused).
+   */
+  startup() {
+    if (this.warmed) return;
+    this.warmed = true;
+    const t0 = performance.now();
+    this.buildWorld();
+    const t1 = performance.now();
+    this.prepareFigures();
+    const t2 = performance.now();
+    this.warmUp();
+    this.startupMs = { world: Math.round(t1 - t0), figures: Math.round(t2 - t1), warmUp: Math.round(performance.now() - t2) };
+  }
+
   frame(alpha, dt, prev, view) {
-    if (!this.warmed) {
-      this.warmed = true;
-      const t0 = performance.now();
-      this.buildWorld();
-      const t1 = performance.now();
-      this.prepareFigures();
-      const t2 = performance.now();
-      this.warmUp();
-      this.startupMs = { world: Math.round(t1 - t0), figures: Math.round(t2 - t1), warmUp: Math.round(performance.now() - t2) };
-    }
+    this.startup();
     const sim = this.sim;
     if (this.natureDirty) { this.natureDirty = false; this.rebuildNature(); }
     // animation time stands still while paused (the camera keeps using the real dt)

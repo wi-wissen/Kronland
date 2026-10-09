@@ -249,7 +249,7 @@ cavalry, cannons.
 - Each troop type has strengths and weaknesses: spears against cavalry, swords against spears, cannons against buildings.
   The exact damage table is in the [compendium](compendium/#units).
 
-![Troops selected: orders and the hero's abilities](site/hud-army.webp)
+![Troops selected: stance, troops and control group – the hero's abilities appear when he or she is selected alone](site/hud-army.webp)
 
 ![Selection card on the right: hero and captains with rank, troop strength and hit points](site/hud-selection.webp)
 
@@ -395,6 +395,8 @@ flattened and then worn down to an earth path; in snow every step leaves footpri
 them along; **Permanent** – nothing fades. The setting applies to the whole match and can be changed at any time. A
 level that needs tracks (such as a trail in the snow) decides the setting itself; the menu then says so.
 
+![Tracks on the ground: the same village in summer (earth paths in the grass) and in winter (footprints and trodden lanes in the snow)](site/paths.webp)
+
 **Sharing a map:** the game menu (pause) shows the map, e.g. “Map: 62921”, with **“Copy link”** below (on phones
 **“Share link”**). Whoever opens the link starts the same map with the same settings **from the beginning** – your
 current game is not included. For missions the link only names the mission; loaded saves have no link.
@@ -434,6 +436,8 @@ Open **Coding Adventures** in the start menu. The missions belong to the rows of
 Nelia's story onwards – I.2 is row I, mission 2, M the masterpiece at the end of a row:
 
 {{adventureList}}
+
+![Coding adventures in the start menu: the course missions grouped by rows, the selected mission's brief on the right](site/course.webp)
 
 Every course mission consists of stages on the same map: first run a finished program and watch what it does, then change it,
 then write your own. **Run** starts the current stage over – so you can try as often as you like.
@@ -482,7 +486,7 @@ everywhere. A program that counts fixed steps usually works in one world only �
 On a phone a key bar helps with indentation, colon, brackets and quotes. Your code is remembered in the browser –
 you can carry on at any time.
 
-![Coding adventure: the program stops at a breakpoint (green line), the variables below](site/programming.webp)
+![Code panel in mission I.4: the worlds with the result of “Check” at the top (✓ in the normal case, ✗ in the edge cases), below the program stopped at a breakpoint (green line) with the variables](site/programming.webp)
 
 ### World editor
 
