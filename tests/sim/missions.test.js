@@ -472,20 +472,20 @@ describe('Campaign', () => {
   it.each([3303, 7, 99, 31337])('mission 3 on map %i: valley behind the ridge – gate or frozen river, works on the island', (seed) => {
     const sim = createMissionSim('c3', { seed });
     const st = sim.mission.state, m = sim.map;
-    expect(st.warnings).toEqual([]);
+    expect(sim.mission.script.state.errors).toEqual([]);
     expect(sim.findBuilding(0, 'headquarters')).toBeNull();
     expect(sim.players[0].stock.gold).toBe(400);
     const start = sim.starts[0];
-    expect(sim.entities.get(st.refs.weatherworks)?.type).toBe('weatherPlant');
+    expect(sim.entities.get(ref(sim, 'works'))?.type).toBe('weatherPlant');
     expect(sim.map.frozen).toBe(true);
+    const [isle, valley, gate] = ['isle', 'valley', 'gate'].map((n) => ref(sim, n));
     // island: cut off in summer, over the ice in winter
-    expect(api.reachable(sim, start, st.refs.isle, false)).toBe(false);
-    expect(api.reachable(sim, start, st.refs.isle, true)).toBe(true);
+    expect(api.reachable(sim, start, isle, false)).toBe(false);
+    expect(api.reachable(sim, start, isle, true)).toBe(true);
     // the gate is a land route into the valley, the gorge only passable in winter
-    const valley = st.refs.valley;
     expect(api.reachable(sim, start, valley, false)).toBe(true);
     const gateTiles = [];
-    for (let y = st.refs.gate.y - 6; y <= st.refs.gate.y + 6; y++) for (let x = st.refs.gate.x - 6; x <= st.refs.gate.x + 6; x++) {
+    for (let y = gate.y - 6; y <= gate.y + 6; y++) for (let x = gate.x - 6; x <= gate.x + 6; x++) {
       if (!m.inBounds(x, y) || (m.flags[m.idx(x, y)] & 8)) continue;
       gateTiles.push(m.idx(x, y)); m.flags[m.idx(x, y)] |= 8;
     }
@@ -496,10 +496,10 @@ describe('Campaign', () => {
     for (const k of gateTiles) m.flags[k] &= ~8;
     m.version++;
     // posts at the gorge and camp at the gate stand in the valley, the ruins are reachable from there
-    expect(st.refs.fordGuards.length).toBe(2);
-    expect(st.refs.gateCampGuards.length).toBe(5);
-    expect(api.reachable(sim, valley, st.refs.ruinsArea, false)).toBe(true);
-    expect(api.reachable(sim, valley, st.refs.landing, false)).toBe(true);
+    expect(refIds(sim, 'ford_guards').length).toBe(2);
+    expect(st.camps.find((c) => c.name === 'gateCamp').guards.length).toBe(5);
+    expect(api.reachable(sim, valley, ref(sim, 'ruinsArea'), false)).toBe(true);
+    expect(api.reachable(sim, valley, ref(sim, 'landing'), false)).toBe(true);
     sim.run(300);
     expect(st.result).toBeNull();
   });
@@ -508,36 +508,36 @@ describe('Campaign', () => {
   const thawWith = (where) => {
     const sim = createMissionSim('c3');
     const st = sim.mission.state;
-    for (const ref of ['worksCampGuards', 'gateCampGuards', 'fordGuards', 'prisonGuards']) sim.mission.runAction(sim, { type: 'remove', ref });
-    // without reinforcements (here it is only about the thaw)
-    for (const id of ['alarm', 'cutOff']) st.fireCount[id] = 1;
-    sim.mission.runAction(sim, { type: 'remove', ref: 'weatherworks' });
+    // without guards and reinforcements (here it is only about the thaw)
+    const bandits = () => takeOut(sim, [...sim.entities.values()].filter((e) => e.kind === 'leader' && e.owner === st.bandits).map((e) => e.id));
+    bandits();
+    takeOut(sim, ref(sim, 'works'));
     sim.run(3);
     expect(objective(sim, 'escape').status).toBe('active');
-    for (const id of st.refs.heroes) {
+    for (const id of refIds(sim, 'heroes')) {
       const h = sim.entities.get(id);
       h.px = where.x * 1000 + 500; h.py = where.y * 1000 + 500; h.path = []; h.order = { type: 'hold' };
     }
-    until(sim, () => objective(sim, 'escape').status !== 'active' || st.result, 700);
+    until(sim, () => objective(sim, 'escape').status !== 'active' || st.result, 700, bandits);
     return sim;
   };
 
   it('mission 3: after the works it thaws after 60 s – on solid ground play continues', () => {
-    const sim = thawWith(createMissionSim('c3').mission.state.refs.landing);
+    const sim = thawWith(ref(createMissionSim('c3'), 'landing'));
     const st = sim.mission.state;
     expect(st.result).toBeNull();
     expect(objective(sim, 'escape').status).toBe('done');
     expect(sim.weather.state).toBe('summer');
     expect(sim.map.frozen).toBe(false);
     // blueprint still to fetch: then victory
-    const h = sim.entities.get(st.refs.nelia);
-    act(sim, { type: 'order', units: [h.id], order: 'move', x: st.refs.ruinsArea.x, y: st.refs.ruinsArea.y });
+    const h = heroOf(sim, 'nelia'), ruins = ref(sim, 'ruinsArea');
+    act(sim, { type: 'order', units: [h.id], order: 'move', x: ruins.x, y: ruins.y });
     until(sim, () => st.result, 1500);
     expect(st.result).toMatchObject({ won: true });
   });
 
   it('mission 3: whoever stands on the island or the ice during the thaw loses', () => {
-    const isle = createMissionSim('c3').mission.state.refs.isle;
+    const isle = ref(createMissionSim('c3'), 'isle');
     expect(thawWith({ x: isle.x, y: isle.y + 3 }).mission.state.result).toMatchObject({ won: false, reason: 'island' });
     expect(thawWith({ x: isle.x, y: isle.y + isle.r + 3 }).mission.state.result).toMatchObject({ won: false, reason: 'ice' });
   });
@@ -545,12 +545,13 @@ describe('Campaign', () => {
   it('mission 3: Orrin bribes a squad at the post (350–400 thalers), the squad then fights for us', () => {
     const sim = createMissionSim('c3');
     const st = sim.mission.state;
-    const orrin = sim.entities.get(st.refs.orrin);
-    const guard = sim.entities.get(st.refs.fordGuards[0]);
+    const orrin = heroOf(sim, 'orrin');
+    const ford = refIds(sim, 'ford_guards');
+    const guard = sim.entities.get(ford[0]);
     orrin.px = guard.px + 2000; orrin.py = guard.py; orrin.path = [];
     const ev = act(sim, { type: 'ability', hero: orrin.id, ability: 'bribe' });
     expect(ev.some((e) => e.type === 'bribed')).toBe(true);
-    const turned = [...sim.entities.values()].filter((e) => e.kind === 'leader' && e.owner === 0 && st.refs.fordGuards.includes(e.id));
+    const turned = [...sim.entities.values()].filter((e) => e.kind === 'leader' && e.owner === 0 && ford.includes(e.id));
     expect(turned.length).toBe(1);
     expect(sim.players[0].stock.gold).toBeLessThanOrEqual(50);
     sim.run(20);

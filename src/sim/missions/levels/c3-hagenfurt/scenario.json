@@ -1,0 +1,105 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "c3",
+  "kind": "campaign",
+  "end": "objectives",
+  "order": 3,
+  "next": "c4",
+  "title": {
+    "de": "Das Wetterwerk",
+    "en": "The Weatherworks"
+  },
+  "summary": {
+    "de": "Dring ohne Burg ins Tal hinter dem Bergkamm ein, zerstöre das Wetterwerk und rette dich vor dem Tauwetter.",
+    "en": "Enter the valley beyond the ridge without a castle, destroy the weatherworks and escape the thaw."
+  },
+  "briefing": {
+    "de": "Hinter Hagenfurt schließt ein Bergkamm ein Tal ab. Dort liegen die Ruinen aus Hrimgars Zeit. Hrimgar war der Kriegsherr, der vor Jahrhunderten mit endlosem Winter das Land aushungerte. Sein Wetterwerk auf der Insel im See läuft wieder. Ins Tal führen zwei Wege: das Tor, das Malvors Leute bewachen, und der zugefrorene Fluss durch die Schlucht. Nelia, Orrin und eine Handvoll Freiwilliger haben keine Burg und keinen Nachschub – nur 400 Taler in Orrins Börse.",
+    "en": "Beyond Hagenfurt, a mountain ridge closes off a valley. The ruins from Hrimgar’s time lie there. Hrimgar was the warlord who starved the land with endless winter centuries ago. His weatherworks on the island in the lake is running again. Two ways lead into the valley: the gate guarded by Malvor’s men, and the frozen river through the gorge. Nelia, Orrin and a handful of volunteers have no castle and no supplies – only 400 thalers in Orrin’s purse."
+  },
+  "victoryText": {
+    "de": "Das Wetterwerk ist zerstört. Über den Bergen reißt der Himmel auf.",
+    "en": "The weatherworks is destroyed. Above the mountains, the sky breaks open."
+  },
+  "debrief": {
+    "de": "Zum ersten Mal seit Jahren tropft es von den Dächern. Der Frühling kommt. In Nelias Tasche knistern die Bruchstücke von Hrimgars Bauplänen. Ein gefangener Wächter verrät noch etwas: Malvor trägt selbst eine Zacke, an einer Kette um den Hals. In Hagenfurt erfährt Malvor, wer ihm den Winter genommen hat.",
+    "en": "For the first time in years, water drips from the roofs. Spring is coming. In Nelia’s bag rustle the fragments of Hrimgar’s plans. A captured guard gives away one more thing: Malvor wears a shard himself, on a chain around his neck. In Hagenfurt, Malvor learns who took his winter."
+  },
+  "defeatText": {
+    "de": "Die Gruppe ist gescheitert.",
+    "en": "The group has failed."
+  },
+  "defeatTexts": {
+    "heroes": {
+      "de": "Nelia und Orrin sind gefallen. Der Winter bleibt.",
+      "en": "Nelia and Orrin have fallen. The winter stays."
+    },
+    "ice": {
+      "de": "Das Eis ist gebrochen – mitten auf dem See. Der Winter hat sich gerächt.",
+      "en": "The ice broke – in the middle of the lake. The winter took its revenge."
+    },
+    "island": {
+      "de": "Das Eis ist geschmolzen. Auf der Insel sitzen Nelia und Orrin fest, bis Malvors Leute kommen.",
+      "en": "The ice has melted. Nelia and Orrin are stranded on the island until Malvor’s men arrive."
+    }
+  },
+  "world": {
+    "base": "generate",
+    "seed": 3303,
+    "size": 96,
+    "fog": true
+  },
+  "weatherCycle": [
+    [
+      "winter",
+      36000
+    ]
+  ],
+  "players": [
+    {
+      "kind": "human",
+      "heroes": [
+        "nelia",
+        "orrin"
+      ],
+      "hq": false,
+      "stock": {
+        "gold": 400,
+        "clay": 0,
+        "wood": 0,
+        "stone": 0,
+        "iron": 0,
+        "sulfur": 0
+      }
+    },
+    {
+      "kind": "bandits",
+      "look": "soldiers"
+    }
+  ],
+  "sections": [
+    {
+      "id": "world",
+      "title": {
+        "de": "Das Tal hinter dem Kamm",
+        "en": "The valley beyond the ridge"
+      },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": {
+        "de": "Ablauf",
+        "en": "Story"
+      },
+      "level": "mission",
+      "visibility": "open",
+      "editable": false,
+      "file": "mission.py"
+    }
+  ]
+}

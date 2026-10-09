@@ -299,13 +299,14 @@ export const STRATEGIES = {
  */
 function scriptWeatherworks(bot) {
   const { sim, m } = bot;
-  const st = m.state, refs = st.refs;
+  const st = m.state;
+  const refs = Object.fromEntries(['isle', 'gorgeNear', 'gorgeFar', 'landing', 'ruinsArea'].map((k) => [k, ref(sim, k)]));
   bot.useHero = false;
   bot.heroMicro = true;
   const heroes = bot.heroes.filter((h) => !h.down);
   const troops = bot.leaders.map((L) => L.id);
   const all = [...troops, ...heroes.map((h) => h.id)];
-  const ww = sim.entities.get(refs.weatherworks);
+  const ww = entityRef(sim, 'works');
   const isle = refs.isle;
   const orrin = bot.heroNamed('orrin'), nelia = bot.heroNamed('nelia');
   const near = (e, p, r) => d2(tile(e), p) < r * r;
@@ -317,7 +318,7 @@ function scriptWeatherworks(bot) {
     if (there * 4 >= all.length * 3) bot.c3 = 'ford';
   } else if (bot.c3 === 'ford') {
     // post: Orrin bribes the nearest squad, the others clear the rest
-    const guards = m.idsOf('fordGuards').map((id) => sim.entities.get(id)).filter((e) => e && e.owner === st.bandits);
+    const guards = refIds(sim, 'ford_guards').map((id) => sim.entities.get(id)).filter((e) => e && e.owner === st.bandits);
     if (orrin && !orrin.down && guards.some((g) => near(g, tile(orrin), 4.5)) && (orrin.ready.bribe ?? 0) <= sim.tick && bot.avail('gold') >= 350) {
       bot.cmd({ type: 'ability', hero: orrin.id, ability: 'bribe' });
     }
