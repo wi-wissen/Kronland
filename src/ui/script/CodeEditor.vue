@@ -324,6 +324,32 @@ export default {
       this.$emit('update:modelValue', ta.value);
     },
 
+    /** Current selection { start, end } (also while the editor has no focus), or null. */
+    selection() {
+      const ta = this.$refs.ta;
+      return ta ? { start: ta.selectionStart, end: ta.selectionEnd } : null;
+    },
+
+    /**
+     * Replace code[from, to) by text and select [a, b] afterwards (world editor: code from the map, building blocks).
+     * With focus the browser's undo keeps the change; without (phones: no keyboard popping up) it is set directly.
+     */
+    replace(from, to, text, select, focus = true) {
+      const ta = this.$refs.ta;
+      if (this.readonly || !ta) return false;
+      const expected = ta.value.slice(0, from) + text + ta.value.slice(to);
+      if (focus) ta.focus({ preventScroll: true });
+      ta.selectionStart = from;
+      ta.selectionEnd = to;
+      const ok = focus && document.execCommand?.('insertText', false, text);
+      if (!ok || ta.value !== expected) ta.value = expected;
+      ta.selectionStart = select[0];
+      ta.selectionEnd = select[1];
+      this.$emit('update:modelValue', ta.value);
+      this.$nextTick(() => this.reveal(ta.value.slice(0, select[0]).split('\n').length));
+      return true;
+    },
+
     /** Move the selected lines one up (-1) or down (+1): Alt+↑/↓ and the key bar (undo is preserved). */
     moveLines(dir) {
       const ta = this.$refs.ta;
