@@ -522,7 +522,7 @@ Programm muss allgemein sein, damit es in allen Welten klappt – und die Lehrkr
   eine Eingabe des Spielers wie sein Code. Sterne gibt es (noch) nicht.
 
 Test: `tests/sim/worlds.test.js` (Format, Determinismus je Welt, Speichern, Prüfen), `tests/levels/blizzard.test.js`,
-`e2e/worlds.spec.js`.
+`tests/levels/courseWorlds.test.js` (Welten aller Kursmissionen), `e2e/worlds.spec.js`.
 
 ## Zettel
 
@@ -576,14 +576,14 @@ usw.; `order` = 10 × Reihe + Nummer (Meisterstück 9) reiht sie, die Registry v
 Mission wie in der Kampagne. `courseNumber(id)` (`levels/index.js`) liefert die Nummer („I.2“, „I.M“); das Menü
 ordnet nach Reihen („Reihe I · Spuren im Schnee“), Website und Handbuch nennen die Nummer vor dem Titel.
 
-| Nr. | ID | Titel | Lernziel | Etappen (Unterziele) |
-|---|---|---|---|---|
-| I.2 | `r1-2` | Taler für die Mägde | Zählschleife `for … in range()` | `predict` wie viele Taler (`guess`), `path` 18 Kacheln, jede zweite mit Taler (9 im Beutel), `slope` Zickzack den Hang hinauf, `fire` Rechteck um den Holzstoß |
-| I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen, Vorhersagen | `predict`, `coin`, `hut` (siehe unten) |
-| I.5 | `r1-5` | Holz für die erste Nacht | Variablen | `predict` was sagt Nelia (`guess`), `roses` zweite Variable `flowers`, `brook` Schritte bis zum Eis zählen und zurück (`steps`), `six` genau 6 Taler (`while count < 6`) |
-| I.M | `r1-m` | Heimweg durchs Unterholz | Meisterstück I: `while`, `if/elif/else`, Sensoren | `edge` geradeaus, sonst rechts; `thicket` Rechte-Hand-Regel mit `nelia.right()`; `home` dasselbe Programm in anders gewachsenem Unterholz |
-| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()`, `hedge` Funktion links herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` |
-| III.M | `r3-m` | Lindgrund steht wieder | Meisterstück III: Listen, Funktionen, `wait_until` | `center`, `homes`, `farms` nebeneinander; Holz und Lehm aus Haufen, `reset: false` |
+| Nr. | ID | Titel | Lernziel | Etappen (Unterziele) | Welten |
+|---|---|---|---|---|---|
+| I.2 | `r1-2` | Taler für die Mägde | Zählschleife `for … in range()` | `predict` wie viele Taler (`guess`), `path` 18 Kacheln, jede zweite mit Taler (9 im Beutel), `slope` Zickzack den Hang hinauf, `fire` Rechteck um den Holzstoß | 3, alle Etappen je Welt |
+| I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen, Vorhersagen | `predict`, `coin`, `hut` (siehe unten) | 3, `coin` und `hut` in allen |
+| I.5 | `r1-5` | Holz für die erste Nacht | Variablen | `predict` was sagt Nelia (`guess`), `roses` zweite Variable `flowers`, `brook` Schritte bis zum Eis zählen und zurück (`steps`), `six` genau 6 Taler (`while count < 6`) | 3, `roses`, `brook`, `six` in allen |
+| I.M | `r1-m` | Heimweg durchs Unterholz | Meisterstück I: `while`, `if/elif/else`, Sensoren | `edge` geradeaus, sonst rechts; `thicket` Rechte-Hand-Regel mit `nelia.right()`; `home` dasselbe Programm in anders gewachsenem Unterholz | 3, alle Etappen in allen |
+| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()`, `hedge` Funktion links herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` | 3, `coins` in allen |
+| III.M | `r3-m` | Lindgrund steht wieder | Meisterstück III: Listen, Funktionen, `wait_until` | `center`, `homes`, `farms` nebeneinander; Holz und Lehm aus Haufen, `reset: false` | 1 |
 
 Gemeinsames Muster (Vorbild `r1-4`): Die Karte hat einen Abschnitt je Etappe, getrennt durch Felsbänder; die Mission
 bringt Nelia mit `program.stop()`, `teleport`, `turn_to("east")` und `camera.fly_to` in den nächsten Abschnitt. Eine
@@ -614,6 +614,27 @@ Hütte), **Alles weit weg** (14 Schritte, Taler kurz vor dem Wald, lange Spur mi
 
 Etappe 1 gilt in der gespielten Welt (die Vorhersage ist je Welt eine andere Zahl), Etappen 2 und 3 erst nach
 bestandenem „Prüfen“ in allen drei Welten.
+
+**Welten der übrigen Kursmissionen** – wie I.4 je Mission **Normalfall**, **Alles ganz nah** (`near`) und **Alles
+weit weg** (`far`), der Weltcode verzweigt mit `world.id` (Tabellen am Anfang von `world.py`). Vorhersagen gelten je
+Welt; bricht der Zettel an einem Randfall ab (Baum im Weg, leerer Beutel), zählt, was bis dahin geschah – „Prüfen“
+wartet deshalb auch nach einem Fehler kurz, ob die Mission die Etappe noch gelten lässt. Tests:
+`tests/levels/courseWorlds.test.js` (Musterlösungen bestehen alle Welten, fest abgezählte Programme scheitern an
+einem genannten Randfall).
+
+| Mission | Normalfall | Alles ganz nah | Alles weit weg | Fest abgezählt scheitert an |
+|---|---|---|---|---|
+| I.2 | Zettel 5 Taler; Weg 18 Kacheln/9 Taler; Hang 5 Stufen; Rechteck 8 Taler | Baum nach 2 Talern; Weg 6/3; Hang 2 Stufen; Rechteck 8 | nur 3 Taler im Beutel; Weg 20/10; Hang 6 Stufen; Holzstoß 2×2, Rechteck 12 (Seiten aus 3) | eine Zählschleife kennt nur ihre Zahl: `range(9)` läuft „ganz nah“ in die Bäume, endet „weit weg“ zu früh |
+| I.5 | Reihe 7 Taler; 10 Gegenstände bis zum Baum; Bach nach 9 Schritten; 10 Taler | 1 Taler; Baum direkt vor Nelia (leere Reihe, 0/0); Eis direkt vor ihr (0 Schritte); genau 6 Taler | 12 Taler; 16 Gegenstände, erste und letzte eine Christrose; 17 Schritte; 18 Taler | `for i in range(10)` (Fehler am Baum), eingetragene Zahlen `count = 7`, `steps = 9`; ganze Reihe nehmen klappt nur bei genau 6 |
+| I.M | drei Unterholz-Pläne wie bisher | Baum direkt vor Nelia, kurze Wege; im letzten Abschnitt liegt der Ausgang gleich hinter ihr, erst eine Sackgasse | lange Spirale, zwei Irrgärten mit vielen Sackgassen (Ausgang am anderen Ende) | ausgeschriebener Weg (Fehler in Zeile 1), „sonst rechts drehen“ in `thicket`/`home` (läuft zu lange) |
+| II.1 | Umweg 3× frei (6 Kacheln); Taler beidseitig bis Waldrand 20 | Baum versperrt den ersten Umweg (1 Kachel); Waldrand bei 9, Taler gleich beim ersten Schritt auf beiden Seiten und am letzten Feld | Baum versperrt den dritten Umweg (5); Waldrand bei 22, Taler fast nur rechts, zwei am letzten Feld | ausgeschriebener Gang (Waldrand, `take()` ins Leere), „erst schauen, dann gehen“ verpasst das letzte Feld |
+
+Die Hecke von II.1 steht in allen Welten gleich (Ändern einer Funktion, kein Randfall). I.2 hat bewusst kein
+`all_worlds`: Eine Zählschleife ohne Sensoren kann nicht allgemein sein – der Umschalter zeigt, dass sich je Welt nur
+die Zahl in `range()` ändert, und „Prüfen“ zeigt, dass sie nur in ihre Welt passt (Brücke zu `while` in I.4).
+**III.M** bleibt bei einer Welt: Die Bauaufgabe läuft ohne Neustart (`reset: false`) über viele Spielminuten, weit
+über die Prüfgrenze von 6000 Takten, und der Weltcode sucht ohnehin alles von der Burg aus (`find_open`) statt mit
+festen Koordinaten – eine zweite Welt prüfte nichts, was die Mission nicht schon verlangt.
 
 Der Code der Spieler wird pro Mission im Browser gemerkt (`kronland-code-<id>`).
 

@@ -390,9 +390,10 @@ aber nicht an (in einer Aufgabe „Finde den Fehler“ kann der Code ja Absicht 
 ### Aus den Kursmissionen {#ex-adventures}
 
 Musterlösungen einzelner Etappen – probiere es aber erst selbst! Jede Lösung wird in einem automatischen Test in
-ihrer Etappe gespielt und muss sie schaffen.
+ihrer Etappe gespielt und muss sie schaffen, die Lösungen ab I.5 in allen Welten der Mission („Prüfen“).
 
-I.2 „Taler für die Mägde“, Etappe „Hang“: eine Schleife mit mehreren Befehlen.
+I.2 „Taler für die Mägde“, Etappe „Hang“: eine Schleife mit mehreren Befehlen – im Normalfall; in den anderen Welten
+ist der Hang anders hoch, dort ändert sich nur die Zahl in `range()`.
 
 {{ex_zigzag}}
 

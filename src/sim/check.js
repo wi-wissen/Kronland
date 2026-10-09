@@ -11,7 +11,7 @@ import { createDefSim } from './missions/runtime.js';
 export const CHECK_SETUP_TICKS = 1200;
 /** Ticks the program may run per world (10 game minutes) – a loop that never ends is "too long", not a hang. */
 export const CHECK_RUN_TICKS = 6000;
-/** Ticks after the end of the program in which the mission may still count the stage as solved. */
+/** Ticks after the end of the program (also by an error) in which the mission may still count the stage as solved. */
 const GRACE_TICKS = 20;
 
 /**
@@ -65,10 +65,10 @@ export class WorldCheck {
         const objs = this.goals.map((id) => st.objectives.find((o) => o.id === id));
         if (objs.length && objs.every((o) => o?.status === 'done')) return this.finish('solved');
         if (objs.some((o) => o?.status === 'failed')) return this.finish('failed');
-        if (p.status === 'error') return this.finish('error', { error: p.error ?? null });
-        if (p.status === 'done' || p.status === 'stopped' || p.status === 'idle') {
+        // A program that ended – also with an error: a prediction may count a note that breaks off at a tree
+        if (p.status === 'error' || p.status === 'done' || p.status === 'stopped' || p.status === 'idle') {
           if (this.ended < 0) this.ended = this.ticks;
-          else if (this.ticks - this.ended >= GRACE_TICKS) return this.finish('failed');
+          else if (this.ticks - this.ended >= GRACE_TICKS) return p.status === 'error' ? this.finish('error', { error: p.error ?? null }) : this.finish('failed');
         } else this.ended = -1;
         if (this.ticks - this.since >= this.runTicks) return this.finish('timeout');
       }
