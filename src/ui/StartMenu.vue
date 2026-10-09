@@ -46,7 +46,7 @@
           <span class="sm-eyebrow">{{ $t('home.continue') }}</span>
           <h2 class="sm-hero-title" data-testid="continue-name">{{ heroInfo.title }}</h2>
           <p v-if="heroInfo.subtitle" class="sm-hero-sub">{{ heroInfo.subtitle }}</p>
-          <p class="sm-hero-meta num">{{ $t('home.savedAgo', { when: whenText(latest.savedAt) }) }} · {{ $t('sv.time', { t: playTime(latest.tick) }) }}</p>
+          <p class="sm-hero-meta num">{{ $t(latest.auto ? 'home.autoSavedAgo' : 'home.savedAgo', { when: whenText(latest.savedAt) }) }} · {{ $t('sv.time', { t: playTime(latest.tick) }) }}</p>
           <div class="sm-hero-acts">
             <button class="primary sm-continue" data-testid="continue" :disabled="busy" @click="continueLatest">{{ $t('home.continueBtn') }}</button>
             <button class="ghost sm-allsaves" data-testid="menu-saves" @click="savesOpen = true">{{ $t('home.allSaves', { n: saves.length }) }}</button>

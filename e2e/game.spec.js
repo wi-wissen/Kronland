@@ -111,7 +111,7 @@ test('Start menu: start a new game, save and load again', async ({ page }) => {
   await expect(page.getByTestId('game-menu')).toBeHidden();
   await page.evaluate(() => { window.__kronland.sim.players[0].stock.gold = 1; });
   await page.getByTestId('menu').click();
-  await page.getByRole('button', { name: 'Spiel laden' }).click();
+  await page.getByTestId('load').click();
   await page.getByTestId('save-load').click();
   await page.getByTestId('confirm-ok').click();
   await page.waitForFunction(() => window.__kronland?.sim.players[0].stock.gold === 777);

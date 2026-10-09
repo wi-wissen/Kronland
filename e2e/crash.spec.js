@@ -88,7 +88,7 @@ test('persistent simulation error: dialog, load autosave, after reload "Weitersp
   await page.getByTestId('crash-reload').click();
   await expect(page.getByTestId('start-menu')).toBeVisible({ timeout: 120_000 });
   await expect(page.getByTestId('recovered-hint')).toContainText('Weiterspielen');
-  await expect(page.getByTestId('continue-name')).toContainText('Autosave');
+  await expect(page.getByTestId('continue-card')).toContainText('Automatisch gespeichert');
   await page.screenshot({ path: `${DIR}/start-menu-${info.project.name}.png` });
   await page.getByTestId('continue').click();
   await page.waitForFunction(() => !!window.__kronland && window.__kronland.sim.tick >= 300, null, { timeout: 300_000 });

@@ -50,6 +50,18 @@ describe('contract fixtures', () => {
     expect(fixJson('packs-me.json').packs.some((p) => p.own)).toBe(true);
   });
 
+  it('library fields: the fixtures carry kind, difficulty, minutes and added; bad values are rejected', () => {
+    const [a] = fixJson('catalog-server.json').packs;
+    expect(a).toMatchObject({ kind: 'code', difficulty: 'normal', minutes: 90 });
+    expect(a.added).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const bad = (extra) => validate(schemaOf('catalog'), { ...fixJson('catalog-server.json'), packs: [{ ...a, ...extra }] });
+    expect(bad({})).toEqual([]);
+    for (const x of [{ kind: 'maps' }, { difficulty: 'brutal' }, { minutes: 0 }, { minutes: 1.5 }, { added: 'tomorrow' }]) expect(bad(x), JSON.stringify(x)).not.toEqual([]);
+    const pack = fixJson('pack-adventures-2/pack.json');
+    expect(validate(schemaOf('pack'), { ...pack, difficulty: 'hard' })).toEqual([]);
+    expect(validate(schemaOf('pack'), { ...pack, difficulty: 'x' })).not.toEqual([]);
+  });
+
   it('example pack: manifest valid, every file is named after its SHA-256', async () => {
     const { createHash } = await import('node:crypto');
     const pack = fixJson('pack-adventures-2/pack.json');
