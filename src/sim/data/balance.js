@@ -37,10 +37,32 @@ export const BALANCE = {
   ground: {
     coinValue: 1,            // thalers per coin picked up / put down (A)
     itemTicks: 5,            // take()/put() take 0.5 s (A)
+    // Tracks (docs/SPIELREGELN.md §14, all A): one byte strength per tile (0…max). A figure leaving a tile adds
+    // gain·(max − s)/max there (rounded up, at least 1): quick at first, then less and less – only frequent traffic
+    // reaches a path. A broom visits every tile once per sweepSeconds and takes `decay` away (`pathDecay` from the
+    // path threshold on: bare earth needs longer to grow over than flattened grass). Steady state for a tile passed
+    // every I seconds: s ≈ max·(1 − decay·I / (gain·sweepSeconds)). Summer: path for I ≲ 27 s (once a path, it
+    // stays one up to I ≈ 40 s), trodden up to I ≈ 43 s, nothing visible from I ≈ 52 s. Snow: lane for I ≲ 42 s,
+    // footprints up to I ≈ 90 s. Measured (scripts: AI settlement, 96×96, 20 min summer): paths only in the alleys
+    // between buildings and on the main routes, about 8 % of the walkable tiles.
     tracks: {
-      max: 48,               // strongest track (bytes per tile, A)
-      fadeSeconds: 30,       // each tile loses one level in this time (A)
-      threshold: { summer: 8, rain: 8, winter: 1 }, // strength from which a tile counts as "track": in snow every step (A)
+      max: 255,              // strongest track (one byte per tile)
+      sweepSeconds: 10,      // the broom visits every tile once in this time (cost per tick: tiles / 100)
+      // Ground under the feet: gain = first pass; faint = barely visible; trodden = counts as "track" (sensor,
+      // clearly visible); path = bare earth path (summer) or trodden lane (snow); full = finished in the picture
+      grass: { gain: 16, faint: 8, trodden: 48, path: 128, full: 208 },
+      snow: { gain: 48, faint: 16, trodden: 16, path: 144, full: 224 },
+      // Per weather: ground and decay per broom visit (below / from the path threshold on). Rain like summer:
+      // grass does not grow back faster, wet paths stay paths. Snowfall covers tracks faster than grass recovers.
+      weather: {
+        summer: { ground: 'grass', decay: 3, pathDecay: 2 },
+        rain: { ground: 'grass', decay: 3, pathDecay: 2 },
+        winter: { ground: 'snow', decay: 5, pathDecay: 5 },
+      },
+      // Game option "tracks" (settings, command setTracks, a level may fix it): off = no tracks from figures,
+      // fading = the model above, permanent = no fading at all (also no covering by snow or thaw)
+      modes: ['off', 'fading', 'permanent'],
+      defaultMode: 'fading',
     },
   },
 };

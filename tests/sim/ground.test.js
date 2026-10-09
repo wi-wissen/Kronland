@@ -123,25 +123,26 @@ describe('Items on tiles', () => {
 
 describe('Tracks', () => {
   it('a figure leaving a tile leaves a track there, the broom fades it again', () => {
-    const sim = createScenarioSim(scenario('', { world: { tracks: { threshold: 1, fade: 0 } } }));
+    const sim = createScenarioSim(scenario('', { world: { tracks: { threshold: 1 } } }));
     expect(trackThreshold(sim)).toBe(1);
     runCode(sim, 'print(nelia.here())\nnelia.step()\nprint(nelia.here())\nnelia.turn_left()\nnelia.turn_left()\nprint(nelia.front())\n');
     run(sim, 30);
     expect(consoleText(sim)).toBe('free\nfree\ntrack');
     const k = sim.map.idx(4, 8);
-    expect(sim.map.tracks[k]).toBe(1);
-    // fade 2 s: the broom passes every tile once in 20 ticks
-    sim.mission.def.tracks.fade = 2;
-    run(sim, 21);
+    // one pass on grass: the gain of the ground (the broom reaches this tile only at tick 49 of its round)
+    expect(sim.map.tracks[k]).toBe(BALANCE.ground.tracks.grass.gain);
+    // the broom passes every tile once in 10 s and takes 3 levels in summer: gone after a minute
+    run(sim, 600);
     expect(sim.map.tracks[k]).toBe(0);
   });
 
-  it('threshold per weather: footprints in the snow, trodden paths otherwise', () => {
-    const sim = createScenarioSim(scenario('world.set_track(6, 8, 3)\n'));
-    expect(trackThreshold(sim)).toBe(BALANCE.ground.tracks.threshold.summer);
+  it('threshold per weather: the trodden level of grass, every footprint in the snow', () => {
+    const T = BALANCE.ground.tracks;
+    const sim = createScenarioSim(scenario('world.set_track(6, 8, 20)\n', { world: { tracks: { mode: 'permanent' } } }));
+    expect(trackThreshold(sim)).toBe(T.grass.trodden);
     expect(tileKind(sim, 6, 8)).toBe('free');
     sim.setWeather('winter', 100);
-    expect(trackThreshold(sim)).toBe(1);
+    expect(trackThreshold(sim)).toBe(T.snow.trodden);
     expect(tileKind(sim, 6, 8)).toBe('track');
   });
 

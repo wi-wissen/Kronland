@@ -4,9 +4,11 @@
 // - tileKind(sim, x, y): one word per tile with a fixed precedence – edge, cliff, tree/pile/ruin/building,
 //   water, coin/flower, ice, track, free. A finished bridge is ground, not water.
 // - Items: TileMap.items (tile index → kind), at most one per tile, only on walkable ground. occupy() removes them.
-// - Tracks: TileMap.tracks (one byte strength per tile). A figure leaving a tile adds 1 there (updateTracks, one
-//   loop over all figures). A broom sweeps the map and takes 1 away; its position follows from the tick, so there
-//   is no list and nothing to save beyond the bytes. A tile counts as "track" from a threshold per weather.
+// - Tracks: TileMap.tracks (one byte strength per tile, BALANCE.ground.tracks). A figure leaving a tile adds a gain
+//   there that shrinks with the strength (updateTracks, one loop over all figures). A broom sweeps the map and takes
+//   a decay per weather away; its position follows from the tick, so there is no list and nothing to save beyond the
+//   bytes. A tile counts as "track" from the "trodden" threshold of the ground (snow: every step). Game option
+//   sim.trackMode: off / fading / permanent (setTrackMode, command setTracks; a level may fix it).
 
 import { CLIFF, OCCUPIED, WATER, BRIDGE } from '../map.js';
 import { BALANCE } from '../data/balance.js';
@@ -46,21 +48,44 @@ export function tileToward(e, rel = 0) {
   return { x: t.x + d[0], y: t.y + d[1] };
 }
 
-/** Track settings of the scenario (world.tracks: threshold, fade, who) or null. */
+/** Track settings of the scenario (world.tracks: mode, threshold, who) or null. */
 const trackConfig = (sim) => sim.mission?.def?.tracks ?? null;
 
-/** From which strength a tile counts as "track" (scenario override, otherwise per weather). */
-export function trackThreshold(sim) {
-  const c = trackConfig(sim);
-  if (c && Number.isInteger(c.threshold)) return Math.max(1, c.threshold);
-  return G.tracks.threshold[sim.weather?.state] ?? G.tracks.threshold.summer;
+/** Modes of the game option "tracks". */
+export const TRACK_MODES = G.tracks.modes;
+
+/**
+ * Mode a level fixes (world.tracks.mode; the older `fade: 0` means "permanent") or null = the player's setting.
+ * @param {any} cfg world.tracks of the level
+ * @returns {'off'|'fading'|'permanent'|null}
+ */
+export function levelTrackMode(cfg) {
+  if (!cfg) return null;
+  if (TRACK_MODES.includes(cfg.mode)) return cfg.mode;
+  return cfg.fade === 0 ? 'permanent' : null;
 }
 
-/** Ticks until a tile loses one level of track strength (0 = never). */
-export function trackFadeTicks(sim) {
+/** Weather row of the track model (ground, decay). */
+export const trackWeather = (sim) => G.tracks.weather[sim.weather?.state] ?? G.tracks.weather.summer;
+
+/** Ground row of the track model (gain, thresholds) for the current weather: grass or snow. */
+export const trackGround = (sim) => G.tracks[trackWeather(sim).ground];
+
+/** From which strength a tile counts as "track": the "trodden" level of the ground (scenario may override). */
+export function trackThreshold(sim) {
   const c = trackConfig(sim);
-  if (c && typeof c.fade === 'number' && Number.isFinite(c.fade)) return Math.max(0, Math.round(c.fade * TICKS_PER_SECOND));
-  return G.tracks.fadeSeconds * TICKS_PER_SECOND;
+  if (c && Number.isInteger(c.threshold)) return Math.max(1, Math.min(G.tracks.max, c.threshold));
+  return trackGround(sim).trodden;
+}
+
+/**
+ * Gain of one pass on a tile of strength s: gain·(max − s)/max rounded up, at least 1 (below max).
+ * @param {{gain:number}} ground @param {number} s
+ */
+export function trackGain(ground, s) {
+  const max = G.tracks.max;
+  if (s >= max) return 0;
+  return Math.max(1, idiv(ground.gain * (max - s) + max - 1, max));
 }
 
 /**
@@ -180,31 +205,63 @@ export function setTrack(map, x, y, strength) {
   map.groundVersion++;
 }
 
+/** Remove every track (mode "off", fresh snow, thaw). */
+export function clearTracks(map) {
+  map.tracks.fill(0);
+  map.groundVersion++;
+}
+
 /**
- * Once per tick: figures that left their tile add one level of track there (only steps to a neighbouring tile –
- * teleports and returns to the castle leave nothing), and the broom fades a stretch of the map by one level.
- * e.tk is the last tile of a figure (saved with the entity).
+ * Switch the game option "tracks" (command setTracks, game start). "off" removes all tracks at once.
+ * @returns {boolean} changed
+ */
+export function setTrackMode(sim, mode) {
+  if (!TRACK_MODES.includes(mode) || sim.trackMode === mode) return false;
+  sim.trackMode = mode;
+  if (mode === 'off') clearTracks(sim.map);
+  sim.events.push({ type: 'trackMode', mode });
+  return true;
+}
+
+/**
+ * Weather change: snow falls on grass or melts away – the tracks belong to the old surface and are gone
+ * (except in mode "permanent"). Summer and rain share the ground and keep them.
+ */
+export function weatherTracks(sim, from, to) {
+  if (sim.trackMode === 'permanent') return;
+  const W = G.tracks.weather;
+  if ((W[from] ?? W.summer).ground !== (W[to] ?? W.summer).ground) clearTracks(sim.map);
+}
+
+/**
+ * Once per tick: figures that left their tile add a gain there (only steps to a neighbouring tile – teleports and
+ * returns to the castle leave nothing), and the broom fades a stretch of the map (mode "fading").
+ * e.tk is the last tile of a figure (saved with the entity). Cost: one loop over the figures plus tiles/period.
  */
 export function updateTracks(sim) {
-  const m = sim.map, W = m.width, tr = m.tracks, max = G.tracks.max;
+  const m = sim.map, W = m.width, tr = m.tracks, T = G.tracks, max = T.max;
+  const mode = sim.trackMode ?? T.defaultMode;
   const who = trackConfig(sim)?.who ?? 'all';
-  if (who !== 'none') {
-    const heroesOnly = who === 'heroes';
-    for (const e of sim.entities.values()) {
-      if (e.px === undefined || !TRACKERS.has(e.kind) || e.inside) continue;
-      if (heroesOnly && e.kind !== 'hero') continue;
-      const x = toTile(e.px), y = toTile(e.py), k = y * W + x, o = e.tk;
-      if (o === k) continue;
-      e.tk = k;
-      if (o === undefined) continue;
-      const ox = o % W, oy = (o - ox) / W;
-      if (ox - x > 1 || x - ox > 1 || oy - y > 1 || y - oy > 1) continue;
-      if (tr[o] < max) tr[o]++;
-    }
+  const weather = trackWeather(sim), ground = T[weather.ground];
+  const build = mode !== 'off' && who !== 'none';
+  const heroesOnly = who === 'heroes';
+  for (const e of sim.entities.values()) {
+    if (e.px === undefined || !TRACKERS.has(e.kind) || e.inside) continue;
+    const x = toTile(e.px), y = toTile(e.py), k = y * W + x, o = e.tk;
+    if (o === k) continue;
+    e.tk = k;
+    if (o === undefined || !build || (heroesOnly && e.kind !== 'hero')) continue;
+    const ox = o % W, oy = (o - ox) / W;
+    if (ox - x > 1 || x - ox > 1 || oy - y > 1 || y - oy > 1) continue;
+    const s = tr[o];
+    if (s < max) tr[o] = Math.min(max, s + trackGain(ground, s));
   }
-  const fade = trackFadeTicks(sim);
-  if (fade > 0) {
-    const n = tr.length, chunk = idiv(n + fade - 1, fade), start = (sim.tick % fade) * chunk;
-    for (let k = start, end = Math.min(n, start + chunk); k < end; k++) if (tr[k]) tr[k]--;
+  if (mode !== 'fading') return;
+  const period = T.sweepSeconds * TICKS_PER_SECOND;
+  const n = tr.length, chunk = idiv(n + period - 1, period), start = (sim.tick % period) * chunk;
+  const path = ground.path, d = weather.decay, pd = weather.pathDecay;
+  for (let k = start, end = Math.min(n, start + chunk); k < end; k++) {
+    const s = tr[k];
+    if (s) { const t = s - (s >= path ? pd : d); tr[k] = t > 0 ? t : 0; }
   }
 }

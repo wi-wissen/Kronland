@@ -708,7 +708,7 @@ export function missionAiConfig(sim, player) {
 /**
  * Create a simulation for a mission.
  * @param {string} id
- * @param {{ seed?: number }} [opts]
+ * @param {{ seed?: number, tracks?: string }} [opts] tracks: game option of the player (ignored when the level fixes it)
  */
 export function createMissionSim(id, opts = {}) {
   const def = getMission(id);
@@ -718,7 +718,7 @@ export function createMissionSim(id, opts = {}) {
 
 /**
  * Create a simulation for a scenario JSON that is in no directory (world editor, loaded file).
- * @param {any} scenario @param {{ seed?: number }} [opts]
+ * @param {any} scenario @param {{ seed?: number, tracks?: string }} [opts]
  */
 export function createScenarioSim(scenario, opts = {}) {
   return simForDef({ ...scenarioToDef(scenario), custom: true }, opts);
@@ -734,6 +734,7 @@ function simForDef(def, opts) {
     heroes: real.map((p) => p.heroes ?? p.hero ?? null),
     teams: real.map((p, i) => p.team ?? i),
     mission: runtime,
+    tracks: opts.tracks,
     world: def.world ? { ...def.world, size: def.world.size ?? def.size, seed: opts.seed ?? def.world.seed ?? def.seed } : undefined,
     // Without castle (hq: false): coding adventures and command missions
     playerSetup: def.scenario ? playerSetupOf(def) : real.map((p) => ({ hq: p.hq !== false })),
