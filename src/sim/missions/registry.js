@@ -2,7 +2,6 @@
 // the tutorial are found by their kind; older chapters are still mission files in campaign/ registered here.
 
 import c3 from './campaign/c3-hagenfurt.js';
-import c5 from './campaign/c5-morvale.js';
 import c6 from './campaign/c6-thronsee.js';
 import showcase from './showcase.js';
 import stress from './stress.js';
@@ -15,6 +14,7 @@ const tutorial = LEVEL_DEFS.tutorial;
 const c1 = LEVEL_DEFS.c1;
 const c2 = LEVEL_DEFS.c2;
 const c4 = LEVEL_DEFS.c4;
+const c5 = LEVEL_DEFS.c5;
 
 export const TUTORIAL_ID = tutorial.id;
 

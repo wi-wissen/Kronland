@@ -592,12 +592,17 @@ describe('Campaign', () => {
     const st = sim.mission.state;
     const villages = ['moorbrook', 'reedham', 'alderfarm'].map((v) => sim.mission.playerOf(v));
     expect(villages.every((v) => sim.relation(0, v) === 'allied')).toBe(true);
-    until(sim, () => st.fired.herald, 2000);
+    const helpers = refIds(sim, 'helpers');
+    expect(helpers.length).toBe(2);
+    until(sim, () => py(sim, 'herald_at') !== null, 2000);
     expect(villages.every((v) => sim.relation(0, v) === 'neutral')).toBe(true);
-    expect(st.refs.helpers.some((id) => sim.entities.has(id))).toBe(false);
-    until(sim, () => st.fired.order, 3500); // five minutes after the herald at the latest (or the first delivery)
-    const taran = [...sim.entities.values()].find((e) => e.kind === 'hero' && e.hero === 'taran');
+    expect(helpers.some((id) => sim.entities.has(id))).toBe(false);
+    // five minutes after the herald at the latest (or the first delivery): Taran defects with two squads
+    until(sim, () => heroOf(sim, 'taran'), 3500);
+    const taran = heroOf(sim, 'taran');
     expect(taran.owner).toBe(0);
+    expect(refIds(sim, 'camp_guards').filter((id) => sim.entities.get(id)?.owner === 0).length).toBe(2);
+    expect(py(sim, 'loyalists').length).toBe(3);
     expect(objective(sim, 'granaries').status).toBe('active');
     // delivery wins a village back
     sim.players[0].stock.wood = 2000; sim.players[0].stock.clay = 2000;

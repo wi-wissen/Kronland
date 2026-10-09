@@ -270,7 +270,7 @@ export const STRATEGIES = {
       bot.s.reserve = Object.values(bot.m.state.tributes).includes('open') ? 600 : 300;
       if (bot.objective('drive')?.status === 'active') bot.attack('loyalists', { minStrength: 250 });
       const nelia = bot.heroNamed('nelia');
-      if (nelia && bot.npcAt('elder') && bot.m.state.npcs.elder?.state === 'open') { bot.useHero = false; bot.moveUnits([nelia.id], bot.npcAt('elder'), 'move', 'elder'); }
+      if (nelia && bot.m.state.npcs.elder?.state === 'open') { bot.useHero = false; talkTo(bot.sim, [nelia.id], 'elder'); }
     },
   },
   c6: {
