@@ -29,7 +29,7 @@
       </button>
       <div v-if="ui && showBrush" class="ed-brush">
         <label>{{ $t('editor.size') }} <input type="range" min="0" max="8" :value="ui.tool.r" data-testid="brush-size" @input="setTool({ r: +$event.target.value })"><b class="num">{{ ui.tool.r }}</b></label>
-        <label v-if="ui.tool.tool === 'track'">{{ $t('editor.strength') }} <input type="range" min="1" max="48" :value="ui.tool.level" data-testid="track-level" @input="setTool({ level: +$event.target.value })"><b class="num">{{ ui.tool.level }}</b></label>
+        <label v-if="ui.tool.tool === 'track'">{{ $t('editor.strength') }} <input type="range" min="1" :max="trackMax" :value="ui.tool.level" data-testid="track-level" @input="setTool({ level: +$event.target.value })"><b class="num">{{ ui.tool.level }}</b></label>
         <label v-if="['raise', 'lower'].includes(ui.tool.tool)">{{ $t('editor.strength') }} <input type="range" min="10" max="300" step="10" :value="ui.tool.strength" @input="setTool({ strength: +$event.target.value })"></label>
       </div>
       <div v-if="ui && ['pile', 'shaft'].includes(ui.tool.tool)" class="ed-brush">
@@ -239,6 +239,7 @@ import { assetAllowed, useLevelAssets } from '../../levels/assets.js';
 import { SCENARIOS } from '../../sim/missions/levels/index.js';
 import { RESOURCES } from '../../sim/data/resources.js';
 import { HERO_IDS } from '../../sim/data/units.js';
+import { BALANCE } from '../../sim/data/balance.js';
 import { loadAssets } from '../../render/assets.js';
 import { applyPlayerColor } from '../settings.js';
 import { scriptErrorText, i18n } from '../../i18n/index.js';
@@ -291,7 +292,7 @@ export default {
       ui: null, view: null, loading: true, tab: 'scenario', sideOpen: false, grid: false,
       newOpen: false, newBase: 'flat', newSize: 32, newSeed: 42,
       placeDraft: null, message: '', fileVersion: 0,
-      compact: false, tools: TOOLS, items: ITEMS, resources: RESOURCES, heroes: HERO_IDS, examples: SCENARIOS,
+      compact: false, tools: TOOLS, items: ITEMS, trackMax: BALANCE.ground.tracks.max, resources: RESOURCES, heroes: HERO_IDS, examples: SCENARIOS,
       blocks: BLOCKS, freeMenu: FREE_MENU,
       /** Code from the map: menu for a free tile, confirmation, tile for the building blocks */
       codeMenu: null, codeToast: '', codeTile: null,

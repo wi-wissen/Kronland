@@ -37,10 +37,35 @@ export const BALANCE = {
   ground: {
     coinValue: 1,            // thalers per coin picked up / put down (A)
     itemTicks: 5,            // take()/put() take 0.5 s (A)
+    // Tracks (docs/SPIELREGELN.md §14, all A): one byte strength per tile (0…max). A figure leaving a tile adds
+    // gain·(max − s)/max there (rounded up, at least 1): quick at first, then less and less – only frequent traffic
+    // reaches a path. A broom visits every tile once per sweepSeconds and takes `decay` away (`pathDecay` from the
+    // path threshold on: bare earth needs longer to grow over than flattened grass). Steady state for a tile passed
+    // every I seconds: s ≈ max·(1 − decay·I / (gain·p/100·sweepSeconds)). With 20 walkers (p = 100 %) in summer: path
+    // for I ≲ 27 s, trodden up to I ≈ 43 s; 5 walkers: path up to 53 s; 150 walkers: path only for I ≲ 10 s
+    // (table in docs/SPIELREGELN.md §14).
     tracks: {
-      max: 48,               // strongest track (bytes per tile, A)
-      fadeSeconds: 30,       // each tile loses one level in this time (A)
-      threshold: { summer: 8, rain: 8, winter: 1 }, // strength from which a tile counts as "track": in snow every step (A)
+      max: 255,              // strongest track (one byte per tile)
+      sweepSeconds: 10,      // the broom visits every tile once in this time (cost per tick: tiles / 100)
+      // Trampling relative to the walkers of the player (figures outside: serfs, workers, soldiers, heroes): the gain
+      // is scaled by √(refWalkers / walkers) in percent, clamped to minPercent…maxPercent. A village of 5–10 serfs
+      // makes paths after a few passes, a town of 150 only on its main routes.
+      walkers: { ref: 20, minPercent: 35, maxPercent: 200 },
+      // Ground under the feet: gain = first pass; faint = barely visible; trodden = counts as "track" (sensor,
+      // clearly visible); path = bare earth path (summer) or trodden lane (snow); full = finished in the picture
+      grass: { gain: 16, faint: 8, trodden: 48, path: 128, full: 208 },
+      snow: { gain: 48, faint: 16, trodden: 16, path: 144, full: 224 },
+      // Per weather: ground and decay per broom visit (below / from the path threshold on). Rain like summer:
+      // grass does not grow back faster, wet paths stay paths. Snowfall covers tracks faster than grass recovers.
+      weather: {
+        summer: { ground: 'grass', decay: 3, pathDecay: 2 },
+        rain: { ground: 'grass', decay: 3, pathDecay: 2 },
+        winter: { ground: 'snow', decay: 5, pathDecay: 5 },
+      },
+      // Game option "tracks" (settings, command setTracks, a level may fix it): off = no tracks from figures,
+      // fading = the model above, permanent = no fading at all (also no covering by snow or thaw)
+      modes: ['off', 'fading', 'permanent'],
+      defaultMode: 'fading',
     },
   },
 };

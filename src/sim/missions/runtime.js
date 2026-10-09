@@ -26,7 +26,7 @@ export const BANDIT_TEAM = 99;
 
 /**
  * Start options of a mission game besides the definition (part of the mission state, saved and hashed).
- * @typedef {{ seed?: number, world?: string|null, stage?: string|null, check?: boolean }} StartOptions
+ * @typedef {{ seed?: number, world?: string|null, stage?: string|null, check?: boolean, ai?: boolean, tracks?: string }} StartOptions
  */
 const VILLAGE_TEAM = 100;
 
@@ -805,6 +805,7 @@ export function createDefSim(def, opts = {}) {
     heroes: real.map((p) => p.heroes ?? p.hero ?? null),
     teams: real.map((p, i) => p.team ?? i),
     mission: runtime,
+    tracks: opts.tracks,
     world: def.world ? { ...def.world, size: def.world.size ?? def.size, seed: seed ?? def.world.seed ?? def.seed } : undefined,
     // Without castle (hq: false): coding adventures and command missions
     playerSetup: def.scenario ? playerSetupOf(def) : real.map((p) => ({ hq: p.hq !== false })),

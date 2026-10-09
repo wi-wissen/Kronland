@@ -133,7 +133,8 @@ export function applyEdit(sim, op) {
       return { events, changed: addItem(sim, cx, cy, kind) };
     }
     case 'track': {
-      // track strength on walkable tiles under the brush (1 = footprints only in snow, from 8 also paths in summer)
+      // track strength on walkable tiles under the brush (stages in BALANCE.ground.tracks: from 16 footprints in
+      // snow, from 48 trodden grass, from 128 an earth path)
       const level = Math.max(1, Math.min(BALANCE.ground.tracks.max, Math.trunc(op.level ?? BALANCE.ground.tracks.max)));
       for (const t of tiles) {
         if (!m.walkable(t.x, t.y) || m.tracks[t.k] === level) continue;

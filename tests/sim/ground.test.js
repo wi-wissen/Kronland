@@ -6,7 +6,7 @@ import { createScenarioSim } from '../../src/sim/missions/runtime.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { WATER, BRIDGE } from '../../src/sim/map.js';
 import { BALANCE } from '../../src/sim/data/balance.js';
-import { tileKind, tileToward, addItem, removeItem, itemList, updateTracks, trackThreshold, TILE_WORDS } from '../../src/sim/systems/ground.js';
+import { tileKind, tileToward, addItem, removeItem, itemList, updateTracks, trackThreshold, trackGain, walkerPercent, TILE_WORDS } from '../../src/sim/systems/ground.js';
 import { validateScenario } from '../../src/sim/scripting/scenario.js';
 
 const run = (sim, ticks) => { for (let i = 0; i < ticks && !sim.mission.state.result; i++) sim.step(); };
@@ -123,30 +123,31 @@ describe('Items on tiles', () => {
 
 describe('Tracks', () => {
   it('a figure leaving a tile leaves a track there, the broom fades it again', () => {
-    const sim = createScenarioSim(scenario('', { world: { tracks: { threshold: 1, fade: 0 } } }));
+    const sim = createScenarioSim(scenario('', { world: { tracks: { threshold: 1 } } }));
     expect(trackThreshold(sim)).toBe(1);
     runCode(sim, 'print(nelia.here())\nnelia.step()\nprint(nelia.here())\nnelia.turn_left()\nnelia.turn_left()\nprint(nelia.front())\n');
     run(sim, 30);
     expect(consoleText(sim)).toBe('free\nfree\ntrack');
     const k = sim.map.idx(4, 8);
-    expect(sim.map.tracks[k]).toBe(1);
-    // fade 2 s: the broom passes every tile once in 20 ticks
-    sim.mission.def.tracks.fade = 2;
-    run(sim, 21);
+    // one pass on grass: the gain of the ground, doubled for a lone walker (the broom reaches this tile at tick 49)
+    expect(sim.map.tracks[k]).toBe(trackGain(BALANCE.ground.tracks.grass, 0, walkerPercent(1)));
+    // the broom passes every tile once in 10 s and takes 3 levels in summer: gone after two minutes
+    run(sim, 1200);
     expect(sim.map.tracks[k]).toBe(0);
   });
 
-  it('threshold per weather: footprints in the snow, trodden paths otherwise', () => {
-    const sim = createScenarioSim(scenario('world.set_track(6, 8, 3)\n'));
-    expect(trackThreshold(sim)).toBe(BALANCE.ground.tracks.threshold.summer);
+  it('threshold per weather: the trodden level of grass, every footprint in the snow', () => {
+    const T = BALANCE.ground.tracks;
+    const sim = createScenarioSim(scenario('world.set_track(6, 8, 20)\n', { world: { tracks: { mode: 'permanent' } } }));
+    expect(trackThreshold(sim)).toBe(T.grass.trodden);
     expect(tileKind(sim, 6, 8)).toBe('free');
     sim.setWeather('winter', 100);
-    expect(trackThreshold(sim)).toBe(1);
+    expect(trackThreshold(sim)).toBe(T.snow.trodden);
     expect(tileKind(sim, 6, 8)).toBe('track');
   });
 
-  it('teleports leave nothing; who: "none" and fade 0 (never) from the level', () => {
-    const sim = createScenarioSim(scenario('world.set_track(10, 10)\n', { world: { tracks: { who: 'none', fade: 0, threshold: 1 } } }));
+  it('teleports leave nothing; who: "none" and mode permanent from the level', () => {
+    const sim = createScenarioSim(scenario('world.set_track(10, 10)\n', { world: { tracks: { who: 'none', mode: 'permanent', threshold: 1 } } }));
     const h = heroOf(sim);
     updateTracks(sim);
     h.px += 1000;
@@ -184,7 +185,7 @@ describe('Tracks', () => {
   });
 
   it('soldiers and serfs leave tracks too (one loop over all figures)', () => {
-    const sim = createScenarioSim(scenario('spawn(HUMAN, "sword1", (6, 4), soldiers=4)\n', { world: { tracks: { threshold: 1, fade: 0 } } }));
+    const sim = createScenarioSim(scenario('spawn(HUMAN, "sword1", (6, 4), soldiers=4)\n', { world: { tracks: { threshold: 1, mode: 'permanent' } } }));
     const L = [...sim.entities.values()].find((e) => e.kind === 'leader');
     sim.applyCommand({ type: 'order', player: 0, units: [L.id], order: 'move', x: 16, y: 4 });
     run(sim, 100);

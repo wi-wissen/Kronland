@@ -25,7 +25,7 @@ import { cursorCss } from './cursors.js';
 import { characterManifest } from '../render/characters.js';
 import { figureRole, figureSex } from '../render/variants.js';
 import { getQuality } from '../render/quality.js';
-import { get as setting, applyPlayerColor } from '../ui/settings.js';
+import { get as setting, applyPlayerColor, onChange as onSettingChange } from '../ui/settings.js';
 import { Input } from './Input.js';
 import { ControlGroups } from './groups.js';
 import { visibleSameType } from './sameType.js';
@@ -112,19 +112,23 @@ export class Engine {
     const players = opts.players ?? 2;
     const heroes = [...HERO_IDS, ...HERO_IDS];
     if (opts.hero && HEROES[opts.hero]) { const i = heroes.indexOf(opts.hero); if (i > 0) [heroes[0], heroes[i]] = [heroes[i], heroes[0]]; }
+    // Game option "tracks" from the settings (a level may fix it, src/sim/systems/ground.js)
+    const tracks = setting('tracks');
     if (opts.load) {
       // Computer opponents are part of the simulation (sim.ai, src/ai/runner.js)
       this.sim = loadGame(opts.load);
     } else if (opts.mission || opts.scenario) {
       // Mission or scenario (world editor, file): players, opponents and setup come from the definition
       // (players of kind 'ai' become computer opponents inside the simulation)
-      const start = { ...(opts.world ? { world: opts.world } : {}) };
+      const start = { ...(opts.world ? { world: opts.world } : {}), tracks };
       this.sim = opts.scenario ? createScenarioSim(opts.scenario, { seed: opts.seed, ...start }) : createMissionSim(opts.mission.id, { seed: opts.mission.seed, ...start });
     } else {
-      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes, fog: opts.fog ?? true });
+      this.sim = new Sim({ seed: opts.seed ?? 1, players, heroes, fog: opts.fog ?? true, tracks });
       // AI opponents for all other players (inside the simulation)
       for (let p = 1; p < players; p++) addAi(this.sim, p, opts.difficulty ?? 'normal');
     }
+    // Setting changed during the game: a command (lockstep-safe), never a direct write into the simulation
+    this.offSettings = onSettingChange(({ key }) => { if (key === 'tracks') this.syncTracks(); });
     applyPlayerColor(this.player); // player colour (pure rendering, no sim state)
     this.renderer = new Renderer(canvas, this.sim, { player: this.player });
     this.onUi = opts.onUi ?? (() => {});
@@ -143,6 +147,8 @@ export class Engine {
     /** @type {null | {type: string, x: number, y: number, valid: boolean, reason: string|null, hasPos: boolean}} */
     this.placing = null;
     this.queue = [];
+    // A save game keeps its mode unless the setting differs: then the same command as a change in the menu
+    if (opts.load) this.syncTracks();
     this.prev = new Map();
     this.speed = 1;
     this.paused = false;
@@ -222,6 +228,7 @@ export class Engine {
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     window.removeEventListener('kronland-quality', this.onQuality);
+    this.offSettings?.();
     this.input.dispose();
     this.audio?.dispose();
     clearTimeout(this.dialogCamBack);
@@ -1068,10 +1075,17 @@ export class Engine {
     this.camFly = null;
     this.debugHalt = false;
     this.restarts++;
+    this.syncTracks();
     if (this.dev) { this.dev.dispose(); this.dev = null; this.setDevMode(true); }
     this.emitUi();
   }
   togglePause() { this.paused = !this.paused; this.emitUi(); }
+
+  /** Game option "tracks": send the setting as a command when it differs and the level does not fix the mode. */
+  syncTracks() {
+    const mode = setting('tracks');
+    if (!this.sim.trackModeFixed && this.sim.trackMode !== mode) this.issue({ type: 'setTracks', mode });
+  }
 
   // ---------- Building ----------
 
@@ -1325,7 +1339,7 @@ export class Engine {
     const m = this.sim.mission;
     if (!m?.def.worlds?.some((w) => w.id === id) || m.state.result) return false;
     const seed = m.state.startSeed;
-    const sim = createDefSim(m.def, { world: id, stage: stageKey(this.sim) || null, ...(Number.isInteger(seed) ? { seed } : {}) });
+    const sim = createDefSim(m.def, { world: id, stage: stageKey(this.sim) || null, tracks: this.sim.trackMode, ...(Number.isInteger(seed) ? { seed } : {}) });
     carryCounters(this.sim, sim);
     this.stage.clear();
     this.restart(sim, {});
@@ -1349,7 +1363,7 @@ export class Engine {
     try {
       const seed = m.state.startSeed;
       const res = await checkProgramAsync(m.def, stage, sections, {
-        ...(Number.isInteger(seed) ? { seed } : {}), onProgress, cancelled: () => !!this.stopped,
+        ...(Number.isInteger(seed) ? { seed } : {}), tracks: this.sim.trackMode, onProgress, cancelled: () => !!this.stopped,
       });
       if (res && !this.stopped) this.issue({ type: 'script', action: 'check', stage, passed: res.passed });
       return res;

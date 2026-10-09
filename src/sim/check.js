@@ -26,7 +26,7 @@ export class WorldCheck {
    * @param {any} def mission definition (sim.mission.def)
    * @param {string} world id @param {string} stage key of the stage (active goals, src/sim/stage.js)
    * @param {Record<string, string>} sections code of the editable player sections
-   * @param {{ seed?: number, setupTicks?: number, runTicks?: number }} [o]
+   * @param {{ seed?: number, tracks?: string, setupTicks?: number, runTicks?: number }} [o] tracks: track mode of the running game
    */
   constructor(def, world, stage, sections, o = {}) {
     this.world = world;
@@ -35,7 +35,7 @@ export class WorldCheck {
     this.sections = sections;
     this.setupTicks = o.setupTicks ?? CHECK_SETUP_TICKS;
     this.runTicks = o.runTicks ?? CHECK_RUN_TICKS;
-    this.sim = createDefSim(def, { world, stage, check: true, ...(Number.isInteger(o.seed) ? { seed: o.seed } : {}) });
+    this.sim = createDefSim(def, { world, stage, check: true, ...(Number.isInteger(o.seed) ? { seed: o.seed } : {}), ...(o.tracks ? { tracks: o.tracks } : {}) });
     this.phase = 'setup';
     this.ticks = 0;
     this.since = 0;
