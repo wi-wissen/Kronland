@@ -96,6 +96,8 @@ export default defineConfig({
         // All game files carry a content hash: once loaded, never asked for again (CacheFirst). A changed
         // file has a new name; stale entries are cleaned up by src/cacheCleanup.js after loading.
         runtimeCaching: [
+          // Server and sources (docs/SERVER.md): network first, so a changed file applies at once; offline the last copy
+          { urlPattern: /\/kronland\.config\.json$/, handler: 'NetworkFirst', options: { cacheName: 'config', networkTimeoutSeconds: 3 } },
           // Pages: network first, past the HTTP cache; offline the precached page (see freshPages)
           { urlPattern: ({ request }) => request.mode === 'navigate', handler: 'NetworkOnly', options: { plugins: [freshPages] } },
           // 4 players load ~200 model files, there are ~340 in total (figure manifest sits in the same folder)
