@@ -1,4 +1,4 @@
-// The student's program in a mission (docs/SKRIPTE.md#programm-laden, #etappe-ohne-pruefung):
+// The student's program in a mission (docs/SKRIPTE.md#programm-laden, #etappe-einmal-ausgeführt):
 // - program.load(code) reaches the UI as an event; world switching, „Prüfen“ and stage restarts never load,
 // - objective(after_run=True) ends a stage once the program ran and ended normally,
 // - npc() figures carry the talk marker only where somebody listens.

@@ -444,7 +444,7 @@ Nelias Geschichte weiter – I.2 ist Reihe I, Mission 2, M das Meisterstück am 
 
 {{adventureList}}
 
-Jede Kursmission besteht aus Etappen auf derselben Karte: erst vorhersagen, was ein fertiger Zettel tut, dann ihn
+Jede Kursmission besteht aus Etappen auf derselben Karte: erst ein fertiges Programm ausführen und beobachten, was es tut, dann es
 ändern, dann selbst schreiben. **Ausführen** beginnt die aktuelle Etappe von vorn – du kannst also beliebig oft
 probieren.
 

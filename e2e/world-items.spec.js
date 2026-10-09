@@ -34,7 +34,7 @@ const coinsDrawn = (page) => page.evaluate(() => {
 });
 
 test('I.5: the coins are drawn on their tiles and disappear when the program picks them up', async ({ page }) => {
-  test.setTimeout(180_000); // the intro line comes before the note, then a whole stage runs
+  test.setTimeout(180_000); // the intro line comes before the program, then a whole stage runs
   const errors = await fresh(page);
   await page.goto(playUrl('?mission=r1-5&no-models'));
   await page.waitForFunction(() => !!window.__kronland?.renderer?.items, null, SLOW);
@@ -42,11 +42,9 @@ test('I.5: the coins are drawn on their tiles and disappear when the program pic
   expect(total).toBe(24);
   await expect.poll(() => coinsDrawn(page), SLOW).toBe(total);
   await openPanel(page);
-  // The woodcutter's note collects the first row (7 coins) and counts along
-  await expect(page.getByTestId('script-note')).toBeVisible({ timeout: 60_000 });
+  // The woodcutter's program collects the first row (7 coins) and counts along
   const ta = page.getByTestId('section-player').getByTestId('code-input');
-  await expect(ta).toHaveValue(/count = count \+ 1/);
-  await ta.fill((await ta.inputValue()).replace('guess = 0', 'guess = 7'));
+  await expect(ta).toHaveValue(/count = count \+ 1/, { timeout: 60_000 });
   await page.getByTestId('script-run').click();
   if (phone(page)) {
     // phone: the game is shown while the program runs, the camera follows Nelia

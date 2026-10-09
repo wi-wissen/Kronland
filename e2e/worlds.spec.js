@@ -53,13 +53,14 @@ test('I.4: world switcher keeps the code, „Prüfen“ names the failing world,
   await expect(worlds.getByRole('radio')).toHaveCount(3);
   await expect(page.getByTestId('script-world-normal')).toHaveAttribute('aria-checked', 'true');
 
-  // Predict in the world "Alles ganz nah": the forest stands right in front of Nelia – 0 steps
+  // Run in the world "Alles ganz nah": the forest stands right in front of Nelia – 0 steps
   const ta = page.getByTestId('section-player').getByTestId('code-input');
-  await expect(ta).toHaveValue(/guess = 0/);
+  await expect(ta).toHaveValue(/while nelia\.can_step\(\):/, { timeout: 60_000 });
   await page.getByTestId('script-world-near').click();
   await expect.poll(async () => (await mission(page)).world, SLOW).toBe('near');
   await expect(page.getByTestId('script-world-near')).toHaveAttribute('aria-checked', 'true');
-  await expect(ta).toHaveValue(/guess = 0/);
+  // The switcher never replaces the program: the loaded text stays
+  await expect(ta).toHaveValue(/while nelia\.can_step\(\):/);
   await shot('switcher');
   await page.getByTestId('script-run').click();
   await expect.poll(async () => (await mission(page)).active, { timeout: 60_000 }).toEqual(['coin']);
