@@ -45,7 +45,7 @@ describe('Scenarios', () => {
     runCode(sim, 'nelia.step()\nnelia.step()\n');
     run(sim, 200);
     expect(sim.mission.state.result).toBeNull();
-    expect(tileOf(heroOf(sim))).toEqual([4, 3]);
+    expect(tileOf(heroOf(sim))).toEqual([4, 13]);
   });
 
   it('player programs do not know the mission API', () => {

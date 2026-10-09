@@ -5,51 +5,92 @@
   "kind": "adventure",
   "end": "script",
   "order": 15,
-  "title": { "de": "Holz für die erste Nacht", "en": "Wood for the First Night" },
+  "title": {
+    "de": "Holz für die erste Nacht",
+    "en": "Wood for the First Night"
+  },
   "summary": {
     "de": "Variablen: Taler zählen, Christrosen zählen, Schritte zählen – und genau sechs Scheite kaufen.",
     "en": "Variables: count coins, count Christmas roses, count steps – and buy exactly six logs."
   },
   "briefing": {
-    "de": "In der verlassenen Hütte ist es kalt. Der Holzfäller verkauft Brennholz: ein Scheit für einen Taler. Händler haben auf dem Weg Taler verloren – wie viele, weiß niemand. Eine Variable merkt sich eine Zahl: „count = 0“ legt sie an, „count = count + 1“ zählt eins dazu. nelia.front() verrät, was vor Nelia liegt (\"coin\", \"flower\", \"free\", \"tree\" …), nelia.take() hebt auf, worauf sie steht. Ausführen beginnt die Etappe jedes Mal von vorn. Christrosen, Bach und Talerreihe gibt es in drei Welten – „Prüfen“ zeigt, ob dein Programm in allen klappt.",
-    "en": "The abandoned hut is cold. The woodcutter sells firewood: one log for one coin. Merchants lost coins on the path – nobody knows how many. A variable remembers a number: “count = 0” creates it, “count = count + 1” adds one. nelia.front() tells what lies in front of Nelia (\"coin\", \"flower\", \"free\", \"tree\" …), nelia.take() picks up what she stands on. Run starts the stage over every time. Roses, brook and the row of coins come in three worlds – “Check” shows whether your program works in all of them."
+    "de": "In der verlassenen Hütte ist es kalt. Der Holzfäller verkauft Brennholz: ein Scheit für einen Taler. Händler haben auf dem Weg Taler verloren – wie viele, weiß niemand. Eine Variable merkt sich eine Zahl: „count = 0“ legt sie an, „count = count + 1“ zählt eins dazu. nelia.front() verrät, was vor Nelia liegt (\"coin\", \"flower\", \"free\", \"tree\" …), nelia.take() hebt auf, worauf sie steht. Die vier Etappen sind ein Weg: erst Taler, dann Taler und Christrosen bis zum Baum, dort der Pfad zum Bach und die lange Reihe im Norden – wo die eine endet, beginnt die nächste, und dein Programm wächst mit. Ausführen beginnt die Etappe jedes Mal von vorn. Den Weg gibt es in drei Welten – „Prüfen“ zeigt, ob dein Programm in allen klappt.",
+    "en": "The abandoned hut is cold. The woodcutter sells firewood: one log for one coin. Merchants lost coins on the path – nobody knows how many. A variable remembers a number: “count = 0” creates it, “count = count + 1” adds one. nelia.front() tells what lies in front of Nelia (\"coin\", \"flower\", \"free\", \"tree\" …), nelia.take() picks up what she stands on. The four stages are one path: first coins, then coins and Christmas roses up to the tree, there the track to the brook and the long row to the north – where one ends the next begins, and your program grows along. Run starts the stage over every time. The path comes in three worlds – “Check” shows whether your program works in all of them."
   },
   "victoryText": {
     "de": "Sechs Scheite im Ofen, Christrosen auf dem Tisch – die erste Nacht in der Hütte ist warm.",
     "en": "Six logs in the stove, Christmas roses on the table – the first night in the hut is warm."
   },
   "learn": {
-    "de": ["Variablen", "Zählen", "zwei Variablen", "Bedingung mit Variable"],
-    "en": ["variables", "counting", "two variables", "condition with a variable"]
+    "de": [
+      "Variablen",
+      "Zählen",
+      "zwei Variablen",
+      "Bedingung mit Variable"
+    ],
+    "en": [
+      "variables",
+      "counting",
+      "two variables",
+      "condition with a variable"
+    ]
   },
   "worlds": [
-    { "id": "normal", "title": { "de": "Normalfall", "en": "Normal case" } },
-    { "id": "near", "title": { "de": "Alles ganz nah", "en": "Everything close" } },
-    { "id": "far", "title": { "de": "Alles weit weg", "en": "Everything far away" } }
+    {
+      "id": "normal",
+      "title": {
+        "de": "Normalfall",
+        "en": "Normal case"
+      }
+    },
+    {
+      "id": "near",
+      "title": {
+        "de": "Alles ganz nah",
+        "en": "Everything close"
+      }
+    },
+    {
+      "id": "far",
+      "title": {
+        "de": "Alles weit weg",
+        "en": "Everything far away"
+      }
+    }
   ],
   "world": {
     "base": "flat",
-    "width": 26,
-    "height": 38,
+    "width": 28,
+    "height": 32,
     "fog": false,
-    "starts": [{ "x": 2, "y": 3 }],
-    "places": {
-      "a_start": { "x": 2, "y": 3, "r": 0 },
-      "a_view": { "x": 9, "y": 4, "r": 4 },
-      "b_start": { "x": 2, "y": 13, "r": 0 },
-      "b_view": { "x": 9, "y": 14, "r": 4 },
-      "c_start": { "x": 2, "y": 23, "r": 0 },
-      "c_view": { "x": 9, "y": 24, "r": 4 },
-      "d_start": { "x": 2, "y": 33, "r": 0 },
-      "d_view": { "x": 9, "y": 34, "r": 4 }
-    }
+    "starts": [
+      {
+        "x": 3,
+        "y": 15
+      }
+    ],
+    "places": {}
   },
-  "weatherCycle": [["winter", 3600000]],
-  "players": [{ "kind": "human", "hero": "nelia", "hq": false }],
+  "weatherCycle": [
+    [
+      "winter",
+      3600000
+    ]
+  ],
+  "players": [
+    {
+      "kind": "human",
+      "hero": "nelia",
+      "hq": false
+    }
+  ],
   "sections": [
     {
       "id": "world",
-      "title": { "de": "Welt aufbauen", "en": "Build the world" },
+      "title": {
+        "de": "Welt aufbauen",
+        "en": "Build the world"
+      },
       "level": "mission",
       "visibility": "collapsed",
       "editable": false,
@@ -57,7 +98,10 @@
     },
     {
       "id": "mission",
-      "title": { "de": "Mission", "en": "Mission" },
+      "title": {
+        "de": "Mission",
+        "en": "Mission"
+      },
       "level": "mission",
       "visibility": "hidden",
       "editable": false,
@@ -65,7 +109,10 @@
     },
     {
       "id": "player",
-      "title": { "de": "Dein Programm", "en": "Your program" },
+      "title": {
+        "de": "Dein Programm",
+        "en": "Your program"
+      },
       "level": "player",
       "visibility": "open",
       "editable": true,
