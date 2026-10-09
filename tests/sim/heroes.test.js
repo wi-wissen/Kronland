@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { Sim } from '../../src/sim/sim.js';
-import { MissionRuntime } from '../../src/sim/missions/runtime.js';
+import { createScenarioSim } from '../../src/sim/missions/runtime.js';
 import { HEROES, HERO_IDS } from '../../src/sim/data/units.js';
 import { isVisible } from '../../src/sim/systems/vision.js';
 import { isEnemy } from '../../src/sim/systems/military.js';
@@ -19,12 +19,17 @@ function field(sim) {
 }
 const put = (e, p) => { e.px = p.x * 1000 + 500; e.py = p.y * 1000 + 500; e.anchor = { x: e.px, y: e.py }; e.path = []; };
 
-/** Small mission from a definition. */
-function missionSim(def, seed = 42) {
-  const full = { id: 'test', title: T, objectives: [], events: [], ...def };
-  const real = full.players.filter((p) => p.kind !== 'bandits' && p.kind !== 'village');
-  return new Sim({ seed, players: real.length, heroes: real.map((p) => p.heroes ?? p.hero ?? null), mission: new MissionRuntime(full) });
+/** Small level on a generated map: players and the mission program (Python). */
+function missionSim(players, code = '', seed = 42) {
+  return createScenarioSim({
+    format: 'kronland-scenario', version: 2, id: 'test', kind: 'mission', end: 'objectives', title: T,
+    world: { base: 'generate', seed, size: 64, fog: true }, players,
+    sections: [{ id: 'mission', level: 'mission', code }],
+  });
 }
+const out = (sim) => sim.mission.script.state.console.map((c) => c.text);
+const errors = (sim) => sim.mission.script.state.errors.map((e) => `${e.code} ${JSON.stringify(e.params)} line ${e.sline}`);
+const run = (sim, n) => { for (let i = 0; i < n && !sim.mission.state.result; i++) sim.step(); };
 
 describe('Hero selection', () => {
   it('four own heroes with two abilities each; free game distributes them in order', () => {
@@ -34,49 +39,55 @@ describe('Hero selection', () => {
     expect([0, 1, 2].map((p) => heroOf(sim, p).hero)).toEqual(['nelia', 'orrin', 'taran']);
   });
 
-  it('several heroes per player, each as a reference under their name (main hero = first)', () => {
-    const sim = missionSim({ players: [{ kind: 'human', heroes: ['nelia', 'orrin'] }, { kind: 'ai', hero: 'malvor' }] });
-    const st = sim.mission.state;
+  it('several heroes per player, each under their name in the mission program (main hero = first)', () => {
+    const sim = missionSim([{ kind: 'human', heroes: ['nelia', 'orrin'] }, { kind: 'ai', hero: 'malvor' }],
+      'print(hero.name, nelia.owner, orrin.owner, malvor.owner, nelia.distance_to(orrin) > 0)\n');
     const n = heroOf(sim, 0, 'nelia'), o = heroOf(sim, 0, 'orrin');
     expect(n && o).toBeTruthy();
     expect(n.px !== o.px || n.py !== o.py).toBe(true);
-    expect(st.refs.hero).toBe(n.id);
-    expect(st.refs.nelia).toBe(n.id);
-    expect(st.refs.orrin).toBe(o.id);
-    expect(st.refs.malvor).toBe(heroOf(sim, 1, 'malvor').id);
+    expect(errors(sim)).toEqual([]);
+    expect(out(sim)).toEqual(['nelia 0 0 1 True']);
   });
 
-  it('goals and triggers know individual heroes: reach with who = hero name, heroDown with hero', () => {
-    const sim = missionSim({
-      players: [{ kind: 'human', heroes: ['nelia', 'orrin'] }],
-      objectives: [{ id: 'goal', type: 'reach', area: 'spot', who: 'orrin', primary: true, text: T }],
-      events: [{ id: 'down', when: { type: 'heroDown', hero: 'nelia' }, do: [{ type: 'flag', name: 'neliaDown' }] }],
-      setup(ctx) { ctx.ref('spot', { ...field(ctx.sim), r: 2 }); },
-    });
-    const st = sim.mission.state;
-    put(heroOf(sim, 0, 'nelia'), st.refs.spot);
-    sim.run(2);
+  it('objectives and conditions know individual heroes: units_in with who = hero name, Hero.down', () => {
+    const code = [
+      'spot = find_open(map_center(), clear=3)',
+      'make_place("spot", spot.x, spot.y, 2)',
+      'nelia_down = False',
+      'objective("goal", lambda: len(units_in(place("spot"), who="orrin")) > 0, de="x", en="x")',
+      '@on_start',
+      'def watch():',
+      '    global nelia_down',
+      '    wait_until(lambda: nelia.down)',
+      '    nelia_down = True',
+    ].join('\n');
+    const sim = missionSim([{ kind: 'human', heroes: ['nelia', 'orrin'] }], code);
+    const st = sim.mission.state, spot = sim.mission.script.places.spot;
+    put(heroOf(sim, 0, 'nelia'), spot);
+    sim.run(6);
     expect(st.objectives[0].status).toBe('active'); // Nelia does not count
-    put(heroOf(sim, 0, 'orrin'), st.refs.spot);
-    sim.run(2);
+    put(heroOf(sim, 0, 'orrin'), spot);
+    sim.run(6);
     expect(st.result?.won).toBe(true);
-    const sim2 = missionSim({ players: [{ kind: 'human', heroes: ['nelia', 'orrin'] }], events: [{ id: 'down', when: { type: 'heroDown', hero: 'nelia' }, do: [{ type: 'flag', name: 'neliaDown' }] }] });
+    const sim2 = missionSim([{ kind: 'human', heroes: ['nelia', 'orrin'] }], code);
+    const vm = () => sim2.mission.script.vms.mission.globals.get('nelia_down');
     heroOf(sim2, 0, 'orrin').down = true;
     sim2.run(2);
-    expect(sim2.mission.state.flags.neliaDown).toBeUndefined();
+    expect(vm()).toBe(false);
     heroOf(sim2, 0, 'nelia').down = true;
     sim2.run(2);
-    expect(sim2.mission.state.flags.neliaDown).toBe(true);
+    expect(vm()).toBe(true);
   });
 
-  it('action hero brings a hero in mid-mission, remove takes them out', () => {
-    const sim = missionSim({
-      players: [{ kind: 'human', heroes: ['nelia'] }],
-      events: [
-        { id: 'join', when: { type: 'time', at: 1 }, do: [{ type: 'hero', hero: 'taran', at: 'humanHq' }] },
-        { id: 'leave', when: { type: 'time', at: 2 }, do: [{ type: 'remove', ref: 'taran' }] },
-      ],
-    });
+  it('add_hero brings a hero in mid-mission, remove takes them out', () => {
+    const sim = missionSim([{ kind: 'human', heroes: ['nelia'] }], [
+      '@on_start',
+      'def story():',
+      '    wait(1)',
+      '    add_hero(HUMAN, "taran", hq())',
+      '    wait(1)',
+      '    remove(taran)',
+    ].join('\n'));
     sim.run(12);
     expect(heroOf(sim, 0, 'taran')).toBeTruthy();
     sim.run(10);
@@ -174,41 +185,56 @@ describe('Diplomacy', () => {
     expect(sim2.hash()).toBe(sim.hash());
   });
 
-  it('villages are their own player slots without a castle, neutral at the start, allied via action', () => {
-    const sim = missionSim({
-      players: [{ kind: 'human', hero: 'nelia' }, { kind: 'bandits' }, { kind: 'village', name: 'moor' }, { kind: 'village', name: 'heath', diplomacy: { human: 'allied' } }],
-      events: [{ id: 'ally', when: { type: 'time', at: 1 }, do: [{ type: 'diplomacy', b: 'moor', state: 'allied' }] }],
-    });
+  it('villages are their own player slots without a castle, neutral at the start, allied by the mission program', () => {
+    const sim = missionSim([{ kind: 'human', hero: 'nelia' }, { kind: 'bandits' }, { kind: 'village', name: 'moor' }, { kind: 'village', name: 'heath', diplomacy: { human: 'allied' } }], [
+      'print(diplomacy(HUMAN, player("moor")), diplomacy(HUMAN, player("heath")))',
+      '@on_start',
+      'def ally():',
+      '    wait(1)',
+      '    set_diplomacy(HUMAN, player("moor"), "allied")',
+    ].join('\n'));
     const m = sim.mission;
     const moor = m.playerOf('moor'), heath = m.playerOf('heath');
     expect(sim.findBuilding(moor, 'headquarters')).toBeNull();
     expect(sim.relation(0, moor)).toBe('neutral');
     expect(sim.relation(0, heath)).toBe('allied');
     expect(sim.relation(m.state.bandits, moor)).toBe('neutral');
-    expect(m.check(sim, { type: 'diplomacy', b: 'moor', state: 'neutral' })).toBe(true);
+    expect(out(sim)).toEqual(['neutral allied']);
     sim.run(12);
     expect(sim.relation(0, moor)).toBe('allied');
   });
 });
 
 describe('Tributes and conversation figures', () => {
-  const def = () => ({
-    players: [{ kind: 'human', heroes: ['nelia', 'orrin'], stock: { gold: 1000, wood: 0, clay: 0, stone: 0, iron: 0, sulfur: 0 } }],
-    tributes: {
-      buy: { group: 'shard', cost: { gold: 800 }, text: T, onPaid: [{ type: 'flag', name: 'bought' }] },
-      cheap: { group: 'shard', cost: { gold: 300 }, text: T, onPaid: [{ type: 'flag', name: 'cheap' }] },
-    },
-    npcs: { elder: { at: 'spot', hero: 'orrin', wrongHero: T, speaker: 'elder', onTalk: [{ type: 'flag', name: 'talked' }] } },
-    start: [{ type: 'tribute', id: 'buy' }, { type: 'tribute', id: 'cheap' }, { type: 'npc', id: 'elder' }],
-    setup(ctx) { ctx.ref('spot', { ...field(ctx.sim), r: 1 }); },
-  });
+  const level = () => missionSim([{ kind: 'human', heroes: ['nelia', 'orrin'], stock: { gold: 1000, wood: 0, clay: 0, stone: 0, iron: 0, sulfur: 0 } }], [
+    'bought = None',
+    'talked = False',
+    'offer("buy", {"gold": 800}, group="shard", de="x", en="x")',
+    'offer("cheap", {"gold": 300}, group="shard", de="x", en="x")',
+    'spot = find_open(map_center(), clear=3)',
+    'elder = npc("elder", at=spot, speaker="elder")',
+    '@on_event("tribute")',
+    'def paid(id):',
+    '    global bought',
+    '    bought = id',
+    '@on_talk("elder")',
+    'def talk(visitor):',
+    '    global talked',
+    '    if visitor.name != "orrin":',
+    '        say("elder", de="Schick mir den Händler.", en="Send me the merchant.")',
+    '        return',
+    '    elder.stop_talking()',
+    '    talked = True',
+  ].join('\n'));
+  const vm = (sim, name) => sim.mission.script.vms.mission.globals.get(name);
+  const talkTo = (sim, h, npc) => sim.step([{ type: 'order', player: 0, units: [h.id], order: 'talk', target: npc.id }]);
 
-  it('tribute: paying deducts the costs, triggers onPaid and closes the other offers of the group', () => {
-    const sim = missionSim(def());
+  it('tribute: paying deducts the costs, runs @on_event("tribute") and closes the other offers of the group', () => {
+    const sim = level();
     const st = sim.mission.state;
     expect(sim.mission.uiState(sim).tributes.map((t) => t.id)).toEqual(['buy', 'cheap']);
     sim.step([{ type: 'mission', player: 0, action: 'tribute', id: 'buy' }]);
-    expect(st.flags.bought).toBe(true);
+    expect(vm(sim, 'bought')).toBe('buy');
     expect(sim.players[0].stock.gold).toBe(200);
     expect(st.tributes).toEqual({ buy: 'paid', cheap: 'closed' });
     const ev = sim.step([{ type: 'mission', player: 0, action: 'tribute', id: 'cheap' }]);
@@ -217,27 +243,32 @@ describe('Tributes and conversation figures', () => {
   });
 
   it('tribute without enough resources is rejected; unknown IDs too', () => {
-    const sim = missionSim(def());
+    const sim = level();
     sim.players[0].stock.gold = 100;
     expect(sim.step([{ type: 'mission', player: 0, action: 'tribute', id: 'buy' }]).find((e) => e.type === 'rejected')?.reason).toBe('err.notEnoughResources');
     expect(sim.step([{ type: 'mission', player: 0, action: 'tribute', id: 'toString' }]).find((e) => e.type === 'rejected')?.reason).toBe('err.noTribute');
     expect(sim.mission.state.tributes.buy).toBe('open');
   });
 
-  it('conversation figure: only the named hero talks to it (the wrong one gets a hint)', () => {
-    const sim = missionSim(def());
+  it('conversation figure: a hero sent to it talks; the mission decides who is the right one', () => {
+    const sim = level();
     const st = sim.mission.state;
     const npc = sim.entities.get(st.npcs.elder.entity);
     expect(npc).toMatchObject({ kind: 'npc', talk: true });
     const n = heroOf(sim, 0, 'nelia');
-    n.px = npc.px + 500; n.py = npc.py;
-    sim.run(10);
+    n.px = npc.px + 500; n.py = npc.py; n.path = [];
+    // walking past does nothing; sent to it (a tap with the hero selected), the talk starts
+    run(sim, 10);
+    expect(st.messages.length).toBe(0);
+    talkTo(sim, n, npc);
+    run(sim, 20);
     expect(st.npcs.elder.state).toBe('open');
     expect(st.messages.at(-1)?.speaker).toBe('elder'); // hint: wrong hero
     const o = heroOf(sim, 0, 'orrin');
-    o.px = npc.px; o.py = npc.py + 500;
-    sim.run(10);
-    expect(st.flags.talked).toBe(true);
+    o.px = npc.px; o.py = npc.py + 500; o.path = [];
+    talkTo(sim, o, npc);
+    run(sim, 20);
+    expect(vm(sim, 'talked')).toBe(true);
     expect(npc.talk).toBe(false);
   });
 });

@@ -218,8 +218,8 @@ export const lineKey = (voice, lang, text) => `${voice}|${lang}|${text}`;
 const fnv = (str) => { let h = 0x811c9dc5; for (const ch of str) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
 
 /**
- * Everything that is spoken: mission dialogues (speaker → voice) – dialogue actions of mission files and say() lines
- * of level folders (Python syntax tree, src/sim/missions/dialogLines.js) – and barks (bark role → voices).
+ * Everything that is spoken: mission dialogues (speaker → voice) – say() lines of the level folders (Python syntax
+ * tree) and the lines of the developer maps (src/sim/missions/dialogLines.js) – and barks (bark role → voices).
  */
 export async function collectLines() {
   const c = cast();

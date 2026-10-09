@@ -1,0 +1,129 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "c2",
+  "kind": "campaign",
+  "end": "objectives",
+  "order": 2,
+  "next": "c3",
+  "title": {
+    "de": "Beaucroix",
+    "en": "Beaucroix"
+  },
+  "summary": {
+    "de": "Baue einen Markt auf und hol die zweite Zacke – mit Talern oder mit Schwertern.",
+    "en": "Set up a market and get the second shard – with thalers or with swords."
+  },
+  "briefing": {
+    "de": "Beaucroix lebt vom Flusshandel. Die Märkte sind voll, doch das Korn ist teuer: Malvors Agenten kaufen alles auf. Wo gehandelt wird, hört man alles – vielleicht auch, wo die zweite Zacke liegt. Orrin kennt die Preise. Nelia kennt den Hunger.",
+    "en": "Beaucroix lives on river trade. The markets are full, but grain is expensive: Malvor’s agents buy up everything. Where people trade, you hear everything – perhaps also where the second shard lies. Orrin knows the prices. Nelia knows hunger."
+  },
+  "victoryText": {
+    "de": "Die zweite Zacke ist euer. Beaucroix hat Nahrung und einen Markt.",
+    "en": "The second shard is yours. Beaucroix has food and a market."
+  },
+  "debrief": {
+    "de": "Der Räuberhauptmann zählt Orrins Taler zweimal. Beim Abschied grinst er: „Der Winter ist nicht echt, wisst ihr? Im Norden, bei Hagenfurt, steht ein altes Wetterwerk. Malvor hat es wieder angeworfen.“ Orrin wird blass. Nelia packt ihren Mantel.",
+    "en": "The robber chief counts Orrin’s thalers twice. As they leave he grins: “The winter isn’t real, you know? Up north, near Hagenfurt, there’s an old weatherworks. Malvor has started it up again.” Orrin turns pale. Nelia packs her coat."
+  },
+  "debriefs": {
+    "stormed": {
+      "de": "Der gefangene Räuber zittert, aber nicht vor Kälte: „Der Winter ist nicht echt. Im Norden, bei Hagenfurt, steht ein altes Wetterwerk. Malvor hat es wieder angeworfen.“ Orrin wird blass. Nelia packt ihren Mantel.",
+      "en": "The captured robber is trembling, but not from the cold: “The winter isn’t real. Up north, near Hagenfurt, there’s an old weatherworks. Malvor has started it up again.” Orrin turns pale. Nelia packs her coat."
+    }
+  },
+  "defeatText": {
+    "de": "Euer Lager ist gefallen.",
+    "en": "Your camp has fallen."
+  },
+  "defeatTexts": {
+    "hq": {
+      "de": "Euer Lager ist gefallen. Beaucroix bleibt in Malvors Hand.",
+      "en": "Your camp has fallen. Beaucroix stays in Malvor’s hands."
+    }
+  },
+  "world": {
+    "base": "generate",
+    "seed": 2202,
+    "size": 96,
+    "fog": true
+  },
+  "weatherCycle": [
+    [
+      "winter",
+      360000
+    ]
+  ],
+  "available": {
+    "buildings": [
+      "villageCenter",
+      "residence",
+      "farm",
+      "clayMine",
+      "storehouse",
+      "stoneMine"
+    ],
+    "techs": []
+  },
+  "shafts": [
+    "clay",
+    "stone"
+  ],
+  "players": [
+    {
+      "kind": "human",
+      "heroes": [
+        "nelia",
+        "orrin"
+      ],
+      "serfs": 10,
+      "techs": [
+        "conscription",
+        "education",
+        "trade"
+      ],
+      "stock": {
+        "gold": 300,
+        "clay": 1800,
+        "wood": 2000,
+        "stone": 1200,
+        "iron": 400,
+        "sulfur": 0
+      }
+    },
+    {
+      "kind": "bandits"
+    },
+    {
+      "kind": "village",
+      "name": "beaucroix",
+      "diplomacy": {
+        "human": "allied"
+      }
+    }
+  ],
+  "sections": [
+    {
+      "id": "world",
+      "title": {
+        "de": "Beaucroix aufbauen",
+        "en": "Build Beaucroix"
+      },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": {
+        "de": "Ablauf",
+        "en": "Story"
+      },
+      "level": "mission",
+      "visibility": "open",
+      "editable": false,
+      "file": "mission.py"
+    }
+  ]
+}

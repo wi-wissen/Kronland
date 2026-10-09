@@ -1,0 +1,146 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "c4",
+  "kind": "campaign",
+  "end": "objectives",
+  "order": 4,
+  "next": "c5",
+  "title": {
+    "de": "Eisenhain",
+    "en": "Eisenhain"
+  },
+  "summary": {
+    "de": "Brich die Belagerung der Bergwerksstadt und erschließe Eisen und Schwefel.",
+    "en": "Break the siege of the mining town and open up iron and sulphur."
+  },
+  "briefing": {
+    "de": "Der Frühling ist da, und Malvor hat sein Druckmittel verloren. Jetzt schickt er Soldaten. Hauptmann Taran belagert Eisenhain, die Stadt der Bergleute. Wer die Bergwerke hat, hat Eisen für Schwerter. Nelia will den Bergleuten helfen. Orrin will vor allem nicht in der Nähe der Schwerter sein.",
+    "en": "Spring is here, and Malvor has lost his leverage. Now he sends soldiers. Captain Taran is besieging Eisenhain, the miners’ town. Whoever holds the mines has iron for swords. Nelia wants to help the miners. Orrin mostly wants to stay away from the swords."
+  },
+  "victoryText": {
+    "de": "Die Belagerung ist gebrochen. Eisenhain ist frei.",
+    "en": "The siege is broken. Eisenhain is free."
+  },
+  "debrief": {
+    "de": "Taran zieht mit dem Rest seiner Männer ab. Nelia sieht ihm nach. „Er hat nicht ausgesehen wie einer, der gern kämpft“, sagt sie. Orrin zählt schon die Eisenbarren, die der Bergmeister als Dank versprochen hat.",
+    "en": "Taran withdraws with the rest of his men. Nelia watches him go. “He didn’t look like someone who likes fighting,” she says. Orrin is already counting the iron bars the mine master has promised as thanks."
+  },
+  "defeatText": {
+    "de": "Euer Lager ist gefallen.",
+    "en": "Your camp has fallen."
+  },
+  "defeatTexts": {
+    "hq": {
+      "de": "Euer Lager ist gefallen. Eisenhain bleibt belagert.",
+      "en": "Your camp has fallen. Eisenhain stays besieged."
+    }
+  },
+  "world": {
+    "base": "generate",
+    "seed": 4404,
+    "size": 96,
+    "fog": true
+  },
+  "weatherCycle": [
+    [
+      "summer",
+      4800
+    ],
+    [
+      "rain",
+      1200
+    ],
+    [
+      "summer",
+      4800
+    ],
+    [
+      "winter",
+      1500
+    ]
+  ],
+  "available": {
+    "buildings": [
+      "villageCenter",
+      "residence",
+      "farm",
+      "clayMine",
+      "storehouse",
+      "stoneMine",
+      "barracks",
+      "ironMine",
+      "sulfurMine",
+      "university",
+      "archery",
+      "tower"
+    ],
+    "techs": [
+      "standingArmy"
+    ]
+  },
+  "shafts": [
+    "clay",
+    "stone",
+    "iron",
+    "sulfur"
+  ],
+  "players": [
+    {
+      "kind": "human",
+      "heroes": [
+        "nelia",
+        "orrin"
+      ],
+      "serfs": 10,
+      "techs": [
+        "conscription",
+        "education",
+        "construction"
+      ],
+      "stock": {
+        "gold": 900,
+        "clay": 1400,
+        "wood": 1800,
+        "stone": 1200,
+        "iron": 400,
+        "sulfur": 100
+      }
+    },
+    {
+      "kind": "bandits",
+      "look": "soldiers"
+    },
+    {
+      "kind": "village",
+      "name": "eisenhain",
+      "diplomacy": {
+        "human": "allied"
+      }
+    }
+  ],
+  "sections": [
+    {
+      "id": "world",
+      "title": {
+        "de": "Eisenhain aufbauen",
+        "en": "Build Eisenhain"
+      },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": {
+        "de": "Ablauf",
+        "en": "Story"
+      },
+      "level": "mission",
+      "visibility": "open",
+      "editable": false,
+      "file": "mission.py"
+    }
+  ]
+}

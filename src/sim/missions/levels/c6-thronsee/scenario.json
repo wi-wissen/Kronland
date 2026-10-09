@@ -1,0 +1,130 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "c6",
+  "kind": "campaign",
+  "end": "objectives",
+  "order": 6,
+  "next": null,
+  "title": {
+    "de": "Der Thronsee",
+    "en": "The Throne Lake"
+  },
+  "summary": {
+    "de": "Lass den Thronsee zufrieren und stürme Malvors Inselschloss über das Eis.",
+    "en": "Freeze the Throne Lake and storm Malvor’s island castle across the ice."
+  },
+  "briefing": {
+    "de": "Malvor hat sich im Inselschloss verschanzt, mitten im Thronsee. Kein Boot kommt dort an, keine Brücke führt hinüber. Nelia hat Hrimgars Bauplan-Bruchstücke. Mit ihnen kann sie selbst einen Wetterturm bauen und den See zufrieren lassen. Aber Malvor kennt die Technik auch. Und um den Hals trägt er die fünfte Zacke.",
+    "en": "Malvor has entrenched himself in the island castle in the middle of the Throne Lake. No boat can reach it, no bridge leads across. Nelia has Hrimgar’s plan fragments. With them she can build a weather tower of her own and make the lake freeze. But Malvor knows the technique too. And around his neck he wears the fifth shard."
+  },
+  "victoryText": {
+    "de": "Malvor ist gefallen. Die fünf Zacken sind vereint.",
+    "en": "Malvor has fallen. The five shards are united."
+  },
+  "debrief": {
+    "de": "Nach dem alten Recht krönen die Provinzen Nelia zur Königin des Kronlands – die erste, die ihre Krone nicht geerbt hat. Orrin erlebt die Krönung noch. „Meine Prinzessin“, flüstert er, „ich wusste es immer.“ Nelia hält seine Hand und schweigt. In der Nacht stirbt er. Am nächsten Morgen hebt Königin Nelia die Leibeigenschaft auf. Den Wetterturm lässt sie stehen: Die Technik, mit der Hrimgar und Malvor das Land aushungerten, soll es künftig vor Missernten schützen. Ende der Kampagne – danke fürs Spielen!",
+    "en": "By the old law, the provinces crown Nelia queen of the Crownland – the first who did not inherit her crown. Orrin lives to see the coronation. “My princess,” he whispers, “I always knew.” Nelia holds his hand and stays silent. He dies in the night. The next morning Queen Nelia abolishes serfdom. She leaves the weather tower standing: the technique Hrimgar and Malvor used to starve the land shall protect it from failed harvests from now on. End of the campaign – thank you for playing!"
+  },
+  "defeatText": {
+    "de": "Malvor hat gesiegt.",
+    "en": "Malvor has won."
+  },
+  "defeatTexts": {
+    "hq": {
+      "de": "Die Ufersiedlung ist gefallen. Malvor hat gesiegt.",
+      "en": "The lakeshore settlement has fallen. Malvor has won."
+    }
+  },
+  "world": {
+    "base": "generate",
+    "seed": 6606,
+    "size": 112,
+    "fog": true
+  },
+  "weatherCycle": [
+    [
+      "summer",
+      30000
+    ],
+    [
+      "rain",
+      1500
+    ]
+  ],
+  "players": [
+    {
+      "kind": "human",
+      "heroes": [
+        "nelia",
+        "orrin",
+        "taran"
+      ],
+      "serfs": 16,
+      "techs": [
+        "conscription",
+        "education",
+        "construction",
+        "alchemy",
+        "standingArmy"
+      ],
+      "stock": {
+        "gold": 1500,
+        "clay": 2500,
+        "wood": 3000,
+        "stone": 2500,
+        "iron": 1500,
+        "sulfur": 600
+      }
+    },
+    {
+      "kind": "ai",
+      "hero": "malvor",
+      "difficulty": "normal",
+      "aggression": "passive",
+      "aiSerfs": 14,
+      "militia": false,
+      "techs": [
+        "conscription",
+        "construction",
+        "education",
+        "alchemy",
+        "standingArmy",
+        "weatherForecast",
+        "meteorology"
+      ],
+      "stock": {
+        "gold": 1500,
+        "clay": 2000,
+        "wood": 2500,
+        "stone": 2000,
+        "iron": 1500,
+        "sulfur": 800
+      }
+    }
+  ],
+  "sections": [
+    {
+      "id": "world",
+      "title": {
+        "de": "Der Thronsee",
+        "en": "The Throne Lake"
+      },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": {
+        "de": "Ablauf",
+        "en": "Story"
+      },
+      "level": "mission",
+      "visibility": "open",
+      "editable": false,
+      "file": "mission.py"
+    }
+  ]
+}

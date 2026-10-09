@@ -90,6 +90,8 @@ export class ScriptHost {
     this.acted = false;
     /** Task of the player program that ran last – the panel shows its line (transient, display only) */
     this.shownTask = 0;
+    /** Heavy calls (world.ridge, world.reachable …) left in this tick – reset at every tick and for world building */
+    this.heavyLeft = LIMITS.heavy;
   }
 
   /** Remember the figure a program just steered (display only, not part of the state). */
@@ -159,6 +161,7 @@ export class ScriptHost {
   /** Translate and start the mission program (runs at the end of the Sim constructor). */
   setup(sim) {
     this.sim = sim;
+    this.heavyLeft = LIMITS.heavy;
     const mod = this.moduleSource('mission');
     this.modules.mission = mod;
     if (!mod.source.trim()) return;
@@ -193,6 +196,7 @@ export class ScriptHost {
 
   /** Start of a tick (before goals are checked): fresh budget for synchronous calls. */
   beginTick() {
+    this.heavyLeft = LIMITS.heavy;
     for (const level of ['mission', 'player']) if (this.vms[level]) this.vms[level].syncBudget = SYNC_BUDGET[level];
   }
 
@@ -629,11 +633,11 @@ export class ScriptHost {
     st.camera = { seq: ++st.seq, x, y, fly };
   }
 
-  addObjective(vm, id, textV, cond, primary, hidden) {
+  addObjective(vm, id, textV, cond, primary, hidden, o = {}) {
     const rt = this.runtime, st = rt.state;
-    if (st.objectives.some((o) => o.id === id)) throw new ScriptError('game', { reason: 'script.game.objectiveExists', reasonParams: { id } });
+    if (st.objectives.some((x) => x.id === id)) throw new ScriptError('game', { reason: 'script.game.objectiveExists', reasonParams: { id } });
     if (st.objectives.length >= LIMITS.objectives) throw new ScriptError('value', { what: 'tooMany', name: 'objective', max: LIMITS.objectives });
-    (st.extraObjectives ??= {})[id] = { id, type: 'script', text: this.text(textV), primary };
+    (st.extraObjectives ??= {})[id] = { id, type: 'script', text: this.text(textV), primary, ...(o.hold ? { hold: true } : {}), ...(o.clock ? { clock: true } : {}) };
     let conds = vm.globals.get('.objectives');
     if (!(conds instanceof PyDict)) { conds = new PyDict(); vm.globals.set('.objectives', conds); }
     conds.set(id, cond);
@@ -648,13 +652,14 @@ export class ScriptHost {
     const vm = this.vms.mission;
     const conds = vm?.globals.get('.objectives');
     const fn = conds instanceof PyDict ? conds.get(id) : null;
-    if (!fn) return { cur: 0, target: 1 };
+    if (!fn) return { cur: 0, target: 1, none: true };
     try {
       const r = vm.callSync(fn, [], null, null);
-      // Only a tuple is a pair: a list of two figures (units_in …) still counts as "true"
-      if (r instanceof PyTuple && r.items.length === 2) {
+      // Only a tuple is a pair: a list of two figures (units_in …) still counts as "true"; a third value decides when it is met
+      if (r instanceof PyTuple && (r.items.length === 2 || r.items.length === 3)) {
         const target = Math.max(1, toInt(r.items[1], 'needed'));
-        return { cur: Math.max(0, Math.min(target, toInt(r.items[0], 'done'))), target };
+        const cur = Math.max(0, Math.min(target, toInt(r.items[0], 'done')));
+        return r.items.length === 3 ? { cur, target, done: truthy(r.items[2]) } : { cur, target };
       }
       return { cur: truthy(r) ? 1 : 0, target: 1 };
     } catch (e) {
@@ -667,7 +672,7 @@ export class ScriptHost {
 
   objectiveAction(action, id) {
     if (!this.runtime.state.objectives.some((o) => o.id === id)) throw new ScriptError('game', { reason: 'script.game.objectiveUnknown', reasonParams: { id } });
-    this.runtime.runAction(this.sim, { type: action, id });
+    this.runtime.objectiveAction(this.sim, action, id);
   }
 
   /**

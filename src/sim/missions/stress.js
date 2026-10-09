@@ -5,13 +5,15 @@
 //
 // Order of magnitude: ~1500 figures and ~170 buildings at the start (tests/sim/stress.test.js checks the minimum numbers).
 
-import { t } from './campaign/common.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { UNITS } from '../data/units.js';
 import { secondsToTicks } from '../fixed.js';
 import { addWorker } from './showcase.js';
 import * as api from './setupApi.js';
 import { WATER, CLIFF } from '../map.js';
+
+/** Bilingual text. */
+const t = (de, en) => ({ de, en });
 
 export const STRESS_ID = 'bustle';
 
@@ -165,20 +167,21 @@ export default {
     ['town2', 'Stadt von Spieler 2', 'Town of player 2'],
     ['town3', 'Stadt von Spieler 3', 'Town of player 3'],
     ['town4', 'Stadt von Spieler 4', 'Town of player 4'],
-  ].map(([area, de, en]) => ({ id: `see-${area}`, type: 'flag', flag: 'never', text: t(de, en), hint: { area } })),
+  ].map(([area, de, en]) => ({ id: `see-${area}`, type: 'signpost', text: t(de, en), hint: { area } })),
 
-  // Reinforcements: each side regularly gets a new wave as long as it does not have too many troops
-  events: [{
-    id: 'waves', every: WAVE_SECONDS, when: { type: 'time', at: WAVE_SECONDS },
-    do: (sim, m) => {
-      BATTLES.forEach((battle, i) => {
-        const at = m.state.refs[`battle${i + 1}`];
-        if (!at) return;
-        for (const left of [true, false]) {
-          const owner = left ? battle.a : battle.b;
-          if (leaders(sim, owner) < MAX_LEADERS) wave(sim, owner, at, battle.spread, left);
-        }
-      });
-    },
-  }],
+  // Reinforcements (developer hook, every tick): every WAVE_SECONDS each side gets a new wave as long as it does not
+  // have too many troops; state.refs.waves counts them
+  tick(sim, m) {
+    const every = secondsToTicks(WAVE_SECONDS);
+    if (sim.tick < every || sim.tick % every !== 0) return;
+    m.state.refs.waves = (m.state.refs.waves ?? 0) + 1;
+    BATTLES.forEach((battle, i) => {
+      const at = m.state.refs[`battle${i + 1}`];
+      if (!at) return;
+      for (const left of [true, false]) {
+        const owner = left ? battle.a : battle.b;
+        if (leaders(sim, owner) < MAX_LEADERS) wave(sim, owner, at, battle.spread, left);
+      }
+    });
+  },
 };

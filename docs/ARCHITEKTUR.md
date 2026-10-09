@@ -10,7 +10,7 @@ src/
     data/     Balancing-Werte (Gebäude, Rohstoffe, Einheiten, Techs)
     systems/  Ablauf pro Takt (Bauen, Ausbau ohne Leibeigene, Abbau, Zahltag, Gebäude-Forschung, Markt, Wetter, Brand/Reparatur, …)
     reasons.js Ablehnungsgründe der neuen Systeme in einer Tabelle (für i18n-Umstellung)
-    missions/ Missionslaufzeit, Tutorial, Kampagne (siehe docs/MISSIONEN.md), levels/ (ein Ordner je Level: Lernabenteuer, Skript-Missionen)
+    missions/ Missionslaufzeit (docs/MISSIONEN.md), levels/ (ein Ordner je Level in Python: Kampagne c1–c6, Tutorial, Lernabenteuer, Skript-Missionen), Entwicklerkarten showcase.js/stress.js
     scripting/ Python-Skripte in der Simulation: ScriptHost, Spiel-API, Szenario-Format (docs/SKRIPTE.md)
     editor/   Werkzeuge des Welteneditors auf einer Vorschau-Simulation
     world.js  Welten: Zufallskarte, flache Grundkarte, gespeicherte Editor-Karte

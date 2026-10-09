@@ -2,7 +2,7 @@
 
 import { createMissionSim } from '../../src/sim/missions/runtime.js';
 import { BUILDINGS } from '../../src/sim/data/buildings.js';
-import { P, act, build, gatherWood, idle, serfs, own, leaders, hero, until, attackMove, tileOf, stepId, ref, refIds, talkTo, objective } from './missionBot.js';
+import { P, act, build, gatherWood, idle, serfs, own, leaders, hero, until, attackMove, tileOf, stepId, ref, refIds, talkTo, objective, heroOf } from './missionBot.js';
 
 /** Play the tutorial from start to finish. @returns {{ sim, log: string[] }} */
 export function playTutorial(seed) {
@@ -88,7 +88,7 @@ export function playTutorial(seed) {
 /** Mission 1: put Nelia next to Orrin on the village square and send her to him (tap) until he has joined. */
 export function meetOrrin(sim) {
   const st = sim.mission.state;
-  const n = sim.entities.get(st.npcs.stranger.entity), nelia = sim.entities.get(st.refs.nelia);
+  const n = sim.entities.get(st.npcs.stranger.entity), nelia = heroOf(sim, 'nelia');
   nelia.px = n.px + 1000; nelia.py = n.py; nelia.path = [];
   talkTo(sim, [nelia.id], 'stranger');
   // The conversation runs (after the arrival lines), then Orrin is a hero
@@ -103,13 +103,14 @@ export function playMission1(seed) {
   const hq = sim.findBuilding(P, 'headquarters');
   meetOrrin(sim);
   const orrinId = () => [...sim.entities.values()].find((e) => e.kind === 'hero' && e.hero === 'orrin' && e.owner === P)?.id;
-  const heroIds = () => [m.state.refs.nelia, orrinId()].filter(Boolean);
+  const neliaId = heroOf(sim, 'nelia').id;
+  const heroIds = () => [neliaId, orrinId()].filter(Boolean);
   let phase = '';
   const keepBusy = () => {
     const col = refIds(sim, 'collectors').map((id) => sim.entities.get(id)).find(Boolean);
     // both heroes follow the collectors until they are gone
     if (col) { phase = 'fight'; attackMove(sim, heroIds(), tileOf(col)); }
-    else if (!col && phase === '') { phase = 'root'; const r = ref(sim, 'oldRoot'); act(sim, { type: 'order', units: [m.state.refs.nelia], order: 'move', x: r.x, y: r.y }); }
+    else if (!col && phase === '') { phase = 'root'; const r = ref(sim, 'oldRoot'); act(sim, { type: 'order', units: [neliaId], order: 'move', x: r.x, y: r.y }); }
     // construction sites first, then wood
     const sites = [...sim.entities.values()].filter((e) => e.kind === 'building' && e.owner === P && !e.done && e.builders.length < 4);
     for (const s of sites) {
@@ -122,7 +123,7 @@ export function playMission1(seed) {
   };
   // The old tree brings three serfs; first the village centre on the old foundations
   const r = ref(sim, 'oldRoot');
-  act(sim, { type: 'order', units: [m.state.refs.nelia], order: 'move', x: r.x, y: r.y });
+  act(sim, { type: 'order', units: [neliaId], order: 'move', x: r.x, y: r.y });
   until(sim, () => objective(sim, 'root').status === 'done', 1500);
   const vc = ref(sim, 'vcRuin');
   act(sim, { type: 'placeBuilding', building: 'villageCenter', x: vc.x, y: vc.y, units: idle(sim).map((u) => u.id) });

@@ -43,7 +43,7 @@ describe('Swarm', () => {
     const s = createMissionSim(STRESS_ID);
     const before = figures(count(s));
     s.run((WAVE_SECONDS + 5) * 10);
-    expect(s.mission.state.fireCount.waves).toBe(1);
+    expect(s.mission.state.refs.waves).toBe(1);
     const c = count(s);
     // battles cost soldiers; waves and AI recruitment top up
     expect(figures(c)).toBeGreaterThan(before * 0.7);

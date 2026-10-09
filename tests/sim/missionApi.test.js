@@ -369,9 +369,11 @@ describe('Save games of rewritten missions', () => {
   it('an old save of a mission that is a level folder now cannot be continued (readable error)', () => {
     const sim = level('');
     const data = JSON.parse(JSON.stringify(saveGame(sim)));
-    // as an old JS save of mission 1 would look: no scenario, not an own level
-    const state = { ...data.mission, id: 'c1', scenario: null, custom: false };
-    expect(() => MissionRuntime.fromState(state)).toThrow(expect.objectContaining({ code: 'saves.err.missionChanged' }));
+    // as an old JS save of a campaign mission would look: no scenario, not an own level
+    for (const id of ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'tutorial']) {
+      const state = { ...data.mission, id, scenario: null, custom: false };
+      expect(() => MissionRuntime.fromState(state), id).toThrow(expect.objectContaining({ code: 'saves.err.missionChanged' }));
+    }
   });
 
   it('frozen water is never chosen by find_open in winter unless on_ice', () => {
@@ -389,5 +391,160 @@ describe('Save games of rewritten missions', () => {
     expect(sim.map.frozen).toBe(true);
     expect(sim.map.flags[sim.map.idx(30, 20)] & WATER).toBeTruthy();
     expect(out(sim)).toEqual(['None <Place 30, 20>']);
+  });
+});
+
+describe('Mission API: shaping the world (world.*)', () => {
+  /** A generated map without castle: valley behind a ridge with pass and gorge, a lake island, a river. */
+  const VALLEY = [
+    'start = start_spot()',
+    'far = (world.width - 1 - start.x, world.height - 1 - start.y)',
+    'world.soften(sites=True)',
+    'front = world.ridge(start, far, 16, 5)',
+    'gate = world.ridge_gap(front, 8, width=4)',
+    'gorge = world.ridge_gap(front, -10, width=3, water=True)',
+    'isle = world.lake_island(world.axis_point(start, far, 34), inner=5, width=3)',
+    'world.channel(gorge["far"], isle, width=3)',
+    'valley = world.nearest_walkable(world.axis_point(start, far, 26, 8))',
+  ].join('\n');
+  const valley = (seed, code = '') => createScenarioSim({
+    format: 'kronland-scenario', version: 2, id: 'shape', kind: 'mission', end: 'script',
+    world: { base: 'generate', seed, size: 64, fog: false }, weatherCycle: [['summer', 36000]],
+    players: [{ kind: 'human', hero: 'nelia', hq: false }, { kind: 'bandits' }],
+    sections: [{ id: 'world', level: 'mission', code: `${VALLEY}\n${code}` }],
+  });
+
+  it('ridge, pass, gorge, lake island and river: cut off in summer, over the ice in winter', () => {
+    for (const seed of [5, 77]) {
+      const sim = valley(seed, [
+        'print(world.reachable(start, valley, frozen=False), world.reachable(start, isle, frozen=False), world.reachable(start, isle, frozen=True))',
+        'print(world.is_water(gorge["center"].x, gorge["center"].y), front["at"], front["width"])',
+        'for dx in range(-3, 4):',
+        '    for dy in range(-3, 4):',
+        '        world.set_cliff(gate["center"].x + dx, gate["center"].y + dy)',
+        'print(world.reachable(start, valley, frozen=False), world.reachable(start, valley, frozen=True))',
+      ].join('\n'));
+      expect(errors(sim), `seed ${seed}`).toEqual([]);
+      expect(out(sim), `seed ${seed}`).toEqual(['True False True', 'True 16 5', 'False True']);
+      // rock all along the ridge, no settlement spots or shafts left (sites=True)
+      expect([...sim.map.flags].filter((f) => f & 8).length).toBeGreaterThan(200);
+      expect(sim.spots.length + sim.shafts.length).toBe(0);
+      // the renderer hears about the change once
+      expect(sim.events.some((e) => e.type === 'terrainChanged')).toBe(true);
+    }
+  });
+
+  it('is deterministic and the ridge (a dict of numbers and points) survives saving and loading', () => {
+    const later = '@on_start\ndef later():\n    wait(1)\n    print(world.ridge_gap(front, 0)["far"])\n';
+    const a = valley(9, later);
+    const b = valley(9, later);
+    expect(b.hash()).toBe(a.hash());
+    expect([...b.map.heights]).toEqual([...a.map.heights]);
+    const c = loadGame(JSON.parse(JSON.stringify(saveGame(a))));
+    expect(c.hash()).toBe(a.hash());
+    run(a, 20); run(c, 20);
+    expect(c.hash()).toBe(a.hash());
+    expect(out(c)).toEqual(out(a));
+    expect(errors(c)).toEqual([]);
+  });
+
+  it('moat around a castle and an island on the way: cut off in summer, keep stays reachable', () => {
+    const sim = level([
+      'isle = None',
+      'for inner in range(4, 9):',
+      '    isle = world.moat(hq(ENEMY), hq(), inner=inner, width=3)',
+      '    if isle:',
+      '        break',
+      'print(isle.r >= 3, world.reachable(hq(), hq(ENEMY), frozen=False), world.reachable(hq(), hq(ENEMY), frozen=True))',
+      'keep = [(26, 12)]',
+      'works = world.island(hq(), (12, 40), inner=3, width=2, min_dist=12, keep=keep)',
+      'print(works is not None, world.reachable(hq(), works, frozen=False), world.reachable(hq(), keep[0], frozen=False))',
+      'print(world.moat(hq(ENEMY), hq(), inner=1, width=1))',
+    ].join('\n'));
+    expect(errors(sim)).toEqual([]);
+    expect(out(sim)).toEqual(['True False True', 'True False True', 'None']);
+  });
+
+  it('axis_point and axis_coords measure along a way; heavy calls are limited per tick', () => {
+    const sim = level([
+      'p = world.axis_point((10, 10), (30, 10), 12, side=4)',
+      'print(p, world.axis_coords((10, 10), (30, 10), p), world.axis_point((10, 10), (10, 30), -3))',
+      'for i in range(300):',
+      '    world.reachable((12, 12), (13, 13))',
+    ].join('\n'));
+    expect(out(sim)[0]).toBe('<Place 22, 14> (12, 4) <Place 10, 7>');
+    expect(errors(sim)[0]).toMatch(/tooMany/);
+  });
+});
+
+describe('Mission API: waves, weather power plants, objectives to keep, endings', () => {
+  it('spawn takes a list of units as one wave; spread=False stands at the spot itself', () => {
+    const sim = level([
+      'wave = spawn(BANDITS, [("sword1", 2, 4), ("bow1", 1, 2)], (30, 30))',
+      'print(len(wave), [t.type for t in wave], [t.soldiers for t in wave])',
+      'one = spawn(HUMAN, "spear1", (20, 20), spread=False)',
+      'print(one[0].x, one[0].y)',
+      'spawn(BANDITS, [("sword1", 40), ("bow1", 20)], (30, 30))',
+    ].join('\n'));
+    expect(out(sim).slice(0, 2)).toEqual(["3 ['sword1', 'sword1', 'bow1'] [4, 4, 2]", '20 20']);
+    expect(errors(sim)[0]).toMatch(/tooBig/);
+    expect(sim.events.filter((e) => e.type === 'wave').length).toBe(2);
+  });
+
+  it('stock("energy"), give(energy=) up to a full charge; change_weather by the rules of the plant', () => {
+    const sim = level([
+      'give(ENEMY, energy=5000)',
+      'give_tech(ENEMY, "meteorology")',
+      'plant = place_building(ENEMY, "weatherPlant", hq(ENEMY), min_r=4)',
+      'print(stock("energy", ENEMY), plant.can_change_weather("winter"), plant.can_change_weather("summer"))',
+      'plant.change_weather("winter")',
+      'print(weather(), stock("energy", ENEMY), plant.can_change_weather("summer"))',
+      'plant.change_weather("summer")',
+    ].join('\n'));
+    expect(out(sim).slice(0, 2)).toEqual(['1000 True False', 'winter 0 False']);
+    // the second change: rejected like the button (no energy, waiting time)
+    expect(errors(sim)[0]).toMatch(/game/);
+    expect(sim.weather.state).toBe('winter');
+  });
+
+  it('objective(hold=True) holds until the condition breaks; a triple decides itself; clock shows the time', () => {
+    const sim = level([
+      'farm = place_building(HUMAN, "farm", hq(), min_r=4)',
+      'objective("keep", lambda: farm.alive, hold=True, de="Schütze den Hof", en="Protect the farm")',
+      'charge = 0',
+      'objective("bar", lambda: (charge, 10, charge < 0), primary=False, de="Balken", en="Bar")',
+      'started = time()',
+      'objective("clock", lambda: (min(30, int(time() - started)), 30), primary=False, clock=True, de="Uhr", en="Clock")',
+      '@on_start',
+      'def go():',
+      '    global charge',
+      '    charge = 10',
+      '    wait(1)',
+      '    charge = -1',
+      '    wait(1)',
+      '    farm.kill()',
+    ].join('\n'), { end: 'objectives' });
+    const st = sim.mission.state, ui = () => sim.mission.uiState(sim).objectives;
+    run(sim, 5);
+    expect(st.objectives.map((o) => o.status)).toEqual(['active', 'active', 'active']);
+    expect(ui().find((o) => o.id === 'bar').progress).toEqual([10, 10]);
+    expect(ui().find((o) => o.id === 'clock').time).toBe(true);
+    run(sim, 10);
+    expect(st.objectives.find((o) => o.id === 'bar').status).toBe('done');
+    run(sim, 15);
+    expect(st.objectives.find((o) => o.id === 'keep').status).toBe('failed');
+    expect(st.result).toMatchObject({ won: false, reason: 'keep' });
+  });
+
+  it('ending(reason) picks victory text and epilogue when the objectives end the level; held objectives count as done', () => {
+    const sim = level([
+      'objective("x", lambda: time() > 1, de="X", en="X")',
+      'objective("safe", lambda: True, hold=True, de="Halten", en="Hold")',
+      'ending("stormed")',
+    ].join('\n'), { end: 'objectives', debrief: { de: 'Gekauft', en: 'Bought' }, debriefs: { stormed: { de: 'Gestürmt', en: 'Stormed' } } });
+    run(sim, 30);
+    expect(sim.mission.state.result).toMatchObject({ won: true, reason: 'stormed' });
+    expect(sim.mission.state.objectives.map((o) => o.status)).toEqual(['done', 'done']);
+    expect(sim.mission.uiState(sim).result.debrief).toEqual({ de: 'Gestürmt', en: 'Stormed' });
   });
 });
