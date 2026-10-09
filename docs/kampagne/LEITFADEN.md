@@ -59,13 +59,16 @@ Eine eigene Stimme, die nur zum Spieler spricht (Entscheidung Oktober 2026).
 - **Wer:** Frau zwischen 40 und 50 mit voller Stimme, nah am Mikrofon wie bei einem Hörbuch oder Podcast (nicht
   älter – 60 klang zu alt; keine „Außenstimme“). Hörproben Runde 2 mit drei Beschreibungen, Wahl offen. Bei neuen
   Stimmen zuerst nur den Vorlagensatz erzeugen, erst nach der Wahl weitere Sätze klonen (spart Kosten).
-- **Was sie spricht:**
-  - den **Einleitungstext** jeder Mission (vorgelesen),
-  - jedes **neue Ziel** in ein, zwei Sätzen: was und warum,
-  - **Bedienung**, die neu ist (welcher Knopf, welcher Klick),
-  - nach Sieg und Niederlage ein allgemeiner Satz, mit mehreren Varianten, die zufällig wechseln.
-- **Ton:** duzt den Spieler; bei Bedienung ruhig und klar, bei Zielen und Einleitungen erzählerisch. Kommentiert nie,
-  was Figuren fühlen, macht keine Witze.
+- **Was sie spricht:** den **Einleitungstext** jeder Mission (vorgelesen) und sonst **nur, was sich nicht aus dem
+  Gespräch oder der Zielliste ergibt** – meist Bedienung, die neu ist, in **einem kurzen Satz** („Wähle Nelia aus und
+  klicke mit der rechten Maustaste auf den Fremden“). Keine Begrüßung, kein Wiederholen dessen, was Figuren gerade
+  gesagt haben, kein „anklicken oder antippen“ für dasselbe. Die Spieler sind nicht dumm, und die Stimmen sprechen
+  langsam: Jeder überflüssige Satz kostet Sekunden. Nach Sieg und Niederlage ein allgemeiner Satz, mit mehreren
+  Varianten.
+- **Ton:** duzt den Spieler; sachlich-warm, kommentiert nie, was Figuren fühlen, macht keine Witze.
+- **Bedienung richtig benennen** (im Code nachsehen, nicht raten): Karte verschieben mit W, A, S, D, gedrückter
+  mittlerer Maustaste oder am Bildrand; rechte Maustaste ziehen dreht die Kamera; Befehle mit Rechtsklick, am Handy
+  durch Tippen.
 - **Reihenfolge:** Sie spricht erst, wenn die Figuren fertig sind – nie durcheinander.
 
 ## Entscheidungen vorlegen
