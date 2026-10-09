@@ -177,7 +177,16 @@ HUD-Ausschnitte `hud-*.webp`). Mit SwiftShader dauert das einige Minuten. Filter
 Spiel nach; vor jeder Aufnahme wartet das Skript, bis keine sichtbare Figur mehr ihren Platzhalter zeigt.
 Python-Playwright fehlt in der Cloud-Umgebung: `pip install playwright`, Browser über `PW_CHROMIUM=/opt/pw-browsers/chromium-<version>/chrome-linux/chrome`.
 Motive: `hero` (Titelbild der Startseite, doppelte Pixeldichte: `hero.webp` 1440 px und `hero-wide.webp` 2880 px per `srcset` für große Bildschirme), `settlement`, `hud-*`, `combat`, `hud-army` (Befehle), `hud-selection` (Auswahlkarte mit Held und Hauptleuten), `winter`, `fog`, `slope` (gelbe Bauvorschau),
-`developer` (A*-Suche), `programming` (Code-Panel am Haltepunkt), `phone`. Ein Test begrenzt die Dateigröße (Galerie ≤ 120 kB, groß ≤ 300 kB).
+`developer` (A*-Suche), `programming` (Mission I.4: Welten mit Ergebnis von „Prüfen“, Programm am Haltepunkt),
+`course` (Menü der Programmier-Abenteuer nach Reihen), `paths` (Spuren: dasselbe Dorf im Sommer und Winter, zwei
+halbe Bilder nebeneinander), `phone`. Ein Test begrenzt die Dateigröße (Galerie ≤ 120 kB, groß ≤ 300 kB).
+Vor jeder Aufnahme wartet das Skript auch auf nachgeladene Gebäudemodelle (sonst Platzhalter-Häuser nach dem
+Vorspulen); `SHOTS_DEBUG=1` zeigt, worauf es wartet.
+
+Die Bilder in [KAMPAGNE.md](KAMPAGNE.md#bilder) (`docs/images/campaign/<motiv>-desktop.webp` und `-phone.webp`)
+nimmt `python3 scripts/campaign-screens.py http://localhost:4301 [filter]` auf (Desktop 1440×900, Handy wie das
+E2E-Projekt „mobile“, gespeichert in halber Auflösung). Motive: `start-heroes`, `c1-square`, `c1-elder`,
+`c2-unlocks`, `c4-offers`, `c3-gorge`, `c3-thaw`, `c6-plant`; Filter auch `desktop` oder `phone`.
 
 ## Bewegtes Titelbild
 
