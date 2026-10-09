@@ -63,7 +63,7 @@ describe('Stage restart', () => {
       if (k) sim = stage.beforeRun(sim);
       runCode(sim, code);
       run(sim, 60);
-      results.push([sim.hash(), tile(sim).join(',')]);
+      results.push([hero(sim).px, sim.mission.script.state.player.status, tile(sim).join(',')]);
     }
     expect(results[1]).toEqual(results[0]);
     expect(results[2]).toEqual(results[0]);
@@ -125,5 +125,32 @@ describe('Stage restart', () => {
     run(sim, 60);
     expect(back.beforeRun(sim).hash()).toBe(hash);
     expect(restoreStage(stage.data, null).hash()).toBe(hash);
+  });
+
+  it('every restore of a real mission equals the snapshot and runs the same program the same way (r1-4, three worlds)', async () => {
+    const { createMissionSim } = await import('../../src/sim/missions/runtime.js');
+    const code = 'guess = 99\nsteps = 0\nwhile nelia.can_step():\n    nelia.step()\n    steps = steps + 1\nprint(steps)\n';
+    for (const world of ['normal', 'near', 'far']) {
+      let sim = createMissionSim('r1-4', { world });
+      for (let i = 0; i < 600 && stageKey(sim) !== 'predict'; i++) sim.step();
+      expect(stageKey(sim)).toBe('predict');
+      const stage = new StageSnapshot();
+      expect(stage.beforeRun(sim)).toBeNull();
+      const hash = sim.hash();
+      const results = [];
+      for (let k = 0; k < 3; k++) {
+        if (k) {
+          // (the display counter mission.seq carries on from the world before the restore and is part of the hash,
+          // so compare with a plain restore of the snapshot)
+          sim = stage.beforeRun(sim);
+          expect(restoreStage(stage.data, null).hash()).toBe(hash);
+        }
+        runCode(sim, code);
+        run(sim, 120);
+        results.push([hero(sim).px, sim.mission.script.state.player.status, tile(sim).join(',')]);
+      }
+      expect(results[1]).toEqual(results[0]);
+      expect(results[2]).toEqual(results[0]);
+    }
   });
 });

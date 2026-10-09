@@ -1255,6 +1255,24 @@ export class CharacterSystem {
     }
   }
 
+  /**
+   * Take over the finished figure renderings of the system of the previous world (stage restart): geometry, baked
+   * animations, materials and instanced meshes do not depend on the world, baking them again is the biggest part of
+   * a restart. The figures themselves (records) start empty. Only for the same figure model setting.
+   * @param {CharacterSystem} prev
+   */
+  adoptVariants(prev) {
+    if (prev === this || prev.quality.characterModels !== this.quality.characterModels) return false;
+    this.variants = prev.variants;
+    this.modelBakes = prev.modelBakes;
+    this.variantLists = prev.variantLists;
+    for (const v of this.variants.values()) {
+      for (const m of v?.meshes ?? []) if (m) { m.count = 0; this.group.add(m); }
+    }
+    prev.variants = new Map();
+    return true;
+  }
+
   /** What is the variant key for a role? Loads/bakes on demand. @returns {Variant|null} */
   /** Discard the rendering of a role (is rebuilt at the next need). */
   dropVariant(key, v) {

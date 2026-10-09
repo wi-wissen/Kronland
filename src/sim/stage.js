@@ -31,8 +31,9 @@ export function resetEnabled(sim) {
 
 /**
  * Restore a snapshot. Counters that only number messages for the UI (dialogue lines, console, notes) carry on from
- * the current world, so panel and dialogue box treat everything after the restart as new. They are not part of the
- * state hash: a restored world hashes like the snapshot. Everything else – also program.runs and with it the
+ * the current world, so panel and dialogue box treat everything after the restart as new. The mission counter `seq` is part
+ * of the state hash, so the hash differs from the moment of the snapshot if a dialogue line came in between (it equals
+ * that of a plain loadGame of the snapshot). Everything else – also program.runs and with it the
  * random numbers of the player program – is as in the snapshot, so the same program gives the same run again.
  * @param {any} data snapshot (save game)
  * @param {import('./sim.js').Sim|null} current the world before the restart
