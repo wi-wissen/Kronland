@@ -4,7 +4,6 @@
 
 import { describe, it, expect } from 'vitest';
 import { Sim } from '../../src/sim/sim.js';
-import { AiPlayer } from '../../src/ai/AiPlayer.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { allMissions } from '../../src/sim/missions/registry.js';
 import { fuzzRun, checkInvariants } from './fuzzHelpers.js';
@@ -70,15 +69,13 @@ describe('Fuzz: random command sequences', () => {
 
 describe('Endurance run: AI vs AI', () => {
   it('4 AI opponents, size 160, 60 min play time: invariants and runtime', () => {
-    const sim = new Sim({ seed: 31, size: 160, players: 4 });
-    const ais = [0, 1, 2, 3].map((p) => new AiPlayer(sim, p, ['hard', 'normal', 'hard', 'easy'][p]));
+    const sim = new Sim({ seed: 31, size: 160, players: 4, ai: ['hard', 'normal', 'hard', 'easy'] });
     const t0 = performance.now();
     let slowest = 0;
     const problems = [];
     const TICKS = 60 * 600;
     for (let t = 0; t < TICKS; t++) {
       const s = performance.now();
-      for (const ai of ais) if (!sim.players[ai.player].defeated) ai.update();
       sim.step();
       slowest = Math.max(slowest, performance.now() - s);
       if ((t + 1) % 3000 === 0) {

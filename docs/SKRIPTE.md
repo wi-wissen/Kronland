@@ -116,14 +116,14 @@ place("goal")  tile(x, y)  trees_near(ziel)  figures_near(ziel, 8, side="enemy")
 weather()  forecast()  stock("wood")  count("farm")  serfs(idle=True)
 hq()  find_spot("residence", hq())  build("residence", x, y)  serf.work_on(baustelle)
 wait(sekunden)  wait_until(lambda: …, timeout=None)  time()  print(…)  notify(text)
-nelia  orrin  taran  malvor        # jeder Held unter seinem Namen (eigener zuerst, sonst ein sichtbarer); hero = erster Held
+nelia  orrin  taran  malvor        # jeder Held unter seinem Namen (eigener zuerst, sonst ein sichtbarer)
 diplomacy(HUMAN, ENEMY)            # "allied", "neutral" oder "hostile"
 
 # Mission (zusätzlich)
 say("nelia", de="Da hinten!", en="Over there!")   # zweisprachig oder ein Text; wartet, bis die Zeile vorbei ist
 say("orrin", de="…", en="…", wait=False)          # nur einreihen, sofort weiter
 step("farm", until=lambda: count("farm", placed=True) >= 1, de=…, en=…, hint={"ui": "build-farm"})   # Tutorial-Schritt
-camera.fly_to(place("camp"), seconds=3)   camera.jump_to(hero)   reveal(ort)   message(de=…, en=…)
+camera.fly_to(place("camp"), seconds=3)   camera.jump_to(nelia)   reveal(ort)   message(de=…, en=…)
 objective("homes", lambda: (count("residence"), 2), de="Baue 2 Wohnhäuser", en="Build 2 residences")
 complete(id)  fail(id)  show_objective(id)  victory("gold")  defeat("hq")
 hint("homes", ui=["build-residence"], area="square", ui_until=lambda: count("residence", placed=True) >= 2)
@@ -143,7 +143,6 @@ count("farm", placed=True, level=1)   researched("conscription")   ai(ENEMY, for
 plant_trees(ziel, anzahl)  add_tree(x, y, amount=None)  add_pile("stone", x, y)  clear_area(ziel, r)
 add_item("coin", x, y)  remove_item(x, y)  items("coin")  world.set_track(x, y)  hints(False)
 world.width  world.height_at(x, y)  world.set_height(x, y, h)  world.set_water(x, y)  world.noise(x, y, 16)
-units_in(ziel, HUMAN, who="hero")  # ältere Form von figures_near (sieht durch den Nebel)
 
 # Ereignisse (Dekoratoren) – außer @on_start und @on_talk auch im Spielerprogramm
 @on_start  @every(10)  @on_building_done("farm")  @on_building_placed  @on_destroyed("headquarters")
@@ -176,8 +175,12 @@ die nach den Spielregeln weiterlaufen, kehren sofort zurück (`work_on`, `attack
 `move_to(…, wait=False)`), wie ein Klick in der Oberfläche. Gewartet wird im Host (`checkWalk`, `checkChop`): ein Schritt
 muss seine Kachel erreichen, sonst `blocked`; `chop()` ist fertig, wenn der Baum weg ist und der Leibeigene wieder auf
 seiner Kachel steht; ein anderer Befehl dazwischen gibt `interrupted`. **Stopp** hält alle Helden und jede Figur an, auf
-die das Programm gerade wartet; laufende Aufträge bleiben. `ahead()` ist der alte Name von `front()` und `hero` der des
-ersten eigenen Helden – Level der Version 1 laufen weiter, nur das alte `hero.chop()`/`hero.take()` gibt es nicht mehr.
+die das Programm gerade wartet; laufende Aufträge bleiben.
+
+**Keine alten Namen:** Die API hat keine Aliase. Entfernte Namen sind Fehler, die die neue Schreibweise nennen
+(`REMOVED_NAMES`, `REMOVED_METHODS` in `api.js`): `hero` → Name des Helden (`nelia` …), `units_in` → `figures_near`,
+`ahead()` → `front()`. Ein Ziel nimmt seinen Text nur hinter `de=`/`en=` (oder `text=`), an zweiter Stelle steht die
+Bedingung.
 
 ### Boden: Sensoren, Gegenstände, Spuren
 
@@ -217,7 +220,7 @@ kommt aus `API_DOC` (`query: true`, `answers`) über `hintVocab(level)`, der Spr
 | `notCalled` / `alwaysTrue` | Methode ohne Klammern als Anweisung bzw. in `if`/`while` |
 | `unknownAnswer` | Vergleich einer Sensor-Antwort mit einem Wort, das nie kommt (`"Tree"`), mit Vorschlag und Liste |
 | `compareStatement` | `count == count + 1` als Anweisung |
-| `unknownMethod` | unbekannte Methode an `nelia`, `hero` … schon beim Übersetzen |
+| `unknownMethod` | unbekannte Methode an `nelia`, `orrin` … schon beim Übersetzen |
 | `busyLoop` | zur Laufzeit: 50 Takte (≈ 5 s) volles Budget ohne Warten und ohne Sim-Befehl |
 
 Hinweise stehen mit Abschnitt und Zeile in `state.player.hints` (Missionsabschnitte: `state.missionHints`, für den
@@ -229,7 +232,7 @@ führt (kein automatischer Wechsel wie bei Fehlern). Eine Mission
 schaltet sie mit `hints(False)` ab, etwa für eine „Finde den Fehler“-Etappe. Texte: `script.hint.*` in
 `src/i18n/script.js`.
 
-**Dialoge** dauern eine feste Zeit (aus der Textlänge der deutschen Fassung oder `voiceLength`) – das
+**Dialoge** dauern eine feste Zeit (aus der Textlänge der deutschen Fassung oder `seconds`) – das
 Vorlesen beeinflusst den Ablauf nie. Wegklicken schickt `skipDialog` und beendet das Warten sofort.
 **Gespräche:** Die `say()`-Zeilen einer Aufgabe sind ein Gespräch. Spricht gerade eine andere Aufgabe, wartet die
 Zeile (`wait.k = 'say'`), bis deren Gespräch vorbei ist (`state.talk`: Aufgabe und Ende der Zeile plus ein Takt, damit
@@ -412,8 +415,8 @@ lindgrund/
 | `sections` | Python-Abschnitte: `file` (Name im Ordner), `level` mission/player, `visibility` open/collapsed/hidden, `editable`. Gepackt (Spielstand, Editor) trägt jeder Abschnitt seinen `code` |
 
 **Texte stehen im Code:** `say("orrin", de="Bei allen Märkten!", en="By all markets!")`; einsprachige Level
-schreiben einfach `say("orrin", "Hallo!")`. Version 1 (Texttabelle `texts` mit Schlüsseln, `voice`/`voiceLength`
-je Schlüssel, Ende nur per Skript) lädt weiter.
+schreiben einfach `say("orrin", "Hallo!")`. Nur das Format 2 lädt; Format 1 (Texttabelle `texts`, `voice`/`voiceLength`
+je Schlüssel) gibt es nicht mehr, seine Spielstände melden `saves.err.missionChanged`.
 
 **Dateien eines Levels** (`assets/`, nur PNG, JPG, WebP, MP3, OGG, GLB, je höchstens 15 MB, zusammen 60 MB, 300
 Dateien) dienen nur der Darstellung; die Simulation kennt nur ihren Pfad, ein Spielstand braucht sie nicht.
@@ -639,7 +642,7 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
 - **Panel:** Szenario (Titel, Art, Auftrag zweisprachig, Spieler mit/ohne Burg, Nebel), Orte,
   Code (Abschnitte mit Stufe, Sichtbarkeit, bearbeitbar; Befehlsreferenz), Dateien (Bilder, Töne, 3D-Modelle
   hinzufügen und entfernen; sie gelten, solange die Seite offen ist, und reisen in der .zip), Beispiele
-  (mitgelieferte Level als Vorlage). Den Reiter Texte gibt es nur noch für Szenarien der Version 1.
+  (mitgelieferte Level als Vorlage).
 - **Code aus der Karte:** Doppelklick (Handy: lange drücken, nicht mit Heben/Senken/Ebnen/Glätten, die beim Halten
   weiterwirken) fügt Code an der Schreibmarke des zuletzt bearbeiteten Abschnitts ein (sonst „Mission“, ans Ende).
   Ort → `place("camp")`, eigene Burg → `hq()`, Held → `nelia`, Gesprächsfigur (Vorschau) → `"id"`, Baum, Haufen,

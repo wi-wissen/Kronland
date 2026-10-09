@@ -145,7 +145,7 @@ export class Renderer {
     if (hq) this.rig.lookAt(hq.x + hq.w / 2, hq.y + hq.h / 2 + 3);
     else {
       // Without castle (learning adventure): calm overview of the whole small map instead of following the
-      // hero. North up, east right – like on a worksheet (hero.turn_left() stays intuitive)
+      // hero. North up, east right – like on a worksheet (nelia.turn_left() stays intuitive)
       const { width: w, height: h } = sim.map;
       this.rig.yaw = 0;
       this.rig.dist = overviewDist(w, h);
@@ -1371,11 +1371,11 @@ export class Renderer {
     const y = this.groundY(x, z);
     const st = (this.unitYaw ??= new Map());
     let yaw = st.get(e.id) ?? 0;
-    // script step (hero.step()): keep the facing direction instead of turning to the walking direction
+    // script step (nelia.step()): keep the facing direction instead of turning to the walking direction
     if (moving && e.face === undefined) yaw = Math.atan2(e.px - prev.px, e.py - prev.py);
     else if (moving && e.face !== undefined) yaw = FACE_YAW[e.face] ?? yaw;
     else if (e.face !== undefined && !e.targetId) {
-      // facing direction from a script (hero.turn_left() …): turn there smoothly
+      // facing direction from a script (nelia.turn_left() …): turn there smoothly
       const want = FACE_YAW[e.face] ?? yaw;
       yaw += wrapAngle(want - yaw) * 0.25;
     } else if (e.targetId) {

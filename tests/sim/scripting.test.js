@@ -7,6 +7,7 @@ import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { validateScenario, emptyScenario } from '../../src/sim/scripting/scenario.js';
 import { SCENARIOS } from '../../src/sim/missions/levels/index.js';
 import { WATER } from '../../src/sim/map.js';
+import { scriptErrorText, setLang } from '../../src/i18n/index.js';
 
 const run = (sim, ticks) => { for (let i = 0; i < ticks && !sim.mission.state.result; i++) sim.step(); };
 const runCode = (sim, code, extra = {}) => sim.command({ type: 'script', player: 0, action: 'run', sections: { player: code }, ...extra });
@@ -17,15 +18,14 @@ const consoleText = (sim) => sim.mission.script.state.console.map((c) => c.text)
 /** Small test scenario on a flat meadow. */
 function scenario(sections, extra = {}) {
   return {
-    format: 'kronland-scenario', version: 1, id: 'test', kind: 'adventure',
+    format: 'kronland-scenario', version: 2, end: 'script', id: 'test', kind: 'adventure',
     world: { base: 'flat', width: 24, height: 16, fog: false, starts: [{ x: 4, y: 8 }], places: { goal: { x: 10, y: 8, r: 0 } } },
     players: [{ kind: 'human', hero: 'nelia', hq: false }],
-    texts: { hi: { de: 'Hallo!', en: 'Hello!' } },
     sections,
     ...extra,
   };
 }
-const playerSection = (code = 'hero.step()\n') => ({ id: 'player', level: 'player', editable: true, visibility: 'open', code });
+const playerSection = (code = 'nelia.step()\n') => ({ id: 'player', level: 'player', editable: true, visibility: 'open', code });
 
 describe('Scenarios', () => {
   it('shipped scenarios are a valid JSON format', () => {
@@ -83,7 +83,7 @@ describe('Scenarios', () => {
 
   it('notify() emits a display event, folds a loop within one tick and leaves the console alone', () => {
     const sim = createScenarioSim(scenario([playerSection()]));
-    runCode(sim, 'notify("Hallo")\nwait(0.1)\nfor i in range(500):\n    notify(i)\nwait(0.1)\nnotify(hero)\nnotify(None)\n');
+    runCode(sim, 'notify("Hallo")\nwait(0.1)\nfor i in range(500):\n    notify(i)\nwait(0.1)\nnotify(nelia)\nnotify(None)\n');
     const events = [];
     for (let i = 0; i < 6; i++) events.push(...sim.step());
     const notes = events.filter((e) => e.type === 'scriptNotify');
@@ -114,7 +114,7 @@ describe('Scenarios', () => {
     runCode(sim, [
       'print(nelia.facing, nelia.front(), nelia.can_step(), nelia.left(), nelia.right(), nelia.here())',
       'nelia.step()',
-      'print(nelia.front(), nelia.here(), nelia.ahead())',
+      'print(nelia.front(), nelia.here())',
       'print(nelia.take(), stock("gold"), nelia.here())',
       'nelia.put()',
       'print(nelia.here(), stock("gold"))',
@@ -125,12 +125,12 @@ describe('Scenarios', () => {
       'nelia.turn_to("west")',
       'nelia.step()',
       'nelia.turn_right()',
-      'print(nelia.front(), hero == nelia)',
+      'print(nelia.front(), nelia.name == "nelia")',
       'nelia.turn_to("north")',
     ].join('\n'));
     run(sim, 200);
     expect(sim.mission.script.state.errors).toEqual([]);
-    expect(consoleText(sim)).toBe(['east coin True pile flower free', 'tree coin tree', 'coin 1 free', 'coin 0', 'coin', 'north', 'pile True'].join('\n'));
+    expect(consoleText(sim)).toBe(['east coin True pile flower free', 'tree coin', 'coin 1 free', 'coin 0', 'coin', 'north', 'pile True'].join('\n'));
     expect(tileOf(heroOf(sim))).toEqual([4, 8]);
     // Heroes do not chop: the old shortcut is gone
     runCode(sim, 'nelia.turn_to("east")\nnelia.step()\nnelia.chop()\n');
@@ -138,11 +138,33 @@ describe('Scenarios', () => {
     expect(sim.mission.script.state.errors.at(-1)).toMatchObject({ kind: 'AttributeError', sline: 3 });
   });
 
+  it('removed names are errors that name the new spelling (hero, units_in, ahead)', () => {
+    setLang('de');
+    const sim = createScenarioSim(scenario([playerSection()]));
+    const lastError = (code) => {
+      runCode(sim, code);
+      run(sim, 5);
+      const e = sim.mission.script.state.errors.at(-1);
+      return { kind: e.kind, sline: e.sline, ...scriptErrorText(e) };
+    };
+    const hero = lastError('nelia.step()\nhero.step()\n');
+    expect(hero).toMatchObject({ kind: 'NameError', sline: 2 });
+    expect(hero.text).toMatch(/„hero“ gibt es nicht mehr.*„nelia“/);
+    expect(lastError('print(units_in(place("goal")))\n').text).toBe('„units_in“ gibt es nicht mehr. Meintest du „figures_near“?');
+    const ahead = lastError('print(nelia.ahead())\n');
+    expect(ahead).toMatchObject({ kind: 'AttributeError', text: '„ahead“ gibt es nicht mehr. Meintest du „front“?' });
+    expect(lastError('f = nelia.ahead\n').text).toBe('„ahead“ gibt es nicht mehr. Meintest du „front“?');
+    // A name of the program is no removed name
+    runCode(sim, 'hero = nelia\nhero.turn_left()\n');
+    run(sim, 10);
+    expect(sim.mission.script.state.player.status).not.toBe('error');
+  });
+
   it('hero without a castle looks east and keeps the facing direction when stepping', () => {
-    const sim = createScenarioSim(scenario([playerSection('hero.turn_right()\nhero.step()\nhero.step()\n')]));
+    const sim = createScenarioSim(scenario([playerSection('nelia.turn_right()\nnelia.step()\nnelia.step()\n')]));
     const h = heroOf(sim);
     expect(h.face).toBe(1);
-    runCode(sim, 'hero.turn_right()\nhero.step()\nhero.step()\n');
+    runCode(sim, 'nelia.turn_right()\nnelia.step()\nnelia.step()\n');
     run(sim, 120);
     expect(h.face).toBe(2);
     expect(tileOf(h)).toEqual([4, 10]);
@@ -150,7 +172,7 @@ describe('Scenarios', () => {
 
   it('walking into a tree is an error with a reason', () => {
     const sim = createScenarioSim(scenario([{ id: 'w', level: 'mission', code: 'add_tree(6, 8)\n' }, playerSection()]));
-    runCode(sim, 'hero.step()\nhero.step()\n');
+    runCode(sim, 'nelia.step()\nnelia.step()\n');
     run(sim, 100);
     const st = sim.mission.script.state;
     expect(st.player.status).toBe('error');
@@ -166,10 +188,10 @@ describe('Mission scripts', () => {
         'log = []',
         '@on_start',
         'def start():',
-        '    objective("walk", "Geh zum Ziel", lambda: hero.is_at(place("goal")))',
-        '    say("nelia", "hi")',
+        '    objective("walk", lambda: nelia.is_at(place("goal")), text="Geh zum Ziel")',
+        '    say("nelia", de="Hallo!", en="Hello!")',
         '    log.append(("said", int(time())))',
-        '    ok = wait_until(lambda: hero.is_at(place("goal")), timeout=60)',
+        '    ok = wait_until(lambda: nelia.is_at(place("goal")), timeout=60)',
         '    log.append(("reached", ok))',
         '    victory()',
         'ticks = 0',
@@ -183,7 +205,7 @@ describe('Mission scripts', () => {
     const m = sim.mission.state;
     expect(m.messages[0]).toMatchObject({ speaker: 'nelia', text: { de: 'Hallo!', en: 'Hello!' } });
     expect(m.objectives).toEqual([expect.objectContaining({ id: 'walk', status: 'active' })]);
-    runCode(sim, 'hero.move_to(place("goal"))');
+    runCode(sim, 'nelia.move_to(place("goal"))');
     run(sim, 300);
     expect(m.result).toMatchObject({ won: true });
     const vm = sim.mission.script.vms.mission;
@@ -279,7 +301,7 @@ describe('Debugger via commands', () => {
 
   it('stop halts program and hero', () => {
     const sim = createScenarioSim(scenario([playerSection()]));
-    runCode(sim, 'while True:\n    hero.turn_left()\n');
+    runCode(sim, 'while True:\n    nelia.turn_left()\n');
     run(sim, 10);
     sim.command({ type: 'script', player: 0, action: 'stop' });
     run(sim, 1);
@@ -289,8 +311,8 @@ describe('Debugger via commands', () => {
 });
 
 describe('Saving and determinism', () => {
-  const code = 'import random\nfor i in range(6):\n    hero.step()\n    print(i, random.randint(1, 9))\n';
-  const mission = 'n = 0\n@every(1)\ndef count():\n    global n\n    n += 1\n@on_start\ndef s():\n    say("nelia", "hi")\n';
+  const code = 'import random\nfor i in range(6):\n    nelia.step()\n    print(i, random.randint(1, 9))\n';
+  const mission = 'n = 0\n@every(1)\ndef count():\n    global n\n    n += 1\n@on_start\ndef s():\n    say("nelia", de="Hallo!", en="Hello!")\n';
 
   it('same commands, same hash', () => {
     const a = createScenarioSim(scenario([{ id: 'm', level: 'mission', code: mission }, playerSection()]));
@@ -353,7 +375,7 @@ describe('Bundled missions', () => {
 
   it('scenarios only end via victory()/defeat(): fulfilled goals and a lost castle alone end nothing', () => {
     const sim = createScenarioSim(scenario([
-      { id: 'm', level: 'mission', editable: false, visibility: 'hidden', code: 'objective("a", "hi", lambda: True)\nobjective("b", "hi", lambda: True)\n' },
+      { id: 'm', level: 'mission', editable: false, visibility: 'hidden', code: 'objective("a", lambda: True, text="hi")\nobjective("b", lambda: True, text="hi")\n' },
       playerSection(),
     ]));
     run(sim, 30);
@@ -371,16 +393,16 @@ describe('Bundled missions', () => {
 });
 
 describe('Several heroes and diplomacy in the script', () => {
-  it('every hero has a variable with their name; hero is the first, hero_of(p, name) searches specifically', () => {
+  it('every hero has a variable with their name; hero_of(p, name) searches specifically', () => {
     const sc = scenario([
-      { id: 'm', level: 'mission', code: '@on_start\ndef s():\n    print(hero.name, nelia.name, orrin.name, taran)\n    print(hero_of(HUMAN, "orrin").name)\n    orrin.teleport((6, 8))\n' },
+      { id: 'm', level: 'mission', code: '@on_start\ndef s():\n    print(nelia.name, orrin.name, taran)\n    print(hero_of(HUMAN, "orrin").name)\n    orrin.teleport((6, 8))\n' },
       playerSection(),
     ]);
     sc.players = [{ kind: 'human', heroes: ['nelia', 'orrin'], hq: false }];
     const sim = createScenarioSim(sc);
     run(sim, 5);
     expect(sim.mission.script.state.errors).toEqual([]);
-    expect(consoleText(sim)).toContain('nelia nelia orrin None');
+    expect(consoleText(sim)).toContain('nelia orrin None');
     expect(consoleText(sim)).toContain('orrin');
     const o = [...sim.entities.values()].find((e) => e.kind === 'hero' && e.hero === 'orrin');
     expect(tileOf(o)).toEqual([6, 8]);

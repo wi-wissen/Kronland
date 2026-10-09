@@ -82,7 +82,7 @@ Suche entstehen aus den Überschriften (`##`, `###`).
 
 Erklärt Kronland-Python: Kapitel (Was Skripte können, Editor, Ablauf mit Takt/Budget/Determinismus, Sprache, was
 fehlt, Fehlermeldungen, ausführliche Beispiele) und danach je Befehl einen Eintrag mit Signatur, Parametern,
-Rückgabe, Beispiel und typischen Fehlern. Anker = Name des Befehls (`scripting/#hero.step`, `#len`, `#str.split`),
+Rückgabe, Beispiel und typischen Fehlern. Anker = Name des Befehls (`scripting/#nelia.step`, `#len`, `#str.split`),
 Kapitel `#intro`, `#language` …, Sprachgrundlagen `#lang-for` …, Spielobjekte `#cls-Hero`.
 
 - **Eine Quelle:** Liste der Spielbefehle `API_DOC` (`src/sim/scripting/api.js`), Python-Teil `PY_DOC`, Beispiele

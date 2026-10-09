@@ -71,8 +71,8 @@ describe('Level folders', () => {
     const bad = level('');
     bad.sections[0].file = '../evil.py';
     expect(validateScenario(bad).join()).toContain('file must be');
-    // version 1 ends only by script, version 2 by its objectives unless `end` says otherwise
-    expect(scenarioToDef({ ...level(''), version: 1 }).end).toBe('script');
+    // only the current format loads; a level ends by its objectives unless `end` says otherwise
+    expect(validateScenario({ ...level(''), version: 1 }).join()).toContain('version 1 is not supported');
     expect(scenarioToDef(level('')).end).toBe('objectives');
     expect(scenarioToDef(level('', { end: 'script' })).end).toBe('script');
   });
@@ -92,10 +92,12 @@ describe('Mission API version 2', () => {
     expect(errors(sim)[0]).toContain('"arg":"text"');
   });
 
-  it('objective(id, condition, de=, en=) with a pair as progress; the old order still works', () => {
+  it('objective(id, condition, de=, en=) with a pair as progress; a text in the place of the condition is an error', () => {
+    const bad = createScenarioSim(level('objective("old", "Alter Text", lambda: False)\n'));
+    expect(errors(bad)[0]).toContain('"what":"objectiveText"');
     const sim = createScenarioSim(level([
       'objective("trees", lambda: (len(trees_near(place("goal"), 20)), 3), de="Pflanze 3 Bäume", en="Plant 3 trees")',
-      'objective("old", "Alter Text", lambda: False)',
+      'objective("old", lambda: False, text="Alter Text")',
       'objective("bare", lambda: False)',
       '',
     ].join('\n')));
@@ -168,7 +170,7 @@ describe('Mission API version 2', () => {
       '    print("tick")',
       '',
     ].join('\n')));
-    runCode(sim, 'for i in range(6):\n    hero.step()\n');
+    runCode(sim, 'for i in range(6):\n    nelia.step()\n');
     run(sim, 200);
     const out = sim.mission.script.state.console.map((c) => c.text);
     expect(out[0]).toBe('start');
@@ -237,6 +239,12 @@ describe('Save games', () => {
     const back = loadGame(JSON.parse(JSON.stringify(saveGame(sim))));
     expect(back.mission.def.custom).toBe(true);
     expect(back.mission.def.next).toBeNull();
+  });
+
+  it('a save of a level in the old scenario format 1 cannot go on (missionChanged)', () => {
+    const data = JSON.parse(JSON.stringify(saveGame(createScenarioSim(level('x = 1\n')))));
+    data.mission.scenario.version = 1;
+    expect(() => loadGame(data)).toThrow(expect.objectContaining({ code: 'saves.err.missionChanged' }));
   });
 });
 
@@ -319,23 +327,23 @@ describe('Talk figures', () => {
 });
 
 describe('Outline without running the code', () => {
-  it('objectives of a level: new and old order, texts inline or from the table, computed ones fall back to the id', async () => {
+  it('objectives of a level: texts inline, computed ones fall back to the id', async () => {
     const { scenarioGoals } = await import('../../src/sim/scripting/outline.js');
     const s = level([
       'objective("homes", lambda: (count("residence"), 2), de="Baue 2 Wohnhäuser", en="Build 2 residences")',
-      'objective("old", "Alter Text", lambda: False, False)',
-      'objective("key", "k1", None, hidden=True)',
+      'objective("old", lambda: False, "Alter Text", False)',
+      'objective("key", None, "Schlüssel", hidden=True)',
       'objective("dict", text={"de": "A", "en": "B"})',
       'objective(name_from_code, lambda: True)',
       'objective("calc", lambda: True, de=f"{1}")',
       'def later():',
       '    objective("inside", lambda: True, en="Only English")',
       '',
-    ].join('\n'), { texts: { k1: { de: 'Aus der Tabelle', en: 'From the table' } } });
+    ].join('\n'));
     expect(scenarioGoals(s)).toEqual([
       { id: 'homes', text: { de: 'Baue 2 Wohnhäuser', en: 'Build 2 residences' }, primary: true, hidden: false },
       { id: 'old', text: 'Alter Text', primary: false, hidden: false },
-      { id: 'key', text: { de: 'Aus der Tabelle', en: 'From the table' }, primary: true, hidden: true },
+      { id: 'key', text: 'Schlüssel', primary: true, hidden: true },
       { id: 'dict', text: { de: 'A', en: 'B' }, primary: true, hidden: false },
       { id: 'calc', text: 'calc', primary: true, hidden: false },
       { id: 'inside', text: { en: 'Only English' }, primary: true, hidden: false },

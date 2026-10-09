@@ -64,7 +64,7 @@ export class StageSnapshot {
   /**
    * Right before the run command: the first run of a stage remembers the world and returns null; every later run
    * of the same stage returns a fresh copy of the remembered world to continue with.
-   * @param {import('./sim.js').Sim} sim @param {any} [extra] extra data of the save game (AI states)
+   * @param {import('./sim.js').Sim} sim @param {any} [extra] extra data of the save game (the computer opponents are part of the simulation)
    * @returns {import('./sim.js').Sim|null}
    */
   beforeRun(sim, extra = {}) {

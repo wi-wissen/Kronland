@@ -15,7 +15,7 @@ import { TICKS_PER_SECOND, UNIT, tileCenter } from '../fixed.js';
 import * as api from './setupApi.js';
 import { getMission } from './registry.js';
 import { ScriptHost } from '../scripting/host.js';
-import { scenarioToDef, playerSetupOf } from '../scripting/scenario.js';
+import { scenarioToDef, playerSetupOf, SCENARIO_VERSION } from '../scripting/scenario.js';
 import { WEATHER_EFFECTS } from '../data/weather.js';
 
 const T = TICKS_PER_SECOND;
@@ -85,7 +85,8 @@ export class MissionRuntime {
     const custom = state.custom ?? !!state.scenario;
     const base = custom ? null : getMission(state.id);
     // A mission that moved from a mission file into a level folder: its old saves carry no scenario and cannot go on
-    if (!custom && !state.scenario && base?.scenario) {
+    // … as do saves of a level in an older scenario format (version 1: text table)
+    if ((!custom && !state.scenario && base?.scenario) || (state.scenario && state.scenario.version !== SCENARIO_VERSION)) {
       throw Object.assign(new Error(`Mission ${state.id} was rewritten, the save game is too old`), { code: 'saves.err.missionChanged' });
     }
     const def = state.scenario ? { ...scenarioToDef(state.scenario), next: base?.next ?? null, custom } : base;
@@ -700,15 +701,16 @@ export class MissionRuntime {
   }
 }
 
-/** Settings of the AI opponents from the mission (for AiPlayer). */
+/** Settings of the AI opponents from the mission (read by AiPlayer.applyMission). */
 export function missionAiConfig(sim, player) {
   return sim.mission?.state?.ai?.[player] ?? null;
 }
 
 /**
- * Create a simulation for a mission.
+ * Create a simulation for a mission. Players of kind 'ai' become computer opponents inside the simulation
+ * (`ai: false`: without them, for tests that drive all players themselves).
  * @param {string} id
- * @param {{ seed?: number }} [opts]
+ * @param {{ seed?: number, ai?: boolean }} [opts]
  */
 export function createMissionSim(id, opts = {}) {
   const def = getMission(id);
@@ -718,7 +720,7 @@ export function createMissionSim(id, opts = {}) {
 
 /**
  * Create a simulation for a scenario JSON that is in no directory (world editor, loaded file).
- * @param {any} scenario @param {{ seed?: number }} [opts]
+ * @param {any} scenario @param {{ seed?: number, ai?: boolean }} [opts]
  */
 export function createScenarioSim(scenario, opts = {}) {
   return simForDef({ ...scenarioToDef(scenario), custom: true }, opts);
@@ -737,5 +739,7 @@ function simForDef(def, opts) {
     world: def.world ? { ...def.world, size: def.world.size ?? def.size, seed: opts.seed ?? def.world.seed ?? def.seed } : undefined,
     // Without castle (hq: false): coding adventures and command missions
     playerSetup: def.scenario ? playerSetupOf(def) : real.map((p) => ({ hq: p.hq !== false })),
+    // Computer opponents (index as in def.players)
+    ai: opts.ai === false ? [] : def.players.map((p) => (p.kind === 'ai' ? p.difficulty ?? 'normal' : null)),
   });
 }
