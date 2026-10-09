@@ -1,6 +1,7 @@
 // AI opponent. Reads the state of the simulation and issues only commands –
-// just like a human player. Deterministic (own randomness, fixed order),
-// so that it will later decide identically on all machines in lockstep multiplayer.
+// just like a human player. Part of the simulation: its memory (AiState) lives in `sim.ai`, the simulation runs it
+// at the start of every tick (src/ai/runner.js). Deterministic (own randomness, fixed order, integer math), so that
+// it decides identically on all machines in lockstep multiplayer and after loading a save game.
 //
 // Fog of war: the AI does not cheat. It knows enemy troops only if its team sees them,
 // enemy buildings only as the last seen state (src/sim/systems/vision.js). As in the skirmish
@@ -75,49 +76,81 @@ function withExtras(base) {
   return out;
 }
 
+/**
+ * Persistent memory of one computer opponent: plain JSON data in `sim.ai` (src/ai/runner.js), saved with the
+ * simulation (src/sim/serialize.js) and part of the state hash. Everything else the AI computes is rebuilt from the
+ * simulation on every decision (scan), so a loaded game decides exactly like the uninterrupted one.
+ * @typedef {{ player: number, difficulty: string, rng: number[], armyState: 'gather'|'attack'|'defend',
+ *   attackStrength: number, attackNowSeen: number, forceAttack: boolean, errors: number, disabled: boolean }} AiState
+ */
+
+/**
+ * Fresh AI memory for a player (deterministic: own random generator from map seed and player).
+ * @param {{ seed: number }} sim @param {number} player @param {string} [difficulty]
+ * @returns {AiState}
+ */
+export function createAiState(sim, player, difficulty = 'normal') {
+  return {
+    player, difficulty: DIFFICULTY[difficulty] ? difficulty : 'normal', rng: new Rng(sim.seed * 31 + player * 977 + 13).getState(),
+    armyState: 'gather', attackStrength: 0, attackNowSeen: 0, forceAttack: false, errors: 0, disabled: false,
+  };
+}
+
+/**
+ * AI memory from a save game (also the former format `extra.ais` from AiPlayer.getState) with all fields set.
+ * @param {any} st @returns {AiState}
+ */
+export function normalizeAiState(st) {
+  return {
+    player: st.player, difficulty: DIFFICULTY[st.difficulty] ? st.difficulty : 'normal', rng: [...st.rng],
+    armyState: st.armyState ?? 'gather', attackStrength: st.attackStrength ?? 0, attackNowSeen: st.attackNowSeen ?? 0,
+    forceAttack: !!st.forceAttack, errors: st.errors ?? 0, disabled: !!st.disabled,
+  };
+}
+
+/**
+ * Decision logic of one computer opponent. Holds no state of its own between decisions: the memory is the
+ * AiState record (`this.st`, in the simulation); scan results, the build plan and buffers are recomputed or
+ * constant. The simulation runs it inside its tick (src/ai/runner.js); `new AiPlayer(sim, p, d)` without a
+ * record gives a detached brain for tests of single methods.
+ */
 export class AiPlayer {
   /**
    * @param {import('../sim/sim.js').Sim} sim
    * @param {number} player
    * @param {keyof typeof DIFFICULTY} [difficulty]
+   * @param {AiState} [st] memory in sim.ai (default: a new, detached one)
    */
-  constructor(sim, player, difficulty = 'normal') {
+  constructor(sim, player, difficulty = 'normal', st = createAiState(sim, player, difficulty)) {
     this.sim = sim;
     this.player = player;
-    this.cfg = DIFFICULTY[difficulty] ?? DIFFICULTY.normal;
-    this.difficulty = difficulty;
-    this.rng = new Rng(sim.seed * 31 + player * 977 + 13);
+    this.st = st;
+    this.cfg = DIFFICULTY[st.difficulty] ?? DIFFICULTY.normal;
+    /** Working copy of the random generator; its state lives in st.rng */
+    this.rng = new Rng(0);
+    this.rng.setState(st.rng);
     this.offset = player * 7;
-    this.armyState = 'gather';
-    this.attackStrength = 0;
-    this.lastPayday = 0;
   }
 
   get me() { return this.sim.players[this.player]; }
 
-  /** State for save games. */
-  getState() {
-    return {
-      player: this.player, difficulty: this.difficulty, rng: this.rng.getState(), armyState: this.armyState, attackStrength: this.attackStrength,
-      attackNowSeen: this.attackNowSeen ?? 0, forceAttack: !!this.forceAttack,
-      badTargets: [...(this.badTargets ?? [])],
-    };
-  }
-
-  static fromState(sim, st) {
-    const ai = new AiPlayer(sim, st.player, st.difficulty);
-    ai.rng.setState(st.rng);
-    ai.armyState = st.armyState;
-    ai.attackStrength = st.attackStrength;
-    ai.attackNowSeen = st.attackNowSeen ?? 0;
-    ai.forceAttack = !!st.forceAttack;
-    if (st.badTargets?.length) ai.badTargets = new Set(st.badTargets);
-    return ai;
-  }
+  // Persistent memory (AiState)
+  get difficulty() { return this.st.difficulty; }
+  set difficulty(v) { this.st.difficulty = v; }
+  get armyState() { return this.st.armyState; }
+  set armyState(v) { this.st.armyState = v; }
+  get attackStrength() { return this.st.attackStrength; }
+  set attackStrength(v) { this.st.attackStrength = v; }
+  get attackNowSeen() { return this.st.attackNowSeen; }
+  set attackNowSeen(v) { this.st.attackNowSeen = v; }
+  get forceAttack() { return this.st.forceAttack; }
+  set forceAttack(v) { this.st.forceAttack = v; }
 
   /**
    * Take over mission settings (src/sim/missions): strength, aggressiveness, start delay,
    * forbidden buildings, immediate attack. Without a mission everything stays as in free play.
+   * The settings themselves live in the mission state (`sim.mission.state.ai`, saved and hashed);
+   * cfg is derived from them and recomputed after loading.
    * @returns {boolean} false = AI is still waiting
    */
   applyMission() {
@@ -148,19 +181,29 @@ export class AiPlayer {
     return true;
   }
 
-  /** Call once per tick; issues commands directly to the simulation. */
-  update() {
+  /**
+   * One tick of this AI, called by the simulation at the start of its tick (src/ai/runner.js): mission settings,
+   * bonus thalers and, on its own cadence (every cfg.think ticks, staggered by player), one decision.
+   * @returns {any[]|null} commands of this decision (with player), null if it did not decide
+   */
+  run() {
     const sim = this.sim;
-    if (this.me.defeated || sim.winner !== null) return;
-    if (!this.applyMission()) return;
+    if (this.me.defeated || sim.winner !== null) return null;
+    if (!this.applyMission()) return null;
     // Bonus thalers as in the original ("refresh") for the hard level: paid by the simulation (Sim.setAi)
     sim.setAi(this.player, this.cfg.bonusGold);
-    if ((sim.tick + this.offset) % this.cfg.think !== 0) return;
+    if ((sim.tick + this.offset) % this.cfg.think !== 0) return null;
     this.cmds = [];
-    this.scan();
-    this.economy();
-    this.military();
-    for (const c of this.cmds) sim.command({ ...c, player: this.player });
+    this.reserved = null;
+    this.rng.setState(this.st.rng);
+    try {
+      this.scan();
+      this.economy();
+      this.military();
+    } finally {
+      this.st.rng = this.rng.getState();
+    }
+    return this.cmds.map((c) => ({ ...c, player: this.player }));
   }
 
   issue(cmd) { this.cmds.push(cmd); }

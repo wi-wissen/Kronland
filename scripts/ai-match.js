@@ -1,18 +1,16 @@
 // AI vs AI without graphics: `node scripts/ai-match.js [seed] [minutes] [difficulty0] [difficulty1]`
 import { Sim } from '../src/sim/sim.js';
-import { AiPlayer } from '../src/ai/AiPlayer.js';
+import { aiOf } from '../src/ai/runner.js';
 
 const argv = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const seed = Number(argv[0] ?? 1);
 const minutes = Number(argv[1] ?? 40);
 const diffs = [argv[2] ?? 'normal', argv[3] ?? 'normal'];
-const sim = new Sim({ seed });
+const sim = new Sim({ seed, ai: diffs });
 const events = {};
-const ais = diffs.map((d, i) => new AiPlayer(sim, i, d));
 const t0 = Date.now();
 const rejects = {};
 for (let t = 0; t < minutes * 600; t++) {
-  for (const ai of ais) if (!sim.players[ai.player].defeated) ai.update();
   const ev = sim.step();
   for (const e of ev) {
     if (e.type === 'rejected') rejects[e.reason] = (rejects[e.reason] ?? 0) + 1;
@@ -32,7 +30,7 @@ for (let t = 0; t < minutes * 600; t++) {
         else if (e.kind === 'leader') c.L++; else if (e.kind === 'soldier') c.sol++;
       }
       const r = (k) => p.stock[k] + p.raw[k];
-      return `P${p.id}: Bld ${c.b} Wrk ${c.w} Ser ${c.s} Cpt ${c.L}/${c.sol} T${p.techs.size} | ${r('gold')}G ${r('clay')}C ${r('wood')}W ${r('stone')}S ${r('iron')}I ${r('sulfur')}Su ${ais[p.id].armyState}`;
+      return `P${p.id}: Bld ${c.b} Wrk ${c.w} Ser ${c.s} Cpt ${c.L}/${c.sol} T${p.techs.size} | ${r('gold')}G ${r('clay')}C ${r('wood')}W ${r('stone')}S ${r('iron')}I ${r('sulfur')}Su ${aiOf(sim, p.id).armyState}`;
     }).join('  ||  ');
     console.log(`${(t / 600).toFixed(0).padStart(3)} min  ${line}`);
   }

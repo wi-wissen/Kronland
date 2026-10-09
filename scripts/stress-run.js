@@ -8,7 +8,6 @@
 //              serfs there (like a player who keeps expanding during the battles)
 import { createMissionSim } from '../src/sim/missions/runtime.js';
 import { TileMap } from '../src/sim/map.js';
-import { AiPlayer } from '../src/ai/AiPlayer.js';
 import { saveGame } from '../src/sim/serialize.js';
 import { performance } from 'node:perf_hooks';
 
@@ -40,7 +39,8 @@ function playerBuilds(sim) {
 
 const t0 = performance.now();
 const sim = createMissionSim(id, { seed });
-const ais = sim.mission.def.players.map((p, i) => (p.kind === 'ai' ? new AiPlayer(sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
+// AI opponents run inside sim.step (src/ai/runner.js); sim.clock lets it measure their share in sim.aiMs
+sim.clock = () => performance.now();
 console.log(`Setup ${(performance.now() - t0).toFixed(0)} ms, ${sim.entities.size} entities`);
 
 let errors = 0;
@@ -48,16 +48,14 @@ let win = { n: 0, sum: 0, max: 0, ai: 0, aiMax: 0 };
 const kinds = () => { const c = {}; for (const e of sim.entities.values()) c[e.kind] = (c[e.kind] ?? 0) + 1; return c; };
 for (let t = 1; t <= minutes * 600; t++) {
   const a = performance.now();
-  for (const ai of ais) {
-    if (sim.players[ai.player]?.defeated) continue;
-    try { ai.update(); } catch (e) { if (errors++ < 10) console.error(`Tick ${sim.tick} AI ${ai.player}:`, e); }
-  }
   if (buildEvery && t % buildEvery === 0) playerBuilds(sim);
-  const b = performance.now();
-  try { sim.step([]); } catch (e) { if (errors++ < 10) console.error(`Tick ${sim.tick} sim:`, e); }
-  const ms = performance.now() - a;
+  sim.aiMs = 0;
+  try {
+    for (const e of sim.step([])) if (e.type === 'aiError' && errors++ < 10) console.error(`Tick ${sim.tick} AI ${e.player}:`, e.message);
+  } catch (e) { if (errors++ < 10) console.error(`Tick ${sim.tick} sim:`, e); }
+  const ms = performance.now() - a, aiMs = sim.aiMs ?? 0;
   if (ms > 500) console.log(`  long tick ${sim.tick}: ${ms.toFixed(0)} ms`);
-  win.n++; win.sum += ms; win.max = Math.max(win.max, ms); win.ai += b - a; win.aiMax = Math.max(win.aiMax, b - a);
+  win.n++; win.sum += ms; win.max = Math.max(win.max, ms); win.ai += aiMs; win.aiMax = Math.max(win.aiMax, aiMs);
   if (t % 600 === 0) {
     let save = '';
     if (withSave) {
