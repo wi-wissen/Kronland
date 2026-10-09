@@ -81,6 +81,35 @@ export function attackMove(sim, ids, p) {
 export const tileOf = (e) => ({ x: Math.floor(e.px / UNIT), y: Math.floor(e.py / UNIT) });
 
 export const objective = (sim, id) => sim.mission.state.objectives.find((o) => o.id === id);
+
+/**
+ * Place or game object of a mission by name: a reference of a mission file (state.refs), a place of a level
+ * (make_place, scenario.json) or a global variable of its Python program – a game object gives its entity ID, a list
+ * of them a list of IDs. Unknown: undefined.
+ */
+export function ref(sim, name) {
+  const m = sim.mission;
+  if (Object.hasOwn(m.state.refs, name)) return m.state.refs[name];
+  const places = m.script?.places;
+  if (places && Object.hasOwn(places, name)) { const p = places[name]; return { x: p.x, y: p.y, r: p.r ?? 2 }; }
+  const v = m.script?.vms.mission?.globals.get(name);
+  const id = (x) => (x && typeof x === 'object' && x.cls !== undefined && typeof x.id === 'number' ? x.id : undefined);
+  if (v?.items) return v.items.map(id).filter((x) => x !== undefined);
+  return id(v);
+}
+
+/** Entity IDs of a reference (single ID or list). */
+export const refIds = (sim, name) => { const v = ref(sim, name); return typeof v === 'number' ? [v] : Array.isArray(v) ? v : []; };
+
+/** Send heroes to a talk figure, as with a tap on it (order 'talk'); only while they are not on the way already. */
+export function talkTo(sim, heroIds, npcId) {
+  const n = sim.mission.state.npcs[npcId];
+  const e = n && sim.entities.get(n.entity);
+  if (!e?.talk) return false;
+  const free = heroIds.filter((id) => sim.entities.get(id)?.talkTo === undefined);
+  if (free.length) sim.command({ player: P, type: 'order', units: free, order: 'talk', target: e.id });
+  return true;
+}
 export const stepId = (sim) => sim.mission.currentStep()?.id ?? null;
 
 // ---------------------------------------------------------------------------------------------
@@ -117,18 +146,13 @@ export const STRATEGIES = {
       // the script leads the heroes: root, collectors, village elder
       bot.useHero = false;
       const nelia = bot.heroNamed('nelia'), orrin = bot.heroNamed('orrin');
-      const st = bot.m.state;
-      // first talk to Orrin on the village square, then to the old tree
-      const seat = bot.npcAt('stranger');
-      if (bot.objective('meet')?.status === 'active' && nelia && seat) {
-        // construction sites on the way stop Nelia: stopped but not there yet → send again
-        if (nelia.order?.type === 'idle' && d2(tile(nelia), seat) > 2 * 2) bot.cmd({ type: 'order', units: [nelia.id], order: 'move', x: seat.x, y: seat.y });
-        else bot.moveUnits([nelia.id], seat, 'move', 'meet');
-      }
-      if (bot.objective('root')?.status === 'active' && nelia) bot.moveUnits([nelia.id], st.refs.oldRoot, 'move', 'root');
-      const col = bot.m.idsOf('collectors').map((id) => bot.sim.entities.get(id)).find(Boolean);
+      // first talk to Orrin on the village square (tap on the figure with Nelia), then to the old tree;
+      // construction sites on the way stop Nelia: arrived elsewhere → sent again
+      if (bot.objective('meet')?.status === 'active' && nelia) talkTo(bot.sim, [nelia.id], 'stranger');
+      if (bot.objective('root')?.status === 'active' && nelia) bot.moveUnits([nelia.id], ref(bot.sim, 'oldRoot'), 'move', 'root');
+      const col = refIds(bot.sim, 'collectors').map((id) => bot.sim.entities.get(id)).find(Boolean);
       if (col) bot.moveUnits([nelia, orrin].filter(Boolean).map((h) => h.id), tile(col), 'attackMove', 'collectors');
-      else if (bot.objective('neighbors')?.status === 'active' && orrin && bot.npcAt('elder')) bot.moveUnits([orrin.id], bot.npcAt('elder'), 'move', 'elder');
+      else if (bot.objective('neighbors')?.status === 'active' && orrin) talkTo(bot.sim, [orrin.id], 'elder');
       bot.heroMicro = !!col;
     },
   },
@@ -337,7 +361,7 @@ export class MissionBot {
   heroNamed(id) { return [...this.sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === P && e.hero === id) ?? null; }
   /** Pay the mission tribute if it is open and affordable (like the button in the UI). */
   payTribute(id, reserve = 0) {
-    const d = this.m.def.tributes?.[id];
+    const d = this.m.tributeDef(id);
     if (!d || this.m.state.tributes[id] !== 'open' || !this.canAfford(d.cost, reserve)) return false;
     this.cmd({ type: 'mission', action: 'tribute', id });
     return true;
@@ -1024,6 +1048,8 @@ export function playMission(id, seed, opts = {}) {
   report.ticks = sim.tick;
   report.minutes = +(sim.tick / 600).toFixed(1);
   for (const o of m.state.objectives) if (!report.objectives[o.id]) report.objectives[o.id] = { status: o.status, min: null };
-  report.warnings = [...new Set([...report.warnings, ...m.state.warnings])];
+  // Errors of a level's Python program count as warnings (the campaign tests demand none)
+  const scriptErrors = (m.script?.state.errors ?? []).map((e) => `script ${e.kind} ${e.code} ${JSON.stringify(e.params)} ${e.section}:${e.sline}`);
+  report.warnings = [...new Set([...report.warnings, ...m.state.warnings, ...scriptErrors])];
   return { sim, bot, report };
 }

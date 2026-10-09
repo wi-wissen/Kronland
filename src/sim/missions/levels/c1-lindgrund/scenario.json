@@ -1,0 +1,119 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "c1",
+  "kind": "campaign",
+  "end": "objectives",
+  "order": 1,
+  "next": "c2",
+  "title": {
+    "de": "Lindgrund",
+    "en": "Lindgrund"
+  },
+  "summary": {
+    "de": "Bring dein Dorf durch den Winter und vertreibe Malvors Eintreiber.",
+    "en": "Get your village through the winter and drive off Malvor’s collectors."
+  },
+  "briefing": {
+    "de": "Seit Jahren liegt Schnee auf dem Kronland. Nur Malvor, der Statthalter von Hagenfurt, hat volle Kornspeicher. Wer Korn will, arbeitet dafür in seinen Lagern – auch die Leute aus Lindgrund sind gegangen. Nelia, die Tochter eines Leibeigenen, ist aus Malvors Kornlager davongelaufen. Jetzt steht sie am Rand ihres Heimatdorfs. Kein Rauch steigt auf, kein Hund bellt.",
+    "en": "For years snow has covered the Crownland. Only Malvor, governor of Hagenfurt, has full granaries. Whoever wants grain works for it in his storehouses – the people of Lindgrund left too. Nelia, a serf’s daughter, has run away from Malvor’s granary. Now she stands at the edge of her home village. No smoke rises, no dog barks."
+  },
+  "victoryText": {
+    "de": "Das Dorf ist versorgt, die Eintreiber sind fort. Lindgrund hat den Winter überstanden.",
+    "en": "The village is fed and the collectors are gone. Lindgrund has survived the winter."
+  },
+  "debrief": {
+    "de": "Die Nachricht von der „verlorenen Prinzessin“ läuft schneller durch den Schnee als jeder Bote. Die Nachbardörfer schicken Leute und Vorräte. Nelia widerspricht – niemand hört zu. Mit Orrin bricht sie nach Beaucroix auf, wo es Märkte gibt und vielleicht die nächste Zacke.",
+    "en": "The news of the “lost princess” travels through the snow faster than any messenger. The neighbouring villages send people and supplies. Nelia objects – nobody listens. With Orrin she sets out for Beaucroix, where there are markets and perhaps the next shard."
+  },
+  "defeatText": {
+    "de": "Lindgrund ist verloren.",
+    "en": "Lindgrund is lost."
+  },
+  "defeatTexts": {
+    "hq": {
+      "de": "Euer Hof ist gefallen. Lindgrund ist verloren.",
+      "en": "Your manor has fallen. Lindgrund is lost."
+    }
+  },
+  "world": {
+    "base": "generate",
+    "seed": 1101,
+    "size": 96,
+    "fog": true
+  },
+  "weatherCycle": [
+    [
+      "winter",
+      360000
+    ]
+  ],
+  "available": {
+    "buildings": [
+      "villageCenter",
+      "residence",
+      "farm",
+      "clayMine"
+    ],
+    "techs": []
+  },
+  "shafts": [
+    "clay"
+  ],
+  "landmarks": [
+    {
+      "at": "vcRuin",
+      "model": "ruin",
+      "building": "villageCenter"
+    }
+  ],
+  "players": [
+    {
+      "kind": "human",
+      "heroes": [
+        "nelia"
+      ],
+      "serfs": 0,
+      "stock": {
+        "gold": 400,
+        "clay": 1400,
+        "wood": 600,
+        "stone": 200,
+        "iron": 0,
+        "sulfur": 0
+      }
+    },
+    {
+      "kind": "bandits",
+      "look": "soldiers"
+    },
+    {
+      "kind": "village",
+      "name": "neighbors"
+    }
+  ],
+  "sections": [
+    {
+      "id": "world",
+      "title": {
+        "de": "Lindgrund aufbauen",
+        "en": "Build Lindgrund"
+      },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": {
+        "de": "Ablauf",
+        "en": "Story"
+      },
+      "level": "mission",
+      "visibility": "open",
+      "editable": false,
+      "file": "mission.py"
+    }
+  ]
+}

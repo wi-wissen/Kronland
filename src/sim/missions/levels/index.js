@@ -1,6 +1,7 @@
 // Bundled levels: one folder per level with scenario.json, .py files and assets/ (docs/SKRIPTE.md#level-ordner).
 // New level: create a folder – it is found automatically. Kind 'adventure' appears under "Lernabenteuer",
-// kind 'mission' under the script missions; `order` sorts them.
+// kind 'mission' under the script missions, 'campaign' and 'tutorial' are chapters of the campaign (registry.js);
+// `order` sorts them.
 // Vite (game, tests) bundles the files; plain Node (scripts/) reads the folders from disk.
 
 import { packLevel } from '../../scripting/scenario.js';
@@ -43,3 +44,6 @@ export const ADVENTURES = LEVELS.filter((s) => s.kind === 'adventure').sort(byOr
 export const SCRIPT_MISSIONS = LEVELS.filter((s) => s.kind === 'mission').sort(byOrder);
 
 export const SCENARIOS = [...ADVENTURES, ...SCRIPT_MISSIONS];
+
+/** Campaign chapters and the tutorial that are level folders (the registry merges them with the mission files). */
+export const CAMPAIGN_LEVELS = LEVELS.filter((s) => s.kind === 'campaign' || s.kind === 'tutorial').sort(byOrder);

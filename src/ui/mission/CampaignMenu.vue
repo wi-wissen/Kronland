@@ -84,7 +84,8 @@ export default {
         return {
           id: m.id, index, title: m.title, summary: m.summary, briefing: m.briefing,
           unlocked: isUnlocked(this.progress, m.id), won: !!d, best: d ? formatTime(d.best) : null,
-          goals: m.objectives.filter((o) => !o.hidden),
+          // Mission files declare their objectives, level folders in Python (read from the code, scenarioGoals)
+          goals: (m.objectives?.length ? m.objectives : m.goals ?? []).filter((o) => !o.hidden),
         };
       });
     },

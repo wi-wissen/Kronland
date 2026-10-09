@@ -10,6 +10,7 @@
 import { version as GAME_VERSION } from '../../package.json';
 import { loadGame, SAVE_VERSION } from '../sim/serialize.js';
 import { getMission, CAMPAIGN, TUTORIAL_ID } from '../sim/missions/registry.js';
+import { tr } from '../i18n/index.js';
 
 export const FORMAT = 'kronland-save';
 export const FORMAT_VERSION = 1;
@@ -170,6 +171,9 @@ export function validateDoc(doc) {
   if (!Array.isArray(s.entities)) fail('state.entities');
   for (const e of s.entities) if (!e || !isInt(e.id) || !isStr(e.kind)) fail('state.entities');
   if (s.mission && !getMission(s.mission.id)) throw new SaveError('saves.err.unknownMission', { id: String(s.mission.id) });
+  // A mission that moved from a mission file into a level folder (Python): old saves carry no scenario to go on with
+  const def = s.mission ? getMission(s.mission.id) : null;
+  if (def?.scenario && !s.mission.scenario && !s.mission.custom) throw new SaveError('saves.err.missionChanged', { title: tr(def.title) });
   return doc;
 }
 
