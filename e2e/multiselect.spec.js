@@ -15,6 +15,8 @@ test('Selection box and Ctrl/Shift click select several figures', async ({ page,
   // screen points computed before that no longer match the picture
   await page.waitForFunction(() => window.__kronland?.renderer.frameNo > 2, null, { timeout: 60_000 });
   await expect(page.getByTestId('res-gold')).toHaveText('500');
+  // Mouse on the map centre: at its start position (0,0) edge scrolling would move the camera during the test
+  await page.mouse.move(720, 450);
 
   // three serfs in a row south of the castle, camera on them
   const ids = await page.evaluate(() => {
