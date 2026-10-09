@@ -60,9 +60,12 @@ Stärke kommen weitere Lagen dazu, jede ein wenig gedreht und versetzt, bis sie 
 schmutzigen Spur verschmelzen.
 
 Im Sommer gilt **dieselbe Geometrie** – nur das Material wechselt: schwach getreten liegen hellere Halme flach, mittel
-zeigt sich eine dünne Erdlinie in der Mitte, voll ausgetreten ein schmaler Erdweg mit weichem Grasrand.
+schaut Erde in verstreuten Flecken entlang der Mitte durch, voll ausgetreten ist es überwiegend Erde mit weichem
+Grasrand. Die Erde ist dabei nie sauber gezogen: Rauschen in drei Größen fasert die Ränder aus und lässt Lücken und
+Flecken entstehen. Auf **Fels** wird die Spur nie erdbraun – dort wird der Stein nur dunkler und schmutziger; der
+Shader blendet die Erdfarbe mit dem Gesteinsgewicht des Bodens aus.
 
-![Der Prüfstand: fünf Formen (gerade, diagonal, Knick, S-Kurve, Abzweig) in drei Stärken, links Sommer, rechts Winter – immer ein Weg, im Sommer wie im Schnee gleich breit.](blog/footpaths/bench.webp)
+![Der Prüfstand: fünf Formen (gerade, diagonal, Knick, S-Kurve, Abzweig) und zwei Felsfälle in drei Stärken, links Sommer, rechts Winter – immer ein Weg, im Sommer wie im Schnee ähnlich breit, im Sommer aufgebrochen und ausgefranst.](blog/footpaths/bench.webp)
 
 ## Wie es dahin kam {#story}
 
@@ -73,6 +76,14 @@ Der Weg zu diesem Bild führte über mehrere Fehlversuche:
    braune Flächen ließen die Siedlung unordentlich aussehen.
 3. **Parallele Streifen:** Ein Versuch, jede Pfadkachel als kurze Kapsel in Laufrichtung zu zeichnen, machte die
    einzelnen Wege schmal. In der Stadt lagen dann aber mehrere Streifen nebeneinander, wo eigentlich ein Weg war.
+4. **Zu sauber:** Ein Zwischenstand zeichnete die Erde als durchgehende, glatt begrenzte Linie. Das war ordentlich –
+   und sah aus, als hätte jemand braune Farbe ins Gras gestrichen. Ein echter Trampelpfad wird nicht sauber gezogen:
+   Er franst aus, bricht auf, hat Lücken und Flecken. Die Fassung davor, mit Ausfransen und Lücken, wirkte viel
+   natürlicher; zurück ging es also zu ihr, nur mit der schmaleren Breite. **Gerissen und lückig sieht ausgetreten
+   aus, durchgehend sieht aufgemalt aus.**
+5. **Fels:** Auf Steinboden wurde die Spur zuerst auch erdbraun – braune Streifen quer über Felsen. Jetzt blendet der
+   Shader die Erdfarbe mit dem Gesteinsgewicht aus und dunkelt den Stein nur ab. Der Prüfstand hat dafür zwei eigene
+   Fälle: ein Weg vom Gras auf den Fels und ein Weg ganz auf Fels.
 
 Das eigentliche Problem war die Prüfung. Stadtbilder nach zwanzig Minuten Spiel sind schön, aber für diese Frage
 nutzlos: Gebäude, Bäume und viele Figuren überdecken alles, jeder Lauf sieht anders aus, und man kann nicht sagen, ob
@@ -84,7 +95,7 @@ Winter. Ein Test prüft dazu, dass jede Form im geglätteten Feld genau **ein** 
 Bogen ließen sich Breite und Form in Minuten vergleichen statt in Stunden – und die Antwort war klar: Der Schnee war
 richtig, der Sommer musste dieselbe Form bekommen.
 
-![Dieselbe KI-Stadt dreimal: links zu breite, fleckige Erdflächen, in der Mitte Streifen nebeneinander, rechts heute – je Route ein zusammenhängender Weg, breit dort, wo Gruppen nebeneinander laufen. Für die Frage „wie breit ist ein Weg?“ taugen solche Bilder kaum; dafür gibt es den Prüfstand.](blog/footpaths/iterations.webp)
+![Dieselbe KI-Stadt dreimal: links zu breite, fleckige Erdflächen, in der Mitte die zu saubere, durchgehende Erde, rechts heute – schmaler, aufgebrochen und ausgefranst, breit nur dort, wo Gruppen nebeneinander laufen. Für die Frage „wie breit ist ein Weg?“ taugen solche Bilder kaum; dafür gibt es den Prüfstand.](blog/footpaths/iterations.webp)
 
 ## Breite Bänder an belebten Stellen {#bands}
 
@@ -111,4 +122,6 @@ sich stärker ab.
 - Rechne in der Simulation so einfach wie möglich (ein Byte je Kachel) und mach das Bild in der Darstellung schön.
 - Baue für eine Optikfrage einen Prüfstand mit sauberen Fällen, bevor du an Spielbildern schraubst.
 - Prüfe Sommer und Winter mit derselben Form; nur das Material darf sich unterscheiden.
+- Zu saubere Linien wirken aufgemalt: Natürliches darf Lücken und ausgefranste Ränder haben.
+- Gib Sonderfälle wie Fels einen eigenen Prüfstandsfall, sonst fallen sie erst in der Stadt auf.
 - Ein kleiner Test („genau ein Weg je Form“) verhindert, dass ein Rückfall unbemerkt bleibt.

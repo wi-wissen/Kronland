@@ -564,9 +564,9 @@ Werte: `BALANCE.ground` (alle (A)).
   schlängelt sich um bis zu eine halbe Kachel) und franst Ränder, Breite und Abnutzung mit Rauschen aus – Kurven
   statt Ecken, Diagonalen statt Treppen, ab und zu eine ausgetretene Stelle daneben. Sommer und Regen: dieselbe Weggeometrie wie
   im Schnee (ein Feld, ein Weg, gleiche Kurven und Breite), nur das Material wechselt – schwach getreten: hellere,
-  niedergelegte Halme entlang der Mitte; mittel: eine durchgehende Erdlinie in der Mitte; voll: schmaler Erdkern
+  niedergelegte Halme entlang der Mitte; mittel: Erde schaut in Flecken entlang der Mitte durch; voll: schmaler Erdkern
   mit weichem Grasrand, etwa so breit wie die Schneespur. Diagonale Wege (Kacheln, die sich nur an der Ecke berühren)
-  sind so stark wie gerade. Prüfstand: `node scripts/tracks-bench.mjs` (fünf Formen × drei Stärken, Sommer/Winter,
+  sind so stark wie gerade. Die Erde ist nie sauber gezogen: Ränder fransen aus, der Weg bricht auf und hat Lücken und Flecken (ein sauberes Band sieht aufgemalt aus, ein ausgefranstes wie ausgetreten). Auf Fels (Gesteinsgewicht des Bodens) wird die Spur nie erdbraun, sondern nur dunkler und schmutziger. Prüfstand: `node scripts/tracks-bench.mjs` (fünf Formen × drei Stärken plus zwei Felsfälle, Sommer/Winter,
   plus ein von Leibeigenen gelaufener Weg). Winter: Fußabdrücke in Laufrichtung, mit wachsender Stärke weitere Lagen (je Lage leicht gedreht und
   versetzt), bis sie zur festgetretenen, grauen Spur verschmelzen. Niedrige Grafikstufe: ein linearer statt des
   bikubischen Zugriffs. Nur soweit der Spieler die Kacheln sieht oder zuletzt gesehen hat. Taler und Christrosen liegen sichtbar auf

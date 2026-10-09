@@ -59,9 +59,12 @@ strength grows, more layers are added, each turned and shifted a little, until t
 dirty lane.
 
 In summer **the same geometry** applies – only the material changes: lightly trodden, lighter blades lie flat; medium
-shows a thin earth line in the middle; fully worn, a narrow earth path with a soft grass edge.
+shows earth in scattered patches along the middle; fully worn it is mostly earth with a soft grass edge. The earth is
+never struck cleanly: noise on three scales frays the edges and leaves gaps and patches. On **rock** the track never
+turns earth-brown – the stone only gets darker and dirtier; the shader fades the earth colour out with the rock weight
+of the ground.
 
-![The test bench: five shapes (straight, diagonal, bend, S-curve, junction) at three strengths, summer on the left, winter on the right – always one path, equally wide in summer and in snow.](blog/footpaths/bench.webp)
+![The test bench: five shapes (straight, diagonal, bend, S-curve, junction) and two rock cases at three strengths, summer on the left, winter on the right – always one path, similarly wide in summer and in snow, broken up and frayed in summer.](blog/footpaths/bench.webp)
 
 ## How it got there {#story}
 
@@ -72,6 +75,13 @@ The way to this picture led through several failed attempts:
    areas made the settlement look untidy.
 3. **Parallel strips:** drawing every path tile as a short capsule in walking direction made single paths narrow. In
    the town, however, several strips then lay side by side where there really was one path.
+4. **Too clean:** an intermediate version drew the earth as a continuous, smoothly bounded line. It was tidy – and
+   looked as if someone had smeared brown paint on the grass. A real desire path is not struck cleanly: it frays,
+   breaks up, has gaps and patches. The version before, with frayed edges and gaps, looked far more natural; so we went
+   back to it, only narrower. **Ragged and gappy looks trodden, continuous looks painted.**
+5. **Rock:** on stone ground the track first turned earth-brown too – brown streaks across rocks. Now the shader fades
+   the earth colour out with the rock weight and only darkens the stone. The bench has two cases of its own for this:
+   a path from grass onto rock and a path entirely on rock.
 
 The actual problem was the check. Town screenshots after twenty minutes of play are pretty, but useless for this
 question: buildings, trees and many figures cover everything, every run looks different, and you cannot tell whether a
@@ -82,7 +92,7 @@ S-curve, a junction, each light, medium and full. Every cell gets the same camer
 checks that every shape is exactly **one** connected path in the smoothed field. With this sheet, width and shape could
 be compared in minutes instead of hours – and the answer was clear: the snow was right, summer needed the same shape.
 
-![The same AI town three times: on the left earth areas that were too wide and patchy, in the middle strips side by side, on the right today – one connected path per route, wide where groups walk side by side. For the question "how wide is a path?" such pictures are hardly useful; that is what the test bench is for.](blog/footpaths/iterations.webp)
+![The same AI town three times: on the left earth areas that were too wide and patchy, in the middle the too-clean continuous earth, on the right today – narrower, broken up and frayed, wide only where groups walk side by side. For the question "how wide is a path?" such pictures are hardly useful; that is what the test bench is for.](blog/footpaths/iterations.webp)
 
 ## Wide bands at busy spots {#bands}
 
@@ -108,4 +118,6 @@ like a square in front of the castle that everyone crosses. That is intended: bu
 - Compute as simply as possible in the simulation (one byte per tile) and make the picture nice in the rendering.
 - For a question of looks, build a test bench with clean cases before tinkering with game screenshots.
 - Check summer and winter with the same shape; only the material may differ.
+- Lines that are too clean look painted: natural things may have gaps and frayed edges.
+- Give special cases like rock a bench case of their own, otherwise they only show up in the town.
 - A small test ("exactly one path per shape") keeps a regression from going unnoticed.

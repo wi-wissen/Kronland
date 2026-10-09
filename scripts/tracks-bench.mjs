@@ -1,7 +1,7 @@
 // Test bench for the look of tracks: five shapes × three strengths (scripts/tracks-bench/cases.js) on a flat empty map,
 // each cell photographed with the same game camera in summer and in winter, plus a contact sheet per season.
 // Needs a running dev server: `npm run dev -- --port 4361`, then
-//   node scripts/tracks-bench.mjs [outDir] [port] [quality]
+//   node scripts/tracks-bench.mjs [outDir] [port] [quality] [shapes]   (shapes: comma list, e.g. rockcross,rockonly)
 // Browser: PW_CHROMIUM=/path/to/chrome if the Playwright version does not match the installed one.
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -11,6 +11,7 @@ import { walkedField } from './tracks-bench/walked.js';
 const out = process.argv[2] ?? 'test-results/tracks-bench';
 const port = Number(process.argv[3] ?? 4361);
 const quality = process.argv[4] ?? 'medium';
+const only = process.argv[5] ? process.argv[5].split(',') : null;
 mkdirSync(out, { recursive: true });
 
 const gl = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
@@ -40,13 +41,14 @@ async function setup(weather, field) {
       sections: [{ id: 'world', level: 'mission', code: 'pass\n' }],
     });
     sim.map.tracks.set(f.tracks);
+    if (f.heights) sim.map.heights.set(f.heights);
     sim.map.groundVersion++;
     for (const h of sim.entities.values()) if (h.kind === 'hero') { h.px = 500; h.py = (f.H - 1) * 1000 + 500; }
     e.restart(sim);
     e.renderer.tracks.revealAll();
     // running (a paused game is drawn desaturated); nothing moves on this map
     e.paused = false;
-  }, [{ W: field.W, H: field.H, tracks: [...field.tracks] }, weather]);
+  }, [{ W: field.W, H: field.H, tracks: [...field.tracks], heights: field.heights ? [...field.heights] : null }, weather]);
 }
 
 async function shoot(cell, file, dist = 13) {
@@ -61,12 +63,13 @@ async function shoot(cell, file, dist = 13) {
 for (const weather of ['summer', 'winter']) {
   await setup(weather, field);
   await page.waitForTimeout(3000);
-  for (const cell of field.cells) {
+  for (const cell of field.cells.filter((c) => !only || only.includes(c.shape))) {
     const file = `${out}/${weather}-${cell.shape}-${cell.level}.png`;
     await shoot(cell, file);
     console.log(file);
   }
 }
+if (!only) {
 // Real walking: the castle's serfs walk an L-shaped route back and forth (the field the simulation laid down)
 const walked = walkedField();
 const [, corner] = walked.route;
@@ -76,6 +79,7 @@ for (const weather of ['summer', 'winter']) {
   const file = `${out}/${weather}-walked.png`;
   await shoot({ x: corner.x - 8 - BENCH_CELL / 2, y: corner.y + 3 - BENCH_CELL / 2 }, file, 18);
   console.log(file, `(${walked.walkers} serfs)`);
+}
 }
 await browser.close();
 console.log(`${BENCH_CASES.length} shapes × ${levels.length} strengths × 2 seasons in ${out}`);
