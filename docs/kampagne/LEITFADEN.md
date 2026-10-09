@@ -102,7 +102,7 @@ Eine eigene Stimme, die nur zum Spieler spricht (Entscheidung Oktober 2026).
 | Malvor | fällt in der letzten Schlacht um sein Schloss |
 | Mission 1 | Startlehm 1000 (statt 1400), damit die Lehmgrube auch für Lehm gebraucht wird |
 | Stil | Claudes Fassung von Mission 3 (mit Erzählerin) ist der Maßstab; Vergleich mit GPT: Claude kompakter und besser zu folgen |
-| Drehbuch | alle sechs Missionen in diesem Stil neu geschrieben und kalt gelesen; Teil 1 und 3 des Drehbuchs noch an die lineare Fassung anzugleichen |
+| Drehbuch | alle sechs Missionen im Oktober 2026 noch einmal ganz neu geschrieben (Abschluss als Szene, Einleitung ohne Bildschirmbeschreibung); Kaltleser-Test steht aus; Teil 1 und 3 des Drehbuchs noch an die lineare Fassung anzugleichen |
 | Erzählerin | Stimme gewählt: Hörproben Runde 3, A, Fassung 1 (sonor, warm, nah am Mikrofon). Liest Einleitungen vor, sonst nur Bedienung und Unklares, je ein kurzer Satz; allgemeine Sätze nach Sieg/Niederlage |
 | Kosten | OpenRouter-Limit: nach den Hörproben noch etwa 10 $ übrig – für die Vertonung (rund 350 Sätze × 2 Sprachen) muss es erhöht werden |
 | Erweiterungen der Technik | nur „Ertrinken melden“ (das Missionsskript erfährt, wer beim Tauwetter ertrinkt) und „Zeiger auf alle Steuerknöpfe“; alle anderen gestrichen |
