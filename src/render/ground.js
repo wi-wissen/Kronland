@@ -115,7 +115,10 @@ export function packTracks(tracks, out, { W, H, stages, visible = null, explored
         const n = q - PW, sN = q + PW;
         const sum = seen[n - 1] + 2 * seen[n] + seen[n + 1] + 2 * seen[q - 1] + 4 * r + 2 * seen[q + 1] + seen[sN - 1] + 2 * seen[sN] + seen[sN + 1];
         if (sum) {
-          b = Math.min(255, Math.round(sum * gain));
+          // along the line (best of the four axes): a diagonal path of corner-touching tiles keeps the same strength
+          // as a straight one, the blur only widens it sideways
+          const line = Math.max(seen[q - 1] + seen[q + 1], seen[n] + seen[sN], seen[n - 1] + seen[sN + 1], seen[n + 1] + seen[sN - 1]);
+          b = Math.min(255, Math.round(Math.max(sum * gain, (2 * r + line) / 4)));
           const dc = -(jc[n - 1] + 2 * jc[n] + jc[n + 1] + 2 * jc[q - 1] + 4 * jc[q] + 2 * jc[q + 1] + jc[sN - 1] + 2 * jc[sN] + jc[sN + 1]);
           const ds = -(js[n - 1] + 2 * js[n] + js[n + 1] + 2 * js[q - 1] + 4 * js[q] + 2 * js[q + 1] + js[sN - 1] + 2 * js[sN] + js[sN + 1]);
           const len = Math.sqrt(dc * dc + ds * ds);

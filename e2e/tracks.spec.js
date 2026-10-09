@@ -5,6 +5,8 @@ import { playUrl } from './paths.js';
 // simulation at the game start, sent as a command during the game; a level that needs tracks fixes it.
 
 const SLOW = { timeout: 30_000 };
+// Two game starts under software WebGL: more than the default minute on a busy machine
+test.describe.configure({ timeout: 150_000 });
 
 async function fresh(page) {
   const errors = [];

@@ -35,10 +35,13 @@ for (const lang of ['de', 'en']) {
     await page.goto('/blog/');
     await expect(page.getByTestId('nav-blog')).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('h1')).toHaveText('Blog');
-    // Story in order: one article per milestone, oldest first; the pinned intro comes before
+    // Story in order: one article per milestone, oldest first (other articles in between by date); the pinned
+    // intro comes before
     const items = page.getByTestId('blog-list').locator('[data-slug]');
-    await expect(items).toHaveCount(MILESTONES.length);
-    expect(await items.evaluateAll((els) => els.map((e) => e.dataset.slug))).toEqual(MILESTONES.map((m) => m.id));
+    await expect(items.first()).toBeVisible();
+    const slugs = await items.evaluateAll((els) => els.map((e) => e.dataset.slug));
+    const ids = new Set(MILESTONES.map((m) => m.id));
+    expect(slugs.filter((s) => ids.has(s))).toEqual(MILESTONES.map((m) => m.id));
     await expect(page.locator('.bl-pinned')).toHaveAttribute('data-slug', 'about');
     await expect(items.first()).toContainText(MILESTONES[0][`title_${lang}`]);
     await shot(page, testInfo, `blog-index-${lang}`);

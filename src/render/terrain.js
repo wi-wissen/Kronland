@@ -549,13 +549,26 @@ vec2 kCell = floor(kPw) + 0.5;
 vec2 kRel = kPw - kCell;
 vec2 kDir = kDirOf(texture2D(tTrack, kCell / uMapSize));
 float kSt = kTrE;
-// Summer and rain: flattened grass first, then worn spots that grow together, bare earth from the path on
-float kFlat = smoothstep(0.05, 0.4, kTrE) * (1.0 - uSnow);
-float kPath = smoothstep(0.7, 0.95, kTrE) * (1.0 - uSnow);
-// worn spots: irregular patches (fine noise on the strength) that grow together into the earth path
+// Summer and rain: the same path geometry as the snow lane (one smooth field, the same meander and edges) – only the
+// material differs: light = flattened, lighter grass; medium = earth showing through in patches; full = a narrow earth
+// core with a soft grass edge, about as wide as the trodden snow lane.
+// The summer field is calmer than kTrE (less noise on the strength), so the width stays even along the path.
 float kNh = texture2D(tMacro, vWPos.xz * 0.53 + 0.21).g - 0.5;
-float kWorn = smoothstep(0.52, 0.78, kTrE + kNh * 0.5) * smoothstep(0.3, 0.5, kTrE) * (1.0 - uSnow);
-wDirt = max(wDirt, max(kPath * 0.92, kWorn * 0.7));
+float kTrS = kTr + kN * 0.07 + kWide * 0.05;
+float kFlat = 0.0, kSoil = 0.0, kPath = 0.0;
+if (uSnow < 0.5 && kTr > 0.05) {
+  // light: flattened, lighter grass – a soft band plus blades laid down along the middle (the snow prints' geometry)
+  float kBl = kTrails(kRel, kDir, kSt, 0.2, 0.1, vec2(0.16, 0.05), 0.35).x;
+  kFlat = max(smoothstep(0.28, 0.44, kTrS) * 0.45, kBl * smoothstep(0.18, 0.32, kTrS));
+  // medium: earth showing through as worn spots along the middle, then in patches
+  float kW = kTrails(kRel, kDir, kSt, 0.5, 0.06, vec2(0.12, 0.08), 0.3).x;
+  kSoil = max(kW * smoothstep(0.44, 0.56, kTrS), smoothstep(0.6, 0.7, kTrS + kNh * 0.3) * smoothstep(0.52, 0.62, kTrS));
+  // full: a narrow earth core with a soft grass edge
+  kPath = smoothstep(0.76, 0.88, kTrS);
+}
+// On rock the earth colour fades out with the rock weight of the ground: a track only scuffs and darkens the stone
+float kRockK = smoothstep(0.05, 0.4, wRock);
+wDirt = max(wDirt, max(kPath * 0.95, kSoil * 0.75) * (1.0 - kRockK));
 wMeadow *= 1.0 - max(kPath, kFlat * 0.8);
 float wGrass = max(0.0, 1.0 - wMeadow - wDirt - wSand - wRock);
 wMeadow *= (1.0 - wDirt) * (1.0 - wSand) * (1.0 - wRock);
@@ -571,11 +584,13 @@ float bSum = bA.x + bA.y + bA.z + bA.w + bG + 1e-4;
 vec3 albedo = (cGrass * bG + cMeadow * bA.x + cDirt * bA.y + cSand * bA.z + cRock * bA.w) / bSum;
 kH = (hG * bG + dot(hA, bA)) / bSum;
 // Flattened grass: stalks lie down along the path – lighter, straw-coloured streaks, smoother (only on grass/meadow)
-float kBlades = 0.0;
-if (uSnow < 0.5 && kSt > 0.05) kBlades = kTrails(kRel, kDir, kSt, 0.05, 0.1, vec2(0.2, 0.05), 0.8).x;
-float kGr = kFlat * (1.0 - kPath) * (0.7 + 0.3 * kBlades) * (bG + bA.x) / bSum;
-albedo = mix(albedo, albedo * vec3(1.22, 1.14, 0.7) + vec3(0.05, 0.04, 0.0), kGr * 0.75);
+float kGr = kFlat * (1.0 - kPath) * (bG + bA.x) / bSum;
+albedo = mix(albedo, albedo * vec3(1.25, 1.17, 0.68) + vec3(0.06, 0.05, 0.0), kGr * 0.8);
 kH = mix(kH, 0.35 + kH * 0.3, kGr * 0.6);
+// Scuffed stone: where the ground is rock, a track makes it darker and dirtier (grey-brown), never earth-brown
+float kScuff = max(max(kPath, kSoil), kFlat * 0.35) * (bA.w / bSum);
+albedo = mix(albedo, albedo * vec3(0.66, 0.62, 0.58), kScuff * 0.9);
+kH = mix(kH, kH * 0.7, kScuff);
 // Snow lies on top
 float sMask = smoothstep(0.3, 0.6, wSnow + (kLum(cSnow) - 0.8) * 0.6 + (1.0 - kH) * 0.25 * wSnow);
 albedo = mix(albedo, cSnow, sMask);
@@ -593,6 +608,22 @@ if (uSnow > 0.5 && kTr > 0.001) {
   albedo = mix(albedo, cSnow * vec3(0.5, 0.56, 0.7), kPr.x * kPm * 0.85);
   albedo = mix(albedo, cSnow * vec3(0.3, 0.35, 0.47), kPr.y * kPm * 0.85);
   kH -= kPr.x * kPm * 0.25;
+  // On bare rock (steep ground, no snow cover): packed snow shows up exactly where everyone walks – a light, slightly
+  // bluish lane with a ragged edge, footprints in it; the stronger the track, the clearer and wider the lane
+  float kRk = (bA.w / bSum) * (1.0 - sMask);
+  if (kRk > 0.01) {
+    float kRn = (texture2D(tMacro, vWPos.xz * 0.37 + 0.2).g - 0.5) * 0.2 + (texture2D(tMacro, vWPos.xz * 1.1 + 0.6).b - 0.5) * 0.14;
+    // dusting along the prints from the first steps, a lane only from medium strength (relative to the ridge of the
+    // field, so it stays narrow); the frayed edge comes from the noise
+    float kRl = smoothstep(0.4, 0.52, kTrE + kRn) * (0.35 + 0.65 * smoothstep(0.45, 0.85, kTrE));
+    float kRd = smoothstep(0.17, 0.3, kTrE + kRn) * 0.16;
+    vec2 kRp = kSt > 0.2 ? kTrails(kRel, kDir, kSt, 0.2, 0.14, vec2(0.1, 0.05), 0.3) : vec2(0.0);
+    vec3 kPack = cSnow * vec3(0.9, 0.94, 1.0);
+    albedo = mix(albedo, kPack, max(kRl, kRd) * kRk * 0.9);
+    albedo = mix(albedo, kPack * vec3(0.82, 0.88, 0.98), kRp.x * kRk * smoothstep(0.16, 0.4, kTrE) * (1.0 - 0.7 * kRl));
+    albedo = mix(albedo, cSnow * vec3(0.5, 0.56, 0.7), kRp.y * kRk * smoothstep(0.16, 0.4, kTrE) * 0.6);
+    kH = mix(kH, kLum(cSnow) * 0.3, kRl * kRk * 0.7);
+  }
 }
 // Summer paths: a little darker where they are well trodden
 albedo *= 1.0 - kPath * smoothstep(0.7, 1.0, kTrE) * 0.12;
