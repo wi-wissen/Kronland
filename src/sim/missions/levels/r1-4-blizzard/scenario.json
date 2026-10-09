@@ -4,7 +4,7 @@
   "id": "r1-4",
   "kind": "adventure",
   "end": "script",
-  "order": 6,
+  "order": 14,
   "title": { "de": "Im Schneetreiben", "en": "In the Blizzard" },
   "summary": {
     "de": "Schleifen mit Bedingung: Wie weit ist es bis zum Waldrand? Ein Zettel der Magd, ein Taler im Schnee und eine Spur durch alle Kurven.",

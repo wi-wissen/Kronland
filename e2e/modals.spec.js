@@ -69,7 +69,7 @@ test('Game menu: load, save, settings and controls cover the whole screen', asyn
 test('Split screen: the game menu also covers the code panel', async ({ page }) => {
   test.skip(page.viewportSize().width < 760, 'phones show the code as a sheet');
   await page.addInitScript(() => localStorage.removeItem('kronland-code-split'));
-  await page.goto(playUrl('?mission=adv1&no-models'), { waitUntil: 'domcontentloaded' });
+  await page.goto(playUrl('?mission=r1-m&no-models'), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await expect(page.locator('.game.split')).toBeAttached(SLOW);
   await page.getByTestId('menu').click();
@@ -82,7 +82,7 @@ test('Split screen, narrow window: notices stay within the game area and leave t
   test.skip(page.viewportSize().width < 760, 'phones show the code as a sheet');
   await page.setViewportSize({ width: 820, height: 720 });
   await page.addInitScript(() => localStorage.removeItem('kronland-code-split'));
-  await page.goto(playUrl('?mission=adv1&no-models'), { waitUntil: 'domcontentloaded' });
+  await page.goto(playUrl('?mission=r1-m&no-models'), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await expect(page.locator('.game.split.compact')).toBeAttached(SLOW);
   await page.evaluate(() => window.__kronland.toast('err.popLimit', null, { ttl: 60000 }));
@@ -99,7 +99,7 @@ test('Split screen, narrow window: notices stay within the game area and leave t
 test('Phone: the goals sheet covers the run strip of a running program', async ({ page }) => {
   test.skip(page.viewportSize().width >= 760, 'phone only');
   await page.addInitScript(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('kronland-code-')) localStorage.removeItem(k); });
-  await page.goto(playUrl('?mission=adv1&no-models'), { waitUntil: 'domcontentloaded' });
+  await page.goto(playUrl('?mission=r1-m&no-models'), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await page.getByTestId('script-open').click();
   await page.getByTestId('section-player').getByTestId('code-input').fill('for i in range(40):\n    nelia.step()\n');

@@ -13,12 +13,16 @@
       <div class="cm-body">
         <div class="adv-left">
           <ol class="cm-list frame">
-            <li v-for="(m, i) in adventures" :key="m.id">
-              <button class="cm-item" :class="{ active: m.id === selectedId, won: m.won }" :data-testid="'adventure-' + m.id" @click="selectedId = m.id">
-                <span class="seal" aria-hidden="true"><Icon v-if="m.won" name="check" /><template v-else>{{ i + 1 }}</template></span>
-                <span class="cm-text"><b>{{ $tr(m.title) }}</b><small>{{ $tr(m.summary) }}</small></span>
-              </button>
-            </li>
+            <!-- Course missions row by row (I.2, I.4 … I.M, II.1 …), own adventures without a row first -->
+            <template v-for="r in rows" :key="'row' + r.row">
+              <li v-if="r.row" class="adv-sep" :data-testid="'adventure-row-' + r.row">{{ $t('adv.row', { n: r.roman, title: $t('adv.row' + r.row) }) }}</li>
+              <li v-for="m in r.missions" :key="m.id">
+                <button class="cm-item" :class="{ active: m.id === selectedId, won: m.won }" :data-testid="'adventure-' + m.id" @click="selectedId = m.id">
+                  <span class="seal" aria-hidden="true"><Icon v-if="m.won" name="check" /><template v-else>{{ m.seal }}</template></span>
+                  <span class="cm-text"><b>{{ $tr(m.title) }}</b><small>{{ $tr(m.summary) }}</small></span>
+                </button>
+              </li>
+            </template>
             <li class="adv-sep">{{ $t('adv.missions') }}</li>
             <li v-for="m in missions" :key="m.id">
               <button class="cm-item" :class="{ active: m.id === selectedId, won: m.won }" :data-testid="'adventure-' + m.id" @click="selectedId = m.id">
@@ -71,7 +75,7 @@
 </template>
 
 <script>
-import { ADVENTURES, SCRIPT_MISSIONS } from '../../sim/missions/levels/index.js';
+import { ADVENTURES, SCRIPT_MISSIONS, courseNumber } from '../../sim/missions/levels/index.js';
 import { validateScenario } from '../../sim/scripting/scenario.js';
 import { scenarioGoals } from '../../sim/scripting/outline.js';
 import { loadProgress } from '../mission/progress.js';
@@ -92,7 +96,22 @@ export default {
   },
   computed: {
     referenceUrl() { return refUrl(); },
-    adventures() { return ADVENTURES.map((a, i) => ({ ...a, n: i + 1, won: !!this.progress.done[a.id] })); },
+    adventures() {
+      return ADVENTURES.map((a, i) => {
+        const no = courseNumber(a.id);
+        return { ...a, row: no?.row ?? 0, roman: no?.roman ?? '', n: no?.label ?? i + 1, seal: no?.n ?? i + 1, won: !!this.progress.done[a.id] };
+      });
+    },
+    /** Adventures grouped by course row (row 0: adventures without a course number). */
+    rows() {
+      const out = [];
+      for (const m of this.adventures) {
+        let r = out.find((x) => x.row === m.row);
+        if (!r) out.push(r = { row: m.row, roman: m.roman, missions: [] });
+        r.missions.push(m);
+      }
+      return out.sort((a, b) => a.row - b.row);
+    },
     missions() { return SCRIPT_MISSIONS.map((a) => ({ ...a, won: !!this.progress.done[a.id] })); },
     selected() {
       const s = [...this.adventures, ...this.missions].find((a) => a.id === this.selectedId);

@@ -48,9 +48,9 @@ const TRACK = [
 ].join('\n');
 
 describe('Mission I.4 "Im Schneetreiben"', () => {
-  it('is a bundled adventure after adv5, with world building without errors and winter', () => {
+  it('is a bundled course mission after I.2, with world building without errors and winter', () => {
     const ids = ADVENTURES.map((a) => a.id);
-    expect(ids.indexOf('r1-4')).toBe(ids.indexOf('adv5') + 1);
+    expect(ids.indexOf('r1-4')).toBe(ids.indexOf('r1-2') + 1);
     expect(getScenario('r1-4').title.de).toBe('Im Schneetreiben');
     const sim = createMissionSim('r1-4');
     expect(sim.mission.script.state.errors).toEqual([]);

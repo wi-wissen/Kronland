@@ -81,7 +81,7 @@ test('Home page loads with title image, features, gallery and footer', async ({ 
   await school.scrollIntoViewIfNeeded();
   await expect(school.locator('h2')).toHaveText('Informatik zum Anfassen');
   await expect(page.getByTestId('home-dev-play')).toHaveAttribute('href', /play\/\?dev=1$/);
-  await expect(page.getByTestId('home-code-play')).toHaveAttribute('href', /play\/\?mission=adv1$/);
+  await expect(page.getByTestId('home-code-play')).toHaveAttribute('href', /play\/\?mission=r1-2$/);
   const devImg = school.locator('.school-shot img');
   await expect.poll(() => devImg.evaluate((el) => el.complete && el.naturalWidth > 0)).toBe(true);
   // What makes the game, from the player's point of view; icons from the game's atlas

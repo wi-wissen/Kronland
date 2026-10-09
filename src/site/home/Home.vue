@@ -82,7 +82,7 @@
         </ul>
         <p class="school-how">{{ $s('home.school.how') }}</p>
         <div class="hero-cta">
-          <a class="btn primary" :href="$links.play + '?mission=adv1'" data-testid="home-code-play"><Icon name="play" />{{ $s('home.school.code') }}</a>
+          <a class="btn primary" :href="$links.play + '?mission=r1-2'" data-testid="home-code-play"><Icon name="play" />{{ $s('home.school.code') }}</a>
           <a class="btn" :href="$links.play + '?dev=1'" data-testid="home-dev-play"><Icon name="keyboard" />{{ $s('home.school.try') }}</a>
           <a class="btn" :href="$links.manual + '#coding'"><Icon name="scroll" />{{ $s('home.school.more') }}</a>
         </div>

@@ -9,7 +9,7 @@ import { runToEnd, highlightRanges, ERROR_KINDS, BUDGET_LIMITS } from '../../scr
 import { API_DOC, CLASS_METHODS, CLASS_PROPS } from '../../sim/scripting/api.js';
 import { BUDGET } from '../../sim/scripting/host.js';
 import { TICKS_PER_SECOND } from '../../sim/fixed.js';
-import { SCENARIOS } from '../../sim/missions/levels/index.js';
+import { ADVENTURES, courseNumber } from '../../sim/missions/levels/index.js';
 import { PY_DOC, API_GROUPS, PY_GROUPS, WORKED, refExample } from '../../ui/script/reference.js';
 import { t, has, scriptErrorText, i18n } from '../../i18n/index.js';
 import { DOCS, commandDoc } from '../../ui/script/commandDocs.js';
@@ -66,8 +66,9 @@ function codeBlock(code, { run = false, lang } = {}) {
 
 /** Placeholders of the chapters. */
 function introVars(lang) {
-  const adv = SCENARIOS.filter((s) => s.kind === 'adventure').sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const adv = ADVENTURES;
   const q = lang === 'de' ? ['„', '“'] : ['“', '”'];
+  const no = (s) => (courseNumber(s.id) ? `${courseNumber(s.id).label} ` : '');
   const vars = {
     ticks: TICKS_PER_SECOND,
     budgetPlayer: fmtInt(BUDGET.player, lang),
@@ -75,7 +76,7 @@ function introVars(lang) {
     budgetSetup: fmtInt(BUDGET.setup, lang),
     syncLimit: fmtInt(BUDGET_LIMITS.syncLimit, lang),
     maxDepth: BUDGET_LIMITS.maxDepth,
-    adventures: adv.map((s) => `${q[0]}${s.title[lang] ?? s.title.de}${q[1]} (${(s.learn?.[lang] ?? s.learn?.de ?? []).join(', ')})`).join('; '),
+    adventures: adv.map((s) => `${no(s)}${q[0]}${s.title[lang] ?? s.title.de}${q[1]} (${(s.learn?.[lang] ?? s.learn?.de ?? []).join(', ')})`).join('; '),
   };
   return vars;
 }

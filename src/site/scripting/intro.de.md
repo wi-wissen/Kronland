@@ -4,14 +4,15 @@ In Kronland kannst du programmieren – in [Python](https://de.wikipedia.org/wik
 genauer in einer kleinen Teilmenge davon, die direkt im Spiel läuft („Kronland-Python“). Programme kommen an drei
 Stellen vor:
 
-- **Lernabenteuer** (Startmenü → **Programmier-Abenteuer**): Du steuerst die Heldin Nelia mit Code über eine Wiese,
-  fällst Bäume, sammelst Steine und baust zum Schluss ein ganzes Dorf. Jedes Abenteuer führt etwas Neues ein:
+- **Kursmissionen** (Startmenü → **Programmier-Abenteuer**): Du steuerst die Heldin Nelia mit Code durch den Schnee,
+  legst Taler aus, findest durchs Unterholz und baust zum Schluss Lindgrund wieder auf. Die Missionen gehören zu
+  Reihen des Programmierkurses (I.2 ist Reihe I, Mission 2; M ist das Meisterstück), jede führt etwas Neues ein:
   {{adventures}}.
 - **Missionsskripte**: Der Ablauf einer Mission – Dialoge, Kamerafahrten, Angriffswellen, Ziele, Sieg und Niederlage –
   ist selbst ein Python-Programm. Die Beispielmission „Der Überfall“ ist komplett so geschrieben.
 - **Welteneditor**: Eigene Karten bauen und mit Missions- und Spielerabschnitten zu eigenen Abenteuern machen.
 
-Es gibt zwei **Rechtestufen**. Spielerprogramme (Lernabenteuer) dürfen nur, was du auch mit der Maus darfst – jeder
+Es gibt zwei **Rechtestufen**. Spielerprogramme (Kursmissionen) dürfen nur, was du auch mit der Maus darfst – jeder
 Befehl läuft durch dieselben Regeln, kostet dieselben Rohstoffe und wird genauso abgelehnt. Missionsskripte dürfen
 alles: Truppen erzeugen, Rohstoffe verschenken, Gelände formen. In der Referenz unten sind Befehle, die es nur in
 Missionsskripten gibt, mit **nur Mission** markiert.
@@ -26,7 +27,7 @@ automatische Tests vergleichen das.
 
 ## Den Editor öffnen {#editor}
 
-1. Startmenü → **Programmier-Abenteuer** → ein Abenteuer wählen → **Mission starten**.
+1. Startmenü → **Programmier-Abenteuer** → eine Mission wählen → **Mission starten**.
 2. Rechts erscheint das **Code-Panel** mit deinem Programm, am Handy öffnest du es über die goldene Münze **Code**.
 3. Code eintippen und **Ausführen** drücken. Unter dem Code steht die **Konsole** mit allem, was `print()` ausgibt.
 
@@ -68,7 +69,7 @@ ein Programm eine begrenzte Zahl von Bytecode-Befehlen ausführen (das **Budget*
 
 | Was | Befehle pro Takt |
 |---|---|
-| Spielerprogramm (Lernabenteuer) | {{budgetPlayer}} |
+| Spielerprogramm (Kursmission) | {{budgetPlayer}} |
 | alle Missionsskripte zusammen | {{budgetMission}} |
 | Weltaufbau beim Laden der Karte (einmalig) | {{budgetSetup}} |
 | eine Bedingung (`wait_until`, `objective`, `sorted(key=…)`) am Stück | {{syncLimit}} |
@@ -231,7 +232,7 @@ Eine [Funktion](https://de.wikipedia.org/wiki/Funktion_%28Programmierung%29) ist
 [Parameter](https://de.wikipedia.org/wiki/Parameter_%28Informatik%29) bekommt und mit `return` ein Ergebnis
 zurückgibt (ohne `return`: `None`). Parameter können Standardwerte haben und beim Aufruf mit Namen übergeben
 werden; `*args` sammelt weitere Werte, `**kwargs` weitere benannte. Funktionen sind Werte: man kann sie übergeben
-(wie in Abenteuer 4) – oder kurz als `lambda` schreiben. Innere Funktionen sehen die Variablen außen
+(etwa als `key` an `sorted`) – oder kurz als `lambda` schreiben. Innere Funktionen sehen die Variablen außen
 ([Closure](https://de.wikipedia.org/wiki/Closure_%28Funktion%29)); ändern lassen sie sich mit `global` bzw.
 `nonlocal`.
 
@@ -386,20 +387,31 @@ aber nicht an (in einer Aufgabe „Finde den Fehler“ kann der Code ja Absicht 
 
 ## Ausführliche Beispiele {#examples}
 
-### Die fünf Lernabenteuer {#ex-adventures}
+### Aus den Kursmissionen {#ex-adventures}
 
-Musterlösungen der Abenteuer – probiere es aber erst selbst! Jede Lösung wird in einem automatischen Test gespielt
-und muss gewinnen.
+Musterlösungen einzelner Etappen – probiere es aber erst selbst! Jede Lösung wird in einem automatischen Test in
+ihrer Etappe gespielt und muss sie schaffen.
 
-{{ex_adv1}}
+I.2 „Taler für die Mägde“, Etappe „Hang“: eine Schleife mit mehreren Befehlen.
 
-{{ex_adv2}}
+{{ex_zigzag}}
 
-{{ex_adv3}}
+I.5 „Holz für die erste Nacht“, Etappe „Bach“: eine Variable zählt die Schritte, eine zweite Schleife läuft genauso
+oft zurück.
 
-{{ex_adv4}}
+{{ex_brook}}
 
-{{ex_adv5}}
+I.M „Heimweg durchs Unterholz“: die Rechte-Hand-Regel findet aus jedem Unterholz hinaus.
+
+{{ex_thicket}}
+
+II.1 „Orrins Abkürzung“: eigene Befehle mit `def`.
+
+{{ex_fetch}}
+
+III.M „Lindgrund steht wieder“: ein Bauplan als Liste von Listen.
+
+{{ex_village}}
 
 ### Leibeigene Holz fällen lassen {#ex-lumber}
 

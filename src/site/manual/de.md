@@ -430,11 +430,16 @@ sind sie weg – exportiere wichtige Stände.
 
 In den **Programmier-Abenteuern** steuerst du deinen Helden nicht mit der Maus, sondern mit einem Programm in
 **Python**. Gedacht ist das für alle, die programmieren lernen wollen – auch im Unterricht. Vorwissen brauchst du
-keins: Jedes Abenteuer erklärt, was neu ist.
+keins: Jede Mission erklärt, was neu ist.
 
-Öffne im Startmenü **Programmier-Abenteuer**. Die Abenteuer bauen aufeinander auf:
+Öffne im Startmenü **Programmier-Abenteuer**. Die Missionen gehören zu den Reihen des Programmierkurses und erzählen
+Nelias Geschichte weiter – I.2 ist Reihe I, Mission 2, M das Meisterstück am Ende einer Reihe:
 
 {{adventureList}}
+
+Jede Kursmission besteht aus Etappen auf derselben Karte: erst vorhersagen, was ein fertiger Zettel tut, dann ihn
+ändern, dann selbst schreiben. **Ausführen** beginnt die aktuelle Etappe von vorn – du kannst also beliebig oft
+probieren.
 
 Dazu kommt die Skript-Mission {{scriptMissions}}, ein ganz normales Spiel, dessen Ablauf komplett in Python
 geschrieben ist.

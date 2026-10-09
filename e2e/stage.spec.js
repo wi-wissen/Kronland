@@ -76,7 +76,7 @@ test('I.4: goal at the top, the maid\'s note, back to my code, Run restarts the 
 
 test('Moving lines: Alt+↑ on the desktop, the key bar on phones', async ({ page }) => {
   const errors = await fresh(page);
-  await page.goto(playUrl('?mission=adv1&no-models'));
+  await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
   const ta = page.getByTestId('section-player').getByTestId('code-input');
@@ -100,7 +100,7 @@ test('Moving lines: Alt+↑ on the desktop, the key bar on phones', async ({ pag
 
 test('Events in the player program: the panel shows "waits for events"', async ({ page }) => {
   const errors = await fresh(page);
-  await page.goto(playUrl('?mission=adv1&no-models'));
+  await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
   const ta = page.getByTestId('section-player').getByTestId('code-input');

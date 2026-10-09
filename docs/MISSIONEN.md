@@ -3,7 +3,7 @@
 Jede Mission ist ein **Level-Ordner in Python**: `scenario.json` sagt, was es gibt, `world.py` baut die Karte um,
 `mission.py` erzählt (Format, Felder und die ganze API in [SKRIPTE.md](SKRIPTE.md#kampagne-in-python), Befehle mit
 Beispielen in der Programmier-Referenz `scripting/`). Kampagne (`c1`–`c6`), Tutorial, Skript-Missionen und
-Lernabenteuer liegen in `src/sim/missions/levels/`; nur die Entwicklerkarten Schaukasten und Gewimmel sind JS
+Kursmissionen liegen in `src/sim/missions/levels/`; nur die Entwicklerkarten Schaukasten und Gewimmel sind JS
 (siehe [Sonderkarten](#sonderkarten)).
 
 Alle Missionen laufen über dieselbe Missionslaufzeit (`src/sim/missions/runtime.js`). Sie hängt sich über drei kleine
@@ -46,7 +46,7 @@ Startplätzen, der Kartenmitte oder anderen gefundenen Punkten aus gesucht (`fin
 |---|---|
 | `kind` | `human` (immer Spieler 0), `ai`, `bandits`, `village` |
 | `hero` / `heroes` | ein Held (`nelia`, `orrin`, `taran`, `malvor`), mehrere als Liste (erster = Haupt-Held) oder `null` |
-| `hq` | `false`: ohne Burg, Dorfzentrum und Leibeigene (Kommandomission, Lernabenteuer) |
+| `hq` | `false`: ohne Burg, Dorfzentrum und Leibeigene (Kommandomission, Kursmission) |
 | `stock` | Startrohstoffe (veredelt); fehlende bleiben beim Standard |
 | `serfs`, `techs`, `team` | Leibeigene, Technologien, Team |
 | `difficulty` | KI: `easy`, `normal`, `hard` |
