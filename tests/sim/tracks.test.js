@@ -7,7 +7,7 @@ import { Sim } from '../../src/sim/sim.js';
 import { createScenarioSim, createMissionSim } from '../../src/sim/missions/runtime.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { BALANCE } from '../../src/sim/data/balance.js';
-import { trackGain, updateTracks, levelTrackMode, tileKind } from '../../src/sim/systems/ground.js';
+import { trackGain, walkerPercent, updateTracks, levelTrackMode, tileKind } from '../../src/sim/systems/ground.js';
 import { validateScenario } from '../../src/sim/scripting/scenario.js';
 
 const T = BALANCE.ground.tracks;
@@ -60,6 +60,44 @@ describe('Track model: gain per pass', () => {
     expect(passesTo(T.grass, T.grass.path)).toBe(11);
     expect(passesTo(T.snow, T.snow.trodden)).toBe(1);
     expect(passesTo(T.snow, T.snow.path)).toBe(4);
+  });
+});
+
+describe('Track model: trampling relative to the walkers of the player', () => {
+  /** Passes to a level with the walkers of a player. */
+  const passesW = (ground, level, walkers) => {
+    const p = walkerPercent(walkers);
+    let s = 0, n = 0;
+    while (s < level) { s = Math.min(T.max, s + trackGain(ground, s, p)); n++; }
+    return n;
+  };
+
+  it('gain scales with √(ref / walkers), clamped: a village treads faster than a town', () => {
+    expect(walkerPercent(T.walkers.ref)).toBe(100);
+    expect(walkerPercent(5)).toBe(T.walkers.maxPercent);
+    expect(walkerPercent(0)).toBe(T.walkers.maxPercent);
+    expect(walkerPercent(80)).toBe(50);
+    expect(walkerPercent(1000)).toBe(T.walkers.minPercent);
+    // table in docs/SPIELREGELN.md §14: passes to "trodden" and "path" (grass), "lane" (snow)
+    const table = [5, 20, 60, 150].map((w) => [passesW(T.grass, T.grass.trodden, w), passesW(T.grass, T.grass.path, w), passesW(T.snow, T.snow.path, w)]);
+    expect(table).toEqual([[2, 6, 2], [4, 11, 4], [6, 18, 8], [9, 27, 12]]);
+    // footprints in the snow stay visible after one step even in a big town
+    expect(passesW(T.snow, T.snow.trodden, 1000)).toBe(1);
+  });
+
+  it('census per player in the same loop: a lone hero treads harder than a crowd of the other player', () => {
+    const sim = mk({}, {});
+    const h = hero(sim);
+    // a crowd of 80 walkers of player 1 (only counted, they stand still)
+    for (let i = 0; i < 80; i++) sim.entities.set(10_000 + i, { id: 10_000 + i, kind: 'unit', owner: 1, px: 20_500, py: 14_500, tk: sim.map.idx(20, 14) });
+    updateTracks(sim);
+    h.px += 1000;
+    updateTracks(sim);
+    expect(sim.map.tracks[sim.map.idx(4, 8)]).toBe(trackGain(T.grass, 0, walkerPercent(1)));
+    const crowd = [...sim.entities.values()].find((e) => e.id === 10_000);
+    crowd.px += 1000;
+    updateTracks(sim);
+    expect(sim.map.tracks[sim.map.idx(20, 14)]).toBe(trackGain(T.grass, 0, walkerPercent(80)));
   });
 });
 
@@ -149,7 +187,7 @@ describe('Game option: off / fading / permanent', () => {
       h.px += 1000;
       updateTracks(sim);
       const k = sim.map.idx(4, 8);
-      expect(sim.map.tracks[k]).toBe(mode === 'off' ? 0 : T.grass.gain);
+      expect(sim.map.tracks[k]).toBe(mode === 'off' ? 0 : trackGain(T.grass, 0, walkerPercent(1)));
       sim.map.tracks[k] = 100;
       for (let i = 0; i < 2 * SWEEP; i++) { updateTracks(sim); sim.tick++; }
       expect(sim.map.tracks[k]).toBe(mode === 'fading' ? 100 - 2 * T.weather.summer.decay : 100); // the broom only runs when fading

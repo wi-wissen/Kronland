@@ -6,7 +6,7 @@ import { createScenarioSim } from '../../src/sim/missions/runtime.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { WATER, BRIDGE } from '../../src/sim/map.js';
 import { BALANCE } from '../../src/sim/data/balance.js';
-import { tileKind, tileToward, addItem, removeItem, itemList, updateTracks, trackThreshold, TILE_WORDS } from '../../src/sim/systems/ground.js';
+import { tileKind, tileToward, addItem, removeItem, itemList, updateTracks, trackThreshold, trackGain, walkerPercent, TILE_WORDS } from '../../src/sim/systems/ground.js';
 import { validateScenario } from '../../src/sim/scripting/scenario.js';
 
 const run = (sim, ticks) => { for (let i = 0; i < ticks && !sim.mission.state.result; i++) sim.step(); };
@@ -129,10 +129,10 @@ describe('Tracks', () => {
     run(sim, 30);
     expect(consoleText(sim)).toBe('free\nfree\ntrack');
     const k = sim.map.idx(4, 8);
-    // one pass on grass: the gain of the ground (the broom reaches this tile only at tick 49 of its round)
-    expect(sim.map.tracks[k]).toBe(BALANCE.ground.tracks.grass.gain);
-    // the broom passes every tile once in 10 s and takes 3 levels in summer: gone after a minute
-    run(sim, 600);
+    // one pass on grass: the gain of the ground, doubled for a lone walker (the broom reaches this tile at tick 49)
+    expect(sim.map.tracks[k]).toBe(trackGain(BALANCE.ground.tracks.grass, 0, walkerPercent(1)));
+    // the broom passes every tile once in 10 s and takes 3 levels in summer: gone after two minutes
+    run(sim, 1200);
     expect(sim.map.tracks[k]).toBe(0);
   });
 

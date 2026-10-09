@@ -12,7 +12,7 @@
 
 import { CLIFF, OCCUPIED, WATER, BRIDGE } from '../map.js';
 import { BALANCE } from '../data/balance.js';
-import { TICKS_PER_SECOND, toTile, idiv } from '../fixed.js';
+import { TICKS_PER_SECOND, toTile, idiv, isqrt } from '../fixed.js';
 
 const G = BALANCE.ground;
 
@@ -79,14 +79,29 @@ export function trackThreshold(sim) {
 }
 
 /**
- * Gain of one pass on a tile of strength s: gain·(max − s)/max rounded up, at least 1 (below max).
- * @param {{gain:number}} ground @param {number} s
+ * Scale of the gain in percent for a player with `walkers` figures outside: √(ref / walkers), clamped.
+ * @param {number} walkers
  */
-export function trackGain(ground, s) {
+export function walkerPercent(walkers) {
+  const W = G.tracks.walkers;
+  const p = isqrt(idiv(W.ref * 10000, Math.max(1, walkers)));
+  return Math.max(W.minPercent, Math.min(W.maxPercent, p));
+}
+
+/**
+ * Gain of one pass on a tile of strength s: gain·percent/100·(max − s)/max rounded up, at least 1 (below max).
+ * @param {{gain:number}} ground @param {number} s @param {number} [percent] walkerPercent() of the walking player
+ */
+export function trackGain(ground, s, percent = 100) {
   const max = G.tracks.max;
   if (s >= max) return 0;
-  return Math.max(1, idiv(ground.gain * (max - s) + max - 1, max));
+  const d = 100 * max;
+  return Math.max(1, idiv(ground.gain * percent * (max - s) + d - 1, d));
 }
+
+/** Reused per tick: tiles left this tick and their player, walkers per player (no allocation per tick). */
+const steps = [];
+const walkersOf = new Map();
 
 /**
  * What lies on a tile, as one word (fixed precedence: things before ground, the state of the ground before marks).
@@ -245,16 +260,24 @@ export function updateTracks(sim) {
   const weather = trackWeather(sim), ground = T[weather.ground];
   const build = mode !== 'off' && who !== 'none';
   const heroesOnly = who === 'heroes';
+  // One loop over the figures: census of the walkers per player and the tiles left this tick
+  steps.length = 0;
+  walkersOf.clear();
   for (const e of sim.entities.values()) {
     if (e.px === undefined || !TRACKERS.has(e.kind) || e.inside) continue;
+    const owner = e.owner ?? -1;
+    walkersOf.set(owner, (walkersOf.get(owner) ?? 0) + 1);
     const x = toTile(e.px), y = toTile(e.py), k = y * W + x, o = e.tk;
     if (o === k) continue;
     e.tk = k;
     if (o === undefined || !build || (heroesOnly && e.kind !== 'hero')) continue;
     const ox = o % W, oy = (o - ox) / W;
     if (ox - x > 1 || x - ox > 1 || oy - y > 1 || y - oy > 1) continue;
-    const s = tr[o];
-    if (s < max) tr[o] = Math.min(max, s + trackGain(ground, s));
+    steps.push(o, owner);
+  }
+  for (let i = 0; i < steps.length; i += 2) {
+    const o = steps[i], s = tr[o];
+    if (s < max) tr[o] = Math.min(max, s + trackGain(ground, s, walkerPercent(walkersOf.get(steps[i + 1]))));
   }
   if (mode !== 'fading') return;
   const period = T.sweepSeconds * TICKS_PER_SECOND;

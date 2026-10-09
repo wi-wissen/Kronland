@@ -48,6 +48,10 @@ export const BALANCE = {
     tracks: {
       max: 255,              // strongest track (one byte per tile)
       sweepSeconds: 10,      // the broom visits every tile once in this time (cost per tick: tiles / 100)
+      // Trampling relative to the walkers of the player (figures outside: serfs, workers, soldiers, heroes): the gain
+      // is scaled by √(refWalkers / walkers) in percent, clamped to minPercent…maxPercent. A village of 5–10 serfs
+      // makes paths after a few passes, a town of 150 only on its main routes.
+      walkers: { ref: 20, minPercent: 35, maxPercent: 200 },
       // Ground under the feet: gain = first pass; faint = barely visible; trodden = counts as "track" (sensor,
       // clearly visible); path = bare earth path (summer) or trodden lane (snow); full = finished in the picture
       grass: { gain: 16, faint: 8, trodden: 48, path: 128, full: 208 },
