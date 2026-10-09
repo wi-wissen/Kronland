@@ -549,13 +549,55 @@ vec2 kCell = floor(kPw) + 0.5;
 vec2 kRel = kPw - kCell;
 vec2 kDir = kDirOf(texture2D(tTrack, kCell / uMapSize));
 float kSt = kTrE;
-// Summer and rain: flattened grass first, then worn spots that grow together, bare earth from the path on
-float kFlat = smoothstep(0.05, 0.4, kTrE) * (1.0 - uSnow);
-float kPath = smoothstep(0.7, 0.95, kTrE) * (1.0 - uSnow);
-// worn spots: irregular patches (fine noise on the strength) that grow together into the earth path
+// Summer and rain: narrow footpaths. Each path tile of the 3×3 neighbourhood is a short capsule along its walking
+// direction (a disc without one), slightly meandering but inside its tile corridor: a trodden earth core about 0.35…0.5
+// tile wide at path strength, a soft margin of flattened grass around it. Width only grows where several neighbouring
+// tiles are paths (capsules overlap: plaza, junction). The smooth field above stays for the snow.
+float kPathS = 0.0, kFlatS = 0.0;
+if (uSnow < 0.5 && kTr > 0.002) {
+  vec2 kPs = vWPos.xz + kWarp * 0.22;
+  vec2 kC0 = floor(kPs) + 0.5;
+  float kWv = 1.0 + kWide * 0.45;
+  for (int dy = -1; dy <= 1; dy++) {
+    for (int dx = -1; dx <= 1; dx++) {
+      vec2 c = kC0 + vec2(float(dx), float(dy));
+      vec4 t = texture2D(tTrack, c / uMapSize);
+      if (t.r < 0.05) continue;
+      vec2 cs = t.ga * 2.0 - 1.0;
+      float th = 0.5 * atan(cs.y, cs.x);
+      vec2 d = vec2(cos(th), sin(th));
+      vec2 rel = kPs - c;
+      float al = clamp(dot(rel, d), -0.6, 0.6) * step(0.004, dot(cs, cs));
+      float dist = length(rel - al * d) + kN * 0.06;
+      float hwC = mix(0.17, 0.25, smoothstep(0.69, 1.0, t.r)) * kWv;
+      float hwF = hwC + 0.22;
+      kPathS = max(kPathS, smoothstep(0.62, 0.8, t.r) * (1.0 - smoothstep(hwC - 0.05, hwC + 0.05, dist)));
+      kFlatS = max(kFlatS, (0.3 * smoothstep(0.05, 0.38, t.r) + 0.5 * smoothstep(0.38, 0.7, t.r)) * (1.0 - smoothstep(hwF - 0.12, hwF + 0.06, dist)));
+    }
+  }
+}
+// several neighbouring path tiles (wide trail, junction, plaza): the smooth field (only there above ~0.9) fills the
+// gaps between the capsules, centred between them, and the capsules give way to it – gently wider, not a brown area
+float kFill = 0.0;
+if (uSnow < 0.5 && kTr > 0.5) {
+#if ${lite}
+  float kB = texture2D(tTrack, (vWPos.xz + kWarp * 0.22) / uMapSize).b;
+#else
+  float kB = kBicubic(tTrack, vWPos.xz + kWarp * 0.22, uMapSize).b;
+#endif
+  // a little patchy: trodden grass shows through here and there
+  float kHole = texture2D(tMacro, vWPos.xz * 0.37 + 0.71).b - 0.5;
+  kFill = smoothstep(0.93, 0.995, kB + kN * 0.05) * (0.8 + 0.2 * smoothstep(-0.1, 0.1, kHole));
+  kPathS *= 1.0 - 0.6 * smoothstep(0.88, 0.96, kB);
+}
+kPathS = max(kPathS, kFill);
+kFlatS = max(kFlatS, smoothstep(0.9, 0.98, kTr) * 0.7);
+float kFlat = kFlatS * (1.0 - uSnow);
+float kPath = kPathS * (1.0 - uSnow);
+// worn spots: rare small patches right beside strong paths
 float kNh = texture2D(tMacro, vWPos.xz * 0.53 + 0.21).g - 0.5;
-float kWorn = smoothstep(0.52, 0.78, kTrE + kNh * 0.5) * smoothstep(0.3, 0.5, kTrE) * (1.0 - uSnow);
-wDirt = max(wDirt, max(kPath * 0.92, kWorn * 0.7));
+float kWorn = smoothstep(0.3, 0.4, kNh) * smoothstep(0.35, 0.5, kFlat) * (1.0 - kPath) * (1.0 - uSnow);
+wDirt = max(wDirt, max(kPath * 0.92, kWorn * 0.6));
 wMeadow *= 1.0 - max(kPath, kFlat * 0.8);
 float wGrass = max(0.0, 1.0 - wMeadow - wDirt - wSand - wRock);
 wMeadow *= (1.0 - wDirt) * (1.0 - wSand) * (1.0 - wRock);
