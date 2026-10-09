@@ -50,7 +50,13 @@ vorgegeben) und „keine Erklärbär-Sätze“. Ein Gespräch ist so lang, wie e
   Grund, nächster Schritt).
 - Der erste Satz einer Mission nennt Ort und Ziel. Ein Tipp ist die Antwort auf etwas, das gerade gesagt wurde – nie
   ein Satz aus dem Nichts.
-- Was im Einleitungstext steht, darf und soll im ersten Gespräch wiederholt werden; den Text überfliegen viele.
+- Die Einleitung erzählt, was man nicht sieht (Vorgeschichte, Lage). Sie beschreibt nie die Szene auf dem Bildschirm,
+  und keine Figur sagt danach noch einmal, was man sieht oder was die Einleitung gerade erzählt hat (Fehler in der
+  ersten Fassung: Die Erzählerin sagte „Kein Rauch, kein Hund“, danach Nelia dasselbe).
+- Der Abschluss einer Mission ist eine normale Szene mit Gespräch der Figuren, kein vorgelesener Text. Er erzählt keine
+  Handlungen, die die Hauptfigur genauso gut zeigen kann.
+- Strenge Prüfregeln („jede Information nur einmal“) helfen nicht: Eine Prüfung findet dann nur Kleinkram. Maßstab ist,
+  ob es sich beim Zuhören doppelt anhört.
 - Die Figuren reden **nur miteinander** und sprechen den Spieler nie an.
 
 ## Die Erzählerin
