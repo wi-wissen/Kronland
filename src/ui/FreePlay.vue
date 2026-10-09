@@ -56,8 +56,8 @@
               <button class="ghost" :aria-expanded="heroOpen" data-testid="hero-change" @click="heroOpen = !heroOpen">{{ heroOpen ? $t('free.heroDone') : $t('free.heroChange') }}</button>
             </li>
             <li v-if="heroOpen" class="fp-heroes">
-              <button v-for="h in heroes" :key="h" class="sm-hero" :class="{ active: hero === h }" :aria-pressed="hero === h" :data-testid="'hero-pick-' + h" @click="hero = h">
-                <span class="sm-heroimg"><Icon :name="'hero-' + h" /></span>
+              <button v-for="h in heroes" :key="h" class="fp-hero" :class="{ active: hero === h }" :aria-pressed="hero === h" :data-testid="'hero-pick-' + h" @click="hero = h">
+                <span class="fp-heroimg"><Icon :name="'hero-' + h" /></span>
                 <b>{{ $name.hero(h) }}</b>
               </button>
             </li>
@@ -176,9 +176,9 @@ export default {
 .fp-ribbon { top: 0.25rem; right: 0.25rem; left: auto; }
 .fp-pickfoot { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; }
 .fp-chosen { flex: 1; color: var(--gold-200); font-weight: 700; }
-.sm-hero { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.5rem 0.25rem; }
-.sm-heroimg { width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 50% 35%, #fbf1d6, #c9a66b); box-shadow: inset 0 0 0 2px rgba(90, 60, 20, 0.5); }
-.sm-hero.active .sm-heroimg { box-shadow: inset 0 0 0 2px var(--gold-300), 0 0 10px rgba(243, 200, 94, 0.5); }
-.sm-heroimg .ico { width: 2.375rem; height: 2.375rem; }
-.sm-heroimg .ico.portrait { width: calc(100% - 4px); height: calc(100% - 4px); border-radius: 50%; }
+.fp-hero { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.5rem 0.25rem; }
+.fp-heroimg { width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 50% 35%, #fbf1d6, #c9a66b); box-shadow: inset 0 0 0 2px rgba(90, 60, 20, 0.5); }
+.fp-hero.active .fp-heroimg { box-shadow: inset 0 0 0 2px var(--gold-300), 0 0 10px rgba(243, 200, 94, 0.5); }
+.fp-heroimg .ico { width: 2.375rem; height: 2.375rem; }
+.fp-heroimg .ico.portrait { width: calc(100% - 4px); height: calc(100% - 4px); border-radius: 50%; }
 </style>

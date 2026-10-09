@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
+import { startTutorial, openFreePlay } from './menu.js';
 
 // Share maps via link: game start puts the start link into the address bar, the game menu shows the map and
 // "Link kopieren", the same link starts the same map. Screenshots to SHOTS (optional).
@@ -37,11 +38,13 @@ test('Free game from the menu: start link in the address, same link = same map',
   // Evidence images on desktop at 1440×900
   if (SHOTS && info.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(playUrl());
-  await page.getByTestId('opp-2').click();
+  await openFreePlay(page);
+  await page.getByTestId('opp-add').click();
   await page.getByTestId('diff-hard').click();
+  await page.getByTestId('hero-change').click();
   await page.getByTestId('hero-pick-orrin').click();
   await page.getByTestId('fog-off').click();
-  await page.locator('#seed').fill('62921');
+  await page.getByTestId('map-number').fill('62921');
   await page.getByTestId('start').click();
   await waitGame(page);
 
@@ -100,7 +103,7 @@ test('Mission via link: tutorial starts via ?mission=tutorial, menu shows the na
   test.setTimeout(180_000);
   if (SHOTS && info.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(playUrl());
-  await page.getByTestId('menu-tutorial').click();
+  await startTutorial(page);
   await waitGame(page);
   expect(new URL(page.url()).search).toBe('?mission=tutorial');
   await page.evaluate(() => window.__kronland.skipDialog?.());

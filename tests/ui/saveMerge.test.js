@@ -24,6 +24,11 @@ describe('mergeSaves', () => {
   it('saves with another progress are different games', () => {
     expect(mergeSaves([e('a', '2026-10-01T10:00:00Z')], [e('b', '2026-10-01T10:00:00Z', { tick: 200 })])).toHaveLength(2);
   });
+  it('two identical device saves stay two rows, a cloud copy joins only one', () => {
+    const rows = mergeSaves([e('d1', '2026-10-01T10:00:00Z'), e('d2', '2026-10-01T10:00:00Z')], [e('c1', '2026-10-01T10:00:00Z')]);
+    expect(rows).toHaveLength(2);
+    expect(rows.filter((r) => r.cloud)).toHaveLength(1);
+  });
   it('works without an account list', () => { expect(mergeSaves([])).toEqual([]); });
 });
 

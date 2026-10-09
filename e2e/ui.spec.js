@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 import { quick } from './quick.js';
+import { openFreePlay } from './menu.js';
 
 // UI: language, settings, build menu categories, minimap, notices.
 
@@ -29,13 +30,14 @@ async function bootGame(page, url = playUrl('?seed=42')) {
 test('Switch language in the start menu: texts change at once and stay saved', async ({ page }) => {
   const errors = await fresh(page);
   await page.goto(playUrl());
-  await expect(page.getByTestId('start')).toHaveText('Neues Spiel starten');
+  await expect(page.getByTestId('menu-kind-stories')).toContainText('Geschichten');
   await page.getByTestId('menu-lang-en').click();
-  await expect(page.getByTestId('start')).toHaveText('Start new game');
-  await expect(page.getByTestId('menu-campaign')).toContainText('Campaign');
+  await expect(page.getByTestId('menu-kind-stories')).toContainText('Stories');
   expect(await page.evaluate(() => localStorage.getItem('kronland-lang'))).toBe('en');
   expect(await page.evaluate(() => document.documentElement.lang)).toBe('en');
   await page.reload();
+  await expect(page.getByTestId('menu-kind-stories')).toContainText('Stories');
+  await openFreePlay(page);
   await expect(page.getByTestId('start')).toHaveText('Start new game');
   // In game: building names and rejection reasons in English
   await page.getByTestId('start').click();

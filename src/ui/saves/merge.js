@@ -8,12 +8,13 @@ const sig = (e) => `${e.savedAt}|${e.mission ?? ''}|${e.tick}`;
  * @returns {Array<any>} rows, newest first: the entry fields plus `key`, `device` and `cloud` (the entry in that place or null)
  */
 export function mergeSaves(device, cloud = []) {
-  const rows = new Map();
-  for (const e of device) rows.set(sig(e), { ...e, key: `d:${e.id}`, device: e, cloud: null });
+  /** @type {any[]} */
+  const rows = device.map((e) => ({ ...e, key: `d:${e.id}`, device: e, cloud: null }));
+  // A copy in the account belongs to the first device row of the same game that has none yet (two identical device saves stay two rows)
   for (const e of cloud) {
-    const hit = rows.get(sig(e));
+    const hit = rows.find((r) => r.device && !r.cloud && sig(r) === sig(e));
     if (hit) hit.cloud = e;
-    else rows.set(sig(e), { ...e, key: `c:${e.id}`, device: null, cloud: e });
+    else rows.push({ ...e, key: `c:${e.id}`, device: null, cloud: e });
   }
-  return [...rows.values()].sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
+  return rows.sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
 }

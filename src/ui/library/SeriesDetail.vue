@@ -14,7 +14,7 @@
 
       <template v-if="series.access === 'locked'">
         <p class="sd-note" data-testid="series-locked"><Icon name="lock" />{{ $t('lib.lockedText') }}</p>
-        <button class="primary sd-big" data-testid="series-learn" @click="$emit('learn')">{{ $t('lib.learnMore') }}</button>
+        <a class="sd-big sd-learn" :href="series.link" target="_blank" rel="noopener noreferrer" data-testid="series-learn">{{ $t('lib.learnMore') }}</a>
       </template>
       <template v-else>
         <div v-if="series.count" class="sd-progress">
@@ -73,7 +73,7 @@ export default {
     big: Boolean,
     by: { type: String, default: '' },
   },
-  emits: ['play', 'restart', 'learn', 'edit', 'delete', 'reload'],
+  emits: ['play', 'restart', 'edit', 'delete', 'reload'],
   computed: {
     next() { return nextLevel(this.series.levels.filter((l) => l.state !== 'locked')); },
     bigLabel() {
@@ -91,7 +91,7 @@ export default {
     rank: (v) => DIFFICULTIES.indexOf(v) + 1,
     action: (l) => actionOf(l.state),
     when(iso) { return whenText(iso, (k, p) => this.$t(k, p), this.$i18n.lang); },
-    minutesText(m) { return m >= 90 ? this.$t('lib.hours', { n: Math.round(m / 6) / 10 }) : this.$t('lib.minutes', { n: m }); },
+    minutesText(m) { return m >= 90 ? this.$t('lib.hours', { n: (Math.round(m / 6) / 10).toLocaleString(this.$i18n.lang) }) : this.$t('lib.minutes', { n: m }); },
     statusText(l) {
       if (l.state === 'locked') return this.$t(l.lockReason ?? 'lib.locked');
       if (l.state === 'running') { const e = this.saves.get(l.id); return e ? this.$t('lib.lastPlayed', { when: this.when(e.savedAt) }) : ''; }
@@ -114,6 +114,7 @@ export default {
 .sd-meter { flex: 1; height: 0.625rem; }
 .sd-ptext { color: var(--ink-muted); font-size: var(--fs-sm); }
 .sd-big { min-height: 3.25rem; padding-inline: 1.75rem; font-size: var(--fs-lg); max-width: 100%; text-align: center; }
+.sd-learn { display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-md); border: 1px solid var(--gold-800); color: #2a1a06; font-weight: 700; text-decoration: none; background: linear-gradient(180deg, var(--gold-200), var(--gold-400) 55%, var(--gold-500)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(120, 70, 10, 0.35), 0 1px 0 rgba(0, 0, 0, 0.4); }
 .sd-last { margin: 0; color: var(--ink-muted); font-size: var(--fs-sm); }
 .sd-note { margin: 0; display: flex; gap: 0.5rem; align-items: flex-start; color: var(--ink-muted); font-size: var(--fs-sm); line-height: 1.4; }
 .sd-note .ico { width: 1.125rem; height: 1.125rem; flex: none; }

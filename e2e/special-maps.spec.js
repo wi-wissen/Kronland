@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
+import { openFreePlay } from './menu.js';
 
 // Special maps: menu on the start screen and the stress test "Gewimmel" (many figures, two battles).
 // Screenshots (desktop 1440×900 and mobile) and measurements (draw calls, triangles, figures) under
@@ -25,17 +26,19 @@ async function fresh(page) {
 
 const running = (page) => page.waitForFunction(() => !!window.__kronland && window.__kronland.renderer.frameNo > 2, null, { timeout: 240_000 });
 
-test('Start menu lists the special maps with description and places', async ({ page }, info) => {
+test('Free play lists the special maps with their description', async ({ page }, info) => {
   const errors = await fresh(page);
   await page.goto(playUrl());
-  await page.getByTestId('menu-special').click();
-  await expect(page.getByTestId('special-menu')).toBeVisible();
-  await expect(page.getByTestId('special-showcase')).toContainText('Schaukasten');
-  await page.getByTestId('special-bustle').click();
-  await expect(page.getByTestId('special-briefing')).toContainText('Gewimmel');
-  await expect(page.getByTestId('special-briefing')).toContainText('Schlacht im Norden');
+  await openFreePlay(page);
+  await page.getByTestId('map-choose').click();
+  await expect(page.getByTestId('map-picker')).toBeVisible();
+  await expect(page.getByTestId('map-showcase')).toContainText('Schaukasten');
+  await page.getByTestId('map-bustle').click();
+  await expect(page.getByTestId('map-bustle')).toContainText('Gewimmel');
   await page.screenshot({ path: `${DIR}/menu-${info.project.name}.png` });
-  await page.getByTestId('special-back').click();
+  await page.getByTestId('map-take').click();
+  await expect(page.getByTestId('map-fixed')).toBeVisible();
+  await page.getByTestId('free-back').click();
   await expect(page.getByTestId('start-menu')).toBeVisible();
   expect(errors).toEqual([]);
 });

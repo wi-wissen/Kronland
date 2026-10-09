@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
+import { openWorkshop } from './menu.js';
 
 // Worlds of a coding mission (docs/SKRIPTE.md#welten) on I.4: the switcher starts the stage in another world (code
 // stays), „Prüfen“ plays the program through all worlds without pictures and names the world that fails; once all
@@ -140,8 +141,7 @@ test('World editor: worlds list in the scenario tab, test play in the chosen wor
   await page.addInitScript(() => localStorage.removeItem('kronland-editor-draft'));
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(playUrl('?no-models'));
-  await page.getByTestId('menu-adventures').click();
-  await page.getByTestId('open-editor').click();
+  await openWorkshop(page);
   await expect(page.getByTestId('world-editor')).toBeVisible({ timeout: 60_000 });
   await page.getByTestId('editor-tab-scenario').click();
   // The first world added brings the normal case along

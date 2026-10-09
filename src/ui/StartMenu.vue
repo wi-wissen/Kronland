@@ -54,6 +54,10 @@
         </div>
       </section>
 
+      <!-- Without a save game the list is still reachable (a file from another device can be added there) -->
+      <button v-else class="ghost sm-saves-link" data-testid="menu-saves" @click="savesOpen = true"><Icon name="load" />{{ $t('sv.title') }}</button>
+
+
       <section class="sm-library frame" :aria-label="$t('home.library')">
         <header class="sm-tilehead">
           <div><h2 class="h-title">{{ $t('home.library') }}</h2><p class="sm-sub">{{ $t('home.librarySub') }}</p></div>
@@ -97,7 +101,7 @@
     <Teleport to="body">
       <div v-if="savesOpen" class="scrim" @click.self="savesOpen = false">
         <div class="dialog frame sm-saves" role="dialog" aria-modal="true" :aria-label="$t('sv.title')" data-testid="saves-dialog">
-          <SaveBrowser ref="saves" mode="load" :touch="touch" @load="$emit('load', $event)" @changed="$emit('saves-changed')" @close="savesOpen = false" />
+          <SaveBrowser ref="saves" mode="load" header :touch="touch" @load="$emit('load', $event)" @changed="$emit('saves-changed')" @close="savesOpen = false" />
         </div>
       </div>
 
@@ -279,6 +283,7 @@ export default {
 .sm-hero-acts { display: flex; align-items: center; gap: 0.5rem 1rem; flex-wrap: wrap; margin-top: 0.625rem; }
 .sm-continue { min-height: 3.25rem; padding-inline: 2rem; font-size: var(--fs-xl); font-family: var(--display); }
 .sm-allsaves { font-size: var(--fs-sm); }
+.sm-saves-link { align-self: center; color: #fff3da; background: rgba(20, 12, 8, 0.55); border-radius: 999px; padding-inline: 1rem; }
 
 /* Library tile and the kinds */
 .sm-library { padding: 0.875rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.75rem; }

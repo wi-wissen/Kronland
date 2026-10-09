@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 import { quick } from './quick.js';
+import { openSeries, playLevel, startTutorial } from './menu.js';
 
 /** Record page errors; progress and language back to the start. */
 async function fresh(page) {
@@ -24,7 +25,7 @@ const stepId = (page) => page.evaluate(() => window.__kronland?.sim.mission?.cur
 
 test('Start the tutorial from the menu, see the first step, complete a step, skip', async ({ page }) => {
   const errors = await fresh(page);
-  await page.getByTestId('menu-tutorial').click();
+  await startTutorial(page);
   await page.waitForFunction(() => !!window.__kronland);
   const coach = page.getByTestId('tutorial-coach');
   await expect(coach).toBeVisible();
@@ -52,7 +53,7 @@ test('Start the tutorial from the menu, see the first step, complete a step, ski
 
 test('Skipping the tutorial to the end shows the conclusion', async ({ page }) => {
   const errors = await fresh(page);
-  await page.getByTestId('menu-tutorial').click();
+  await startTutorial(page);
   await page.waitForFunction(() => !!window.__kronland);
   // Three real clicks, the rest via the engine (software rendering is very slow in the test)
   for (let i = 0; i < 3; i++) {
@@ -72,13 +73,14 @@ test('Skipping the tutorial to the end shows the conclusion', async ({ page }) =
 
 test('Open the campaign, start mission 1, see objectives and dialogue', async ({ page }) => {
   const errors = await fresh(page);
-  await page.getByTestId('menu-campaign').click();
-  await expect(page.getByTestId('campaign-menu')).toBeVisible();
-  // Only mission 1 is unlocked
-  await expect(page.getByTestId('mission-c1')).toBeEnabled();
-  await expect(page.getByTestId('mission-c2')).toBeDisabled();
-  await expect(page.getByTestId('briefing')).toContainText('Lindgrund');
-  await page.getByTestId('mission-start').click();
+  await openSeries(page, 'stories', 'campaign');
+  await expect(page.getByTestId('series-detail')).toBeVisible();
+  // Only mission 1 is unlocked: the others have no button, only the reason
+  await expect(page.getByTestId('level-play-c1')).toBeEnabled();
+  await expect(page.getByTestId('level-play-c2')).toHaveCount(0);
+  await expect(page.getByTestId('level-row-c2')).toContainText('vorigen Kapitel');
+  await expect(page.getByTestId('level-row-c1')).toContainText('Lindgrund');
+  await playLevel(page, 'c1');
   await page.waitForFunction(() => window.__kronland?.sim.mission?.state.id === 'c1');
 
   const obj = page.getByTestId('objectives');
@@ -104,8 +106,10 @@ test('Victory unlocks the next mission', async ({ page }) => {
   await page.evaluate(() => { const e = window.__kronland; e.sim.mission.finish(e.sim, true, 'objectives'); e.emitUi(); });
   await expect(page.getByTestId('mission-result-title')).toHaveText('Sieg!');
   await expect(page.getByTestId('debrief')).toBeVisible();
-  await page.getByTestId('to-campaign').click();
-  await expect(page.getByTestId('mission-c2')).toBeEnabled();
+  await page.getByTestId('to-library').click();
+  await expect(page.getByTestId('library-menu')).toBeVisible();
+  await page.getByTestId('series-campaign').click();
+  await expect(page.getByTestId('level-play-c2')).toBeEnabled();
   expect(errors).toEqual([]);
 });
 

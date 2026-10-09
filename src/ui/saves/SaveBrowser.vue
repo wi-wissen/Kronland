@@ -5,19 +5,19 @@
         <h2 class="h-title">{{ $t('sv.title') }}</h2>
         <span v-if="!loading" class="sv-count" data-testid="save-count">{{ rows.length === 1 ? $t('sv.count1') : $t('sv.count', { n: rows.length }) }}</span>
       </div>
-      <button class="sv-upload" :disabled="busy" v-tip="$t('sv.uploadTip')" data-testid="save-import" @click="$refs.file.click()"><Icon name="upload" /><span>{{ $t('sv.upload') }}</span></button>
+      <button class="sv-upload" :disabled="busy" v-tip="$t('sv.uploadTip')" data-testid="save-import" @click="$refs.file.click()"><Icon name="upload" /><span class="sv-upload-label">{{ $t('sv.upload') }}</span></button>
       <button class="icon-btn ghost" :aria-label="$t('common.close')" data-testid="saves-close" @click="$emit('close')"><Icon name="close" /></button>
     </header>
     <div class="sv-body" :class="{ 'scroll-y': header }">
       <div v-if="!header" class="sv-bar">
         <span v-if="!loading" class="sv-count" data-testid="save-count">{{ rows.length === 1 ? $t('sv.count1') : $t('sv.count', { n: rows.length }) }}</span>
-        <button class="sv-upload" :disabled="busy" v-tip="$t('sv.uploadTip')" data-testid="save-import" @click="$refs.file.click()"><Icon name="upload" /><span>{{ $t('sv.upload') }}</span></button>
+        <button class="sv-upload" :disabled="busy" v-tip="$t('sv.uploadTip')" data-testid="save-import" @click="$refs.file.click()"><Icon name="upload" /><span class="sv-upload-label">{{ $t('sv.upload') }}</span></button>
       </div>
       <input ref="file" class="sr-only" type="file" :accept="touch ? null : '.json,application/json,text/plain'" tabindex="-1" aria-hidden="true" data-testid="save-file" @change="picked">
 
       <!-- Signed out where signing in is possible: one calm note above the list -->
       <p v-if="net.server && !net.signedIn" class="sv-note" data-testid="save-note">
-        <Icon name="cloud" /><span>{{ $t('sv.noteDevice') }}</span>
+        <Icon name="cloud" /><span class="sv-note-text">{{ $t('sv.noteDevice') }}</span>
         <button class="primary sm" data-testid="save-signin" @click="signIn">{{ $t('sv.signIn') }}</button>
       </p>
 
@@ -317,7 +317,7 @@ export default {
 .sv-upload .ico { width: 1.125rem; height: 1.125rem; }
 .sv-note { margin: 0; display: flex; align-items: center; gap: 0.625rem; flex-wrap: wrap; padding: 0.5rem 0.75rem; border-radius: var(--r-md); background: var(--inset-bg); box-shadow: var(--inset-edge); color: var(--ink-muted); font-size: var(--fs-sm); line-height: 1.4; }
 .sv-note .ico { width: 1.125rem; height: 1.125rem; }
-.sv-note span { flex: 1 1 14rem; }
+.sv-note-text { flex: 1 1 14rem; }
 .sv-new { display: flex; flex-direction: column; gap: 0.375rem; }
 .sv-newrow { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .sv-newrow input { flex: 1 1 12rem; }
@@ -364,7 +364,7 @@ export default {
   .sv-main { grid-column: 1 / -1; }
   .sv-main .sv-act { flex: 1; }
   .sv-name { white-space: normal; }
-  .sv-upload span { display: none; }
+  .sv-titles { flex-direction: column; align-items: flex-start; gap: 0; }
   .sv-upload { padding-inline: 0.75rem; }
 }
 </style>

@@ -8,7 +8,7 @@ eigenes Projekt; der gemeinsame Vertrag liegt in `contract/`. Multiplayer (Relay
 | Stufe | Inhalt | Code |
 |---|---|---|
 | 0 | ohne Server, wie bisher (Standard: leere Konfiguration) | – |
-| 1 | Quellen: Konfiguration, Kataloge, Pakete, „Level entdecken“, Einstellungen → Quellen, Seiten beim Build | `src/net/{config,catalog,packs}.js`, `src/ui/net/` |
+| 1 | Quellen: Konfiguration, Kataloge, Pakete, Bibliothek, Einstellungen → Quellen, Seiten beim Build | `src/net/{config,catalog,packs}.js`, `src/library/`, `src/ui/library/`, `src/ui/net/` |
 | 2 | Server: Anmeldung (OAuth/PKCE), Cloud-Spielstände, Fortschritt, Editor „Auf Server speichern“ | `src/net/{auth,api,cloudSaves,progress,serverPacks}.js` |
 
 ## Konfiguration
@@ -27,7 +27,7 @@ Inhalt:
 ```
 
 - `server` (optional): `{server}/catalog.json` ist die **erste** Quelle, dort meldet das Spiel sich an. Nur die Datei ändert den Server.
-- `sources` (optional): weitere statische Kataloge. Beide leer oder fehlend: Stufe 0, das Spiel zeigt weder „Level entdecken“ noch Konto.
+- `sources` (optional): weitere statische Kataloge. Beide leer oder fehlend: Stufe 0, das Spiel zeigt nur die eingebauten Inhalte und kein Konto.
 - Spieler ergänzen Quellen in den **Einstellungen → Quellen** oder per Link `play/?source=<url>` (mit Rückfrage); sie liegen in `localStorage`.
   Erlaubt sind `https://` (und `http://localhost`); eine Ordneradresse wird zu `…/catalog.json`.
 - Entwicklung: `play/?config=<url>` ersetzt die Datei – **nur auf localhost** (bleibt beim Spielstart in der Adresszeile).
@@ -37,14 +37,18 @@ Inhalt:
 
 Statische Quellen und Server liefern dasselbe `catalog.json` (`contract/schemas/catalog.schema.json`). Relative Adressen gelten
 relativ zum Katalog. Je Eintrag: `id` (mit Herausgeber-Präfix, `wi7.adventures-2`), `title`/`summary` (de, en), `preview`,
-`levels`, `minClient`, `access`, `manifest`, `sha256`.
+`levels`, `minClient`, `access`, `manifest`, `sha256`. Für die Bibliothek (alle optional):
+`kind` (`first` = Erste Schritte, `stories` = Geschichten, `code` = Programmieren; ohne Angabe: `stories`), `difficulty` (`easy`, `normal`, `hard`),
+`minutes` (geschätzte Spieldauer des ganzen Pakets) und `added` (Datum `YYYY-MM-DD`). Ohne `difficulty`/`minutes` zeigt die Karte sie einfach nicht
+(und der jeweilige Filter blendet den Eintrag aus). `pack.json` darf `kind`, `difficulty` und `minutes` ebenfalls tragen (der Katalog gewinnt);
+`scenario.json` eines Levels `difficulty` und `minutes` (die eingebauten Level tragen sie; eine Serie zeigt den Durchschnitt und die Summe ihrer Level).
 
 - `access: "open"` lädt das Paket; `"locked"` zeigt ein Schloss, „Mehr erfahren“ öffnet `link` (was dort steht, weiß das Spiel nicht).
   Statische Quellen liefern nur `open`.
 - Gleiche `id` in mehreren Quellen: **die zuerst konfigurierte gewinnt** (Server, dann Datei, dann Spieler). Angemeldet kommen
   die Einträge aus `GET /api/v1/packs` davor (freigeschaltete Pakete mit `manifest`, eigene mit `own: true`).
-- Einzelne fehlerhafte Einträge werden übergangen, ein kaputter Katalog oder eine nicht erreichbare Quelle wird in „Level entdecken“
-  gemeldet, nie als Absturz.
+- Einzelne fehlerhafte Einträge werden übergangen, ein kaputter Katalog oder eine nicht erreichbare Quelle wird in der Bibliothek
+  als „Einige Inhalte konnten gerade nicht geladen werden“ gemeldet (mit „Noch einmal versuchen“), nie als Absturz.
 
 **`pack.json`** (`pack.schema.json`): `format`, `version`, `id`, `title`, `levels` Pflicht; `summary`, `author`, `license`
 (fehlt sie, gibt es keine Lizenzangabe), `minClient`, `preview`, `media` optional. Level sind Szenario-Dateien
@@ -103,7 +107,8 @@ nie fehl. Ohne Quellen (Standard) passiert nichts. `sitemap-levels.xml` muss in 
    `token` findet und über `TokenRepository::revokeAccessToken()` bzw. `RefreshTokenRepository::revokeRefreshTokensByAccessTokenId()`
    den Zugriffstoken samt Refresh-Tokens widerruft.
 
-Angemeldet zeigt das Startmenü „Angemeldet als <Name>“ und „Konto verwalten“ (öffnet `accountUrl` aus `GET /api/v1/me`).
+Nicht angemeldet steht oben rechts im Startmenü die goldene Taste „Anmelden“ (nur wenn ein `server` eingerichtet ist). Angemeldet zeigt das Startmenü oben rechts
+Bild (Anfangsbuchstabe) und Namen; ein Klick öffnet „Konto verwalten“ (öffnet `accountUrl` aus `GET /api/v1/me`) und „Abmelden“.
 Der Redirect-URI ist die Spielseite ohne Query (`…/play/`), am Server für den Client zu registrieren (plus `http://localhost:<Port>/play/` für die Entwicklung).
 
 ## Was das Spiel vom Server nutzt
@@ -131,14 +136,14 @@ unbekannte Codes zeigt es als „Unerwarteter Fehler (<code>)“.
   (`thumb` fehlt = Vorschau behalten), `GET` liefert den Umschlag unverändert.
 - **`?save=<url>`**: öffnet einen Spielstand des konfigurierten Servers. Ist er nicht in der eigenen Liste (z. B. signierte Adresse einer Lehrkraft), ist er **schreibgeschützt**:
   kein Speichern, kein Autospeichern.
-- **`?play=<id>`**: öffnet „Level entdecken“ mit dem Paket (aus den Katalogen, sonst vom Server über sein Manifest, z. B. ein unlisted Link).
+- **`?play=<id>`**: öffnet die Bibliothek mit dem Paket (aus den Katalogen, sonst vom Server über sein Manifest, z. B. ein unlisted Link).
 - **Fortschritt** (`progress.js`): für Level aus Paketen, solange angemeldet: `started` (Levelstart), `run` („Ausführen“ im Code-Panel),
   `completed`/`failed` (Ende) mit `attempts`, `seconds`, `packHash` und den bearbeitbaren Code-Abschnitten (zusammen ≤ 64 KB, längster wird gekürzt).
   Ereignisse haben eine UUID und werden in IndexedDB gepuffert (≤ 500), gesendet in Paketen zu 50, wiederholt bei Netzfehler; der Server lehnt Unbrauchbares mit 422 ab (dann verworfen).
   Die Simulation weiß davon nichts: Haken sind `Engine.onRun` und der Missionsausgang in `App.vue`.
 - **Editor**: „Auf Server speichern“ (nur angemeldet) macht aus dem Level ein Paket mit einem Level: benutzte Medien werden nach SHA-256 umbenannt,
-  hochgeladen (`POST …/media`), dann `PUT /api/v1/packs/{id}` (neues Paket: kurze Zufalls-ID, privat). Eigene Pakete erscheinen unter „Level entdecken“
-  mit „Im Editor öffnen“ und „Löschen“.
+  hochgeladen (`POST …/media`), dann `PUT /api/v1/packs/{id}` (neues Paket: kurze Zufalls-ID, privat). Eigene Pakete erscheinen in der Bibliothek (Kennzeichnung „Von dir“)
+  mit „Im Editor bearbeiten“ und „Löschen“.
 
 ## Mock-Server und Tests
 
@@ -149,7 +154,7 @@ npm run dev        # in einem zweiten Terminal
 ```
 
 Der Mock-Server (`scripts/mock-server.mjs`, Node ohne Abhängigkeiten, alles im Speicher) liefert die Fixtures aus `contract/fixtures/`:
-`/catalog.json` (Server-Katalog mit gesperrtem Paket), `/static/catalog.json` (statische Quelle), das Beispielpaket mit den fünf Lernabenteuern,
+`/catalog.json` (Server-Katalog mit gesperrtem Paket), `/static/catalog.json` (statische Quelle; `added` wird auf heute gesetzt, damit das „Neu“-Band erscheint), das Beispielpaket mit den fünf Lernabenteuern,
 eine Anmeldeseite mit dem Knopf „Als Test anmelden“ (**PKCE wird wirklich geprüft**: S256, Code einmalig, Redirect-URI), Token-Erneuerung mit Rotation,
 Spielstände (ETag/`If-Match`, signierte Adressen über `/mock/signed/<id>`), eigene Pakete (Medien, Manifest, Dateien), Fortschritt (`/mock/progress`),
 CORS und `/play/<id>` (Weiterleitung ins Spiel). `/mock/reset` setzt die Daten zurück, `/mock/revoke` entwertet die Zugriffstoken.
@@ -169,4 +174,4 @@ Fehler tragen einen JSON-Pointer (`/levels/0/file`), der als `path` in `packs.er
 ## Offen
 
 Multiplayer/Relay (Stufe 3); Folgelevel eines Pakets nach dem Sieg
-(`next`) gibt es nicht, das Spiel kehrt zu „Level entdecken“ zurück.
+(`next`) gibt es nicht, das Spiel kehrt zur Bibliothek zurück.

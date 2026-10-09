@@ -83,14 +83,14 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   durcheinanderreden, ganze Landschaften mit `world.ridge`/`world.lake_island`/`world.moat`, Seitenwechsel nach den
   Spielregeln, Wetterkraftwerke des Gegners mit `change_weather`).
   Direktstart: `play/?mission=r1-2`, `r1-4`, `r1-5`, `r1-m`, `r2-1`, `r3-m`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
-- **Level entdecken** (Startmenü, sobald eine Quelle eingerichtet ist): Levelpakete aus statischen Quellen und vom Server, geprüft per SHA-256, offline spielbar; Quellen in den Einstellungen. Optional Anmeldung (OAuth/PKCE), Cloud-Spielstände, Fortschritt und „Auf Server speichern“ im Editor. Ohne `server`/`sources` in `public/kronland.config.json` (nicht in Git, Vorlage `kronland.config.example.json`) bleibt alles wie bisher – [docs/SERVER.md](docs/SERVER.md).
-- **Sonderkarten** (Startmenü → „Sonderkarten“): fertige Einzelkarten ohne Sieg und Niederlage, ohne Nebel.
+- **Bibliothek** (Startmenü → „Bibliothek“ oder eine der drei Arten *Erste Schritte*, *Geschichten*, *Programmieren*): alles Spielbare in einer Liste, eingebaut und aus Quellen/vom Server gleich dargestellt; Reiter je Art, Filter nach Schwierigkeit, Spieldauer und Status, „Neu“-Band für kürzlich hinzugekommene Pakete, Serien-Detail mit genau einer Taste je Level („Weiterspielen“, „Spielen“, „Nochmal spielen“) und kleinem „Von vorn beginnen“ ([Architektur](docs/ARCHITEKTUR.md#startmenü-bibliothek-freies-spiel-und-spielstände)). Levelpakete aus statischen Quellen und vom Server, geprüft per SHA-256, offline spielbar; Quellen in den Einstellungen. Optional Anmeldung (OAuth/PKCE), Cloud-Spielstände, Fortschritt und „Auf Server speichern“ im Editor. Ohne `server`/`sources` in `public/kronland.config.json` (nicht in Git, Vorlage `kronland.config.example.json`) bleibt alles wie bisher – [docs/SERVER.md](docs/SERVER.md).
+- **Sonderkarten** (Startmenü → „Freies Spiel“ → „Karte auswählen“): fertige Einzelkarten ohne Sieg und Niederlage, ohne Nebel.
   - **Schaukasten** (`play/?mission=showcase`): jedes Gebäude in jeder Ausbaustufe, Baustellen, Ruinen, Brücke,
     Rohstoffe, Arbeiter jedes Berufs, alle Truppen, die vier Helden, Räuber und ein Lagerfeuer – zum Prüfen der Modelle.
   - **Gewimmel** (`play/?mission=bustle`): Belastungsprobe mit vier ausgebauten Städten (~180 Gebäude), über
     tausend Figuren und zwei Schlachten mit ständigem Nachschub – zum Prüfen der Darstellung unter Last.
   Details: [Missionen](docs/MISSIONEN.md#sonderkarten).
-- **Freies Spiel**: Im Startmenü Gegnerzahl (1–3), Stärke, Held (Nelia, Orrin, Taran oder Malvor), Nebel des Krieges an/aus und Karte wählen.
+- **Freies Spiel** (Startmenü → „Freies Spiel“): „Zufällige Karte“ (mit Kartennummer zum Teilen) oder „Karte auswählen“; Gegner (0–3, jeder mit „×“ entfernbar; ohne Gegner spielt man allein), Stärke, Held (Nelia, Orrin, Taran oder Malvor), Nebel des Krieges an/aus.
 - Direktstart per Adresse: `play/?seed=42&ai=hard&players=3&hero=orrin` (ohne Nebel: `&fog=off`)
 - **Links teilen**: Beim Spielstart steht der Start-Link der Karte in der Adresszeile; im Spielmenü (Pause) zeigen
   „Karte: 62921“ und „Link kopieren“ (Handy: „Link teilen“) ihn an. Der Link startet die Karte **von vorn** mit
@@ -142,13 +142,13 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   richtet sich nach der Größe der Siedlung (ein Dorf hat schnell Pfade, eine Stadt nur auf den Hauptwegen); die Wege
   schlängeln sich in Kurven statt im Kachelraster. Einstellung Aus / Verblassend / Dauerhaft
   (Spieloption der Simulation, ein Level kann sie festlegen) – [Spielregeln §14](docs/SPIELREGELN.md#14-spuren-und-gegenstände).
-- **Spielstände**: beliebig viele im Browser (IndexedDB, komprimiert) mit Vorschaubild, Datum, Spielzeit und Modus;
-  speichern, überschreiben, umbenennen, löschen über Menü → „Spiel speichern“ bzw. „Gespeichertes Spiel laden“
-  und im Startmenü unter „Spielstände“. „Weiterspielen“ lädt den neuesten Stand. **Autosave** 30 Spielsekunden nach dem Start, danach alle
+- **Spielstände**: beliebig viele im Browser (IndexedDB, komprimiert), neueste oben, je Zeile Art, Titel (z. B. „Krone aus Eis · Kapitel III“),
+  wann, Spielzeit und – angemeldet – „Nur auf diesem Gerät“ bzw. „Im Konto gesichert“; Taste „Weiterspielen“, Menü „…“ mit „Herunterladen“ und „Löschen“.
+  Speichern und Überschreiben über Spielmenü → „Spiel speichern“, im Startmenü groß „Weiterspielen“ (neuester Stand) und „Alle Spielstände“. **Autosave** 30 Spielsekunden nach dem Start, danach alle
   2 Spielminuten und beim Verlassen (abschaltbar unter Einstellungen). **Fehlerdialog**: hält ein Fehler das Spiel
   an, bietet ein Dialog „Letzten Spielstand laden“ oder „Seite neu laden“; danach weist das Startmenü auf
-  „Weiterspielen“ hin ([Architektur](docs/ARCHITEKTUR.md#spielschleife-und-fehler)). **Export/Import** als lesbare JSON-Datei
-  (`kronland-<name>-<datum>.json`, wahlweise kompakt) – per Dateiauswahl (auch Handy) oder Ziehen & Ablegen.
+  „Weiterspielen“ hin ([Architektur](docs/ARCHITEKTUR.md#spielschleife-und-fehler)). **Herunterladen/Hochladen** als lesbare JSON-Datei
+  (`kronland-<name>-<datum>.json`) – „Hochladen“ per Dateiauswahl (auch Handy) oder Ziehen & Ablegen.
   Gespeichert wird der vollständige Simulationszustand (inkl. eingeebnetem Gelände), nicht der Entwicklermodus.
   Format, Prüfung und Migration: [Architektur → Spielstände](docs/ARCHITEKTUR.md#spielstände-srcsave).
 - **Ton**: eigene Musik (Lyria 3: fünf Aufbaustücke, eigene Wintermusik, zwei Kampfthemen, Menü, Sieg/Niederlage) mit Pausen zwischen den Friedensstücken, echte Arbeitsgeräusche (Kenney, CC0), räumliche Effekte, vertonte Dialoge – [docs/AUDIO.md](docs/AUDIO.md).

@@ -2,6 +2,7 @@ import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 import { UNITS } from '../src/sim/data/units.js';
 import { quick } from './quick.js';
+import { openFreePlay } from './menu.js';
 
 /** Load the game and wait for the engine. */
 async function boot(page) {
@@ -98,6 +99,7 @@ test('Start menu: start a new game, save and load again', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(playUrl());
+  await openFreePlay(page);
   await page.getByTestId('diff-easy').click();
   await page.getByTestId('start').click();
   await page.waitForFunction(() => !!window.__kronland);

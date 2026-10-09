@@ -24,7 +24,6 @@
         :by="detailBy"
         @play="play"
         @restart="restart"
-        @learn="learn"
         @edit="edit"
         @delete="confirmDelete = true"
         @reload="reload"
@@ -213,7 +212,7 @@ export default {
   beforeUnmount() { window.removeEventListener('keydown', this.onKey); },
   methods: {
     rank: (v) => DIFFICULTIES.indexOf(v) + 1,
-    minutesText(m) { return m >= 90 ? this.$t('lib.hours', { n: Math.round(m / 6) / 10 }) : this.$t('lib.minutes', { n: m }); },
+    minutesText(m) { return m >= 90 ? this.$t('lib.hours', { n: (Math.round(m / 6) / 10).toLocaleString(this.$i18n.lang) }) : this.$t('lib.minutes', { n: m }); },
     isNew(s) { return s.source === 'pack' && isNewEntry(s, seen, this.today); },
     async refresh() {
       const { refreshLibrary } = await import('../../net/index.js');
@@ -294,7 +293,6 @@ export default {
         this.detailError = this.$t(e instanceof SaveError ? e.code : 'saves.err.unknown', e?.params ?? {});
       } finally { this.busy = false; }
     },
-    learn() { if (this.selected?.link) window.open(this.selected.link, '_blank', 'noopener,noreferrer'); },
     async edit(levelId) {
       try {
         const { serverPacks } = await import('../../net/index.js');

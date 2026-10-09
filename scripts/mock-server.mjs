@@ -15,6 +15,8 @@ import { resolve, basename } from 'node:path';
 const ROOT = new URL('../contract/', import.meta.url);
 const read = (p) => readFileSync(new URL(p, ROOT));
 const json = (p) => JSON.parse(read(p).toString('utf8'));
+/** Catalog fixture with every `added` date set to today, so that the library's "New" badge shows whenever the mock runs. */
+const catalog = (p) => { const c = json(p); const today = new Date().toISOString().slice(0, 10); for (const e of c.packs) if (e.added) e.added = today; return c; };
 const sha = (data) => createHash('sha256').update(data).digest('hex');
 const rand = (n = 24) => randomBytes(n).toString('base64url');
 const FILE_TYPES = { json: 'application/json', png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', mp3: 'audio/mpeg', ogg: 'audio/ogg', glb: 'model/gltf-binary' };
@@ -85,8 +87,8 @@ export async function startMockServer({ port = 0, game = 'http://localhost:4173/
 
     // ----- static files: fixtures as server catalog, as static source, as pack files -----
     if (path === '/kronland.config.json') return send(res, 200, { format: 'kronland-config', version: 1, server: state.origin, sources: [abs('/static/catalog.json')] });
-    if (path === '/catalog.json') return send(res, 200, json('fixtures/catalog-server.json'));
-    if (path === '/static/catalog.json') return send(res, 200, json('fixtures/catalog-static.json'));
+    if (path === '/catalog.json') return send(res, 200, catalog('fixtures/catalog-server.json'));
+    if (path === '/static/catalog.json') return send(res, 200, catalog('fixtures/catalog-static.json'));
     if ((m = /^\/(?:static|packs\/wi7\.adventures-2)\/(?:pack-adventures-2\/)?([\w.-]+)$/.exec(path)) && existsSync(new URL(`fixtures/pack-adventures-2/${m[1]}`, ROOT))) {
       return send(res, 200, read(`fixtures/pack-adventures-2/${m[1]}`), { 'Content-Type': FILE_TYPES[m[1].split('.').pop()] ?? 'application/octet-stream' });
     }
@@ -167,7 +169,7 @@ export async function startMockServer({ port = 0, game = 'http://localhost:4173/
 
     if (path === '/api/v1/packs' && method === 'GET') {
       if (!needUser()) return;
-      const me = json('fixtures/packs-me.json');
+      const me = catalog('fixtures/packs-me.json');
       me.packs = [...me.packs.filter((p) => !p.own), ...[...state.packs].map(([id, doc]) => ownEntry(id, doc))];
       for (const p of me.packs) if (p.manifest && !/^https?:/.test(p.manifest)) p.manifest = abs(`/${p.manifest.replace(/^\//, '')}`);
       return send(res, 200, me);

@@ -184,13 +184,13 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
 |---|---|---|---|
 | `seed` | Ganzzahl 1–2147483647 | 1 | ja (freies Spiel; Mission nur bei abweichendem Seed) |
 | `ai` | `easy`, `normal`, `hard` | `normal` | ja |
-| `players` | 2–4 (eigene Burg + Gegner) | 2, außerhalb geklemmt | ja |
+| `players` | 1–4 (eigene Burg + Gegner; 1 = allein) | 2, außerhalb geklemmt | ja |
 | `hero` | `nelia`, `orrin`, `taran`, `malvor` | `nelia` | ja |
 | `fog` | `off` (auch `0`, `no`, `false`) | an | nur `fog=off` |
 | `mission` | Kennung aus `src/sim/missions/registry.js` (Kampagne, Tutorial, Kursmissionen, Sonderkarten) | unbekannt: freies Spiel, falls `seed` da, sonst Startmenü | ja |
-| `level` | Adresse einer Level-`.zip` oder eines Level-Ordners (`http(s)` oder Pfad dieser Seite, docs/SKRIPTE.md#level-ordner); geht vor `mission`/`seed` | nicht ladbar: Abenteuer-Menü mit Grund | ja |
+| `level` | Adresse einer Level-`.zip` oder eines Level-Ordners (`http(s)` oder Pfad dieser Seite, docs/SKRIPTE.md#level-ordner); geht vor `mission`/`seed` | nicht ladbar: Bibliothek mit Grund | ja |
 | `source` | Adresse eines Katalogs (`https` oder localhost); fragt vor dem Hinzufügen, docs/SERVER.md | ungültig: ignoriert | nein |
-| `play` | Paket-ID aus den Katalogen oder vom Server → „Level entdecken“ | unbekannt: Fehler dort | nein |
+| `play` | Paket-ID aus den Katalogen oder vom Server → Bibliothek mit diesem Paket | unbekannt: Fehler dort | nein |
 | `save` | Adresse eines Cloud-Spielstands des Servers (fremde: schreibgeschützt) | Fehler im Startmenü | nein |
 | `config` | Ersatz für `kronland.config.json`, nur auf localhost (Entwicklung, Mock-Server) | – | nein (bleibt in der Adresszeile) |
 | `code`, `state` | Antwort der Anmeldung am Server (wird sofort aus der Adresse entfernt) | – | nein |
@@ -302,6 +302,33 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
   Reparatur/Brand. Daten liefert `src/game/buildingUi.js` (nur IDs, Zahlen und `err.*`-Codes, z. B.
   `selection.techs`, `selection.market`, `selection.weather`, `selection.repair`); Hauptleute mit
   Erfahrungssternen stehen in `selection.leaders` (Rang als Index → `rank.<n>`).
+
+## Startmenü, Bibliothek, Freies Spiel und Spielstände
+
+Das Menü ist aus Sicht der Spielerin gebaut („Was will ich jetzt tun?“), ohne technische Wörter (keine Quellen, kein Seed, kein Export).
+`App.vue` kennt die Bildschirme `menu` (Startmenü), `library`, `free`, `editor` und `game`.
+
+- **Startmenü** (`ui/StartMenu.vue`): groß „Weiterspielen“ (neuester Spielstand mit Titel, Kapitel, „vor 12 Min“; nur wenn es einen gibt, sonst eine
+  leise Taste „Spielstände“), darunter die Kachel „Bibliothek“ mit den drei Arten *Erste Schritte*, *Geschichten*, *Programmieren*, dann „Freies Spiel“
+  und „Werkstatt“ (Welteneditor). Oben rechts leise (ohne Rahmen): DE · EN, Einstellungen, Konto – ohne Anmeldung und mit eingerichtetem Server
+  die goldene Taste „Anmelden“, angemeldet Anfangsbuchstabe und Name mit kleinem Menü.
+- **Modell** (`src/library/model.js`, rein, ohne Vue): `builtinSeries()` macht aus den eingebauten Leveln Serien (Tutorial = *Erste Schritte*,
+  Kampagne = *Geschichten*, Kursreihen und Skript-Missionen = *Programmieren*), `packSeries()` aus den Katalogeinträgen der Quellen und des Servers
+  (`net.library`, gefüllt von `refreshLibrary()` in `src/net/index.js`). Beide haben dieselbe Gestalt: `kind`, `difficulty`, `minutes`, `status`
+  (`open`/`running`/`done`), Level mit Zustand `locked`/`open`/`running`/`done`. „Läuft“ heißt: es gibt einen Spielstand dieser Mission.
+  `filterSeries()`/`facetCounts()` filtern nach Art, Schwierigkeit, Spieldauer (unter 30 / 30–60 / über 60 Min) und Status; Einträge ohne Angabe
+  fallen bei aktivem Filter heraus. `sortRecommended()`: läuft, neu, offen, geschafft, gesperrt.
+- **Bibliothek** (`ui/library/LibraryMenu.vue`, `SeriesDetail.vue`): Reiter oben, Filter links (auf dem Handy ein Fenster von unten), Karten mit
+  Schwierigkeit und Dauer, Schloss mit Grund. Serien-Detail: große Taste im Kopf („Weiterspielen – Kapitel III“) und je Level genau eine Taste:
+  läuft → „Weiterspielen“ (lädt den neuesten Spielstand dieses Levels), offen → „Spielen“, geschafft → „Nochmal spielen“, gesperrt → keine, nur der
+  Grund. „Von vorn beginnen“ steht klein nur dort, wo ein Spielstand liegt. Eigene Level aus Datei oder Link stehen eingeklappt unten („Eigenes Level spielen“).
+- **„Neu“-Band** (`src/net/seen.js`): ein Paket trägt es, wenn sein Katalogfeld `added` höchstens 30 Tage zurückliegt und es nicht geöffnet wurde.
+  Geöffnete Pakete merkt der kv-Speicher `seen` (IndexedDB `kronland-net`, Rückfall Arbeitsspeicher) auf diesem Gerät.
+- **Freies Spiel** (`ui/FreePlay.vue`): „Zufällige Karte“ (Kartennummer zum Teilen, „Würfeln“) oder „Karte auswählen“ (die fertigen Sonderkarten
+  `SPECIAL_MAPS`, feste Mitspieler); Mitspieler mit „×“ entfernbar (0–3 Gegner, `players=1` = allein), Stärke, Held, Nebel. Die letzte Wahl merkt
+  `localStorage['kronland-free']`.
+- **Spielstände** (`ui/saves/SaveBrowser.vue`, siehe unten): eine Liste, eine Zeile je Spiel; angemeldet zusammengeführt aus Gerät und Konto.
+- **E2E-Kennungen**: `e2e/menu.js` bündelt die Wege (`openSeries`, `playLevel`, `startTutorial`, `openWorkshop`, `openFreePlay`).
 
 ## Spielstände (src/save)
 
@@ -416,8 +443,11 @@ Neue Formatversion: `FORMAT_VERSION` erhöhen, `MIGRATIONS[alt]` ergänzen, Test
 Ändert sich nur der Simulationszustand (`state.version`), gehört die Umstellung ebenfalls in eine Migration.
 
 **Oberfläche.** `ui/saves/SaveBrowser.vue` (Modus `save` im Spielmenü, `load` im Spielmenü und Startmenü →
-„Spielstände“): Liste mit Vorschaubild, Datum, Spielzeit, Modus; Speichern unter neuem Namen (Vorschlag
-„Mission 2 – 0:42:10“ / „Freies Spiel Seed 42 – 12:30“), Überschreiben, Umbenennen, Löschen, Export, Import per
+„Weiterspielen“/„Alle Spielstände“): eine Liste, neueste oben; je Zeile Vorschaubild, Art, Titel (aus `src/library/model.js`
+`describeSave`: Serie, Kapitel, Level – oder der selbst vergebene Name), wann, Spielzeit, angemeldet „Nur auf diesem Gerät“ / „Im Konto gesichert“ mit
+„Im Konto sichern“ (Zeilen vom Gerät und aus dem Konto werden in `merge.js` zu einer zusammengeführt); Taste „Weiterspielen“ (im Spielmenü
+„Überschreiben“), Menü „…“ mit „Herunterladen“ und „Löschen“; Speichern unter neuem Namen (Vorschlag
+„Mission 2 – 0:42:10“ / „Freies Spiel, Karte 42 – 12:30“); „Hochladen“ im Kopf: Spielstand-Datei per
 Dateiauswahl (auf Touch-Geräten ohne Typfilter, weil Android/iOS `.json` sonst oft ausgrauen) und Ziehen &
 Ablegen (fensterweit, damit eine danebengeworfene Datei nicht das Spiel verlässt). Rückfragen über `ConfirmDialog.vue` (kein `window.confirm`).
 
