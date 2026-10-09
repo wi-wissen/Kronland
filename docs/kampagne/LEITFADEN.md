@@ -13,7 +13,10 @@ Gespräche ohne Zusammenhang). Technik der Missionen: [Missionen](../MISSIONEN.m
    Niederlage, Abschluss. Kein Code.
 3. **Kaltleser-Test:** Ein anderes Modell (z. B. GPT über OpenRouter) bekommt nur die Sätze eines Gesprächs, ohne
    jeden Zusammenhang, und muss beantworten: Wo sind wir? Was ist das Ziel? Warum? Was ist als Nächstes zu tun?
-   Kann es eine Frage nicht beantworten, wird das Gespräch neu geschrieben.
+   Kann es eine Frage nicht beantworten, wird das Gespräch neu geschrieben. Skript:
+   `python3 scripts/story-coldread.py <mission.md> openai/gpt-6.1-sol <ergebnis.json>` (je Mission eine Datei im
+   Format des Drehbuchs; der Ort muss nur bei Missionsbeginn oder Ortswechsel genannt werden, kurze Reaktionen auf ein
+   Ereignis brauchen kein neues Ziel). Ein Durchgang je Mission kostet etwa 0,30 $.
 4. **Machbarkeit** gegen die Missions-Technik prüfen ([PRUEFUNG.md](PRUEFUNG.md)): Was geht mit vorhandenen
    Funktionen, was braucht eine Erweiterung, was nicht.
 5. **Abnahme** durch den Projektinhaber – als Artefakt zum Lesen, Entscheidungen verständlich vorgelegt (siehe unten).
@@ -83,6 +86,9 @@ Eine eigene Stimme, die nur zum Spieler spricht (Entscheidung Oktober 2026).
 | Malvor | fällt in der letzten Schlacht um sein Schloss |
 | Mission 1 | Startlehm 1000 (statt 1400), damit die Lehmgrube auch für Lehm gebraucht wird |
 | Stil | Claudes Fassung von Mission 3 (mit Erzählerin) ist der Maßstab; Vergleich mit GPT: Claude kompakter und besser zu folgen |
+| Drehbuch | alle sechs Missionen in diesem Stil neu geschrieben und kalt gelesen; Teil 1 und 3 des Drehbuchs noch an die lineare Fassung anzugleichen |
+| Erzählerin | Hörproben: Hörbuchsprecherin, fahrende Erzählerin, Lehrerin (je ältere Frau); Wahl offen. Liest Einleitungen vor, sagt Ziele und Bedienung an, allgemeine Sätze nach Sieg/Niederlage |
+| Kosten | OpenRouter-Limit: nach den Hörproben noch etwa 10 $ übrig – für die Vertonung (rund 350 Sätze × 2 Sprachen) muss es erhöht werden |
 | Erweiterungen der Technik | nur „Ertrinken melden“ (das Missionsskript erfährt, wer beim Tauwetter ertrinkt) und „Zeiger auf alle Steuerknöpfe“; alle anderen gestrichen |
 | Älteste von Moorbrook | gleiche Stimme wie die Älteste von Erlenhof |
 | Offen | Stimme der Erzählerin (Hörproben); ob Bedienhinweise vertont werden; ob Nelias Vater als Figur auftritt; Übungsmission (spricht Orrin dort weiter direkt zum Spieler?) |
