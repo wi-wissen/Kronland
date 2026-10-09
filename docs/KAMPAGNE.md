@@ -193,12 +193,14 @@ dem Eis zum Tauen verleiten und den See wieder einfrieren, sobald das eigene Kra
 
 ## Bilder
 
+Aufgenommen mit `python3 scripts/campaign-screens.py <vorschau-url> [filter]` (siehe [WEBSITE.md](WEBSITE.md#bildschirmfotos)).
+
 | | Desktop | Handy |
 |---|---|---|
 | Heldenwahl | ![Startmenü](images/campaign/start-heroes-desktop.webp) | ![Startmenü Handy](images/campaign/start-heroes-phone.webp) |
 | Mission 1: verlassener Dorfplatz, Orrin ruft (Desktop); sein Gespräch mit „Gespräch überspringen“ (Handy) | ![Mission 1 Dorfplatz](images/campaign/c1-square-desktop.webp) | ![Mission 1 Dorfplatz Handy](images/campaign/c1-square-phone.webp) |
 | Mission 1: Dorfälteste mit Ausrufezeichen | ![Mission 1](images/campaign/c1-elder-desktop.webp) | ![Mission 1 Handy](images/campaign/c1-elder-phone.webp) |
-| Mission 2: Baumenü mit Zeiger auf den Bauernhof, nicht verfügbare Gebäude ausgegraut | ![Mission 2 Freischaltung](images/campaign/c2-unlocks-desktop.webp) | ![Mission 2 Freischaltung Handy](images/campaign/c2-unlocks-phone.webp) |
+| Mission 2: Baumenü mit Zeiger auf den Bauernhof (Gebäude späterer Missionen sind in den anderen Reitern gesperrt) | ![Mission 2 Freischaltung](images/campaign/c2-unlocks-desktop.webp) | ![Mission 2 Freischaltung Handy](images/campaign/c2-unlocks-phone.webp) |
 | Mission 4: Angebote (Söldner oder Leibeigene) | ![Mission 4](images/campaign/c4-offers-desktop.webp) | ![Mission 4 Handy](images/campaign/c4-offers-phone.webp) |
 | Mission 3: Bergkamm mit Schlucht (zugefrorener Fluss) | ![Mission 3](images/campaign/c3-gorge-desktop.webp) | ![Mission 3 Handy](images/campaign/c3-gorge-phone.webp) |
 | Mission 3: Wetterwerk zerstört, die Uhr läuft bis zum Tauwetter | ![Mission 3 Tauwetter](images/campaign/c3-thaw-desktop.webp) | ![Mission 3 Tauwetter Handy](images/campaign/c3-thaw-phone.webp) |
