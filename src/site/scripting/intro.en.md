@@ -3,14 +3,15 @@
 Kronland can be programmed – in [Python](https://en.wikipedia.org/wiki/Python_%28programming_language%29), or more
 precisely in a small subset of it that runs right inside the game (“Kronland Python”). Programs appear in three places:
 
-- **Coding adventures** (start menu → **Coding adventures**): you steer the heroine Nelia across a meadow with code,
-  fell trees, collect stones and finally build a whole village. Every adventure introduces something new:
+- **Course missions** (start menu → **Coding adventures**): you steer the heroine Nelia through the snow with code,
+  lay coins, find your way through the undergrowth and finally rebuild Lindgrund. The missions belong to rows of the
+  programming course (I.2 is row I, mission 2; M is the masterpiece), each introduces something new:
   {{adventures}}.
 - **Mission scripts**: the course of a mission – dialogues, camera flights, attack waves, objectives, victory and
   defeat – is itself a Python program. The example mission “The Raid” is written entirely that way.
 - **World editor**: build your own maps and turn them into your own adventures with mission and player sections.
 
-There are two **permission levels**. Player programs (coding adventures) may only do what you can do with the mouse –
+There are two **permission levels**. Player programs (course missions) may only do what you can do with the mouse –
 every command goes through the same rules, costs the same resources and is refused in the same way. Mission scripts
 may do anything: create troops, give away resources, shape the terrain. In the reference below, commands that only
 exist in mission scripts are marked **mission only**.
@@ -25,7 +26,7 @@ tests compare this.
 
 ## Opening the editor {#editor}
 
-1. Start menu → **Coding adventures** → choose an adventure → **Start mission**.
+1. Start menu → **Coding adventures** → choose a mission → **Start mission**.
 2. The **code panel** with your program appears on the right; on a phone you open it with the golden **Code** coin.
 3. Type code and press **Run**. Below the code is the **console** with everything `print()` outputs.
 
@@ -45,7 +46,9 @@ explaining it; the **Reference** button opens this page. The **# Grid** button s
 remembered in the browser. More about the controls in the [manual](manual/#coding).
 
 In the **world editor** (Coding adventures → World editor) the **Code** tab holds all sections of a scenario:
-mission sections (everything allowed) and player sections (like the interface).
+mission sections (everything allowed) and player sections (like the interface). If a mission has several **worlds**
+(normal case and edge cases), the world code builds a different one depending on `world.id`; **Check** in the code
+panel plays the player program through all worlds.
 
 ## How a program runs {#run}
 
@@ -65,7 +68,7 @@ program may execute a limited number of bytecode instructions (the **budget**):
 
 | What | Instructions per tick |
 |---|---|
-| player program (coding adventure) | {{budgetPlayer}} |
+| player program (course mission) | {{budgetPlayer}} |
 | all mission scripts together | {{budgetMission}} |
 | world building when the map loads (once) | {{budgetSetup}} |
 | a condition (`wait_until`, `objective`, `sorted(key=…)`) in one go | {{syncLimit}} |
@@ -224,7 +227,7 @@ else:
 A [function](https://en.wikipedia.org/wiki/Function_%28computer_programming%29) is a named block that receives
 [parameters](https://en.wikipedia.org/wiki/Parameter_%28computer_programming%29) and gives back a result with
 `return` (without `return`: `None`). Parameters can have default values and be passed by name; `*args` collects
-further values, `**kwargs` further named ones. Functions are values: they can be passed around (as in adventure 4) –
+further values, `**kwargs` further named ones. Functions are values: they can be passed around (say as `key` to `sorted`) –
 or written briefly as a [`lambda`](https://en.wikipedia.org/wiki/Anonymous_function). Inner functions see the
 variables outside ([closure](https://en.wikipedia.org/wiki/Closure_%28computer_programming%29)); `global` and
 `nonlocal` let you change them.
@@ -378,20 +381,30 @@ not stop (in a “find the mistake” task the code may be on purpose; a mission
 
 ## Worked examples {#examples}
 
-### The five coding adventures {#ex-adventures}
+### From the course missions {#ex-adventures}
 
-Model solutions of the adventures – but try it yourself first! Every solution is played in an automated test and has
-to win.
+Model solutions of single stages – but try it yourself first! Every solution is played in its stage in an automated
+test and has to pass it.
 
-{{ex_adv1}}
+I.2 “Coins for the Maids”, stage “slope”: a loop with several commands.
 
-{{ex_adv2}}
+{{ex_zigzag}}
 
-{{ex_adv3}}
+I.5 “Wood for the First Night”, stage “brook”: a variable counts the steps, a second loop walks back just as often.
 
-{{ex_adv4}}
+{{ex_brook}}
 
-{{ex_adv5}}
+I.M “Home through the Undergrowth”: the right-hand rule finds the way out of any undergrowth.
+
+{{ex_thicket}}
+
+II.1 “Orrin's Shortcut”: your own commands with `def`.
+
+{{ex_fetch}}
+
+III.M “Lindgrund Stands Again”: a building plan as a list of lists.
+
+{{ex_village}}
 
 ### Letting serfs fell wood {#ex-lumber}
 

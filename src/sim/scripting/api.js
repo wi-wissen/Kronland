@@ -197,7 +197,8 @@ export const API_DOC = [
   { name: 'on_talk', sig: '@on_talk(id=None)', level: 'mission', group: 'events' },
   { name: 'on_event', sig: '@on_event(name, …)', level: 'player', group: 'events' },
   // Goals and end
-  { name: 'objective', sig: 'objective(id, condition=None, de=None, en=None, primary=True, hidden=False, hold=False, clock=False)', level: 'mission', group: 'goals' },
+  { name: 'objective', sig: 'objective(id, condition=None, de=None, en=None, primary=True, hidden=False, hold=False, clock=False, all_worlds=False)', level: 'mission', group: 'goals' },
+  { name: 'objective_status', sig: 'objective_status(id)', level: 'mission', group: 'goals', query: true },
   { name: 'complete', sig: 'complete(id)', level: 'mission', group: 'goals' },
   { name: 'fail', sig: 'fail(id)', level: 'mission', group: 'goals' },
   { name: 'show_objective', sig: 'show_objective(id)', level: 'mission', group: 'goals' },
@@ -249,6 +250,7 @@ export const API_DOC = [
   { name: 'items', sig: 'items(kind=None)', level: 'mission', group: 'terrain', query: true },
   { name: 'clear_area', sig: 'clear_area(target, radius)', level: 'mission', group: 'terrain' },
   { name: 'world.width', sig: 'world.width, world.height, world.water_level', level: 'mission', group: 'terrain' },
+  { name: 'world.id', sig: 'world.id · world.stage', level: 'mission', group: 'terrain', also: ['world.stage'] },
   { name: 'world.height_at', sig: 'world.height_at(x, y)', level: 'mission', group: 'terrain', query: true },
   { name: 'world.is_water', sig: 'world.is_water(x, y)', level: 'mission', group: 'terrain', query: true },
   { name: 'world.set_height', sig: 'world.set_height(x, y, h)', level: 'mission', group: 'terrain' },
@@ -832,7 +834,7 @@ export function makeApi(host, level) {
    * long as the condition holds and fails once it does not; clock=True shows the pair as remaining seconds.
    */
   def('objective', (ctx, a, kw) => {
-    const KW = ['id', 'condition', 'text', 'primary', 'hidden', 'de', 'en', 'hold', 'clock'];
+    const KW = ['id', 'condition', 'text', 'primary', 'hidden', 'de', 'en', 'hold', 'clock', 'all_worlds'];
     for (const k of Object.keys(kw)) if (!KW.includes(k)) throw new ScriptError('argUnexpected', { name: 'objective', arg: k, suggestion: suggest(k, KW) });
     if (a.length > 5) throw new ScriptError('argCount', { name: 'objective', max: 5, given: a.length });
     const pos = ['id', 'condition', 'text', 'primary', 'hidden'];
@@ -849,8 +851,16 @@ export function makeApi(host, level) {
     if (cond !== null && !isCallable(cond)) throw new ScriptError('type', { what: 'callableNeeded', type: typeName(cond) });
     const name = nameArg(v.id, 'id');
     const words = textArg('objective', v.text, v.de, v.en, false);
-    host.addObjective(ctx.vm, name, words ?? name, cond, truthy(v.primary ?? true), truthy(v.hidden ?? false), { hold: truthy(v.hold ?? false), clock: truthy(v.clock ?? false) });
+    host.addObjective(ctx.vm, name, words ?? name, cond, truthy(v.primary ?? true), truthy(v.hidden ?? false), { hold: truthy(v.hold ?? false), clock: truthy(v.clock ?? false), allWorlds: truthy(v.all_worlds ?? false) });
     return v.id;
+  }, true);
+  /** objective_status(id): "active", "done", "failed" or "hidden" – e.g. to wait for an all_worlds goal. */
+  def('objective_status', (ctx, a, kw) => {
+    const [id] = args('objective_status', a, kw, ['id']);
+    const name = strArg(id, 'id');
+    const o = host.runtime.state.objectives.find((x) => x.id === name);
+    if (!o) throw new ScriptError('game', { reason: 'script.game.objectiveUnknown', reasonParams: { id: name } });
+    return o.status;
   }, true);
   const objectiveAction = (name, action) => def(name, (ctx, a, kw) => {
     const [id] = args(name, a, kw, ['id']);
@@ -1589,7 +1599,7 @@ export function makeApi(host, level) {
 
   const modules = isMission ? {
     camera: ['jump_to', 'fly_to'],
-    world: ['width', 'height', 'water_level', 'height_at', 'set_height', 'set_water', 'set_cliff', 'set_track', 'is_water', 'noise',
+    world: ['width', 'height', 'water_level', 'id', 'stage', 'height_at', 'set_height', 'set_water', 'set_cliff', 'set_track', 'is_water', 'noise',
       'reachable', 'nearest_walkable', 'axis_point', 'axis_coords', 'soften', 'ridge', 'ridge_gap', 'channel', 'lake_island', 'moat', 'island'],
     program: ['status', 'runs', 'get', 'stop'],
   } : {};
@@ -1613,6 +1623,9 @@ export function makeApi(host, level) {
         if (name === 'width') return m.width;
         if (name === 'height') return m.height;
         if (name === 'water_level') return sim().waterLevel;
+        // Worlds of the level (docs/SKRIPTE.md#welten): which one is built, and the stage the switcher started it at
+        if (name === 'id') return host.runtime.state.world ?? null;
+        if (name === 'stage') return host.runtime.state.startStage ?? null;
       }
       if (mod === 'program') {
         if (name === 'status') return host.state.player.status;

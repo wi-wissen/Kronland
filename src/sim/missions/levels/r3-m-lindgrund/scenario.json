@@ -1,0 +1,62 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "r3-m",
+  "kind": "adventure",
+  "end": "script",
+  "order": 39,
+  "reset": false,
+  "title": { "de": "Lindgrund steht wieder", "en": "Lindgrund Stands Again" },
+  "summary": {
+    "de": "Meisterstück der Reihe III: Dorfzentrum, zwei Wohnhäuser, zwei Höfe – und das Holz und den Lehm dafür, alles per Programm.",
+    "en": "Masterpiece of row III: a village centre, two residences, two farms – and the wood and clay for them, all by program."
+  },
+  "briefing": {
+    "de": "Das Gerücht von der verlorenen Prinzessin bringt die Leibeigenen nach Lindgrund zurück. Die Dorfälteste will das Dorf wieder aufbauen, diesmal ganz ohne Mausklick. serfs() liefert die Liste der Leibeigenen, piles_near(hq(), 12, \"wood\") die Holzhaufen in der Nähe, serf.work_on(…) schickt einen zur Arbeit – an einen Haufen oder eine Baustelle. find_spot(…) sucht einen Bauplatz, build(…) legt die Baustelle an, stock(\"wood\") zeigt den Vorrat. Ausführen startet hier nichts neu: Was steht, bleibt stehen.",
+    "en": "The rumour of the lost princess brings the serfs back to Lindgrund. The village elder wants to rebuild the village, this time without a single mouse click. serfs() returns the list of serfs, piles_near(hq(), 12, \"wood\") the wood piles nearby, serf.work_on(…) sends one to work – at a pile or a construction site. find_spot(…) finds a building site, build(…) lays out the site, stock(\"wood\") shows the supply. Run restarts nothing here: what stands, stays."
+  },
+  "victoryText": {
+    "de": "Lindgrund steht wieder. Am Abend kommt ein Herold aus Morvale – und fragt nach der Prinzessin.",
+    "en": "Lindgrund stands again. In the evening a herald arrives from Morvale – and asks for the princess."
+  },
+  "learn": {
+    "de": ["Listen durchlaufen", "Funktionen mit Rückgabe", "Objekte und Methoden", "Warten mit wait_until"],
+    "en": ["looping over lists", "functions with return values", "objects and methods", "waiting with wait_until"]
+  },
+  "world": { "base": "generate", "seed": 1101, "size": 48, "fog": false },
+  "weatherCycle": [["winter", 3600000]],
+  "players": [
+    {
+      "kind": "human",
+      "hero": "nelia",
+      "hq": true,
+      "stock": { "gold": 200, "clay": 300, "wood": 300, "stone": 0, "iron": 0, "sulfur": 0 }
+    }
+  ],
+  "sections": [
+    {
+      "id": "world",
+      "title": { "de": "Welt aufbauen", "en": "Build the world" },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": { "de": "Mission", "en": "Mission" },
+      "level": "mission",
+      "visibility": "hidden",
+      "editable": false,
+      "file": "mission.py"
+    },
+    {
+      "id": "player",
+      "title": { "de": "Dein Programm", "en": "Your program" },
+      "level": "player",
+      "visibility": "open",
+      "editable": true,
+      "file": "player.py"
+    }
+  ]
+}

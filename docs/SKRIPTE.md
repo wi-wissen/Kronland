@@ -1,8 +1,8 @@
-# Skripte, Lernabenteuer und Welteneditor
+# Skripte, Kursmissionen und Welteneditor
 
 Kronland lässt sich in **Python** programmieren – mit einer eigenen, kleinen Python-Teilmenge, die im
 Spiel läuft. Damit entstehen Missionen im Stil der Original-Trigger (Ereignis → Kamerafahrt, Dialog,
-Angriffswelle), Lernabenteuer, in denen man Nelia mit Code steuert, und eigene Welten im Welteneditor.
+Angriffswelle), Kursmissionen, in denen man Nelia mit Code steuert, und eigene Welten im Welteneditor.
 Bezeichner sind englisch, Oberfläche, Erklärungen und Fehlermeldungen deutsch bzw. englisch.
 
 ## Überblick
@@ -13,14 +13,15 @@ Bezeichner sind englisch, Oberfläche, Erklärungen und Fehlermeldungen deutsch 
 | Spiel-API | `src/sim/scripting/api.js` | englische Funktionen und Spielobjekte, zwei Rechtestufen |
 | Gastgeber | `src/sim/scripting/host.js` | führt die Abschnitte eines Szenarios in der Simulation aus |
 | Szenario | `src/sim/scripting/scenario.js` | Format, Prüfung, Ordner packen/entpacken, Umwandlung in eine Missionsdefinition |
+| Welten prüfen | `src/sim/check.js`, `src/game/worldCheck.js` | „Prüfen“: Spielerprogramm ohne Bild in allen Welten einer Mission ([Welten](#welten)) |
 | Überblick | `src/sim/scripting/outline.js` | liest Ziele aus dem Code, ohne ihn auszuführen (Menüs) |
 | Pakete | `src/levels/` | `.zip` lesen und schreiben, Level per Link, Dateien des laufenden Levels (`levelAssetUrl`) |
 | Welten | `src/sim/world.js` | flache Grundkarte, gespeicherte Editor-Karte, Zufallskarte |
 | Editor-Werkzeuge | `src/sim/editor/edit.js` | Heben, Senken, Wasser, Wald … auf einer Vorschau-Simulation |
 | Oberfläche | `src/ui/script/`, `src/ui/editor/`, `src/game/EditorView.js` | Code-Panel, Debugger, Abenteuer-Menü, Welteneditor |
-| Level | `src/sim/missions/levels/<ordner>/` | ein Ordner je Level: Lernabenteuer 1–5, Skript-Mission „Der Überfall“, Kampagne: Tutorial und die Kapitel 1–6 |
+| Level | `src/sim/missions/levels/<ordner>/` | ein Ordner je Level: Kursmissionen (`r1-2` … `r3-m`), Skript-Mission „Der Überfall“, Kampagne: Tutorial und die Kapitel 1–6 |
 
-Spielen: Startmenü → **Programmier-Abenteuer**. Direktstart: `?mission=adv1` … `?mission=adv5`, `?mission=m1`,
+Spielen: Startmenü → **Programmier-Abenteuer**. Direktstart: `?mission=r1-2` (Kursmissionen `r1-2`, `r1-4`, `r1-5`, `r1-m`, `r2-1`, `r3-m`), `?mission=m1`,
 ein Level von einem anderen Server mit `?level=https://…/lindgrund.zip` (siehe [Level-Ordner](#level-ordner)).
 
 ## Die Sprache
@@ -95,7 +96,7 @@ Quelltext → Lexer (INDENT/DEDENT) → Parser (Syntaxbaum) → Compiler (Gülti
 
 Zwei Rechtestufen. Die Stufe entscheidet, welche Namen ein Programm überhaupt kennt.
 
-- **player** (Lernabenteuer, Spielerprogramme): nur, was auch die Oberfläche darf. Jeder Befehl läuft als
+- **player** (Kursmissionen, Spielerprogramme): nur, was auch die Oberfläche darf. Jeder Befehl läuft als
   normaler Sim-Befehl mit denselben Regeln und Kosten; Ablehnungen werden zu `GameError` mit dem Grund der
   Simulation.
 - **mission**: alles – Truppen erzeugen, Rohstoffe geben, Dialoge, Kamera, Ziele, Gelände formen.
@@ -125,7 +126,9 @@ say("orrin", de="…", en="…", wait=False)          # nur einreihen, sofort we
 step("farm", until=lambda: count("farm", placed=True) >= 1, de=…, en=…, hint={"ui": "build-farm"})   # Tutorial-Schritt
 camera.fly_to(place("camp"), seconds=3)   camera.jump_to(nelia)   reveal(ort)   message(de=…, en=…)
 objective("homes", lambda: (count("residence"), 2), de="Baue 2 Wohnhäuser", en="Build 2 residences")
-complete(id)  fail(id)  show_objective(id)  victory("gold")  defeat("hq")
+objective("coin", lambda: len(items("coin")) == 0, all_worlds=True)   # zählt erst, wenn „Prüfen“ alle Welten löst
+complete(id)  fail(id)  show_objective(id)  objective_status(id)  victory("gold")  defeat("hq")
+world.id  world.stage              # welche Welt gebaut wird, ab welcher Etappe sie gestartet wurde (Welten)
 hint("homes", ui=["build-residence"], area="square", ui_until=lambda: count("residence", placed=True) >= 2)
 offer("buy", {"gold": 300}, de=…, en=…, group="way")   withdraw("buy")   unlock("barracks", "standingArmy")
 alchemist = npc("alchemist", look="worker.alchemist", at=place("tower"))   alchemist.stop_talking()
@@ -380,18 +383,18 @@ lindgrund/
   scenario.json
   world.py        # Weltaufbau
   mission.py      # Ablauf: Ereignisse, Dialoge, Ziele
-  player.py       # Startcode des Spielerprogramms (Lernabenteuer)
+  player.py       # Startcode des Spielerprogramms (Kursmission)
   assets/alchemist.glb  assets/hallo.mp3  assets/alchemist.png
 ```
 
 ```json
 {
   "format": "kronland-scenario", "version": 2,
-  "id": "adv1", "kind": "adventure", "end": "script",
-  "title": { "de": "Der Weg zum Schatz", "en": "The Path to the Treasure" },
+  "id": "r1-2", "kind": "adventure", "end": "script", "order": 12,
+  "title": { "de": "Taler für die Mägde", "en": "Coins for the Maids" },
   "summary": { "de": "…", "en": "…" }, "briefing": { "de": "…", "en": "…" },
-  "world": { "base": "flat", "width": 24, "height": 13, "fog": false, "starts": [{ "x": 4, "y": 6 }],
-             "places": { "treasure": { "x": 14, "y": 6, "r": 0 } } },
+  "world": { "base": "flat", "width": 24, "height": 38, "fog": false, "starts": [{ "x": 2, "y": 3 }],
+             "places": { "a_start": { "x": 2, "y": 3, "r": 0 } } },
   "players": [{ "kind": "human", "hero": "nelia", "hq": false }],
   "speakers": { "alchemist": { "name": { "de": "Alchemist", "en": "Alchemist" }, "portrait": "assets/alchemist.png" } },
   "sections": [
@@ -408,7 +411,7 @@ lindgrund/
 | `end` | `objectives` (Standard): gewonnen, wenn alle Hauptziele erfüllt sind; verloren mit der Burg oder einem gescheiterten Hauptziel. `script`: nur `victory()`/`defeat()` |
 | `world.base` | `flat` (Wiese, `width`/`height`), `generate` (Zufallskarte, `seed`/`size`) oder `terrain` (Editor-Karte in `world.terrain`) |
 | `world.places` | benannte Orte (Kreise), im Code `place("name")`; mit `make_place` eine gemeinsame Tabelle |
-| `players[i].hq` | `false`: ohne Burg, Dorfzentrum und Leibeigene – nur der Held (Lernabenteuer); ohne `stock` mit leerem Lager |
+| `players[i].hq` | `false`: ohne Burg, Dorfzentrum und Leibeigene – nur der Held (Kursmissionen); ohne `stock` mit leerem Lager |
 | `world.tracks` | Spuren im Level: `{ "mode": "permanent", "threshold": 16, "who": "heroes" }` – `mode` legt die Spieloption fest (`off`, `fading`, `permanent`; ohne `mode` gilt die Einstellung des Spielers, das Menü zeigt die Festlegung an), `threshold` 1 … 255 ab wann `"track"` gilt (Standard: Gras 48, Schnee 16), wer Spuren macht: `all`, `none`, `heroes`. Ältere Level: `"fade": 0` = `"mode": "permanent"`. Braucht ein Level eine Spur (Fährte, Kurs), immer `mode` setzen. |
 | `players[i].stock/techs/serfs` | Startvorrat, Technologien, Leibeigene (alle Spielerfelder: `docs/MISSIONEN.md`) |
 | `available` | Freischaltungen zu Beginn: `{ "buildings": […], "techs": […] }` (sonst alles) |
@@ -465,12 +468,64 @@ Zähler für die Anzeige (`seq` von Dialog, Konsole, Zettel) laufen weiter, dami
 erkennen. Auch `program.runs` und damit die Zufallszahlen des Spielerprogramms kommen aus dem Schnappschuss – dasselbe
 Programm gibt denselben Lauf. Der Schnappschuss reist im Umschlag des Spielstands mit (`extra.stage`).
 
-Abschalten: `"reset": false` in scenario.json (z. B. `adv5`) oder `reset(False)` im Missionsprogramm.
+Abschalten: `"reset": false` in scenario.json (z. B. `r3-m`) oder `reset(False)` im Missionsprogramm.
 
 **Lockstep:** Schnappschuss und Wiederherstellen nutzen nur das Speicherformat und geschehen zwischen zwei Takten,
 unmittelbar bevor der `run`-Befehl angewandt wird. Im Mehrspieler würde jeder Teilnehmer beim ersten `run` einer
 Etappe den Stand merken und bei jedem weiteren `run` seine eigene Kopie einsetzen – alle haben in diesem Takt denselben
 Stand, also tauschen alle auf dieselbe Welt. Einzige Eingabe bleibt der Befehl.
+
+## Welten
+
+Eine Mission kann mehrere **Welten** haben: den Normalfall und gezielt gebaute Randfälle (der Wald steht direkt vor
+Nelia, der Taler liegt unter ihr, die Spur biegt anders ab). Der Weltcode ist fest und nicht änderbar; ein
+Programm muss allgemein sein, damit es in allen Welten klappt – und die Lehrkraft weiß genau, woran es scheitern kann.
+
+```json
+"worlds": [
+  { "id": "normal", "title": { "de": "Normalfall", "en": "Normal case" } },
+  { "id": "near", "title": { "de": "Alles ganz nah", "en": "Everything close" }, "seed": 7 }
+]
+```
+
+- **Format:** `worlds` in scenario.json, 1 … 6 Einträge mit eindeutiger `id` (Buchstaben, Ziffern, `_`, `-`),
+  `title` (Text, kurz) und optional eigenem `seed`. Ohne Feld hat ein Level eine Welt wie bisher. `validateScenario`
+  prüft das Feld (`validateWorlds`), ungültige Welten erreichen kein Spiel.
+- **Weltcode:** `world.id` ist die Kennung der gebauten Welt (ohne Welten `None`); alle Missionsabschnitte bilden ein
+  Programm, Werte aus `world.py` (z. B. `FOREST`) kennt also auch `mission.py`. `world.stage` ist die Etappe
+  (Schlüssel der aktiven Ziele, wie beim [Neustart](#neustart-je-etappe)), ab der Umschalter oder „Prüfen“ die Welt
+  gestartet haben, sonst `None` – das Missionsprogramm springt dann direkt dorthin:
+  `first = STAGES.index(world.stage) if world.stage in STAGES else 0`.
+- **Startoptionen:** Welt, Start-Etappe, Prüfmodus und ein eigener Seed sind Startoptionen des Spiels
+  (`createMissionSim(id, { world, stage, check, seed })`, `createDefSim(def, …)`); sie stehen im Missionszustand
+  (`state.world`, `startStage`, `check`, `startSeed`), also im Spielstand und im State-Hash.
+- **Umschalter** im Code-Panel (Desktop und Handy-Blatt, ab zwei Welten): „Welt 1 · 2 · 3“ mit den Titeln.
+  Wechseln startet die aktuelle Etappe in der gewählten Welt neu (`Engine.switchWorld`: neues Spiel aus den
+  Startoptionen `{ world, stage }`, getauscht wie beim Neustart – Renderer neu, Kamera, Raster, Code und Haltepunkte
+  bleiben, Schnappschuss der Etappe verworfen). Gibt dieselbe Figur denselben Zettel noch einmal, bleibt der
+  geänderte Zettel im Panel.
+- **„Prüfen“** spielt das Programm, wie es im Panel steht, ohne Bild in **allen** Welten bei der aktuellen Etappe
+  durch (`src/sim/check.js`: je Welt ein frisches Spiel mit `{ world, stage, check: true }`, Etappe erreichen,
+  `run`-Befehl, Takte bis zum Ergebnis; im Prüfmodus warten Dialogzeilen nicht). Ergebnis je Welt: **gelöst** (alle
+  Ziele der Etappe erfüllt oder Sieg), **nicht gelöst** (Programm zu Ende, Ziel offen), **Fehler in Zeile n**,
+  **läuft zu lange** (mehr als 6000 Takte, Endlosschleife) oder **Etappe nicht erreicht**. Im Browser läuft es in
+  Zeitscheiben von höchstens 12 ms (`src/game/worldCheck.js`), Spiel und Seite bleiben bedienbar; I.4 braucht für
+  drei Welten etwa 0,1–0,15 s Rechenzeit (Node). Das Panel zeigt je Welt ✓/✗ (auch an den Welt-Knöpfen) und
+  „Ansehen“, das in eine gescheiterte Welt wechselt. Bearbeiteter Code verwirft das Ergebnis.
+- **Wann eine Etappe zählt:** Ziele mit `all_worlds=True` sind erst erfüllt, wenn „Prüfen“ ihre Etappe in allen
+  Welten gelöst hat. Das Ergebnis kommt wie der Code eines Laufs als Befehl ins Spiel
+  (`{ type: 'script', action: 'check', stage, passed }`, `MissionRuntime.applyCheck`; gilt nur für die aktuelle
+  Etappe, sonst `err.stageChanged`). Ist die Bedingung nur in der gespielten Welt erfüllt, bleibt das Ziel aktiv
+  (`here`), und das Panel bittet um „Prüfen“; ein bestandener Check erfüllt es auch ohne Lauf. Im Prüfspiel selbst
+  zählt die Bedingung direkt. Ziele ohne `all_worlds` (etwa eine Vorhersage, die je Welt anders ausfällt) gelten in
+  der gespielten Welt. Eine Mission, deren Etappen `all_worlds` tragen, ist also erst gewonnen, wenn das Programm
+  jeder solchen Etappe alle Welten löst. Mit nur einer Welt gibt es weder Umschalter noch „Prüfen“, `all_worlds`
+  wirkt dann nicht.
+- **Lockstep:** Umschalten ist ein neues Spiel aus Startoptionen; „Prüfen“ ist deterministisch, sein Ergebnis ist
+  eine Eingabe des Spielers wie sein Code. Sterne gibt es (noch) nicht.
+
+Test: `tests/sim/worlds.test.js` (Format, Determinismus je Welt, Speichern, Prüfen), `tests/levels/blizzard.test.js`,
+`e2e/worlds.spec.js`.
 
 ## Zettel
 
@@ -516,20 +571,42 @@ und „2 von 3 geschafft“ bei mehreren Etappen.
   gespeichert; nach dem Laden kommen sie aus dem Ordner bzw. dem noch offenen Paket, sonst springt der Ersatz ein.
 - Gelände- und Naturänderungen eines Takts gehen gesammelt als `terrainChanged`/`natureChanged` an den Renderer.
 
-## Lernabenteuer
+## Kursmissionen
 
-| # | ID | Titel | Lernziel |
-|---|---|---|---|
-| 1 | `adv1` | Der Weg zum Schatz | Anweisungen, `for`, `range()` |
-| 2 | `adv2` | Der Weg zur Ruine | `while`, `if/else`, Bedingungen |
-| 3 | `adv3` | Taler für den Winter | `while` mit Bedingung, Rückgabewerte, Zähler (Talerreihe zufällig lang, `take()`) |
-| 4 | `adv4` | Taler am Wegesrand | eigene Funktionen, Funktionen als Argument (Taler links und rechts, `left()`/`right()`) |
-| 5 | `adv5` | Ein Dorf per Programm | Listen, Objekte und Methoden, Befehle wie in der Oberfläche (`reset: false`) |
-| I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen, Vorhersagen (Kursmission, siehe unten) |
+Die Programmier-Abenteuer sind Missionen des Programmierkurses (Konzept: fünf Reihen, Nelias Geschichte aus „Krone
+aus Eis“). Kennung `r<Reihe>-<Nummer>`, das Meisterstück einer Reihe heißt `m` (`r1-m`), Ordner `levels/r1-2-coins/`
+usw.; `order` = 10 × Reihe + Nummer (Meisterstück 9) reiht sie, die Registry verkettet sie (`next`), Fortschritt je
+Mission wie in der Kampagne. `courseNumber(id)` (`levels/index.js`) liefert die Nummer („I.2“, „I.M“); das Menü
+ordnet nach Reihen („Reihe I · Spuren im Schnee“), Website und Handbuch nennen die Nummer vor dem Titel.
+
+| Nr. | ID | Titel | Lernziel | Etappen (Unterziele) |
+|---|---|---|---|---|
+| I.2 | `r1-2` | Taler für die Mägde | Zählschleife `for … in range()` | `predict` wie viele Taler (`guess`), `path` 18 Kacheln, jede zweite mit Taler (9 im Beutel), `slope` Zickzack den Hang hinauf, `fire` Rechteck um den Holzstoß |
+| I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen, Vorhersagen | `predict`, `coin`, `hut` (siehe unten) |
+| I.5 | `r1-5` | Holz für die erste Nacht | Variablen | `predict` was sagt Nelia (`guess`), `roses` zweite Variable `flowers`, `brook` Schritte bis zum Eis zählen und zurück (`steps`), `six` genau 6 Taler (`while count < 6`) |
+| I.M | `r1-m` | Heimweg durchs Unterholz | Meisterstück I: `while`, `if/elif/else`, Sensoren | `edge` geradeaus, sonst rechts; `thicket` Rechte-Hand-Regel mit `nelia.right()`; `home` dasselbe Programm in anders gewachsenem Unterholz |
+| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()`, `hedge` Funktion links herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` |
+| III.M | `r3-m` | Lindgrund steht wieder | Meisterstück III: Listen, Funktionen, `wait_until` | `center`, `homes`, `farms` nebeneinander; Holz und Lehm aus Haufen, `reset: false` |
+
+Gemeinsames Muster (Vorbild `r1-4`): Die Karte hat einen Abschnitt je Etappe, getrennt durch Felsbänder; die Mission
+bringt Nelia mit `program.stop()`, `teleport`, `turn_to("east")` und `camera.fly_to` in den nächsten Abschnitt. Eine
+Figur steckt einen **Zettel** zu (`note`), Vorhersagen prüft die Mission nach dem Lauf mit `program.get("guess")`,
+Variablen-Aufgaben mit `program.get("count")` usw.; geht es schief, sagt Nelia, was passiert ist. Das Meisterstück I.M
+hat keinen Zettel: `place("exit")` zeigt in jeder Etappe auf den Ausgang des Abschnitts (`make_place`), Nelias eigene
+Spuren sind abgeschaltet (`world.tracks.who: "none"`), damit `right() == "free"` gilt; das Unterholz steht als
+ASCII-Plan in `world.py`. Am Kartenrand wachsen keine Bäume – die Pläne halten eine Kachel Abstand. III.M spielt auf
+der Lindgrund-Karte (`base: generate`, Seed 1101, 48 Kacheln) ohne Dorfzentrum: Dessen Bauplatz bleibt
+(`remove(old)`), Holz- und Lehmhaufen liegen bei der Burg. Musterlösungen spielen `tests/levels/course.test.js` (in
+beiden Sprachen, Lösungen der Schreib-Etappen aus `WORKED` in `reference.js`) und `tests/levels/blizzard.test.js`.
+Die Zeilen sind nicht vertont (Sprachausgabe des Browsers).
 
 **I.4 „Im Schneetreiben“** (`levels/r1-4-blizzard/`, Musterlösung `tests/levels/blizzard.test.js`): eine Karte im
 Winter mit drei Abschnitten, getrennt durch Felsbänder (Reihen 8–9 und 18–19). Jede Etappe ist ein Unterziel; die
-Mission bringt Nelia mit `program.stop()`, `teleport` und `camera.fly_to` in den nächsten Abschnitt.
+Mission bringt Nelia mit `program.stop()`, `teleport` und `camera.fly_to` in den nächsten Abschnitt. Drei
+[Welten](#welten): **Normalfall** (Waldrand nach 9 Schritten, Taler bei 7, Spur links–rechts–rechts–links),
+**Alles ganz nah** (Wald direkt vor Nelia: 0 Schritte, Taler unter ihr, kurze Spur mit Rechtskurve zu einer näheren
+Hütte), **Alles weit weg** (14 Schritte, Taler kurz vor dem Wald, lange Spur mit sechs Kurven). Taler und Spur tragen
+`all_worlds=True`; eine fest abgezählte Lösung (`range(7)`, abgeschrittener Weg) scheitert in den Randfällen.
 1. Die Magd Hedda steckt einen **Zettel** mit Zählschleife zu (`while nelia.can_step(): … steps = steps + 1`). Wie
    viele Schritte bis zum Waldrand? Die Vermutung kommt in `guess`; die Mission prüft nach dem Lauf
    `program.get("guess")` gegen die gegangenen Schritte und sagt sonst, wie weit es war – Ausführen beginnt von vorn.
@@ -539,11 +616,13 @@ Mission bringt Nelia mit `program.stop()`, `teleport` und `camera.fly_to` in den
    hinterlässt auch Nelia Fußabdrücke (`world.tracks.mode: "permanent"` – die Fährte bleibt unabhängig von der
    Spuren-Einstellung des Spielers).
 
-Jedes Abenteuer hat eine Musterlösung im Test (`tests/sim/scripting.test.js`). Der Code der Spieler wird pro
-Abenteuer im Browser gemerkt (`kronland-code-<id>`).
+Etappe 1 gilt in der gespielten Welt (die Vorhersage ist je Welt eine andere Zahl), Etappen 2 und 3 erst nach
+bestandenem „Prüfen“ in allen drei Welten.
 
-Die Abenteuer spielen auf offenen Wiesen; Hindernisse sind Landschaft mit Sinn (Fluss, See, Wäldchen,
-Mauerreste), keine Baumgänge. Die Kamera zeigt ruhig die ganze Karte (Norden oben, am Desktop im Spielbereich
+Der Code der Spieler wird pro Mission im Browser gemerkt (`kronland-code-<id>`).
+
+Hindernisse sind Landschaft mit Sinn (Bach, Mauerreste, Dornenhecke, Holzstoß); Baumgänge gibt es nur, wo das
+Unterholz die Aufgabe ist (I.M, der Zickzack-Hang in I.2). Die Kamera zeigt ruhig die ganze Karte (Norden oben, am Desktop im Spielbereich
 links vom Code-Panel) und läuft dem Helden nicht hinterher. Am Handy („Spiel ansehen“ während eines Laufs) gleitet
 sie der Figur nach, die das Programm zuletzt gesteuert hat, sobald sie den freien Bildbereich verlässt
 (`Engine.followWatched`); verschiebt, dreht oder zoomt der Spieler selbst, pausiert das 5 s. Das **Raster** (Knopf „# Raster“ im Panel, Vorliebe bleibt im
@@ -572,7 +651,8 @@ Tastenleiste (`editText.js`, Test `tests/ui/editText.test.js`). Klick auf eine Z
   schmaler: `.game` bekommt rechts die Panelbreite und `contain: layout`, damit Leiste, Minimap und Meldungen
   im Spielbereich bleiben; Canvas, Kamera-Seitenverhältnis und Randscrollen folgen (Ziehen der Trennlinie scrollt die Karte nicht). Die HUD-Stufen
   (`compact`, `mid`, `narrow`) richten sich nach der Breite des Spielbereichs. Werkzeugleiste: Ausführen,
-  Schritt, Über, Heraus, Stopp | Speichern, Öffnen | Raster, **Referenz**; darunter immer der Code (Abschnitte,
+  Schritt, Über, Heraus, Stopp | Speichern, Öffnen | Raster, **Referenz**; darunter Auftrag, bei Missionen mit
+  mehreren [Welten](#welten) Umschalter und **Prüfen**, dann immer der Code (Abschnitte,
   Fehlerkasten, Variablen) und unten die **Ausgabe** – ohne Reiter. **Referenz** (Buch) öffnet die
   Programmier-Referenz der Website (`scripting/`) in einem neuen Tab; eine Befehlsliste im Panel gibt es nicht
   (Erklärungen liefern die Karten beim Überfahren und die Referenz). Eingeklappte Abschnitte (z. B. „Welt aufbauen“) zeigen links Pfeil und Titel, rechts
@@ -651,6 +731,9 @@ Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulati
   sobald der Abschnitt bearbeitet wird); beim Testspielen Debugger und Hinweise im Code-Panel.
 - **Welt aus Code:** „Weltaufbau ausführen“ zeigt das Ergebnis der Missionsabschnitte als Vorschau;
   „Ins Gelände übernehmen“ macht es zur Karte (und kommentiert den Abschnitt `world` aus).
+- **Welten** (Reiter Szenario): Liste der Welten mit Kennung und Titel de/en, hinzufügen (die erste bringt `normal`
+  mit) und entfernen, höchstens 6; „Vorschau und Testspielen in“ wählt die Welt für „Weltaufbau ausführen“ und
+  Testspielen (`EditorView.world`, Startoption `world`). Der Weltcode verzweigt mit `world.id`.
 - **Speichern/Öffnen** als `.zip` (Level-Ordner mit Dateien; Öffnen nimmt auch eine `.json`); ein Entwurf wird im
   Browser gemerkt (ohne Dateien). **Testspielen** startet das
   Szenario mit allen Abschnitten im Code-Panel und Debugger fürs Missionsskript (Haltepunkte halten das Spiel an);
@@ -666,7 +749,8 @@ npx vitest run tests/script      # Sprache: CPython-Vergleich, Fehler, Debugger,
 npx vitest run tests/sim/scripting.test.js tests/sim/scenarioV2.test.js tests/sim/editor.test.js tests/levels
 npx vitest run tests/sim/ground.test.js tests/sim/figures.test.js tests/script/hints.test.js
 npx vitest run tests/sim/stage.test.js tests/sim/playerEvents.test.js tests/levels/blizzard.test.js tests/ui/editText.test.js tests/ui/codeInsert.test.js
-E2E_PORT=4310 npx playwright test e2e/script.spec.js e2e/stage.spec.js e2e/editor-code.spec.js
+npx vitest run tests/sim/worlds.test.js
+E2E_PORT=4310 npx playwright test e2e/script.spec.js e2e/stage.spec.js e2e/editor-code.spec.js e2e/worlds.spec.js
 ```
 
 `tests/script/cases/*.py` laufen in der VM und müssen dieselbe Ausgabe liefern wie `*.out` (mit `python3`

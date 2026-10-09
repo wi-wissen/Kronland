@@ -37,19 +37,15 @@ describe('Scenarios', () => {
     expect(validateScenario({ format: 'x' }).length).toBeGreaterThan(0);
   });
 
-  it('learning adventure 1: a loop brings Nelia to the treasure, two steps are not enough', () => {
-    const sim = createMissionSim('adv1');
+  it('course mission I.2: only Nelia, no castle; a program walks her, a few steps win nothing', () => {
+    const sim = createMissionSim('r1-2');
     expect(sim.mission.script.state.errors).toEqual([]);
     expect(heroOf(sim)).toBeTruthy();
     expect(sim.findBuilding(0, 'headquarters')).toBeNull();
     runCode(sim, 'nelia.step()\nnelia.step()\n');
     run(sim, 200);
     expect(sim.mission.state.result).toBeNull();
-    expect(tileOf(heroOf(sim))).toEqual([6, 6]);
-    runCode(sim, 'for i in range(8):\n    nelia.step()\n');
-    run(sim, 400);
-    expect(sim.mission.state.result).toMatchObject({ won: true, reason: 'script' });
-    expect(sim.mission.state.messages.map((m) => m.speaker)).toEqual(['nelia', 'nelia']);
+    expect(tileOf(heroOf(sim))).toEqual([4, 3]);
   });
 
   it('player programs do not know the mission API', () => {
@@ -352,54 +348,17 @@ describe('Saving and determinism', () => {
   });
 });
 
-describe('Learning adventures are solvable with a model solution', () => {
-  const SOLUTIONS = {
-    adv1: 'for i in range(10):\n    nelia.step()\n',
-    adv2: 'while not nelia.is_at(place("goal")):\n    if nelia.can_step():\n        nelia.step()\n    else:\n        nelia.turn_right()\n',
-    adv3: 'count = 0\nwhile nelia.front() == "coin":\n    nelia.step()\n    nelia.take()\n    count = count + 1\nprint("Taler:", count)\n',
-    adv4: [
-      'def fetch(turn):',
-      '    turn()',
-      '    nelia.step()',
-      '    nelia.take()',
-      '    turn()',
-      '    turn()',
-      '    nelia.step()',
-      '    turn()',
-      'while nelia.can_step():',
-      '    nelia.step()',
-      '    if nelia.left() == "coin":',
-      '        fetch(nelia.turn_left)',
-      '    if nelia.right() == "coin":',
-      '        fetch(nelia.turn_right)',
-    ].join('\n'),
-    adv5: [
-      'def build_one(kind):',
-      '    spot = find_spot(kind, hq())',
-      '    site = build(kind, spot[0], spot[1])',
-      '    for s in serfs(idle=True)[:3]:',
-      '        s.work_on(site)',
-      'build_one("residence")',
-      'build_one("residence")',
-      'build_one("farm")',
-    ].join('\n'),
-  };
-  for (const [id, code] of Object.entries(SOLUTIONS)) {
-    it(id, () => {
-      const sim = createMissionSim(id);
+describe('Bundled missions', () => {
+  // The model solutions of the course missions run in tests/levels/course.test.js and blizzard.test.js
+  for (const s of SCENARIOS.filter((x) => x.kind === 'adventure')) {
+    it(`${s.id}: the start code compiles and gives no hints`, () => {
+      const sim = createMissionSim(s.id);
       expect(sim.mission.script.state.errors).toEqual([]);
       sim.step();
-      // the template in the adventure compiles without errors
-      const tpl = sim.mission.def.scenario.sections.find((s) => s.level === 'player').code;
+      const tpl = sim.mission.def.scenario.sections.find((x) => x.level === 'player').code;
       runCode(sim, tpl);
       sim.step();
       expect(sim.mission.script.state.errors.filter((e) => e.kind === 'SyntaxError' || e.kind === 'NameError')).toEqual([]);
-      sim.command({ type: 'script', player: 0, action: 'stop' });
-      runCode(sim, code);
-      run(sim, 4000);
-      expect(sim.mission.script.state.errors.filter((e) => e.level === 'player' && e.seq > 2)).toEqual([]);
-      expect(sim.mission.state.result).toMatchObject({ won: true });
-      // The model solution gives no hints
       expect(sim.mission.script.state.player.hints).toEqual([]);
     });
   }

@@ -33,16 +33,20 @@ const coinsDrawn = (page) => page.evaluate(() => {
   return m?.visible ? m.count : 0;
 });
 
-test('adv3: the coins are drawn on their tiles and disappear when the program picks them up', async ({ page }) => {
+test('I.5: the coins are drawn on their tiles and disappear when the program picks them up', async ({ page }) => {
+  test.setTimeout(180_000); // the intro line comes before the note, then a whole stage runs
   const errors = await fresh(page);
-  await page.goto(playUrl('?mission=adv3&no-models'));
+  await page.goto(playUrl('?mission=r1-5&no-models'));
   await page.waitForFunction(() => !!window.__kronland?.renderer?.items, null, SLOW);
-  const total = await page.evaluate(() => window.__kronland.sim.map.items.size);
-  expect(total).toBeGreaterThanOrEqual(7);
+  const total = await page.evaluate(() => [...window.__kronland.sim.map.items.values()].filter((k) => k === 'coin').length);
+  expect(total).toBe(24);
   await expect.poll(() => coinsDrawn(page), SLOW).toBe(total);
   await openPanel(page);
-  await page.getByTestId('section-player').getByTestId('code-input')
-    .fill('count = 0\nwhile nelia.front() == "coin":\n    nelia.step()\n    nelia.take()\n    count = count + 1\nprint("Taler:", count)\n');
+  // The woodcutter's note collects the first row (7 coins) and counts along
+  await expect(page.getByTestId('script-note')).toBeVisible({ timeout: 60_000 });
+  const ta = page.getByTestId('section-player').getByTestId('code-input');
+  await expect(ta).toHaveValue(/count = count \+ 1/);
+  await ta.fill((await ta.inputValue()).replace('guess = 0', 'guess = 7'));
   await page.getByTestId('script-run').click();
   if (phone(page)) {
     // phone: the game is shown while the program runs, the camera follows Nelia
@@ -51,16 +55,15 @@ test('adv3: the coins are drawn on their tiles and disappear when the program pi
   }
   await expect.poll(() => coinsDrawn(page), { timeout: 90_000 }).toBeLessThan(total);
   await page.screenshot({ path: test.info().outputPath('coins.png') });
-  await expect(page.getByTestId('mission-result')).toBeVisible({ timeout: 120_000 });
-  await expect(page.getByTestId('mission-result-title')).toHaveText('Sieg!');
-  expect(await coinsDrawn(page)).toBe(0);
-  expect(await page.evaluate(() => window.__kronland.sim.players[0].stock.gold)).toBe(total);
+  await expect.poll(() => coinsDrawn(page), { timeout: 120_000 }).toBe(total - 7);
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'roses')?.status), { timeout: 60_000 }).toBe('active');
+  expect(await page.evaluate(() => window.__kronland.sim.players[0].stock.gold)).toBe(7);
   expect(errors).toEqual([]);
 });
 
 test('Hint in the code panel: amber line and box, the program keeps running, editing clears it', async ({ page }) => {
   const errors = await fresh(page);
-  await page.goto(playUrl('?mission=adv1&no-models'));
+  await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
   const sec = page.getByTestId('section-player');

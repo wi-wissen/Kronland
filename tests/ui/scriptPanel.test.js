@@ -43,7 +43,7 @@ describe('Code panel: console', () => {
 
 describe('Code panel: files', () => {
   it('safe .py file names', () => {
-    expect(fileName('adv1')).toBe('adv1.py');
+    expect(fileName('r1-2')).toBe('r1-2.py');
     expect(fileName('Größe & Weite!')).toBe('grosse-weite.py');
     expect(fileName('')).toBe('programm.py');
     expect(fileName(undefined)).toBe('programm.py');

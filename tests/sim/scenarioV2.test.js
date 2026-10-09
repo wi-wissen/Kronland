@@ -27,7 +27,7 @@ function level(mission, extra = {}) {
 
 describe('Level folders', () => {
   it('every bundled level is a folder with scenario.json and .py files, packed and valid', () => {
-    expect(LEVELS.map((l) => l.folder)).toEqual(['adv1-treasure', 'adv2-corner', 'adv3-wood', 'adv4-stones', 'adv5-village', 'c1-lindgrund', 'c2-beaucroix', 'c3-hagenfurt', 'c4-eisenhain', 'c5-morvale', 'c6-thronsee', 'm1-raid', 'r1-4-blizzard', 'tutorial']);
+    expect(LEVELS.map((l) => l.folder)).toEqual(['c1-lindgrund', 'c2-beaucroix', 'c3-hagenfurt', 'c4-eisenhain', 'c5-morvale', 'c6-thronsee', 'm1-raid', 'r1-2-coins', 'r1-4-blizzard', 'r1-5-firewood', 'r1-m-thicket', 'r2-1-shortcut', 'r3-m-lindgrund', 'tutorial']);
     for (const l of LEVELS) {
       expect(validateScenario(l), l.id).toEqual([]);
       expect(l.version).toBe(2);
@@ -35,11 +35,11 @@ describe('Level folders', () => {
       // texts stand in the code, no key table any more
       expect(l.texts).toBeUndefined();
     }
-    expect(ADVENTURES.map((a) => a.id)).toEqual(['adv1', 'adv2', 'adv3', 'adv4', 'adv5', 'r1-4']);
+    expect(ADVENTURES.map((a) => a.id)).toEqual(['r1-2', 'r1-4', 'r1-5', 'r1-m', 'r2-1', 'r3-m']);
   });
 
   it('pack and unpack are inverse: files ↔ code', () => {
-    const s = LEVELS.find((l) => l.id === 'adv4');
+    const s = LEVELS.find((l) => l.id === 'r2-1');
     const { json, files } = unpackLevel(s);
     expect(Object.keys(files)).toEqual(['world.py', 'mission.py', 'player.py']);
     expect(json.sections.every((x) => x.code === undefined)).toBe(true);
@@ -215,27 +215,27 @@ describe('Mission API version 2', () => {
 
 describe('Save games', () => {
   it('carry the scenario with its code, so a changed level never breaks an old save', () => {
-    const sim = createMissionSim('adv1');
+    const sim = createMissionSim('r1-2');
     runCode(sim, 'for i in range(3):\n    nelia.step()\n');
     run(sim, 30);
     const data = JSON.parse(JSON.stringify(saveGame(sim)));
-    expect(data.mission.scenario.id).toBe('adv1');
-    expect(data.mission.scenario.sections.find((s) => s.id === 'mission').code).toContain('objective("goal"');
+    expect(data.mission.scenario.id).toBe('r1-2');
+    expect(data.mission.scenario.sections.find((s) => s.id === 'mission').code).toContain('objective("predict"');
     expect(data.mission.custom).toBe(false);
     // A later edit of the bundled level: the save keeps running with its own code
-    const sec = getMission('adv1').scenario.sections.find((s) => s.id === 'mission');
+    const sec = getMission('r1-2').scenario.sections.find((s) => s.id === 'mission');
     const before = sec.code;
     sec.code += '\nprint("changed")\n';
     let back;
     try { back = loadGame(data); } finally { sec.code = before; }
-    expect(back.mission.def.next).toBe('adv2');
+    expect(back.mission.def.next).toBe('r1-4');
     expect(back.mission.def.custom).toBe(false);
     for (let i = 0; i < 50; i++) { sim.step(); back.step(); }
     expect(back.hash()).toBe(sim.hash());
   });
 
   it('own levels stay own levels after loading (no campaign progress)', () => {
-    const sim = createScenarioSim(level('x = 1\n', { id: 'adv1' }));
+    const sim = createScenarioSim(level('x = 1\n', { id: 'r1-2' }));
     const back = loadGame(JSON.parse(JSON.stringify(saveGame(sim))));
     expect(back.mission.def.custom).toBe(true);
     expect(back.mission.def.next).toBeNull();

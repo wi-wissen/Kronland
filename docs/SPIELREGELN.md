@@ -568,4 +568,5 @@ Werte: `BALANCE.ground` (alle (A)).
   versetzt), bis sie zur festgetretenen, grauen Spur verschmelzen. Niedrige Grafikstufe: ein linearer statt des
   bikubischen Zugriffs. Nur soweit der Spieler die Kacheln sieht oder zuletzt gesehen hat. Taler und Christrosen liegen sichtbar auf
   ihren Kacheln, sobald die Kachel erkundet ist. Im Welteneditor setzt man beides mit „Gegenstand“ und „Spur“.
-- **Lernabenteuer ohne Burg** beginnen mit leerem Lager – `stock("gold")` zählt genau die gesammelten Taler.
+- **Kursmissionen ohne Burg** beginnen mit leerem Lager (außer `players[].stock` setzt einen Vorrat) – `stock("gold")` zählt
+  genau die gesammelten Taler.

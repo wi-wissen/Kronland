@@ -519,6 +519,7 @@ export default {
   // ---------- Simulation rejection reasons ----------
   'err.unknownPlayer': 'Unknown player',
   'err.noMission': 'No mission active',
+  'err.stageChanged': 'The stage has changed in the meantime – please check again',
   'err.noScript': 'This game has no scripts',
   'err.noPlayerScript': 'This scenario has no player program',
   'err.unknownCommand': 'Unknown command',

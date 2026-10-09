@@ -520,6 +520,7 @@ export default {
   // ---------- Simulation rejection reasons ----------
   'err.unknownPlayer': 'Unbekannter Spieler',
   'err.noMission': 'Keine Mission aktiv',
+  'err.stageChanged': 'Die Etappe hat sich inzwischen geändert – bitte noch einmal prüfen',
   'err.noScript': 'Dieses Spiel hat keine Skripte',
   'err.noPlayerScript': 'Dieses Szenario hat kein Spielerprogramm',
   'err.unknownCommand': 'Unbekannter Befehl',

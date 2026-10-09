@@ -20,7 +20,7 @@ export const TRACK_WHO = ['all', 'none', 'heroes'];
 export const VISIBILITY = ['open', 'collapsed', 'hidden'];
 
 /** Limits for scenarios from files and other people (map size, players, code length …). */
-export const SCENARIO_LIMITS = { mapSize: 256, players: 8, sections: 32, code: 200_000, text: 4000 };
+export const SCENARIO_LIMITS = { mapSize: 256, players: 8, sections: 32, code: 200_000, text: 4000, worlds: 6 };
 const KEY_RE = /^[A-Za-z][\w-]{0,63}$/;
 /** File name of a section in a level folder (no sub-folders). */
 export const SECTION_FILE_RE = /^[A-Za-z][\w-]{0,63}\.py$/;
@@ -75,6 +75,7 @@ export function validateScenario(s) {
   }
   const ids = (s.sections ?? []).map((x) => x.id);
   if (new Set(ids).size !== ids.length) out.push('duplicate section ids');
+  out.push(...validateWorlds(s.worlds));
   const w = s.world ?? {};
   if (w.terrain && (!w.terrain.heights || !w.terrain.flags)) out.push('world.terrain incomplete');
   if (w.tracks !== undefined) {
@@ -88,6 +89,31 @@ export function validateScenario(s) {
   }
   return out;
 }
+
+/**
+ * Worlds of a level (docs/SKRIPTE.md#welten): `[{ id, title?, seed? }]`, 1 … SCENARIO_LIMITS.worlds entries with
+ * unique ids. No field = one world.
+ * @returns {string[]} problems
+ */
+export function validateWorlds(worlds) {
+  if (worlds === undefined || worlds === null) return [];
+  if (!Array.isArray(worlds) || !worlds.length) return ['worlds must be a non-empty list'];
+  const out = [];
+  if (worlds.length > SCENARIO_LIMITS.worlds) out.push(`at most ${SCENARIO_LIMITS.worlds} worlds`);
+  const seen = new Set();
+  for (const [i, w] of worlds.entries()) {
+    if (!w || typeof w !== 'object' || Array.isArray(w)) { out.push(`worlds[${i}] must be an object`); continue; }
+    if (typeof w.id !== 'string' || !KEY_RE.test(w.id) || w.id.length > 32) out.push(`worlds[${i}].id: letters, digits, _ and -, at most 32`);
+    else if (seen.has(w.id)) out.push(`worlds: duplicate id "${w.id}"`);
+    else seen.add(w.id);
+    if (w.title !== undefined && !(isText(w.title) && textLength(w.title) <= 80)) out.push(`worlds[${i}].title must be a short text`);
+    if (w.seed !== undefined && !(Number.isInteger(w.seed) && w.seed >= 0 && w.seed <= 0x7fffffff)) out.push(`worlds[${i}].seed must be an integer 0…2147483647`);
+  }
+  return out;
+}
+
+/** Worlds of a scenario (valid ones only); an empty list for a level with one world. */
+export const worldsOf = (s) => (Array.isArray(s?.worlds) && !validateWorlds(s.worlds).length ? s.worlds : []);
 
 /**
  * Folder → packed scenario: every section gets the code of its file. Sections without a readable file
@@ -158,6 +184,8 @@ export function scenarioToDef(s) {
     next: s.next ?? null,
     seed: world.seed ?? s.seed ?? 1,
     size: world.size ?? 64,
+    // Worlds of the level (normal case and edge cases): the switcher and „Prüfen“ in the code panel
+    worlds: worldsOf(s),
     world: {
       base: world.base ?? (world.terrain ? 'terrain' : 'generate'),
       seed: world.seed, size: world.size, width: world.width, height: world.height,

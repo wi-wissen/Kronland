@@ -1,0 +1,69 @@
+{
+  "format": "kronland-scenario",
+  "version": 2,
+  "id": "r2-1",
+  "kind": "adventure",
+  "end": "script",
+  "order": 21,
+  "title": { "de": "Orrins Abkürzung", "en": "Orrin's Shortcut" },
+  "summary": {
+    "de": "Eigene Befehle mit def: Orrins Umweg um die Ruine, eine geänderte Funktion und Taler links und rechts vom Weg.",
+    "en": "Your own commands with def: Orrin's detour round the ruin, a changed function and coins left and right of the path."
+  },
+  "briefing": {
+    "de": "Auf dem Dorfplatz von Lindgrund wartet Orrin, ein Händler. Er kennt eine Abkürzung um die alte Ruine und hat sie als Funktion aufgeschrieben: „def around_ruin():“ gibt einer Folge von Befehlen einen Namen, „around_ruin()“ führt sie aus – so oft man will. nelia.left() und nelia.right() verraten, was neben Nelia liegt, ohne dass sie sich dreht. Ausführen beginnt die Etappe jedes Mal von vorn.",
+    "en": "Orrin, a merchant, is waiting on the village square of Lindgrund. He knows a shortcut round the old ruin and wrote it down as a function: “def around_ruin():” gives a sequence of commands a name, “around_ruin()” runs it – as often as you like. nelia.left() and nelia.right() tell what lies beside Nelia without turning her. Run starts the stage over every time."
+  },
+  "victoryText": {
+    "de": "Orrin hat seine Taler wieder – und Nelia einen Partner, der mehr weiß, als er sagt.",
+    "en": "Orrin has his coins back – and Nelia a partner who knows more than he says."
+  },
+  "learn": {
+    "de": ["Funktionen ohne Parameter (def)", "Aufruf", "eine Stelle ändern, überall wirksam", "eigene Befehle"],
+    "en": ["functions without parameters (def)", "calls", "change one place, effective everywhere", "your own commands"]
+  },
+  "world": {
+    "base": "flat",
+    "width": 24,
+    "height": 28,
+    "fog": false,
+    "starts": [{ "x": 2, "y": 3 }],
+    "places": {
+      "a_start": { "x": 2, "y": 3, "r": 0 },
+      "a_view": { "x": 9, "y": 4, "r": 4 },
+      "b_start": { "x": 2, "y": 13, "r": 0 },
+      "b_view": { "x": 9, "y": 14, "r": 4 },
+      "b_goal": { "x": 8, "y": 13, "r": 0 },
+      "c_start": { "x": 2, "y": 23, "r": 0 },
+      "c_view": { "x": 11, "y": 24, "r": 4 }
+    }
+  },
+  "weatherCycle": [["winter", 3600000]],
+  "players": [{ "kind": "human", "hero": "nelia", "hq": false }],
+  "sections": [
+    {
+      "id": "world",
+      "title": { "de": "Welt aufbauen", "en": "Build the world" },
+      "level": "mission",
+      "visibility": "collapsed",
+      "editable": false,
+      "file": "world.py"
+    },
+    {
+      "id": "mission",
+      "title": { "de": "Mission", "en": "Mission" },
+      "level": "mission",
+      "visibility": "hidden",
+      "editable": false,
+      "file": "mission.py"
+    },
+    {
+      "id": "player",
+      "title": { "de": "Dein Programm", "en": "Your program" },
+      "level": "player",
+      "visibility": "open",
+      "editable": true,
+      "file": "player.py"
+    }
+  ]
+}

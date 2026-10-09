@@ -36,6 +36,9 @@ test('Ranged attack alerts as well; serfs attack an enemy like a tree (right cli
   await page.addInitScript(() => { localStorage.removeItem('kronland-settings'); localStorage.setItem('kronland-lang', 'de'); });
   await page.goto(playUrl('?seed=42&no-models&fog=off'));
   await page.waitForFunction(() => !!window.__kronland);
+  // The test mouse starts in the top left corner; Chrome repeats that position when the layout changes (build panel),
+  // and edge scrolling would push the camera into the map corner. A real mouse rests on the map.
+  if (info.project.name !== 'mobile') { const vp = page.viewportSize(); await page.mouse.move(vp.width / 2, vp.height / 2); }
   await expect(page.getByTestId('res-gold')).toHaveText('500', SLOW);
   // Enemy archer shoots at our castle (event as from combat)
   await page.evaluate(() => {

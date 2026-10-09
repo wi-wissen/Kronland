@@ -10,7 +10,7 @@ src/
     data/     Balancing-Werte (Gebäude, Rohstoffe, Einheiten, Techs)
     systems/  Ablauf pro Takt (Bauen, Ausbau ohne Leibeigene, Abbau, Zahltag, Gebäude-Forschung, Markt, Wetter, Brand/Reparatur, …)
     reasons.js Ablehnungsgründe der neuen Systeme in einer Tabelle (für i18n-Umstellung)
-    missions/ Missionslaufzeit (docs/MISSIONEN.md), levels/ (ein Ordner je Level in Python: Kampagne c1–c6, Tutorial, Lernabenteuer, Skript-Missionen), Entwicklerkarten showcase.js/stress.js
+    missions/ Missionslaufzeit (docs/MISSIONEN.md), levels/ (ein Ordner je Level in Python: Kampagne c1–c6, Tutorial, Kursmissionen, Skript-Missionen), Entwicklerkarten showcase.js/stress.js
     scripting/ Python-Skripte in der Simulation: ScriptHost, Spiel-API, Szenario-Format (docs/SKRIPTE.md)
     editor/   Werkzeuge des Welteneditors auf einer Vorschau-Simulation
     world.js  Welten: Zufallskarte, flache Grundkarte, gespeicherte Editor-Karte
@@ -186,7 +186,7 @@ Ein Link beschreibt nur den **Start** einer Karte, nie den laufenden Stand.
 | `players` | 2–4 (eigene Burg + Gegner) | 2, außerhalb geklemmt | ja |
 | `hero` | `nelia`, `orrin`, `taran`, `malvor` | `nelia` | ja |
 | `fog` | `off` (auch `0`, `no`, `false`) | an | nur `fog=off` |
-| `mission` | Kennung aus `src/sim/missions/registry.js` (Kampagne, Tutorial, Lernabenteuer, Sonderkarten) | unbekannt: freies Spiel, falls `seed` da, sonst Startmenü | ja |
+| `mission` | Kennung aus `src/sim/missions/registry.js` (Kampagne, Tutorial, Kursmissionen, Sonderkarten) | unbekannt: freies Spiel, falls `seed` da, sonst Startmenü | ja |
 | `level` | Adresse einer Level-`.zip` oder eines Level-Ordners (`http(s)` oder Pfad dieser Seite, docs/SKRIPTE.md#level-ordner); geht vor `mission`/`seed` | nicht ladbar: Abenteuer-Menü mit Grund | ja |
 | `quality` (`low`/`medium`/`high`), `nature` (`off`), `dev`/`debug`, `no-models` | Darstellung, Fehlersuche | – | nein (bleiben nur in der Adresszeile) |
 
