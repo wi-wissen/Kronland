@@ -1942,25 +1942,11 @@ Missionsdateien (⚠ 2 zusätzlich E7 für den Fall, dass beide Helden zugleich 
 - Alle: Kronstück statt Zacke; jede Einleitung beginnt mit „Bisher“ und dem Zählstand; Hilfe gesprochen
   geräteneutral, Handgriffe im Zieltext.
 
-## Nötige Erweiterungen der Technik (E1–E12)
+## Nötige Erweiterungen der Technik
 
-Ausführlich in [PRUEFUNG.md, „Nötige Erweiterungen der Technik“](PRUEFUNG.md#nötige-erweiterungen-der-technik). Was
-das Drehbuch davon nutzt und was ohne sie gilt:
-
-| Nr. | Erweiterung | Wofür im Drehbuch | Ohne sie |
-|---|---|---|---|
-| E1 | Kampagnen-Merker (K1): `carry` mit `neighborsLie`, `neighborsTruth`, `taxedHard`, `taxedLight`, `shardBought`, `shardStormed`, `bribed`, `mercs`, `refugees`, `confessed` | Rückbezüge: Einleitung M3, Start und Dark Night M5, Erlenhof M5, Abschluss M6 | Zeilen entfallen, neutrale Fassung |
-| E2 | Zieltext mit Handy-Fassung (K2) | alle „Ziel (Handy)“ | Maus-Fassung mit angehängtem „· Handy: …“ |
-| E3 | Zeiger-Phasen | M1 Schritt 9, M2 Schritt 6, M4 Schritt 3, M6 Schritt 1 | nur die erste Phase |
-| E4 | Zeiger aus Auslösern | Zahltag/„Leibeigenen kaufen“, Nachbardorf, Lehmschuld, Wundsalbe | kein Zeiger, nur Zieltext und Dialog |
-| E5 | Tauwetter meldet Ertrunkene | M3 „Sie waren aus Lindgrund“, M6 `drowned` | vorher/nachher zählen in der Missionsfunktion (geht für M3 und Malvors Tauwetter) |
-| E6 | Dialogende schätzen (`quiet`) | alle „nach dem Block“ | feste Pausen von 20–30 s |
-| E7 | Gesprächsfigur „nur einer“ | M1 Nachbardorf | Gleichstand entscheidet die Entity-Reihenfolge |
-| E8 | Uhr im `custom`-Ziel | M5 Frist bis zum Herold | zweites `survive`-Ziel „Der Herold kommt“ |
-| E9 | `give` mit `at` | M1 die drei am Baum | Funktionsaktion setzt sie dorthin |
-| E10 | Merker im State-Hash | alle Wahl-Merker | (Nebenbefund, unabhängig vom Drehbuch empfohlen) |
-| E11 | Kennung `tax-row` | M2 Steuer-Wahl | Zeiger nur auf „Burg“ |
-| E12 | Sprecher „Älteste von Moorbrook“ | M5 | gleiche Stimme wie die Älteste von Erlenhof (verwechselbar) |
+Welche Stellen des Drehbuchs eine Erweiterung brauchen und was ohne sie gilt, steht verständlich in
+[PRUEFUNG.md, „Zu entscheiden: Erweiterungen der Technik“](PRUEFUNG.md). Jede Stelle im Drehbuch hat eine Fassung, die
+ohne Erweiterung funktioniert.
 
 ## Hinweis zur Übungsmission
 

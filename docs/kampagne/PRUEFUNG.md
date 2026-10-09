@@ -73,6 +73,34 @@ Test-Bot-Strategien, Kampagnenmatrix, Vitest je Mission und Weg, E2E-Fotos ~2 Ta
 
 ---
 
+## Zu entscheiden: Erweiterungen der Technik
+
+Das Drehbuch geht mit der heutigen Technik zu großen Teilen. Für einige Stellen fehlt dem Spiel eine Kleinigkeit.
+Hier steht je Punkt, **was der Spieler davon merkt** und **was ohne die Erweiterung passiert**. Die Nummern passen zu den
+technischen Details weiter unten.
+
+**Begriffe:** *Zieltext* = der Text in der Zielliste links oben („Baue 2 Wohnhäuser“). *Zeiger* = der leuchtende
+Rahmen um einen Knopf, der zeigt, wo man klicken soll. *Missionsskript* = das Python-Programm, das eine Mission steuert.
+
+| Nr. | Was der Spieler merkt | Beispiel im Drehbuch | Ohne die Erweiterung | Aufwand |
+|---|---|---|---|---|
+| E1 | **Die Kampagne erinnert sich an frühere Entscheidungen.** Heute vergisst das Spiel nach jeder Mission alles, was man entschieden hat. | In Mission 1 sagt Nelia der Dorfältesten die Wahrheit – oder lässt Orrin lügen. In Mission 5, als die Lüge auffliegt, erinnert sie sich daran: „Die Alte in Lindgrund hat mir geglaubt, als ich die Wahrheit sagte.“ | Diese Rückbezüge (sieben Zeilen in Mission 3, 5 und 6) fallen weg. Jede Wahl wirkt nur in ihrer eigenen Mission und im Text danach. | ~1 Tag |
+| E2 | **Zieltext eigens fürs Handy.** Ein Zieltext, der die Bedienung erklärt, kann heute nur eine Fassung haben. Am Handy gibt es aber keinen Rechtsklick. | Ziel in Mission 1: am Rechner „Nelia anklicken, dann Rechtsklick neben ihn“, am Handy „Nelia antippen, dann neben ihn tippen“. | Ein Text für beide: „… Rechtsklick neben ihn (Handy: neben ihn tippen)“ – länger und am Handy eng. Weniger wichtig, wenn die Helden die Bedienung ohnehin aussprechen. | 2–3 h |
+| E4 | **Ein zweiter Zeiger darf kurz vorgehen.** Es leuchtet immer nur ein Knopf, und das Hauptziel gewinnt immer. | Mission 1, Zahltag: Orrin sagt „Kauf in der Burg Leibeigene“. Der Zeiger bleibt aber auf der Lehmgrube (Hauptziel) – der Knopf „Leibeigenen kaufen“ leuchtet nicht. | Der Knopf wird nur genannt, nicht hervorgehoben (betrifft vier Stellen: Leibeigene kaufen, Orrin für das Nachbardorf, Lehmschuld bezahlen, Wundsalbe). | 1–2 h |
+| E5 | **Die Mission merkt, wenn beim Tauwetter jemand ertrinkt.** Ertrinken gibt es schon (Truppen und Leibeigene ertrinken, Helden kommen zur Burg zurück); das Missionsskript erfährt es nur nicht. | Mission 6: Nelia reagiert, wenn eigene Leute im Eis eingebrochen sind („Sie sind ertrunken. Für einen Schritt aufs Eis.“). | Das Skript zählt vorher und nachher nach – geht auch, ist nur umständlicher. | 1–2 h · **angenommen** |
+| E11 | **Der Zeiger kann alle fünf Steuerknöpfe auf einmal umrahmen.** Heute nur einen einzelnen Knopf. | Mission 2: Orrin und Nelia streiten über die Steuern. Der Zeiger soll die Steuerreihe zeigen, ohne eine Stufe vorzuschlagen. | Der Zeiger zeigt nur auf die Burg. | 15 min |
+| E13 | **Die Mission merkt drei Dinge, die das Spiel schon kennt:** ein Lagerfeuer wird angezündet, ein Arbeiter zieht weg, ein Handel beginnt. | Mission 1: Beim ersten Lagerfeuer erklärt Orrin, dass dort jemandem Bett oder Tisch fehlt. Mission 2: Bei zu hohen Steuern sagt Nelia „Da geht einer.“ | Die Lagerfeuer-Erklärung kommt nach einer groben Ersatzregel (mehr Arbeiter als Betten), „Da geht einer“ entfällt. | 1–2 h |
+| E14 | **Die Mission kann nachsehen,** welche Steuerstufe eingestellt ist und ob die Leibeigenen gerade Miliz sind. | Mission 2: Die Steuer-Wahl („Malvors Weg“ oder „Nelias Weg“) bekommt Reaktionen und einen eigenen Abschlusstext. Mission 1: Der Hinweis „Ruf zu den Waffen!“ entfällt, wenn man es schon getan hat. | Die Steuer-Wahl hat keine Folgen in der Geschichte; der Miliz-Hinweis kommt immer. | 1–2 h |
+| E15 | **Ein Zieltext kann sich unterwegs ändern.** | Mission 3: Sobald man den Posten an der Schlucht sieht, bekommt das Ziel den Zusatz „Orrin kann einen Trupp bestechen“. | Der Zusatz steht von Anfang an im Zieltext (länger, verrät etwas zu früh). | 1 h |
+| E16 | **Der Text nach der Mission wird aus Absätzen zusammengesetzt:** ein gemeinsamer Teil plus ein Absatz je getroffener Wahl. | Mission 2: zwei Wege zum Kronstück (kaufen oder stürmen) × Steuern (hoch, niedrig, normal). | Jede Kombination wird als ganzer Text geschrieben und übersetzt: Mission 2 sechs Fassungen, Mission 6 vier bis acht. Gleiche Wirkung, mehr Text. | 2 h |
+| E17 | *(optional)* **Die Mission sieht Bedienschritte,** z. B. „Kamera bewegt“ oder „Held ausgewählt“. | Mission 1: Orrins Hinweis „Wählt Nelia aus“ entfällt, wenn man sie schon ausgewählt hat. | Solche Hinweise kommen immer (sie sind kurz und so formuliert, dass sie Kundige nicht stören). | ½–1 Tag |
+
+**Ohne Entscheidung erledigt** (durch den Umbau auf Python oder schon festgelegt): E3 Zeiger nacheinander auf
+mehrere Knöpfe · E6 warten, bis ein Gespräch zu Ende gesprochen ist – das Skript wartet jetzt von selbst · E7 nur ein
+Held spricht eine Figur an · E8 Uhr im Zieltext · E9 Leibeigene an einem bestimmten Ort erscheinen lassen · E10
+Missionszustand im Spielstand · E12 Älteste von Moorbrook: **gleiche Stimme wie die Älteste von Erlenhof**
+(entschieden).
+
 ## Querschnitt: Antworten auf die Prüffragen
 
 ### Welche Ereignisse sieht ein Missionsskript?
@@ -443,7 +471,7 @@ Regieanweisungen im Text (*(leise)*, *(5 s danach)*, *(15 s vor Schluss)*) gehö
 
 ---
 
-## Nötige Erweiterungen der Technik
+## Technische Details der Erweiterungen (für die Umsetzung)
 
 ### Was aus E1–E12 geworden ist
 
