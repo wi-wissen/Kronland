@@ -41,8 +41,14 @@ async function openEditor(page) {
 async function codeGesture(page, x, y) {
   if (!isMobile(page)) { await page.mouse.dblclick(x, y); return; }
   const cdp = await page.context().newCDPSession(page);
+  // A toast of the previous gesture must be gone, so the answer below is this gesture's
+  await page.getByTestId('editor-code-toast').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: Math.round(x), y: Math.round(y) }] });
-  await page.waitForTimeout(900);
+  // Hold until the long press has answered (menu or toast) – under load its 550 ms timer can fire late, and lifting the
+  // finger earlier cancels it. A real finger also stays down until something happens.
+  const answered = page.getByTestId('editor-code-menu').or(page.getByTestId('editor-code-toast'));
+  await page.waitForTimeout(700);
+  await answered.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 
