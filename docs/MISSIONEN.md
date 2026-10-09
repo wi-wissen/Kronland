@@ -18,8 +18,13 @@ wird beim Laden über die ID aus `registry.js` geholt.
 
 ## Neue Mission
 
-1. Datei in `src/sim/missions/campaign/` anlegen (Vorlage: `c1-lindgrund.js`).
-2. In `src/sim/missions/registry.js` importieren und in `CAMPAIGN` einreihen.
+Neue Missionen entstehen als **Level-Ordner in Python** (`src/sim/missions/levels/<ordner>/`, Format und API in
+[SKRIPTE.md](SKRIPTE.md#kampagne-in-python)); Vorlagen sind Mission 1 (`levels/c1-lindgrund/`) und das Tutorial
+(`levels/tutorial/`). Ordner mit `"kind": "campaign"` oder `"tutorial"` holt die Registry von selbst. Die Missionen 2–6
+sind noch Missionsdateien in `src/sim/missions/campaign/` (Format unten) und ziehen nach und nach um.
+
+1. Ordner anlegen (oder für eine Missionsdatei: Datei in `src/sim/missions/campaign/`, Vorlage `c2-beaucroix.js`, in
+   `src/sim/missions/registry.js` importieren und in `CAMPAIGN` einreihen).
 3. `next` der vorigen Mission auf die neue ID setzen.
 4. `npx vitest run tests/sim/missions.test.js` – der Test richtet jede Kampagnenmission auf
    mehreren Karten ein und prüft Warnungen, Bezüge und Erreichbarkeit.
@@ -296,7 +301,8 @@ Befehl der Oberfläche: `{ type: 'mission', action: 'tribute', id }` (Ablehnung 
 
 ## Gesprächsfiguren
 
-Figur mit Ausrufezeichen; geht der genannte Held (`hero`, auch Liste; ohne = jeder Held) bis auf `radius`
+In Python-Leveln (Mission 1) stellt `npc()` die Figur auf; ein Held geht hin, wenn man ihn auswählt und die Figur
+antippt, und `@on_talk` entscheidet (SKRIPTE.md). In Missionsdateien gilt noch: Figur mit Ausrufezeichen; geht der genannte Held (`hero`, auch Liste; ohne = jeder Held) bis auf `radius`
 (Standard 2) Kacheln heran, läuft `onTalk`. Ein anderer Held bekommt höchstens den Hinweis `wrongHero`.
 
 ```js
@@ -307,28 +313,34 @@ npcs: {
 ```
 
 `look` ist eine Rolle des Figuren-Manifests (`serf`, `worker`, auch ein Held wie `hero.orrin`, der sich nach dem
-Gespräch per `remove` + `hero` anschließt – Mission 1). `speaker` lenkt die Dialogkamera auf die Figur.
+Gespräch per `remove` + `hero` anschließt). `speaker` lenkt die Dialogkamera auf die Figur.
 Aufstellen mit `{ type: 'npc', id }`; Bezug und Zustand unter `refs[id]` bzw. `state.npcs[id]`. Die Figur
 ist ein eigenes Entity (`kind: 'npc'`), kämpft nicht und kann nicht angegriffen werden.
 
 ## Tutorial-Schritte
 
-```js
-{
-  id: 'farm',
-  title: t('Bauernhof', 'Farm'),
-  text: t('Desktop-Text', '…'),
-  touch: t('Text für Touch-Geräte', '…'),          // optional
-  hint: { ui: ['build-farm', 'build-toggle'], entity: 'farm', area: 'tutShaft' },
-  onEnter: [ …Aktionen ], onDone: [ …Aktionen ],
-  done: { type: 'built', building: 'farm', placed: true }, // ohne done: „Weiter“-Knopf
-  allowNext: true,                                         // „Weiter“ trotz done
-}
+Das Tutorial ist ein Python-Programm (`levels/tutorial/mission.py`): Jeder Schritt ist ein Aufruf von `step()`, der
+wartet, bis seine Handlung erledigt, „Weiter“ gedrückt oder der Schritt übersprungen ist; was davor steht (Kamera,
+Gebäude, Räuber), läuft beim Betreten.
+
+```python
+farm = first("farm")
+step("workers", until=lambda: count("worker") >= 1, next=True,          # next=True: „Weiter“ trotz Bedingung
+     title={"de": "Arbeiter ziehen ein", "en": "Workers arrive"},
+     de="Arbeiter kommen von selbst …", en="Workers come …",
+     touch={"de": "…", "en": "…"},                                      # optional: Text für Touch-Geräte
+     hint={"entity": farm})                                             # oder "ui": [...], "area": "shaft"
+step("camera", ui="camera", next=True, …)                              # Prüfung, die nur die Oberfläche sieht
 ```
 
-- `hint.ui`: `data-testid`-Werte; der Zeiger (`UiPointer.vue`, auch für Missionsziele) umrandet das erste sichtbare Element der Liste.
-- `hint.entity` / `hint.area`: 3D-Marke auf der Karte (`src/render/hints.js`).
-- Überspringen geht immer; `onEnter` läuft trotzdem, damit spätere Schritte ihre Gebäude haben.
+- `hint["ui"]`: `data-testid`-Werte; der Zeiger (`UiPointer.vue`, auch für Missionsziele) umrandet das erste sichtbare Element der Liste.
+- `hint["entity"]` / `hint["area"]`: 3D-Marke auf der Karte (`src/render/hints.js`).
+- `ui="camera"`/`"selectSerfs"`: Die Engine liest die Prüfung aus `uiState().tutorial.watch` und meldet sie einmal als
+  Befehl `{ type: 'mission', action: 'ui', check }`; nur Meldungen nach Beginn des Schritts zählen.
+- „Weiter“ (`next`) gibt es bei Lese-Schritten (ohne `until`/`ui`) und mit `next=True`, „Überspringen“ (`skip`)
+  immer; beide sind Sim-Befehle. Was vor dem nächsten `step()` steht, läuft trotzdem, damit spätere Schritte ihre
+  Gebäude haben. Die Zahl der Schritte liest `scenarioSteps` (`outline.js`) aus dem Code, Zeilen im Tutorial
+  (`say(…, wait=False)`) halten keinen Schritt auf.
 
 ## Oberfläche
 
