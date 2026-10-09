@@ -79,6 +79,8 @@
   --sp-4: 1rem;
   --sp-5: 1.5rem;
   --touch: 2.75rem; /* 44 px minimum size for tap targets */
+  --ctl: var(--touch); /* height of every control: button, input, select */
+  --ctl-sm: 2.25rem; /* 36 px: only for dense rows (button.sm) */
   --hud-gap: 0.5rem;
   --top-h: 3.25rem;
   --bottom-h: 13rem;   /* measured and overwritten by the command bar */
@@ -135,7 +137,7 @@ body {
 .parchment {
   background: var(--parch-bg);
   color: var(--parch-ink);
-  border-radius: 0.375rem 0.875rem 0.625rem 0.375rem;
+  border-radius: var(--r-lg);
   box-shadow: 0 0 0 1px rgba(90, 60, 20, 0.35), 0 12px 32px rgba(0, 0, 0, 0.4), inset 0 0 36px rgba(140, 95, 35, 0.22);
 }
 .inset { background: var(--inset-bg); box-shadow: var(--inset-edge); border-radius: var(--r-md); }
@@ -170,8 +172,9 @@ button {
   background: linear-gradient(180deg, #634630, #452f1f);
   border: 1px solid var(--wood-950);
   border-radius: var(--r-md);
-  padding: 0.4375rem 0.75rem;
-  min-height: 2.375rem;
+  padding: 0.5rem 0.9375rem;
+  min-height: var(--ctl);
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; /* icon and text: 8 px apart, centred */
   cursor: pointer;
   box-shadow: inset 0 1px 0 rgba(255, 228, 180, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.18), 0 1px 0 rgba(0, 0, 0, 0.35);
   transition: background-color 0.12s, filter 0.12s, transform 0.06s;
@@ -208,7 +211,8 @@ button.coin .ico { width: 1.375rem; height: 1.375rem; }
 button.coin.on, button.coin.active { color: var(--gold-100); background: radial-gradient(circle at 50% 35%, #8a6a2c, #4a3415 75%); box-shadow: 0 0 0 2px var(--gold-300), 0 0 0 3px var(--wood-950), 0 0 14px rgba(243, 200, 94, 0.55); }
 .badge { position: absolute; top: -0.25rem; right: -0.25rem; min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem; border-radius: 0.5625rem; background: var(--bad); color: #2a0b05; font: 800 0.6875rem/1.125rem var(--body); text-align: center; box-shadow: 0 0 0 2px var(--wood-950); pointer-events: none; }
 
-button.icon-btn { display: inline-grid; place-items: center; padding: 0; width: 2.375rem; min-width: 2.375rem; }
+button.icon-btn { display: inline-grid; place-items: center; padding: 0; width: var(--ctl); min-width: var(--ctl); line-height: 1; }
+button.sm { min-height: var(--ctl-sm); padding: 0.25rem 0.75rem; }
 button .ico, .ico { width: 1.25rem; height: 1.25rem; flex: none; display: inline-block; vertical-align: middle; }
 .ico.glyph { color: inherit; }
 
@@ -243,7 +247,7 @@ button.act.ready { box-shadow: inset 0 0 0 1px var(--gold-300), 0 2px 0 var(--wo
 
 /* Segmented choice */
 .seg { display: flex; gap: 0; padding: 3px; border-radius: var(--r-md); background: var(--inset-bg); box-shadow: var(--inset-edge); }
-.seg > button { flex: 1; min-width: 0; border-radius: 0.375rem; background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-muted); }
+.seg > button { flex: 1; min-width: 0; border-radius: calc(var(--r-md) - 3px); background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-muted); }
 .seg > button:hover:not(:disabled):not(.active):not([aria-pressed='true']) { color: var(--ink); background: rgba(255, 225, 170, 0.06); filter: none; }
 .seg > button.active, .seg > button[aria-pressed='true'] {
   color: #2a1a06; font-weight: 700;
@@ -263,16 +267,14 @@ input[type='range']:focus-visible::-webkit-slider-thumb { outline: 2px solid var
 
 input[type='number'], input[type='text'], input:where(:not([type])) {
   font: inherit; color: var(--ink); background: var(--inset-bg); box-shadow: var(--inset-edge);
-  border: 1px solid var(--wood-950); border-radius: var(--r-md); padding: 0.4375rem 0.625rem; min-width: 0; min-height: 2.375rem;
+  border: 1px solid var(--wood-950); border-radius: var(--r-md); padding: 0.4375rem 0.625rem; min-width: 0; min-height: var(--ctl);
   font-variant-numeric: tabular-nums;
 }
 textarea:not(.ce-input) {
   font: inherit; color: var(--ink); background: var(--inset-bg); box-shadow: var(--inset-edge);
   border: 1px solid var(--wood-950); border-radius: var(--r-md); padding: 0.4375rem 0.625rem; min-width: 0; resize: vertical;
 }
-input[type='number']:focus-visible, input[type='text']:focus-visible, input:where(:not([type])):focus-visible, textarea:not(.ce-input):focus-visible {
-  outline: none; border-color: var(--gold-400); box-shadow: var(--inset-edge), 0 0 0 1px var(--gold-400);
-}
+
 
 input[type='checkbox'] { accent-color: var(--gold-400); width: 1.05rem; height: 1.05rem; }
 
@@ -280,15 +282,14 @@ input[type='checkbox'] { accent-color: var(--gold-400); width: 1.05rem; height: 
    the unfolded list itself is styled too, otherwise it stays native (on phones the familiar picker wheel). */
 select {
   appearance: none; -webkit-appearance: none;
-  font: inherit; color: var(--ink); cursor: pointer; min-width: 0; min-height: 2.375rem;
+  font: inherit; color: var(--ink); cursor: pointer; min-width: 0; min-height: var(--ctl);
   padding: 0.4375rem 2rem 0.4375rem 0.625rem; border: 1px solid var(--wood-950); border-radius: var(--r-md);
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='%23f3c85e' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 0.625rem center / 0.75rem 0.5rem,
-    linear-gradient(180deg, var(--wood-700), var(--wood-800));
-  box-shadow: inset 0 0 0 1px rgba(225, 168, 58, 0.28), inset 0 1px 0 rgba(255, 225, 170, 0.1), 0 1px 2px rgba(0, 0, 0, 0.35);
+    linear-gradient(180deg, #634630, #452f1f);
+  box-shadow: inset 0 1px 0 rgba(255, 228, 180, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.18), 0 1px 0 rgba(0, 0, 0, 0.35);
 }
-select:hover { box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.55), inset 0 1px 0 rgba(255, 225, 170, 0.1), 0 1px 2px rgba(0, 0, 0, 0.35); }
-select:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--gold-300), 0 0 0 2px rgba(243, 200, 94, 0.35); }
+select:hover:not(:disabled) { filter: brightness(1.14); }
 select:disabled { opacity: 0.55; cursor: default; }
 select option { background: var(--wood-850); color: var(--ink); }
 select option:checked { background: var(--gold-800); color: var(--gold-100); }
@@ -333,7 +334,7 @@ select option:checked { background: var(--gold-800); color: var(--gold-100); }
 /* Key chip */
 kbd {
   font-family: var(--body); font-size: 0.6875rem; font-weight: 700; line-height: 1;
-  padding: 0.1875rem 0.375rem; border-radius: 0.25rem; color: var(--parch-ink);
+  padding: 0.1875rem 0.375rem; border-radius: var(--r-sm); color: var(--parch-ink);
   background: linear-gradient(180deg, #fff, #e6d6b4); box-shadow: 0 1px 0 #9c8458, 0 0 0 1px rgba(90, 60, 20, 0.35);
 }
 
