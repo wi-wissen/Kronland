@@ -28,6 +28,7 @@ import { createVision, updateVision, revealStart, hashVision } from './systems/v
 import { setupBridges, hashBridges, checkBridgeSite, bridgeSiteAt, bridgeDone, bridgeGone } from './systems/bridges.js';
 import { levelSite } from './systems/terrain.js';
 import { updateTracks, thawGround, takeItem, putItem, addItem, setTrack, ITEM_KINDS, TRACK_MODES, levelTrackMode, setTrackMode, weatherTracks } from './systems/ground.js';
+import { addAi, runAi, hashAi } from '../ai/runner.js';
 
 /** Own key of a data table? Protects against commands like { building: 'constructor' }. */
 export const hasKey = (table, key) => typeof key === 'string' && Object.hasOwn(table, key);
@@ -97,7 +98,8 @@ export const hasKey = (table, key) => typeof key === 'string' && Object.hasOwn(t
 
 export class Sim {
   /**
-   * @param {{ seed?: number, players?: number, size?: number, mission?: any, fog?: boolean, startReveal?: number, world?: any, playerSetup?: any[] }} [opts]
+   * @param {{ seed?: number, players?: number, size?: number, mission?: any, fog?: boolean, startReveal?: number, world?: any, playerSetup?: any[], ai?: Array<string|null|undefined> }} [opts]
+   *   ai: difficulty of the computer opponent per player (null = no AI); the AI runs inside step (src/ai/runner.js)
    *   fog: fog of war (default on); startReveal: explored radius around each castle at the start
    *   tracks: game option 'off' | 'fading' | 'permanent' (settings; a level with world.tracks.mode fixes it)
    *   world: world instead of random map (src/sim/world.js: flat base map or saved editor map)
@@ -184,6 +186,9 @@ export class Sim {
     // Explore the start area around the castles, first vision
     revealStart(this);
     updateVision(this, true);
+    /** @type {import('../ai/AiPlayer.js').AiState[]} computer opponents: memory per AI player (src/ai/runner.js) */
+    this.ai = [];
+    (opts.ai ?? []).forEach((d, p) => { if (d && p < this.players.length) addAi(this, p, d); });
   }
 
   /**
@@ -239,7 +244,7 @@ export class Sim {
       id: this.nextId++, kind: 'hero', hero, owner, px: tileCenter(t % this.map.width), py: tileCenter((t / this.map.width) | 0),
       path: [], hp: HEROES[hero].hp, down: false, downTimer: 0, ready: {}, order: { type: 'idle' }, targetId: 0, cooldown: 0,
     };
-    // Without castle (coding adventure): face east, so that hero.step() goes where the hero visibly looks
+    // Without castle (coding adventure): face east, so that nelia.step() goes where the hero visibly looks
     if (!hq) h.face = 1;
     this.entities.set(h.id, h);
     return h;
@@ -415,7 +420,7 @@ export class Sim {
 
   // ---------- Commands ----------
 
-  /** Queue a command for the next tick. Same interface for players, AI and network. */
+  /** Queue a command for the next tick. Same interface for players, scripts and network (the AI fills pending inside step). */
   command(cmd) { this.pending.push(cmd); }
 
   applyCommand(cmd) {
@@ -983,6 +988,8 @@ export class Sim {
   /** Compute one tick (100 ms). @param {any[]} [commands] additional commands for this tick */
   step(commands = []) {
     this.events = [];
+    // Computer opponents decide on the state of the previous tick; their commands join this tick's (src/ai/runner.js)
+    runAi(this);
     const cmds = this.pending.concat(commands);
     this.pending = [];
     for (const c of cmds) this.applyCommand(c);
@@ -1017,7 +1024,7 @@ export class Sim {
 
   /**
    * Computer opponent setting: thalers it receives every BALANCE.aiBonusTicks (0 = none). Called by the AI
-   * on every client alike; part of the save game and the state hash.
+   * inside the tick (src/ai/runner.js); part of the save game and the state hash.
    */
   setAi(player, bonusGold) {
     const p = this.players[player];
@@ -1075,6 +1082,7 @@ export class Sim {
     hashVision(this, h);
     hashBridges(this, h);
     this.mission?.hash(h);
+    hashAi(this, h);
     return h.value;
   }
 

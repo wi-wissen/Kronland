@@ -303,7 +303,7 @@ Drei Schichten, jede einzeln getestet (`tests/save/`):
 
 | Datei | Aufgabe |
 |---|---|
-| `sim/serialize.js` | `saveGame(sim, extra)` → reiner JSON-Zustand der Simulation, `loadGame(state)` → `Sim`. Karte als Base64 (Int32/Uint8), Nebel als Bitfelder, KI-Zustand und Kamera in `extra`. |
+| `sim/serialize.js` | `saveGame(sim, extra)` → reiner JSON-Zustand der Simulation, `loadGame(state)` → `Sim`. Karte als Base64 (Int32/Uint8), Nebel als Bitfelder, KI-Gedächtnis (`ai`) als Teil der Simulation; Kamera und Etappe in `extra` (ältere Stände mit `extra.ais` werden übernommen). |
 | `save/format.js` | Umschlag mit Kennzeichen und Versionen, Metadaten, Prüfung (`parseSaveText`), Migration, Dateiname. Fehler als `SaveError` mit i18n-Code `saves.err.*`. |
 | `save/store.js`, `backends.js`, `codec.js` | Mehrere Plätze: `index` (Liste mit Vorschaubild) + `slot:<id>` (komprimierter Umschlag). Schreibvorgänge in einer Warteschlange; Platz und Liste werden gemeinsam geschrieben (`backend.atomic`). |
 
@@ -353,7 +353,8 @@ nicht mehr für immer anhalten. `src/game/loop.js`:
   (8 Takte). Bei langsamer Darstellung (unter 10 Bildern/s, etwa Software-WebGL) bleibt das Spiel so in Echtzeit,
   statt nur einen Takt je Bild zu rechnen; nur längere Lücken (Tab im Hintergrund) werden abgeschnitten.
 - `FaultGuard` fängt Fehler je Bereich ab (`sim`, `ai`, `render`, `audio`, `ui`, `dev`), protokolliert gedrosselt
-  und zählt Fehler in Folge. KI, Ton und Entwicklermodus geben nie auf (die Partie läuft weiter); die Simulation
+  und zählt Fehler in Folge. KI-Fehler fängt die Simulation selbst ab (Ereignis `aiError`, siehe Multiplayer), die
+  Engine protokolliert sie nur. KI, Ton und Entwicklermodus geben nie auf (die Partie läuft weiter); die Simulation
   nach 3 fehlgeschlagenen Takten in Folge, Darstellung und Oberfläche nach 30 Bildern. Dann hält die Engine das
   Spiel an (`engine.crash`, `onCrash`) und die Oberfläche zeigt den Fehlerdialog: „Letzten Spielstand laden“
   (neuester Platz, meist der Autosave), „Seite neu laden“ (setzt `sessionStorage['kronland-crash']`, das
@@ -417,9 +418,34 @@ Ablegen (fensterweit, damit eine danebengeworfene Datei nicht das Spiel verläss
 ## Multiplayer (später)
 
 Lockstep: Alle Clients rechnen dieselbe Simulation, ausgetauscht werden nur Befehle pro Takt.
-Ein kleiner WebSocket-Relay genügt. Desyncs erkennt der Zustands-Hash. Der Computergegner läuft auf jedem Client
-im selben Takt mit (`Engine.stepOnce`: erst `ai.update()`, dann `sim.step()`) und rechnet nur ganzzahlig; seine
-Einstellungen, die die Simulation betreffen (Bonus-Taler der Stufe „Schwer“, `Sim.setAi`), stehen im Spielstand und im Hash.
+Ein kleiner WebSocket-Relay genügt. Desyncs erkennt der Zustands-Hash.
+
+**Computergegner in der Simulation** (`src/ai/runner.js`). Die KI ist Teil des Takts, nicht der Engine; jeder Client
+rechnet ihre Entscheidungen selbst, übers Netz gehen nur die Befehle der Menschen.
+- **Zustand:** `sim.ai` – je KI-Spieler ein reiner JSON-Datensatz (nach Spieler sortiert): `player`, `difficulty`,
+  `rng` (eigener Zufallsgenerator), `armyState` (`gather`/`attack`/`defend`), `attackStrength`, `attackNowSeen`,
+  `forceAttack`, `errors`, `disabled`. Keine Objektverweise, nur IDs; gespeichert von `serialize.js`, im Hash
+  (`hashAi`, nur wenn es KIs gibt). Alles andere (Lagebild, Erreichbarkeit, Bauplan, Puffer) rechnet `AiPlayer` bei
+  jeder Entscheidung neu aus dem Zustand; die `AiPlayer`-Objekte sind nur ein Zwischenspeicher je Simulation
+  (`aiOf(sim, p)`) ohne eigenes Gedächtnis.
+- **Einstellungen:** freie Partie `new Sim({ ai: [null, 'normal', …] })` bzw. `addAi(sim, p, stufe)`; Missionen legen
+  KIs für Spieler der Art `ai` beim Erzeugen an (`createMissionSim(id, { ai: false })` ohne). Missionsvorgaben
+  (`ai(…)` im Skript, `startDelay`, `forbid`, Aggressivität, Leibeigenen-Zahl) stehen im Missionszustand
+  (`sim.mission.state.ai`); die KI leitet ihre Werte daraus bei jedem Takt ab.
+- **Ablauf:** `Sim.step` ruft zuerst `runAi()` – auf dem Stand nach dem vorigen Takt. Jede KI denkt in ihrem Takt
+  (`DIFFICULTY.think`, je Spieler um `7·Spieler` Takte versetzt, damit sich die Last verteilt). Ihre Befehle gehen
+  über `sim.command` in `pending` und werden **im selben Takt** geprüft und angewendet wie jeder andere Befehl:
+  zuerst die der KI (nach Spieler), dann die an `step` übergebenen. Regeln lassen sich so nicht umgehen. Bonus-Taler
+  der Stufe „Schwer“ (`Sim.setAi`) stehen ebenfalls im Spielstand und im Hash.
+- **Fehler:** Eine Ausnahme im KI-Code ist deterministisch (gleicher Code, gleicher Zustand). Die Entscheidung
+  verfällt (keine Befehle), die Simulation meldet `aiError` und zählt `errors`; nach `AI_ERROR_LIMIT` (3) Fehlern in
+  Folge schaltet sie die KI ab (`disabled`, Ereignis `aiDisabled`) – auf jedem Client gleich. Nicht abgedeckt sind
+  Fehler, die nur auf einem Rechner auftreten (Speicher, Stapelüberlauf); die erkennt der Hash als Desync.
+- **Messung:** Die Engine setzt `sim.clock` (Wanduhr, nicht im Zustand); `runAi` legt die KI-Zeit in `sim.aiMs` ab
+  (Entwicklermodus „KI-Zeit“, `scripts/stress-run.js`).
+- **Tests:** `tests/sim/aiLockstep.test.js` (Hash in jedem Takt nach Laden zur Halbzeit gleich, zwei Simulationen mit
+  gleichem Befehlslog gleich, JSON-Rundreise, Fehlerbehandlung, Missions-KI), `tests/sim/integers.test.js`
+  (gleiche Befehle in zwei Läufen und nach dem Laden).
 
 ## JavaScript mit Typ-Hinweisen
 

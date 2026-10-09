@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { Sim } from '../../src/sim/sim.js';
 import { AiPlayer } from '../../src/ai/AiPlayer.js';
+import { addAi } from '../../src/ai/runner.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { TileMap, WATER, BRIDGE, OCCUPIED, RESERVED, CLIFF } from '../../src/sim/map.js';
 import { findPath } from '../../src/sim/pathfinding.js';
@@ -212,32 +213,28 @@ describe('Decorations', () => {
 });
 
 describe('Bridges: determinism, save games, AI', () => {
-  const play = (sim, ais, n) => { for (let i = 0; i < n; i++) { for (const a of ais) a.update(); sim.step(); } };
 
   it('save game with bridge and reserved bridgeheads continues exactly the same', () => {
     const sim = newSim(42, { heroes: ['nelia', 'taran'] });
-    const ais = [new AiPlayer(sim, 0, 'hard'), new AiPlayer(sim, 1, 'normal')];
-    play(sim, ais, 600);
+    addAi(sim, 0, 'hard'); addAi(sim, 1, 'normal');
+    sim.run(600);
     const site = sim.bridgeSites[0];
     sim.createBuilding(0, 'bridge', site.x, site.y, true);
-    const data = JSON.parse(JSON.stringify(saveGame(sim, { ais: ais.map((a) => a.getState()) })));
-    const sim2 = loadGame(data);
-    const ais2 = data.extra.ais.map((st) => AiPlayer.fromState(sim2, st));
+    const sim2 = loadGame(JSON.parse(JSON.stringify(saveGame(sim))));
     expect(sim2.bridgeSites).toEqual(sim.bridgeSites);
     const [hx, hy] = bridgeheads(sim2.bridgeSites[1] ?? site)[0];
     expect(sim2.map.flags[sim2.map.idx(hx, hy)] & RESERVED).toBe(RESERVED);
     expect(sim2.map.flags[sim2.map.idx(site.x, site.y)] & BRIDGE).toBe(BRIDGE);
     expect(sim2.hash()).toBe(sim.hash());
-    play(sim, ais, 1500); play(sim2, ais2, 1500);
+    sim.run(1500); sim2.run(1500);
     expect(sim2.hash()).toBe(sim.hash());
   });
 
   it('AI vs AI: hard beats easy, only own valid commands', () => {
     const sim = newSim(1, { heroes: ['nelia', 'taran'] });
-    const ais = [new AiPlayer(sim, 0, 'hard'), new AiPlayer(sim, 1, 'easy')];
+    addAi(sim, 0, 'hard'); addAi(sim, 1, 'easy');
     const rejects = [];
     for (let t = 0; t < 36000 && sim.winner === null; t++) {
-      for (const a of ais) if (!sim.players[a.player].defeated) a.update();
       for (const e of sim.step()) if (e.type === 'rejected') rejects.push(e.reason);
     }
     expect(sim.winner).toBe(0);

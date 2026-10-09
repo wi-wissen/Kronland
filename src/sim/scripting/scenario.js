@@ -4,9 +4,8 @@
 // its Python sections are executed by the ScriptHost. Format: docs/SKRIPTE.md.
 
 export const SCENARIO_FORMAT = 'kronland-scenario';
-/** Current version: texts inline in Python, end rule in `end`, sections from files. Version 1 still loads. */
+/** Current version: texts inline in Python, end rule in `end`, sections from files. Older versions do not load. */
 export const SCENARIO_VERSION = 2;
-const VERSIONS = [1, 2];
 /** How a level ends: by its objectives (all primary done, castle lost) or only by victory()/defeat(). */
 export const END_RULES = ['objectives', 'script'];
 
@@ -21,7 +20,7 @@ export const TRACK_WHO = ['all', 'none', 'heroes'];
 export const VISIBILITY = ['open', 'collapsed', 'hidden'];
 
 /** Limits for scenarios from files and other people (map size, players, code length …). */
-export const SCENARIO_LIMITS = { mapSize: 256, players: 8, sections: 32, code: 200_000, texts: 2000, text: 4000 };
+export const SCENARIO_LIMITS = { mapSize: 256, players: 8, sections: 32, code: 200_000, text: 4000 };
 const KEY_RE = /^[A-Za-z][\w-]{0,63}$/;
 /** File name of a section in a level folder (no sub-folders). */
 export const SECTION_FILE_RE = /^[A-Za-z][\w-]{0,63}\.py$/;
@@ -37,7 +36,7 @@ export function validateScenario(s) {
   const out = [];
   if (!s || typeof s !== 'object') return ['not an object'];
   if (s.format !== SCENARIO_FORMAT) out.push(`format must be "${SCENARIO_FORMAT}"`);
-  if (!VERSIONS.includes(s.version)) out.push(`version ${s.version} is not supported`);
+  if (s.version !== SCENARIO_VERSION) out.push(`version ${s.version} is not supported`);
   if (s.end !== undefined && !END_RULES.includes(s.end)) out.push(`end must be ${END_RULES.join(' or ')}`);
   if (s.reset !== undefined && typeof s.reset !== 'boolean') out.push('reset must be true or false');
   if (typeof s.id !== 'string' || !/^[\w-]+$/.test(s.id)) out.push('id missing or contains invalid characters');
@@ -60,17 +59,6 @@ export function validateScenario(s) {
       && (sp.portrait === undefined || (assetPathOk(sp.portrait) && /\.(png|jpe?g|webp)$/i.test(sp.portrait)))
       && (sp.color === undefined || /^#[0-9a-f]{6}$/i.test(sp.color));
     if (!ok) out.push(`speakers.${k.slice(0, 40)}: name, portrait (assets/….png) and color (#rrggbb)`);
-  }
-  const texts = s.texts ?? {};
-  if (Object.keys(texts).length > SCENARIO_LIMITS.texts) out.push(`at most ${SCENARIO_LIMITS.texts} texts`);
-  for (const [k, v] of Object.entries(texts)) {
-    if (!KEY_RE.test(k)) out.push(`texts: invalid key "${k.slice(0, 40)}"`);
-    else if (!isText(v)) out.push(`texts.${k} must be a text`);
-    else if (textLength(v) > SCENARIO_LIMITS.text) out.push(`texts.${k} too long`);
-  }
-  for (const [k, v] of Object.entries(s.voice ?? {})) {
-    const paths = typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v) : [null];
-    if (!paths.every(assetPathOk)) out.push(`voice.${k.slice(0, 40)}: only paths inside the level`);
   }
   for (const k of Object.keys(s.world?.places ?? {})) if (!KEY_RE.test(k)) out.push(`world.places: invalid name "${k.slice(0, 40)}"`);
   for (const k of ['width', 'height', 'size']) {
@@ -136,8 +124,8 @@ export function unpackLevel(s) {
   return { json, files };
 }
 
-/** End rule of a scenario: version 1 ended only by script, version 2 by its objectives unless `end` says otherwise. */
-export const endRuleOf = (s) => s.end ?? (s.version >= 2 ? 'objectives' : 'script');
+/** End rule of a scenario: by its objectives unless `end` says otherwise. */
+export const endRuleOf = (s) => s.end ?? 'objectives';
 
 /**
  * Scenario → mission definition for the mission runtime (runtime.js).

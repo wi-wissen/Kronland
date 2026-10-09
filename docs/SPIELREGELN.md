@@ -418,7 +418,9 @@ Ruinen (wie im Original). Sein Computergegner gibt keine Befehle mehr.
 Das Original hatte keine Aufbau-KI. Kronland bekommt eine eigene: Strategie-Ebene
 (Utility-Bewertung), Bauplan mit Prioritäten, Armee-Zustandsmaschine
 (Verteidigen → Angreifen → Rückzug → Erholen), Schwierigkeit über Reaktionszeit,
-Armeegröße und Aggressivität. Die KI nutzt exakt dieselben Befehle wie der Spieler.
+Armeegröße und Aggressivität. Die KI nutzt exakt dieselben Befehle wie der Spieler; sie läuft im Takt der
+Simulation, ihre Befehle werden im selben Takt geprüft wie die des Spielers (docs/ARCHITEKTUR.md, Multiplayer).
+Wirft ihr Code dreimal in Folge einen Fehler, schaltet sie sich ab und der Spieler bekommt eine Meldung.
 
 Zusätzlich: Gebäude-Technologien (nur bei doppelten Kosten im Lager, ab 25 Arbeitern und
 Kaserne), Reparatur beschädigter Gebäude (brennende zuerst), Marktplatz bei Engpässen (knappster

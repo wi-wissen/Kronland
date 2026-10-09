@@ -40,19 +40,21 @@ test('single exceptions in rendering and AI do not stop the game', async ({ page
     const frame = e.renderer.frame.bind(e.renderer);
     let once = true;
     e.renderer.frame = (...a) => { if (once) { once = false; throw new Error('Test error rendering'); } return frame(...a); };
+    // the AI runs inside sim.step: the simulation drops the failed decision and reports it (event aiError)
     const ai = e.ais[0];
-    const upd = ai.update.bind(ai);
+    const run = ai.run.bind(ai);
     let aiOnce = true;
-    ai.update = () => { if (aiOnce) { aiOnce = false; throw new Error('Test error AI'); } return upd(); };
+    ai.run = () => { if (aiOnce) { aiOnce = false; throw new Error('Test error AI'); } return run(); };
     window.__kronland.renderer.unitYaw?.set([...e.sim.entities.values()].find((x) => x.kind === 'unit')?.id ?? 0, Infinity);
     e.setSpeed(2);
     return { tick: e.sim.tick, frame: e.renderer.frameNo };
   });
   await page.waitForFunction((b) => window.__kronland.sim.tick > b.tick + 20 && window.__kronland.renderer.frameNo > b.frame + 10, before, { timeout: 120_000 });
-  const st = await page.evaluate(() => ({ crash: window.__kronland.crash, faults: window.__kronland.faults.total }));
+  const st = await page.evaluate(() => ({ crash: window.__kronland.crash, faults: window.__kronland.faults.total, aiDisabled: window.__kronland.sim.ai[0].disabled }));
   expect(st.crash).toBe(null);
   expect(st.faults.render).toBeGreaterThanOrEqual(1);
   expect(st.faults.ai).toBe(1);
+  expect(st.aiDisabled).toBe(false);
   await expect(page.getByTestId('crash-dialog')).toBeHidden();
   expect(errors).toEqual([]);
 });

@@ -3,7 +3,7 @@ import { Sim } from '../../src/sim/sim.js';
 import { MissionRuntime, createMissionSim, createScenarioSim } from '../../src/sim/missions/runtime.js';
 import { CAMPAIGN, allMissions, getMission } from '../../src/sim/missions/registry.js';
 import { saveGame, loadGame } from '../../src/sim/serialize.js';
-import { AiPlayer } from '../../src/ai/AiPlayer.js';
+import { aiOf } from '../../src/ai/runner.js';
 import { tr } from '../../src/i18n/tr.js';
 import * as api from '../../src/sim/missions/setupApi.js';
 import { act, build, own, hero, objective, stepId, until, idle, P, ref, refIds, talkTo, py, stepWithEvent, takeOut, heroOf } from './missionBot.js';
@@ -105,7 +105,7 @@ describe('Objectives', () => {
       'make_place("goal", goal.x, goal.y, 4)',
       'centre = buildings("villageCenter")[0]',
       'objective("live", lambda: (min(30, int(time())), 30), clock=True, de="x", en="x")',
-      'objective("go", lambda: len(units_in(place("goal"), who="hero")) > 0, de="x", en="x")',
+      'objective("go", lambda: len(figures_near(place("goal"), 4, kind="hero", side="own")) > 0, de="x", en="x")',
       'objective("keep", lambda: centre.alive, hold=True, de="x", en="x")',
     ].join('\n');
     const sim = testSim(code);
@@ -268,10 +268,10 @@ describe('Mission program: events and actions', () => {
       '    wait(60)',
       '    ai(ENEMY, difficulty="hard", aggression="aggressive")',
     ].join('\n'), { end: 'script', players: [{ kind: 'human', hero: 'nelia' }, { kind: 'ai', difficulty: 'normal', startDelay: 30, forbid: ['residence'] }] });
-    const ai = new AiPlayer(sim, 1, 'normal');
-    for (let i = 0; i < 290; i++) { ai.update(); sim.step(); }
+    const ai = aiOf(sim, 1); // players of kind 'ai' are computer opponents inside the simulation
+    sim.run(290);
     expect([...sim.entities.values()].filter((e) => e.kind === 'building' && e.owner === 1).length).toBe(2); // still waiting
-    for (let i = 0; i < 2000; i++) { ai.update(); sim.step(); }
+    sim.run(2000);
     expect(own(sim, 'residence', 1).length).toBe(0);
     expect([...sim.entities.values()].filter((e) => e.kind === 'building' && e.owner === 1).length).toBeGreaterThan(2);
     expect(ai.difficulty).toBe('hard');
@@ -650,7 +650,8 @@ describe('Campaign', () => {
   };
 
   it('mission 6: Malvor thaws the lake as soon as someone stands on the ice, then he has to reload and wait', () => {
-    const sim = createMissionSim('c6');
+    // without Malvor's computer opponent (its economy, e.g. taxes, changes how fast the weather plant charges): only the script rule counts
+    const sim = createMissionSim('c6', { ai: false });
     const u = serfOnIce(sim);
     sim.run(15);
     expect(sim.weather.state).toBe('summer');
@@ -687,10 +688,9 @@ describe('Campaign', () => {
 describe('Determinism and save games', () => {
   function runMission(id, ticks, seed) {
     const sim = createMissionSim(id, { seed });
-    const ais = sim.mission.def.players.map((p, i) => (p.kind === 'ai' ? new AiPlayer(sim, i, p.difficulty) : null)).filter(Boolean);
     const hashes = [];
-    for (let i = 0; i < ticks; i++) { for (const a of ais) a.update(); sim.step(); if (i % 400 === 0) hashes.push(sim.hash()); }
-    return { sim, ais, hashes };
+    for (let i = 0; i < ticks; i++) { sim.step(); if (i % 400 === 0) hashes.push(sim.hash()); }
+    return { sim, hashes };
   }
 
   it('same mission and same commands yield the same course', () => {
@@ -700,17 +700,16 @@ describe('Determinism and save games', () => {
 
   it('mission state is saved and loaded; afterwards everything continues identically', () => {
     // Morvale: villages (diplomacy), tributes, conversation figures and Taran's side change after loading
-    const { sim, ais } = runMission('c5', 1600);
-    const data = JSON.parse(JSON.stringify(saveGame(sim, { ais: ais.map((a) => a.getState()) })));
+    const { sim } = runMission('c5', 1600);
+    const data = JSON.parse(JSON.stringify(saveGame(sim)));
     expect(data.mission.id).toBe('c5');
     const sim2 = loadGame(data);
-    const ais2 = data.extra.ais.map((s) => AiPlayer.fromState(sim2, s));
     expect(sim2.mission).toBeInstanceOf(MissionRuntime);
     expect(sim2.mission.state).toEqual(sim.mission.state);
     expect(sim2.hash()).toBe(sim.hash());
     for (let i = 0; i < 2500; i++) {
-      for (const a of ais) a.update(); sim.step();
-      for (const a of ais2) a.update(); sim2.step();
+      sim.step();
+      sim2.step();
     }
     expect(sim2.hash()).toBe(sim.hash());
     expect(sim2.mission.state).toEqual(sim.mission.state);
