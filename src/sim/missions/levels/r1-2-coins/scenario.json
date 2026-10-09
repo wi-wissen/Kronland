@@ -11,8 +11,8 @@
     "en": "The counting loop: Nelia lays a path of coins for the maids – five, nine, in a zigzag and around the fire."
   },
   "briefing": {
-    "de": "Nelia ist aus dem Kornlager entkommen. Zwei Mägde wollen nachkommen und brauchen ein Zeichen im Schnee: Taler. nelia.put() legt einen Taler auf die Kachel, auf der Nelia steht. Statt zehnmal dasselbe zu schreiben, wiederholt „for i in range(10):“ die eingerückten Zeilen zehnmal. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen.",
-    "en": "Nelia has escaped from the granary. Two maids want to follow and need a sign in the snow: coins. nelia.put() lays a coin on the tile Nelia stands on. Instead of writing the same thing ten times, “for i in range(10):” repeats the indented lines ten times. Run starts the stage over every time: think first, then run."
+    "de": "Nelia ist aus dem Kornlager entkommen. Zwei Mägde wollen nachkommen und brauchen ein Zeichen im Schnee: Taler. nelia.put() legt einen Taler auf die Kachel, auf der Nelia steht. Statt zehnmal dasselbe zu schreiben, wiederholt „for i in range(10):“ die eingerückten Zeilen zehnmal. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Weg, Hang und Holzstoß gibt es in drei Welten – mit dem Umschalter siehst du, wie sich nur die Zahl in range() ändert.",
+    "en": "Nelia has escaped from the granary. Two maids want to follow and need a sign in the snow: coins. nelia.put() lays a coin on the tile Nelia stands on. Instead of writing the same thing ten times, “for i in range(10):” repeats the indented lines ten times. Run starts the stage over every time: think first, then run. Path, slope and woodpile come in three worlds – the switcher shows how only the number in range() changes."
   },
   "victoryText": {
     "de": "Die Mägde haben den Weg aus Talern gefunden – zu dritt geht es weiter durch den Schnee.",
@@ -22,9 +22,14 @@
     "de": ["for-Schleife", "range()", "Vorhersagen", "Schleife mit mehreren Befehlen"],
     "en": ["for loop", "range()", "predicting", "loop with several commands"]
   },
+  "worlds": [
+    { "id": "normal", "title": { "de": "Normalfall", "en": "Normal case" } },
+    { "id": "near", "title": { "de": "Alles ganz nah", "en": "Everything close" } },
+    { "id": "far", "title": { "de": "Alles weit weg", "en": "Everything far away" } }
+  ],
   "world": {
     "base": "flat",
-    "width": 24,
+    "width": 26,
     "height": 38,
     "fog": false,
     "starts": [{ "x": 2, "y": 3 }],
@@ -33,10 +38,8 @@
       "a_view": { "x": 9, "y": 4, "r": 4 },
       "b_start": { "x": 2, "y": 13, "r": 0 },
       "b_view": { "x": 11, "y": 14, "r": 4 },
-      "b_end": { "x": 20, "y": 13, "r": 0 },
       "c_start": { "x": 2, "y": 26, "r": 0 },
       "c_view": { "x": 7, "y": 24, "r": 4 },
-      "c_goal": { "x": 7, "y": 21, "r": 0 },
       "d_start": { "x": 4, "y": 34, "r": 0 },
       "d_view": { "x": 7, "y": 33, "r": 4 }
     }

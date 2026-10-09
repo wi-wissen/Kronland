@@ -3,7 +3,7 @@ import { playUrl } from './paths.js';
 
 // Worlds of a coding mission (docs/SKRIPTE.md#welten) on I.4: the switcher starts the stage in another world (code
 // stays), „Prüfen“ plays the program through all worlds without pictures and names the world that fails; once all
-// worlds pass, the next stage begins. Desktop and phone (sheet).
+// worlds pass, the next stage begins; the same on the first stage of I.M. Desktop and phone (sheet).
 
 const SLOW = { timeout: 30_000 };
 const SHOTS = process.env.WORLD_SHOTS ?? null;
@@ -93,6 +93,43 @@ test('I.4: world switcher keeps the code, „Prüfen“ names the failing world,
   await shot('check-passed');
   await expect.poll(async () => (await mission(page)).active, { timeout: 60_000 }).toEqual(['hut']);
   await expect(page.getByTestId('script-goal-hut')).toBeVisible(SLOW);
+  expect(errors).toEqual([]);
+});
+
+test('I.M: the first stretch of undergrowth in three worlds – a written-out way fails, the general rule passes', async ({ page }, info) => {
+  test.setTimeout(240_000);
+  const errors = await fresh(page);
+  if (SHOTS && !info.project.use.hasTouch) await page.setViewportSize({ width: 1440, height: 900 });
+  const shot = async (name) => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${info.project.name}-r1-m-${name}.png` }); };
+  await page.goto(playUrl('?mission=r1-m&no-models'));
+  await page.waitForFunction(() => !!window.__kronland, null, SLOW);
+  await openPanel(page);
+  await expect(page.getByTestId('script-goal-edge')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId('script-worlds').getByRole('radio')).toHaveCount(3);
+
+  // "Alles ganz nah": a tree right in front of Nelia
+  await page.getByTestId('script-world-near').click();
+  await expect.poll(async () => (await mission(page)).world, SLOW).toBe('near');
+  await expect.poll(async () => (await mission(page)).tile, SLOW).toEqual([7, 2]);
+  await openPanel(page);
+  const ta = page.getByTestId('section-player').getByTestId('code-input');
+  // The way of the normal case, written out: blocked at once in the near world, lost in the far one
+  await ta.fill('nelia.step(19)\nnelia.turn_right()\nnelia.step(6)\nnelia.turn_right()\nnelia.step(17)\nnelia.turn_right()\nnelia.step(4)\nnelia.turn_right()\nnelia.step(10)\n');
+  await page.getByTestId('script-check').click();
+  const res = page.getByTestId('script-check-result');
+  await expect(res).toHaveAttribute('data-passed', 'false', { timeout: 90_000 });
+  await expect(page.getByTestId('script-check-normal')).toHaveAttribute('data-status', 'solved');
+  await expect(page.getByTestId('script-check-near')).toHaveAttribute('data-status', 'error');
+  await expect(page.getByTestId('script-check-near')).toContainText(/Zeile 1/);
+  await expect(page.getByTestId('script-check-far')).toHaveAttribute('data-status', 'error');
+  await shot('check-failed');
+
+  // Walk, otherwise turn right: every world passes, the thicket follows
+  await ta.fill('while not nelia.is_at(place("exit")):\n    if nelia.can_step():\n        nelia.step()\n    else:\n        nelia.turn_right()\n');
+  await page.getByTestId('script-check').click();
+  await expect(res).toHaveAttribute('data-passed', 'true', { timeout: 90_000 });
+  await shot('check-passed');
+  await expect.poll(async () => (await mission(page)).active, { timeout: 60_000 }).toEqual(['thicket']);
   expect(errors).toEqual([]);
 });
 

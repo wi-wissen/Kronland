@@ -11,8 +11,8 @@
     "en": "Your own commands with def: Orrin's detour round the ruin, a changed function and coins left and right of the path."
   },
   "briefing": {
-    "de": "Auf dem Dorfplatz von Lindgrund wartet Orrin, ein Händler. Er kennt eine Abkürzung um die alte Ruine und hat sie als Funktion aufgeschrieben: „def around_ruin():“ gibt einer Folge von Befehlen einen Namen, „around_ruin()“ führt sie aus – so oft man will. nelia.left() und nelia.right() verraten, was neben Nelia liegt, ohne dass sie sich dreht. Ausführen beginnt die Etappe jedes Mal von vorn.",
-    "en": "Orrin, a merchant, is waiting on the village square of Lindgrund. He knows a shortcut round the old ruin and wrote it down as a function: “def around_ruin():” gives a sequence of commands a name, “around_ruin()” runs it – as often as you like. nelia.left() and nelia.right() tell what lies beside Nelia without turning her. Run starts the stage over every time."
+    "de": "Auf dem Dorfplatz von Lindgrund wartet Orrin, ein Händler. Er kennt eine Abkürzung um die alte Ruine und hat sie als Funktion aufgeschrieben: „def around_ruin():“ gibt einer Folge von Befehlen einen Namen, „around_ruin()“ führt sie aus – so oft man will. nelia.left() und nelia.right() verraten, was neben Nelia liegt, ohne dass sie sich dreht. Ausführen beginnt die Etappe jedes Mal von vorn. Ruine und Taler gibt es in drei Welten – „Prüfen“ zeigt, ob deine Befehle in allen klappen.",
+    "en": "Orrin, a merchant, is waiting on the village square of Lindgrund. He knows a shortcut round the old ruin and wrote it down as a function: “def around_ruin():” gives a sequence of commands a name, “around_ruin()” runs it – as often as you like. nelia.left() and nelia.right() tell what lies beside Nelia without turning her. Run starts the stage over every time. Ruin and coins come in three worlds – “Check” shows whether your commands work in all of them."
   },
   "victoryText": {
     "de": "Orrin hat seine Taler wieder – und Nelia einen Partner, der mehr weiß, als er sagt.",
@@ -22,6 +22,11 @@
     "de": ["Funktionen ohne Parameter (def)", "Aufruf", "eine Stelle ändern, überall wirksam", "eigene Befehle"],
     "en": ["functions without parameters (def)", "calls", "change one place, effective everywhere", "your own commands"]
   },
+  "worlds": [
+    { "id": "normal", "title": { "de": "Normalfall", "en": "Normal case" } },
+    { "id": "near", "title": { "de": "Alles ganz nah", "en": "Everything close" } },
+    { "id": "far", "title": { "de": "Alles weit weg", "en": "Everything far away" } }
+  ],
   "world": {
     "base": "flat",
     "width": 24,
