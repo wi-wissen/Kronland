@@ -202,25 +202,50 @@ export class ScriptHost {
   /**
    * One tick: first the mission program (on_start, events, @every/@on_enter, tasks), then the player program with
    * its own event handlers – both in fixed order, so everything stays deterministic.
+   *
+   * Every sim event reaches each program exactly once, in the order it happened: a program hears the events of
+   * the tick up to the moment of its dispatch (UI and AI commands, systems, objectives, and for the player program
+   * also the mission program of this tick). What happens later in the tick – the commands of the program itself
+   * (build(), nelia.use() …) and, for the mission program, those of the player program – is kept in `state.carry`
+   * and delivered at the start of the next tick, before that tick's events. `carry` is part of the save game and
+   * the state hash.
    */
   update(sim) {
     this.sim = sim;
+    const st = this.state;
+    const carry = st.carry ?? {};
+    /** Index in sim.events up to which a program has been offered the events of this tick */
+    const seen = { mission: 0, player: 0 };
     if (this.vms.mission) {
-      if (!this.state.started) { this.state.started = true; this.fire('on_start', {}, [], 'mission'); }
-      this.dispatch(sim, 'mission');
+      if (!st.started) { st.started = true; this.fire('on_start', {}, [], 'mission'); }
+      this.dispatch(sim, 'mission', carry.mission);
+      seen.mission = sim.events.length;
       this.runVm('mission', BUDGET.mission);
     }
     if (this.vms.player) {
       // While the debugger holds the player program, no new event tasks start (they would run past the halt)
-      if (this.playerListens() && !this.playerHeld()) this.dispatch(sim, 'player');
+      if (this.playerListens() && !this.playerHeld()) this.dispatch(sim, 'player', carry.player);
+      seen.player = sim.events.length;
       this.runVm('player', BUDGET.player);
     }
     this.flush();
+    // Events after a program's dispatch go to it next tick (only those a handler can take)
+    const next = {};
+    for (const level of /** @type {const} */ (['mission', 'player'])) {
+      if (!this.vms[level]) continue;
+      const rest = sim.events.slice(seen[level]).filter((ev) => EVENT_HANDLERS[ev.type]).map((ev) => ({ ...ev }));
+      if (rest.length) next[level] = rest;
+    }
+    if (next.mission || next.player) st.carry = next;
+    else delete st.carry;
   }
 
-  /** Sim events of this tick to the handlers of one program, then the timed and region handlers. */
-  dispatch(sim, level) {
-    for (const ev of sim.events) {
+  /**
+   * Sim events to the handlers of one program – first those carried over from the previous tick (see update),
+   * then those of this tick so far – afterwards the timed and region handlers.
+   */
+  dispatch(sim, level, carried = []) {
+    for (const ev of carried.concat(sim.events)) {
       if (ev.type === 'hit') { this.alarm(sim, ev, level); continue; }
       const f = EVENT_HANDLERS[ev.type];
       if (f) { const [kind, info, args] = f(ev, (id) => this.handleOf(id)); this.fire(kind, info, args, level); }
@@ -841,6 +866,8 @@ export class ScriptHost {
     st.player.enter = {};
     st.player.alarm = {};
     st.player.listening = false;
+    // Events the previous run caused belong to it, not to the new one
+    if (st.carry?.player) { delete st.carry.player; if (!st.carry.mission) delete st.carry; }
     this.shownTask = 0;
     try {
       const { prog, opts } = this.makeVm('player', mod.source, (sim.seed * 131 + st.player.runs * 7919) >>> 0);
@@ -1005,7 +1032,7 @@ export class ScriptHost {
   hash(h) {
     const s = this.save();
     const p = s.state.player;
-    h.str(JSON.stringify([s.mission, s.player, s.state.places, s.state.every, s.state.enter, p.status, p.every ?? {}, p.enter ?? {}, s.state.note?.seq ?? 0, s.state.reset ?? null, s.state.talk ?? null, s.state.skip ?? null, s.state.alarm ?? {}, p.alarm ?? {}]));
+    h.str(JSON.stringify([s.mission, s.player, s.state.places, s.state.every, s.state.enter, p.status, p.every ?? {}, p.enter ?? {}, s.state.note?.seq ?? 0, s.state.reset ?? null, s.state.talk ?? null, s.state.skip ?? null, s.state.alarm ?? {}, p.alarm ?? {}, s.state.carry ?? null]));
   }
 
   // ---------- UI ----------
