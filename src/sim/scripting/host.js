@@ -597,7 +597,8 @@ export class ScriptHost {
    */
   sayLine(task, speaker, textV, ticks, voice) {
     const sk = this.state.skip;
-    if (sk && sk.task === task.id && sk.tick === this.sim.tick) {
+    // Check games („Prüfen“) have nobody listening: lines do not hold the program up
+    if (this.runtime.state.check || (sk && sk.task === task.id && sk.tick === this.sim.tick)) {
       this.say(speaker, textV, 0, voice, false, true);
       return 0;
     }
@@ -637,7 +638,7 @@ export class ScriptHost {
     const rt = this.runtime, st = rt.state;
     if (st.objectives.some((x) => x.id === id)) throw new ScriptError('game', { reason: 'script.game.objectiveExists', reasonParams: { id } });
     if (st.objectives.length >= LIMITS.objectives) throw new ScriptError('value', { what: 'tooMany', name: 'objective', max: LIMITS.objectives });
-    (st.extraObjectives ??= {})[id] = { id, type: 'script', text: this.text(textV), primary, ...(o.hold ? { hold: true } : {}), ...(o.clock ? { clock: true } : {}) };
+    (st.extraObjectives ??= {})[id] = { id, type: 'script', text: this.text(textV), primary, ...(o.hold ? { hold: true } : {}), ...(o.clock ? { clock: true } : {}), ...(o.allWorlds ? { allWorlds: true } : {}) };
     let conds = vm.globals.get('.objectives');
     if (!(conds instanceof PyDict)) { conds = new PyDict(); vm.globals.set('.objectives', conds); }
     conds.set(id, cond);
@@ -786,7 +787,8 @@ export class ScriptHost {
 
   /**
    * Command { type: 'script', action, … } from the human player.
-   * run: { sections: {id: code}, debug?: {mode: 'run'|'step', bps: {id: [lines]}} }, stop, debug: { target, cmd, bps }, skipDialog, mission debug.
+   * run: { sections: {id: code}, debug?: {mode: 'run'|'step', bps: {id: [lines]}} }, stop, debug: { target, cmd, bps }, skipDialog, mission debug,
+   * check: { stage, passed } – result of „Prüfen“ (MissionRuntime.applyCheck).
    */
   command(sim, cmd) {
     this.sim = sim;
@@ -795,6 +797,7 @@ export class ScriptHost {
       case 'stop': this.stopPlayer(); return true;
       case 'debug': return this.debugCommand(cmd);
       case 'skipDialog': this.skipDialog(!!cmd.all); return true;
+      case 'check': return this.runtime.applyCheck(sim, cmd);
       default: return sim.reject(cmd, 'err.unknownMissionAction');
     }
   }

@@ -115,6 +115,8 @@
     :objectives="ui.mission.objectives"
     :speakers="ui.mission.speakers ?? {}"
     :restarts="ui.restarts ?? 0"
+    :worlds="ui.mission.worlds ?? []"
+    :world="ui.mission.world ?? null"
     :mode="origin === 'editor' ? 'editor' : 'adventure'"
     v-model:open="scriptOpen"
     :layout="scriptLayout"

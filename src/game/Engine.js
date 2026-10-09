@@ -14,8 +14,9 @@ import { targetable, isEnemy } from '../sim/systems/military.js';
 import { countWorkers, countLeaders, taxIncome } from '../sim/systems/payday.js';
 import { AiPlayer } from '../ai/AiPlayer.js';
 import { saveGame, loadGame } from '../sim/serialize.js';
-import { createMissionSim, createScenarioSim } from '../sim/missions/runtime.js';
-import { StageSnapshot } from '../sim/stage.js';
+import { createMissionSim, createScenarioSim, createDefSim } from '../sim/missions/runtime.js';
+import { StageSnapshot, stageKey, carryCounters } from '../sim/stage.js';
+import { checkProgramAsync } from './worldCheck.js';
 import { resetSpeech, stopSpeech } from '../audio/speech.js';
 import { UNIT } from '../sim/fixed.js';
 import { Renderer } from '../render/Renderer.js';
@@ -116,7 +117,8 @@ export class Engine {
       this.ais = (opts.load.extra?.ais ?? []).map((st) => AiPlayer.fromState(this.sim, st));
     } else if (opts.mission || opts.scenario) {
       // Mission or scenario (world editor, file): players, opponents and setup come from the definition
-      this.sim = opts.scenario ? createScenarioSim(opts.scenario, { seed: opts.seed }) : createMissionSim(opts.mission.id, { seed: opts.mission.seed });
+      const start = { ...(opts.world ? { world: opts.world } : {}) };
+      this.sim = opts.scenario ? createScenarioSim(opts.scenario, { seed: opts.seed, ...start }) : createMissionSim(opts.mission.id, { seed: opts.mission.seed, ...start });
       this.ais = this.sim.mission.def.players
         .map((p, i) => (p.kind === 'ai' ? new AiPlayer(this.sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
     } else {
@@ -1313,6 +1315,49 @@ export class Engine {
   }
 
   scriptStop() { this.issue({ type: 'script', action: 'stop' }); this.emitUi(); }
+
+  /**
+   * World switcher (docs/SKRIPTE.md#welten): the same mission in another world, started at the current stage. A new
+   * game from the start options { world, stage } (deterministic, saved and hashed), swapped like a stage restart:
+   * renderer anew, camera, grid, code and breakpoints stay.
+   * @param {string} id world id from scenario.json "worlds"
+   */
+  switchWorld(id) {
+    const m = this.sim.mission;
+    if (!m?.def.worlds?.some((w) => w.id === id) || m.state.result) return false;
+    const seed = m.state.startSeed;
+    const sim = createDefSim(m.def, { world: id, stage: stageKey(this.sim) || null, ...(Number.isInteger(seed) ? { seed } : {}) });
+    carryCounters(this.sim, sim);
+    this.stage.clear();
+    this.restart(sim, {});
+    this.ais = m.def.players.map((p, i) => (p.kind === 'ai' ? new AiPlayer(sim, i, p.difficulty ?? 'normal') : null)).filter(Boolean);
+    return true;
+  }
+
+  /**
+   * „Prüfen“: run the program headless in every world of the mission at the current stage (src/sim/check.js, in
+   * time slices). The result goes into the game as a command – all_worlds goals of the stage count once it passed.
+   * @param {Record<string, string>} sections code of the editable player sections
+   * @param {(done: number, results: any[]) => void} [onProgress]
+   * @returns {Promise<{ stage: string, passed: boolean, results: any[], ms?: number }|null>}
+   */
+  async checkProgram(sections, onProgress) {
+    const m = this.sim.mission;
+    if (!m?.script || m.state.result || this.checking) return null;
+    const stage = stageKey(this.sim);
+    if (!stage) return { stage, passed: false, results: [] };
+    this.checking = true;
+    try {
+      const seed = m.state.startSeed;
+      const res = await checkProgramAsync(m.def, stage, sections, {
+        ...(Number.isInteger(seed) ? { seed } : {}), onProgress, cancelled: () => !!this.stopped,
+      });
+      if (res && !this.stopped) this.issue({ type: 'script', action: 'check', stage, passed: res.passed });
+      return res;
+    } finally {
+      this.checking = false;
+    }
+  }
 
   /**
    * Debugger: 'continue' | 'into' | 'over' | 'out' | 'pause'; target 'player' or 'mission'.
