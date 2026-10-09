@@ -156,6 +156,18 @@ describe('Mission I.4 "Im Schneetreiben"', () => {
     expect(state.sim.map.tracks[state.sim.map.idx(5, 3)]).toBeGreaterThan(0);
   });
 
+  it('Run pressed right after a stage ended restarts at the new stage start (goal exists before the closing line)', () => {
+    const state = play('normal');
+    until(state.sim, () => active(state.sim).includes('predict'));
+    runAs(state, state.loads[0]);
+    until(state.sim, () => active(state.sim).includes('coin'));
+    runAs(state, state.loads[0]);
+    for (let i = 0; i < 40; i++) state.sim.step();
+    runAs(state, COIN);
+    expect(tile(state.sim)).toEqual([11, 3]);
+    expect(active(state.sim)).toEqual(['coin']);
+  });
+
   it('has three worlds: forest edge, coin and track differ', () => {
     expect(getMission('r1-4').worlds.map((w) => w.id)).toEqual(WORLDS);
     const at = {};

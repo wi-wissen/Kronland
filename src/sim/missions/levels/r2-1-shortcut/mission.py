@@ -35,24 +35,24 @@ def predict():
               en="around_ruin() is called three times: how many tiles further east does Nelia stand afterwards? Run the program and have a look.")
     wait_until(lambda: objective_status("predict") == "done")
     walked = nelia.x - place("start").x
+    # Erst das nächste Unterziel, dann sprechen: ohne aktives Ziel gäbe es keinen Schnappschuss der Etappe
     say("orrin", de=f"{walked} Kacheln. Drei Zeilen unten, die Arbeit steckt oben in der Funktion.",
-                 en=f"{walked} tiles. Three lines below, the work is in the function above.")
+                 en=f"{walked} tiles. Three lines below, the work is in the function above.", wait=False)
 
 
 def hedge(grow):
-    nelia.turn_to("east")
+    # Zuerst die Änderung der Welt und das Ziel, dann die Worte (das Ziel macht den Schnappschuss der Etappe möglich)
     if grow:
-        # Die Hecke wächst an Ort und Stelle, Kachel für Kachel
-        say("orrin", de="Weiter hinten steht der Rest der Ruine – aber seht nur, im Süden ist eine Dornenhecke gewachsen! Meine Abkürzung muss diesmal links herum, nördlich an den Mauern vorbei.",
-                     en="The rest of the ruin stands further on – but look, a thorn hedge has grown in the south! This time my shortcut has to go round the left, north past the walls.",
-            wait=False)
         grow_hedge()
-    else:
-        say("orrin", de="Hier ist im Süden eine Dornenhecke gewachsen. Meine Abkürzung muss diesmal links herum, nördlich an den Mauern vorbei.",
-                     en="A thorn hedge has grown in the south here. This time my shortcut has to go round the left, north past the walls.")
     objective("hedge", lambda: nelia.is_at(place("ruin_end")),
               de="Ändere around_ruin(): Nelia soll links herum um die Mauerreste gehen. Die drei Aufrufe unten bleiben gleich.",
               en="Change around_ruin(): Nelia should go round the left of the walls. The three calls below stay the same.")
+    if grow:
+        say("orrin", de="Weiter hinten steht der Rest der Ruine – aber seht nur, im Süden ist eine Dornenhecke gewachsen! Meine Abkürzung muss diesmal links herum, nördlich an den Mauern vorbei.",
+                     en="The rest of the ruin stands further on – but look, a thorn hedge has grown in the south! This time my shortcut has to go round the left, north past the walls.", wait=False)
+    else:
+        say("orrin", de="Hier ist im Süden eine Dornenhecke gewachsen. Meine Abkürzung muss diesmal links herum, nördlich an den Mauern vorbei.",
+                     en="A thorn hedge has grown in the south here. This time my shortcut has to go round the left, north past the walls.", wait=False)
     while not nelia.is_at(place("ruin_end")):
         runs = program.runs
         wait_until(lambda: nelia.is_at(place("ruin_end")) or (program.runs > runs and program.status in ENDED))
@@ -61,20 +61,20 @@ def hedge(grow):
                          en="I cannot go on from here. Swap left and right in the function – then it counts for all three calls.")
     program.stop()
     say("orrin", de="Eine Stelle geändert, und alle drei Umwege stimmen wieder. Dafür sind Funktionen da.",
-                 en="One place changed, and all three detours are right again. That is what functions are for.")
+                 en="One place changed, and all three detours are right again. That is what functions are for.", wait=False)
 
 
 def coins(fly):
-    nelia.turn_to("east")
-    if fly:
-        camera.fly_to(place("view_road"), seconds=1.5)
-    say("orrin", de="Meine Geldkatze hatte ein Loch. Links und rechts vom Weg liegen jetzt meine Taler.",
-                 en="My purse had a hole. Now my coins lie left and right of the path.")
     total = len(items("coin"))
     seen = program.runs
     objective("coins", lambda: (total - len(items("coin")), total), all_worlds=True,
               de="Schreib eigene Befehle: turn_around() dreht Nelia um, fetch_left() und fetch_right() holen einen Taler neben dem Weg und kehren zurück. Damit sammelt sie bis zum Waldrand alle ein – in allen Welten (Prüfen).",
               en="Write your own commands: turn_around() turns Nelia round, fetch_left() and fetch_right() fetch a coin beside the path and return. With them she collects all of them up to the forest edge – in every world (Check).")
+    nelia.turn_to("east")
+    if fly:
+        camera.fly_to(place("view_road"), seconds=1.5)
+    say("orrin", de="Meine Geldkatze hatte ein Loch. Links und rechts vom Weg liegen jetzt meine Taler.",
+                 en="My purse had a hole. Now my coins lie left and right of the path.", wait=False)
     # Warten, bis „Prüfen“ die Etappe in allen Welten gelöst hat; nach jedem Lauf ein Tipp
     while objective_status("coins") != "done":
         wait_until(lambda: objective_status("coins") == "done" or (program.runs > seen and program.status in ENDED))

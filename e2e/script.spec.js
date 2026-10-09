@@ -40,9 +40,9 @@ async function tool(page, id) {
 
 const gridAttr = (page) => (page.viewportSize().width < 760 ? 'aria-checked' : 'aria-pressed');
 
-/** I.M stops the player's program when it moves Nelia to the first section after the intro line: wait for that first. */
+/** I.M: the first stage opens after the intro line: wait for that first. */
 async function sectionReady(page) {
-  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'edge')?.status), { timeout: 60_000 }).toBe('active');
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'path')?.status), { timeout: 60_000 }).toBe('active');
 }
 
 test('Course missions in the menu by row: start I.2, run the maid\'s program, the next stage follows', async ({ page }) => {

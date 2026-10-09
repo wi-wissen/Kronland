@@ -135,7 +135,7 @@ hint("homes", ui=["build-residence"], area="square", ui_until=lambda: count("res
 offer("buy", {"gold": 300}, de=…, en=…, group="way")   withdraw("buy")   unlock("barracks", "standingArmy")
 alchemist = npc("alchemist", look="worker.alchemist", at=place("tower"))   alchemist.stop_talking()
 program.status  program.runs  program.get("steps")   # das Spielerprogramm lesen (Kopie einer Variablen)
-program.stop()                     # Spielerprogramm anhalten (vor dem Wechsel in den nächsten Abschnitt)
+program.stop()                     # Spielerprogramm anhalten (etwa wenn eine Etappe gelöst ist)
 program.load(code)                 # ein Programm ins Code-Panel des Spielers laden (ersetzt dessen Text)
 objective("try", after_run=True)   # Etappe endet, sobald das Programm einmal normal zu Ende gelaufen ist
 reset(False)                       # Ausführen startet die Etappe nicht neu (Aufbau-Missionen); reset() wieder an
@@ -611,7 +611,7 @@ Etappe und zum Spielstand, ein später aufgedecktes Ziel zählt frühere Läufe 
 jedes andere Hauptziel („2 von 3 geschafft“). Ein Prüfspiel löst die Etappe, sobald das Programm in der Welt normal
 endet. Wer bei einem Randfall eines Kurses (Baum im Weg, leerer Beutel) auch einen Fehler gelten lassen will, ruft in
 der Mission `complete(id)` auf, wenn das Programm mit Fehler endete und geschah, was bis dahin zu erwarten war
-(`r1-2`, `r2-1`).
+(`r1-2`).
 
 Test: `tests/sim/programLoad.test.js`, `tests/levels/courseWorlds.test.js`.
 
@@ -679,45 +679,60 @@ ordnet nach Reihen („Reihe I · Spuren im Schnee“), Website und Handbuch nen
 | Nr. | ID | Titel | Lernziel | Etappen (Unterziele) | Welten |
 |---|---|---|---|---|---|
 | I.2 | `r1-2` | Taler für die Mägde | Zählschleife `for … in range()` | `predict` wie viele Taler (einmal ausführen), `path` 18 Kacheln, jede zweite mit Taler (9 im Beutel), `slope` Zickzack den Hang hinauf, `fire` Rechteck um den Holzstoß – eine Reise ohne Wände: Schnee, Weg, Hang, Lagerfeuer | 3, alle Etappen je Welt |
-| I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen | `predict`, `coin`, `hut` (siehe unten) | 3, `coin` und `hut` in allen |
+| I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen | `predict` Schritte bis zum Waldrand (einmal ausführen), `coin` am Waldrand entlang auf dem Taler stehen bleiben, `hut` der Spur bis zur Hütte folgen (siehe unten) | 3, `coin` und `hut` in allen |
 | I.5 | `r1-5` | Holz für die erste Nacht | Variablen | `predict` was sagt Nelia (einmal ausführen), `roses` zweite Variable `flowers`, `brook` Schritte bis zum Eis zählen und zurück (`steps`), `six` genau 6 Taler (`while count < 6`) – ein Weg mit Kreuzung: Taler und Christrosen nach Osten bis zum Baum, nach Süden der Bach, nach Norden die Talerreihe | 3, `roses`, `brook`, `six` in allen |
-| I.M | `r1-m` | Heimweg durchs Unterholz | Meisterstück I: `while`, `if/elif/else`, Sensoren | `edge` geradeaus, sonst rechts; `thicket` Rechte-Hand-Regel mit `nelia.right()`; `home` dasselbe Programm in anders gewachsenem Unterholz | 3, alle Etappen in allen |
-| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()` (einmal ausführen), `hedge` Funktion links herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` | 3, `coins` in allen |
+| I.M | `r1-m` | Heimweg durchs Unterholz | Meisterstück I: `while`, `if/elif/else`, Sensoren | `path` gewundener Pfad bis zur Lichtung (geradeaus, sonst rechts); `thicket` Abzweigungen und Sackgassen bis zum Ausgang (Rechte-Hand-Regel mit `nelia.right()`) | 3 Wälder, `thicket` in allen |
+| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()` (einmal ausführen), `hedge` im zweiten Teil der Ruine wächst eine Dornenhecke: Funktion links herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` auf der Straße dahinter | 3, `coins` in allen |
 | III.M | `r3-m` | Lindgrund steht wieder | Meisterstück III: Listen, Funktionen, `wait_until` | `center`, `homes`, `farms` nebeneinander; Holz und Lehm aus Haufen, `reset: false` | 1 |
 
 **I.2 und I.5 sind Reisen ohne Wände** (`world.py` je Mission, Tests `tests/levels/course.test.js`, Abschnitte „every stage starts where the one before ended“): Die Etappen sind aufeinanderfolgende Wegstücke **einer** offenen Landschaft je Welt – kein `set_cliff`, kein Teleport, kein Abschnittswechsel. Wo eine Etappe endet, beginnt die nächste, und das Programm des Spielers wächst mit. I.2: Nelia startet im Schnee, die Vorhersage legt Taler und endet auf Kachel `PE`; der Weg führt von dort bis zu den Bäumen (`XE`), hinter denen ein sanfter Hang (Höhen statt Felswand) mit Dickicht und Zickzackpfad aufsteigt; oben liegt der Holzstoß, die Taler des Beutels am Ziel kommen beim Aufheben des Beutels (`remove`, `give`). I.5: eine Reihe Taler, nahtlos gefolgt von Taler und Christrosen bis zu einem Baum; dort ist eine Wegkreuzung: nach Süden der Pfad zum zugefrorenen Bach (die Etappe verlangt zuerst `nelia.turn_right()`), nach Norden die Talerreihe der letzten Etappe (Nelia schaut nach dem Rückweg nach Norden).
+
 Eine Welt, die bei einer späteren Etappe startet (Umschalter, „Prüfen“, `world.stage`), baut `world.py` direkt in den Zustand dieser Etappe: Taler, aufgehobene Dinge, Beutel, Nelias Platz – noch im Weltaufbau, also vor dem ersten Takt, ohne sichtbaren Sprung. Dabei gilt: Das Aufbauprogramm darf nicht an `turn_to`/`step` warten (das hielte es an, `@on_start` käme zu früh); das Drehen steht darum ganz am Ende von `mission.py`. Der Test vergleicht den Zustand am Ende jeder Etappe im echten Spiel mit dem Start bei der nächsten Etappe (Nelia, Beutel, Gegenstände, Bäume und Haufen). **Zielwechsel:** Ist eine Etappe geschafft, wird erst die Welt verändert und das nächste Ziel aktiv (`objective(...)`), dann gesprochen (`say(…, wait=False)`) – sonst gäbe es ein Fenster ohne aktive Etappe, in dem ein „Ausführen“ den Schnappschuss vor der Veränderung nähme.
 
-Gemeinsames Muster (Vorbild `r1-4`): Die Karte hat einen Abschnitt je Etappe, getrennt durch Felsbänder; die Mission
-bringt Nelia mit `program.stop()`, `teleport`, `turn_to("east")` und `camera.fly_to` in den nächsten Abschnitt. Eine
-Figur kündigt ein Programm an und lädt es (`program.load`), die erste Etappe endet, sobald es einmal gelaufen ist
+Gemeinsames Muster (Vorbild `r1-4`): **Welten sind dieselbe Aufgabe auf verschiedenen Karten, Etappen die Schritte einer
+Aufgabe in derselben Welt.** Je Welt gibt es eine offene, zusammenhängende Landschaft ohne Felsbänder; die Etappen
+sind aufeinanderfolgende Wegstücke einer Reise, jede beginnt dort, wo die vorige endete. Zwischen den Etappen wird
+nichts neu geladen und nichts versetzt – das Programm des Spielers wächst, Nelia wendet sich höchstens (`turn_to`), und
+die Welt ändert sich höchstens an Ort und Stelle (II.1: eine Hecke wächst). Ein Spiel, das bei Etappe k beginnt
+(Umschalter, „Prüfen“: `world.stage`), baut die Welt schon so auf, wie sie dort ist: `world.py` setzt Nelia im
+Weltaufbau mit `nelia.teleport` (vor dem ersten Takt, nicht sichtbar) und baut frühere Änderungen mit; die
+Blickrichtung setzt `mission.py` beim Start mit `turn_to`. (Ein `turn_to` im Weltaufbau hielte das Missionsprogramm
+an, bevor `@on_start` angemeldet ist.) Eine Figur kündigt ein Programm an und lädt es (`program.load`), die erste Etappe endet, sobald es einmal gelaufen ist
 (`after_run=True`), Variablen-Aufgaben prüft die Mission mit `program.get("count")` usw.; geht es schief, sagt Nelia,
-was passiert ist. Das Meisterstück I.M lädt kein Programm: `place("exit")` zeigt in jeder Etappe auf den Ausgang des Abschnitts (`make_place`), Nelias eigene
-Spuren sind abgeschaltet (`world.tracks.who: "none"`), damit `right() == "free"` gilt; das Unterholz steht als
-ASCII-Plan in `world.py`. Am Kartenrand wachsen keine Bäume – die Pläne halten eine Kachel Abstand. III.M spielt auf
+was passiert ist. Das Meisterstück I.M lädt kein Programm: `place("clearing")` ist das Ziel von Etappe 1, `place("exit")` das von
+Etappe 2 (`make_place`), Nelias eigene Spuren sind abgeschaltet (`world.tracks.who: "none"`), damit `right() == "free"`
+gilt; je Welt steht ein Wald als ASCII-Plan in `world.py` (`FORESTS`, vorn der Pfad nur mit Rechtskurven, dahinter der
+Kamm aus Abzweigungen und Sackgassen). Am Kartenrand wachsen keine Bäume – die Pläne halten eine Kachel Abstand. III.M spielt auf
 der Lindgrund-Karte (`base: generate`, Seed 1101, 48 Kacheln) ohne Dorfzentrum: Dessen Bauplatz bleibt
 (`remove(old)`), Holz- und Lehmhaufen liegen bei der Burg. Musterlösungen spielen `tests/levels/course.test.js` (in
-beiden Sprachen, Lösungen der Schreib-Etappen aus `WORKED` in `reference.js`) und `tests/levels/blizzard.test.js`.
+beiden Sprachen, Lösungen der Schreib-Etappen aus `WORKED` in `reference.js`), `tests/levels/blizzard.test.js`,
+`tests/levels/thicket.test.js` und `tests/levels/shortcut.test.js` (je mit Übergabe von Etappe zu Etappe und Start bei
+jeder Etappe).
 Die Zeilen sind nicht vertont (Sprachausgabe des Browsers).
 
-**I.4 „Im Schneetreiben“** (`levels/r1-4-blizzard/`, Musterlösung `tests/levels/blizzard.test.js`): eine Karte im
-Winter mit drei Abschnitten, getrennt durch Felsbänder (Reihen 8–9 und 18–19). Jede Etappe ist ein Unterziel; die
-Mission bringt Nelia mit `program.stop()`, `teleport` und `camera.fly_to` in den nächsten Abschnitt. Drei
-[Welten](#welten): **Normalfall** (Waldrand nach 9 Schritten, Taler bei 7, Spur links–rechts–rechts–links),
-**Alles ganz nah** (Wald direkt vor Nelia: 0 Schritte, Taler unter ihr, kurze Spur mit Rechtskurve zu einer näheren
-Hütte), **Alles weit weg** (14 Schritte, Taler kurz vor dem Wald, lange Spur mit sechs Kurven). Taler und Spur tragen
-`all_worlds=True`; eine fest abgezählte Lösung (`range(7)`, abgeschrittener Weg) scheitert in den Randfällen.
-1. Die Magd Hedda lädt ein Programm mit Zählschleife (`while nelia.can_step(): … steps = steps + 1`). Wie viele
-   Schritte bis zum Waldrand? Die Etappe endet, sobald das Programm einmal gelaufen ist (`after_run=True`) – man
-   denkt nach und führt aus.
-2. Ein Taler im Schnee: das Programm ändern, damit Nelia auf ihm stehen bleibt (`while nelia.here() != "coin"`) und
-   ihn aufhebt.
-3. Der Spur der Geflohenen folgen, durch alle Kurven bis zur Hütte (`front()/left()/right() == "track"`); im Schnee
-   hinterlässt auch Nelia Fußabdrücke (`world.tracks.mode: "permanent"` – die Fährte bleibt unabhängig von der
-   Spuren-Einstellung des Spielers).
+**I.4 „Im Schneetreiben“** (`levels/r1-4-blizzard/`, Musterlösung `tests/levels/blizzard.test.js`): ein offenes
+Schneefeld im Winter (24 × 24), die Etappen sind drei Wegstücke einer Reise. Nelia startet im Nordwesten und geht nach
+Osten bis zum Waldrand (ein Waldstreifen), dort wendet sie sich nach Süden am Waldrand entlang bis zum Taler im
+Schnee, von dem eine Spur im Schnee zur Hütte der Geflohenen führt. Drei [Welten](#welten), je eine vollständige Karte
+der ganzen Reise: **Normalfall** (Waldrand nach 9 Schritten, Taler 5 Schritte weiter südlich, vier Kurven der Spur),
+**Alles ganz nah** (Wald direkt vor Nelia: 0 Schritte, Taler unter ihr, kurze Spur mit zwei Kurven zu einer näheren
+Hütte), **Alles weit weg** (14 Schritte, Taler kurz vor dem Kartenrand, lange Spur mit sechs Kurven). Die Etappen:
+1. `predict` (`after_run=True`, gilt in der gespielten Welt): Die Magd Hedda lädt ein Programm mit Zählschleife
+   (`while nelia.can_step(): … steps = steps + 1`). Wie viele Schritte bis zum Waldrand? Die Etappe endet, sobald das
+   Programm einmal gelaufen ist – man denkt nach und führt aus.
+2. `coin` (`all_worlds=True`): Nelia steht am Waldrand und blickt nach Süden; dasselbe Programm läuft am Waldrand
+   entlang an einem Taler vorbei. Ändern, damit Nelia auf ihm stehen bleibt (`while nelia.here() != "coin"`) und ihn
+   aufhebt.
+3. `hut` (`all_worlds=True`): Nelia steht auf der Kachel des Talers; der Spur der Geflohenen folgen, durch alle Kurven
+   bis zur Hütte (`front()/left()/right() == "track"`); im Schnee hinterlässt auch Nelia Fußabdrücke
+   (`world.tracks.mode: "permanent"` – die Fährte bleibt unabhängig von der Spuren-Einstellung des Spielers), die
+   Spur der Geflohenen führt von den Fußabdrücken weg.
 
-Etappe 1 gilt in der gespielten Welt (ein Lauf genügt), Etappen 2 und 3 erst nach
-bestandenem „Prüfen“ in allen drei Welten.
+Zwischen den Etappen wird nichts versetzt: Nach Etappe 1 steht Nelia am Waldrand (die Mission wendet sie nach Süden),
+nach Etappe 2 auf der Kachel des Talers. Ein Spiel, das bei `coin` oder `hut` beginnt, setzt Nelia dorthin im
+Weltaufbau (bei `hut` fehlt der Taler, der Beutel hat ihn). Löst „Prüfen“ eine Etappe, ohne dass Nelia sie selbst gelöst
+hat, geht sie zu Fuß zum Taler bzw. zur Hütte. Fest abgezählte Lösungen (`range(5)`, der abgeschrittene Weg des
+Normalfalls) scheitern in den Randfällen.
 
 **Welten der übrigen Kursmissionen** – wie I.4 je Mission **Normalfall**, **Alles ganz nah** (`near`) und **Alles
 weit weg** (`far`), der Weltcode verzweigt mit `world.id` (Tabellen am Anfang von `world.py`). Die erste Etappe gilt je
@@ -730,10 +745,10 @@ einem genannten Randfall).
 |---|---|---|---|---|
 | I.2 | Programm 5 Taler; Weg 18 Kacheln/9 Taler; Hang 5 Stufen; Rechteck 8 Taler | Programm 5 Taler; Weg 6/3; Hang 2 Stufen; Rechteck 8 (die Reise liegt mittig auf der Karte) | nur 3 Taler im Beutel (das Programm bricht ab); Weg 20/10; Hang 6 Stufen; Holzstoß 2×2, Rechteck 12 (Seiten aus 3) | eine Zählschleife kennt nur ihre Zahl: `range(9)` läuft „ganz nah“ in die Bäume, endet „weit weg“ zu früh |
 | I.5 | Reihe 7 Taler; 10 Gegenstände bis zum Baum (6 Taler, 4 Christrosen, erste eine Christrose); Bach nach 9 Schritten; 10 Taler | 1 Taler; Baum direkt dahinter (leere Reihe, 0/0); Eis direkt neben der Kreuzung (0 Schritte); genau 6 Taler | 8 Taler; 12 Gegenstände (7 Taler, 5 Christrosen, erste und letzte eine Christrose); 12 Schritte; 13 Taler | `for i in range(10)` (Fehler am Baum), eingetragene Zahlen `count = 7`, `steps = 9`; ganze Reihe nehmen klappt nur bei genau 6 |
-| I.M | drei Unterholz-Pläne wie bisher | Baum direkt vor Nelia, kurze Wege; im letzten Abschnitt liegt der Ausgang gleich hinter ihr, erst eine Sackgasse | lange Spirale, zwei Irrgärten mit vielen Sackgassen (Ausgang am anderen Ende) | ausgeschriebener Weg (Fehler in Zeile 1), „sonst rechts drehen“ in `thicket`/`home` (läuft zu lange) |
-| II.1 | Umweg 3× frei (6 Kacheln); Taler beidseitig bis Waldrand 20 | Baum versperrt den ersten Umweg (1 Kachel); Waldrand bei 9, Taler gleich beim ersten Schritt auf beiden Seiten und am letzten Feld | Baum versperrt den dritten Umweg (5); Waldrand bei 22, Taler fast nur rechts, zwei am letzten Feld | ausgeschriebener Gang (Waldrand, `take()` ins Leere), „erst schauen, dann gehen“ verpasst das letzte Feld |
+| I.M | Spirale nach außen (vier Rechtskurven) zur Lichtung, dahinter ein Kamm mit vier Sackgassen | Baum direkt vor Nelia, Lichtung nach zwei Kurven, Ausgang nach einer Sackgasse gleich dahinter | lange Gänge (37 Aktionen bis zur Lichtung), weiter Kamm mit Sackgassen | ausgeschriebener Weg (Fehler in Zeile 1), „sonst rechts drehen“ in `thicket` (läuft zu lange) |
+| II.1 | die Ruine ist in allen Welten gleich (sechs Mauerreste, Umweg 3× frei: 6 Kacheln); Straße bis zum Wald bei 32, Taler beidseitig | Wald bei 21, Taler gleich beim ersten Schritt auf beiden Seiten und am letzten Feld | Wald bei 34, Taler fast nur rechts, zwei am letzten Feld | ausgeschriebener Gang (Waldrand, `take()` ins Leere), „erst schauen, dann gehen“ verpasst das letzte Feld |
 
-Die Hecke von II.1 steht in allen Welten gleich (Ändern einer Funktion, kein Randfall). I.2 hat bewusst kein
+Die Hecke von II.1 wächst in allen Welten gleich (Ändern einer Funktion, kein Randfall). I.2 hat bewusst kein
 `all_worlds`: Eine Zählschleife ohne Sensoren kann nicht allgemein sein – der Umschalter zeigt, dass sich je Welt nur
 die Zahl in `range()` ändert, und „Prüfen“ zeigt, dass sie nur in ihre Welt passt (Brücke zu `while` in I.4).
 **III.M** bleibt bei einer Welt: Die Bauaufgabe läuft ohne Neustart (`reset: false`) über viele Spielminuten, weit

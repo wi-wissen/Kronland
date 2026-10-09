@@ -41,16 +41,17 @@ def path():
     until_done("path", at_clearing, False,
                "Hier komme ich nicht weiter. Was tun, wenn vor mir ein Baum steht? if nelia.can_step(): … else: …",
                "I cannot go on from here. What to do when a tree is in front of me? if nelia.can_step(): … else: …")
+    # Erst das nächste Unterziel, dann sprechen (siehe thicket): ohne aktives Ziel gäbe es keinen Schnappschuss
     say("nelia", de="Die Lichtung! Aber dahinten gabelt sich das Dickicht – und Sackgassen gibt es sicher auch.",
-                 en="The clearing! But further on the thicket forks – and there are surely dead ends too.")
+                 en="The clearing! But further on the thicket forks – and there are surely dead ends too.", wait=False)
 
 
 def thicket():
-    say("nelia", de="Wenn ich immer mit der rechten Hand an den Bäumen bleibe, komme ich überall wieder heraus.",
-                 en="If I always keep my right hand on the trees, I will get out anywhere.")
     objective("thicket", at_exit, all_worlds=True,
               de="Finde den Ausgang place(\"exit\") durch das verzweigte Dickicht: Halte dich mit der rechten Hand an den Bäumen. Ist rechts frei (nelia.right() == \"free\"), dreh nach rechts und geh. Sonst geradeaus, und wenn auch das nicht geht, dreh nach links – in allen Wäldern (Prüfen).",
               en="Find the exit place(\"exit\") through the forking thicket: keep your right hand on the trees. If the right is free (nelia.right() == \"free\"), turn right and walk. Otherwise go straight on, and if that does not work either, turn left – in every forest (Check).")
+    say("nelia", de="Wenn ich immer mit der rechten Hand an den Bäumen bleibe, komme ich überall wieder heraus.",
+                 en="If I always keep my right hand on the trees, I will get out anywhere.", wait=False)
     until_done("thicket", at_exit, True,
                "Ich drehe mich im Kreis oder stecke fest. Erst rechts schauen, dann geradeaus, sonst links drehen – in dieser Reihenfolge.",
                "I am going round in circles or stuck. First look right, then straight ahead, otherwise turn left – in this order.")

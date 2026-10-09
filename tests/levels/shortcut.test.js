@@ -130,6 +130,21 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
     expect(playerErrors(state.sim)).toEqual([]);
   });
 
+  it('Run pressed right after a stage ended (during the closing line) snapshots the world with the new stage\'s changes', () => {
+    const state = play('normal');
+    until(state.sim, () => active(state.sim).includes('predict'));
+    runAs(state, state.loads[0]);
+    // The moment the new goal exists – the closing line is still being spoken – the hedge stands already
+    until(state.sim, () => active(state.sim).includes('hedge'));
+    for (let x = 8; x <= 14; x++) expect(tileKind(state.sim, x, 6)).toBe('tree');
+    runAs(state, state.loads[0]);
+    for (let i = 0; i < 40; i++) state.sim.step();
+    runAs(state, state.loads[0]);
+    expect(tile(state.sim)).toEqual([8, 5]);
+    for (let x = 8; x <= 14; x++) expect(tileKind(state.sim, x, 6), `restart ${x}`).toBe('tree');
+    expect(active(state.sim)).toEqual(['hedge']);
+  });
+
   it('a check that passes without a run: Orrin fetches the remaining coins himself', () => {
     const state = play('normal');
     until(state.sim, () => active(state.sim).includes('predict'));

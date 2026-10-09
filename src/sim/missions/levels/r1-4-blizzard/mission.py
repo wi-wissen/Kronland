@@ -42,15 +42,16 @@ def predict():
               en="How many steps does Nelia take to the forest edge? Run the program and count along.")
     wait_until(lambda: objective_status("predict") == "done")
     walked = nelia.x - place("start").x
-    say("nelia", de=f"{walked} Schritte bis zum Waldrand.", en=f"{walked} steps to the forest edge.")
+    # Erst das nächste Unterziel, dann sprechen: ohne aktives Ziel gäbe es keinen Schnappschuss der Etappe
+    say("nelia", de=f"{walked} Schritte bis zum Waldrand.", en=f"{walked} steps to the forest edge.", wait=False)
 
 
 def coin():
     # Der Waldrand zieht sich nach Süden: Nelia wendet sich dorthin, das Programm läuft unverändert weiter
-    nelia.turn_to("south")
     objective("coin", lambda: len(items("coin")) == 0, all_worlds=True,
               de="Ändere das Programm: Nelia soll beim Taler stehen bleiben (nelia.here() == \"coin\") und ihn mit nelia.take() aufheben – in allen Welten (Prüfen).",
               en="Change the program: Nelia should stop on the coin (nelia.here() == \"coin\") and pick it up with nelia.take() – in every world (Check).")
+    nelia.turn_to("south")
     say("nelia", de="Da glitzert ein Taler im Schnee! Das Programm läuft aber immer weiter am Wald entlang …",
                  en="A coin is glittering in the snow! But the program keeps walking along the forest …")
     until_checked("coin", lambda: len(items("coin")) == 0,
@@ -60,15 +61,15 @@ def coin():
     if len(items("coin")) > 0:
         nelia.move_to(place("coin"))
         nelia.take()
-    say("nelia", de="Hab ihn – in jeder Welt! Den bekommen die Geflohenen.", en="Got it – in every world! That one is for the runaways.")
+    say("nelia", de="Hab ihn – in jeder Welt! Den bekommen die Geflohenen.", en="Got it – in every world! That one is for the runaways.", wait=False)
 
 
 def track():
     # Die Spur beginnt neben dem Taler; Nelia blickt wie am Ende der vorigen Etappe nach Süden
-    nelia.turn_to("south")
     objective("hut", lambda: nelia.is_at(place("hut")), all_worlds=True,
               de="Folge der Spur durch alle Kurven bis zur Hütte: nelia.front(), nelia.left() und nelia.right() sagen \"track\", wo die Spur weitergeht. In jeder Welt biegt sie anders ab (Prüfen).",
               en="Follow the track through every bend to the hut: nelia.front(), nelia.left() and nelia.right() say \"track\" where it goes on. In every world it bends differently (Check).")
+    nelia.turn_to("south")
     say("nelia", de="Spuren im Schnee – hier sind die Geflohenen entlang. Sie biegen mal links, mal rechts ab.",
                  en="Tracks in the snow – the runaways came this way. They turn left, then right.")
     until_checked("hut", lambda: nelia.is_at(place("hut")),
