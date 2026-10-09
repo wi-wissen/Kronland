@@ -16,8 +16,10 @@ test.beforeEach(async ({ page }) => {
     class FakeAudio extends EventTarget {
       constructor(src) { super(); this.src = src; this.paused = true; this.volume = 1; }
       play() {
+        this.unlocked = true;
         this.paused = false;
-        window.__voiceLog.push({ ev: 'play', src: this.src, t: performance.now() });
+        // the silent clip that unlocks the player is no line
+        if (!this.src.startsWith('data:')) window.__voiceLog.push({ ev: 'play', src: this.src, t: performance.now() });
         this.timer = setTimeout(() => { this.paused = true; window.__voiceLog.push({ ev: 'ended', src: this.src, t: performance.now() }); this.dispatchEvent(new Event('ended')); }, ms);
         return Promise.resolve();
       }
@@ -131,19 +133,24 @@ test('Mission 1 by direct link: every line up to the first objectives is shown a
   test.setTimeout(240_000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  // Autoplay rule of the browsers: without a gesture play() is refused (NotAllowedError) – after the first tap it works
+  // Strictest autoplay rule (iOS Safari): an element may play only once it has started inside a tap – a new element
+  // for a later line would be refused again (NotAllowedError)
   await page.addInitScript((ms) => {
     window.__gesture = false;
-    for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, () => { window.__gesture = true; }, { capture: true });
+    for (const ev of ['pointerdown', 'keydown', 'touchend']) {
+      window.addEventListener(ev, () => { window.__gesture = true; setTimeout(() => { window.__gesture = false; }, 0); }, { capture: true });
+    }
     class GatedAudio extends EventTarget {
-      constructor(src) { super(); this.src = src; this.paused = true; this.volume = 1; }
+      constructor(src) { super(); this.src = src; this.paused = true; this.volume = 1; this.unlocked = false; }
       play() {
-        if (!window.__gesture) {
+        if (!this.unlocked && !window.__gesture) {
           window.__voiceLog.push({ ev: 'blocked', src: this.src, t: performance.now() });
           return Promise.reject(new DOMException('play() needs a user gesture', 'NotAllowedError'));
         }
+        this.unlocked = true;
         this.paused = false;
-        window.__voiceLog.push({ ev: 'play', src: this.src, t: performance.now() });
+        // the silent clip that unlocks the player is no line
+        if (!this.src.startsWith('data:')) window.__voiceLog.push({ ev: 'play', src: this.src, t: performance.now() });
         this.timer = setTimeout(() => { this.paused = true; window.__voiceLog.push({ ev: 'ended', src: this.src, t: performance.now() }); this.dispatchEvent(new Event('ended')); }, ms);
         return Promise.resolve();
       }

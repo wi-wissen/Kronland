@@ -356,6 +356,9 @@ liest der Browser den Dialog vor (Einstellung „Dialoge vorlesen“), Sprüche 
 
 - **Dialoge** (`src/audio/speech.js`): Zum Sprecher und Text der Mitteilung wird die Aufnahme gesucht; sonst
   Sprachausgabe des Browsers. Der nächste Satz wartet, bis die Aufnahme zu Ende ist (`speak(…, { onEnd })`).
+  Alle Aufnahmen laufen über **ein** `<audio>`-Element, das der erste Tipp freischaltet (der bis dahin blockierte
+  erste Satz oder ein kurzer stiller Klang): strenge Browser (iOS Safari, manche Android-Browser) lassen nur ein
+  Element spielen, das einmal in einer Geste gestartet wurde – ein neues Element je Satz bliebe danach stumm.
   Solange eine Stimme spricht, treten Musik (22 %) und Umgebung (55 %) zurück (`AudioEngine.duck`).
 - **Warnrufe** (`GameAudio.alarm`, aus `Engine.attackToast`): Wird Eigenes angegriffen, läutet die Sturmglocke
   (`alarm` in `sfx.js`) und die getroffene Figur ruft (Anlass `alarm` in `barks.js`; bei Gebäuden ein Leibeigener,

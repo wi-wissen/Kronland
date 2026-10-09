@@ -75,3 +75,47 @@ describe('Autoplay rule', () => {
     delete globalThis.Audio; delete globalThis.speechSynthesis; delete globalThis.SpeechSynthesisUtterance;
   });
 });
+
+describe('Strict autoplay (iOS Safari): one unlocked player for all lines', () => {
+  it('after the first tap every later line plays without another tap; a late pause does not end the next line', async () => {
+    let gesture = false;
+    const made = [];
+    class Strict extends FakeAudio {
+      constructor(src) { super(src); this.paused = true; this.activated = false; made.push(this); }
+      play() {
+        if (!this.activated && !gesture) return Promise.reject(Object.assign(new Error('x'), { name: 'NotAllowedError' }));
+        this.activated = true;
+        this.paused = false;
+        return Promise.resolve();
+      }
+      pause() { if (!this.paused) { this.paused = true; queueMicrotask(() => this.emit('pause')); } }
+    }
+    globalThis.Audio = Strict;
+    globalThis.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+    const spoken = [];
+    globalThis.speechSynthesis = { speak: (u) => spoken.push(u), cancel() {}, pause() {}, getVoices: () => [] };
+    globalThis.window ??= new EventTarget();
+    resetSpeech();
+    const flush = async () => { for (let i = 0; i < 4; i++) await Promise.resolve(); };
+    speak({ seq: 20, speaker: null, text: 'Eins', voice: 'audio/1.mp3' }, 'de');
+    await flush();
+    expect(made[0].paused).toBe(true);
+    gesture = true;
+    globalThis.window.dispatchEvent(new Event('pointerdown'));
+    gesture = false;
+    await flush();
+    expect(made[0].paused).toBe(false);
+    let ended = 0;
+    speak({ seq: 21, speaker: null, text: 'Zwei', voice: 'audio/2.mp3' }, 'de', { onEnd: () => ended++ });
+    await flush();
+    // same element, playing without a tap; the pause of line 1 (stopped) did not end line 2
+    expect(made).toHaveLength(1);
+    expect(made[0].src).toBe('audio/2.mp3');
+    expect(made[0].paused).toBe(false);
+    expect(ended).toBe(0);
+    expect(spoken).toEqual([]);
+    made[0].emit('ended');
+    expect(ended).toBe(1);
+    delete globalThis.Audio; delete globalThis.speechSynthesis; delete globalThis.SpeechSynthesisUtterance;
+  });
+});
