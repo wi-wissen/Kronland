@@ -453,29 +453,32 @@ vec4 kBicubic(sampler2D t, vec2 p, vec2 size) {
   float sx = sw.x / (sw.x + sw.y), sy = sw.z / (sw.z + sw.w);
   return mix(mix(s3, s2, sx), mix(s1, s0, sx), sy);
 }
-// One walker's trail: left/right marks along the walking direction d (footprints, flattened blades or worn spots),
-// rows repeat across the path and are cut out by the track mask; each layer is turned and shifted a little, each
-// mark jittered. w position relative to the tile centre (direction constant per tile, three marks per tile so that
-// neighbouring tiles continue the row), size of a mark
-float kTrail(vec2 w, vec2 d, float layer, vec2 size) {
-  float ang = (kHash(vec2(layer, 1.7)) - 0.5) * 0.5;
+// One walker's trail: oval prints in left/right pairs along the walking direction d, near the middle of the path
+// (w relative to the tile centre, three prints per tile so neighbouring tiles continue the row; spread = how far the
+// walker strays from the middle). x = print, y = its shaded side (light from one side: a shallow hollow).
+vec2 kTrail(vec2 w, vec2 d, float layer, vec2 size, float spread) {
+  float ang = (kHash(vec2(layer, 1.7)) - 0.5) * 0.35;
   float ca = cos(ang), sa = sin(ang);
   vec2 dd = vec2(d.x * ca - d.y * sa, d.x * sa + d.y * ca);
   float u = dot(w, dd) + layer * 0.137;
-  float v = mod(dot(w, vec2(-dd.y, dd.x)) + 0.75 + (kHash(vec2(layer, 9.1)) - 0.5) * 0.7, 1.5) - 0.75;
+  float v = dot(w, vec2(-dd.y, dd.x)) - (kHash(vec2(layer, 9.1)) - 0.5) * spread;
   float i = floor(u * 3.0 + 0.5);
   float j = kHash(vec2(i, layer + 3.3)) - 0.5;
   float side = mod(i, 2.0) * 2.0 - 1.0;
-  vec2 q = vec2((u - i / 3.0 - j * 0.08) / size.x, (v - side * 0.11 - j * 0.07) / size.y);
-  return 1.0 - smoothstep(0.55, 1.0, dot(q, q));
+  vec2 q = vec2((u - i / 3.0 - j * 0.05) / size.x, (v - side * 0.07 - j * 0.03) / size.y);
+  float m = 1.0 - smoothstep(0.5, 1.0, dot(q, q));
+  vec2 q2 = q + vec2(0.25, 0.3);
+  float m2 = 1.0 - smoothstep(0.5, 1.0, dot(q2, q2));
+  return vec2(m, max(m - m2, 0.0));
 }
-// Several walkers: one more layer per step of strength above 'from' – overlapping until they merge into a lane
-float kTrails(vec2 w, vec2 d, float st, float from, float stepW, vec2 size) {
-  float acc = 0.0;
+// Several walkers: one more layer per step of strength above 'from', each straying a little further from the middle –
+// overlapping until they merge into a lane
+vec2 kTrails(vec2 w, vec2 d, float st, float from, float stepW, vec2 size, float spread) {
+  vec2 acc = vec2(0.0);
   for (int l = 0; l < 5; l++) {
     float on = clamp((st - from - float(l) * stepW) / 0.05, 0.0, 1.0);
     if (on <= 0.0) break;
-    acc = max(acc, kTrail(w, d, float(l), size * (1.0 + float(l) * 0.08)) * on);
+    acc = max(acc, kTrail(w, d, float(l), size, spread * (0.4 + 0.3 * float(l))) * on);
   }
   return acc;
 }
@@ -540,16 +543,19 @@ float kTrE = kTr + (kN * 0.22 + kWide * 0.18) * smoothstep(0.0, 0.15, kTr);
 float kSide = smoothstep(0.72, 0.86, texture2D(tMacro, vWPos.xz * 0.33 + 0.5).g) * smoothstep(0.05, 0.25, kTr) * (1.0 - smoothstep(0.4, 0.6, kTr));
 kTrE = max(kTrE, kSide * 0.45);
 // Marks (footprints, blades, worn spots): per tile direction, coordinates relative to the tile centre
-vec2 kCell = floor(vWPos.xz) + 0.5;
-vec2 kRel = vWPos.xz - kCell;
+// (in the same shifted coordinates as the path, so the prints follow its meander)
+vec2 kPw = vWPos.xz + kWarp;
+vec2 kCell = floor(kPw) + 0.5;
+vec2 kRel = kPw - kCell;
 vec2 kDir = kDirOf(texture2D(tTrack, kCell / uMapSize));
 float kSt = kTrE;
 // Summer and rain: flattened grass first, then worn spots that grow together, bare earth from the path on
 float kFlat = smoothstep(0.05, 0.4, kTrE) * (1.0 - uSnow);
-float kPath = smoothstep(0.66, 0.92, kTrE) * (1.0 - uSnow);
-float kWorn = 0.0;
-if (uSnow < 0.5 && kSt > 0.3) kWorn = kTrails(kRel, kDir, kSt, 0.4, 0.08, vec2(0.13, 0.09)) * smoothstep(0.25, 0.5, kTrE);
-wDirt = max(wDirt, max(kPath * 0.92, kWorn * 0.6));
+float kPath = smoothstep(0.7, 0.95, kTrE) * (1.0 - uSnow);
+// worn spots: irregular patches (fine noise on the strength) that grow together into the earth path
+float kNh = texture2D(tMacro, vWPos.xz * 0.53 + 0.21).g - 0.5;
+float kWorn = smoothstep(0.52, 0.78, kTrE + kNh * 0.5) * smoothstep(0.3, 0.5, kTrE) * (1.0 - uSnow);
+wDirt = max(wDirt, max(kPath * 0.92, kWorn * 0.7));
 wMeadow *= 1.0 - max(kPath, kFlat * 0.8);
 float wGrass = max(0.0, 1.0 - wMeadow - wDirt - wSand - wRock);
 wMeadow *= (1.0 - wDirt) * (1.0 - wSand) * (1.0 - wRock);
@@ -566,7 +572,7 @@ vec3 albedo = (cGrass * bG + cMeadow * bA.x + cDirt * bA.y + cSand * bA.z + cRoc
 kH = (hG * bG + dot(hA, bA)) / bSum;
 // Flattened grass: stalks lie down along the path – lighter, straw-coloured streaks, smoother (only on grass/meadow)
 float kBlades = 0.0;
-if (uSnow < 0.5 && kSt > 0.05) kBlades = kTrails(kRel, kDir, kSt, 0.05, 0.1, vec2(0.2, 0.05));
+if (uSnow < 0.5 && kSt > 0.05) kBlades = kTrails(kRel, kDir, kSt, 0.05, 0.1, vec2(0.2, 0.05), 0.8).x;
 float kGr = kFlat * (1.0 - kPath) * (0.7 + 0.3 * kBlades) * (bG + bA.x) / bSum;
 albedo = mix(albedo, albedo * vec3(1.22, 1.14, 0.7) + vec3(0.05, 0.04, 0.0), kGr * 0.75);
 kH = mix(kH, 0.35 + kH * 0.3, kGr * 0.6);
@@ -577,14 +583,16 @@ kH = mix(kH, kLum(cSnow) * 0.3, sMask);
 // Winter: one walker's footprints from the first step; with more strength more walkers, each a layer of prints
 // turned and shifted a little, until they overlap into a trodden lane (packed snow between them, greyer, flat)
 if (uSnow > 0.5 && kTr > 0.001) {
-  float kP = kSt > 0.3 ? kTrails(kRel, kDir, kSt, 0.32, 0.12, vec2(0.075, 0.048)) : 0.0;
-  kP *= smoothstep(0.12, 0.35, kTrE) * sMask;
-  float kLane = smoothstep(0.45, 0.9, kTrE) * (0.8 + kN * 0.5);
-  float kSn = sMask * clamp(max(kLane, smoothstep(0.3, 0.6, kTrE) * 0.15), 0.0, 1.0);
-  albedo = mix(albedo, mix(cSnow * vec3(0.4, 0.44, 0.53), cDirt, 0.25 * kLane), kSn * 0.85);
+  float kLane = smoothstep(0.5, 0.92, kTrE) * (0.8 + kN * 0.5);
+  vec2 kPr = kSt > 0.3 ? kTrails(kRel, kDir, kSt, 0.34, 0.12, vec2(0.1, 0.05), 0.35) : vec2(0.0);
+  // fainter towards the edge of the path, swallowed by the lane where many layers overlap
+  float kPm = smoothstep(0.3, 0.62, kTrE) * sMask * (1.0 - 0.6 * smoothstep(0.3, 0.9, kLane));
+  float kSn = sMask * clamp(max(kLane, smoothstep(0.35, 0.65, kTrE) * 0.12), 0.0, 1.0);
+  albedo = mix(albedo, mix(cSnow * vec3(0.5, 0.54, 0.62), cDirt, 0.2 * kLane), kSn * 0.8);
   kH = mix(kH, kH * 0.4, kSn);
-  albedo = mix(albedo, cSnow * vec3(0.24, 0.29, 0.4), kP * (0.9 - 0.25 * kLane));
-  kH -= kP * 0.25;
+  albedo = mix(albedo, cSnow * vec3(0.5, 0.56, 0.7), kPr.x * kPm * 0.85);
+  albedo = mix(albedo, cSnow * vec3(0.3, 0.35, 0.47), kPr.y * kPm * 0.85);
+  kH -= kPr.x * kPm * 0.25;
 }
 // Summer paths: a little darker where they are well trodden
 albedo *= 1.0 - kPath * smoothstep(0.7, 1.0, kTrE) * 0.12;
