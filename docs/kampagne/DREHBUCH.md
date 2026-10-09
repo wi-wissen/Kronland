@@ -8,10 +8,9 @@ Gesprächsfiguren, Zeiger); Abweichungen sind mit **⚠ Änderung:** markiert un
 
 **Schreibweisen in diesem Dokument**
 
-- **Sprecher: Zeile** – gesprochener, vertonter Satz (höchstens ~20 Wörter, höchstens ~6 Zeilen am Stück).
-- **Zeit:** Ein Block aus 4–6 Zeilen läuft im Dialogfenster 15–30 Sekunden. Folgeblöcke stehen deshalb „nach dem
-  Block“: Anker-Auslöser + `delay` von mindestens 20–30 Spielsekunden (oder, mit E6, „Dialog ist still“). Kürzere
-  Abstände würden die Sätze nur hintereinander stapeln.
+- **Sprecher: Zeile** – gesprochener, vertonter Satz. Keine feste Längengrenze: Ein Gespräch ist so lang, wie es braucht,
+  damit der Spieler danach weiß, wo er ist, was zu tun ist und warum.
+- **Zeit:** Das Missionsskript wartet, bis ein Satz gesprochen ist; ein Folgegespräch beginnt erst danach.
 - **Hilfe-Zeilen** sind mit **[Hilfe: …]** markiert, dahinter steht ihre Bedingung:
   - **[Hilfe, entfällt wenn …]** – die Simulation sieht die Handlung (Bau gesetzt, Rohstoff abgebaut, Fähigkeit
     benutzt, Tribut bezahlt, Handel begonnen, Miliz, Heldenposition …); dann wird die Zeile nicht gesprochen.

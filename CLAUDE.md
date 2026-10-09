@@ -48,3 +48,6 @@ E2E läuft headless über SwiftShader (Software-WebGL) und ist langsam (passt di
   Zahlen mit Einheit und Abgrenzung („347 gesprochene Sätze, davon 31 Bedienhinweise“), nicht „~340 Zeilen“.
 - **Längere Markdown-Dokumente** (Konzepte, Drehbücher, Berichte) zum Lesen zusätzlich als Artefakt bereitstellen;
   die Datei im Repo allein reicht nicht.
+- **Eigene Annahmen offenlegen:** Regeln und Vorgaben, die nicht vom Projektinhaber oder aus dem Repo stammen (z. B.
+  Längengrenzen für Texte), vor der Verwendung als eigene Annahme kennzeichnen und bestätigen lassen; nie still an
+  Agenten weitergeben.
