@@ -429,7 +429,7 @@ export default {
     addSection(level) {
       let n = 1;
       while (this.scenario.sections.some((s) => s.id === `${level}${n}`)) n++;
-      this.scenario.sections.push({ id: `${level}${n}`, title: { de: level === 'player' ? 'Dein Programm' : 'Skript', en: level === 'player' ? 'Your program' : 'Script' }, level, visibility: 'open', editable: level === 'player', code: level === 'player' ? 'hero.step()\n' : '# …\n' });
+      this.scenario.sections.push({ id: `${level}${n}`, title: { de: level === 'player' ? 'Dein Programm' : 'Skript', en: level === 'player' ? 'Your program' : 'Script' }, level, visibility: 'open', editable: level === 'player', code: level === 'player' ? 'nelia.step()\n' : '# …\n' });
     },
     moveSection(i, d) {
       const s = this.scenario.sections;

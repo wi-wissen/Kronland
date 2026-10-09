@@ -92,10 +92,12 @@ describe('Mission API version 2', () => {
     expect(errors(sim)[0]).toContain('"arg":"text"');
   });
 
-  it('objective(id, condition, de=, en=) with a pair as progress; the old order still works', () => {
+  it('objective(id, condition, de=, en=) with a pair as progress; a text in the place of the condition is an error', () => {
+    const bad = createScenarioSim(level('objective("old", "Alter Text", lambda: False)\n'));
+    expect(errors(bad)[0]).toContain('"what":"objectiveText"');
     const sim = createScenarioSim(level([
       'objective("trees", lambda: (len(trees_near(place("goal"), 20)), 3), de="Pflanze 3 Bäume", en="Plant 3 trees")',
-      'objective("old", "Alter Text", lambda: False)',
+      'objective("old", lambda: False, text="Alter Text")',
       'objective("bare", lambda: False)',
       '',
     ].join('\n')));
@@ -168,7 +170,7 @@ describe('Mission API version 2', () => {
       '    print("tick")',
       '',
     ].join('\n')));
-    runCode(sim, 'for i in range(6):\n    hero.step()\n');
+    runCode(sim, 'for i in range(6):\n    nelia.step()\n');
     run(sim, 200);
     const out = sim.mission.script.state.console.map((c) => c.text);
     expect(out[0]).toBe('start');
@@ -214,7 +216,7 @@ describe('Mission API version 2', () => {
 describe('Save games', () => {
   it('carry the scenario with its code, so a changed level never breaks an old save', () => {
     const sim = createMissionSim('adv1');
-    runCode(sim, 'for i in range(3):\n    hero.step()\n');
+    runCode(sim, 'for i in range(3):\n    nelia.step()\n');
     run(sim, 30);
     const data = JSON.parse(JSON.stringify(saveGame(sim)));
     expect(data.mission.scenario.id).toBe('adv1');
@@ -319,12 +321,12 @@ describe('Talk figures', () => {
 });
 
 describe('Outline without running the code', () => {
-  it('objectives of a level: new and old order, texts inline or from the table, computed ones fall back to the id', async () => {
+  it('objectives of a level: texts inline or from the table, computed ones fall back to the id', async () => {
     const { scenarioGoals } = await import('../../src/sim/scripting/outline.js');
     const s = level([
       'objective("homes", lambda: (count("residence"), 2), de="Baue 2 Wohnhäuser", en="Build 2 residences")',
-      'objective("old", "Alter Text", lambda: False, False)',
-      'objective("key", "k1", None, hidden=True)',
+      'objective("old", lambda: False, "Alter Text", False)',
+      'objective("key", None, "k1", hidden=True)',
       'objective("dict", text={"de": "A", "en": "B"})',
       'objective(name_from_code, lambda: True)',
       'objective("calc", lambda: True, de=f"{1}")',

@@ -141,7 +141,7 @@ export class ScriptHost {
 
   makeVm(level, source, seed) {
     const api = this.apis[level] ?? (this.apis[level] = makeApi(this, level));
-    const prog = compile(source, { known: api.known, modules: api.modules, vocab: api.vocab });
+    const prog = compile(source, { known: api.known, modules: api.modules, vocab: api.vocab, removed: api.removed });
     const opts = this.vmOpts(level, api, seed);
     return { prog, opts };
   }

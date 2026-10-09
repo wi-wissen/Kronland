@@ -232,7 +232,7 @@ export class Sim {
       id: this.nextId++, kind: 'hero', hero, owner, px: tileCenter(t % this.map.width), py: tileCenter((t / this.map.width) | 0),
       path: [], hp: HEROES[hero].hp, down: false, downTimer: 0, ready: {}, order: { type: 'idle' }, targetId: 0, cooldown: 0,
     };
-    // Without castle (coding adventure): face east, so that hero.step() goes where the hero visibly looks
+    // Without castle (coding adventure): face east, so that nelia.step() goes where the hero visibly looks
     if (!hq) h.face = 1;
     this.entities.set(h.id, h);
     return h;

@@ -38,7 +38,7 @@ describe('whole numbers and repeatable decisions', () => {
     for (let i = 0; i < 1500; i++) c1.step();
     expect(nonIntegers(JSON.parse(JSON.stringify(saveGame(c1))))).toEqual([]);
     const adv = createMissionSim('adv2');
-    adv.command({ type: 'script', player: 0, action: 'run', sections: { player: 'x = 2.5\nwhile hero.can_step():\n    hero.step()\n' } });
+    adv.command({ type: 'script', player: 0, action: 'run', sections: { player: 'x = 2.5\nwhile nelia.can_step():\n    nelia.step()\n' } });
     for (let i = 0; i < 300; i++) adv.step();
     expect(nonIntegers(JSON.parse(JSON.stringify(saveGame(adv))))).toEqual([]);
   }, 60_000);

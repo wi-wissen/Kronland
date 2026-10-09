@@ -25,7 +25,7 @@ describe('levels from other people', () => {
     expect(() => structuredClone(saveGame(s))).not.toThrow();
     expect(loadGame(JSON.parse(JSON.stringify(saveGame(s)))).hash()).toBe(s.hash());
     expect(what(sim('make_place("__proto__", 1, 1)\n'))).toEqual(['badName']);
-    expect(what(sim('objective("__proto__", "x", lambda: False)\n'))).toEqual(['badName']);
+    expect(what(sim('objective("__proto__", lambda: False, text="x")\n'))).toEqual(['badName']);
     expect(what(sim('print(place("constructor"))\n'))).toEqual(['err.script.game']);
   });
 
@@ -53,7 +53,7 @@ describe('levels from other people', () => {
   });
 
   it('endless goal conditions share one budget per tick and are switched off', () => {
-    const s = sim('def spin():\n    while True:\n        pass\n\nobjective("a", "a", lambda: spin())\nobjective("b", "b", lambda: spin())\nobjective("c", "c", lambda: spin())\n');
+    const s = sim('def spin():\n    while True:\n        pass\n\nobjective("a", lambda: spin(), text="a")\nobjective("b", lambda: spin(), text="b")\nobjective("c", lambda: spin(), text="c")\n');
     const t0 = performance.now();
     s.step();
     const ms = performance.now() - t0;
