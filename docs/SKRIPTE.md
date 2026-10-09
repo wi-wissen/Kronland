@@ -446,6 +446,8 @@ Auch das Spielerprogramm kennt die Ereignisse, die seine Oberfläche sieht: `@ev
 derselben Mechanik (`.handlers` je VM), erst die Mission, dann den Spieler, beide in fester Reihenfolge aus
 `sim.events`; `@every`/`@on_enter` des Spielers stehen in `state.player.every/enter` und beginnen mit jedem Lauf neu.
 
+- **Eigene Befehle:** Was das Programm selbst auslöst (`build()` → `@on_building_placed`), hört es einen Takt später
+  (siehe „In der Simulation“, „Wann ein Ereignis ankommt“); die Mission hört es ebenfalls.
 - **Nur Eigenes:** Filter `player`/`owner` gelten im Spielerprogramm immer für HUMAN; `@on_enter` sieht nur Figuren,
   die der Spieler sieht (Nebel, `api.inArea`).
 - **Wartet auf Ereignisse:** Ist das Hauptprogramm fertig und sind Ereignisfunktionen angemeldet, bleibt der Status
@@ -552,6 +554,16 @@ und „2 von 3 geschafft“ bei mehreren Etappen.
   `@on_enter` prüfen, wartende Aufgaben prüfen (`wait_until` ruft die Bedingung synchron auf), dann alle
   Aufgaben in fester Reihenfolge mit Budget (Mission 60 000, Spieler 20 000 Befehle je Takt). Zu Beginn jedes
   Takts (`beginTick`, vor den Zielen) bekommt jedes Programm sein Budget für synchrone Aufrufe neu.
+- **Wann ein Ereignis ankommt:** Jedes Sim-Ereignis erreicht jedes Programm genau einmal, in der Reihenfolge, in der
+  es geschah. Ein Programm hört im selben Takt alles, was bis zu seiner Verteilung geschah: Befehle aus Oberfläche
+  und KI, Systeme, Ziele, für das Spielerprogramm auch die Befehle des Missionsprogramms in diesem Takt. Was danach
+  geschieht – die eigenen Befehle des Programms (`build()`, `buy_serf()` …) und für die Mission die des
+  Spielerprogramms –, kommt **einen Takt später** an, vor den Ereignissen dieses Takts. Beispiel: `build("farm", …)`
+  in Takt N → `@on_building_placed` des eigenen Programms und der Mission in Takt N+1; ein Klick auf „Bauen“ in Takt N
+  → beide hören es in Takt N. Die übertragenen Ereignisse stehen in `state.carry` (Spielstand und State-Hash), ein
+  neuer Lauf des Spielerprogramms verwirft die des alten. Griffe (`b` im Handler) werden bei der Zustellung
+  aufgelöst – ist das Ding inzwischen weg, kommt `None`. Ereignisse aus dem Weltaufbau (vor dem ersten Takt) gehen
+  an keinen Handler.
 - **Zahlen in die Simulation:** Jede Zahl aus Python geht über `toInt` (ganzzahlig, abgeschnitten, höchstens
   ±1 000 000 000) oder `toTicks` (Sekunden → Takte, gerundet) in die Simulation (`api.js`). NaN, `inf` und zu große
   Werte werden zum Skriptfehler, nie zu einem kaputten Spielstand (`wait(float("inf"))`, `@every(0.5)` = alle 5 Takte).
