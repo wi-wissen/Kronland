@@ -16,7 +16,7 @@ eigenes Projekt; der gemeinsame Vertrag liegt in `contract/`. Multiplayer (Relay
 `public/kronland.config.json` (kein Inhalts-Hash, der Service-Worker holt sie netzwerk-zuerst; offline gilt die letzte Kopie). Die Datei ist **nicht in Git** (`.gitignore`): im Repository liegt nur die Vorlage `kronland.config.example.json` (Stufe 0), wie bei `.env.example`. So gibt es bei einem Fork nie einen Merge-Konflikt, und keine Server-Adresse steht im Code:
 
 - **Lokal / eigener Host:** Vorlage nach `public/kronland.config.json` kopieren und anpassen (oder die fertige Datei neben das Spiel legen). Fehlt die Datei, läuft das Spiel in Stufe 0.
-- **GitHub Pages (offizielles Spiel):** Der Workflow `pages.yml` ruft `scripts/write-config.mjs` auf. Es liest die Repository-Variablen `KRONLAND_SERVER` und `KRONLAND_SOURCES` (Einstellungen → Secrets and variables → Actions → Variables; mehrere Quellen durch Komma oder Leerzeichen) und schreibt die Datei nur für den Build. Variablen gehören zum Repository auf GitHub, ein Fork erbt sie nicht und setzt seine eigenen. Nichts gesetzt: Stufe 0.
+- **GitHub Pages (offizielles Spiel):** Ein Schritt im Workflow `pages.yml` (kein Skript im Repository) liest die Repository-Variablen `KRONLAND_SERVER` und `KRONLAND_SOURCES` (Einstellungen → Secrets and variables → Actions → Variables; mehrere Quellen durch Komma oder Leerzeichen) und schreibt die Datei nur für den Build. Variablen gehören zum Repository auf GitHub, ein Fork erbt sie nicht und setzt seine eigenen. Nichts gesetzt: Stufe 0.
 
 Inhalt:
 
