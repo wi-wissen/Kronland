@@ -2,8 +2,8 @@
 
 Story-Vorgabe vom 4. Okt. 2026 (Julian Dorn) und ihre Umsetzung mit Siedler-5-Mechanik. Grundsatz: **nur
 Mechanik aus dem Grundspiel**; fehlt etwas, wird die Geschichte angepasst oder die Mechanik des Originals
-nachgebaut, nie eine eigene erfunden. Missionsdateien: `src/sim/missions/campaign/c1-…c6-*.js`,
-Bausteine: [Missionen](MISSIONEN.md).
+nachgebaut, nie eine eigene erfunden. Level-Ordner in Python: `src/sim/missions/levels/c1-lindgrund/` … `c6-thronsee/`,
+Bausteine: [Missionen](MISSIONEN.md), [Skripte](SKRIPTE.md#kampagne-in-python).
 
 ## Welt und Figuren (Kurzfassung)
 
