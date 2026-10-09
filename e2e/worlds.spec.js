@@ -104,6 +104,8 @@ test('I.M: the first stretch of undergrowth in three worlds – a written-out wa
   await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
+  // I.M stops the player's program when it places Nelia at the first section: run only after that
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'edge')?.status), { timeout: 60_000 }).toBe('active');
   await expect(page.getByTestId('script-goal-edge')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('script-worlds').getByRole('radio')).toHaveCount(3);
 

@@ -96,6 +96,8 @@ BATTLE = """(o) => {
   const foeCount = () => [...s.entities.values()].filter((x) => x.kind === 'soldier' && x.owner === 1).length;
   const start = foeCount();
   for (let i = 0; i < 40 && foeCount() > start - 2; i++) s.run(5);
+  // hold the moment: the screenshot may wait minutes for figure models, the fight would be over by then
+  e.paused = true;
   return start - foeCount();
 }"""
 
@@ -170,15 +172,42 @@ DEV_FRAME = """() => {
   e.emitUi();
 }"""
 
+CODE = '[data-testid=section-player] [data-testid=code-input]'
+
+# Footpaths: look at the most trodden spot near the castle (sum of track strength in a 12×12 window)
+PATHS_VIEW = """(dist) => {
+  const e = window.__kronland, s = e.sim, m = s.map, W = m.width, hq = s.findBuilding(0, 'headquarters');
+  let best = { x: hq.x + 2, y: hq.y + 2 }, bv = -1;
+  for (let y = hq.y - 18; y <= hq.y + 18; y += 2) for (let x = hq.x - 18; x <= hq.x + 18; x += 2) {
+    let v = 0;
+    for (let j = 0; j < 12; j++) for (let i = 0; i < 12; i++) {
+      const xx = x + i, yy = y + j;
+      if (xx >= 0 && yy >= 0 && xx < W && yy < m.height) v += m.tracks[yy * W + xx];
+    }
+    if (v > bv) { bv = v; best = { x: x + 6, y: y + 6 }; }
+  }
+  if (!window.__pathsAt) window.__pathsAt = best; // winter: same place as in summer
+  const at = window.__pathsAt;
+  e.renderer.rig.lookAt(at.x, at.y);
+  e.renderer.rig.dist = dist;
+  e.renderer.rig.update(0);
+  return { ...at, v: bv };
+}"""
+
 HIDE_HUD = "() => { const st = document.createElement('style'); st.id = 'nohud'; st.textContent = '.game > :not(canvas), .tooltip { display: none !important; }'; document.head.appendChild(st); }"
-SHOW_HUD = "() => document.getElementById('nohud')?.remove()"
+NO_GRAY = "() => { if (document.getElementById('nogray')) return; const st = document.createElement('style'); st.id = 'nogray'; st.textContent = '.game canvas.paused-gray { filter: none !important; } .pause-banner { display: none !important; }'; document.head.appendChild(st); }"
+SHOW_HUD ="() => document.getElementById('nohud')?.remove()"
 PLAIN_GROUND = "() => { const st = document.createElement('style'); st.id = 'plain'; st.textContent = '.game > canvas, .toasts, .notices { visibility: hidden !important; } .game { background: #1d1712 !important; }'; document.head.appendChild(st); }"
 # No shown figure waits for a lazily loaded model any more (src/render/characters.js: pendingModel; prepared but
 # unused roles may keep their placeholder, so only the records of drawn figures count)
-PLACEHOLDERS_GONE = """() => { const c = window.__kronland?.renderer?.chars; if (!c) return true;
+PLACEHOLDERS_GONE = """() => { const r = window.__kronland?.renderer, c = r?.chars; if (!c) return true;
   const pending = (v) => !!v && (!!v.pendingModel || (v.attach ?? []).some((a) => pending(a.variant)));
+  // Own building models load on demand too: the key of a drawn building ends in its load state (2 = original there)
+  if ([...(r.buildings?.values() ?? [])].some((g) => !String(g.userData.key ?? ':2').endsWith(':2'))) return false;
   return ![...c.records.values()].some((r) => r.visible && pending(r.variant)); }"""
-STUCK = "() => [...new Set([...window.__kronland.renderer.chars.records.values()].filter((r) => r.visible && r.variant?.pendingModel).map((r) => r.roleKey + '>' + r.variant.pendingModel))]"
+STUCK = """() => { const r = window.__kronland.renderer;
+  return [...new Set([...r.chars.records.values()].filter((x) => x.visible && x.variant?.pendingModel).map((x) => x.roleKey + '>' + x.variant.pendingModel))]
+    .concat([...(r.buildings?.values() ?? [])].filter((g) => !String(g.userData.key ?? ':2').endsWith(':2')).map((g) => 'building ' + g.userData.key)); }"""
 
 
 def save(img_bytes, name, small=True, size=None, quality=80):
@@ -218,7 +247,13 @@ def frames(page, n=2):
 def shoot(page, target=None):
     """Freeze the frame (3D scene stops drawing, HUD stays), then capture. Without freezing,
     Playwright cannot keep up with the screenshot when a frame arrives every few seconds."""
-    # Figure models (riders, horse …) load lazily; until then a procedural placeholder stands in
+    # Figure and building models (riders, horse, workshops …) load lazily; until then a procedural placeholder stands in.
+    # Draw first: after a fast-forward the renderer only meets new buildings (and requests their models) in a frame.
+    frames(page, 3)
+    # A paused game is shown in grey with a banner; the pictures pause only to hold a moment
+    page.evaluate(NO_GRAY)
+    if os.environ.get('SHOTS_DEBUG'):
+        print('waiting for:', page.evaluate(STUCK), flush=True)
     try:
         page.wait_for_function(PLACEHOLDERS_GONE, timeout=180000, polling=1000)
     except Exception:
@@ -404,26 +439,90 @@ def run(pw):
         save(shoot(page), 'developer')
         ctx.close()
 
-    # ---------- Coding adventure: code panel in step mode ----------
+    # ---------- Course mission: code panel with world switcher, „Prüfen“ result and a breakpoint ----------
     if want('programming'):
         ctx = b.new_context(**DESK, locale='de-DE')
         ctx.add_init_script(init % 'de')
         page = ctx.new_page()
         page.set_default_timeout(600000)
-        page.goto(f'{BASE}/play/?mission=r1-5&quality=high')
+        # I.4 has three worlds (normal case, near, far) like e2e/worlds.spec.js
+        page.goto(f'{BASE}/play/?mission=r1-4&quality=high')
         page.wait_for_function('() => !!window.__kronland', timeout=240000)
         page.get_by_test_id('script-panel').wait_for()
-        page.wait_for_timeout(3000)
-        code = page.get_by_test_id('section-player').get_by_test_id('code-input')
-        code.fill('count = 0\nwhile nelia.front() == "coin":\n    nelia.step()\n    nelia.take()\n    count = count + 1\nprint(count)\n')
-        # breakpoint in the loop, then run until it stops
-        page.get_by_test_id('section-player').get_by_test_id('ce-line-5').click()
+        # The woodcutter's note replaces the code once the stage begins: type only after it is there
+        page.get_by_test_id('script-goal-predict').wait_for()
+        page.wait_for_function(f"() => /guess = 0/.test(document.querySelector({CODE!r})?.value ?? '')", timeout=240000, polling=500)
+        page.wait_for_timeout(2000)
+        # Prediction stage solved in the world where 0 is right, then back to the normal case for the coin stage
+        page.get_by_test_id('script-world-near').click()
+        page.wait_for_function("() => window.__kronland.sim.mission.state.world === 'near'", timeout=120000, polling=500)
         page.get_by_test_id('script-run').click()
-        page.wait_for_function("() => document.querySelector('[data-testid=script-status]')?.textContent.includes('angehalten')", timeout=240000)
-        # whole map in the game area left of the code panel (the intro dialog may have moved the camera)
-        page.evaluate("() => window.__kronland.frameOverview(0)")
+        page.get_by_test_id('script-goal-coin').wait_for(timeout=300000)
+        page.get_by_test_id('script-world-normal').click()
+        page.wait_for_function("() => window.__kronland.sim.mission.state.world === 'normal'", timeout=120000, polling=500)
+        page.get_by_test_id('script-goal-coin').wait_for()
+        page.wait_for_timeout(2000)
+        # A hard-coded program: right in the normal case only – „Prüfen“ marks the other worlds
+        page.get_by_test_id('section-player').get_by_test_id('code-input').fill(
+            'for i in range(7):\n    nelia.step()\nnelia.take()\nprint("Taler!")\n')
+        page.get_by_test_id('script-check').click()
+        page.wait_for_function("() => ['true', 'false'].includes(document.querySelector('[data-testid=script-check-result]')?.dataset.passed)", timeout=300000, polling=500)
+        # breakpoint in the loop, run, continue a few rounds (the check result stays: the code is unchanged)
+        page.get_by_test_id('section-player').get_by_test_id('ce-line-2').click()
+        page.get_by_test_id('script-run').click()
+        paused = "() => document.querySelector('[data-testid=script-panel]')?.dataset.status === 'paused'"
+        page.wait_for_function(paused, timeout=240000, polling=500)
+        for _ in range(3):
+            page.get_by_test_id('script-continue').click()
+            page.wait_for_timeout(1500)
+            page.wait_for_function(paused, timeout=240000, polling=500)
+        # Nelia on her way in the middle of the game area left of the code panel
+        at = page.evaluate("() => { const e = window.__kronland, h = [...e.sim.entities.values()].find((x) => x.kind === 'hero' && x.owner === 0);"
+                           " e.renderer.rig.dist = 17; e.renderer.rig.pitch = 0.85; return [h.px / 1000, h.py / 1000]; }")
+        page.evaluate(FRAME, [at[0], at[1], 0.27, 0.55])
         page.wait_for_timeout(3000)
         save(shoot(page), 'programming')
+        ctx.close()
+
+    # ---------- Course menu: missions grouped by rows ----------
+    if want('course'):
+        ctx = b.new_context(**DESK, locale='de-DE')
+        ctx.add_init_script(init % 'de')
+        page = ctx.new_page()
+        page.set_default_timeout(600000)
+        page.goto(f'{BASE}/play/')
+        page.get_by_test_id('menu-adventures').click()
+        page.get_by_test_id('adventure-r1-4').click()
+        page.get_by_test_id('adventure-brief').wait_for()
+        page.wait_for_timeout(2500)
+        save(page.screenshot(type='png'), 'course')
+        ctx.close()
+
+    # ---------- Footpaths: the same village in summer (paths in the grass) and winter (footprints in the snow) ----------
+    if want('paths'):
+        # half the width per season, put side by side: 1440×900
+        ctx = b.new_context(viewport={'width': 719, 'height': 900}, device_scale_factor=1, locale='de-DE')
+        ctx.add_init_script(init % 'de')
+        page = boot(ctx, '?seed=11&fog=off&quality=high&players=2')
+        # A few minutes of village life: serfs and workers tread their ways
+        settle(page, ticks=4200, wait=3000, pitch=0.8, yaw=0.9, levels=False,
+               list=['residence', 'farm', 'residence', 'farm', 'sawmill', 'brickworks', 'residence', 'farm', 'stonemason',
+                     'storehouse', 'clayMine', 'stoneMine'])
+        print('Paths:', page.evaluate(PATHS_VIEW, 17), flush=True)
+        page.evaluate(HIDE_HUD)
+        page.wait_for_timeout(5000)
+        summer = shoot(page)
+        # Fresh snow covers the paths; a minute later every step has left footprints, busy ways are trodden
+        page.evaluate("() => { const e = window.__kronland, s = e.sim; s.setWeather('winter', 9000); s.run(1500); e.renderer.applyWeather('winter'); e.emitUi(); }")
+        print('Paths (winter):', page.evaluate(PATHS_VIEW, 17), flush=True)
+        page.wait_for_timeout(9000)
+        winter = shoot(page)
+        both = Image.new('RGB', (1440, 900), (29, 23, 18))
+        both.paste(Image.open(io.BytesIO(summer)).convert('RGB'), (0, 0))
+        both.paste(Image.open(io.BytesIO(winter)).convert('RGB'), (721, 0))
+        out = io.BytesIO()
+        both.save(out, 'PNG')
+        save(out.getvalue(), 'paths')
         ctx.close()
 
     # ---------- Phone ----------
