@@ -1,6 +1,6 @@
 // Per-command documentation as one importable data module – for the reference page (src/site/scripting/) and the
 // code editor (tooltips, Ctrl/Cmd+click → reference). Plain data, no HTML: descriptions keep their Markdown
-// (`code`, **bold**). Anchor ids are the command names (hero.step, len, str.split …) and stay stable.
+// (`code`, **bold**). Anchor ids are the command names (nelia.step, len, str.split …) and stay stable.
 // The long texts (docs/de.js, docs/en.js) are ~60 kB per language; the editor may import this module lazily.
 
 import { API_DOC } from '../../sim/scripting/api.js';
@@ -30,7 +30,7 @@ for (const c of COMMANDS) for (const n of [c.name, ...c.also]) if (!BY_NAME.has(
 /**
  * Documentation of a command in a language. Also finds names explained together with another (max → min,
  * str.lower → str.upper). Unknown names: null.
- * @param {string} name e.g. 'hero.step', 'len', 'str.split'
+ * @param {string} name e.g. 'nelia.step', 'len', 'str.split'
  * @param {'de'|'en'} [lang]
  * @returns {CommandDoc|null}
  */

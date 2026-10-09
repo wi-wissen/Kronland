@@ -37,7 +37,7 @@ describe('whole numbers and repeatable decisions', () => {
     for (let i = 0; i < 1500; i++) c1.step();
     expect(nonIntegers(JSON.parse(JSON.stringify(saveGame(c1))))).toEqual([]);
     const adv = createMissionSim('adv2');
-    adv.command({ type: 'script', player: 0, action: 'run', sections: { player: 'x = 2.5\nwhile hero.can_step():\n    hero.step()\n' } });
+    adv.command({ type: 'script', player: 0, action: 'run', sections: { player: 'x = 2.5\nwhile nelia.can_step():\n    nelia.step()\n' } });
     for (let i = 0; i < 300; i++) adv.step();
     expect(nonIntegers(JSON.parse(JSON.stringify(saveGame(adv))))).toEqual([]);
   }, 60_000);
@@ -58,7 +58,7 @@ describe('whole numbers and repeatable decisions', () => {
 
   it('a hero who joins later is known to scripts at once, before and after loading', () => {
     const sim = createScenarioSim({
-      format: 'kronland-scenario', version: 1, id: 'join', kind: 'adventure',
+      format: 'kronland-scenario', version: 2, end: 'script', id: 'join', kind: 'adventure',
       world: { base: 'flat', width: 20, height: 12, fog: false, starts: [{ x: 4, y: 6 }] },
       players: [{ kind: 'human', hero: 'nelia', hq: false }],
       sections: [{ id: 'm', level: 'mission', code: '@every(1)\ndef look():\n    print("orrin" if orrin else "-")\n' }],

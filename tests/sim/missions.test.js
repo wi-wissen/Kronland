@@ -105,7 +105,7 @@ describe('Objectives', () => {
       'make_place("goal", goal.x, goal.y, 4)',
       'centre = buildings("villageCenter")[0]',
       'objective("live", lambda: (min(30, int(time())), 30), clock=True, de="x", en="x")',
-      'objective("go", lambda: len(units_in(place("goal"), who="hero")) > 0, de="x", en="x")',
+      'objective("go", lambda: len(figures_near(place("goal"), 4, kind="hero", side="own")) > 0, de="x", en="x")',
       'objective("keep", lambda: centre.alive, hold=True, de="x", en="x")',
     ].join('\n');
     const sim = testSim(code);

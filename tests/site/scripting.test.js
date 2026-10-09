@@ -17,7 +17,7 @@ const ALL = [...API_DOC.map((e) => ({ ...e, py: false })), ...PY_DOC.map((e) => 
 /** Test map for the game examples: castle, serfs, a troop, trees, piles, places goal/camp/gate, computer opponent and bandits. */
 function sandbox(sections) {
   return createScenarioSim({
-    format: 'kronland-scenario', version: 1, id: 'reference', kind: 'adventure',
+    format: 'kronland-scenario', version: 2, end: 'script', id: 'reference', kind: 'adventure',
     world: { base: 'flat', width: 48, height: 48, fog: false, starts: [{ x: 12, y: 12 }, { x: 38, y: 38 }],
       places: { goal: { x: 18, y: 14, r: 1 }, camp: { x: 34, y: 14, r: 5 }, gate: { x: 26, y: 14, r: 3 } } },
     players: [

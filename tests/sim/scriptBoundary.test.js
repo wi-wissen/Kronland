@@ -7,7 +7,7 @@ import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { nonIntegers } from './integerGuard.js';
 
 const scenario = (mission, extra = {}) => createScenarioSim({
-  format: 'kronland-scenario', version: 1, id: 'boundary', kind: 'adventure',
+  format: 'kronland-scenario', version: 2, end: 'script', id: 'boundary', kind: 'adventure',
   world: { base: 'flat', width: 20, height: 12, fog: false, starts: [{ x: 4, y: 6 }] },
   players: [{ kind: 'human', hero: 'nelia', hq: false }],
   sections: [{ id: 'm', level: 'mission', code: mission }, { id: 'player', level: 'player', editable: true, code: '' }],
