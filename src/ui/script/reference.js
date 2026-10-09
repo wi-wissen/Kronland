@@ -221,18 +221,18 @@ export const EXAMPLES = {
   on_talk: 'npc("alchemist", look="worker.alchemist", at=place("camp"))\n\n@on_talk("alchemist")\ndef talk(visitor):\n    if visitor.name != "orrin":\n        say("alchemist", de="Schick mir den Händler.", en="Send me the merchant.")\n        return\n    say("alchemist", de="Schwefel? Im Norden, hinter dem Grat.", en="Sulfur? Up north, behind the ridge.")',
   on_event: L('@on_event("every", seconds=30)\ndef report():\n    print("Holz:", stock("wood"))\n\n@on_event("enter", target=place("camp"), who="hero")\ndef found(unit):\n    notify("Am Lager angekommen.")', '@on_event("every", seconds=30)\ndef report():\n    print("Wood:", stock("wood"))\n\n@on_event("enter", target=place("camp"), who="hero")\ndef found(unit):\n    notify("Arrived at the camp.")'),
   // ---------- Goals ----------
-  objective: 'objective("homes", lambda: (count("residence"), 3), de="Baue 3 Wohnhäuser", en="Build 3 residences")\nobjective("gold", lambda: stock("gold") >= 1000, de="Spare 1000 Gold", en="Save 1000 gold", primary=False)',
+  objective: 'objective("homes", lambda: (count("residence"), 3), de="Baue 3 Wohnhäuser", en="Build 3 residences")\nobjective("gold", lambda: stock("gold") >= 1000, de="Spare 1000 Gold", en="Save 1000 gold", primary=False)\nobjective("try", after_run=True, de="Führe das Programm einmal aus", en="Run the program once")',
   complete: 'objective("scout", de="Erkunde das Lager", en="Scout the camp")\n\n@on_enter(place("camp"), who="hero")\ndef scouted(unit):\n    complete("scout")',
   fail: 'objective("escort", de="Bringe Orrin sicher heim", en="Bring Orrin home safely")\n\n@on_killed(HUMAN)\ndef check(kind, owner):\n    if orrin and orrin.down:\n        fail("escort")',
   show_objective: 'objective("camp", de="Zerstöre das Räuberlager", en="Destroy the bandit camp", hidden=True)\nwait(30)\nshow_objective("camp")',
   ending: '# der Weg des Spielers wählt die Nachgeschichte (debriefs in scenario.json)\nending("stormed")',
   victory: 'wait_until(lambda: len(buildings("banditCamp", BANDITS)) == 0)\nvictory("camp", de="Das Lager ist zerstört!", en="The camp is destroyed!")',
-  'program.get': 'objective("guess", lambda: program.status == "done" and program.get("steps") == 7,\n          de="Wie viele Schritte braucht Nelia? Speichere die Zahl in steps.", en="How many steps does Nelia need? Store the number in steps.")\n\n@on_start\ndef watch():\n    wait_until(lambda: program.runs > 0)\n    print("Erster Lauf, Zustand:", program.status)',
-  hints: 'hints(False)  # in dieser Etappe ist das Finden des Fehlers die Aufgabe',
-  note: L(
-    'npc("maid", look="serf", at=place("camp"), name="Magd Hedda")\n\n@on_start\ndef hand_over():\n    say("maid", de="Hier, nimm den Zettel. Wie viele Schritte sind es?", en="Here, take the note. How many steps is it?")\n    note("maid", "guess = 0\\nsteps = 0\\nwhile nelia.can_step():\\n    nelia.step()\\n    steps = steps + 1\\n", de="Zettel der Magd", en="The maid\'s note")',
-    'npc("maid", look="serf", at=place("camp"), name="Maid Hedda")\n\n@on_start\ndef hand_over():\n    say("maid", de="Hier, nimm den Zettel. Wie viele Schritte sind es?", en="Here, take the note. How many steps is it?")\n    note("maid", "guess = 0\\nsteps = 0\\nwhile nelia.can_step():\\n    nelia.step()\\n    steps = steps + 1\\n", de="Zettel der Magd", en="The maid\'s note")',
+  'program.get': 'objective("steps", lambda: program.status == "done" and program.get("steps") == 7,\n          de="Zähle die Schritte mit der Variablen steps.", en="Count the steps with the variable steps.")\n\n@on_start\ndef watch():\n    wait_until(lambda: program.runs > 0)\n    print("Erster Lauf, Zustand:", program.status)',
+  'program.load': L(
+    'npc("maid", look="serf", at=place("camp"), name="Magd Hedda")\n\n@on_start\ndef hand_over():\n    say("maid", de="Hier, nimm mein Programm. Es zählt die Schritte bis zum Wald.", en="Here, take my program. It counts the steps to the forest.")\n    program.load("steps = 0\\nwhile nelia.can_step():\\n    nelia.step()\\n    steps = steps + 1\\n")',
+    'npc("maid", look="serf", at=place("camp"), name="Maid Hedda")\n\n@on_start\ndef hand_over():\n    say("maid", de="Hier, nimm mein Programm. Es zählt die Schritte bis zum Wald.", en="Here, take my program. It counts the steps to the forest.")\n    program.load("steps = 0\\nwhile nelia.can_step():\\n    nelia.step()\\n    steps = steps + 1\\n")',
   ),
+  hints: 'hints(False)  # in dieser Etappe ist das Finden des Fehlers die Aufgabe',
   reset: L(
     'reset(False)  # Aufbau-Mission: Ausführen baut weiter, statt neu zu beginnen\nobjective("homes", lambda: (count("residence"), 3), de="Baue 3 Wohnhäuser", en="Build 3 residences")',
     'reset(False)  # building mission: Run builds on instead of starting over\nobjective("homes", lambda: (count("residence"), 3), de="Baue 3 Wohnhäuser", en="Build 3 residences")',

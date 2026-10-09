@@ -129,34 +129,15 @@
                   <span v-if="!s.editable" class="sp-locked" data-testid="section-locked"><Icon name="lock" />{{ $t('script.locked') }}</span>
                 </span>
               </button>
-              <h3 v-else-if="sections.length > 1 && !(note && s.id === noteSection)" class="sp-sec-title">
+              <h3 v-else-if="sections.length > 1" class="sp-sec-title">
                 <span class="sp-fold-title">{{ $tr(s.title) }}</span>
                 <span v-if="!s.editable" class="sp-locked"><Icon name="lock" />{{ $t('script.locked') }}</span>
               </h3>
-              <!-- Note of a figure (note()): seal and title; the own code stays one tap away -->
-              <div v-if="note && s.id === noteSection" class="sp-note" :class="{ mine: noteView !== 'note' }" :style="{ '--sp': seal.color }" data-testid="script-note" :data-view="noteView">
-                <template v-if="noteView === 'note'">
-                  <span class="sp-seal" :class="{ pic: seal.portrait }" aria-hidden="true">
-                    <img v-if="seal.portrait" :src="seal.portrait" alt="" draggable="false" @error="brokenPortrait = seal.portrait"><template v-else>{{ seal.initial }}</template>
-                  </span>
-                  <span class="sp-note-txt">
-                    <b class="sp-note-title" data-testid="script-note-title">{{ noteTitle }}</b>
-                    <small v-if="note.editable === false" class="sp-note-sub">{{ $t('script.note.locked') }}</small>
-                  </span>
-                  <button class="ghost sp-note-btn" data-testid="script-note-back" @click="backToOwn"><Icon name="back" />{{ $t('script.note.back') }}</button>
-                </template>
-                <template v-else>
-                  <span class="sp-note-txt"><b class="sp-note-title">{{ $t('script.note.mine') }}</b></span>
-                  <button class="ghost sp-note-btn" data-testid="script-note-show" @click="toNote">
-                    <span class="sp-seal sm" aria-hidden="true">{{ seal.initial }}</span>{{ $t('script.note.show') }}
-                  </button>
-                </template>
-              </div>
               <CodeEditor
                 v-if="!foldable(s) || unfolded[s.id]"
                 :ref="(el) => setEditor(s.id, el)"
                 v-model="codes[s.id]"
-                :readonly="!s.editable || (noteView === 'note' && s.id === noteSection && note?.editable === false)"
+                :readonly="!s.editable"
                 :running-line="runningLine(s)"
                 :error-line="errorLine(s)"
                 :hint-lines="hints.lines[s.id] ?? []"
@@ -266,10 +247,6 @@ import { refUrl } from './reference.js';
 import { scriptErrorText, tr, t } from '../../i18n/index.js';
 import { shownError, shownStatus, shownHints, consoleView, fileName, sourceFromFile, MAX_FILE_BYTES } from './panelState.js';
 import { loadSplit, saveSplit, panelWidth, widthFromPointer, guideOffset, clampWidth } from './splitLayout.js';
-import { SPEAKERS } from '../../sim/missions/speakers.js';
-import { speakerPortrait } from '../icons/index.js';
-import { siteUrl } from '../../paths.js';
-import { levelAssetUrl } from '../../levels/assets.js';
 
 /** Arrow keys on the divider: the width is applied this long after the last key press (ms) */
 const KEY_DELAY = 250;
@@ -296,8 +273,6 @@ export default {
     touch: Boolean,
     /** ui.mission.objectives – the active sub-goal is shown at the top */
     objectives: { type: Array, default: () => [] },
-    /** ui.mission.speakers – own speakers of the level (seal of a note) */
-    speakers: { type: Object, default: () => ({}) },
     /** Stage restarts so far (Engine.restarts) */
     restarts: { type: Number, default: 0 },
     /** ui.mission.worlds – worlds of the mission [{ id, title }] (switcher and „Prüfen“ from two worlds on) */
@@ -311,8 +286,6 @@ export default {
     const codes = {};
     for (const s of this.scenario.sections ?? []) codes[s.id] = s.editable && typeof saved[s.id] === 'string' ? saved[s.id] : s.code;
     return {
-      /** Note of a figure (script.note): seq taken over, what the section shows ('note' | 'own'), the other code */
-      noteSeq: 0, noteView: null, ownCode: null, noteCode: null, noteOrig: null, brokenPortrait: null,
       codes, bps: {}, unfolded: {}, tab: 'code', grid: store.get('kronland-grid') ?? true, focused: null,
       showBriefing: true, dirty: {}, editors: {},
       /** Split screen: share of the window and collapsed state (localStorage) */
@@ -352,23 +325,8 @@ export default {
       const main = (this.objectives ?? []).filter((o) => o.primary);
       return { done: main.filter((o) => o.status === 'done').length, total: main.length };
     },
-    note() { return this.script.note ?? null; },
-    /** Section a note goes into: the first editable section of the player program */
-    noteSection() { return (this.scenario.sections ?? []).find((s) => s.level === 'player' && s.editable)?.id ?? null; },
-    /** Seal of the figure that wrote the note: portrait or initial in its colour (like the dialogue box) */
-    seal() {
-      const id = this.note?.speaker;
-      const known = id && Object.hasOwn(SPEAKERS, id) ? SPEAKERS[id] : null;
-      const own = id && !known && Object.hasOwn(this.speakers ?? {}, id) ? this.speakers[id] : null;
-      const name = known?.name ?? own?.name ?? id ?? '';
-      const pic = own?.portrait ? levelAssetUrl(own.portrait) : speakerPortrait(id) ? siteUrl(speakerPortrait(id)) : null;
-      return {
-        name, color: known?.color ?? own?.color ?? '#e0a93b',
-        initial: (tr(name)[0] ?? '?').toUpperCase(),
-        portrait: pic && pic !== this.brokenPortrait ? pic : null,
-      };
-    },
-    noteTitle() { return this.note?.title ? tr(this.note.title) : t('script.note.from', { name: tr(this.seal.name) }); },
+    /** Section a loaded program goes into: the first editable section of the player program */
+    loadSection() { return (this.scenario.sections ?? []).find((s) => s.level === 'player' && s.editable)?.id ?? null; },
     busy() { return this.status === 'running' || this.status === 'paused'; },
     paused() { return this.status === 'paused'; },
     vars() { return this.paused ? this.player.vars : null; },
@@ -419,8 +377,8 @@ export default {
       if (s === 'paused' && before !== 'paused' && !this.split && !this.open) { this.tab = 'code'; this.$emit('update:open', true); }
     },
     open(o) { if (o) this.menu = false; },
-    // A figure hands over a note: it replaces the program, the own code is kept for "back to my code"
-    'script.note.seq': { immediate: true, handler(seq) { if (seq && seq !== this.noteSeq) this.applyNote(this.script.note); } },
+    // The mission loads a program (program.load): it replaces the text of the program section, nothing else changes
+    'script.load.n': { immediate: true, handler(n) { if (n) this.applyLoad(this.script.load); } },
     // Phone, watching the game: the camera follows the figure the program controls (Engine.followWatched)
     showStrip(on) { this.followWatch(on); },
     consoleLines(now, before) {
@@ -497,42 +455,21 @@ export default {
     persist() {
       const out = {};
       for (const s of this.scenario.sections ?? []) if (s.editable) out[s.id] = this.codes[s.id];
-      // While a note is shown, the own code is what the browser keeps
-      if (this.noteView === 'note' && this.noteSection && this.ownCode !== null) out[this.noteSection] = this.ownCode;
       store.set(this.storeKey(), out);
     },
-    /** Take over a note of a figure: replaces the program in its section, the own code is kept. */
-    applyNote(n) {
-      const id = this.noteSection;
-      if (!n || !id) return;
-      this.noteSeq = n.seq;
-      // The same note once more (the stage begins anew in another world): the changed note stays
-      if (this.noteOrig === n.code) return;
-      this.noteOrig = n.code;
-      if (this.noteView !== 'note') this.ownCode = this.codes[id] ?? '';
-      this.noteCode = n.code;
-      this.noteView = 'note';
-      this.codes[id] = n.code;
+    /**
+     * Take over a program the mission loads (program.load): replaces the text of the player program, which the browser
+     * remembers from then on. The load is an event of the running game – a reload mid-mission does not repeat it.
+     */
+    applyLoad(l) {
+      const id = this.loadSection;
+      this.engine.ackProgramLoad?.(l.n);
+      if (!id) return;
+      this.codes[id] = l.code;
       this.dirty = { ...this.dirty, [id]: true };
+      this.checkRes = null;
       this.tab = 'code';
       this.persist();
-    },
-    /** "Back to my code": the own code returns, the (possibly changed) note stays one tap away. */
-    backToOwn() {
-      const id = this.noteSection;
-      if (!id || this.noteView !== 'note') return;
-      this.noteCode = this.codes[id];
-      this.codes[id] = this.ownCode ?? (this.scenario.sections.find((s) => s.id === id)?.code ?? '');
-      this.noteView = 'own';
-      this.edited(id);
-    },
-    toNote() {
-      const id = this.noteSection;
-      if (!id || this.noteView === 'note') return;
-      this.ownCode = this.codes[id];
-      this.codes[id] = this.noteCode ?? this.note?.code ?? '';
-      this.noteView = 'note';
-      this.edited(id);
     },
     editable() {
       const out = {};
@@ -809,7 +746,6 @@ export default {
 .sp-goal-lbl { display: block; color: var(--gold-300); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
 .sp-goal-text { margin: 0.125rem 0 0; font-size: var(--fs-sm); line-height: 1.4; color: var(--ink); }
 .sp-goal-prog { margin-left: 0.5rem; font-style: normal; color: var(--gold-200); }
-/* Note of a figure: seal, title, "back to my code" */
 .sp-goal-here { margin: 0.375rem 0 0; font-size: var(--fs-xs); line-height: 1.4; color: var(--good); }
 /* Worlds: switcher (chips) and „Prüfen“ with its result */
 .sp-worlds { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.375rem 0.5rem; align-items: center; padding: 0.5rem; border-radius: var(--r-md); background: rgba(0, 0, 0, 0.22); box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.18); }
@@ -837,22 +773,6 @@ export default {
 .sp-check-world { font-weight: 600; }
 .sp-check-what { flex: 1; min-width: 8rem; color: var(--ink-muted); }
 .sp-check-show { min-height: 1.75rem !important; padding: 0 0.5rem; font-size: var(--fs-xs); }
-.sp-note { display: flex; align-items: center; gap: 0.625rem; padding: 0.375rem 0.5rem 0.375rem 0.375rem; border-radius: var(--r-md); background: linear-gradient(90deg, color-mix(in srgb, var(--sp) 22%, transparent), rgba(0, 0, 0, 0.2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sp) 45%, transparent); }
-.sp-note.mine { background: rgba(0, 0, 0, 0.22); box-shadow: inset 0 0 0 1px rgba(225, 168, 58, 0.2); }
-.sp-seal {
-  flex: none; width: 2.25rem; height: 2.25rem; border-radius: 50%; display: grid; place-items: center;
-  font-family: var(--display); font-size: 1.0625rem; font-weight: 700; color: #fff8e6; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--sp) 60%, #fff), var(--sp) 70%);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3), 0 0 0 2px var(--gold-500), 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-.sp-seal.pic { overflow: hidden; background: #f1ece4; }
-.sp-seal.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sp-seal.sm { width: 1.375rem; height: 1.375rem; font-size: 0.75rem; box-shadow: 0 0 0 1px var(--gold-500); }
-.sp-note-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.sp-note-title { font-family: var(--display); color: var(--gold-200); font-size: var(--fs-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sp-note-sub { color: var(--ink-muted); font-size: var(--fs-xs); }
-.sp-note-btn { flex: none; display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.25rem; padding: 0 0.625rem; font-size: var(--fs-sm); }
-.sp-note-btn .ico { width: 0.875rem; height: 0.875rem; }
 /* "Waits for events" */
 .sp-listen { display: inline-flex; align-items: center; gap: 0.375rem; font-size: var(--fs-xs); color: var(--good); white-space: nowrap; }
 .sp-listen i { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--good); box-shadow: 0 0 6px var(--good); animation: sp-pulse 1.6s ease-in-out infinite; }

@@ -24,9 +24,20 @@ function until(sim, cond, n = 3000) {
   expect(cond()).toBe(true);
 }
 
+/** Collect the programs the mission loads (program.load): a display event, no state. */
+function track(state, sim) {
+  const step = sim.step.bind(sim);
+  sim.step = (...a) => {
+    const events = step(...a);
+    for (const e of events) if (e.type === 'programLoad') state.loads.push(e.code);
+    return events;
+  };
+}
+
 /** A mission played like the engine: Run restores the stage snapshot first. */
 function play(id) {
-  const state = { sim: createMissionSim(id), stage: new StageSnapshot() };
+  const state = { sim: createMissionSim(id), stage: new StageSnapshot(), loads: [] };
+  track(state, state.sim);
   expect(state.sim.mission.script.state.errors).toEqual([]);
   return state;
 }
@@ -34,7 +45,7 @@ function play(id) {
 /** Like Engine.scriptRun: restart the stage (snapshot), then the run command. */
 function runAs(state, code) {
   const next = state.stage.beforeRun(state.sim);
-  if (next) state.sim = next;
+  if (next) { state.sim = next; track(state, next); }
   state.sim.command({ type: 'script', player: 0, action: 'run', sections: { player: code } });
 }
 
@@ -64,19 +75,15 @@ describe('Course missions in the adventure menu', () => {
 });
 
 describe('I.2 "Taler für die Mägde"', () => {
-  it.each(LANGS)('the maid hands over a note; the model solution wins all four stages (%s)', (lang) => {
+  it.each(LANGS)('the maid loads a program; the model solution wins all four stages (%s)', (lang) => {
     const state = play('r1-2');
     until(state.sim, () => active(state.sim).includes('predict'));
-    const note = state.sim.mission.script.state.note;
-    expect(note).toMatchObject({ speaker: 'maid', title: { de: 'Zettel der Magd' } });
-    expect(note.code).toContain('for i in range(5):');
+    expect(state.loads).toHaveLength(1);
+    const program = state.loads[0];
+    expect(program).toContain('for i in range(5):');
 
-    // Stage 1: a wrong guess – Nelia says how many lie there; then the right one
-    runAs(state, note.code.replace('guess = 0', 'guess = 4'));
-    until(state.sim, () => said(state.sim, /vermutet hattest du 4/));
-    expect(coinsIn(state.sim, 0)).toBe(5);
-    runAs(state, note.code.replace('guess = 0', 'guess = 5'));
-    expect(coinsIn(state.sim, 0)).toBe(0);
+    // Stage 1: running the loaded program once is enough – nothing is guessed or checked
+    runAs(state, program);
     until(state.sim, () => active(state.sim).includes('path'));
     expect(tile(state.sim)).toEqual([2, 13]);
     expect(state.sim.players[0].stock.gold).toBe(9);
@@ -109,21 +116,19 @@ describe('I.5 "Holz für die erste Nacht"', () => {
   it.each(LANGS)('counting with variables: the model solution wins all four stages (%s)', (lang) => {
     const state = play('r1-5');
     until(state.sim, () => active(state.sim).includes('predict'));
-    const note = state.sim.mission.script.state.note;
-    expect(note).toMatchObject({ speaker: 'woodcutter' });
-    expect(note.code).toContain('count = count + 1');
+    expect(state.loads).toHaveLength(1);
+    const program = state.loads[0];
+    expect(program).toContain('count = count + 1');
 
-    // Stage 1: what does Nelia say? A wrong guess, then the right one (7 coins in the row)
-    runAs(state, note.code.replace('guess = 0', 'guess = 5'));
-    until(state.sim, () => said(state.sim, /vermutet hattest du 5/));
-    expect(state.sim.mission.state.messages.some((m) => m.speaker === 'nelia' && m.text === '7 Taler!')).toBe(true);
-    runAs(state, note.code.replace('guess = 0', 'guess = 7'));
+    // Stage 1: what does Nelia say? Running the loaded program once is enough (7 coins in the row)
+    runAs(state, program);
     until(state.sim, () => active(state.sim).includes('roses'));
+    expect(state.sim.mission.state.messages.some((m) => m.speaker === 'nelia' && m.text === '7 Taler!')).toBe(true);
     expect(tile(state.sim)).toEqual([2, 13]);
     expect(state.sim.players[0].stock.gold).toBe(7);
 
     // Stage 2: a second variable for the Christmas roses
-    runAs(state, note.code);
+    runAs(state, program);
     until(state.sim, () => said(state.sim, /Es liegt noch etwas im Schnee/));
     const roses = lines(
       'count = 0', 'flowers = 0',
@@ -161,10 +166,10 @@ describe('I.5 "Holz für die erste Nacht"', () => {
 });
 
 describe('I.M "Heimweg durchs Unterholz"', () => {
-  it.each(LANGS)('no note; turning right when blocked solves the edge, the right-hand rule every thicket (%s)', (lang) => {
+  it.each(LANGS)('no program is loaded; turning right when blocked solves the edge, the right-hand rule every thicket (%s)', (lang) => {
     const state = play('r1-m');
     until(state.sim, () => active(state.sim).includes('edge'));
-    expect(state.sim.mission.script.state.note).toBeFalsy();
+    expect(state.loads).toEqual([]);
     // Stage 1: walk, turn right when blocked (the way to the ruin of old)
     const simple = lines('while not nelia.is_at(place("exit")):', '    if nelia.can_step():', '        nelia.step()', '    else:', '        nelia.turn_right()');
     runAs(state, simple);
@@ -203,22 +208,19 @@ describe('II.1 "Orrins Abkürzung"', () => {
   it.each(LANGS)('functions without parameters: the model solution wins all three stages (%s)', (lang) => {
     const state = play('r2-1');
     until(state.sim, () => active(state.sim).includes('predict'));
-    const note = state.sim.mission.script.state.note;
-    expect(note).toMatchObject({ speaker: 'orrin', title: { de: 'Orrins Abkürzung' } });
-    expect(note.code).toContain('def around_ruin():');
+    expect(state.loads).toHaveLength(1);
+    const program = state.loads[0];
+    expect(program).toContain('def around_ruin():');
 
-    // Stage 1: where does Nelia stand after three calls?
-    runAs(state, note.code.replace('guess = 0', 'guess = 3'));
-    until(state.sim, () => said(state.sim, /vermutet hattest du 3/));
-    expect(tile(state.sim)).toEqual([8, 3]);
-    runAs(state, note.code.replace('guess = 0', 'guess = 6'));
+    // Stage 1: where does Nelia stand after three calls? Running the loaded program once is enough
+    runAs(state, program);
     until(state.sim, () => active(state.sim).includes('hedge'));
     expect(tile(state.sim)).toEqual([2, 13]);
 
-    // Stage 2: the hedge blocks the south – the unchanged note fails, the function round the left works
-    runAs(state, note.code);
+    // Stage 2: the hedge blocks the south – the unchanged program fails, the function round the left works
+    runAs(state, program);
     until(state.sim, () => said(state.sim, /links und rechts tauschen/));
-    const left = note.code.replace(/turn_right/g, 'TMP').replace(/turn_left/g, 'turn_right').replace(/TMP/g, 'turn_left');
+    const left = program.replace(/turn_right/g, 'TMP').replace(/turn_left/g, 'turn_right').replace(/TMP/g, 'turn_left');
     runAs(state, left);
     until(state.sim, () => active(state.sim).includes('coins'));
     expect(tile(state.sim)).toEqual([2, 23]);

@@ -1,6 +1,6 @@
 // "Run" restarts the stage (coding missions): on the first run after a new sub-goal became active the world is
-// remembered (snapshot = a normal save game), every further run starts again from that snapshot. So a prediction
-// or a second try always begins where the stage began, not where the last attempt left Nelia.
+// remembered (snapshot = a normal save game), every further run starts again from that snapshot. So a second try
+// always begins where the stage began, not where the last attempt left Nelia.
 //
 // Determinism and lockstep: snapshot and restore only use the save format (saveGame/loadGame, hash equal after a
 // restore) and happen between two ticks, right before the run command of the player is applied. In a lockstep game
@@ -30,7 +30,7 @@ export function resetEnabled(sim) {
 }
 
 /**
- * Restore a snapshot. Counters that only number messages for the UI (dialogue lines, console, notes) carry on from
+ * Restore a snapshot. Counters that only number messages for the UI (dialogue lines, console) carry on from
  * the current world, so panel and dialogue box treat everything after the restart as new. They are not part of the
  * state hash: a restored world hashes like the snapshot. Everything else – also program.runs and with it the
  * random numbers of the player program – is as in the snapshot, so the same program gives the same run again.
@@ -44,7 +44,7 @@ export function restoreStage(data, current) {
 }
 
 /**
- * Display counters (dialogue, console, notes) of the new world carry on from the old one – after a stage restart and
+ * Display counters (dialogue, console) of the new world carry on from the old one – after a stage restart and
  * after the world switcher – so that dialogue box and panel treat everything after the swap as new. Not in the hash.
  * @param {import('./sim.js').Sim|null} current @param {import('./sim.js').Sim} sim
  */

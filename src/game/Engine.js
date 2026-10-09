@@ -192,6 +192,9 @@ export class Engine {
     this.stage = new StageSnapshot(opts.load?.extra?.stage ?? null);
     /** Number of stage restarts (the UI resets what it remembers of the old world) */
     this.restarts = 0;
+    /** program.load() of the mission, waiting for the code panel: { n, code } (display only, not part of the state) */
+    this.programLoad = null;
+    this.programLoads = 0;
     resetSpeech();
   }
 
@@ -302,6 +305,7 @@ export class Engine {
     if (this.audio) g.run('audio', () => { this.audio.onEvents(events, this.prev); this.audio.onTick(); });
     g.run('ui', () => {
       this.eventToasts(events);
+      for (const ev of events) if (ev.type === 'programLoad' && ev.player === this.player) this.programLoad = { n: ++this.programLoads, code: ev.code };
       // Selection: deselect what has vanished and foreign things that vanish into the fog
       for (const id of this.selected) if (!this.canSee(this.sim.entities.get(id))) this.selected.delete(id);
     });
@@ -1554,6 +1558,7 @@ export class Engine {
     const m = this.sim.mission;
     if (!m) { this.missionView.hint = null; return null; }
     const ui = m.uiState(this.sim);
+    if (ui.script) ui.script.load = this.programLoad;
     const mv = this.missionView;
     if (ui.camera && ui.camera.seq !== mv.cameraSeq) {
       mv.cameraSeq = ui.camera.seq;
@@ -1583,6 +1588,11 @@ export class Engine {
     ui.pointer = ui.tutorial ? ui.tutorial.hint?.ui ?? [] : uiGoal?.hint.ui ?? [];
     mv.landmarks = ui.landmarks;
     return ui;
+  }
+
+  /** The code panel took over a loaded program (program.load): it is not offered again when the panel is rebuilt. */
+  ackProgramLoad(n) {
+    if (this.programLoad?.n === n) this.programLoad = null;
   }
 
   // ---------- UI ----------

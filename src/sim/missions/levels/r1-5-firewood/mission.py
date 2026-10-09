@@ -6,8 +6,7 @@
 STAGES = ["predict", "roses", "brook", "six"]
 ENDED = ("done", "error", "stopped")
 
-NOTE = "\n".join([
-    "guess = 0",
+PROGRAM = "\n".join([
     "count = 0",
     "while nelia.front() == \"coin\":",
     "    nelia.step()",
@@ -55,20 +54,13 @@ def items_in(top, kind):
 
 def predict():
     seen = program.runs
-    objective("predict",
-              de="Was sagt Nelia am Ende? Trag die Zahl bei guess ein, dann führe den Zettel aus.",
-              en="What does Nelia say at the end? Put the number into guess, then run the note.")
-    while True:
-        seen = next_run(seen)
-        guess = program.get("guess")
-        count = program.get("count")
-        if program.status == "done" and len(items_in(0, "coin")) == 0 and guess == count:
-            complete("predict")
-            say("woodcutter", de=f"{count} Taler, {count} Scheite. Gut gezählt!", en=f"{count} coins, {count} logs. Well counted!")
-            return
-        if program.status == "done":
-            say("nelia", de=f"Ich habe {count} gesagt, vermutet hattest du {guess}. Zähl die Taler noch einmal – Ausführen bringt mich zurück an den Start.",
-                         en=f"I said {count}, you guessed {guess}. Count the coins once more – Run takes me back to the start.")
+    # Das Programm einmal ausführen genügt (after_run) – Nachdenken, dann Ausführen
+    objective("predict", after_run=True,
+              de="Was sagt Nelia am Ende? Führe das Programm aus und hör zu.",
+              en="What does Nelia say at the end? Run the program and listen.")
+    wait_until(lambda: objective_status("predict") == "done")
+    count = program.get("count")
+    say("woodcutter", de=f"{count} Taler, {count} Scheite.", en=f"{count} coins, {count} logs.")
 
 
 def roses():
@@ -95,8 +87,8 @@ def roses():
                          en=f"Everything picked up, but count is {got_c} and flowers is {got_f}. Count coins and Christmas roses separately.")
 
     objective("roses", solved, all_worlds=True,
-              de="Ändere den Zettel: Nelia hebt bis zum Baum alles auf und zählt Taler in count und Christrosen in flowers – in allen Welten (Prüfen).",
-              en="Change the note: Nelia picks up everything up to the tree and counts coins in count and Christmas roses in flowers – in every world (Check).")
+              de="Ändere das Programm: Nelia hebt bis zum Baum alles auf und zählt Taler in count und Christrosen in flowers – in allen Welten (Prüfen).",
+              en="Change the program: Nelia picks up everything up to the tree and counts coins in count and Christmas roses in flowers – in every world (Check).")
     until_checked("roses", solved, hint)
     say("nelia", de=f"{coins} Taler und {flowers} Christrosen. Zwei Zahlen, zwei Variablen.",
                  en=f"{coins} coins and {flowers} Christmas roses. Two numbers, two variables.")
@@ -161,7 +153,7 @@ def story():
         say("woodcutter", de="Brennholz? Ein Scheit für einen Taler. Die Händler haben auf dem Weg welche verloren – mein Lehrling sammelt sie so ein.",
                           en="Firewood? One log for one coin. The merchants lost some on the path – my apprentice collects them like this.")
     if first == 0:
-        note("woodcutter", NOTE, de="Zettel des Holzfällers", en="The woodcutter's note")
+        program.load(PROGRAM)
         predict()
     if first <= 1:
         roses()
