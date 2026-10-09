@@ -11,7 +11,7 @@ const VERSIONS = [1, 2];
 export const END_RULES = ['objectives', 'script'];
 
 import { assetPathOk } from '../../paths.js';
-import { scenarioGoals } from './outline.js';
+import { scenarioGoals, scenarioSteps } from './outline.js';
 
 /** Who leaves tracks (world.tracks.who): everyone, nobody (only tracks set by the mission) or only heroes. */
 export const TRACK_WHO = ['all', 'none', 'heroes'];
@@ -159,6 +159,8 @@ export function scenarioToDef(s) {
     end: endRuleOf(s),
     // Objectives read from the code (menus show them before the start)
     goals: scenarioGoals(s),
+    // Guided steps read from the code (the step card shows "step n of total")
+    steps: scenarioSteps(s),
     noDefeat: !!s.noDefeat,
     available: s.available ? { buildings: s.available.buildings ?? [], techs: s.available.techs ?? [] } : undefined,
     shafts: s.shafts,

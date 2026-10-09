@@ -18,7 +18,7 @@ Bezeichner sind englisch, Oberfläche, Erklärungen und Fehlermeldungen deutsch 
 | Welten | `src/sim/world.js` | flache Grundkarte, gespeicherte Editor-Karte, Zufallskarte |
 | Editor-Werkzeuge | `src/sim/editor/edit.js` | Heben, Senken, Wasser, Wald … auf einer Vorschau-Simulation |
 | Oberfläche | `src/ui/script/`, `src/ui/editor/`, `src/game/EditorView.js` | Code-Panel, Debugger, Abenteuer-Menü, Welteneditor |
-| Level | `src/sim/missions/levels/<ordner>/` | ein Ordner je Level: Lernabenteuer 1–5, Skript-Mission „Der Überfall“ |
+| Level | `src/sim/missions/levels/<ordner>/` | ein Ordner je Level: Lernabenteuer 1–5, Skript-Mission „Der Überfall“, Kampagne: Tutorial und Mission 1 „Lindgrund“ |
 
 Spielen: Startmenü → **Programmier-Abenteuer**. Direktstart: `?mission=adv1` … `?mission=adv5`, `?mission=m1`,
 ein Level von einem anderen Server mit `?level=https://…/lindgrund.zip` (siehe [Level-Ordner](#level-ordner)).
@@ -120,10 +120,14 @@ nelia  orrin  taran  malvor        # jeder Held unter seinem Namen (eigener zuer
 diplomacy(HUMAN, ENEMY)            # "allied", "neutral" oder "hostile"
 
 # Mission (zusätzlich)
-say("nelia", de="Da hinten!", en="Over there!")   # zweisprachig oder ein Text; wartet, bis der Dialog vorbei ist
+say("nelia", de="Da hinten!", en="Over there!")   # zweisprachig oder ein Text; wartet, bis die Zeile vorbei ist
+say("orrin", de="…", en="…", wait=False)          # nur einreihen, sofort weiter
+step("farm", until=lambda: count("farm", placed=True) >= 1, de=…, en=…, hint={"ui": "build-farm"})   # Tutorial-Schritt
 camera.fly_to(place("camp"), seconds=3)   camera.jump_to(hero)   reveal(ort)   message(de=…, en=…)
 objective("homes", lambda: (count("residence"), 2), de="Baue 2 Wohnhäuser", en="Build 2 residences")
 complete(id)  fail(id)  show_objective(id)  victory("gold")  defeat("hq")
+hint("homes", ui=["build-residence"], area="square", ui_until=lambda: count("residence", placed=True) >= 2)
+offer("buy", {"gold": 300}, de=…, en=…, group="way")   withdraw("buy")   unlock("barracks", "standingArmy")
 alchemist = npc("alchemist", look="worker.alchemist", at=place("tower"))   alchemist.stop_talking()
 program.status  program.runs  program.get("guess")   # das Spielerprogramm lesen (Kopie)
 program.stop()                     # Spielerprogramm anhalten (vor dem Wechsel in den nächsten Abschnitt)
@@ -131,7 +135,11 @@ note("maid", code, de="Zettel der Magd", en="The maid's note", editable=True)   
 reset(False)                       # Ausführen startet die Etappe nicht neu (Aufbau-Missionen); reset() wieder an
 spawn(BANDITS, "sword1", place("gate"), count=3)   attack(truppen, hq())   give(HUMAN, wood=200)
 hero_of(HUMAN, "orrin")   set_diplomacy(HUMAN, ENEMY, "neutral")   orrin.teleport((6, 8))   orrin.kill()
-place_building(BANDITS, "banditCamp", ort)   make_place("name", x, y, r)   find_open(nahe)   toward(a, b, d)
+place_building(BANDITS, "banditCamp", ort, level=0, min_r=0, radius=20, fixed=False)   make_place("name", x, y, r)
+find_open(nahe, max_r=16, clear=2, reachable_from=hq(), avoid=[(x, y, 10)], on_ice=False)   toward(a, b, d)
+camp("outpost", ort, [("spear1", 2, 3)], r=7)   add_hero(HUMAN, "orrin", ort)   convert(trupps, HUMAN)
+add_shaft("clay", hq())   add_ruin("residence", ort)   player("moorbrook")   remove(fremder)  # spurlos
+count("farm", placed=True, level=1)   researched("conscription")   ai(ENEMY, forbid=["weatherPlant"])   give(ENEMY, energy=1000)
 plant_trees(ziel, anzahl)  add_tree(x, y, amount=None)  add_pile("stone", x, y)  clear_area(ziel, r)
 add_item("coin", x, y)  remove_item(x, y)  items("coin")  world.set_track(x, y)  hints(False)
 world.width  world.height_at(x, y)  world.set_height(x, y, h)  world.set_water(x, y)  world.noise(x, y, 16)
@@ -142,6 +150,8 @@ units_in(ziel, HUMAN, who="hero")  # ältere Form von figures_near (sieht durch 
 @on_killed  @on_recruited  @on_research("conscription")  @on_enter(place("camp"), who="hero")
 @on_objective("goal")  @on_weather("winter")  @on_talk("alchemist")
 @on_event("talk", id="alchemist")    # ein Dekorator für jedes Ereignis, die Namen oben sind Kurzformen
+@on_event("payday")  @on_event("serf_bought")  @on_event("research_started")  @on_event("upgrade_started")
+@on_event("ability", ability="courage")  @on_event("trade")  @on_event("tribute", id="buy")   # nur als @on_event
 ```
 
 Spielobjekte sind Handles (`Hero`, `Serf`, `Troop`, `Building`, `Tree`, `Pile`, `Npc`, `Place`) mit Eigenschaften
@@ -221,6 +231,14 @@ schaltet sie mit `hints(False)` ab, etwa für eine „Finde den Fehler“-Etappe
 
 **Dialoge** dauern eine feste Zeit (aus der Textlänge der deutschen Fassung oder `voiceLength`) – das
 Vorlesen beeinflusst den Ablauf nie. Wegklicken schickt `skipDialog` und beendet das Warten sofort.
+**Gespräche:** Die `say()`-Zeilen einer Aufgabe sind ein Gespräch. Spricht gerade eine andere Aufgabe, wartet die
+Zeile (`wait.k = 'say'`), bis deren Gespräch vorbei ist (`state.talk`: Aufgabe und Ende der Zeile plus ein Takt, damit
+die nächste Zeile desselben Gesprächs anschließt) – zwei Ereignisse reden nie durcheinander. „Gespräch überspringen“
+(`skipDialog` mit `all`) beendet die laufende Zeile; die restlichen Zeilen dieses Gesprächs landen im selben Takt als
+`skipped` im Protokoll, das Dialogfenster zeigt sie nicht. `say(…, wait=False)` reiht eine Zeile ohne Dauer ein
+(das Fenster zeigt sie nach Lesezeit bzw. Aufnahme), das Skript läuft weiter. Zeilen mit Dauer verwirft das
+Dialogfenster nie als veraltet. Endet ein Level nach seinen Zielen, wartet der Sieg, bis ein laufendes Gespräch
+fertig ist (höchstens 60 s) – die Zeilen nach dem letzten Ziel gehen nicht verloren.
 Vorgelesen wird eine Aufnahme des Levels (`say(…, voice="assets/hallo.mp3")`), eine vertonte Zeile der Kampagne
 oder die Sprachausgabe des Browsers (Einstellung „Dialoge vorlesen“). Lädt eine Aufnahme nicht, liest die
 Sprachausgabe den Text (`src/audio/speech.js`).
@@ -239,12 +257,42 @@ ob es der richtige Held ist. `stop_talking()`/`start_talking()` schalten das Aus
 Rolle des Figuren-Manifests (`"serf"`, `"worker.alchemist"`, `"hero.orrin"`) oder ein eigenes Modell des Levels
 (`"assets/alchemist.glb"`, `src/render/levelModels.js`, auf Figurengröße skaliert, Animation „idle“ wenn
 vorhanden); bis es geladen ist oder wenn es fehlt, steht die normale Figur da. Mit `name` oder `speakers` in
-scenario.json bekommt die Figur einen Namen im Dialogfenster. Figuren aus Missionsdateien (Kampagne) sprechen bis
-zu ihrem Umzug noch beim Herankommen.
+scenario.json bekommt die Figur einen Namen im Dialogfenster; `speaker` lässt sie für jemand anderen sprechen (der Fremde auf dem
+Dorfplatz ist Orrin: `speaker="orrin"`, die Dialogkamera schaut zu ihr), `owner` gibt sie einem Spieler (einem
+Dorf). Figuren aus Missionsdateien (Mission 2–6) sprechen bis zu ihrem Umzug noch beim Herankommen.
 
 **Das Spielerprogramm lesen:** `program.status` (`"idle"`, `"running"`, `"paused"`, `"done"`, `"error"`,
 `"stopped"`), `program.runs` und `program.get(name, default)` – eine Kopie der Variablen (Zahlen, Texte, Listen,
 Wörterbücher, Spielobjekte; Funktionen werden `None`). Damit prüft eine Mission Vorhersage- und Variablen-Aufgaben.
+
+## Kampagne in Python
+
+Mission 1 „Lindgrund“ (`levels/c1-lindgrund/`) und das Tutorial (`levels/tutorial/`) sind Level-Ordner wie die
+Abenteuer, mit `"kind": "campaign"` bzw. `"tutorial"`; die Registry reiht sie mit ihren alten IDs, Reihenfolge,
+`next` und Fortschrittsschlüsseln in die Kampagne ein (`?mission=c1`, `?mission=tutorial`). `scenario.json` trägt die
+Daten (Titel, Briefing, Texte je Ende, Spieler mit Dorf und Räubern, Vorrat, `available`, `shafts`, `landmarks`,
+`weatherCycle`), `world.py` baut die Karte um, `mission.py` erzählt. Bausteine:
+
+| Baustein | Wofür |
+|---|---|
+| `find_open(…, clear, reachable_from, avoid, on_ice)` | Plätze suchen, die auf jeder Karte passen (nie feste Koordinaten) |
+| `place_building(…, level, min_r, radius, fixed)` | Gebäude für Dörfer, Räuber und Gegner; ohne Platz `None` |
+| `add_shaft(res, near)`, `add_ruin(kind, near)` | Schacht in Reichweite, Ruinen als Kulisse |
+| `camp(name, near, units, r, anchor, on_ice)` | Räuberlager mit Wachen, die bei Annäherung angreifen |
+| `npc()` + `@on_talk`, `add_hero()` | Gesprächsfiguren, Helden, die sich anschließen |
+| `offer()`/`withdraw()` + `@on_event("tribute")`, `unlock()` | Tribute (mit Gruppen als Wahl), Freischaltungen |
+| `objective()` + `hint(…, ui_until=…)` | Ziele mit Fortschritt und Zeiger (Ring, Leuchtrahmen bis zur Handlung) |
+| `convert()`, `remove()`/`obj.kill()`, `player("moorbrook")` | Seitenwechsel, spurlos entfernen bzw. mit Ereignis, Dörfer |
+| `count(…, placed, level)`, `researched()`, `Serf.res`, `Building.max_hp` | Abfragen für Bedingungen |
+| `step()` | geführte Schritte des Tutorials |
+
+`count()` liest den **Zensus** des Takts (`runtime.count`: ein Durchlauf über alle Objekte, geteilt mit allen Zielen
+und Bedingungen); jeder Befehl, der das Spiel ändert, verwirft ihn, damit er nie veraltet ist. Die Dialogzeilen
+bleiben wortgleich mit den Aufnahmen (`public/audio/voice/index.json`, Schlüssel `sprecher|sprache|text`):
+`scripts/asset-gen/voice.mjs` sammelt die `say()`-Zeilen aus dem Python-Syntaxbaum (`scenarioLines` in `outline.js`,
+`src/sim/missions/dialogLines.js`), ein Test prüft, dass jede Zeile von Mission 1 und Tutorial vertont ist.
+Spielstände der früheren Missionsdatei von Mission 1 lassen sich nicht fortsetzen (`saves.err.missionChanged`);
+neue Spielstände tragen das Szenario mit.
 
 ## Level-Ordner
 

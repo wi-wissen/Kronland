@@ -71,7 +71,8 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   Welt aus Code erzeugen, Bilder, Töne und 3D-Modelle beilegen, als `.zip` speichern, testspielen). Ein Level ist
   ein Ordner (`scenario.json`, `.py`-Dateien, `assets/`) und reist als `.zip` – auch per Link von einem statischen
   Host (`play/?level=https://…/level.zip`). Missionen in Python: Ziele mit Fortschritt, Gesprächsfiguren (`npc()`,
-  `@on_talk`), `@on_event`, Texte zweisprachig direkt im Code.
+  `@on_talk`), `@on_event`, Texte zweisprachig direkt im Code. Auch das Tutorial (`step()`) und Mission 1 der
+  Kampagne sind solche Level-Ordner in Python (Lager, Tribute, Zeiger, Gespräche, die nie durcheinanderreden).
   Direktstart: `play/?mission=adv1` … `adv5`, `play/?mission=r1-4`, `play/?mission=m1`. Alles dazu: [Skripte](docs/SKRIPTE.md).
 - **Sonderkarten** (Startmenü → „Sonderkarten“): fertige Einzelkarten ohne Sieg und Niederlage, ohne Nebel.
   - **Schaukasten** (`play/?mission=showcase`): jedes Gebäude in jeder Ausbaustufe, Baustellen, Ruinen, Brücke,

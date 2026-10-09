@@ -6,7 +6,7 @@ import { saveGame, loadGame } from '../../src/sim/serialize.js';
 import { AiPlayer } from '../../src/ai/AiPlayer.js';
 import { tr } from '../../src/i18n/tr.js';
 import * as api from '../../src/sim/missions/setupApi.js';
-import { act, build, own, hero, objective, stepId, until, idle, P } from './missionBot.js';
+import { act, build, own, hero, objective, stepId, until, idle, P, ref, talkTo } from './missionBot.js';
 import { playTutorial, playMission1, meetOrrin } from './playthroughs.js';
 
 /** Small test mission directly from a definition (without registry). */
@@ -347,8 +347,10 @@ describe('Campaign', () => {
     CAMPAIGN.forEach((m, i) => {
       expect(m.briefing?.de && m.victoryText?.de && m.defeatText?.de).toBeTruthy();
       expect(m.next ?? null).toBe(CAMPAIGN[i + 1]?.id ?? null);
-      expect(m.objectives.some((o) => o.primary)).toBe(true);
-      expect(m.objectives.some((o) => !o.primary)).toBe(true); // every mission has side objectives
+      // mission files declare their objectives, level folders in Python (read from the code)
+      const goals = m.objectives?.length ? m.objectives : m.goals;
+      expect(goals.some((o) => o.primary)).toBe(true);
+      expect(goals.some((o) => !o.primary)).toBe(true); // every mission has side objectives
     });
   });
 
@@ -368,6 +370,13 @@ describe('Campaign', () => {
       const a = st.refs[name];
       expect(api.reachable(sim, hq, a, true), `${id}/${name}`).toBe(true);
     }
+    // Level folders: the Python world building ran without errors, its places can be reached
+    if (sim.mission.script) {
+      expect(sim.mission.script.state.errors, id).toEqual([]);
+      for (const [name, p] of Object.entries(sim.mission.script.places)) {
+        if (name.endsWith('Area') || ['clayShaft', 'oldRoot', 'orrinSeat', 'collectorFrom'].includes(name)) expect(api.reachable(sim, hq, p, true), `${id}/${name}`).toBe(true);
+      }
+    }
     sim.run(100);
     expect(st.result).toBeNull();
     expect(def.title.en).toBeTruthy();
@@ -377,7 +386,7 @@ describe('Campaign', () => {
     const { sim, ok } = playMission1();
     expect(ok).toBe(true);
     expect(sim.mission.state.result).toMatchObject({ won: true, reason: 'objectives' });
-    expect(sim.mission.state.flags.shard1).toBe(true);
+    expect(objective(sim, 'root').status).toBe('done');
   });
 
   it('mission 1: Orrin (not Nelia) wins the neighbouring village, the village elder is allied', () => {
@@ -387,22 +396,31 @@ describe('Campaign', () => {
     expect(sim.relation(0, nb)).toBe('neutral');
     meetOrrin(sim);
     // root reached → conversation figure stands
-    const r = st.refs.oldRoot;
+    const r = ref(sim, 'oldRoot');
     const nelia = sim.entities.get(st.refs.nelia);
     nelia.px = r.x * 1000 + 500; nelia.py = r.y * 1000 + 500;
     until(sim, () => st.npcs.elder, 50);
     const elder = sim.entities.get(st.npcs.elder.entity);
     expect(elder.talk).toBe(true);
-    // Nelia alone: wrong hero, only a hint
-    nelia.px = elder.px; nelia.py = elder.py + 800;
+    expect(elder.owner).toBe(nb);
+    // Walking past does nothing: the figure is tapped with a hero selected (order 'talk')
+    const orrin = [...sim.entities.values()].find((e) => e.kind === 'hero' && e.hero === 'orrin');
+    orrin.px = elder.px + 800; orrin.py = elder.py; orrin.path = [];
     sim.run(20);
     expect(st.npcs.elder.state).toBe('open');
-    const orrin = sim.entities.get(st.refs.orrin);
-    orrin.px = elder.px + 800; orrin.py = elder.py;
-    sim.run(10);
-    expect(st.npcs.elder.state).toBe('talked');
+    // Nelia: wrong hero, only a hint of the elder
+    nelia.px = elder.px; nelia.py = elder.py + 800; nelia.path = [];
+    talkTo(sim, [nelia.id], 'elder');
+    until(sim, () => st.messages.some((m) => m.speaker === 'elder'), 3000); // after the find conversation
+    expect(st.messages.at(-1).text.de).toMatch(/Schick mir den Händler/);
+    expect(st.npcs.elder.state).toBe('open');
+    expect(sim.relation(0, nb)).toBe('neutral');
+    // Orrin: the village becomes allied, sends three serfs and wood
+    talkTo(sim, [orrin.id], 'elder');
+    until(sim, () => objective(sim, 'neighbors').status === 'done', 3000);
+    expect(st.npcs.elder.state).toBe('closed');
     expect(sim.relation(0, nb)).toBe('allied');
-    expect(st.flags.neighbors).toBe(true);
+    expect(st.messages.some((m) => m.speaker === 'elder' && m.text.de.startsWith('Ob Prinzessin'))).toBe(true);
   });
 
   it('mission 2: buy or fight for Zacke – clay delivery swaps the offer for a cheaper one', () => {

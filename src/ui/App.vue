@@ -66,7 +66,7 @@
         </div>
       </Teleport>
 
-      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" :compact="compact" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog()" @line="engine.dialogFocus($event)" @focus="engine.focusHint($event)" @tribute="engine.payTribute($event)" />
+      <MissionHud v-if="ui.mission && !ui.mission.result" :mission="ui.mission" :touch="ui.touch" :lang="$i18n.lang" :speed="ui.speed" :compact="compact" @next="engine.missionNext()" @skip="engine.missionSkip()" @skip-dialog="engine.skipDialog($event)" @line="engine.dialogFocus($event)" @focus="engine.focusHint($event)" @tribute="engine.payTribute($event)" />
       <MissionResult
         v-if="ui.mission?.result"
         :result="ui.mission.result"
@@ -419,7 +419,8 @@ export default {
       this.recorded = false;
       this.record = false;
       // Special maps (showcase, stress test) have their own menu: return there
-      this.origin = SPECIAL_MAPS.includes(def) ? 'special' : def.scenario ? 'adventures' : 'campaign';
+      // Campaign chapters and the tutorial return to the campaign, even when they are level folders
+      this.origin = SPECIAL_MAPS.includes(def) ? 'special' : def.scenario && !['campaign', 'tutorial'].includes(def.kind) ? 'adventures' : 'campaign';
       const players = def.players.filter((p) => p.kind !== 'bandits').length + (def.players.some((p) => p.kind === 'bandits') ? 1 : 0);
       // Fixed mission map: link only ?mission=<id>; a deviating seed comes along with it
       const seed = extra.seed !== undefined && extra.seed !== def.seed ? extra.seed : undefined;

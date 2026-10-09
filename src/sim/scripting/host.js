@@ -11,6 +11,7 @@ import { makeApi, toTicks, toInt, LIMITS, assetPathOk, CLASS_OF } from './api.js
 import { TICKS_PER_SECOND, toTile, tileCenter } from '../fixed.js';
 import { kill } from '../systems/military.js';
 import { clearJob } from '../systems/serfs.js';
+import { removeWorker } from '../systems/workers.js';
 import { DIRS, faceOf, tileKind } from '../systems/ground.js';
 
 const T = TICKS_PER_SECOND;
@@ -38,6 +39,14 @@ const EVENT_HANDLERS = {
   researchDone: (ev) => ['on_research', { tech: ev.tech, player: ev.player }, [ev.tech]],
   objective: (ev) => ['on_objective', { id: ev.id, status: ev.status }, [ev.id, ev.status]],
   weather: (ev) => ['on_weather', { state: ev.state }, [ev.state]],
+  // Events without a decorator of their own (@on_event("payday") …, see EVENTS in api.js)
+  payday: (ev) => ['on_payday', { player: ev.player }, [ev.income, ev.wages]],
+  tradeDone: (ev) => ['on_trade', { player: ev.player }, [ev.give, ev.take, ev.amount]],
+  serfBought: (ev, h) => ['on_serf_bought', { player: ev.player }, [h(ev.unit)]],
+  researchStarted: (ev) => ['on_research_started', { tech: ev.tech, player: ev.player }, [ev.tech]],
+  upgradeStarted: (ev, h) => ['on_upgrade_started', { player: ev.player }, [h(ev.building)]],
+  ability: (ev, h) => ['on_ability', { ability: ev.ability, player: ev.owner }, [h(ev.hero), ev.ability]],
+  tributePaid: (ev) => ['on_tribute', { id: ev.id }, [ev.id]],
 };
 /** Own entry of a scenario table (texts, voice …) – never something from Object.prototype ("constructor"). */
 const ownText = (table, key) => (table && Object.hasOwn(table, key) ? table[key] : undefined);
@@ -412,7 +421,60 @@ export class ScriptHost {
       }
       case 'walk': this.checkWalk(vm, task, w); break;
       case 'chop': this.checkChop(vm, task, w); break;
+      case 'say':
+        // Waiting for its turn in the dialogue: then the line, then waiting for its end
+        if (this.mayTalk(task)) {
+          const dur = this.sayLine(task, w.speaker, w.text, w.ticks, w.voice);
+          task.wait = { k: 'dialog', until: sim.tick + dur };
+        }
+        break;
+      case 'step': this.checkStep(vm, task, w); break;
       default: vm.resume(task, null);
+    }
+  }
+
+  /**
+   * step(): the step ends by "Weiter"/"Überspringen" (runtime.command), the UI check of the step or the condition.
+   * step() returns "next", "skip" or "done".
+   */
+  checkStep(vm, task, w) {
+    const rt = this.runtime, step = rt.state.tutorial?.step;
+    if (!step || step.finished) { vm.resume(task, 'skip'); return; }
+    let result = step.result;
+    if (!result && step.watch && rt.uiChecked(step.watch)) result = 'done';
+    if (!result && w.fn) {
+      try {
+        if (truthy(vm.callSync(w.fn, [], null, task))) result = 'done';
+      } catch (e) {
+        if (!(e instanceof ScriptError)) throw e;
+        this.failTask(vm, task, e);
+        return;
+      }
+    }
+    if (!result) return;
+    step.finished = true;
+    step.result = result;
+    vm.resume(task, result);
+  }
+
+  /**
+   * Pointers of script objectives (hint(…, ui_until=…)): once the condition holds, the pointer at the controls
+   * goes for good (the objective keeps its place or figure). Checked every tick for open objectives.
+   */
+  checkHints() {
+    const vm = this.vms.mission;
+    const conds = vm?.globals.get('.hints');
+    if (!(conds instanceof PyDict) || !conds.map.size) return;
+    for (const o of this.runtime.state.objectives) {
+      if (o.status !== 'active' || o.uiOff || !conds.has(o.id)) continue;
+      const fn = conds.get(o.id);
+      try {
+        if (truthy(vm.callSync(fn, [], null, null))) { o.uiOff = true; conds.delete(o.id); }
+      } catch (e) {
+        if (!(e instanceof ScriptError)) throw e;
+        this.reportError('mission', e.toJSON());
+        conds.delete(o.id);
+      }
     }
   }
 
@@ -507,8 +569,41 @@ export class ScriptHost {
     return cut(this.vms.mission?.str(v) ?? String(v));
   }
 
+  /**
+   * May this task speak now? A conversation keeps the dialogue to itself: while a line of another task is running
+   * (and one tick after it, so that the next line of the same conversation follows on), other tasks wait their turn.
+   */
+  mayTalk(task) {
+    const t = this.state.talk;
+    return !t || t.task === task.id || this.sim.tick > t.until;
+  }
+
+  /** Is a conversation of the mission program running (a task waits for its line or for its turn)? */
+  talking() {
+    const vm = this.vms.mission;
+    if (!vm) return false;
+    for (const t of vm.tasks.values()) if (t.state === 'waiting' && (t.wait?.k === 'dialog' || t.wait?.k === 'say')) return true;
+    return false;
+  }
+
+  /**
+   * say() of a task: one line of its conversation. After "Gespräch überspringen" the rest of that conversation goes
+   * into the log at once, marked as skipped (the dialogue box does not show it).
+   * @returns {number} ticks to wait (0: go on at once)
+   */
+  sayLine(task, speaker, textV, ticks, voice) {
+    const sk = this.state.skip;
+    if (sk && sk.task === task.id && sk.tick === this.sim.tick) {
+      this.say(speaker, textV, 0, voice, false, true);
+      return 0;
+    }
+    const dur = this.say(speaker, textV, ticks, voice);
+    this.state.talk = { task: task.id, until: this.sim.tick + dur + 1 };
+    return dur;
+  }
+
   /** Message of a figure. @returns {number} duration in ticks (deterministic, language-independent) */
-  say(speaker, textV, ticks, voice, bubble = false) {
+  say(speaker, textV, ticks, voice, bubble = false, skipped = false) {
     const st = this.runtime.state;
     const text = this.text(textV);
     const key = typeof textV === 'string' && ownText(this.scenario.texts, textV) ? textV : null;
@@ -518,7 +613,7 @@ export class ScriptHost {
     if (ticks === null && vlen) dur = Math.max(dur, Math.round(vlen * T) + 5);
     const own = key ? ownText(this.scenario.voice, key) ?? null : null;
     const v = voice ?? (assetPathOk(own) || (own && typeof own === 'object') ? own : null);
-    st.messages.push({ seq: ++st.seq, tick: this.sim.tick, speaker, text, voice: v, dur, bubble });
+    st.messages.push({ seq: ++st.seq, tick: this.sim.tick, speaker, text, voice: v, dur, bubble, ...(skipped ? { skipped: true } : {}) });
     if (st.messages.length > 30) st.messages.shift();
     this.sim.events.push({ type: 'dialog', seq: st.seq, player: st.human });
     return dur;
@@ -694,7 +789,7 @@ export class ScriptHost {
       case 'run': return this.runPlayer(cmd);
       case 'stop': this.stopPlayer(); return true;
       case 'debug': return this.debugCommand(cmd);
-      case 'skipDialog': this.skipDialog(); return true;
+      case 'skipDialog': this.skipDialog(!!cmd.all); return true;
       default: return sim.reject(cmd, 'err.unknownMissionAction');
     }
   }
@@ -810,7 +905,8 @@ export class ScriptHost {
     return true;
   }
 
-  skipDialog() {
+  /** End the line the script waits for; with `all` ("Gespräch überspringen") the rest of that conversation too. */
+  skipDialog(all = false) {
     this.state.skipSeq++;
     const st = this.runtime.state;
     for (const level of ['mission', 'player']) {
@@ -818,7 +914,37 @@ export class ScriptHost {
       if (!vm) continue;
       for (const t of vm.tasks.values()) if (t.state === 'waiting' && t.wait?.k === 'dialog') t.wait.until = this.sim.tick;
     }
+    if (all && this.state.talk) this.state.skip = { task: this.state.talk.task, tick: this.sim.tick };
     st.dialogSkip = st.seq;
+  }
+
+  /**
+   * Take a thing out of the game without a trace (remove()): no death, no ruin, no event – for story scenes.
+   * Squad leaders take their soldiers along.
+   */
+  takeOut(e) {
+    const sim = this.sim;
+    if (!e || !sim.entities.has(e.id)) return;
+    switch (e.kind) {
+      case 'leader': for (const id of e.soldiers) sim.entities.delete(id); sim.entities.delete(e.id); break;
+      case 'soldier': {
+        const L = sim.entities.get(e.leader);
+        if (L) L.soldiers = L.soldiers.filter((id) => id !== e.id);
+        sim.entities.delete(e.id);
+        break;
+      }
+      case 'worker': removeWorker(sim, e, 'removed'); break;
+      case 'unit': clearJob(sim, e); sim.entities.delete(e.id); break;
+      case 'building':
+        for (const id of e.builders) { const u = sim.entities.get(id); if (u?.job?.target === e.id) clearJob(sim, u); }
+        sim.removeEntity(e);
+        break;
+      case 'tree': case 'pile':
+        sim.removeEntity(e);
+        sim.events.push({ type: 'nodeDepleted', node: e.id, res: e.res });
+        break;
+      default: sim.removeEntity(e);
+    }
   }
 
   // ---------- Saving ----------
@@ -853,7 +979,7 @@ export class ScriptHost {
   hash(h) {
     const s = this.save();
     const p = s.state.player;
-    h.str(JSON.stringify([s.mission, s.player, s.state.places, s.state.every, s.state.enter, p.status, p.every ?? {}, p.enter ?? {}, s.state.note?.seq ?? 0, s.state.reset ?? null]));
+    h.str(JSON.stringify([s.mission, s.player, s.state.places, s.state.every, s.state.enter, p.status, p.every ?? {}, p.enter ?? {}, s.state.note?.seq ?? 0, s.state.reset ?? null, s.state.talk ?? null, s.state.skip ?? null]));
   }
 
   // ---------- UI ----------

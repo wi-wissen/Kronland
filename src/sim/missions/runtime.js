@@ -34,6 +34,8 @@ const byReason = (table, reason) => (table && Object.hasOwn(table, reason) ? tab
 
 /** Kinds of goals that "hold" instead of "reach": they are fulfilled as long as they do not fail. */
 const HOLD_TYPES = new Set(['protect']);
+/** Longest wait for a running conversation once all objectives are done (ticks). */
+const END_WAIT = 60 * T;
 
 export class MissionRuntime {
   /** @param {any} def mission definition @param {any} [state] saved state */
@@ -56,7 +58,8 @@ export class MissionRuntime {
       messages: [],              // { seq, tick, speaker, text }
       seq: 0,
       camera: null,              // { seq, x, y }
-      tutorial: def.tutorial ? { index: -1, ui: {}, since: 0, done: false } : null,
+      /** Guided steps (step() in Python): { index, ui: {check: tick}, since, step } – created by the first step */
+      tutorial: null,
       warnings: [],
       /** Goals that a script creates at runtime: ID → { id, type: 'script', text, primary } */
       extraObjectives: {},
@@ -64,6 +67,8 @@ export class MissionRuntime {
       villages: {},
       /** Tributes: ID → 'open' | 'paid' | 'closed' (order = order of offering) */
       tributes: {},
+      /** Tributes a script offers (offer()): ID → { cost, text, group } */
+      tributeDefs: {},
       /** Talk figures: ID → { entity, state: 'open' | 'talked', hint } */
       npcs: {},
       /**
@@ -87,6 +92,10 @@ export class MissionRuntime {
     // Older saves carried the scenario only for own levels
     const custom = state.custom ?? !!state.scenario;
     const base = custom ? null : getMission(state.id);
+    // A mission that moved from a mission file into a level folder: its old saves carry no scenario and cannot go on
+    if (!custom && !state.scenario && base?.scenario) {
+      throw Object.assign(new Error(`Mission ${state.id} was rewritten, the save game is too old`), { code: 'saves.err.missionChanged' });
+    }
     const def = state.scenario ? { ...scenarioToDef(state.scenario), next: base?.next ?? null, custom } : base;
     if (!def) throw new Error(`Unknown mission: ${state.id}`);
     const st = structuredClone(state);
@@ -182,9 +191,8 @@ export class MissionRuntime {
     if (def.shafts) api.keepShafts(sim, def.shafts);
     const ctx = this.setupContext(sim);
     def.setup?.(ctx);
-    // Initial actions and first tutorial step
+    // Initial actions
     if (def.start) this.runActions(sim, def.start);
-    if (st.tutorial) this.enterStep(sim, 0);
     // Python mission program: world building, register handlers
     this.script?.setup(sim);
   }
@@ -215,7 +223,7 @@ export class MissionRuntime {
   addCamp(sim, name, near, units, o = {}) {
     const st = this.state;
     if (st.bandits < 0) { st.warnings.push('No bandits in this mission'); return null; }
-    let b = o.anchor !== undefined ? sim.entities.get(o.anchor) : null;
+    let b = o.anchor !== undefined && o.anchor !== null ? sim.entities.get(o.anchor) : null;
     if (!b) {
       const from = o.from ?? null;
       const allowWater = !!o.onIce;
@@ -239,7 +247,7 @@ export class MissionRuntime {
     st.refs[name] = b.id;
     st.refs[`${name}Guards`] = guards;
     st.refs[`${name}Area`] = { x: c.x, y: c.y, r: camp.r };
-    return { x: c.x, y: c.y, r: camp.r };
+    return { x: c.x, y: c.y, r: camp.r, guards };
   }
 
   // ---------- Hook 2: commands ----------
@@ -250,17 +258,14 @@ export class MissionRuntime {
     if (cmd.player !== st.human) return sim.reject(cmd, 'err.missionHumanOnly');
     const tut = st.tutorial;
     switch (cmd.action) {
-      case 'next': {
+      // The step that step() waits for ends with "Weiter" (reading steps and next=True) or "Überspringen" (always)
+      case 'next': case 'skip': {
         const step = this.currentStep();
-        if (!step) return sim.reject(cmd, 'err.noTutorial');
-        if (step.done && !step.allowNext) return sim.reject(cmd, 'err.stepByAction');
-        this.advance(sim);
+        if (!step || step.result) return sim.reject(cmd, 'err.noTutorial');
+        if (cmd.action === 'next' && !step.canNext) return sim.reject(cmd, 'err.stepByAction');
+        step.result = cmd.action;
         return true;
       }
-      case 'skip':
-        if (!tut || tut.done) return sim.reject(cmd, 'err.noTutorial');
-        this.advance(sim, true);
-        return true;
       case 'ui':
         if (!tut || typeof cmd.check !== 'string') return sim.reject(cmd, 'err.noTutorial');
         tut.ui[cmd.check] = sim.tick;
@@ -283,7 +288,6 @@ export class MissionRuntime {
     this.updateNpcs(sim);
     this.updateTalks(sim);
     if (st.result) return;
-    this.updateTutorial(sim);
     this.updateObjectives(sim);
     this.updateEvents(sim);
     if (!st.result) this.script?.update(sim);
@@ -295,7 +299,7 @@ export class MissionRuntime {
   /** Numbers per player from a single pass over all entities. */
   count(sim) {
     if (this.census) return this.census;
-    const per = sim.players.map(() => ({ placed: {}, done: {}, level: {}, workers: 0, serfs: 0, leaders: 0, gather: {}, heroes: [] }));
+    const per = sim.players.map(() => ({ placed: {}, done: {}, level: {}, workers: 0, serfs: 0, leaders: 0, soldiers: 0, gather: {}, heroes: [] }));
     for (const e of sim.entities.values()) {
       const c = per[e.owner];
       if (!c) continue;
@@ -309,6 +313,7 @@ export class MissionRuntime {
         c.serfs++;
         if (e.job?.kind === 'gather') c.gather[e.job.res] = (c.gather[e.job.res] ?? 0) + 1;
       } else if (e.kind === 'leader') c.leaders++;
+      else if (e.kind === 'soldier') c.soldiers++;
       else if (e.kind === 'hero') c.heroes.push(e);
     }
     this.census = per;
@@ -394,7 +399,7 @@ export class MissionRuntime {
     switch (c.type) {
       case 'time': return sim.tick >= c.at * T;
       case 'delay': {
-        const at = c.after === 'start' ? 0 : c.afterStep !== undefined ? this.stepEnteredAt(c.afterStep) : st.fired[c.after];
+        const at = c.after === 'start' ? 0 : st.fired[c.after];
         return at !== undefined && at !== null && sim.tick >= at + c.seconds * T;
       }
       case 'objective': {
@@ -418,7 +423,7 @@ export class MissionRuntime {
       }
       case 'event': return sim.events.some((ev) => ev.type === c.event && (ev.player ?? ev.owner) === pl
         && Object.entries(c.match ?? {}).every(([k, v]) => ev[k] === v));
-      case 'ui': return st.tutorial?.ui[c.check] !== undefined && st.tutorial.ui[c.check] >= st.tutorial.since;
+      case 'ui': return this.uiChecked(c.check);
       case 'weather': return sim.weather.state === c.state;
       case 'flag': return !!st.flags[c.name];
       case 'heroDown': return this.allGone(sim, c.hero ?? 'hero');
@@ -517,6 +522,7 @@ export class MissionRuntime {
       if (r.failed) this.setObjective(sim, o, 'failed');
       else if (!r.hold && (r.done ?? r.cur >= r.target)) this.setObjective(sim, o, 'done');
     }
+    this.script?.checkHints();
   }
 
   setObjective(sim, o, status) {
@@ -619,7 +625,7 @@ export class MissionRuntime {
       }
       // Offer / withdraw tribute (definition in def.tributes)
       case 'tribute': {
-        if (!this.def.tributes?.[a.id]) { st.warnings.push(`Tribute ${a.id} missing`); break; }
+        if (!this.tributeDef(a.id)) { st.warnings.push(`Tribute ${a.id} missing`); break; }
         if (!st.tributes[a.id]) st.tributes[a.id] = 'open';
         break;
       }
@@ -707,16 +713,22 @@ export class MissionRuntime {
    */
   payTribute(sim, cmd) {
     const st = this.state;
-    const d = typeof cmd.id === 'string' && Object.hasOwn(this.def.tributes ?? {}, cmd.id) ? this.def.tributes[cmd.id] : null;
+    const d = typeof cmd.id === 'string' ? this.tributeDef(cmd.id) : null;
     if (!d || st.tributes[cmd.id] !== 'open') return sim.reject(cmd, 'err.noTribute');
     if (!sim.pay(st.human, d.cost)) return sim.reject(cmd, 'err.notEnoughResources');
     st.tributes[cmd.id] = 'paid';
     if (d.group) {
-      for (const [id, t] of Object.entries(this.def.tributes)) if (id !== cmd.id && t.group === d.group && st.tributes[id] === 'open') st.tributes[id] = 'closed';
+      for (const id of Object.keys(st.tributes)) if (id !== cmd.id && this.tributeDef(id)?.group === d.group && st.tributes[id] === 'open') st.tributes[id] = 'closed';
     }
     sim.events.push({ type: 'tributePaid', id: cmd.id, player: st.human });
     if (d.onPaid) this.runActions(sim, d.onPaid);
     return true;
+  }
+
+  /** Definition of a tribute: from the mission file (def.tributes) or offered by a script (offer()). */
+  tributeDef(id) {
+    if (Object.hasOwn(this.def.tributes ?? {}, id)) return this.def.tributes[id];
+    return Object.hasOwn(this.state.tributeDefs ?? {}, id) ? this.state.tributeDefs[id] : null;
   }
 
   // ---------- Talk figures ----------
@@ -748,9 +760,10 @@ export class MissionRuntime {
     const st = this.state;
     if (Object.hasOwn(st.npcs, id) && st.npcs[id].state !== 'gone') return null;
     const q = api.findOpen(sim, o.at.x, o.at.y, { maxR: 6 }) ?? o.at;
-    const e = { id: sim.nextId++, kind: 'npc', npc: id, look: o.look, owner: -1, px: tileCenter(q.x), py: tileCenter(q.y), path: [], talk: true, hp: 1 };
+    const e = { id: sim.nextId++, kind: 'npc', npc: id, look: o.look, owner: o.owner ?? -1, px: tileCenter(q.x), py: tileCenter(q.y), path: [], talk: true, hp: 1 };
     sim.entities.set(e.id, e);
-    st.npcs[id] = { entity: e.id, state: 'open', hint: -1000, script: true, ...(o.name ? { name: o.name } : {}) };
+    // speaker: who speaks for the figure (the dialogue camera looks at it when that speaker talks)
+    st.npcs[id] = { entity: e.id, state: 'open', hint: -1000, script: true, ...(o.name ? { name: o.name } : {}), ...(o.speaker ? { speaker: o.speaker } : {}) };
     return e;
   }
 
@@ -848,47 +861,32 @@ export class MissionRuntime {
     }
   }
 
-  // ---------- Tutorial ----------
+  // ---------- Tutorial (step() in Python) ----------
 
+  /** The step that a step() call is waiting for, or null (between two steps, or no tutorial). */
   currentStep() {
-    const t = this.state.tutorial;
-    if (!t || t.done || t.index < 0) return null;
-    return this.def.tutorial[t.index] ?? null;
+    const step = this.state.tutorial?.step;
+    return step && !step.finished ? step : null;
   }
 
-  stepEnteredAt(id) {
-    const t = this.state.tutorial;
-    const step = this.currentStep();
-    return step?.id === id ? t.since : this.state.fired[`step:${id}`];
-  }
-
-  enterStep(sim, index) {
-    const t = this.state.tutorial;
-    t.index = index;
+  /**
+   * step(): show a step card (title, text, touch text, pointer) and remember what ends it – the UI check `watch`
+   * ('camera', 'selectSerfs'), "Weiter" (canNext) or "Überspringen". The script waits until then.
+   * @param {{ id: string, title: any, text: any, touch: any, hint: any, watch: string|null, canNext: boolean }} o
+   */
+  enterScriptStep(sim, o) {
+    const t = this.state.tutorial ?? (this.state.tutorial = { index: -1, ui: {}, since: 0, step: null });
+    t.index++;
     t.since = sim.tick;
-    const step = this.def.tutorial[index];
-    if (!step) { t.done = true; return; }
-    this.state.fired[`step:${step.id}`] = sim.tick;
-    sim.events.push({ type: 'tutorialStep', index, id: step.id, player: this.state.human });
-    if (step.onEnter) this.runActions(sim, step.onEnter);
+    t.step = { ...o, result: null, finished: false };
+    sim.events.push({ type: 'tutorialStep', index: t.index, id: o.id, player: this.state.human });
+    return t.step;
   }
 
-  advance(sim, skipped = false) {
+  /** Has the UI reported the check of the current step since the step began? */
+  uiChecked(check) {
     const t = this.state.tutorial;
-    const step = this.currentStep();
-    if (step?.onDone && !skipped) this.runActions(sim, step.onDone);
-    if (t.index + 1 >= this.def.tutorial.length) {
-      t.done = true;
-      this.finish(sim, true, 'tutorial');
-      return;
-    }
-    this.enterStep(sim, t.index + 1);
-  }
-
-  updateTutorial(sim) {
-    const step = this.currentStep();
-    if (!step || !step.done) return;
-    if (this.check(sim, step.done)) this.advance(sim);
+    return !!t && Object.hasOwn(t.ui, check) && t.ui[check] >= t.since;
   }
 
   // ---------- End ----------
@@ -904,11 +902,17 @@ export class MissionRuntime {
         if (o.status === 'failed' && this.objectiveDef(o.id).primary) { this.finish(sim, false, o.id); return; }
       }
     }
-    if (this.def.tutorial) return; // tutorial ends with the last step
     const prim = st.objectives.filter((o) => this.objectiveDef(o.id).primary);
     if (!prim.length) return;
     const ok = prim.every((o) => o.status === 'done' || (o.status === 'active' && HOLD_TYPES.has(this.objectiveDef(o.id).type)));
-    if (ok && prim.some((o) => o.status === 'done')) this.finish(sim, true, 'objectives');
+    if (!ok || !prim.some((o) => o.status === 'done')) return;
+    // A conversation of the script still running (e.g. the lines after the last objective) is heard to its end
+    // first – at most END_WAIT ticks
+    if (this.script?.talking()) {
+      st.endWait ??= sim.tick;
+      if (sim.tick - st.endWait < END_WAIT) return;
+    }
+    this.finish(sim, true, 'objectives');
   }
 
   /** @param {string} reason picks the texts (victoryTexts/defeatTexts/debriefs) @param {any} [text] own text instead */
@@ -929,10 +933,12 @@ export class MissionRuntime {
   hash(h) {
     const st = this.state;
     h.str('m').str(st.id).int(st.seq).int(st.result ? (st.result.won ? 2 : 1) : 0);
-    for (const o of st.objectives) h.str(o.status).int(o.count);
+    for (const o of st.objectives) { h.str(o.status).int(o.count); if (o.uiOff) h.int(1); }
+    if (st.endWait !== undefined) h.int(st.endWait);
     for (const k of Object.keys(st.fireCount)) h.str(k).int(st.fireCount[k]);
-    if (st.tutorial) h.int(st.tutorial.index);
+    if (st.tutorial) h.int(st.tutorial.index).str(st.tutorial.step?.result ?? '');
     for (const k of Object.keys(st.tributes ?? {})) h.str(k).str(st.tributes[k]);
+    if (Object.keys(st.tributeDefs ?? {}).length) h.str(JSON.stringify(st.tributeDefs));
     for (const k of Object.keys(st.npcs ?? {})) h.str(k).str(st.npcs[k].state);
     if (st.available) for (const kind of ['buildings', 'techs']) h.int(st.available[kind].length).str(st.available[kind].join(','));
     this.script?.hash(h);
@@ -950,16 +956,19 @@ export class MissionRuntime {
           progress: d.showProgress === false || !o.progress || o.progress[1] <= 1 ? null : o.progress,
           time: d.type === 'survive',
           // Where to? Goals of type reach show their area, others an own hint (hint: { area } | { entity } | { ui })
-          hint: o.status === 'active' ? this.resolveHint(sim, this.objectiveHint(sim, d)) : null,
+          hint: o.status === 'active' ? this.resolveHint(sim, this.objectiveHint(sim, d, o)) : null,
         };
       });
     let tutorial = null;
     const step = this.currentStep();
     if (step) {
       tutorial = {
-        index: st.tutorial.index, total: def.tutorial.length, id: step.id,
+        // Number of steps: read from the code (scenarioSteps), at least up to the current one
+        index: st.tutorial.index, total: Math.max(def.steps?.length ?? 0, st.tutorial.index + 1), id: step.id,
         title: step.title ?? null, text: step.text, touch: step.touch ?? null,
-        canNext: !step.done || !!step.allowNext, hint: this.resolveHint(sim, step.hint),
+        canNext: !!step.canNext, hint: this.resolveHint(sim, step.hint),
+        // UI check the engine watches for this step ('camera', 'selectSerfs'), see Engine.missionUi
+        watch: step.watch ?? null,
       };
     }
     return {
@@ -967,8 +976,8 @@ export class MissionRuntime {
       // all kept messages (at most MAX_MESSAGES): a conversation of many lines in one tick must not lose its start.
       // A copy: the UI compares snapshots – the live array would change under its feet and a new line go unseen.
       messages: st.messages.slice(),
-      tributes: Object.entries(st.tributes ?? {}).filter(([, v]) => v === 'open').map(([id]) => {
-        const d = this.def.tributes[id];
+      tributes: Object.entries(st.tributes ?? {}).filter(([id, v]) => v === 'open' && this.tributeDef(id)).map(([id]) => {
+        const d = this.tributeDef(id);
         return { id, text: d.text, cost: d.cost, affordable: sim.canPay(st.human, d.cost) };
       }),
       dialogSkip: st.dialogSkip ?? 0,
@@ -999,9 +1008,15 @@ export class MissionRuntime {
    * Hint of an objective. A pointer at a control (`ui`, e.g. 'build-clayMine') stays only as long as it helps:
    * while `uiWhile` holds, for build objectives until enough buildings are placed.
    */
-  objectiveHint(sim, d) {
+  objectiveHint(sim, d, o = null) {
     const h = d.hint ?? (d.type === 'reach' ? { area: d.area } : null);
     if (!h?.ui) return h;
+    // Script objectives (hint() in Python): the pointer goes once its ui_until condition held (o.uiOff)
+    if (d.type === 'script') {
+      if (!o?.uiOff) return h;
+      const { ui, ...rest } = h;
+      return Object.keys(rest).length ? rest : null;
+    }
     // uiWhile: own condition; build objectives: until enough are placed
     const keep = h.uiWhile ? this.check(sim, h.uiWhile)
       : d.type !== 'build' || this.builtCount(sim, this.playerOf(d.player), d.building, 0, true) < (d.count ?? 1);
