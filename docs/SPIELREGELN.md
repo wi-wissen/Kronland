@@ -562,9 +562,11 @@ Werte: `BALANCE.ground` (alle (A)).
   je Kachel die Stufe, dieselbe über die Nachbarn geglättet und die Laufrichtung (Strukturtensor des Gradienten). Der
   Geländeshader liest das geglättete Feld bikubisch, verschiebt den Zugriff mit Rauschen in Weltkoordinaten (der Weg
   schlängelt sich um bis zu eine halbe Kachel) und franst Ränder, Breite und Abnutzung mit Rauschen aus – Kurven
-  statt Ecken, Diagonalen statt Treppen, ab und zu eine ausgetretene Stelle daneben. Sommer und Regen: erst
-  niedergelegte, hellere Halme in Laufrichtung, dann ausgetretene Flecken, die zusammenwachsen, ab der Pfadschwelle
-  blanke Erde. Winter: Fußabdrücke in Laufrichtung, mit wachsender Stärke weitere Lagen (je Lage leicht gedreht und
+  statt Ecken, Diagonalen statt Treppen, ab und zu eine ausgetretene Stelle daneben. Sommer und Regen: schmale
+  Fußwege – jede Pfadkachel der Umgebung ist eine kurze Kapsel in Laufrichtung (Erdkern 0,35 … 0,5 Kachel breit, darum
+  ein weicher Rand aus niedergelegtem, hellerem Gras), leicht geschlängelt, aber in ihrem Kachelkorridor; breiter nur,
+  wo mehrere benachbarte Kacheln Pfad sind (Platz vor der Burg, Abzweig), selten ein kleiner ausgetretener Fleck
+  daneben. Erde erst ab der Pfadschwelle, das getretene Gras bleibt zurückhaltend. Winter: Fußabdrücke in Laufrichtung, mit wachsender Stärke weitere Lagen (je Lage leicht gedreht und
   versetzt), bis sie zur festgetretenen, grauen Spur verschmelzen. Niedrige Grafikstufe: ein linearer statt des
   bikubischen Zugriffs. Nur soweit der Spieler die Kacheln sieht oder zuletzt gesehen hat. Taler und Christrosen liegen sichtbar auf
   ihren Kacheln, sobald die Kachel erkundet ist. Im Welteneditor setzt man beides mit „Gegenstand“ und „Spur“.
