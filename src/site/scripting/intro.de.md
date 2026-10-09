@@ -46,7 +46,9 @@ lange drücken), erklärt ihn eine Karte; der Knopf **Referenz** öffnet diese S
 abzählen kannst. Dein Code wird im Browser gemerkt. Mehr zur Bedienung im [Handbuch](manual/#coding).
 
 Im **Welteneditor** (Programmier-Abenteuer → Welteneditor) gibt es den Reiter **Code** mit allen Abschnitten eines
-Szenarios: Missionsabschnitte (alles erlaubt) und Spielerabschnitte (wie die Oberfläche).
+Szenarios: Missionsabschnitte (alles erlaubt) und Spielerabschnitte (wie die Oberfläche). Hat eine Mission mehrere
+**Welten** (Normalfall und Randfälle), baut der Weltcode je nach `world.id` eine andere; **Prüfen** im Code-Panel
+spielt das Spielerprogramm in allen Welten durch.
 
 ## So läuft ein Programm {#run}
 

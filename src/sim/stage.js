@@ -12,8 +12,7 @@ import { saveGame, loadGame } from './serialize.js';
 
 /** Key of the current stage: the active sub-goals. A new sub-goal (or one more done) gives a new key. */
 export function stageKey(sim) {
-  const objs = sim.mission?.state.objectives ?? [];
-  return objs.filter((o) => o.status === 'active').map((o) => o.id).join(',');
+  return sim.mission?.stageKey() ?? '';
 }
 
 /**
@@ -40,17 +39,25 @@ export function resetEnabled(sim) {
  */
 export function restoreStage(data, current) {
   const sim = loadGame(data);
-  const a = current?.mission, b = sim.mission;
-  if (a && b) {
-    b.state.seq = Math.max(b.state.seq ?? 0, a.state.seq ?? 0);
-    b.state.dialogSkip = Math.max(b.state.dialogSkip ?? 0, a.state.dialogSkip ?? 0);
-    if (a.script && b.script) {
-      const x = a.script.state, y = b.script.state;
-      y.seq = Math.max(y.seq ?? 0, x.seq ?? 0);
-      y.skipSeq = Math.max(y.skipSeq ?? 0, x.skipSeq ?? 0);
-    }
-  }
+  carryCounters(current, sim);
   return sim;
+}
+
+/**
+ * Display counters (dialogue, console, notes) of the new world carry on from the old one – after a stage restart and
+ * after the world switcher – so that dialogue box and panel treat everything after the swap as new. Not in the hash.
+ * @param {import('./sim.js').Sim|null} current @param {import('./sim.js').Sim} sim
+ */
+export function carryCounters(current, sim) {
+  const a = current?.mission, b = sim.mission;
+  if (!a || !b) return;
+  b.state.seq = Math.max(b.state.seq ?? 0, a.state.seq ?? 0);
+  b.state.dialogSkip = Math.max(b.state.dialogSkip ?? 0, a.state.dialogSkip ?? 0);
+  if (a.script && b.script) {
+    const x = a.script.state, y = b.script.state;
+    y.seq = Math.max(y.seq ?? 0, x.seq ?? 0);
+    y.skipSeq = Math.max(y.skipSeq ?? 0, x.skipSeq ?? 0);
+  }
 }
 
 /** The snapshot of the current stage (kept by the engine, saved in the envelope `extra.stage`). */

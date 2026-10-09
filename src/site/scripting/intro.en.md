@@ -45,7 +45,9 @@ explaining it; the **Reference** button opens this page. The **# Grid** button s
 remembered in the browser. More about the controls in the [manual](manual/#coding).
 
 In the **world editor** (Coding adventures → World editor) the **Code** tab holds all sections of a scenario:
-mission sections (everything allowed) and player sections (like the interface).
+mission sections (everything allowed) and player sections (like the interface). If a mission has several **worlds**
+(normal case and edge cases), the world code builds a different one depending on `world.id`; **Check** in the code
+panel plays the player program through all worlds.
 
 ## How a program runs {#run}
 

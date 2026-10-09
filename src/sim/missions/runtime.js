@@ -23,6 +23,11 @@ const MAX_MESSAGES = 30;
 /** A hero this close to a talk figure (milli-tiles, per axis) talks to it: two tiles and a half. */
 const TALK_REACH = 2 * UNIT + 500;
 export const BANDIT_TEAM = 99;
+
+/**
+ * Start options of a mission game besides the definition (part of the mission state, saved and hashed).
+ * @typedef {{ seed?: number, world?: string|null, stage?: string|null, check?: boolean }} StartOptions
+ */
 const VILLAGE_TEAM = 100;
 
 /** Text of a table for a reason ('hq', 'gold' …), only own entries. */
@@ -32,11 +37,25 @@ const byReason = (table, reason) => (table && Object.hasOwn(table, reason) ? tab
 const END_WAIT = 60 * T;
 
 export class MissionRuntime {
-  /** @param {any} def mission definition @param {any} [state] saved state */
-  constructor(def, state = null) {
+  /**
+   * @param {any} def mission definition @param {any} [state] saved state
+   * @param {StartOptions} [start] start options of a new game (world, stage, check)
+   */
+  constructor(def, state = null, start = {}) {
     this.def = def;
+    const worlds = def.worlds ?? [];
     this.state = state ?? {
       id: def.id,
+      // Worlds (docs/SKRIPTE.md#welten): the world this game runs in (world.id in Python), null for a level with one
+      world: worlds.length ? (worlds.some((w) => w.id === start.world) ? start.world : worlds[0].id) : null,
+      // Stage the switcher or the check started this world at (world.stage in Python), null = from the beginning
+      startStage: worlds.length && typeof start.stage === 'string' && start.stage ? start.stage : null,
+      // Headless check of a program („Prüfen“, src/sim/check.js): no dialogue pauses, all_worlds goals count here
+      check: !!start.check,
+      // Seed given at the start (link, switcher keeps it); null = seed of the level or the world
+      startSeed: Number.isInteger(start.seed) ? start.seed : null,
+      // Goals with all_worlds=True whose stage passed „Prüfen“ in every world: id → true
+      checked: {},
       human: 0,
       bandits: -1,
       result: null,              // { won, tick, reason }
@@ -366,14 +385,48 @@ export class MissionRuntime {
   }
 
   updateObjectives(sim) {
-    for (const o of this.state.objectives) {
+    const st = this.state;
+    for (const o of st.objectives) {
       if (o.status !== 'active') continue;
-      const r = this.evaluate(sim, this.objectiveDef(o.id));
+      const d = this.objectiveDef(o.id);
+      // all_worlds=True: done once „Prüfen“ solved its stage in every world (the check also covers this world)
+      const gated = d.allWorlds && this.worldsToCheck();
+      if (gated && st.checked?.[o.id]) { this.setObjective(sim, o, 'done'); continue; }
+      const r = this.evaluate(sim, d);
       o.progress = [Math.min(r.cur, r.target), r.target];
       if (r.failed) this.setObjective(sim, o, 'failed');
-      else if (!r.hold && (r.done ?? r.cur >= r.target)) this.setObjective(sim, o, 'done');
+      else if (!r.hold && (r.done ?? r.cur >= r.target)) {
+        // Solved in this world only: the code panel asks for „Prüfen“
+        if (gated) o.here = true;
+        else this.setObjective(sim, o, 'done');
+      }
     }
     this.script?.checkHints();
+  }
+
+  /** Key of the current stage: the active sub-goals (src/sim/stage.js). */
+  stageKey() { return this.state.objectives.filter((o) => o.status === 'active').map((o) => o.id).join(','); }
+
+  /** Must all_worlds goals pass „Prüfen“? Only with two worlds or more, never in a check game itself. */
+  worldsToCheck() { return (this.def.worlds?.length ?? 0) > 1 && !this.state.check; }
+
+  /**
+   * Result of „Prüfen“ (command { type: 'script', action: 'check', stage, passed }): a passed check of the current
+   * stage marks its all_worlds goals; they are done in the next tick. The check itself ran outside the simulation
+   * (src/sim/check.js) – like the code of a run, its result is an input of the player.
+   */
+  applyCheck(sim, cmd) {
+    const st = this.state, key = this.stageKey();
+    // Right after the switcher the mission may not have reached its start stage yet: that stage counts then
+    const ok = typeof cmd.stage === 'string' && !!cmd.stage && (cmd.stage === key || (!key && cmd.stage === st.startStage));
+    if (!ok) return sim.reject(cmd, 'err.stageChanged');
+    if (cmd.passed !== true) return true;
+    for (const id of cmd.stage.split(',')) {
+      const o = st.objectives.find((x) => x.id === id);
+      if (!o || o.status === 'active') (st.checked ??= {})[id] = true;
+    }
+    sim.events.push({ type: 'checkPassed', stage: key, player: st.human });
+    return true;
   }
 
   setObjective(sim, o, status) {
@@ -599,7 +652,12 @@ export class MissionRuntime {
   hash(h) {
     const st = this.state;
     h.str('m').str(st.id).int(st.seq).int(st.result ? (st.result.won ? 2 : 1) : 0);
-    for (const o of st.objectives) { h.str(o.status).int(o.count); if (o.uiOff) h.int(1); }
+    for (const o of st.objectives) { h.str(o.status).int(o.count); if (o.uiOff) h.int(1); if (o.here) h.int(2); }
+    if (st.world) h.str('w').str(st.world);
+    if (st.startStage) h.str('s').str(st.startStage);
+    if (st.check) h.int(3);
+    if (st.startSeed !== null && st.startSeed !== undefined) h.int(st.startSeed);
+    for (const k of Object.keys(st.checked ?? {})) h.str(k);
     if (st.endWait !== undefined) h.int(st.endWait);
     if (st.endReason) h.str(st.endReason);
     if (st.tutorial) h.int(st.tutorial.index).str(st.tutorial.step?.result ?? '');
@@ -621,6 +679,8 @@ export class MissionRuntime {
           id: o.id, text: d.text, primary: !!d.primary, status: o.status,
           progress: d.showProgress === false || !o.progress || o.progress[1] <= 1 ? null : o.progress,
           time: !!d.clock,
+          // all_worlds goal solved in this world, waiting for „Prüfen“
+          ...(d.allWorlds ? { allWorlds: true, here: !!o.here && o.status === 'active' } : {}),
           // Where to? hint: { area } | { entity } | { ui }
           hint: o.status === 'active' ? this.resolveHint(sim, this.objectiveHint(sim, d, o)) : null,
         };
@@ -639,6 +699,8 @@ export class MissionRuntime {
     }
     return {
       id: st.id, title: def.title, objectives, tutorial, kind: def.kind ?? 'mission',
+      // Worlds of the level and the current one (switcher in the code panel)
+      worlds: (def.worlds ?? []).map((w) => ({ id: w.id, title: w.title ?? null })), world: st.world ?? null,
       // all kept messages (at most MAX_MESSAGES): a conversation of many lines in one tick must not lose its start.
       // A copy: the UI compares snapshots – the live array would change under its feet and a new line go unseen.
       messages: st.messages.slice(),
@@ -710,33 +772,40 @@ export function missionAiConfig(sim, player) {
  * Create a simulation for a mission. Players of kind 'ai' become computer opponents inside the simulation
  * (`ai: false`: without them, for tests that drive all players themselves).
  * @param {string} id
- * @param {{ seed?: number, ai?: boolean }} [opts]
+ * @param {StartOptions} [opts]
  */
 export function createMissionSim(id, opts = {}) {
   const def = getMission(id);
   if (!def) throw new Error(`Unknown mission: ${id}`);
-  return simForDef(def, opts);
+  return createDefSim(def, opts);
 }
 
 /**
  * Create a simulation for a scenario JSON that is in no directory (world editor, loaded file).
- * @param {any} scenario @param {{ seed?: number, ai?: boolean }} [opts]
+ * @param {any} scenario @param {StartOptions} [opts]
  */
 export function createScenarioSim(scenario, opts = {}) {
-  return simForDef({ ...scenarioToDef(scenario), custom: true }, opts);
+  return createDefSim({ ...scenarioToDef(scenario), custom: true }, opts);
 }
 
-function simForDef(def, opts) {
-  const runtime = new MissionRuntime(def);
+/**
+ * Create a simulation for a mission definition (also the one of a running game: world switcher, „Prüfen“).
+ * A world may bring its own seed; a seed given here wins.
+ * @param {any} def @param {StartOptions} [opts]
+ */
+export function createDefSim(def, opts = {}) {
+  const runtime = new MissionRuntime(def, null, opts);
+  const w = (def.worlds ?? []).find((x) => x.id === runtime.state.world);
+  const seed = opts.seed ?? w?.seed;
   const real = def.players.filter((p) => p.kind !== 'bandits' && p.kind !== 'village');
   return new Sim({
-    seed: opts.seed ?? def.seed ?? 1,
+    seed: seed ?? def.seed ?? 1,
     size: def.size ?? 96,
     players: real.length,
     heroes: real.map((p) => p.heroes ?? p.hero ?? null),
     teams: real.map((p, i) => p.team ?? i),
     mission: runtime,
-    world: def.world ? { ...def.world, size: def.world.size ?? def.size, seed: opts.seed ?? def.world.seed ?? def.seed } : undefined,
+    world: def.world ? { ...def.world, size: def.world.size ?? def.size, seed: seed ?? def.world.seed ?? def.seed } : undefined,
     // Without castle (hq: false): coding adventures and command missions
     playerSetup: def.scenario ? playerSetupOf(def) : real.map((p) => ({ hq: p.hq !== false })),
     // Computer opponents (index as in def.players)

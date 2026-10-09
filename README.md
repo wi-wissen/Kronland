@@ -59,7 +59,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   den Knopf; der Gegner legt erst nach einem Meilenstein des Spielers los. Story und Mechanik: [Kampagne](docs/KAMPAGNE.md). Fortschritt und Bestzeiten
   speichert der Browser. Direktstart: `play/?mission=c1` … `play/?mission=c6`, `play/?mission=tutorial`.
 - **Programmier-Abenteuer**: Nelia mit Python steuern – fünf Lernabenteuer (Schleifen, Bedingungen, Funktionen,
-  Listen) und die erste Kursmission „Im Schneetreiben“ (drei Etappen, Zettel der Magd, Vorhersage), Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
+  Listen) und die erste Kursmission „Im Schneetreiben“ (drei Etappen, Zettel der Magd, Vorhersage, drei **Welten**:
+  Normalfall und Randfälle mit Umschalter im Panel, **Prüfen** spielt das Programm ohne Bild in allen Welten durch und
+  zeigt, wo es scheitert – erst dann zählt die Etappe), Code-Panel neben dem Spiel (ziehbare Trennlinie, einklappbar; am Handy als Blatt mit „Spiel ansehen“)
   mit Einzelschritt, Haltepunkten und Variablenansicht, Knopf „Referenz“ zur Website, Befehlserklärung beim Überfahren (Strg+Klick öffnet die
   Referenz, am Handy langes Drücken), Fehlermeldungen mit Vorschlag, bernsteinfarbene Hinweise (Programm läuft weiter),
   Taler und Christrosen zum Aufheben, Trampelpfade und Fußabdrücke im Schnee, am Handy folgt die Kamera der gesteuerten Figur,

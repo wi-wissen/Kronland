@@ -77,6 +77,43 @@
                 <p v-for="o in goals" :key="o.id" class="sp-goal-text" :data-testid="'script-goal-' + o.id">
                   {{ $tr(o.text) }}<em v-if="o.progress" class="num sp-goal-prog">{{ o.progress[0] }}/{{ o.progress[1] }}</em>
                 </p>
+                <p v-if="goals.some((o) => o.here)" class="sp-goal-here" data-testid="script-goal-here">{{ $t('script.goalHere') }}</p>
+              </div>
+            </div>
+            <!-- Worlds of the mission (normal case, edge cases): switcher and „Prüfen“ (docs/SKRIPTE.md#welten) -->
+            <div v-if="worlds.length > 1" class="sp-worlds" data-testid="script-worlds">
+              <div class="sp-worlds-row">
+                <span class="sp-worlds-lbl">{{ $t('script.worlds.label') }}</span>
+                <div class="sp-worlds-list" role="radiogroup" :aria-label="$t('script.worlds.label')">
+                  <button
+                    v-for="(w, i) in worlds"
+                    :key="w.id"
+                    v-tip="$t('script.worlds.switchTip')"
+                    role="radio"
+                    class="sp-world"
+                    :class="[{ active: w.id === world }, worldMark(w.id)]"
+                    :aria-checked="w.id === world"
+                    :data-testid="'script-world-' + w.id"
+                    @click="switchWorld(w.id)"
+                  >
+                    <b class="num sp-world-n">{{ i + 1 }}</b><span class="sp-world-name">{{ worldTitle(w, i) }}</span>
+                    <i v-if="worldMark(w.id)" class="sp-world-mark" aria-hidden="true">{{ worldMark(w.id) === 'ok' ? '✓' : '✗' }}</i>
+                  </button>
+                </div>
+              </div>
+              <button v-tip="$t('script.check.tip')" class="sp-check" :disabled="checking" data-testid="script-check" @click="checkAll">
+                <span class="sp-glyph" aria-hidden="true">✓</span>{{ $t('script.check.run') }}
+              </button>
+              <div v-if="checking || checkRes" class="sp-check-res" :class="{ ok: checkRes?.passed && !checking }" role="status" data-testid="script-check-result" :data-passed="checking ? null : String(!!checkRes?.passed)">
+                <b class="sp-check-head">{{ checkHead }}</b>
+                <ul v-if="checkRes?.results.length" class="sp-check-list">
+                  <li v-for="r in checkRes.results" :key="r.world" :class="r.status" :data-testid="'script-check-' + r.world" :data-status="r.status">
+                    <span class="sp-check-mark" aria-hidden="true">{{ r.status === 'solved' ? '✓' : '✗' }}</span>
+                    <span class="sp-check-world">{{ worldTitle(worldById(r.world), worlds.findIndex((w) => w.id === r.world)) }}</span>
+                    <span class="sp-check-what">{{ checkStatus(r) }}</span>
+                    <button v-if="r.status !== 'solved' && r.world !== world" v-tip="$t('script.check.showTip')" class="ghost sp-check-show" :data-testid="'script-check-show-' + r.world" @click="switchWorld(r.world)">{{ $t('script.check.show') }}</button>
+                  </li>
+                </ul>
               </div>
             </div>
             <p v-if="scenario.briefing && showBriefing" class="sp-brief parchment">
@@ -263,6 +300,10 @@ export default {
     speakers: { type: Object, default: () => ({}) },
     /** Stage restarts so far (Engine.restarts) */
     restarts: { type: Number, default: 0 },
+    /** ui.mission.worlds – worlds of the mission [{ id, title }] (switcher and „Prüfen“ from two worlds on) */
+    worlds: { type: Array, default: () => [] },
+    /** ui.mission.world – id of the current world */
+    world: { type: String, default: null },
   },
   emits: ['update:open', 'width'],
   data() {
@@ -271,7 +312,7 @@ export default {
     for (const s of this.scenario.sections ?? []) codes[s.id] = s.editable && typeof saved[s.id] === 'string' ? saved[s.id] : s.code;
     return {
       /** Note of a figure (script.note): seq taken over, what the section shows ('note' | 'own'), the other code */
-      noteSeq: 0, noteView: null, ownCode: null, noteCode: null, brokenPortrait: null,
+      noteSeq: 0, noteView: null, ownCode: null, noteCode: null, noteOrig: null, brokenPortrait: null,
       codes, bps: {}, unfolded: {}, tab: 'code', grid: store.get('kronland-grid') ?? true, focused: null,
       showBriefing: true, dirty: {}, editors: {},
       /** Split screen: share of the window and collapsed state (localStorage) */
@@ -282,6 +323,8 @@ export default {
       /** Sheet: "⋯" menu open; run strip hidden by the player (until the next run) */
       menu: false,
       stripHidden: false,
+      /** „Prüfen“: running, worlds done so far, last result { stage, passed, results } (cleared when the code changes) */
+      checking: false, checkDone: 0, checkRes: null,
     };
   },
   computed: {
@@ -346,6 +389,15 @@ export default {
     },
     /** Phone, sheet closed: run strip while a program runs (and after it, until hidden) */
     showStrip() { return !this.split && !this.open && !this.stripHidden && ['running', 'paused', 'done', 'stopped'].includes(this.status); },
+    /** Head line of the check box: progress, all solved, or n of total. */
+    checkHead() {
+      const total = this.worlds.length;
+      if (this.checking) return t('script.check.running', { n: Math.min(total, this.checkDone + 1), total });
+      const r = this.checkRes;
+      if (!r) return '';
+      if (!r.results.length) return t('script.check.noStage');
+      return r.passed ? t('script.check.passed', { total: r.results.length }) : t('script.check.failed', { n: r.results.filter((x) => x.status === 'solved').length, total: r.results.length });
+    },
     /** Current line of the player program for the run strip */
     watchLine() {
       const l = this.player?.line;
@@ -437,6 +489,8 @@ export default {
     },
     edited(id) {
       this.dirty = { ...this.dirty, [id]: true };
+      // A check result belongs to the code it checked
+      if (!this.checking) this.checkRes = null;
       clearTimeout(this.saveTimer);
       this.saveTimer = setTimeout(() => this.persist(), 400);
     },
@@ -451,8 +505,11 @@ export default {
     applyNote(n) {
       const id = this.noteSection;
       if (!n || !id) return;
-      if (this.noteView !== 'note') this.ownCode = this.codes[id] ?? '';
       this.noteSeq = n.seq;
+      // The same note once more (the stage begins anew in another world): the changed note stays
+      if (this.noteOrig === n.code) return;
+      this.noteOrig = n.code;
+      if (this.noteView !== 'note') this.ownCode = this.codes[id] ?? '';
       this.noteCode = n.code;
       this.noteView = 'note';
       this.codes[id] = n.code;
@@ -506,6 +563,40 @@ export default {
       this.engine.scriptDebug(cmd, 'player');
     },
     stop() { this.engine.scriptStop(); },
+    // ---------- Worlds: switcher and „Prüfen“ ----------
+    worldById(id) { return this.worlds.find((w) => w.id === id) ?? { id, title: null }; },
+    /** Title of a world: its own title, otherwise "Welt 2". */
+    worldTitle(w, i) { return w?.title ? tr(w.title) : t('script.worlds.title', { n: i + 1 }); },
+    /** Mark of a world from the last check: 'ok', 'bad' or ''. */
+    worldMark(id) {
+      const r = this.checking ? null : this.checkRes?.results.find((x) => x.world === id);
+      return r ? (r.status === 'solved' ? 'ok' : 'bad') : '';
+    },
+    /** Switch the world: the stage starts over there (Engine.switchWorld), code and breakpoints stay. */
+    switchWorld(id) {
+      if (id === this.world) return;
+      this.menu = false;
+      this.persist();
+      this.engine.switchWorld(id);
+    },
+    /** „Prüfen“: the program as it stands in all worlds, headless (Engine.checkProgram). */
+    async checkAll() {
+      if (this.checking) return;
+      this.persist();
+      this.checking = true;
+      this.checkDone = 0;
+      this.checkRes = null;
+      try {
+        this.checkRes = await this.engine.checkProgram(this.editable(), (n) => { this.checkDone = n; });
+      } finally {
+        this.checking = false;
+      }
+    },
+    /** Text of a world in the check result. */
+    checkStatus(r) {
+      if (r.status === 'error' && r.error) return t('script.check.status.error', { line: r.error.sline || '?', kind: r.error.kind ?? '', text: scriptErrorText(r.error).text });
+      return t('script.check.status.' + r.status);
+    },
     /** Phone: close the sheet and show the game; the hero comes into view above the run strip if it is not visible. */
     watchGame() {
       this.$emit('update:open', false);
@@ -719,6 +810,33 @@ export default {
 .sp-goal-text { margin: 0.125rem 0 0; font-size: var(--fs-sm); line-height: 1.4; color: var(--ink); }
 .sp-goal-prog { margin-left: 0.5rem; font-style: normal; color: var(--gold-200); }
 /* Note of a figure: seal, title, "back to my code" */
+.sp-goal-here { margin: 0.375rem 0 0; font-size: var(--fs-xs); line-height: 1.4; color: var(--good); }
+/* Worlds: switcher (chips) and „Prüfen“ with its result */
+.sp-worlds { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.375rem 0.5rem; align-items: center; padding: 0.5rem; border-radius: var(--r-md); background: rgba(0, 0, 0, 0.22); box-shadow: inset 0 0 0 1px rgba(243, 200, 94, 0.18); }
+.sp-worlds-row { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.sp-worlds-lbl { flex: none; color: var(--gold-300); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.sp-worlds-list { display: flex; flex-wrap: wrap; gap: 0.25rem; min-width: 0; }
+/* Phones: chips in full width, „Prüfen“ as a wide button below */
+.sheet .sp-worlds { grid-template-columns: minmax(0, 1fr); }
+.sheet .sp-check { width: 100%; }
+.sheet .sp-worlds-row { flex-direction: column; align-items: stretch; gap: 0.25rem; }
+.sp-world { flex: none; display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.25rem; padding: 0 0.625rem; border-radius: 999px; font-size: var(--fs-sm); background: rgba(255, 255, 255, 0.06); }
+.sp-world.active { background: rgba(243, 200, 94, 0.22); box-shadow: inset 0 0 0 1px var(--gold-400); color: var(--gold-100); }
+.sp-world-n { display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; font-size: var(--fs-xs); background: rgba(0, 0, 0, 0.35); }
+.sp-world-mark { font-style: normal; font-weight: 700; }
+.sp-world.ok .sp-world-mark { color: var(--good); }
+.sp-world.bad .sp-world-mark { color: #ff9b85; }
+.sp-check { min-height: 2.25rem; gap: 0.375rem; font-weight: 600; }
+.sp-check-res { grid-column: 1 / -1; padding: 0.375rem 0.625rem; border-radius: var(--r-md); background: rgba(163, 50, 31, 0.22); box-shadow: inset 3px 0 0 var(--bad); }
+.sp-check-res.ok { background: rgba(63, 125, 43, 0.25); box-shadow: inset 3px 0 0 var(--good); }
+.sp-check-head { font-size: var(--fs-sm); }
+.sp-check-list { list-style: none; margin: 0.25rem 0 0; padding: 0; display: grid; gap: 0.125rem; }
+.sp-check-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 0.5rem; font-size: var(--fs-sm); line-height: 1.5; }
+.sp-check-mark { width: 1rem; font-weight: 700; color: #ff9b85; }
+.sp-check-list li.solved .sp-check-mark { color: var(--good); }
+.sp-check-world { font-weight: 600; }
+.sp-check-what { flex: 1; min-width: 8rem; color: var(--ink-muted); }
+.sp-check-show { min-height: 1.75rem !important; padding: 0 0.5rem; font-size: var(--fs-xs); }
 .sp-note { display: flex; align-items: center; gap: 0.625rem; padding: 0.375rem 0.5rem 0.375rem 0.375rem; border-radius: var(--r-md); background: linear-gradient(90deg, color-mix(in srgb, var(--sp) 22%, transparent), rgba(0, 0, 0, 0.2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sp) 45%, transparent); }
 .sp-note.mine { background: rgba(0, 0, 0, 0.22); box-shadow: inset 0 0 0 1px rgba(225, 168, 58, 0.2); }
 .sp-seal {

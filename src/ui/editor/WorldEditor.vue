@@ -89,6 +89,21 @@
             <button :disabled="scenario.players.some((p) => p.kind === 'bandits')" @click="addPlayer('bandits')"><Icon name="plus" />{{ $t('editor.addBandits') }}</button>
           </div>
           <p class="ed-note">{{ $t('editor.scenarioNote') }}</p>
+          <!-- Worlds: normal case and edge cases of one mission; the world code branches on world.id -->
+          <h4>{{ $t('editor.worlds') }}</h4>
+          <p class="ed-note">{{ $t('editor.worldsNote') }}</p>
+          <div v-for="(w, i) in scenario.worlds ?? []" :key="i" class="ed-player ed-world" :data-testid="'editor-world-' + i">
+            <input v-model="w.id" class="ed-world-id" pattern="[A-Za-z][\w-]*" :aria-label="$t('editor.worldId')" :placeholder="$t('editor.worldId')" data-testid="editor-world-id">
+            <input v-model="w.title.de" :aria-label="$t('editor.titleDe')" :placeholder="$t('editor.titleDe')">
+            <input v-model="w.title.en" :aria-label="$t('editor.titleEn')" :placeholder="$t('editor.titleEn')">
+            <button class="icon-btn ghost" :aria-label="$t('editor.remove')" data-testid="editor-world-remove" @click="removeWorld(i)"><Icon name="close" /></button>
+          </div>
+          <div class="ed-row">
+            <button :disabled="(scenario.worlds?.length ?? 0) >= maxWorlds" data-testid="editor-world-add" @click="addWorld"><Icon name="plus" />{{ $t('editor.addWorld') }}</button>
+            <label v-if="scenario.worlds?.length" class="ed-inline">{{ $t('editor.playWorld') }}
+              <select v-model="playWorld" data-testid="editor-play-world"><option v-for="w in scenario.worlds" :key="w.id" :value="w.id">{{ w.id }}</option></select>
+            </label>
+          </div>
         </section>
 
         <!-- Places: named circles, in code via place("name") -->
@@ -219,7 +234,7 @@ import { markRaw } from 'vue';
 import CodeEditor from '../script/CodeEditor.vue';
 import ApiHelp from '../script/ApiHelp.vue';
 import { EditorView } from '../../game/EditorView.js';
-import { emptyScenario, validateScenario } from '../../sim/scripting/scenario.js';
+import { emptyScenario, validateScenario, SCENARIO_LIMITS } from '../../sim/scripting/scenario.js';
 import { assetAllowed, useLevelAssets } from '../../levels/assets.js';
 import { SCENARIOS } from '../../sim/missions/levels/index.js';
 import { RESOURCES } from '../../sim/data/resources.js';
@@ -255,6 +270,7 @@ function normalize(s) {
   c.briefing = { de: '', en: '', ...(c.briefing ?? {}) };
   c.world = { places: {}, ...(c.world ?? {}) };
   c.world.places ??= {};
+  if (Array.isArray(c.worlds)) c.worlds = c.worlds.map((w) => ({ ...w, title: typeof w.title === 'string' ? { de: w.title, en: w.title } : { de: '', en: '', ...(w.title ?? {}) } }));
   c.sections = (c.sections ?? []).map((x) => ({ level: 'mission', visibility: 'open', editable: false, ...x, title: typeof x.title === 'string' ? { de: x.title, en: x.title } : { de: x.id, en: x.id, ...(x.title ?? {}) } }));
   return c;
 }
@@ -283,6 +299,8 @@ export default {
       focusedSection: null, carets: {},
       /** Sections edited since the preview started: their error and hint marks are out of date */
       previewDirty: {},
+      /** World for preview and test play (scenario.worlds), null = the first */
+      playWorld: null, maxWorlds: SCENARIO_LIMITS.worlds,
     };
   },
   computed: {
@@ -301,6 +319,12 @@ export default {
     showBrush() { return ['raise', 'lower', 'flatten', 'smooth', 'water', 'land', 'forest', 'erase', 'track'].includes(this.ui?.tool.tool); },
   },
   watch: {
+    // Preview in the chosen world: build it anew
+    playWorld(v) {
+      if (!this.view) return;
+      this.view.world = v;
+      if (this.view.preview) { this.view.setPreview(false, this.plainScenario()); this.view.setPreview(true, this.plainScenario()); }
+    },
     scenario: {
       deep: true,
       handler() {
@@ -507,6 +531,19 @@ export default {
       this.rebuild();
     },
     removePlayer(i) { this.scenario.players.splice(i, 1); this.rebuild(); },
+    /** Add a world: the first one added also gets the normal case, so that the existing world code keeps an id. */
+    addWorld() {
+      const list = this.scenario.worlds ?? (this.scenario.worlds = []);
+      if (!list.length) list.push({ id: 'normal', title: { de: 'Normalfall', en: 'Normal case' } });
+      let n = list.length + 1;
+      while (list.some((w) => w.id === `world${n}`)) n++;
+      list.push({ id: `world${n}`, title: { de: '', en: '' } });
+    },
+    removeWorld(i) {
+      this.scenario.worlds.splice(i, 1);
+      if (!this.scenario.worlds.length) delete this.scenario.worlds;
+      if (!this.scenario.worlds?.some((w) => w.id === this.playWorld)) this.playWorld = null;
+    },
     /** Rebuild the world (players changed): the map is kept. */
     rebuild() {
       if (!this.view) return;
@@ -595,7 +632,7 @@ export default {
       const problems = validateScenario(full);
       if (problems.length) { this.flash(problems[0]); return; }
       this.saveDraft();
-      this.$emit('play', { scenario: { ...full, debug: true }, assets: files });
+      this.$emit('play', { scenario: { ...full, debug: true }, assets: files, world: this.playWorld });
     },
   },
 };
@@ -637,6 +674,9 @@ export default {
 .ed-form label { display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--fs-sm); color: var(--ink-muted); }
 .ed-form label.ed-check { flex-direction: row; align-items: center; gap: 0.4rem; }
 .ed-form h4 { margin: 0.5rem 0 0; color: var(--gold-300); font-size: var(--fs-sm); }
+.ed-world input { flex: 1; min-width: 6rem; }
+.ed-world .ed-world-id { flex: none; width: 7rem; font-family: ui-monospace, monospace; }
+.ed-row .ed-inline { flex-direction: row; align-items: center; gap: 0.375rem; }
 .ed-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 .ed-row { display: flex; gap: 0.375rem; flex-wrap: wrap; align-items: center; }
 .ed-row button { display: inline-flex; align-items: center; gap: 0.3rem; }

@@ -11,8 +11,8 @@
     "en": "Loops with a condition: how far is it to the edge of the forest? A note from the maid, a coin in the snow and a track through every bend."
   },
   "briefing": {
-    "de": "Schneetreiben. Niemand weiß, wie weit es bis zum Waldrand ist – „while nelia.can_step():“ läuft, solange vorn frei ist. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen.",
-    "en": "Blizzard. Nobody knows how far it is to the edge of the forest – “while nelia.can_step():” runs as long as the way ahead is free. Run starts the stage over every time: think first, then run."
+    "de": "Schneetreiben. Niemand weiß, wie weit es bis zum Waldrand ist – „while nelia.can_step():“ läuft, solange vorn frei ist. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Taler und Spur gibt es in drei Welten – „Prüfen“ zeigt, ob dein Programm in allen klappt.",
+    "en": "Blizzard. Nobody knows how far it is to the edge of the forest – “while nelia.can_step():” runs as long as the way ahead is free. Run starts the stage over every time: think first, then run. Coin and track come in three worlds – “Check” shows whether your program works in all of them."
   },
   "victoryText": {
     "de": "Die Geflohenen sind gefunden – gemeinsam geht es weiter nach Lindgrund.",
@@ -22,6 +22,11 @@
     "de": ["while-Schleife mit Bedingung", "Zählen in der Schleife", "Vorhersagen", "Sensoren in der Bedingung"],
     "en": ["while loop with a condition", "counting in the loop", "predicting", "sensors in the condition"]
   },
+  "worlds": [
+    { "id": "normal", "title": { "de": "Normalfall", "en": "Normal case" } },
+    { "id": "near", "title": { "de": "Alles ganz nah", "en": "Everything close" } },
+    { "id": "far", "title": { "de": "Alles weit weg", "en": "Everything far away" } }
+  ],
   "world": {
     "base": "flat",
     "width": 20,
@@ -35,8 +40,7 @@
       "b_start": { "x": 2, "y": 13, "r": 0 },
       "b_view": { "x": 9, "y": 14, "r": 4 },
       "c_start": { "x": 2, "y": 23, "r": 0 },
-      "c_view": { "x": 9, "y": 24, "r": 4 },
-      "hut": { "x": 16, "y": 25, "r": 0 }
+      "c_view": { "x": 9, "y": 24, "r": 4 }
     }
   },
   "weatherCycle": [["winter", 3600000]],
