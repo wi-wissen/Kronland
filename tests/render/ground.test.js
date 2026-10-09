@@ -52,7 +52,7 @@ describe('Track texture', () => {
     expect(packTracks(t, out, { W: big, H: big, stages: grass })).not.toBe(null);
     const px = (x, y) => [...out.subarray((y * big + x) * 4, (y * big + x) * 4 + 4)];
     const angle = (x, y) => { const [, g, , a] = px(x, y); return Math.round(Math.atan2((a - 128) / 127, (g - 128) / 127) / 2 * 180 / Math.PI); };
-    // R: the stage of the tile itself
+    // R: the stage of the path (strongest stage of the neighbourhood)
     expect(px(2, 1)[0]).toBe(trackShade(v, grass));
     // direction: along the row 0°, along the column ±90°, along the diagonal 45° (x east, y south)
     expect(angle(2, 1)).toBe(0);
@@ -62,7 +62,7 @@ describe('Track texture', () => {
     // (no staircase), a tile far away stays empty
     expect(px(2, 1)[2]).toBeGreaterThanOrEqual(Math.floor(px(2, 1)[0] * 0.9));
     expect(px(3, 5)[2]).toBeGreaterThan(0);  // beside the diagonal, between two of its tiles
-    expect(px(3, 5)[0]).toBe(0);
+    expect(px(3, 5)[0]).toBe(trackShade(v, grass)); // R: strongest stage nearby (the path's stage across its width)
     expect(px(8, 10)[2]).toBe(0);
     // below the faint stage of grass: nothing in the picture
     expect(px(8, 0)[0]).toBe(0);

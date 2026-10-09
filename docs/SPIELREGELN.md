@@ -564,7 +564,7 @@ Werte: `BALANCE.ground` (alle (A)).
   schlängelt sich um bis zu eine halbe Kachel) und franst Ränder, Breite und Abnutzung mit Rauschen aus – Kurven
   statt Ecken, Diagonalen statt Treppen, ab und zu eine ausgetretene Stelle daneben. Sommer und Regen: dieselbe Weggeometrie wie
   im Schnee (ein Feld, ein Weg, gleiche Kurven und Breite), nur das Material wechselt – schwach getreten: hellere,
-  niedergelegte Halme entlang der Mitte; mittel: Erde schaut in Flecken entlang der Mitte durch; voll: schmaler Erdkern
+  niedergelegte Halme entlang der Mitte; mittel: eine durchgehende Erdlinie in der Mitte; voll: schmaler Erdkern
   mit weichem Grasrand, etwa so breit wie die Schneespur. Diagonale Wege (Kacheln, die sich nur an der Ecke berühren)
   sind so stark wie gerade. Prüfstand: `node scripts/tracks-bench.mjs` (fünf Formen × drei Stärken, Sommer/Winter,
   plus ein von Leibeigenen gelaufener Weg). Winter: Fußabdrücke in Laufrichtung, mit wachsender Stärke weitere Lagen (je Lage leicht gedreht und

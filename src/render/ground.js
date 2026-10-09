@@ -56,7 +56,7 @@ const bufOf = new WeakMap();
 
 /**
  * Fill the texel bytes (RGBA per tile) from the track strengths of the simulation. Rendering only, the simulation
- * stays per tile. R = stage of the tile (trackShade, last seen state under fog), B = R smoothed over the
+ * stays per tile. R = strongest stage of the 3×3 neighbourhood (trackShade, last seen state under fog), B = the stage smoothed over the
  * neighbours (rounded bends, diagonals as diagonals instead of staircases – the shader samples it bicubically),
  * G/A = walking direction from the neighbouring track tiles as doubled angle (cos 2θ, sin 2θ mapped to 0…255, 128 =
  * no direction): it interpolates smoothly between tiles and orients footprints and flattened blades.
@@ -111,14 +111,16 @@ export function packTracks(tracks, out, { W, H, stages, visible = null, explored
     for (let x = 0, k = y * W, q = (y + 1) * PW + 1; x < W; x++, k++, q++) {
       let r = 0, g = 128, b = 0, a = 128;
       if (hot) {
-        r = seen[q];
+        // R: the strongest stage of the 3×3 neighbourhood – the stage of the path across its whole width, so the
+        // summer shader can draw a medium path as a thin line and a full one as a core without seeing tile edges
+        r = Math.max(seen[q], seen[q - 1], seen[q + 1], seen[q - PW], seen[q + PW], seen[q - PW - 1], seen[q - PW + 1], seen[q + PW - 1], seen[q + PW + 1]);
         const n = q - PW, sN = q + PW;
-        const sum = seen[n - 1] + 2 * seen[n] + seen[n + 1] + 2 * seen[q - 1] + 4 * r + 2 * seen[q + 1] + seen[sN - 1] + 2 * seen[sN] + seen[sN + 1];
+        const sum = seen[n - 1] + 2 * seen[n] + seen[n + 1] + 2 * seen[q - 1] + 4 * seen[q] + 2 * seen[q + 1] + seen[sN - 1] + 2 * seen[sN] + seen[sN + 1];
         if (sum) {
           // along the line (best of the four axes): a diagonal path of corner-touching tiles keeps the same strength
           // as a straight one, the blur only widens it sideways
           const line = Math.max(seen[q - 1] + seen[q + 1], seen[n] + seen[sN], seen[n - 1] + seen[sN + 1], seen[n + 1] + seen[sN - 1]);
-          b = Math.min(255, Math.round(Math.max(sum * gain, (2 * r + line) / 4)));
+          b = Math.min(255, Math.round(Math.max(sum * gain, (2 * seen[q] + line) / 4)));
           const dc = -(jc[n - 1] + 2 * jc[n] + jc[n + 1] + 2 * jc[q - 1] + 4 * jc[q] + 2 * jc[q + 1] + jc[sN - 1] + 2 * jc[sN] + jc[sN + 1]);
           const ds = -(js[n - 1] + 2 * js[n] + js[n + 1] + 2 * js[q - 1] + 4 * js[q] + 2 * js[q + 1] + js[sN - 1] + 2 * js[sN] + js[sN + 1]);
           const len = Math.sqrt(dc * dc + ds * ds);
