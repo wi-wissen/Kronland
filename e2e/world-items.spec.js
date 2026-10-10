@@ -39,7 +39,7 @@ test('I.5: the coins are drawn on their tiles and disappear when the program pic
   await page.goto(playUrl('?mission=r1-5&no-models'));
   await page.waitForFunction(() => !!window.__kronland?.renderer?.items, null, SLOW);
   const total = await page.evaluate(() => [...window.__kronland.sim.map.items.values()].filter((k) => k === 'coin').length);
-  expect(total).toBe(24);
+  expect(total).toBe(23);
   await expect.poll(() => coinsDrawn(page), SLOW).toBe(total);
   await openPanel(page);
   // The woodcutter's program collects the first row (7 coins) and counts along

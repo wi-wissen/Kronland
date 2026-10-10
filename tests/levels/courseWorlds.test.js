@@ -34,7 +34,7 @@ describe('Course missions have worlds', () => {
 });
 
 describe('I.2 "Taler für die Mägde": one counting loop per world', () => {
-  const LOADED = lines('for i in range(5):', '    nelia.step()', '    nelia.put()');
+  const LOADED = lines('for i in range(5):', '    nelia.put()', '    nelia.step()');
   const PATH = (n) => lines(`for i in range(${n}):`, '    nelia.step()', '    nelia.put()', '    nelia.step()');
   const SLOPE = (n) => lines(`for i in range(${n}):`, '    nelia.step()', '    nelia.turn_left()', '    nelia.step()', '    nelia.turn_right()');
   const RING2 = lines('for i in range(4):', '    nelia.step()', '    nelia.put()', '    nelia.step()', '    nelia.put()', '    nelia.turn_left()');
@@ -61,7 +61,7 @@ describe('I.2 "Taler für die Mägde": one counting loop per world', () => {
   it('the normal-case loop runs into the trees of the short path (near) and the slope breaks off early', () => {
     const r = check('r1-2', 'path', PATH(9));
     expect(by(r)).toMatchObject({ normal: 'solved', near: 'error', far: 'failed' });
-    expect(r.results.find((x) => x.world === 'near').error).toMatchObject({ sline: 2 });
+    expect(r.results.find((x) => x.world === 'near').error).toMatchObject({ sline: 3 });   // the purse of 3 coins is empty
     expect(by(check('r1-2', 'slope', refExample('zigzag', 'de')))).toMatchObject({ near: 'error', far: 'failed' });
     // The long path ends at trees too: one round too many is blocked
     expect(by(check('r1-2', 'path', PATH(11)))).toMatchObject({ far: 'error' });
@@ -99,12 +99,12 @@ describe('I.5 "Holz für die erste Nacht": roses, brook and six count in every w
     expect(by(ten)).toEqual({ normal: 'solved', near: 'error', far: 'failed' });
     expect(ten.results.find((r) => r.world === 'near').error).toMatchObject({ sline: 4 });
     // The counts of the normal case written in: wrong where the row is empty or longer
-    expect(by(check('r1-5', 'roses', `${ROSES}count = 7\nflowers = 3\n`))).toEqual({ normal: 'solved', near: 'failed', far: 'failed' });
-    // Nine steps there and back: back at the start, but the ice lies right in front of Nelia (0 steps, near) and
+    expect(by(check('r1-5', 'roses', `${ROSES}count = 6\nflowers = 4\n`))).toEqual({ normal: 'solved', near: 'failed', far: 'failed' });
+    // Nine steps there and back: back at the crossing, but the ice lies right next to it (0 steps, near) and
     // the brook is further away (far)
-    const nine = lines('steps = 9', 'for i in range(steps):', '    nelia.step()', 'nelia.turn_left()', 'nelia.turn_left()', 'for i in range(steps):', '    nelia.step()');
+    const nine = lines('nelia.turn_right()', 'steps = 9', 'for i in range(steps):', '    nelia.step()', 'nelia.turn_left()', 'nelia.turn_left()', 'for i in range(steps):', '    nelia.step()');
     expect(by(check('r1-5', 'brook', nine))).toEqual({ normal: 'solved', near: 'failed', far: 'failed' });
-    // Taking the whole row: exactly six coins only where there are six (near)
+    // Taking the whole row to the north: exactly six coins only where there are six (near)
     expect(by(check('r1-5', 'six', LOADED))).toEqual({ normal: 'failed', near: 'solved', far: 'failed' });
   });
 });
