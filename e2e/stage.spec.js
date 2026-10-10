@@ -1,8 +1,7 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
-// Coding missions (phase 3): the active sub-goal at the top of the code panel, a note of a figure with "back to my
-// code", Run restarts the stage, moving lines (Alt+↑/↓, key bar on phones) and "waits for events" (desktop and phone).
+// Coding missions (phase 3): the active sub-goal at the top of the code panel, a program the mission loads, Run restarts the stage, moving lines (Alt+↑/↓, key bar on phones) and "waits for events" (desktop and phone).
 
 const SLOW = { timeout: 30_000 };
 
@@ -35,42 +34,40 @@ const heroTile = (page) => page.evaluate(() => {
 });
 const status = (page) => page.evaluate(() => window.__kronland.sim.mission.script.state.player.status);
 
-test('I.4: goal at the top, the maid\'s note, back to my code, Run restarts the stage', async ({ page }) => {
+test('I.4: goal at the top, the maid loads a program, Run restarts the stage, the own code stays', async ({ page }) => {
+  test.setTimeout(240_000);
   const errors = await fresh(page);
   await page.goto(playUrl('?mission=r1-4&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
   // The active sub-goal stands at the top of the panel
   await expect(page.getByTestId('script-goal-predict')).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByTestId('script-goal')).toContainText('guess');
-  // The note replaces the program and carries the seal of the maid
-  const note = page.getByTestId('script-note');
-  await expect(note).toBeVisible(SLOW);
-  await expect(page.getByTestId('script-note-title')).toHaveText('Zettel der Magd');
+  await expect(page.getByTestId('script-goal')).toContainText('Waldrand');
+  // The loaded program replaces the text of the program section – nothing else appears in the panel
   const ta = page.getByTestId('section-player').getByTestId('code-input');
-  await expect(ta).toHaveValue(/while nelia\.can_step\(\):/);
-  // Back to my code and to the note again
-  await page.getByTestId('script-note-back').click();
-  await expect(ta).toHaveValue(/# Mein Programm/);
-  await page.getByTestId('script-note-show').click();
-  await expect(ta).toHaveValue(/steps = steps \+ 1/);
+  await expect(ta).toHaveValue(/while nelia\.can_step\(\):/, { timeout: 60_000 });
+  await expect(page.getByTestId('script-note')).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath('program.png') });
 
-  // Wrong guess: Nelia walks to the forest edge
-  await ta.fill((await ta.inputValue()).replace('guess = 0', 'guess = 4'));
+  // The student adds a line of their own and runs once: the stage ends (no guess, no check)
+  await ta.fill('# mein Zusatz\n' + (await ta.inputValue()));
   await page.getByTestId('script-run').click();
-  await expect.poll(() => heroTile(page), { timeout: 60_000 }).toEqual([11, 3]);
-  await expect.poll(() => status(page), SLOW).toBe('done');
-  // Run again: the stage starts over – Nelia is back at the start at once, the note and its code stay
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'predict')?.status), { timeout: 90_000 }).toBe('done');
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'coin')?.status), { timeout: 60_000 }).toBe('active');
+  // The next stage does not replace the program: the line is still there
+  await openPanel(page);
+  await expect(ta).toHaveValue(/# mein Zusatz/);
+  await expect(page.getByTestId('script-goal-coin')).toBeVisible(SLOW);
+
+  // Run twice in the new stage: the second run starts the stage over, the code stays
+  await page.getByTestId('script-run').click();
+  await expect.poll(() => status(page), { timeout: 60_000 }).toBe('done');
   await openPanel(page);
   await page.getByTestId('script-run').click();
-  // (the new run starts right away: Nelia may already be a step on her way)
-  const [x, y] = await heroTile(page);
-  expect(x).toBeLessThanOrEqual(4);
-  expect(y).toBe(3);
-  expect(await page.evaluate(() => window.__kronland.restarts)).toBe(1);
+  await expect.poll(() => page.evaluate(() => window.__kronland.restarts), SLOW).toBe(1);
   await openPanel(page);
-  await expect(ta).toHaveValue(/guess = 4/);
-  await expect(page.getByTestId('script-note')).toBeVisible();
+  await expect(ta).toHaveValue(/# mein Zusatz/);
+  await expect(page.getByTestId('script-note')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

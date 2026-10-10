@@ -11,8 +11,7 @@ WORDS = {"normal": ("Neun", "achtzehn", "Nine", "eighteen"), "near": ("Drei", "s
          "far": ("Zehn", "zwanzig", "Ten", "twenty")}[world.id]
 RING_WORDS = ("acht", "eight") if SIDE == 2 else ("zwölf", "twelve")
 
-NOTE = "\n".join([
-    "guess = 0",
+PROGRAM = "\n".join([
     "for i in range(5):",
     "    nelia.step()",
     "    nelia.put()",
@@ -46,22 +45,17 @@ def predict():
     if PURSE < 5:
         say("maid", de=f"Mehr als {PURSE} Taler habe ich nicht für dich, Nelia.", en=f"I have no more than {PURSE} coins for you, Nelia.")
     seen = program.runs
-    objective("predict",
-              de="Wie viele Taler liegen am Ende im Schnee? Trag deine Vermutung bei guess ein, dann führe den Zettel aus.",
-              en="How many coins lie in the snow at the end? Put your guess into guess, then run the note.")
-    while True:
-        seen = next_run(seen)
-        guess = program.get("guess")
-        laid = len(coins_in(0))
-        # Randfälle: Baum im Weg oder leerer Beutel – der Zettel bricht ab, die gelegten Taler zählen trotzdem
-        ended = program.status == "done" or (program.status == "error" and laid == LAID)
-        if ended and laid == LAID and guess == laid:
+    # Das Programm einmal ausführen genügt (after_run) – Nachdenken, dann Ausführen
+    objective("predict", after_run=True,
+              de="Wie viele Taler liegen am Ende im Schnee? Führe das Programm aus und sieh nach.",
+              en="How many coins lie in the snow at the end? Run the program and have a look.")
+    while objective_status("predict") != "done":
+        wait_until(lambda: objective_status("predict") == "done" or (program.runs > seen and program.status == "error"))
+        seen = program.runs
+        # Randfälle: Baum im Weg oder leerer Beutel – das Programm bricht ab, die gelegten Taler zählen trotzdem
+        if objective_status("predict") != "done" and len(coins_in(0)) == LAID:
             complete("predict")
-            say("nelia", de=f"{laid} Taler – genau wie vermutet!", en=f"{laid} coins – just as you guessed!")
-            return
-        if ended:
-            say("nelia", de=f"Im Schnee liegen {laid} Taler, vermutet hattest du {guess}. Zähl noch einmal mit – Ausführen bringt mich zurück an den Start.",
-                         en=f"There are {laid} coins in the snow, you guessed {guess}. Count along once more – Run takes me back to the start.")
+    say("nelia", de=f"{len(coins_in(0))} Taler liegen im Schnee.", en=f"{len(coins_in(0))} coins lie in the snow.")
 
 
 def path_ok():
@@ -81,8 +75,8 @@ def path():
                 en=f"It is {PATH} tiles to the trees. But you only have {PATH // 2} coins left, Nelia!")
     seen = program.runs
     objective("path",
-              de=f"Ändere den Zettel: Nelia geht {PATH} Schritte bis zu den Bäumen und legt nur auf jede zweite Kachel einen Taler.",
-              en=f"Change the note: Nelia walks {PATH} steps to the trees and puts a coin on every second tile only.")
+              de=f"Ändere das Programm: Nelia geht {PATH} Schritte bis zu den Bäumen und legt nur auf jede zweite Kachel einen Taler.",
+              en=f"Change the program: Nelia walks {PATH} steps to the trees and puts a coin on every second tile only.")
     while True:
         seen = next_run(seen)
         if path_ok():
@@ -158,10 +152,10 @@ def story():
     first = STAGES.index(world.stage) if world.stage in STAGES else 0
     camera.jump_to(place("a_view"))
     if first == 0 and world.stage is None:
-        say("maid", de="Wir kommen nach, Nelia. Leg uns Taler in den Schnee, dann finden wir deinen Weg. Hier, mein Zettel.",
-                    en="We will follow you, Nelia. Put coins in the snow for us, then we will find your way. Here, my note.")
+        say("maid", de="Wir kommen nach, Nelia. Leg uns Taler in den Schnee, dann finden wir deinen Weg. Hier, mein Programm.",
+                    en="We will follow you, Nelia. Put coins in the snow for us, then we will find your way. Here, my program.")
     if first == 0:
-        note("maid", NOTE, de="Zettel der Magd", en="The maid's note")
+        program.load(PROGRAM)
         predict()
     if first <= 1:
         path()

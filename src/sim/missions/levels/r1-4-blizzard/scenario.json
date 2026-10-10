@@ -7,8 +7,8 @@
   "order": 14,
   "title": { "de": "Im Schneetreiben", "en": "In the Blizzard" },
   "summary": {
-    "de": "Schleifen mit Bedingung: Wie weit ist es bis zum Waldrand? Ein Zettel der Magd, ein Taler im Schnee und eine Spur durch alle Kurven.",
-    "en": "Loops with a condition: how far is it to the edge of the forest? A note from the maid, a coin in the snow and a track through every bend."
+    "de": "Schleifen mit Bedingung: Wie weit ist es bis zum Waldrand? Ein Programm der Magd, ein Taler im Schnee und eine Spur durch alle Kurven.",
+    "en": "Loops with a condition: how far is it to the edge of the forest? A program from the maid, a coin in the snow and a track through every bend."
   },
   "briefing": {
     "de": "Schneetreiben. Niemand weiß, wie weit es bis zum Waldrand ist – „while nelia.can_step():“ läuft, solange vorn frei ist. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Taler und Spur gibt es in drei Welten – „Prüfen“ zeigt, ob dein Programm in allen klappt.",

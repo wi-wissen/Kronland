@@ -1,5 +1,5 @@
-// Mission I.4 "Im Schneetreiben": three stages in three sections of one map, a note of the maid, a prediction checked
-// with program.get, Run restarts the stage. Three worlds (normal, near, far): coin and track only count once „Prüfen“
+// Mission I.4 "Im Schneetreiben": three stages in three sections of one map, a program the maid loads, a stage that ends
+// once the program ran (after_run), Run restarts the stage. Three worlds (normal, near, far): coin and track only count once „Prüfen“
 // solved them in every world. The model solution wins – played like the engine does it (snapshot before every run,
 // src/sim/stage.js; check via src/sim/check.js and the check command).
 import { describe, it, expect } from 'vitest';
@@ -8,6 +8,16 @@ import { StageSnapshot } from '../../src/sim/stage.js';
 import { getScenario, getMission, ADVENTURES } from '../../src/sim/missions/registry.js';
 import { checkProgram } from '../../src/sim/check.js';
 import { stageKey } from '../../src/sim/stage.js';
+
+/** Collect the programs the mission loads (program.load): a display event, no state. */
+function track(state, sim) {
+  const step = sim.step.bind(sim);
+  sim.step = (...a) => {
+    const events = step(...a);
+    for (const e of events) if (e.type === 'programLoad') state.loads.push(e.code);
+    return events;
+  };
+}
 
 const step = (sim, n) => { for (let i = 0; i < n && !sim.mission.state.result; i++) sim.step(); };
 const hero = (sim) => [...sim.entities.values()].find((e) => e.kind === 'hero' && e.owner === 0);
@@ -61,25 +71,24 @@ describe('Mission I.4 "Im Schneetreiben"', () => {
     expect(sim.map.tracks[sim.map.idx(7, 22)]).toBeGreaterThan(0);
   });
 
-  it('the maid hands over a note; the model solution wins all three stages', () => {
-    const state = { sim: createMissionSim('r1-4'), stage: new StageSnapshot() };
+  it('the maid loads a program; the model solution wins all three stages', () => {
+    const state = { sim: createMissionSim('r1-4'), stage: new StageSnapshot(), loads: [] };
+    track(state, state.sim);
     until(state.sim, () => active(state.sim).includes('predict'));
-    const note = state.sim.mission.script.state.note;
-    expect(note).toMatchObject({ speaker: 'maid', title: { de: 'Zettel der Magd' } });
-    expect(note.code).toContain('while nelia.can_step():');
+    expect(state.loads).toHaveLength(1);
+    const program = state.loads[0];
+    expect(program).toContain('while nelia.can_step():');
 
-    // Stage 1: a wrong guess – Nelia says how far it was; Run restores the stage, then the right guess
-    runAs(state, note.code.replace('guess = 0', 'guess = 7'));
-    until(state.sim, () => state.sim.mission.state.messages.some((m) => /vermutet hattest du 7/.test(m.text?.de ?? '')));
-    expect(tile(state.sim)).toEqual([11, 3]);
-    runAs(state, note.code.replace('guess = 0', 'guess = 9'));
+    // Stage 1: an error does not end it; running the program once to its end does
+    expect(state.sim.mission.state.objectives.find((o) => o.id === 'predict').status).toBe('active');
+    runAs(state, program);
     expect(tile(state.sim)).toEqual([2, 3]);
     until(state.sim, () => active(state.sim).includes('coin'));
     expect(state.sim.mission.state.objectives.find((o) => o.id === 'predict').status).toBe('done');
     expect(tile(state.sim)).toEqual([2, 13]);
 
-    // Stage 2: the unchanged note walks past the coin; the changed one picks it up – then „Prüfen“ in all worlds
-    runAs(state, note.code);
+    // Stage 2: the unchanged program walks past the coin; the changed one picks it up – then „Prüfen“ in all worlds
+    runAs(state, program);
     until(state.sim, () => state.sim.mission.script.state.player.status === 'done');
     step(state.sim, 5);
     expect(state.sim.map.items.size).toBe(1);
@@ -122,13 +131,12 @@ describe('Mission I.4 "Im Schneetreiben"', () => {
     expect(new Set([at.normal.trail, at.near.trail, at.far.trail]).size).toBe(3);
   });
 
-  it('the prediction counts in the played world: a fixed guess is right in one world only', () => {
+  it('the first stage ends once a program ran to its end, in every world; an error does not end it', () => {
     const def = getMission('r1-4');
-    const NOTE = (n) => `guess = ${n}\nsteps = 0\nwhile nelia.can_step():\n    nelia.step()\n    steps = steps + 1\n`;
-    const solved = (n) => checkProgram(def, 'predict', { player: NOTE(n) }).results.filter((r) => r.status === 'solved').map((r) => r.world);
-    expect(solved(9)).toEqual(['normal']);
-    expect(solved(0)).toEqual(['near']);
-    expect(solved(14)).toEqual(['far']);
+    const solved = (code) => checkProgram(def, 'predict', { player: code }).results.filter((r) => r.status === 'solved').map((r) => r.world);
+    expect(solved('steps = 0\nwhile nelia.can_step():\n    nelia.step()\n    steps = steps + 1\n')).toEqual(['normal', 'near', 'far']);
+    expect(solved('print(1)\n')).toEqual(['normal', 'near', 'far']);
+    expect(solved('nelia.fly()\n')).toEqual([]);
   });
 
   it('the model solutions pass „Prüfen“ in every world, hard-coded ones fail an edge case', () => {
@@ -154,6 +162,5 @@ describe('Mission I.4 "Im Schneetreiben"', () => {
     until(sim, () => active(sim).includes('hut'), 200);
     expect(sim.mission.state.objectives.map((o) => o.id)).toEqual(['hut']);
     expect(tile(sim)).toEqual([2, 23]);
-    expect(sim.mission.script.state.note).toBe(null);
   });
 });

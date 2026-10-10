@@ -5,8 +5,7 @@
 STAGES = ["predict", "coin", "hut"]
 ENDED = ("done", "error", "stopped")
 
-NOTE = "\n".join([
-    "guess = 0",
+PROGRAM = "\n".join([
     "steps = 0",
     "while nelia.can_step():",
     "    nelia.step()",
@@ -41,33 +40,22 @@ def until_checked(goal, solved, de, en):
 
 
 def predict():
-    steps = FOREST - 1 - place("a_start").x
-    objective("predict",
-              de="Wie viele Schritte geht Nelia bis zum Waldrand? Trag deine Vermutung bei guess ein, dann führe den Zettel aus.",
-              en="How many steps does Nelia take to the forest edge? Put your guess into guess, then run the note.")
-    last = 0
-    while True:
-        # Jeder beendete Lauf zählt – auch einer, der gleich nach dem Wechsel der Welt gestartet wurde
-        wait_until(lambda: program.runs > last and program.status in ENDED)
-        last = program.runs
-        guess = program.get("guess")
-        walked = nelia.x - place("a_start").x
-        if program.status == "done" and walked == steps and guess == walked:
-            complete("predict")
-            say("nelia", de=f"{walked} Schritte – genau wie vermutet!", en=f"{walked} steps – just as you guessed!")
-            return
-        if program.status == "done":
-            say("nelia", de=f"Ich bin {walked} Schritte gegangen, vermutet hattest du {guess}. Zähl die Kacheln noch einmal – Ausführen bringt mich zurück an den Start.",
-                         en=f"I walked {walked} steps, you guessed {guess}. Count the tiles again – Run takes me back to the start.")
+    # Das Programm einmal ausführen genügt (after_run) – Nachdenken, dann Ausführen
+    objective("predict", after_run=True,
+              de="Wie viele Schritte geht Nelia bis zum Waldrand? Führe das Programm aus und zähl mit.",
+              en="How many steps does Nelia take to the forest edge? Run the program and count along.")
+    wait_until(lambda: objective_status("predict") == "done")
+    walked = nelia.x - place("a_start").x
+    say("nelia", de=f"{walked} Schritte bis zum Waldrand.", en=f"{walked} steps to the forest edge.")
 
 
 def coin():
     move_to_section("b_start", "b_view")
     objective("coin", lambda: len(items("coin")) == 0, all_worlds=True,
-              de="Ändere den Zettel: Nelia soll beim Taler stehen bleiben (nelia.here() == \"coin\") und ihn mit nelia.take() aufheben – in allen Welten (Prüfen).",
-              en="Change the note: Nelia should stop on the coin (nelia.here() == \"coin\") and pick it up with nelia.take() – in every world (Check).")
-    say("nelia", de="Da glitzert ein Taler im Schnee! Der Zettel läuft aber bis zum Wald …",
-                 en="A coin is glittering in the snow! But the note walks all the way to the forest …")
+              de="Ändere das Programm: Nelia soll beim Taler stehen bleiben (nelia.here() == \"coin\") und ihn mit nelia.take() aufheben – in allen Welten (Prüfen).",
+              en="Change the program: Nelia should stop on the coin (nelia.here() == \"coin\") and pick it up with nelia.take() – in every world (Check).")
+    say("nelia", de="Da glitzert ein Taler im Schnee! Das Programm läuft aber bis zum Wald …",
+                 en="A coin is glittering in the snow! But the program walks all the way to the forest …")
     until_checked("coin", lambda: len(items("coin")) == 0,
                   "Der Taler liegt noch im Schnee. Lauf, solange unter mir kein Taler liegt: while nelia.here() != \"coin\":",
                   "The coin is still lying in the snow. Walk as long as there is no coin under me: while nelia.here() != \"coin\":")
@@ -95,10 +83,10 @@ def story():
     first = STAGES.index(world.stage) if world.stage in STAGES else 0
     camera.jump_to(place("a_view"))
     if first == 0 and world.stage is None:
-        say("maid", de="Nimm meinen Zettel, Nelia. Er bringt dich bis zum Waldrand – aber wie weit ist das?",
-                    en="Take my note, Nelia. It takes you to the forest edge – but how far is that?")
+        say("maid", de="Nimm mein Programm, Nelia. Es bringt dich bis zum Waldrand – aber wie weit ist das?",
+                    en="Take my program, Nelia. It takes you to the forest edge – but how far is that?")
     if first == 0:
-        note("maid", NOTE, de="Zettel der Magd", en="The maid's note")
+        program.load(PROGRAM)
         predict()
     if first <= 1:
         coin()

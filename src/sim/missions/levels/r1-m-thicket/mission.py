@@ -1,5 +1,5 @@
 # I.M „Heimweg durchs Unterholz“ (Meisterstück der Reihe I): drei Etappen, dreimal Unterholz.
-# Kein Zettel – das Programm schreibt man selbst. place("exit") zeigt in jeder Etappe auf den Ausgang des Abschnitts.
+# Kein fertiges Programm – man schreibt es selbst. place("exit") zeigt in jeder Etappe auf den Ausgang des Abschnitts.
 # Drei Welten (world.py): jede Etappe zählt erst, wenn „Prüfen“ das Programm in allen Welten bestanden hat (all_worlds=True).
 
 STAGES = ["edge", "thicket", "home"]
@@ -73,8 +73,8 @@ def story():
     first = STAGES.index(world.stage) if world.stage in STAGES else 0
     camera.jump_to(place("view1"))
     if world.stage is None:
-        say("nelia", de="Lindgrund liegt hinter dem Wald. Einen Weg gibt es nicht, nur Unterholz – und keine Magd, die mir einen Zettel schreibt.",
-                     en="Lindgrund lies beyond the forest. There is no path, only undergrowth – and no maid to write me a note.")
+        say("nelia", de="Lindgrund liegt hinter dem Wald. Einen Weg gibt es nicht, nur Unterholz – und keine Magd, die mir ein Programm schreibt.",
+                     en="Lindgrund lies beyond the forest. There is no path, only undergrowth – and no maid to write me a program.")
     if first == 0:
         edge()
     if first <= 1:

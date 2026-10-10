@@ -8,9 +8,7 @@ ENDED = ("done", "error", "stopped")
 # So weit kommt Nelia mit dreimal around_ruin() im ersten Abschnitt – wo ein Baum den Umweg versperrt, weniger weit
 AHEAD = {"normal": 6, "near": 1, "far": 5}[world.id]
 
-NOTE = "\n".join([
-    "guess = 0",
-    "",
+PROGRAM = "\n".join([
     "def around_ruin():",
     "    nelia.turn_right()",
     "    nelia.step()",
@@ -44,23 +42,19 @@ def move_to_section(start, view):
 
 def predict():
     seen = program.runs
-    objective("predict",
-              de="around_ruin() wird dreimal aufgerufen: Wie viele Kacheln weiter östlich steht Nelia danach? Trag die Zahl bei guess ein, dann führe den Zettel aus.",
-              en="around_ruin() is called three times: how many tiles further east does Nelia stand afterwards? Put the number into guess, then run the note.")
-    while True:
-        seen = next_run(seen)
-        guess = program.get("guess")
-        walked = nelia.x - place("a_start").x
-        # Randfall: ein Baum versperrt einen Umweg – der Zettel bricht ab, wo Nelia steht, zählt trotzdem
-        ended = program.status == "done" or (program.status == "error" and walked == AHEAD)
-        if ended and walked == AHEAD and guess == walked:
+    # Das Programm einmal ausführen genügt (after_run) – Nachdenken, dann Ausführen
+    objective("predict", after_run=True,
+              de="around_ruin() wird dreimal aufgerufen: Wie viele Kacheln weiter östlich steht Nelia danach? Führe das Programm aus und sieh nach.",
+              en="around_ruin() is called three times: how many tiles further east does Nelia stand afterwards? Run the program and have a look.")
+    while objective_status("predict") != "done":
+        wait_until(lambda: objective_status("predict") == "done" or (program.runs > seen and program.status == "error"))
+        seen = program.runs
+        # Randfall: ein Baum versperrt einen Umweg – das Programm bricht ab, wo Nelia steht, zählt trotzdem
+        if objective_status("predict") != "done" and nelia.x - place("a_start").x == AHEAD:
             complete("predict")
-            say("orrin", de=f"{walked} Kacheln, ohne ein einziges Mal anzustoßen. Drei Zeilen unten, die Arbeit steckt oben in der Funktion.",
-                         en=f"{walked} tiles without bumping into anything once. Three lines below, the work is in the function above.")
-            return
-        if ended:
-            say("nelia", de=f"Ich stehe {walked} Kacheln weiter östlich, vermutet hattest du {guess}. Geh die Funktion für jeden Aufruf einmal durch – Ausführen bringt mich zurück an den Start.",
-                         en=f"I am standing {walked} tiles further east, you guessed {guess}. Walk through the function once for every call – Run takes me back to the start.")
+    walked = nelia.x - place("a_start").x
+    say("orrin", de=f"{walked} Kacheln. Drei Zeilen unten, die Arbeit steckt oben in der Funktion.",
+                 en=f"{walked} tiles. Three lines below, the work is in the function above.")
 
 
 def hedge():
@@ -117,7 +111,7 @@ def story():
         say("orrin", de="Ich bin Orrin, Händler. Um diese Ruine kenne ich eine Abkürzung – ich habe sie mir als Funktion aufgeschrieben.",
                      en="I am Orrin, a merchant. I know a shortcut round this ruin – I wrote it down as a function.")
     if first == 0:
-        note("orrin", NOTE, de="Orrins Abkürzung", en="Orrin's shortcut")
+        program.load(PROGRAM)
         predict()
     if first <= 1:
         hedge()

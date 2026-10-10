@@ -129,11 +129,12 @@ describe('Stage restart', () => {
 
   it('every restore of a real mission equals the snapshot and runs the same program the same way (r1-4, three worlds)', async () => {
     const { createMissionSim } = await import('../../src/sim/missions/runtime.js');
-    const code = 'guess = 99\nsteps = 0\nwhile nelia.can_step():\n    nelia.step()\n    steps = steps + 1\nprint(steps)\n';
+    const code = 'steps = 0\nwhile nelia.can_step():\n    nelia.step()\n    steps = steps + 1\nprint(steps)\n';
     for (const world of ['normal', 'near', 'far']) {
-      let sim = createMissionSim('r1-4', { world });
-      for (let i = 0; i < 600 && stageKey(sim) !== 'predict'; i++) sim.step();
-      expect(stageKey(sim)).toBe('predict');
+      // the stage "coin" stays active while the program does not solve it (the stage "predict" ends with the first run)
+      let sim = createMissionSim('r1-4', { world, stage: 'coin' });
+      for (let i = 0; i < 600 && stageKey(sim) !== 'coin'; i++) sim.step();
+      expect(stageKey(sim)).toBe('coin');
       const stage = new StageSnapshot();
       expect(stage.beforeRun(sim)).toBeNull();
       const hash = sim.hash();

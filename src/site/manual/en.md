@@ -439,7 +439,7 @@ Nelia's story onwards – I.2 is row I, mission 2, M the masterpiece at the end 
 
 ![Coding adventures in the start menu: the course missions grouped by rows, the selected mission's brief on the right](site/course.webp)
 
-Every course mission consists of stages on the same map: first predict what a finished note does, then change it,
+Every course mission consists of stages on the same map: first run a finished program and watch what it does, then change it,
 then write your own. **Run** starts the current stage over – so you can try as often as you like.
 
 There is also the script mission {{scriptMissions}}, a normal game whose story is written entirely in Python.

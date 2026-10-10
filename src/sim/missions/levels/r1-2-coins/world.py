@@ -6,7 +6,7 @@ for x in range(world.width):
         world.set_height(x, y, world.height_at(x, y) + 2400)
         world.set_cliff(x, y)
 
-# Je Welt: Taler, die der Zettel legt (Abschnitt 1), Kacheln bis zu den Bäumen (2), Stufen des Hangs (3),
+# Je Welt: Taler, die das Programm legt (Abschnitt 1), Kacheln bis zu den Bäumen (2), Stufen des Hangs (3),
 # Kacheln je Seite des Rechtecks um den Holzstoß (4)
 LAID = {"normal": 5, "near": 2, "far": 3}[world.id]
 PATH = {"normal": 18, "near": 6, "far": 20}[world.id]
