@@ -9,12 +9,12 @@
   "minutes": 15,
   "title": { "de": "Im Schneetreiben", "en": "In the Blizzard" },
   "summary": {
-    "de": "Schleifen mit Bedingung: Wie weit ist es bis zum Waldrand? Ein Zettel der Magd, ein Taler im Schnee und eine Spur durch alle Kurven.",
-    "en": "Loops with a condition: how far is it to the edge of the forest? A note from the maid, a coin in the snow and a track through every bend."
+    "de": "Schleifen mit Bedingung: Wie weit ist es bis zum Waldrand? Ein Programm der Magd, ein Taler im Schnee und eine Spur durch alle Kurven.",
+    "en": "Loops with a condition: how far is it to the edge of the forest? A program from the maid, a coin in the snow and a track through every bend."
   },
   "briefing": {
-    "de": "Schneetreiben. Niemand weiß, wie weit es bis zum Waldrand ist – „while nelia.can_step():“ läuft, solange vorn frei ist. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Taler und Spur gibt es in drei Welten – „Prüfen“ zeigt, ob dein Programm in allen klappt.",
-    "en": "Blizzard. Nobody knows how far it is to the edge of the forest – “while nelia.can_step():” runs as long as the way ahead is free. Run starts the stage over every time: think first, then run. Coin and track come in three worlds – “Check” shows whether your program works in all of them."
+    "de": "Schneetreiben. Eine Reise über ein Schneefeld in drei Etappen, mit einem Programm, das mitwächst: Niemand weiß, wie weit es bis zum Waldrand ist – „while nelia.can_step():“ läuft, solange vorn frei ist. Am Waldrand entlang liegt ein Taler im Schnee, von dort führt eine Spur zur Hütte. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Das Schneefeld gibt es in drei Welten (drei Karten) – „Prüfen“ zeigt, ob dein Programm auf allen klappt.",
+    "en": "Blizzard. A journey across a snow field in three stages, with a program that grows along: nobody knows how far it is to the edge of the forest – “while nelia.can_step():” runs as long as the way ahead is free. Along the forest edge lies a coin in the snow, from there a track leads to the hut. Run starts the stage over every time: think first, then run. The snow field comes in three worlds (three maps) – “Check” shows whether your program works on all of them."
   },
   "victoryText": {
     "de": "Die Geflohenen sind gefunden – gemeinsam geht es weiter nach Lindgrund.",
@@ -31,19 +31,11 @@
   ],
   "world": {
     "base": "flat",
-    "width": 20,
-    "height": 28,
+    "width": 24,
+    "height": 24,
     "fog": false,
     "starts": [{ "x": 2, "y": 3 }],
-    "tracks": { "mode": "permanent" },
-    "places": {
-      "a_start": { "x": 2, "y": 3, "r": 0 },
-      "a_view": { "x": 9, "y": 4, "r": 4 },
-      "b_start": { "x": 2, "y": 13, "r": 0 },
-      "b_view": { "x": 9, "y": 14, "r": 4 },
-      "c_start": { "x": 2, "y": 23, "r": 0 },
-      "c_view": { "x": 9, "y": 24, "r": 4 }
-    }
+    "tracks": { "mode": "permanent" }
   },
   "weatherCycle": [["winter", 3600000]],
   "players": [{ "kind": "human", "hero": "nelia", "hq": false }],

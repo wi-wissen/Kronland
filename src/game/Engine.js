@@ -56,6 +56,8 @@ const VIEW_FIGURES = new Set(['unit', 'worker', 'soldier', 'leader', 'hero', 'np
 const VIEW_RADIUS = 2.5, VIEW_MAX = 6;
 /** Phone "watch game": after a manual camera move the camera stops following the figure this long (ms). */
 const WATCH_MANUAL_MS = 5000;
+/** Delay before the renderer of an old world is freed after a stage restart or world switch (see Engine.retire) */
+const RETIRE_MS = 2500;
 
 /** Build preview yellow ("will be levelled") if a tile deviates from the plane by more than this many cm. */
 export const LEVEL_NOTICE = 40;
@@ -192,6 +194,9 @@ export class Engine {
     this.stage = new StageSnapshot(opts.load?.extra?.stage ?? null);
     /** Number of stage restarts (the UI resets what it remembers of the old world) */
     this.restarts = 0;
+    /** program.load() of the mission, waiting for the code panel: { n, code } (display only, not part of the state) */
+    this.programLoad = null;
+    this.programLoads = 0;
     resetSpeech();
   }
 
@@ -234,6 +239,7 @@ export class Engine {
     clearTimeout(this.dialogCamBack);
     stopSpeech();
     // release WebGL resources: the canvas is reused for the next game
+    this.flushRetired();
     try { this.renderer.dispose(); } catch { /* disposal must never prevent ending */ }
   }
 
@@ -302,6 +308,7 @@ export class Engine {
     if (this.audio) g.run('audio', () => { this.audio.onEvents(events, this.prev); this.audio.onTick(); });
     g.run('ui', () => {
       this.eventToasts(events);
+      for (const ev of events) if (ev.type === 'programLoad' && ev.player === this.player) this.programLoad = { n: ++this.programLoads, code: ev.code };
       // Selection: deselect what has vanished and foreign things that vanish into the fog
       for (const id of this.selected) if (!this.canSee(this.sim.entities.get(id))) this.selected.delete(id);
     });
@@ -1046,23 +1053,29 @@ export class Engine {
   }
 
   /**
-   * Swap the simulation without a loading screen (stage restart, src/sim/stage.js): the renderer is built anew for the
+   * Swap the simulation without a loading screen (stage restart, src/sim/stage.js): the scene is built anew for the
    * new world (computer opponents come with the simulation); camera, grid, code panel, code and breakpoints stay.
+   * The WebGL renderer with its compiled shader programs and the shared models and textures are taken over by the
+   * new Renderer (opts.from) – creating a context state and compiling every program again took about a second.
+   * The old world is freed a little later (retire): until then its materials hold the programs that the new one
+   * needs when its first coin or mark appears on screen.
    * @param {import('../sim/sim.js').Sim} sim
    */
   restart(sim) {
     const rig = this.renderer.rig;
     const cam = { x: rig.target.x, z: rig.target.z, yaw: rig.yaw, dist: rig.dist, pitch: rig.pitch };
     const grid = !!this.renderer.grid;
-    try { this.renderer.dispose(); } catch { /* disposal must never prevent the restart */ }
+    const old = this.renderer;
     this.sim = sim;
-    this.renderer = new Renderer(this.canvas, sim, { player: this.player });
+    this.renderer = new Renderer(this.canvas, sim, { player: this.player, from: old });
     const r = this.renderer.rig;
     r.lookAt(cam.x, cam.z); r.yaw = cam.yaw; r.dist = cam.dist; r.pitch = cam.pitch; r.clamp();
     this.input.rig = r;
     this.resize();
     if (grid) this.renderer.setGrid(true);
     if (sim.weather.state !== 'summer') this.renderer.applyWeather(sim.weather.state);
+    this.retire(old, this.renderer);
+    this.renderer.startup();
     this.prev = new Map();
     this.acc = 0;
     this.placing = null;
@@ -1079,6 +1092,29 @@ export class Engine {
     if (this.dev) { this.dev.dispose(); this.dev = null; this.setDevMode(true); }
     this.emitUi();
   }
+  /**
+   * Free the renderer of an old world after a short delay. Disposing a material releases its shader program; the
+   * new world's own materials (items, marks, ...) compile on their first draw, which may come a few frames later –
+   * as long as the old ones live, that draw finds the program and does not compile again.
+   * @param {Renderer} old @param {Renderer} successor
+   */
+  retire(old, successor) {
+    const entry = { old, successor, timer: 0 };
+    entry.timer = setTimeout(() => this.flushRetired(entry), RETIRE_MS);
+    (this.retired ??= []).push(entry);
+  }
+
+  /** Dispose retired renderers now (up to and including `upTo`, in the order they were retired). */
+  flushRetired(upTo = null) {
+    const list = this.retired ?? [];
+    const n = upTo ? list.indexOf(upTo) + 1 : list.length;
+    if (upTo && n === 0) return;
+    for (const e of list.splice(0, n)) {
+      clearTimeout(e.timer);
+      try { e.old.dispose({ successor: e.successor }); } catch (err) { console.warn('Renderer disposal failed', err); }
+    }
+  }
+
   togglePause() { this.paused = !this.paused; this.emitUi(); }
 
   /** Game option "tracks": send the setting as a command when it differs and the level does not fix the mode. */
@@ -1555,6 +1591,7 @@ export class Engine {
     const m = this.sim.mission;
     if (!m) { this.missionView.hint = null; return null; }
     const ui = m.uiState(this.sim);
+    if (ui.script) ui.script.load = this.programLoad;
     const mv = this.missionView;
     if (ui.camera && ui.camera.seq !== mv.cameraSeq) {
       mv.cameraSeq = ui.camera.seq;
@@ -1584,6 +1621,11 @@ export class Engine {
     ui.pointer = ui.tutorial ? ui.tutorial.hint?.ui ?? [] : uiGoal?.hint.ui ?? [];
     mv.landmarks = ui.landmarks;
     return ui;
+  }
+
+  /** The code panel took over a loaded program (program.load): it is not offered again when the panel is rebuilt. */
+  ackProgramLoad(n) {
+    if (this.programLoad?.n === n) this.programLoad = null;
   }
 
   // ---------- UI ----------

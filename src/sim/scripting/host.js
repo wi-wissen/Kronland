@@ -71,8 +71,6 @@ export class ScriptHost {
       console: [], seq: 0, errors: [],
       started: false, every: {}, enter: {},
       player: { code: null, runs: 0, status: 'idle', bps: [], every: {}, enter: {}, listening: false },
-      /** Note of a figure in the code panel (note()): { seq, speaker, code, title, editable } or null */
-      note: null,
       missionDebug: !!scenario.debug, missionBps: [],
       skipSeq: 0,
     };
@@ -314,6 +312,13 @@ export class ScriptHost {
     const d = new PyDict();
     for (const [k, v] of Object.entries(filters)) d.set(k, v);
     list.items.push(new PyTuple([kind, fn, d]));
+    // A figure becomes talkable as soon as a handler listens to it (npc() without handler shows no mark)
+    if (kind === 'on_talk' && vm === this.vms.mission) this.runtime.armNpcs(this.sim, filters.id ?? null);
+  }
+
+  /** Does a mission handler (@on_talk) listen to talks with this figure? */
+  hasTalkHandler(id) {
+    return this.handlers('mission').some((h) => h.items[0] === 'on_talk' && this.matches(h.items[2], { id }));
   }
 
   /** Start the handlers of a kind whose filters match (one program). */
@@ -666,9 +671,15 @@ export class ScriptHost {
     return dur;
   }
 
-  /** note(): a figure hands over code; the code panel shows it with the figure's seal (display, saved with the state). */
-  note(speaker, code, title, editable) {
-    this.state.note = { seq: ++this.state.seq, speaker, code: code.replace(/\r\n?/g, '\n'), title, editable };
+  /**
+   * program.load(): the mission puts a program into the player's code panel. The program text is no simulation state
+   * (it reaches the sim as a run command), so this is only an event for the UI, not saved and not hashed. A world
+   * the switcher started at a stage and a check game never load: the student's program stays (docs/SKRIPTE.md#programm-laden).
+   */
+  loadProgram(code) {
+    const st = this.runtime.state;
+    if (st.startStage || st.check) return;
+    this.sim.events.push({ type: 'programLoad', code: code.replace(/\r\n?/g, '\n'), player: st.human });
   }
 
   camera(x, y, fly) {
@@ -680,11 +691,11 @@ export class ScriptHost {
     const rt = this.runtime, st = rt.state;
     if (st.objectives.some((x) => x.id === id)) throw new ScriptError('game', { reason: 'script.game.objectiveExists', reasonParams: { id } });
     if (st.objectives.length >= LIMITS.objectives) throw new ScriptError('value', { what: 'tooMany', name: 'objective', max: LIMITS.objectives });
-    (st.extraObjectives ??= {})[id] = { id, type: 'script', text: this.text(textV), primary, ...(o.hold ? { hold: true } : {}), ...(o.clock ? { clock: true } : {}), ...(o.allWorlds ? { allWorlds: true } : {}) };
+    (st.extraObjectives ??= {})[id] = { id, type: 'script', text: this.text(textV), primary, ...(o.hold ? { hold: true } : {}), ...(o.clock ? { clock: true } : {}), ...(o.allWorlds ? { allWorlds: true } : {}), ...(o.afterRun ? { afterRun: true } : {}) };
     let conds = vm.globals.get('.objectives');
     if (!(conds instanceof PyDict)) { conds = new PyDict(); vm.globals.set('.objectives', conds); }
     conds.set(id, cond);
-    st.objectives.push({ id, status: hidden ? 'hidden' : 'active', since: this.sim.tick, count: 0, progress: null });
+    st.objectives.push({ id, status: hidden ? 'hidden' : 'active', since: this.sim.tick, count: 0, progress: null, ...(o.afterRun ? { base: this.state.player.runs } : {}) });
   }
 
   /**
@@ -1032,7 +1043,7 @@ export class ScriptHost {
   hash(h) {
     const s = this.save();
     const p = s.state.player;
-    h.str(JSON.stringify([s.mission, s.player, s.state.places, s.state.every, s.state.enter, p.status, p.every ?? {}, p.enter ?? {}, s.state.note?.seq ?? 0, s.state.reset ?? null, s.state.talk ?? null, s.state.skip ?? null, s.state.alarm ?? {}, p.alarm ?? {}, s.state.carry ?? null]));
+    h.str(JSON.stringify([s.mission, s.player, s.state.places, s.state.every, s.state.enter, p.status, p.every ?? {}, p.enter ?? {}, s.state.reset ?? null, s.state.talk ?? null, s.state.skip ?? null, s.state.alarm ?? {}, p.alarm ?? {}, s.state.carry ?? null]));
   }
 
   // ---------- UI ----------
@@ -1067,7 +1078,6 @@ export class ScriptHost {
     }
     return {
       console: st.console.slice(-120), errors: st.errors.slice(-5), player, mission, missionHints: st.missionHints ?? [], places: { ...st.places }, focus: this.focus,
-      note: st.note ? { ...st.note } : null,
     };
   }
 }

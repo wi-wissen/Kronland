@@ -41,13 +41,13 @@ async function tool(page, id) {
 
 const gridAttr = (page) => (page.viewportSize().width < 760 ? 'aria-checked' : 'aria-pressed');
 
-/** I.M stops the player's program when it moves Nelia to the first section after the intro line: wait for that first. */
+/** I.M: the first stage opens after the intro line: wait for that first. */
 async function sectionReady(page) {
-  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'edge')?.status), { timeout: 60_000 }).toBe('active');
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'path')?.status), { timeout: 60_000 }).toBe('active');
 }
 
-test('Course missions in the menu by row: start I.2, run the maid\'s note, the next stage follows', async ({ page }) => {
-  test.setTimeout(180_000); // the intro line comes before the note, then a whole stage runs
+test('Course missions in the menu by row: start I.2, run the maid\'s program, the next stage follows', async ({ page }) => {
+  test.setTimeout(180_000); // the intro line comes before the program, then a whole stage runs
   const errors = await fresh(page);
   await page.goto(playUrl());
   await page.getByTestId('menu-kind-code').click();
@@ -64,12 +64,11 @@ test('Course missions in the menu by row: start I.2, run the maid\'s note, the n
   await playLevel(page, 'r1-2');
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
-  // World setup is folded and locked; the maid's note replaces the own program
+  // World setup is folded and locked; the maid's program replaces the text of the own program
   await expect(page.getByTestId('fold-world')).toBeVisible();
-  await expect(page.getByTestId('script-note')).toBeVisible({ timeout: 60_000 });
   const ta = page.getByTestId('section-player').getByTestId('code-input');
-  await expect(ta).toHaveValue(/for i in range\(5\):/);
-  await ta.fill((await ta.inputValue()).replace('guess = 0', 'guess = 5'));
+  await expect(ta).toHaveValue(/for i in range\(5\):/, { timeout: 60_000 });
+  await expect(page.getByTestId('script-note')).toHaveCount(0);
   await page.getByTestId('script-run').click();
   await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'predict')?.status), { timeout: 90_000 }).toBe('done');
   await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'path')?.status), SLOW).toBe('active');

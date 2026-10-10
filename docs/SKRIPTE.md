@@ -134,9 +134,10 @@ world.id  world.stage              # welche Welt gebaut wird, ab welcher Etappe 
 hint("homes", ui=["build-residence"], area="square", ui_until=lambda: count("residence", placed=True) >= 2)
 offer("buy", {"gold": 300}, de=…, en=…, group="way")   withdraw("buy")   unlock("barracks", "standingArmy")
 alchemist = npc("alchemist", look="worker.alchemist", at=place("tower"))   alchemist.stop_talking()
-program.status  program.runs  program.get("guess")   # das Spielerprogramm lesen (Kopie)
-program.stop()                     # Spielerprogramm anhalten (vor dem Wechsel in den nächsten Abschnitt)
-note("maid", code, de="Zettel der Magd", en="The maid's note", editable=True)   # Zettel einer Figur ins Code-Panel
+program.status  program.runs  program.get("steps")   # das Spielerprogramm lesen (Kopie einer Variablen)
+program.stop()                     # Spielerprogramm anhalten (etwa wenn eine Etappe gelöst ist)
+program.load(code)                 # ein Programm ins Code-Panel des Spielers laden (ersetzt dessen Text)
+objective("try", after_run=True)   # Etappe endet, sobald das Programm einmal normal zu Ende gelaufen ist
 reset(False)                       # Ausführen startet die Etappe nicht neu (Aufbau-Missionen); reset() wieder an
 spawn(BANDITS, "sword1", place("gate"), count=3)   attack(truppen, hq())   give(HUMAN, wood=200)
 hero_of(HUMAN, "orrin")   set_diplomacy(HUMAN, ENEMY, "neutral")   orrin.teleport((6, 8))   orrin.kill()
@@ -301,7 +302,7 @@ Dorf).
 
 **Das Spielerprogramm lesen:** `program.status` (`"idle"`, `"running"`, `"paused"`, `"done"`, `"error"`,
 `"stopped"`), `program.runs` und `program.get(name, default)` – eine Kopie der Variablen (Zahlen, Texte, Listen,
-Wörterbücher, Spielobjekte; Funktionen werden `None`). Damit prüft eine Mission Vorhersage- und Variablen-Aufgaben.
+Wörterbücher, Spielobjekte; Funktionen werden `None`). Damit prüft eine Mission Variablen-Aufgaben.
 
 ## Kampagne in Python
 
@@ -494,11 +495,26 @@ derselben Mechanik (`.handlers` je VM), erst die Mission, dann den Spieler, beid
 Etappen sind Unterziele. **Ausführen startet die Etappe neu** (`src/sim/stage.js`, Test `tests/sim/stage.test.js`):
 Beim ersten Ausführen nach einem neuen aktiven Unterziel merkt sich die Engine die Welt als normalen Spielstand
 (`saveGame`, Schlüssel = die aktiven Ziele), jedes weitere Ausführen – auch „Schritt“ – lädt ihn wieder
-(`loadGame`) und tauscht die Simulation mit `Engine.restart` ohne Ladebildschirm: Renderer und KI neu, Kamera,
-Raster, Code und Haltepunkte bleiben. Der wiederhergestellte Stand hat denselben State-Hash wie beim Merken; nur die
-Zähler für die Anzeige (`seq` von Dialog, Konsole, Zettel) laufen weiter, damit Panel und Dialogbox alles Neue als neu
-erkennen. Auch `program.runs` und damit die Zufallszahlen des Spielerprogramms kommen aus dem Schnappschuss – dasselbe
-Programm gibt denselben Lauf. Der Schnappschuss reist im Umschlag des Spielstands mit (`extra.stage`).
+(`loadGame`) und tauscht die Simulation mit `Engine.restart` ohne Ladebildschirm: Kamera, Raster, Code und
+Haltepunkte bleiben, die KI kommt mit der Simulation. Der wiederhergestellte Stand hat denselben State-Hash wie ein
+frisch geladener Schnappschuss; nur die Zähler für die Anzeige (`seq` von Dialog, Konsole) laufen weiter, damit
+Panel und Dialogbox alles Neue als neu erkennen (`mission.seq` geht in den Hash ein: war seit dem Merken ein Dialog,
+weicht der Hash vom Moment des Merkens ab, nicht aber vom Hash des geladenen Schnappschusses). Auch `program.runs` und
+damit die Zufallszahlen des Spielerprogramms kommen aus dem Schnappschuss – dasselbe Programm gibt denselben Lauf. Der
+Schnappschuss reist im Umschlag des Spielstands mit (`extra.stage`).
+
+**Schnell neu starten:** Die Szene (Gelände, Wasser, Nebel, Bäume, Spuren, Figuren) wird neu aufgebaut, alles
+Teure bleibt aber erhalten (`new Renderer(…, { from: alter })`): der WebGL-Renderer mit allen übersetzten Shadern, die
+Figurenmodelle samt gebackenen Animationen (`CharacterSystem.adoptVariants`), Baum- und Dekomodelle
+(`natureCache`) und die gemeinsamen Texturen. Die alte Welt wird erst 2,5 s später freigegeben (`Engine.retire`),
+sonst verlöre sie Shader, die die neue erst beim ersten Zeichnen eines Talers oder einer Markierung braucht. Messwerte
+in [PERFORMANCE.md](PERFORMANCE.md#schnell-neu-starten-je-etappe-und-weltwechsel).
+
+**Zwischen zwei Unterzielen (Schlüssel leer):** Zwischen dem Ende eines Unterziels und dem nächsten `objective(...)`
+ist der Schlüssel leer. Wer dort „Ausführen“ drückt, merkt sich den Zustand *vor* dem, was die Mission noch tut
+(Wartezeit eines `say`, `camera.fly_to`, `teleport`); jedes weitere Ausführen springt dorthin zurück, der Dialog läuft
+erneut. Missionen sollten das nächste Ziel deshalb vor langen Wartezeiten und Teleports setzen (oder `reset(False)`
+dazwischen rufen). Das Verhalten der Engine bleibt bewusst so, Läufe vor dem ersten Ziel (Einführung) brauchen es.
 
 Abschalten: `"reset": false` in scenario.json (z. B. `r3-m`) oder `reset(False)` im Missionsprogramm.
 
@@ -534,8 +550,8 @@ Programm muss allgemein sein, damit es in allen Welten klappt – und die Lehrkr
 - **Umschalter** im Code-Panel (Desktop und Handy-Blatt, ab zwei Welten): „Welt 1 · 2 · 3“ mit den Titeln.
   Wechseln startet die aktuelle Etappe in der gewählten Welt neu (`Engine.switchWorld`: neues Spiel aus den
   Startoptionen `{ world, stage }`, getauscht wie beim Neustart – Renderer neu, Kamera, Raster, Code und Haltepunkte
-  bleiben, Schnappschuss der Etappe verworfen). Gibt dieselbe Figur denselben Zettel noch einmal, bleibt der
-  geänderte Zettel im Panel.
+  bleiben, Schnappschuss der Etappe verworfen). Das Programm des Spielers ersetzt der Wechsel nie: In einer so
+  gestarteten Welt lädt `program.load()` nichts (siehe [Programm laden](#programm-laden)).
 - **„Prüfen“** spielt das Programm, wie es im Panel steht, ohne Bild in **allen** Welten bei der aktuellen Etappe
   durch (`src/sim/check.js`: je Welt ein frisches Spiel mit `{ world, stage, check: true }`, Etappe erreichen,
   `run`-Befehl, Takte bis zum Ergebnis; im Prüfmodus warten Dialogzeilen nicht). Ergebnis je Welt: **gelöst** (alle
@@ -549,7 +565,7 @@ Programm muss allgemein sein, damit es in allen Welten klappt – und die Lehrkr
   (`{ type: 'script', action: 'check', stage, passed }`, `MissionRuntime.applyCheck`; gilt nur für die aktuelle
   Etappe, sonst `err.stageChanged`). Ist die Bedingung nur in der gespielten Welt erfüllt, bleibt das Ziel aktiv
   (`here`), und das Panel bittet um „Prüfen“; ein bestandener Check erfüllt es auch ohne Lauf. Im Prüfspiel selbst
-  zählt die Bedingung direkt. Ziele ohne `all_worlds` (etwa eine Vorhersage, die je Welt anders ausfällt) gelten in
+  zählt die Bedingung direkt. Ziele ohne `all_worlds` (etwa „einmal ausgeführt“, die Zahlen des Normalfalls) gelten in
   der gespielten Welt. Eine Mission, deren Etappen `all_worlds` tragen, ist also erst gewonnen, wenn das Programm
   jeder solchen Etappe alle Welten löst. Mit nur einer Welt gibt es weder Umschalter noch „Prüfen“, `all_worlds`
   wirkt dann nicht.
@@ -559,15 +575,55 @@ Programm muss allgemein sein, damit es in allen Welten klappt – und die Lehrkr
 Test: `tests/sim/worlds.test.js` (Format, Determinismus je Welt, Speichern, Prüfen), `tests/levels/blizzard.test.js`,
 `tests/levels/courseWorlds.test.js` (Welten aller Kursmissionen), `e2e/worlds.spec.js`.
 
-## Zettel
+## Programm laden
 
-`note(speaker, code, title/de/en, editable=True)` im Missionsprogramm: Eine Figur steckt dem Spieler Code zu
-(`state.note` im Script-Zustand, `uiState().note`). Das Panel ersetzt damit den Code des ersten bearbeitbaren
-Spielerabschnitts und zeigt darüber das **Siegel** der Figur (Porträt oder Anfangsbuchstabe in ihrer Farbe, wie in
-der Dialogbox) mit „Zettel der Magd“ bzw. „Zettel von …“. **Zurück zu meinem Code** holt den eigenen Code zurück,
-„Zum Zettel“ wieder den (womöglich geänderten) Zettel; der Browser merkt sich den eigenen Code. Mit
-`editable=False` lässt sich der Zettel nur ausführen. Ob eine Vorhersage stimmt, prüft die Mission mit
-`program.get("guess")` und `program.status`.
+`program.load(code)` im Missionsprogramm: Die Mission legt dem Spieler ein Programm ins Code-Panel. Der Text des ersten
+bearbeitbaren Spielerabschnitts wird ersetzt, sonst ändert sich nichts – kein Siegel, kein Umschalter, keine
+Zusatzanzeige. Eine Figur kündigt das Programm mit `say()` an; ohne `program.load()` bleibt das Programm des Spielers
+stehen und wächst von Etappe zu Etappe.
+
+- **Kein Zustand:** Der Programmtext ist keine Simulation, er erreicht sie nur als `run`-Befehl. Darum steht das
+  geladene Programm weder im Spielstand noch im State-Hash: `program.load()` erzeugt das Ereignis `programLoad`
+  (`{ code, player }`) im Takt. Die Engine merkt sich das jüngste Ereignis (`Engine.programLoad`) und reicht es als
+  `ui.mission.script.load` an das Code-Panel weiter, das es übernimmt und danach quittiert
+  (`Engine.ackProgramLoad`). Ist das Panel noch nicht da, wartet das Ereignis.
+- **Nie ersetzt:** Eine Welt, die der Umschalter bei einer Etappe gestartet hat (`world.stage` gesetzt), und ein
+  Prüfspiel (`check`) laden nichts (`ScriptHost.loadProgram`). „Prüfen“ bekommt den Code des Panels ohnehin als
+  Abschnitte mit. Ein Neustart der Etappe („Ausführen“) stellt den Schnappschuss wieder her, ohne dass das
+  Missionsprogramm die Zeile noch einmal durchläuft – auch das lädt nichts.
+- **Browser:** Das Panel speichert den Code unter `kronland-code-<id>`. Ein Programm, das die Mission lädt, ersetzt
+  den Text und wird wie jede Eingabe gespeichert. Ein neues Spiel der Mission zeigt so ihr Startprogramm (das
+  gemerkte alte Programm ist überschrieben); ein Neuladen der Seite mitten in der Mission lädt nichts, denn das
+  Ereignis kommt nur im laufenden Spiel – der gemerkte Code des Spielers bleibt.
+- **Länge:** höchstens 20 000 Zeichen (`LIMITS.programCode`).
+
+Test: `tests/sim/programLoad.test.js`, `e2e/stage.spec.js`.
+
+## Etappe: einmal ausgeführt
+
+`objective(id, after_run=True, de=…, en=…)`: Das Ziel ist erfüllt, sobald das Programm des Spielers **nach dem Beginn
+der Etappe** gelaufen und **normal zu Ende gegangen** ist (Zustand `"done"`; ein Fehler, ein Anhalten und ein
+laufendes Programm zählen nicht). Das Ergebnis wird nicht geprüft – für Etappen, in denen man nachdenkt und dann
+ausführt (etwa „Wie viele Schritte geht Nelia? Führe das Programm aus“). Die Bedingung darf fehlen; steht eine da,
+müssen beide gelten. Läuft der Spieler in einer Etappe mehrmals, zählt das erste normale Ende.
+
+Der Zustand liegt im Ziel selbst (`base` = Zahl der Läufe, als das Ziel aktiv wurde): Er gehört zum Schnappschuss der
+Etappe und zum Spielstand, ein später aufgedecktes Ziel zählt frühere Läufe nicht, und das Panel zählt das Ziel wie
+jedes andere Hauptziel („2 von 3 geschafft“). Ein Prüfspiel löst die Etappe, sobald das Programm in der Welt normal
+endet. Wer bei einem Randfall eines Kurses (Baum im Weg, leerer Beutel) auch einen Fehler gelten lassen will, ruft in
+der Mission `complete(id)` auf, wenn das Programm mit Fehler endete und geschah, was bis dahin zu erwarten war
+(`r1-2`).
+
+Test: `tests/sim/programLoad.test.js`, `tests/levels/courseWorlds.test.js`.
+
+## Gesprächsfiguren und Ausrufezeichen
+
+`npc(id, …)` stellt eine Figur hin; das **Ausrufezeichen** trägt sie nur, wenn jemand auf sie hört: ein
+`@on_talk` für ihre Kennung (oder für alle, ohne Kennung) – gleich ob vor oder nach `npc()` angemeldet – oder ein
+`start_talking()` der Mission. Sonst ist sie Kulisse (Magd, Holzfäller der Kursmissionen): Antippen schickt keinen Helden
+hin (`err.noTalk`). `stop_talking()` und `start_talking()` schalten später beliebig um. Gesprächsfiguren gehören
+niemandem (`owner` −1): Kein Befehl des Spielers lenkt sie (`err.noTroops`), sie erscheinen nur als fremde Auswahl.
+Nelia und andere Figuren des Spielers lassen sich dagegen auch von Hand lenken, während ein Programm läuft.
 
 ## Auftrag im Panel
 
@@ -623,59 +679,77 @@ ordnet nach Reihen („Reihe I · Spuren im Schnee“), Website und Handbuch nen
 
 | Nr. | ID | Titel | Lernziel | Etappen (Unterziele) | Welten |
 |---|---|---|---|---|---|
-| I.2 | `r1-2` | Taler für die Mägde | Zählschleife `for … in range()` | `predict` wie viele Taler (`guess`), `path` 18 Kacheln, jede zweite mit Taler (9 im Beutel), `slope` Zickzack den Hang hinauf, `fire` Rechteck um den Holzstoß | 3, alle Etappen je Welt |
-| I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen, Vorhersagen | `predict`, `coin`, `hut` (siehe unten) | 3, `coin` und `hut` in allen |
-| I.5 | `r1-5` | Holz für die erste Nacht | Variablen | `predict` was sagt Nelia (`guess`), `roses` zweite Variable `flowers`, `brook` Schritte bis zum Eis zählen und zurück (`steps`), `six` genau 6 Taler (`while count < 6`) | 3, `roses`, `brook`, `six` in allen |
-| I.M | `r1-m` | Heimweg durchs Unterholz | Meisterstück I: `while`, `if/elif/else`, Sensoren | `edge` geradeaus, sonst rechts; `thicket` Rechte-Hand-Regel mit `nelia.right()`; `home` dasselbe Programm in anders gewachsenem Unterholz | 3, alle Etappen in allen |
-| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()`, `hedge` Funktion links herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` | 3, `coins` in allen |
+| I.2 | `r1-2` | Taler für die Mägde | Zählschleife `for … in range()` | `predict` wie viele Taler (einmal ausführen), `path` 18 Kacheln, jede zweite mit Taler (9 im Beutel), `slope` Zickzack den Hang hinauf, `fire` Rechteck um den Holzstoß – eine Reise ohne Wände: Schnee, Weg, Hang, Lagerfeuer | 3, alle Etappen je Welt |
+| I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen | `predict` Schritte bis zum Waldrand (einmal ausführen), `coin` am Waldrand entlang auf dem Taler stehen bleiben, `hut` der Spur bis zur Hütte folgen (siehe unten) | 3, `coin` und `hut` in allen |
+| I.5 | `r1-5` | Holz für die erste Nacht | Variablen | `predict` was sagt Nelia (einmal ausführen), `roses` zweite Variable `flowers`, `brook` Schritte bis zum Eis zählen und zurück (`steps`), `six` genau 6 Taler (`while count < 6`) – ein Weg mit Kreuzung: Taler und Christrosen nach Osten bis zum Baum, nach Süden der Bach, nach Norden die Talerreihe | 3, `roses`, `brook`, `six` in allen |
+| I.M | `r1-m` | Heimweg durchs Unterholz | Meisterstück I: `while`, `if/elif/else`, Sensoren | `path` gewundener Pfad bis zur Lichtung (geradeaus, sonst rechts); `thicket` Abzweigungen und Sackgassen bis zum Ausgang (Rechte-Hand-Regel mit `nelia.right()`) | 3 Wälder, `thicket` in allen |
+| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()` (einmal ausführen), `hedge` im zweiten Teil der Ruine wächst eine Dornenhecke: Funktion links herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` auf der Straße dahinter | 3, `coins` in allen |
 | III.M | `r3-m` | Lindgrund steht wieder | Meisterstück III: Listen, Funktionen, `wait_until` | `center`, `homes`, `farms` nebeneinander; Holz und Lehm aus Haufen, `reset: false` | 1 |
 
-Gemeinsames Muster (Vorbild `r1-4`): Die Karte hat einen Abschnitt je Etappe, getrennt durch Felsbänder; die Mission
-bringt Nelia mit `program.stop()`, `teleport`, `turn_to("east")` und `camera.fly_to` in den nächsten Abschnitt. Eine
-Figur steckt einen **Zettel** zu (`note`), Vorhersagen prüft die Mission nach dem Lauf mit `program.get("guess")`,
-Variablen-Aufgaben mit `program.get("count")` usw.; geht es schief, sagt Nelia, was passiert ist. Das Meisterstück I.M
-hat keinen Zettel: `place("exit")` zeigt in jeder Etappe auf den Ausgang des Abschnitts (`make_place`), Nelias eigene
-Spuren sind abgeschaltet (`world.tracks.who: "none"`), damit `right() == "free"` gilt; das Unterholz steht als
-ASCII-Plan in `world.py`. Am Kartenrand wachsen keine Bäume – die Pläne halten eine Kachel Abstand. III.M spielt auf
+**I.2 und I.5 sind Reisen ohne Wände** (`world.py` je Mission, Tests `tests/levels/course.test.js`, Abschnitte „every stage starts where the one before ended“): Die Etappen sind aufeinanderfolgende Wegstücke **einer** offenen Landschaft je Welt – kein `set_cliff`, kein Teleport, kein Abschnittswechsel. Wo eine Etappe endet, beginnt die nächste, und das Programm des Spielers wächst mit. I.2: Nelia startet im Schnee, die Vorhersage legt Taler und endet auf Kachel `PE`; der Weg führt von dort bis zu den Bäumen (`XE`), hinter denen ein sanfter Hang (Höhen statt Felswand) mit Dickicht und Zickzackpfad aufsteigt; oben liegt der Holzstoß, die Taler des Beutels am Ziel kommen beim Aufheben des Beutels (`remove`, `give`). I.5: eine Reihe Taler, nahtlos gefolgt von Taler und Christrosen bis zu einem Baum; dort ist eine Wegkreuzung: nach Süden der Pfad zum zugefrorenen Bach (die Etappe verlangt zuerst `nelia.turn_right()`), nach Norden die Talerreihe der letzten Etappe (Nelia schaut nach dem Rückweg nach Norden).
+
+Eine Welt, die bei einer späteren Etappe startet (Umschalter, „Prüfen“, `world.stage`), baut `world.py` direkt in den Zustand dieser Etappe: Taler, aufgehobene Dinge, Beutel, Nelias Platz – noch im Weltaufbau, also vor dem ersten Takt, ohne sichtbaren Sprung. Dabei gilt: Das Aufbauprogramm darf nicht an `turn_to`/`step` warten (das hielte es an, `@on_start` käme zu früh); das Drehen steht darum ganz am Ende von `mission.py`. Der Test vergleicht den Zustand am Ende jeder Etappe im echten Spiel mit dem Start bei der nächsten Etappe (Nelia, Beutel, Gegenstände, Bäume und Haufen). **Zielwechsel:** Ist eine Etappe geschafft, wird erst die Welt verändert und das nächste Ziel aktiv (`objective(...)`), dann gesprochen (`say(…, wait=False)`) – sonst gäbe es ein Fenster ohne aktive Etappe, in dem ein „Ausführen“ den Schnappschuss vor der Veränderung nähme.
+
+Gemeinsames Muster (Vorbild `r1-4`): **Welten sind dieselbe Aufgabe auf verschiedenen Karten, Etappen die Schritte einer
+Aufgabe in derselben Welt.** Je Welt gibt es eine offene, zusammenhängende Landschaft ohne Felsbänder; die Etappen
+sind aufeinanderfolgende Wegstücke einer Reise, jede beginnt dort, wo die vorige endete. Zwischen den Etappen wird
+nichts neu geladen und nichts versetzt – das Programm des Spielers wächst, Nelia wendet sich höchstens (`turn_to`), und
+die Welt ändert sich höchstens an Ort und Stelle (II.1: eine Hecke wächst). Ein Spiel, das bei Etappe k beginnt
+(Umschalter, „Prüfen“: `world.stage`), baut die Welt schon so auf, wie sie dort ist: `world.py` setzt Nelia im
+Weltaufbau mit `nelia.teleport` (vor dem ersten Takt, nicht sichtbar) und baut frühere Änderungen mit; die
+Blickrichtung setzt `mission.py` beim Start mit `turn_to`. (Ein `turn_to` im Weltaufbau hielte das Missionsprogramm
+an, bevor `@on_start` angemeldet ist.) Eine Figur kündigt ein Programm an und lädt es (`program.load`), die erste Etappe endet, sobald es einmal gelaufen ist
+(`after_run=True`), Variablen-Aufgaben prüft die Mission mit `program.get("count")` usw.; geht es schief, sagt Nelia,
+was passiert ist. Das Meisterstück I.M lädt kein Programm: `place("clearing")` ist das Ziel von Etappe 1, `place("exit")` das von
+Etappe 2 (`make_place`), Nelias eigene Spuren sind abgeschaltet (`world.tracks.who: "none"`), damit `right() == "free"`
+gilt; je Welt steht ein Wald als ASCII-Plan in `world.py` (`FORESTS`, vorn der Pfad nur mit Rechtskurven, dahinter der
+Kamm aus Abzweigungen und Sackgassen). Am Kartenrand wachsen keine Bäume – die Pläne halten eine Kachel Abstand. III.M spielt auf
 der Lindgrund-Karte (`base: generate`, Seed 1101, 48 Kacheln) ohne Dorfzentrum: Dessen Bauplatz bleibt
 (`remove(old)`), Holz- und Lehmhaufen liegen bei der Burg. Musterlösungen spielen `tests/levels/course.test.js` (in
-beiden Sprachen, Lösungen der Schreib-Etappen aus `WORKED` in `reference.js`) und `tests/levels/blizzard.test.js`.
+beiden Sprachen, Lösungen der Schreib-Etappen aus `WORKED` in `reference.js`), `tests/levels/blizzard.test.js`,
+`tests/levels/thicket.test.js` und `tests/levels/shortcut.test.js` (je mit Übergabe von Etappe zu Etappe und Start bei
+jeder Etappe).
 Die Zeilen sind nicht vertont (Sprachausgabe des Browsers).
 
-**I.4 „Im Schneetreiben“** (`levels/r1-4-blizzard/`, Musterlösung `tests/levels/blizzard.test.js`): eine Karte im
-Winter mit drei Abschnitten, getrennt durch Felsbänder (Reihen 8–9 und 18–19). Jede Etappe ist ein Unterziel; die
-Mission bringt Nelia mit `program.stop()`, `teleport` und `camera.fly_to` in den nächsten Abschnitt. Drei
-[Welten](#welten): **Normalfall** (Waldrand nach 9 Schritten, Taler bei 7, Spur links–rechts–rechts–links),
-**Alles ganz nah** (Wald direkt vor Nelia: 0 Schritte, Taler unter ihr, kurze Spur mit Rechtskurve zu einer näheren
-Hütte), **Alles weit weg** (14 Schritte, Taler kurz vor dem Wald, lange Spur mit sechs Kurven). Taler und Spur tragen
-`all_worlds=True`; eine fest abgezählte Lösung (`range(7)`, abgeschrittener Weg) scheitert in den Randfällen.
-1. Die Magd Hedda steckt einen **Zettel** mit Zählschleife zu (`while nelia.can_step(): … steps = steps + 1`). Wie
-   viele Schritte bis zum Waldrand? Die Vermutung kommt in `guess`; die Mission prüft nach dem Lauf
-   `program.get("guess")` gegen die gegangenen Schritte und sagt sonst, wie weit es war – Ausführen beginnt von vorn.
-2. Ein Taler im Schnee: den Zettel ändern, damit Nelia auf ihm stehen bleibt (`while nelia.here() != "coin"`) und
-   ihn aufhebt.
-3. Der Spur der Geflohenen folgen, durch alle Kurven bis zur Hütte (`front()/left()/right() == "track"`); im Schnee
-   hinterlässt auch Nelia Fußabdrücke (`world.tracks.mode: "permanent"` – die Fährte bleibt unabhängig von der
-   Spuren-Einstellung des Spielers).
+**I.4 „Im Schneetreiben“** (`levels/r1-4-blizzard/`, Musterlösung `tests/levels/blizzard.test.js`): ein offenes
+Schneefeld im Winter (24 × 24), die Etappen sind drei Wegstücke einer Reise. Nelia startet im Nordwesten und geht nach
+Osten bis zum Waldrand (ein Waldstreifen), dort wendet sie sich nach Süden am Waldrand entlang bis zum Taler im
+Schnee, von dem eine Spur im Schnee zur Hütte der Geflohenen führt. Drei [Welten](#welten), je eine vollständige Karte
+der ganzen Reise: **Normalfall** (Waldrand nach 9 Schritten, Taler 5 Schritte weiter südlich, vier Kurven der Spur),
+**Alles ganz nah** (Wald direkt vor Nelia: 0 Schritte, Taler unter ihr, kurze Spur mit zwei Kurven zu einer näheren
+Hütte), **Alles weit weg** (14 Schritte, Taler kurz vor dem Kartenrand, lange Spur mit sechs Kurven). Die Etappen:
+1. `predict` (`after_run=True`, gilt in der gespielten Welt): Die Magd Hedda lädt ein Programm mit Zählschleife
+   (`while nelia.can_step(): … steps = steps + 1`). Wie viele Schritte bis zum Waldrand? Die Etappe endet, sobald das
+   Programm einmal gelaufen ist – man denkt nach und führt aus.
+2. `coin` (`all_worlds=True`): Nelia steht am Waldrand und blickt nach Süden; dasselbe Programm läuft am Waldrand
+   entlang an einem Taler vorbei. Ändern, damit Nelia auf ihm stehen bleibt (`while nelia.here() != "coin"`) und ihn
+   aufhebt.
+3. `hut` (`all_worlds=True`): Nelia steht auf der Kachel des Talers; der Spur der Geflohenen folgen, durch alle Kurven
+   bis zur Hütte (`front()/left()/right() == "track"`); im Schnee hinterlässt auch Nelia Fußabdrücke
+   (`world.tracks.mode: "permanent"` – die Fährte bleibt unabhängig von der Spuren-Einstellung des Spielers), die
+   Spur der Geflohenen führt von den Fußabdrücken weg.
 
-Etappe 1 gilt in der gespielten Welt (die Vorhersage ist je Welt eine andere Zahl), Etappen 2 und 3 erst nach
-bestandenem „Prüfen“ in allen drei Welten.
+Zwischen den Etappen wird nichts versetzt: Nach Etappe 1 steht Nelia am Waldrand (die Mission wendet sie nach Süden),
+nach Etappe 2 auf der Kachel des Talers. Ein Spiel, das bei `coin` oder `hut` beginnt, setzt Nelia dorthin im
+Weltaufbau (bei `hut` fehlt der Taler, der Beutel hat ihn). Löst „Prüfen“ eine Etappe, ohne dass Nelia sie selbst gelöst
+hat, geht sie zu Fuß zum Taler bzw. zur Hütte. Fest abgezählte Lösungen (`range(5)`, der abgeschrittene Weg des
+Normalfalls) scheitern in den Randfällen.
 
 **Welten der übrigen Kursmissionen** – wie I.4 je Mission **Normalfall**, **Alles ganz nah** (`near`) und **Alles
-weit weg** (`far`), der Weltcode verzweigt mit `world.id` (Tabellen am Anfang von `world.py`). Vorhersagen gelten je
-Welt; bricht der Zettel an einem Randfall ab (Baum im Weg, leerer Beutel), zählt, was bis dahin geschah – „Prüfen“
+weit weg** (`far`), der Weltcode verzweigt mit `world.id` (Tabellen am Anfang von `world.py`). Die erste Etappe gilt je
+Welt; bricht das Programm an einem Randfall ab (Baum im Weg, leerer Beutel), zählt, was bis dahin geschah – „Prüfen“
 wartet deshalb auch nach einem Fehler kurz, ob die Mission die Etappe noch gelten lässt. Tests:
 `tests/levels/courseWorlds.test.js` (Musterlösungen bestehen alle Welten, fest abgezählte Programme scheitern an
 einem genannten Randfall).
 
 | Mission | Normalfall | Alles ganz nah | Alles weit weg | Fest abgezählt scheitert an |
 |---|---|---|---|---|
-| I.2 | Zettel 5 Taler; Weg 18 Kacheln/9 Taler; Hang 5 Stufen; Rechteck 8 Taler | Baum nach 2 Talern; Weg 6/3; Hang 2 Stufen; Rechteck 8 | nur 3 Taler im Beutel; Weg 20/10; Hang 6 Stufen; Holzstoß 2×2, Rechteck 12 (Seiten aus 3) | eine Zählschleife kennt nur ihre Zahl: `range(9)` läuft „ganz nah“ in die Bäume, endet „weit weg“ zu früh |
-| I.5 | Reihe 7 Taler; 10 Gegenstände bis zum Baum; Bach nach 9 Schritten; 10 Taler | 1 Taler; Baum direkt vor Nelia (leere Reihe, 0/0); Eis direkt vor ihr (0 Schritte); genau 6 Taler | 12 Taler; 16 Gegenstände, erste und letzte eine Christrose; 17 Schritte; 18 Taler | `for i in range(10)` (Fehler am Baum), eingetragene Zahlen `count = 7`, `steps = 9`; ganze Reihe nehmen klappt nur bei genau 6 |
-| I.M | drei Unterholz-Pläne wie bisher | Baum direkt vor Nelia, kurze Wege; im letzten Abschnitt liegt der Ausgang gleich hinter ihr, erst eine Sackgasse | lange Spirale, zwei Irrgärten mit vielen Sackgassen (Ausgang am anderen Ende) | ausgeschriebener Weg (Fehler in Zeile 1), „sonst rechts drehen“ in `thicket`/`home` (läuft zu lange) |
-| II.1 | Umweg 3× frei (6 Kacheln); Taler beidseitig bis Waldrand 20 | Baum versperrt den ersten Umweg (1 Kachel); Waldrand bei 9, Taler gleich beim ersten Schritt auf beiden Seiten und am letzten Feld | Baum versperrt den dritten Umweg (5); Waldrand bei 22, Taler fast nur rechts, zwei am letzten Feld | ausgeschriebener Gang (Waldrand, `take()` ins Leere), „erst schauen, dann gehen“ verpasst das letzte Feld |
+| I.2 | Programm 5 Taler; Weg 18 Kacheln/9 Taler; Hang 5 Stufen; Rechteck 8 Taler | Programm 5 Taler; Weg 6/3; Hang 2 Stufen; Rechteck 8 (die Reise liegt mittig auf der Karte) | nur 3 Taler im Beutel (das Programm bricht ab); Weg 20/10; Hang 6 Stufen; Holzstoß 2×2, Rechteck 12 (Seiten aus 3) | eine Zählschleife kennt nur ihre Zahl: `range(9)` läuft „ganz nah“ in die Bäume, endet „weit weg“ zu früh |
+| I.5 | Reihe 7 Taler; 10 Gegenstände bis zum Baum (6 Taler, 4 Christrosen, erste eine Christrose); Bach nach 9 Schritten; 10 Taler | 1 Taler; Baum direkt dahinter (leere Reihe, 0/0); Eis direkt neben der Kreuzung (0 Schritte); genau 6 Taler | 8 Taler; 12 Gegenstände (7 Taler, 5 Christrosen, erste und letzte eine Christrose); 12 Schritte; 13 Taler | `for i in range(10)` (Fehler am Baum), eingetragene Zahlen `count = 7`, `steps = 9`; ganze Reihe nehmen klappt nur bei genau 6 |
+| I.M | Spirale nach außen (vier Rechtskurven) zur Lichtung, dahinter ein Kamm mit vier Sackgassen | Baum direkt vor Nelia, Lichtung nach zwei Kurven, Ausgang nach einer Sackgasse gleich dahinter | lange Gänge (37 Aktionen bis zur Lichtung), weiter Kamm mit Sackgassen | ausgeschriebener Weg (Fehler in Zeile 1), „sonst rechts drehen“ in `thicket` (läuft zu lange) |
+| II.1 | die Ruine ist in allen Welten gleich (sechs Mauerreste, Umweg 3× frei: 6 Kacheln); Straße bis zum Wald bei 32, Taler beidseitig | Wald bei 21, Taler gleich beim ersten Schritt auf beiden Seiten und am letzten Feld | Wald bei 34, Taler fast nur rechts, zwei am letzten Feld | ausgeschriebener Gang (Waldrand, `take()` ins Leere), „erst schauen, dann gehen“ verpasst das letzte Feld |
 
-Die Hecke von II.1 steht in allen Welten gleich (Ändern einer Funktion, kein Randfall). I.2 hat bewusst kein
+Die Hecke von II.1 wächst in allen Welten gleich (Ändern einer Funktion, kein Randfall). I.2 hat bewusst kein
 `all_worlds`: Eine Zählschleife ohne Sensoren kann nicht allgemein sein – der Umschalter zeigt, dass sich je Welt nur
 die Zahl in `range()` ändert, und „Prüfen“ zeigt, dass sie nur in ihre Welt passt (Brücke zu `while` in I.4).
 **III.M** bleibt bei einer Welt: Die Bauaufgabe läuft ohne Neustart (`reset: false`) über viele Spielminuten, weit

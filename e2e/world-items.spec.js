@@ -35,19 +35,17 @@ const coinsDrawn = (page) => page.evaluate(() => {
 });
 
 test('I.5: the coins are drawn on their tiles and disappear when the program picks them up', async ({ page }) => {
-  test.setTimeout(180_000); // the intro line comes before the note, then a whole stage runs
+  test.setTimeout(180_000); // the intro line comes before the program, then a whole stage runs
   const errors = await fresh(page);
   await page.goto(playUrl('?mission=r1-5&no-models'));
   await page.waitForFunction(() => !!window.__kronland?.renderer?.items, null, SLOW);
   const total = await page.evaluate(() => [...window.__kronland.sim.map.items.values()].filter((k) => k === 'coin').length);
-  expect(total).toBe(24);
+  expect(total).toBe(23);
   await expect.poll(() => coinsDrawn(page), SLOW).toBe(total);
   await openPanel(page);
-  // The woodcutter's note collects the first row (7 coins) and counts along
-  await expect(page.getByTestId('script-note')).toBeVisible({ timeout: 60_000 });
+  // The woodcutter's program collects the first row (7 coins) and counts along
   const ta = page.getByTestId('section-player').getByTestId('code-input');
-  await expect(ta).toHaveValue(/count = count \+ 1/);
-  await ta.fill((await ta.inputValue()).replace('guess = 0', 'guess = 7'));
+  await expect(ta).toHaveValue(/count = count \+ 1/, { timeout: 60_000 });
   await page.getByTestId('script-run').click();
   if (phone(page)) {
     // phone: the game is shown while the program runs, the camera follows Nelia
@@ -67,8 +65,8 @@ test('Hint in the code panel: amber line and box, the program keeps running, edi
   await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
-  // I.M stops the player's program when it places Nelia at the first section: run only after that
-  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'edge')?.status), { timeout: 60_000 }).toBe('active');
+  // I.M: run only once the first stage is open (after the intro line)
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'path')?.status), { timeout: 60_000 }).toBe('active');
   const sec = page.getByTestId('section-player');
   const ta = sec.getByTestId('code-input');
   await ta.fill('nelia.left()\nfor i in range(3):\n    nelia.step()\n');

@@ -376,9 +376,15 @@ export class MissionRuntime {
   }
 
   /** Progress of an objective: { cur, target, done?, failed?, hold? } from its condition in the mission program. */
-  evaluate(sim, def) {
+  evaluate(sim, def, o = null) {
     // Signposts of the developer maps have no condition: never met
-    const r = this.script && def.type === 'script' ? this.script.objectiveProgress(def.id) : { cur: 0, target: 1, none: true };
+    let r = this.script && def.type === 'script' ? this.script.objectiveProgress(def.id) : { cur: 0, target: 1, none: true };
+    // after_run=True: the player's program must have been run since the objective became active and ended normally
+    if (def.afterRun) {
+      const p = this.script?.state.player;
+      const ran = !!p && p.runs > (o?.base ?? 0) && p.status === 'done';
+      r = !ran ? { cur: 0, target: 1 } : r.none ? { cur: 1, target: 1 } : r;
+    }
     // hold=True: met as long as the condition holds, failed once it does not (without condition: until fail())
     if (def.hold) return r.none ? { cur: 1, target: 1, hold: true } : { ...r, failed: r.cur < r.target, hold: true };
     return r;
@@ -392,7 +398,7 @@ export class MissionRuntime {
       // all_worlds=True: done once „Prüfen“ solved its stage in every world (the check also covers this world)
       const gated = d.allWorlds && this.worldsToCheck();
       if (gated && st.checked?.[o.id]) { this.setObjective(sim, o, 'done'); continue; }
-      const r = this.evaluate(sim, d);
+      const r = this.evaluate(sim, d, o);
       o.progress = [Math.min(r.cur, r.target), r.target];
       if (r.failed) this.setObjective(sim, o, 'failed');
       else if (!r.hold && (r.done ?? r.cur >= r.target)) {
@@ -432,7 +438,11 @@ export class MissionRuntime {
   setObjective(sim, o, status) {
     if (o.status === status) return;
     o.status = status;
-    if (status === 'active') { o.since = sim.tick; o.count = 0; }
+    if (status === 'active') {
+      o.since = sim.tick; o.count = 0;
+      // after_run goals count the runs from here on (a goal revealed later does not count earlier runs)
+      if (this.objectiveDef(o.id)?.afterRun) o.base = this.script?.state.player.runs ?? 0;
+    }
     sim.events.push({ type: 'objective', id: o.id, status, player: this.state.human });
   }
 
@@ -511,11 +521,19 @@ export class MissionRuntime {
     const st = this.state;
     if (Object.hasOwn(st.npcs, id) && st.npcs[id].state !== 'gone') return null;
     const q = api.findOpen(sim, o.at.x, o.at.y, { maxR: 6 }) ?? o.at;
-    const e = { id: sim.nextId++, kind: 'npc', npc: id, look: o.look, owner: o.owner ?? -1, px: tileCenter(q.x), py: tileCenter(q.y), path: [], talk: true, hp: 1 };
+    const e = { id: sim.nextId++, kind: 'npc', npc: id, look: o.look, owner: o.owner ?? -1, px: tileCenter(q.x), py: tileCenter(q.y), path: [], talk: o.talk !== false, hp: 1 };
     sim.entities.set(e.id, e);
     // speaker: who speaks for the figure (the dialogue camera looks at it when that speaker talks)
-    st.npcs[id] = { entity: e.id, state: 'open', hint: -1000, script: true, ...(o.name ? { name: o.name } : {}), ...(o.speaker ? { speaker: o.speaker } : {}) };
+    st.npcs[id] = { entity: e.id, state: e.talk ? 'open' : 'closed', hint: -1000, script: true, ...(e.talk ? {} : { auto: true }), ...(o.name ? { name: o.name } : {}), ...(o.speaker ? { speaker: o.speaker } : {}) };
     return e;
+  }
+
+  /**
+   * A talk handler (@on_talk) was registered: script figures that were created without one (npc() shows no mark then)
+   * become talkable now. `id` is the figure the handler is for, null for every figure.
+   */
+  armNpcs(sim, id) {
+    for (const [key, n] of Object.entries(this.state.npcs)) if (n.auto && (id === null || id === key)) this.setTalkable(sim, key, true);
   }
 
   /** Switch talking with a script figure on or off (exclamation mark, tapping). */
@@ -523,6 +541,7 @@ export class MissionRuntime {
     const n = Object.hasOwn(this.state.npcs, id) ? this.state.npcs[id] : null;
     const e = n && sim.entities.get(n.entity);
     if (!e || n.state === 'gone') return false;
+    delete n.auto;
     e.talk = on;
     n.state = on ? 'open' : 'closed';
     return true;
@@ -652,7 +671,7 @@ export class MissionRuntime {
   hash(h) {
     const st = this.state;
     h.str('m').str(st.id).int(st.seq).int(st.result ? (st.result.won ? 2 : 1) : 0);
-    for (const o of st.objectives) { h.str(o.status).int(o.count); if (o.uiOff) h.int(1); if (o.here) h.int(2); }
+    for (const o of st.objectives) { h.str(o.status).int(o.count); if (o.uiOff) h.int(1); if (o.here) h.int(2); if (o.base) h.int(o.base); }
     if (st.world) h.str('w').str(st.world);
     if (st.startStage) h.str('s').str(st.startStage);
     if (st.check) h.int(3);

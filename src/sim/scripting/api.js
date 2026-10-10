@@ -82,7 +82,7 @@ export function toInt(v, name) {
  * Limits for shared levels: a script must not freeze the browser or blow up the save game.
  * World building per call (radius, count), number of places, goals and event handlers, length of texts.
  */
-export const LIMITS = { radius: 64, trees: 2000, spawn: 50, serfs: 100, places: 500, objectives: 100, handlers: 200, text: 2000, npcs: 50, noteCode: 20_000, tributes: 50, steps: 200, heavy: 200 };
+export const LIMITS = { radius: 64, trees: 2000, spawn: 50, serfs: 100, places: 500, objectives: 100, handlers: 200, text: 2000, npcs: 50, programCode: 20_000, tributes: 50, steps: 200, heavy: 200 };
 
 /** Names of places, goals and keys chosen by a script: letters, digits, _ and -, starting with a letter. */
 export const NAME_RE = /^[A-Za-z][\w-]{0,63}$/;
@@ -219,7 +219,7 @@ export const API_DOC = [
   { name: 'on_talk', sig: '@on_talk(id=None)', level: 'mission', group: 'events' },
   { name: 'on_event', sig: '@on_event(name, …)', level: 'player', group: 'events' },
   // Goals and end
-  { name: 'objective', sig: 'objective(id, condition=None, de=None, en=None, primary=True, hidden=False, hold=False, clock=False, all_worlds=False)', level: 'mission', group: 'goals' },
+  { name: 'objective', sig: 'objective(id, condition=None, de=None, en=None, primary=True, hidden=False, hold=False, clock=False, all_worlds=False, after_run=False)', level: 'mission', group: 'goals' },
   { name: 'objective_status', sig: 'objective_status(id)', level: 'mission', group: 'goals', query: true },
   { name: 'complete', sig: 'complete(id)', level: 'mission', group: 'goals' },
   { name: 'fail', sig: 'fail(id)', level: 'mission', group: 'goals' },
@@ -232,7 +232,7 @@ export const API_DOC = [
   { name: 'ending', sig: 'ending(reason)', level: 'mission', group: 'goals' },
   { name: 'defeat', sig: 'defeat(reason=None, de=None, en=None)', level: 'mission', group: 'goals' },
   { name: 'program.get', sig: 'program.get(name, default=None) · program.status · program.runs · program.stop()', level: 'mission', group: 'goals' },
-  { name: 'note', sig: 'note(speaker, code, title=None, de=None, en=None, editable=True)', level: 'mission', group: 'goals' },
+  { name: 'program.load', sig: 'program.load(code)', level: 'mission', group: 'goals' },
   { name: 'reset', sig: 'reset(on=True)', level: 'mission', group: 'goals' },
   { name: 'hints', sig: 'hints(on=True)', level: 'mission', group: 'goals' },
   // Intervening
@@ -882,10 +882,11 @@ export function makeApi(host, level) {
    * objective(id, condition, de=…, en=…, primary=True, hidden=False, hold=False, clock=False): the condition returns
    * True/False, a pair (done, needed) for a progress bar or a triple (done, needed, finished) that shows a bar but
    * decides itself when the objective is met. hold=True: an objective to keep (protect something) – it counts as met as
-   * long as the condition holds and fails once it does not; clock=True shows the pair as remaining seconds.
+   * long as the condition holds and fails once it does not; clock=True shows the pair as remaining seconds. after_run=True: met once the player's program has been run (after the
+   * objective became active) and ended normally (status "done", not an error); with a condition both must hold.
    */
   def('objective', (ctx, a, kw) => {
-    const KW = ['id', 'condition', 'text', 'primary', 'hidden', 'de', 'en', 'hold', 'clock', 'all_worlds'];
+    const KW = ['id', 'condition', 'text', 'primary', 'hidden', 'de', 'en', 'hold', 'clock', 'all_worlds', 'after_run'];
     for (const k of Object.keys(kw)) if (!KW.includes(k)) throw new ScriptError('argUnexpected', { name: 'objective', arg: k, suggestion: suggest(k, KW) });
     if (a.length > 5) throw new ScriptError('argCount', { name: 'objective', max: 5, given: a.length });
     const pos = ['id', 'condition', 'text', 'primary', 'hidden'];
@@ -902,7 +903,7 @@ export function makeApi(host, level) {
     if (cond !== null && !isCallable(cond)) throw new ScriptError('type', { what: 'callableNeeded', type: typeName(cond) });
     const name = nameArg(v.id, 'id');
     const words = textArg('objective', v.text, v.de, v.en, false);
-    host.addObjective(ctx.vm, name, words ?? name, cond, truthy(v.primary ?? true), truthy(v.hidden ?? false), { hold: truthy(v.hold ?? false), clock: truthy(v.clock ?? false), allWorlds: truthy(v.all_worlds ?? false) });
+    host.addObjective(ctx.vm, name, words ?? name, cond, truthy(v.primary ?? true), truthy(v.hidden ?? false), { hold: truthy(v.hold ?? false), clock: truthy(v.clock ?? false), allWorlds: truthy(v.all_worlds ?? false), afterRun: truthy(v.after_run ?? false) });
     return v.id;
   }, true);
   /** objective_status(id): "active", "done", "failed" or "hidden" – e.g. to wait for an all_worlds goal. */
@@ -1559,7 +1560,8 @@ export function makeApi(host, level) {
   // ---------- Missions: talk figures ----------
 
   /**
-   * npc(id, look="serf", at=…, name=None): a figure that stands like decoration and carries an exclamation mark.
+   * npc(id, look="serf", at=…, name=None): a figure that stands like decoration. It carries an exclamation mark as soon as an
+   * @on_talk handler listens to it (registered before or after npc()) or the mission calls start_talking().
    * A hero sent to it by tapping starts @on_talk(id) on arrival – the mission decides what happens.
    */
   def('npc', (ctx, a, kw) => {
@@ -1573,14 +1575,15 @@ export function makeApi(host, level) {
     const name = textArg('npc', nameV, de, en, false);
     const speaker = spk === undefined || spk === null ? null : nameArg(spk, 'speaker');
     const owner = ow === undefined || ow === null ? -1 : playerOf(ow);
-    const e = host.runtime.addNpc(sim(), id, { look, at: pt(at), name: name === null ? null : host.text(name), speaker, owner });
+    // The exclamation mark only where a talk can happen: a handler for the figure (@on_talk) or start_talking()
+    const e = host.runtime.addNpc(sim(), id, { look, at: pt(at), name: name === null ? null : host.text(name), speaker, owner, talk: host.hasTalkHandler(id) });
     if (!e) throw gameErr('npcExists', { id });
     return handle(e);
   }, true);
 
   // ---------- Missions: the player's program ----------
 
-  /** program.get("guess", default): copy of a variable of the player program (for prediction and variable tasks). */
+  /** program.get("guess", default): copy of a variable of the player program (for variable tasks). */
   def('program.get', (ctx, a, kw) => {
     const [n, dflt = null] = args('get', a, kw, ['name', '?default']);
     return host.playerVariable(strArg(n, 'name'), dflt);
@@ -1592,15 +1595,15 @@ export function makeApi(host, level) {
     return null;
   }, true);
   /**
-   * note(speaker, code, title=None, de/en=None, editable=True): a figure hands the player a note with code. It replaces
-   * the program in the code panel and carries the figure's seal; the own code stays reachable ("back to my code").
+   * program.load(code): the mission puts a program into the player's code panel (replaces the text of the first
+   * editable player section, nothing else changes). It is a display event, not simulation state; worlds started by the
+   * switcher and check games never load (the student's program stays), see MissionRuntime.loadProgram.
    */
-  def('note', (ctx, a, kw) => {
-    const [speaker, code, title, de, en, editable = true] = args('note', a, kw, ['speaker', 'code', '?title', '?de', '?en', '?editable']);
+  def('program.load', (ctx, a, kw) => {
+    const [code] = args('load', a, kw, ['code']);
     const text = strArg(code, 'code');
-    if (text.length > LIMITS.noteCode) throw new ScriptError('value', { what: 'tooBig', name: 'code', max: LIMITS.noteCode, value: String(text.length) });
-    const t = textArg('note', title, de, en, false);
-    host.note(speaker === null ? null : nameArg(speaker, 'speaker'), text, t === null ? null : host.text(t), truthy(editable));
+    if (text.length > LIMITS.programCode) throw new ScriptError('value', { what: 'tooBig', name: 'code', max: LIMITS.programCode, value: String(text.length) });
+    host.loadProgram(text);
     return null;
   }, true);
   /** reset(False): "Run" no longer restarts the stage (building missions); reset() switches it on again. */
@@ -1652,7 +1655,7 @@ export function makeApi(host, level) {
     camera: ['jump_to', 'fly_to'],
     world: ['width', 'height', 'water_level', 'id', 'stage', 'height_at', 'set_height', 'set_water', 'set_cliff', 'set_track', 'is_water', 'noise',
       'reachable', 'nearest_walkable', 'axis_point', 'axis_coords', 'soften', 'ridge', 'ridge_gap', 'channel', 'lake_island', 'moat', 'island'],
-    program: ['status', 'runs', 'get', 'stop'],
+    program: ['status', 'runs', 'get', 'stop', 'load'],
   } : {};
 
   // ---------- Methods and properties of the handles ----------

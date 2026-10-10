@@ -273,3 +273,44 @@ Spiel verhält sich genau wie zuvor, es rechnet nur weniger.
   `getShaderInfoLog`, unter Software-Grafik bis 70 s, auf echten Grafikkarten Bruchteile einer Sekunde bis Sekunden).
 - **Spielschleife**: Zeitbudget je Bild und verworfener Rückstand statt Todesspirale, Fehler abgefangen
   (docs/ARCHITEKTUR.md#spielschleife-und-fehler).
+
+## Schnell neu starten (je Etappe und Weltwechsel)
+
+„Ausführen“ ab dem zweiten Lauf einer Etappe und der Weltumschalter tauschen die Simulation und bauten bis dahin den
+ganzen Renderer neu: neuer `WebGLRenderer`, alle Shader neu übersetzt, Figuren neu gebacken, Bäume und Dekoration neu
+erzeugt. Gemessen an Mission r1-4 (20×28 Kacheln, Winter) im Browser unter Software-Grafik (SwiftShader, 1440×900,
+Hauptfaden-Zeit von `scriptRun`/`switchWorld`, also ohne die folgenden Bilder; absolute Werte schwanken stark, nur
+Vorher/Nachher vergleichen):
+
+| | vorher | nachher |
+|---|---|---|
+| Neustart je Etappe, `?no-models` | 0,9 – 1,9 s | 80 – 220 ms (erster 220, danach ~80–100) |
+| Neustart je Etappe, mit Modellen | 1,5 – 2,5 s | 110 – 235 ms |
+| Weltwechsel, `?no-models` | 0,6 – 0,8 s | 70 – 125 ms |
+| Weltwechsel, mit Modellen | 4,6 – 4,8 s | 120 – 160 ms |
+| neu übersetzte Shader je Neustart (Modelle) | ~20 | 0 (beim ersten nur der Taler-Shader) |
+
+Wohin die Zeit ging (Profil, `?no-models`, 1,6 s je Neustart): `new WebGLRenderer` auf der alten Zeichenfläche 1,5 s
+(`getParameter`, Zustand des Kontexts), davon unabhängig `warmUp` 0,5 s (Shader übersetzen). Die Simulation selbst ist
+billig: `createDefSim` samt `world.py` ~15 ms, `saveGame` ~1 ms, `loadGame` ~17 ms (Node).
+
+Was jetzt gilt:
+
+- **Der WebGL-Renderer bleibt** (`new Renderer(canvas, sim, { from })`). Mit ihm bleiben die übersetzten Shader; zwei
+  Materialinstanzen mit gleichem Quelltext teilen sich ein Programm. Szene, Gelände, Wasser, Nebel, Spuren und Items
+  werden neu gebaut (sie hängen an der Simulation).
+- **Figuren** (`CharacterSystem.adoptVariants`): Geometrie, gebackene Animationen, Materialien und Instanzmeshes sind
+  weltunabhängig und werden übernommen; die Figuren (`records`) beginnen leer. Nur bei gleicher Einstellung
+  `characterModels`.
+- **Bäume und Dekoration** (`Renderer.natureCache`, mit `natureUniforms` weitergereicht): Varianten und Materialien
+  werden einmal je Grafikstufe gebaut; sie kosteten mit Modellen ~90 ms je Aufbau – auch bei jedem `natureChanged`.
+- **Aufwärmen** auf übernommenem Renderer: ein kleiner Viewport statt zweimal die Zeichenpuffer umzustellen (das war
+  der Löwenanteil, 1,4 s von 1,7 s), und ohne die Zusatzmodelle, deren Shader schon übersetzt sind. Die Puffer der
+  Zusatzmodelle werden nach dem Zeichnen freigegeben (sie blieben vorher bis zum Spielende im Kontext).
+- **Alte Welt freigeben** (`Renderer.dispose({ successor })`, `Engine.retire`): erst nach 2,5 s und nur, was nicht
+  gemeinsam genutzt wird (`src/render/retain.js`). Ein freigegebenes gemeinsames Material gäbe sein Shaderprogramm
+  frei und kostete die Übersetzung von vorn. Speicherprobe: nach acht Neustarts/Wechseln bleiben Geometrien,
+  Texturen und Programme gleich (`renderer.info`).
+
+Die Simulation ist unverändert (Zustands-Hashes, `tests/sim/stage.test.js`); alles, was der Renderer braucht, liest er
+nur aus ihr. Tests ohne WebGL: `tests/render/restartReuse.test.js`.

@@ -65,7 +65,7 @@ export class WorldCheck {
         const objs = this.goals.map((id) => st.objectives.find((o) => o.id === id));
         if (objs.length && objs.every((o) => o?.status === 'done')) return this.finish('solved');
         if (objs.some((o) => o?.status === 'failed')) return this.finish('failed');
-        // A program that ended – also with an error: a prediction may count a note that breaks off at a tree
+        // A program that ended – also with an error: a goal may count what a program did before it broke off at a tree
         if (p.status === 'error' || p.status === 'done' || p.status === 'stopped' || p.status === 'idle') {
           if (this.ended < 0) this.ended = this.ticks;
           else if (this.ticks - this.ended >= GRACE_TICKS) return p.status === 'error' ? this.finish('error', { error: p.error ?? null }) : this.finish('failed');

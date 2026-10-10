@@ -10,6 +10,7 @@ function fake() {
     renderer: { setSize: (w, h) => calls.push([w, h]) },
     camera: { aspect: 1, fov: 40, updateProjectionMatrix() { calls.push('proj'); } },
     chars: { viewH: 0 },
+    applyViewport(w, h) { return Renderer.prototype.applyViewport.call(this, w, h); },
     viewport: null,
   };
 }

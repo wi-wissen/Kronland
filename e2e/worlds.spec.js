@@ -54,13 +54,14 @@ test('I.4: world switcher keeps the code, „Prüfen“ names the failing world,
   await expect(worlds.getByRole('radio')).toHaveCount(3);
   await expect(page.getByTestId('script-world-normal')).toHaveAttribute('aria-checked', 'true');
 
-  // Predict in the world "Alles ganz nah": the forest stands right in front of Nelia – 0 steps
+  // Run in the world "Alles ganz nah": the forest stands right in front of Nelia – 0 steps
   const ta = page.getByTestId('section-player').getByTestId('code-input');
-  await expect(ta).toHaveValue(/guess = 0/);
+  await expect(ta).toHaveValue(/while nelia\.can_step\(\):/, { timeout: 60_000 });
   await page.getByTestId('script-world-near').click();
   await expect.poll(async () => (await mission(page)).world, SLOW).toBe('near');
   await expect(page.getByTestId('script-world-near')).toHaveAttribute('aria-checked', 'true');
-  await expect(ta).toHaveValue(/guess = 0/);
+  // The switcher never replaces the program: the loaded text stays
+  await expect(ta).toHaveValue(/while nelia\.can_step\(\):/);
   await shot('switcher');
   await page.getByTestId('script-run').click();
   await expect.poll(async () => (await mission(page)).active, { timeout: 60_000 }).toEqual(['coin']);
@@ -68,7 +69,7 @@ test('I.4: world switcher keeps the code, „Prüfen“ names the failing world,
   await expect(page.getByTestId('script-goal-coin')).toBeVisible(SLOW);
 
   // A hard-coded program: right in one world only – the check names the others and the line
-  await ta.fill('for i in range(7):\n    nelia.step()\nnelia.take()\n');
+  await ta.fill('for i in range(5):\n    nelia.step()\nnelia.take()\n');
   await page.getByTestId('script-check').click();
   const res = page.getByTestId('script-check-result');
   await expect(res).toHaveAttribute('data-passed', 'false', { timeout: 60_000 });
@@ -82,8 +83,8 @@ test('I.4: world switcher keeps the code, „Prüfen“ names the failing world,
   // "Ansehen" switches to a failing world, the stage starts there
   await page.getByTestId('script-check-show-far').click();
   await expect.poll(async () => (await mission(page)).world, SLOW).toBe('far');
-  await expect.poll(async () => (await mission(page)).tile, SLOW).toEqual([2, 13]);
-  await expect(ta).toHaveValue(/range\(7\)/);
+  await expect.poll(async () => (await mission(page)).tile, SLOW).toEqual([16, 3]);
+  await expect(ta).toHaveValue(/range\(5\)/);
   await expect(page.getByTestId('script-goal-coin')).toBeVisible(SLOW);
 
   // The general program passes in all worlds: the coin stage is done, the track follows
@@ -97,7 +98,7 @@ test('I.4: world switcher keeps the code, „Prüfen“ names the failing world,
   expect(errors).toEqual([]);
 });
 
-test('I.M: the first stretch of undergrowth in three worlds – a written-out way fails, the general rule passes', async ({ page }, info) => {
+test('I.M: the winding path in three forests – a written-out way fails, the general rule passes, the thicket follows', async ({ page }, info) => {
   test.setTimeout(240_000);
   const errors = await fresh(page);
   if (SHOTS && !info.project.use.hasTouch) await page.setViewportSize({ width: 1440, height: 900 });
@@ -105,19 +106,19 @@ test('I.M: the first stretch of undergrowth in three worlds – a written-out wa
   await page.goto(playUrl('?mission=r1-m&no-models'));
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
-  // I.M stops the player's program when it places Nelia at the first section: run only after that
-  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'edge')?.status), { timeout: 60_000 }).toBe('active');
-  await expect(page.getByTestId('script-goal-edge')).toBeVisible({ timeout: 60_000 });
+  // I.M: run only once the first stage is open (after the intro line)
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.state.objectives.find((o) => o.id === 'path')?.status), { timeout: 60_000 }).toBe('active');
+  await expect(page.getByTestId('script-goal-path')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('script-worlds').getByRole('radio')).toHaveCount(3);
 
   // "Alles ganz nah": a tree right in front of Nelia
   await page.getByTestId('script-world-near').click();
   await expect.poll(async () => (await mission(page)).world, SLOW).toBe('near');
-  await expect.poll(async () => (await mission(page)).tile, SLOW).toEqual([7, 2]);
+  await expect.poll(async () => (await mission(page)).tile, SLOW).toEqual([7, 4]);
   await openPanel(page);
   const ta = page.getByTestId('section-player').getByTestId('code-input');
   // The way of the normal case, written out: blocked at once in the near world, lost in the far one
-  await ta.fill('nelia.step(19)\nnelia.turn_right()\nnelia.step(6)\nnelia.turn_right()\nnelia.step(17)\nnelia.turn_right()\nnelia.step(4)\nnelia.turn_right()\nnelia.step(10)\n');
+  await ta.fill('nelia.step(3)\nnelia.turn_right()\nnelia.step(2)\nnelia.turn_right()\nnelia.step(5)\nnelia.turn_right()\nnelia.step(5)\nnelia.turn_right()\nnelia.step(9)\n');
   await page.getByTestId('script-check').click();
   const res = page.getByTestId('script-check-result');
   await expect(res).toHaveAttribute('data-passed', 'false', { timeout: 90_000 });
@@ -127,11 +128,12 @@ test('I.M: the first stretch of undergrowth in three worlds – a written-out wa
   await expect(page.getByTestId('script-check-far')).toHaveAttribute('data-status', 'error');
   await shot('check-failed');
 
-  // Walk, otherwise turn right: every world passes, the thicket follows
-  await ta.fill('while not nelia.is_at(place("exit")):\n    if nelia.can_step():\n        nelia.step()\n    else:\n        nelia.turn_right()\n');
+  // Walk, otherwise turn right: every world passes; running it in the played world ends the stage, the thicket follows
+  await ta.fill('while not nelia.is_at(place("clearing")):\n    if nelia.can_step():\n        nelia.step()\n    else:\n        nelia.turn_right()\n');
   await page.getByTestId('script-check').click();
   await expect(res).toHaveAttribute('data-passed', 'true', { timeout: 90_000 });
   await shot('check-passed');
+  await page.getByTestId('script-run').click();
   await expect.poll(async () => (await mission(page)).active, { timeout: 60_000 }).toEqual(['thicket']);
   expect(errors).toEqual([]);
 });

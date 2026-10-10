@@ -1,6 +1,6 @@
 // Worlds of the course missions (docs/SKRIPTE.md#welten, #kursmissionen): every mission has a normal case and edge
 // cases. Model solutions pass „Prüfen“ (src/sim/check.js) in every world of all_worlds stages, hard-coded programs
-// fail a named edge world; predictions and the counting loops of I.2 count per world.
+// fail a named edge world; the first stages end once the program ran, the counting loops of I.2 count per world.
 import { describe, it, expect } from 'vitest';
 import { createMissionSim } from '../../src/sim/missions/runtime.js';
 import { getMission } from '../../src/sim/missions/registry.js';
@@ -34,19 +34,17 @@ describe('Course missions have worlds', () => {
 });
 
 describe('I.2 "Taler für die Mägde": one counting loop per world', () => {
-  const NOTE = (n) => lines(`guess = ${n}`, 'for i in range(5):', '    nelia.step()', '    nelia.put()');
+  const LOADED = lines('for i in range(5):', '    nelia.put()', '    nelia.step()');
   const PATH = (n) => lines(`for i in range(${n}):`, '    nelia.step()', '    nelia.put()', '    nelia.step()');
   const SLOPE = (n) => lines(`for i in range(${n}):`, '    nelia.step()', '    nelia.turn_left()', '    nelia.step()', '    nelia.turn_right()');
   const RING2 = lines('for i in range(4):', '    nelia.step()', '    nelia.put()', '    nelia.step()', '    nelia.put()', '    nelia.turn_left()');
   const RING3 = lines('for i in range(4):', '    for j in range(3):', '        nelia.step()', '        nelia.put()', '    nelia.turn_left()');
 
-  it('predictions: 5 coins in the normal case, 2 before the tree (near), 3 from a small purse (far)', () => {
-    expect(solvedIn('r1-2', 'predict', NOTE(5))).toEqual(['normal']);
-    expect(solvedIn('r1-2', 'predict', NOTE(2))).toEqual(['near']);
-    expect(solvedIn('r1-2', 'predict', NOTE(3))).toEqual(['far']);
-    // The note breaks off at the tree (blocked) and at the empty purse – the coins laid count all the same
-    const near = check('r1-2', 'predict', NOTE(2)).results.find((r) => r.world === 'near');
-    expect(near.status).toBe('solved');
+  it('the first stage ends once the loaded program ran – also where it breaks off at the tree (near) or the empty purse (far)', () => {
+    expect(isAllWorlds('r1-2', 'predict')).toBe(false);
+    expect(solvedIn('r1-2', 'predict', LOADED)).toEqual(['normal', 'near', 'far']);
+    // A program that fails before it laid the coins of its world does not end the stage
+    expect(solvedIn('r1-2', 'predict', 'nelia.fly()\n')).toEqual([]);
   });
 
   it('each world has its own number: path, slope and woodpile solved per world', () => {
@@ -63,7 +61,7 @@ describe('I.2 "Taler für die Mägde": one counting loop per world', () => {
   it('the normal-case loop runs into the trees of the short path (near) and the slope breaks off early', () => {
     const r = check('r1-2', 'path', PATH(9));
     expect(by(r)).toMatchObject({ normal: 'solved', near: 'error', far: 'failed' });
-    expect(r.results.find((x) => x.world === 'near').error).toMatchObject({ sline: 2 });
+    expect(r.results.find((x) => x.world === 'near').error).toMatchObject({ sline: 3 });   // the purse of 3 coins is empty
     expect(by(check('r1-2', 'slope', refExample('zigzag', 'de')))).toMatchObject({ near: 'error', far: 'failed' });
     // The long path ends at trees too: one round too many is blocked
     expect(by(check('r1-2', 'path', PATH(11)))).toMatchObject({ far: 'error' });
@@ -71,7 +69,7 @@ describe('I.2 "Taler für die Mägde": one counting loop per world', () => {
 });
 
 describe('I.5 "Holz für die erste Nacht": roses, brook and six count in every world', () => {
-  const NOTE = (n) => lines(`guess = ${n}`, 'count = 0', 'while nelia.front() == "coin":', '    nelia.step()', '    nelia.take()', '    count = count + 1');
+  const LOADED = lines('count = 0', 'while nelia.front() == "coin":', '    nelia.step()', '    nelia.take()', '    count = count + 1');
   const ROSES = lines(
     'count = 0', 'flowers = 0',
     'while nelia.can_step():', '    nelia.step()',
@@ -80,11 +78,10 @@ describe('I.5 "Holz für die erste Nacht": roses, brook and six count in every w
   );
   const SIX = lines('count = 0', 'while count < 6:', '    nelia.step()', '    nelia.take()', '    count = count + 1');
 
-  it('predictions per world: 7 coins, a single one (near), 12 (far)', () => {
+  it('the first stage ends once the loaded program ran, in every world', () => {
     expect(isAllWorlds('r1-5', 'predict')).toBe(false);
-    expect(solvedIn('r1-5', 'predict', NOTE(7))).toEqual(['normal']);
-    expect(solvedIn('r1-5', 'predict', NOTE(1))).toEqual(['near']);
-    expect(solvedIn('r1-5', 'predict', NOTE(12))).toEqual(['far']);
+    expect(solvedIn('r1-5', 'predict', LOADED)).toEqual(['normal', 'near', 'far']);
+    expect(solvedIn('r1-5', 'predict', 'nelia.fly()\n')).toEqual([]);
   });
 
   it('the model solutions pass „Prüfen“ in every world', () => {
@@ -102,71 +99,12 @@ describe('I.5 "Holz für die erste Nacht": roses, brook and six count in every w
     expect(by(ten)).toEqual({ normal: 'solved', near: 'error', far: 'failed' });
     expect(ten.results.find((r) => r.world === 'near').error).toMatchObject({ sline: 4 });
     // The counts of the normal case written in: wrong where the row is empty or longer
-    expect(by(check('r1-5', 'roses', `${ROSES}count = 7\nflowers = 3\n`))).toEqual({ normal: 'solved', near: 'failed', far: 'failed' });
-    // Nine steps there and back: back at the start, but the ice lies right in front of Nelia (0 steps, near) and
+    expect(by(check('r1-5', 'roses', `${ROSES}count = 6\nflowers = 4\n`))).toEqual({ normal: 'solved', near: 'failed', far: 'failed' });
+    // Nine steps there and back: back at the crossing, but the ice lies right next to it (0 steps, near) and
     // the brook is further away (far)
-    const nine = lines('steps = 9', 'for i in range(steps):', '    nelia.step()', 'nelia.turn_left()', 'nelia.turn_left()', 'for i in range(steps):', '    nelia.step()');
+    const nine = lines('nelia.turn_right()', 'steps = 9', 'for i in range(steps):', '    nelia.step()', 'nelia.turn_left()', 'nelia.turn_left()', 'for i in range(steps):', '    nelia.step()');
     expect(by(check('r1-5', 'brook', nine))).toEqual({ normal: 'solved', near: 'failed', far: 'failed' });
-    // Taking the whole row: exactly six coins only where there are six (near)
-    expect(by(check('r1-5', 'six', NOTE(0)))).toEqual({ normal: 'failed', near: 'solved', far: 'failed' });
-  });
-});
-
-describe('I.M "Heimweg durchs Unterholz": every stretch of undergrowth in three worlds', () => {
-  const SIMPLE = lines('while not nelia.is_at(place("exit")):', '    if nelia.can_step():', '        nelia.step()', '    else:', '        nelia.turn_right()');
-  const all = { normal: 'solved', near: 'solved', far: 'solved' };
-
-  it('all three stages count only after „Prüfen“; the model solutions pass every world', () => {
-    for (const g of ['edge', 'thicket', 'home']) expect(isAllWorlds('r1-m', g), g).toBe(true);
-    expect(by(check('r1-m', 'edge', SIMPLE))).toEqual(all);
-    for (const lang of ['de', 'en']) {
-      expect(by(check('r1-m', 'thicket', refExample('thicket', lang)))).toEqual(all);
-      expect(by(check('r1-m', 'home', refExample('thicket', lang)))).toEqual(all);
-    }
-  });
-
-  it('hard-coded programs fail an edge world', () => {
-    // The way out of the normal case, written out: the tree right in front of Nelia (near) blocks the first step
-    const path = lines('nelia.step(19)', 'nelia.turn_right()', 'nelia.step(6)', 'nelia.turn_right()', 'nelia.step(17)', 'nelia.turn_right()', 'nelia.step(4)', 'nelia.turn_right()', 'nelia.step(10)');
-    const r = check('r1-m', 'edge', path);
-    expect(by(r)).toEqual({ normal: 'solved', near: 'error', far: 'error' });
-    expect(r.results.find((x) => x.world === 'near').error).toMatchObject({ sline: 1 });
-    // Turning right when blocked runs in circles in every thicket – also where the exit is right behind Nelia (near)
-    expect(by(check('r1-m', 'home', SIMPLE))).toEqual({ normal: 'timeout', near: 'timeout', far: 'timeout' });
-  });
-});
-
-describe('II.1 "Orrins Abkürzung": the ruin and the coins in three worlds', () => {
-  const NOTE = (n) => `guess = ${n}\n\ndef around_ruin():\n    nelia.turn_right()\n    nelia.step()\n    nelia.turn_left()\n    nelia.step(2)\n    nelia.turn_left()\n    nelia.step()\n    nelia.turn_right()\n\naround_ruin()\naround_ruin()\naround_ruin()\n`;
-  const LEFT = NOTE(0).replace(/turn_right/g, 'TMP').replace(/turn_left/g, 'turn_right').replace(/TMP/g, 'turn_left');
-
-  it('predictions per world: a tree south of the ruin stops the detour after 1 (near) or 5 tiles (far)', () => {
-    expect(isAllWorlds('r2-1', 'predict')).toBe(false);
-    expect(solvedIn('r2-1', 'predict', NOTE(6))).toEqual(['normal']);
-    expect(solvedIn('r2-1', 'predict', NOTE(1))).toEqual(['near']);
-    expect(solvedIn('r2-1', 'predict', NOTE(5))).toEqual(['far']);
-  });
-
-  it('the hedge is the same in every world; the coins count only after „Prüfen“ – the model solution passes', () => {
-    expect(isAllWorlds('r2-1', 'hedge')).toBe(false);
-    expect(by(check('r2-1', 'hedge', LEFT))).toEqual({ normal: 'solved', near: 'solved', far: 'solved' });
-    expect(isAllWorlds('r2-1', 'coins')).toBe(true);
-    for (const lang of ['de', 'en']) expect(by(check('r2-1', 'coins', refExample('fetch', lang)))).toEqual({ normal: 'solved', near: 'solved', far: 'solved' });
-  });
-
-  it('hard-coded and sloppy programs fail an edge world', () => {
-    const FETCH = refExample('fetch', 'de');
-    const defs = FETCH.slice(0, FETCH.indexOf('while'));
-    // The walk of the normal case, written out: runs into the forest edge of the short path (near), reaches for a
-    // coin that lies elsewhere (far: take() finds nothing)
-    const walk = `${defs}${lines('nelia.step(2)', 'fetch_left()', 'nelia.step()', 'fetch_right()', 'nelia.step(2)', 'fetch_left()', 'nelia.step()', 'fetch_left()',
-      'nelia.step()', 'fetch_right()', 'nelia.step(3)', 'fetch_left()', 'fetch_right()', 'nelia.step(2)', 'fetch_right()', 'nelia.step(2)', 'fetch_left()',
-      'nelia.step(2)', 'fetch_right()', 'nelia.step()')}`;
-    expect(by(check('r2-1', 'coins', walk))).toEqual({ normal: 'solved', near: 'error', far: 'error' });
-    // Looking before the step misses the coins beside the last tile before the forest (near, far)
-    const early = FETCH.replace('while nelia.can_step():\n    nelia.step()\n', 'while nelia.can_step():\n')
-      .replace(/(\n    if nelia\.right\(\) == "coin":\n        fetch_right\(\)\n)$/, '$1    nelia.step()\n');
-    expect(early).toMatch(/fetch_right\(\)\n    nelia\.step\(\)\n$/);
-    expect(by(check('r2-1', 'coins', early))).toEqual({ normal: 'solved', near: 'failed', far: 'failed' });
+    // Taking the whole row to the north: exactly six coins only where there are six (near)
+    expect(by(check('r1-5', 'six', LOADED))).toEqual({ normal: 'failed', near: 'solved', far: 'failed' });
   });
 });
