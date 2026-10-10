@@ -19,7 +19,7 @@
       "minClient": "1.0.0",
       "access": "open",
       "manifest": "pack-adventures-2/pack.json",
-      "sha256": "16606debf408c02794fdf5c9211611ed66c7433031c74350b7f35138746ce8f3",
+      "sha256": "0b8bb25a8110a291247a4b947bd2638c602be57dec5caece5554cdf3fa1dd26a",
       "levels": 5,
       "preview": "pack-adventures-2/996c3d8a4b7769dbe098d763d05512054dd321215cddb89c003954c40e54b7f0.png",
       "kind": "code",
