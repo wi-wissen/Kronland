@@ -1,7 +1,7 @@
 # Ketten – warum geschieht was?
 
 Zu jeder Mission steht hier zuerst die Ursache-Wirkung-Kette, bevor ein Gespräch geschrieben wird. Aufbau, Regeln und
-Ablauf: [Leitfaden](LEITFADEN.md). Welt: [WELT.md](WELT.md). Stand: Ketten 1 und 2 abgenommen, 3 bis 6 zur Abnahme; Schwefel bestätigt.
+Ablauf: [Leitfaden](LEITFADEN.md). Welt: [WELT.md](WELT.md). Stand: Ketten 1 und 2 abgenommen, 3 bis 6 zur Abnahme; Schwefel bestätigt; die Bergwerksstadt heißt Brennstein.
 
 ## Die Krone und die fünf Kronstücke
 
@@ -10,7 +10,7 @@ ins Land kamen, weiß niemand, darüber gibt es nur Gerüchte und die Legende. S
 wieder aufgetaucht, und wer sie wieder zusammensetzt, hat die Krone, und das Land hat wieder einen König. Das weiß jeder
 im Kronland, darum suchen und bieten alle.
 
-Malvor kann nicht überall einfach zugreifen. Beaucroix ist eine freie Handelsstadt, die Bergleute von Eisenhain
+Malvor kann nicht überall einfach zugreifen. Beaucroix ist eine freie Handelsstadt, die Bergleute von Brennstein
 gehorchen nur ihrem Bergmeister, und die Moordörfer haben nie einem Herrn gehorcht. Darum greift er in jeder Provinz
 anders zu, und es wird jedes Mal härter.
 
@@ -18,7 +18,7 @@ anders zu, und es wird jedes Mal härter.
 |---|---|---|---|
 | Lindgrund | liegt unter dem alten Baum | unbekannt, das Rätsel bleibt offen | Eintreiber fordern Abgaben und hören vom Gold |
 | Beaucroix | lag in der Stadtkasse, jetzt bei Räubern | die Stadt bewahrte es, ohne zu wissen, warum | sein Herold bietet Geld |
-| Eisenhain | Bergmeister, tiefster Stollen | von Bergleuten gefunden | Taran belagert die Stadt |
+| Brennstein | Bergmeister, tiefster Stollen | von Bergleuten gefunden | Taran belagert die Stadt |
 | Morvale | Dorfälteste von Erlenhof | „keiner weiß, seit wann“ | Lüge und Hunger |
 | Hagenfurt | Malvor, an einer Kette um den Hals | sagt er nicht (nährt den Verdacht um Edrians Tod) | – |
 
@@ -122,19 +122,19 @@ anders zu, und es wird jedes Mal härter.
 - **Was Nelia danach weiß:** Malvor trägt das Kronstück von Hagenfurt selbst an einer Kette um den Hals (ein
   gefangener Wächter verrät es). Malvor ändert sein Vorgehen: Wenn der Hunger nicht mehr hält, schickt er Eisen.
 
-## Mission 4 – Eisenhain
+## Mission 4 – Brennstein
 
 - **Wer will was?** Malvor will Eisen für ein Heer und das Kronstück aus dem Stollen. Nelia will, dass er beides nicht
   bekommt.
 - **Warum jetzt?** Ohne seinen Winter kann Malvor die Menschen nicht mehr mit Hunger halten. Er braucht Soldaten, und
-  Eisen gibt es in Eisenhain. Hauptmann Taran belagert die Stadt.
+  Eisen gibt es in Brennstein. Hauptmann Taran belagert die Stadt.
 - **Was steht im Weg?** Zwei Belagerungslager hinter Palisaden. Nelia hat zu wenig Soldaten. Taran kennt sie aus dem
   Kornlager und weiß, wer sie wirklich ist.
 - **Was der Spieler tut, und warum jeweils:**
   1. Soldaten beschaffen, zwei Wege, nur einer: Söldner (teuer, sofort kampfbereit) oder geflohene Leibeigene
      (billig, bringen Vorräte, müssen kämpfen lernen).
   2. Eisengrube: Schwertkämpfer brauchen Eisen, und was Nelia fördert, fehlt Malvor.
-  3. Schwefelgrube: In Hrimgars Plänen steht Schwefel auf jeder Seite. Schwefel gibt es nur in Eisenhain. Malvors
+  3. Schwefelgrube: In Hrimgars Plänen steht Schwefel auf jeder Seite. Schwefel gibt es nur in Brennstein. Malvors
      Reste reichen für Pulver und ein kleines Kraftwerk, aber nicht für ein neues Wetterwerk. Wer den Schwefel fördert,
      hält ihn von Malvor fern. (Neue Festlegung, siehe unten.)
   4. Optional: „Stehendes Heer“ erforschen und Bogenschützen bauen, weil man Palisaden besser von draußen trifft.
@@ -192,15 +192,14 @@ anders zu, und es wird jedes Mal härter.
 - **Wann ist der Gegner besiegt?** Das Schloss ist erobert und Malvor gefallen.
 - **Was danach geschieht:** Nelia wird gekrönt, Orrin stirbt, Nelia hebt die Leibeigenschaft auf, Lindgrund lebt.
 
-## Festlegung „Schwefel nur in Eisenhain“ (bestätigt, jetzt in WELT.md)
+## Festlegung „Schwefel nur in Brennstein“ (bestätigt, jetzt in WELT.md)
 
 Malvor hat nur Reste, die für Pulver und ein kleines Kraftwerk reichen, nicht für ein neues Wetterwerk.
 
 ## Offene Entscheidungen für dich
 
 1. Passen die Ketten der Missionen 3 bis 6?
-2. Neuer Name für Eisenhain, weil die Stadt nicht nur durch Eisen, sondern auch durch den Schwefel besonders ist.
-   Vorschläge im Chat.
+2. Der Name der Bergwerksstadt ist entschieden: **Brennstein** (früher „Eisenhain“; so hieß Schwefel früher).
 
 Danach werden die Gespräche für Mission 3 bis 6 aus den Ketten geschrieben. Mission 1 und 2 sind geschrieben und auf
 Widersprüche geprüft.

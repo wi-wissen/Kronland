@@ -69,7 +69,7 @@ nie bewiesen. Am Ende stellt Nelia die Frage nach ihrer Herkunft bewusst nicht m
 |---|---|---|---|---|
 | **Nelia** | Ihr Dorf satt durch den Winter bringen und die Leute aus Malvors Kornlager heimholen – auch ihren Vater. Später: Malvor die Kronstücke wegnehmen, bevor er König wird. | Glauben, dass eine Leibeigene etwas zu sagen hat – mit eigener Stimme statt mit Orrins Geschichte. | „Ich bin das Kind eines Leibeigenen. Mich fragt keiner was.“ Lässt Orrin reden, widerspricht leise, nimmt den Vorteil der Lüge stillschweigend mit. | Gibt die Lüge öffentlich zu, gewinnt die Dörfer durch Taten, führt den Sturm auch ohne Orrin weiter. Wird als Leibeigene gekrönt und schafft die Leibeigenschaft ab. Fragt ihren Vater nicht, woher das Kronstück kam. |
 | **Orrin** | Geschäft: ein heiles Karrenrad, Kunden, ein voller Beutel. | An etwas glauben, das man nicht verkaufen kann. | Verkauft eine Prinzessin wie Knöpfe; rechnet sogar ein geschenktes Brot nach, das er „nicht verbuchen“ kann. | Glaubt an Nelia, nicht an ihr Blut. Bricht im Sturm auf das Schloss ins Eis ein, erlebt die Krönung, stirbt in der Nacht danach – „Jetzt sind wir quitt. Das Brot.“ |
-| **Taran** | Ordnung und volle Speicher, damit nie wieder ein Kind verhungert wie seine Schwester. | Erkennen, dass Malvors Ordnung den Hunger selbst als Waffe benutzt; sich für Menschen entscheiden statt für Befehle. | Malvors Hauptmann, belagert Eisenhain, erkennt Nelia und meldet ihre Herkunft – aus Pflicht. | Verweigert den Befehl, Höfe zu verbrennen, läuft über, gesteht seinen Anteil an der Enthüllung, führt den Sturm übers Eis, zieht Orrin heraus. Wacht danach über offene Speicher – „für alle“. |
+| **Taran** | Ordnung und volle Speicher, damit nie wieder ein Kind verhungert wie seine Schwester. | Erkennen, dass Malvors Ordnung den Hunger selbst als Waffe benutzt; sich für Menschen entscheiden statt für Befehle. | Malvors Hauptmann, belagert Brennstein, erkennt Nelia und meldet ihre Herkunft – aus Pflicht. | Verweigert den Befehl, Höfe zu verbrennen, läuft über, gesteht seinen Anteil an der Enthüllung, führt den Sturm übers Eis, zieht Orrin heraus. Wacht danach über offene Speicher – „für alle“. |
 | **Malvor** | König werden, damit ihm niemand mehr widerspricht; Ordnung durch Korn. | (Was er nie bekommt:) Vertrauen statt Gehorsam. | Unsichtbar, spürbar durch Boten: Eintreiber, Herold, Wachen, Befehle. Höflich, rechnend, nie grausam ohne Zweck. | Verteidigt sein Schloss selbst mit denselben Waffen wie Nelia (Wetterkraftwerk) und verliert, weil ihm keiner aus freien Stücken folgt. Fällt in der letzten Schlacht um sein Schloss; Nelia nimmt das fünfte Kronstück von seinem Hals. |
 
 **Malvors Logik, Stufe für Stufe.** Er eskaliert nur, wenn das billigere Mittel versagt:
@@ -111,7 +111,7 @@ Stein darin, ohne Zauberkraft.
 | 1 | Lindgrund (M1) | Unter dem alten Baum am Waldrand, wo ihr Vater immer die Familiensachen versteckt hat. Wie es dorthin kam, weiß niemand. Gegen Malvors Eintreiber verteidigt. | Routine-Abgaben – bis das Gerücht von einer „Prinzessin mit Gold aus dem Boden“ seine Eintreiber erreicht. Dann will er es billig einsammeln. |
 | 2 | Beaucroix (M2) | Räuber haben es aus der Stadtkasse geraubt und verkaufen es an den Meistbietenden. Freikaufen (über den Markt verdient) **oder** das Lager im Flusswald stürmen. | Kaufen statt kämpfen: Sein Herold bietet tausend Taler und verspricht der hungrigen Stadt Kornwagen (nur Erzählung). |
 | – | Tal des Wetterwerks (M3) | Kein Kronstück. Dafür Hrimgars Pläne – und die Nachricht, dass Malvor das Kronstück von Hagenfurt an einer Kette um den Hals trägt. | Sein Wetterwerk schützen: Solange Winter ist, wächst Korn nur bei ihm. |
-| 3 | Eisenhain (M4) | Der Bergmeister holt es aus dem tiefsten Stollen und gibt es „der Prinzessin“, nachdem Nelia Tarans Belagerung gebrochen hat. | Eisen für ein Heer, Schwefel für ein neues Wetterkraftwerk – und das Kronstück. Darum lässt er belagern. |
+| 3 | Brennstein (M4) | Der Bergmeister holt es aus dem tiefsten Stollen und gibt es „der Prinzessin“, nachdem Nelia Tarans Belagerung gebrochen hat. | Eisen für ein Heer, Schwefel für ein neues Wetterkraftwerk – und das Kronstück. Darum lässt er belagern. |
 | 4 | Morvale (M5) | Die Dorfälteste von Erlenhof gibt es Nelia, nachdem die Lüge aufgeflogen ist – wegen ihrer Taten. | Morvale unterwerfen: erst Nelia entzaubern, dann die Höfe verbrennen, damit die Dörfer nur noch von seinem Korn leben. Das Kronstück verlangt er gleich mit. |
 | 5 | Hagenfurt (M6) | An Malvors Hals im Inselschloss. Den Thronsee zufrieren lassen, das Schloss stürmen. | Es behalten, Nelia aufs Eis locken und tauen lassen. |
 
@@ -129,7 +129,7 @@ Stein darin, ohne Zauberkraft.
 | **Leibeigene kaufen** | M1: Erster Kauf in der Burg; Nelia: „Menschen kaufen. Wie Mehl.“ | M2/M4: wiederkehrendes Unbehagen; in M4 nimmt sie Geflohene auf statt sie zu kaufen (Wahl). | M6, Abschluss: Erste Amtshandlung: Die Leibeigenschaft ist abgeschafft. |
 | **Nehmen oder halten** (Steuern) | M1: Eintreiber fordern den Zehnten. | M2: Wahl der Steuerhöhe – „Malvors Weg“ oder „Nelias Weg“. | M5: Die Dörfer folgen dem, der gibt. M6: Malvor: „Wer gehorcht, isst.“ Nelia: „Du hast es hungern lassen, damit es gehorcht.“ |
 | **Eis und Tauwetter** | M3, Start: „Wer auf dem Eis steht, wenn es taut, ertrinkt.“ | M3: Flucht vom See in 60 Sekunden. | M6: Malvor taut den Thronsee mit seinem eigenen Kraftwerk; Orrin bricht ein. |
-| **Hrimgars Pläne und der Schwefel** | M3: Pläne in den Ruinen. | M4: Orrin liest darin: Wetter braucht Schwefel – Malvor will ihn auch. | M6: Nelias eigenes Wetterkraftwerk (Startvorrat Schwefel aus Eisenhain). |
+| **Hrimgars Pläne und der Schwefel** | M3: Pläne in den Ruinen. | M4: Orrin liest darin: Wetter braucht Schwefel – Malvor will ihn auch. | M6: Nelias eigenes Wetterkraftwerk (Startvorrat Schwefel aus Brennstein). |
 | **Tarans Schwester** | M4: „Unter dem gütigen König sind auch Kinder verhungert.“ | M5: „Meine Schwester war sieben. Ich zünde kein Korn an.“ | M6, Abschluss: Taran öffnet Malvors Kornlager – „für alle“. |
 | **Edrians Tod** (Verdacht, nie bewiesen) | M1, Einleitung: Edrian ertrank im Sturm. | M3: Orrin am Wetterwerk: „Ein Sturm mitten im Sommer. Kurz darauf lief das hier wieder.“ | M6: Nelia fragt Malvor; er weicht aus. Offen. |
 | **„Man kann ihnen nur einen Grund geben“** | M1: erster Arbeiter. | M4: Söldner (bezahlt) oder Geflohene (freiwillig). | M5: Die Dörfer kehren zurück; M6: Die Provinzen krönen Nelia. |
@@ -793,16 +793,16 @@ den Hunger, und greift ab jetzt zum Schwert. Und Nelia erfährt, dass das letzte
   > **Malvor:** Dann ist mein Winter vorbei. Der Hunger hält sie nicht mehr.
   >
   > **Malvor:** Wenn der Hunger sie nicht mehr hält, dann eben das Eisen. Ruft Hauptmann Taran. Er marschiert nach
-  > Eisenhain.
+  > Brennstein.
 
 
 ---
 
-## Mission 4 – Eisenhain
+## Mission 4 – Brennstein
 
 ### 1. Dramatische Frage und Funktion im Gesamtbogen
 
-**Kann Nelia die Bergleute von Eisenhain befreien, bevor Malvor ihr Eisen und ihr Kronstück bekommt?** Im Gesamtbogen
+**Kann Nelia die Bergleute von Brennstein befreien, bevor Malvor ihr Eisen und ihr Kronstück bekommt?** Im Gesamtbogen
 **Bad Guys Close In**: Ohne seinen Winter greift Malvor zum Schwert. Und zum ersten Mal steht Nelia jemandem
 gegenüber, der weiß, wer sie wirklich ist – Hauptmann Taran.
 
@@ -811,23 +811,23 @@ gegenüber, der weiß, wer sie wirklich ist – Hauptmann Taran.
 > Das Wetterwerk ist zerstört. Zum ersten Mal seit Jahren taut es im Kronland, und auf den Feldern wird wieder gesät.
 > Damit hat Malvor seine stärkste Waffe verloren: Wo Korn wächst, muss niemand mehr für ihn schuften.
 >
-> Also greift er zum Schwert. Für ein Heer braucht er Eisen, und das liegt in Eisenhain, der Stadt der Bergleute.
+> Also greift er zum Schwert. Für ein Heer braucht er Eisen, und das liegt in Brennstein, der Stadt der Bergleute.
 > Hauptmann Taran, Malvors bester Mann, belagert sie. Man sagt außerdem, im tiefsten Stollen liege das Kronstück von
-> Eisenhain.
+> Brennstein.
 >
 > Zwei von fünf Kronstücken hat Nelia. Das dritte darf Malvor nicht bekommen.
 
 **Startvorrat:** 900 Taler, 1400 Lehm, 1800 Holz, 1200 Stein, 400 Eisen, 100 Schwefel; 10 Leibeigene, eine Kaserne.
-Die Stadt Eisenhain ist verbündet; vor ihr liegen zwei Belagerungslager, am vorderen steht Taran. Wetter: Frühling
+Die Stadt Brennstein ist verbündet; vor ihr liegen zwei Belagerungslager, am vorderen steht Taran. Wetter: Frühling
 mit Regen, gegen Ende ein kurzer Spätfrost.
 
 ### 3. Ablauf
 
-#### Start – Vor Eisenhain
+#### Start – Vor Brennstein
 
-- *Auslöser:* Missionsbeginn. Kamera auf Nelias Lager, dann auf die Stadt Eisenhain und die beiden Belagerungslager.
+- *Auslöser:* Missionsbeginn. Kamera auf Nelias Lager, dann auf die Stadt Brennstein und die beiden Belagerungslager.
 - *Dialog:*
-  > **Orrin:** Eisenhain. Eisen, Schwefel – und eine ganze Armee davor. Ich hätte in Beaucroix bleiben sollen.
+  > **Orrin:** Brennstein. Eisen, Schwefel – und eine ganze Armee davor. Ich hätte in Beaucroix bleiben sollen.
   >
   > **Orrin:** Seit Wochen kommt kein Brot hinein und kein Eisen heraus.
   >
@@ -870,7 +870,7 @@ mit Regen, gegen Ende ein kurzer Spätfrost.
 
 - *Auslöser:* direkt nach dem Start.
 - *Dialog:*
-  > **Orrin:** Hier in Eisenhain gibt es Schwefel. Und in den Bauplänen des Wetterwerks steht es auf jeder zweiten
+  > **Orrin:** Hier in Brennstein gibt es Schwefel. Und in den Bauplänen des Wetterwerks steht es auf jeder zweiten
   > Seite: Ohne Schwefel kein Wetterwerk.
   >
   > **Nelia:** Und Malvor will ein neues bauen.
@@ -913,7 +913,7 @@ mit Regen, gegen Ende ein kurzer Spätfrost.
   >
   > **Orrin:** Er weiß, wer du bist. Und er reitet nach Hagenfurt.
   >
-  > **Nelia:** Dann holen wir das Kronstück von Eisenhain, bevor Malvor davon erfährt. Ohne Taran halten seine Lager
+  > **Nelia:** Dann holen wir das Kronstück von Brennstein, bevor Malvor davon erfährt. Ohne Taran halten seine Lager
   > nicht lange.
 
 #### Tarans Ausfälle
@@ -942,11 +942,11 @@ mit Regen, gegen Ende ein kurzer Spätfrost.
 - *Auslöser:* Die Wachen beider Lager sind besiegt. Der Bergmeister bekommt ein Ausrufezeichen.
 - *Dialog:*
   > **Bergmeister:** Sie ziehen ab! Kommt in die Stadt, Prinzessin. Ich habe etwas für euch.
-- *Ziel:* „Schick Nelia zum Bergmeister in Eisenhain“
+- *Ziel:* „Schick Nelia zum Bergmeister in Brennstein“
 - *Gespräch (nur Nelia; ein anderer Held hört: „Die Prinzessin soll selbst kommen.“):*
-  > **Bergmeister:** Aus dem tiefsten Stollen. Das Kronstück von Eisenhain. Malvor wollte es – ihr bekommt es.
+  > **Bergmeister:** Aus dem tiefsten Stollen. Das Kronstück von Brennstein. Malvor wollte es – ihr bekommt es.
   >
-  > **Bergmeister:** Für die Prinzessin. Eisenhain gibt es nur dem rechten Blut.
+  > **Bergmeister:** Für die Prinzessin. Brennstein gibt es nur dem rechten Blut.
   >
   > **Nelia:** Bergmeister, ich muss dir etwas …
   >
@@ -962,12 +962,12 @@ mit Regen, gegen Ende ein kurzer Spätfrost.
 
 ### 5. Niederlage
 
-- *Burg gefallen:* „Euer Lager ist gefallen. Eisenhain öffnet die Tore, und Malvor bekommt Eisen, Schwefel und das
+- *Burg gefallen:* „Euer Lager ist gefallen. Brennstein öffnet die Tore, und Malvor bekommt Eisen, Schwefel und das
   dritte Kronstück.“
 
 ### 6. Abschluss (normale Szene)
 
-- *Auslöser:* Alle Hauptziele erfüllt. Kamera auf die Schmieden von Eisenhain, dann auf Nelia und Orrin am Stadttor.
+- *Auslöser:* Alle Hauptziele erfüllt. Kamera auf die Schmieden von Brennstein, dann auf Nelia und Orrin am Stadttor.
 - *Dialog:*
   > **Bergmeister:** Heizt die Schmieden an! Zum ersten Mal seit Monaten verlässt Eisen den Berg, das nicht nach
   > Hagenfurt geht.
@@ -980,7 +980,7 @@ mit Regen, gegen Ende ein kurzer Spätfrost.
   >
   > **Orrin:** Er sah aus wie einer, der Befehle ausführt. Das ist gefährlicher.
 - *Dann Ortswechsel nach Hagenfurt, Nacht. Taran meldet sich bei Malvor:*
-  > **Taran:** Eisenhain ist verloren, Statthalter. Das Kronstück auch.
+  > **Taran:** Brennstein ist verloren, Statthalter. Das Kronstück auch.
   >
   > **Taran:** Und noch etwas. Die sogenannte Prinzessin ist keine. Ich habe sie auf dem Holzplatz im Kornlager gesehen.
   > Sie ist die Tochter eines Holzfällers aus Lindgrund, eine entlaufene Leibeigene.
@@ -1003,7 +1003,7 @@ Geschichte kreist: „Wir folgen dir – nicht deinem Blut.“
 
 ### 2. Einleitungstext (liest die Erzählerin vor)
 
-> Drei von fünf Kronstücken hat Nelia – aus Lindgrund, Beaucroix und Eisenhain. Das vierte liegt bei den Moordörfern
+> Drei von fünf Kronstücken hat Nelia – aus Lindgrund, Beaucroix und Brennstein. Das vierte liegt bei den Moordörfern
 > von Morvale, bei der Dorfältesten von Erlenhof. Das fünfte trägt Malvor um den Hals.
 >
 > Die Moordörfer haben nie einem Herrn gehorcht. Nelia folgen sie, weil sie die verlorene Prinzessin sein soll. Malvor
@@ -1181,12 +1181,12 @@ das Ende der Leibeigenschaft, Rauch über Lindgrund.
 
 ### 2. Einleitungstext (liest die Erzählerin vor)
 
-> Vier von fünf Kronstücken hat Nelia – aus Lindgrund, Beaucroix, Eisenhain und Morvale. Die Dörfer folgen ihr, obwohl
+> Vier von fünf Kronstücken hat Nelia – aus Lindgrund, Beaucroix, Brennstein und Morvale. Die Dörfer folgen ihr, obwohl
 > sie wissen, dass sie keine Prinzessin ist, und Hauptmann Taran ist mit seinen Leuten zu ihr übergelaufen.
 >
 > Das fünfte Kronstück, das von Hagenfurt, trägt Malvor an einer Kette um den Hals. Er hat sich im Inselschloss
 > verschanzt, mitten im Thronsee, wo einst König Edrian lebte. Nelia hat die Baupläne aus dem Wetterwerk und den
-> Schwefel aus Eisenhain. Doch Malvor kennt dieselbe Kunst.
+> Schwefel aus Brennstein. Doch Malvor kennt dieselbe Kunst.
 
 **Startvorrat:** 1500 Taler, 600 Schwefel, reichlich Baustoffe und Eisen; 16 Leibeigene. Ufersiedlung mit Burg,
 Wohnhaus, Hof, Hochschule, Kaserne und Alchimistenhütte. Helden: Nelia, Orrin, Taran. Alle Gebäude sind
@@ -1370,7 +1370,7 @@ geladen. Es ist Sommer.
   >
   > **Kaufmann:** Beaucroix krönt dich.
   >
-  > **Bergmeister:** Eisenhain krönt dich.
+  > **Bergmeister:** Brennstein krönt dich.
   >
   > **Dorfälteste von Erlenhof:** Morvale krönt dich. Keiner von uns sagt „Prinzessin“. Wir sagen: Königin.
   >

@@ -235,12 +235,12 @@ liegt, so die Legende, eines der fünf Kronstücke**.
   zugesagt: Wer es zurückholt, ob durch Freikauf oder mit Gewalt, darf es mitnehmen, denn in der Stadt wäre es nicht
   sicher.
 
-### Eisenhain – die Bergwerksstadt
+### Brennstein – die Bergwerksstadt
 - **Land:** Berge, Stollen, Schmieden. Eisen und Schwefel – der einzige Schwefel im Kronland. Malvor hat nur Reste, die für
   Pulver und ein kleines Kraftwerk reichen, nicht für ein neues Wetterwerk.
 - **Leute:** Bergleute, stur, zäh, stolz. Sie gehorchen nur ihrem **Bergmeister**.
 - **Wer herrscht:** der Bergmeister.
-- **Zu Malvor:** Wer Eisenhain hat, hat Eisen für Schwerter. Malvor braucht es für sein Heer – und er will das
+- **Zu Malvor:** Wer Brennstein hat, hat Eisen für Schwerter. Malvor braucht es für sein Heer – und er will das
   Kronstück. Er lässt die Stadt von **Hauptmann Taran** belagern, bis sie beides herausgibt.
 - **Kronstück:** **im tiefsten Stollen**, beim Bergmeister.
 
@@ -309,7 +309,7 @@ selbst an Nelia, nicht an ihr Blut. Wird im Finale auf dem Eis schwer verwundet 
 
 ### Taran – Malvors Hauptmann
 Berufssoldat, ernst, ehrlich, spricht wenig. Seine kleine Schwester ist unter König Edrian verhungert. Er dient
-Malvor, weil der Ordnung und volle Speicher verspricht. Belagert Eisenhain, lagert bei Morvale. Als Malvor ihm
+Malvor, weil der Ordnung und volle Speicher verspricht. Belagert Brennstein, lagert bei Morvale. Als Malvor ihm
 befiehlt, die Höfe der Moordörfer niederzubrennen, verweigert er und läuft mit seinen Leuten zu Nelia über.
 
 ### Malvor – Statthalter von Hagenfurt
@@ -320,7 +320,7 @@ sein Inselschloss selbst.
 
 ### Wiederkehrende Rollen
 **Malvors Eintreiber** (fordern Abgaben) · **Malvors Herold** (verkündet seine Angebote und Befehle) ·
-**Dorfälteste** · **Kaufmann** in Beaucroix · **Räuberhauptmann** · **Bergmeister** von Eisenhain · **Gelehrte** ·
+**Dorfälteste** · **Kaufmann** in Beaucroix · **Räuberhauptmann** · **Bergmeister** von Brennstein · **Gelehrte** ·
 Wachen, Gefangene, Dorfbewohner.
 
 ---
@@ -334,7 +334,7 @@ Die Vorgabe vom 4. Oktober 2026, auf die Provinzen verteilt. Sechs Missionen, ei
 | 1 | Lindgrund | Nelia kehrt ins verlassene Dorf zurück, trifft Orrin, findet das Kronstück unter dem alten Baum. Orrin erfindet die verlorene Prinzessin; Leute kehren zurück. Das Dorf wird wieder aufgebaut, Malvors Eintreiber werden vertrieben. | 1 |
 | 2 | Beaucroix | Markt aufbauen, handeln. Malvors Herold bietet für das Kronstück der Räuber. Freikaufen oder das Lager stürmen. | 2 |
 | 3 | Hagenfurt (Tal des Wetterwerks) | Ohne Siedlung, nur mit Helden und kleinem Trupp: ins Tal, das Wetterwerk zerstören, vor dem Tauwetter vom Eis fliehen, Hrimgars Pläne sichern. Der Winter endet. | – (Malvor trägt das Kronstück von Hagenfurt) |
-| 4 | Eisenhain | Taran belagert die Bergleute. Truppen aufstellen (Söldner oder Leibeigene), Gruben, Belagerung brechen. Der Bergmeister übergibt das Kronstück. | 3 |
+| 4 | Brennstein | Taran belagert die Bergleute. Truppen aufstellen (Söldner oder Leibeigene), Gruben, Belagerung brechen. Der Bergmeister übergibt das Kronstück. | 3 |
 | 5 | Morvale | Malvors Herold enthüllt die Lüge; die Dörfer wenden sich ab. Taran verweigert den Befehl, die Höfe zu verbrennen, und läuft über. Die Dörfer durch Taten zurückgewinnen. | 4 |
 | 6 | Hagenfurt (Thronsee) | Mit Hrimgars Plänen ein eigenes Wetterkraftwerk bauen, den See zufrieren lassen, das Inselschloss stürmen; Malvor taut den See mit seinem eigenen. Orrin bricht ein. Malvor fällt. Krönung, Orrins Tod, Nelia hebt die Leibeigenschaft auf. | 5 |
 

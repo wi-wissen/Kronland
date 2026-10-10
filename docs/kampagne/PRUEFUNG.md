@@ -24,7 +24,7 @@ Spieler · Startlehm Mission 1 = 1000. Alle drei stehen schon im Drehbuch (Commi
 | M1 Lindgrund | 30 | 11 | 0 | 41 |
 | M2 Beaucroix | 24 | 8 | 0 | 32 |
 | M3 Wetterwerk | 17 | 4 | 0 | 21 |
-| M4 Eisenhain | 19 | 0 | 0 | 19 |
+| M4 Brennstein | 19 | 0 | 0 | 19 |
 | M5 Morvale | 22 | 4 | 0 | 26 |
 | M6 Thronsee | 24 | 2 | 0 | 26 |
 | **Summe** | **136** | **29** | **0** | **165** |
@@ -383,7 +383,7 @@ Regieanweisungen im Text (*(leise)*, *(5 s danach)*, *(15 s vor Schluss)*) gehö
 | Niederlagen (Helden, Eis, Insel) | ✅ | `hold`-Ziel `heroes`, `defeat("ice"/"island")` (vorhanden) | – |
 | Abschluss (bestochen / Tor ohne Bestechung) | ✅ | `ending("bribed"/"gate")` + `debriefs` | – |
 
-## Mission 4 – Eisenhain
+## Mission 4 – Brennstein
 
 | Schritt | Bewertung | Python-Bausteine / Problem | Vorschlag |
 |---|---|---|---|
