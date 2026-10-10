@@ -42,3 +42,12 @@ E2E läuft headless über SwiftShader (Software-WebGL) und ist langsam (passt di
 - Fehlende Punkte selbst erkennen und mit umsetzen; nicht unfertig aufhören.
 - Ergebnisse mit Screenshots (Desktop 1440×900 und Handy) belegen.
 - Veröffentlichung: jeder Push auf `main` geht per GitHub Pages nach https://kronland.wi7.net/ (docs/WEBSITE.md).
+- **Entscheidungen verständlich vorlegen:** Der Projektinhaber liest ohne Kenntnis von Code und Gedankengang. Jede
+  Frage so stellen, dass klar ist, was entschieden werden soll: was der Spieler davon merkt, ein Beispiel aus dem Spiel,
+  was ohne die Änderung passiert, Aufwand. Fachwörter und interne Kürzel (E1, K1, Funktionsnamen) nicht ohne Erklärung.
+  Zahlen mit Einheit und Abgrenzung („347 gesprochene Sätze, davon 31 Bedienhinweise“), nicht „~340 Zeilen“.
+- **Längere Markdown-Dokumente** (Konzepte, Drehbücher, Berichte) zum Lesen zusätzlich als Artefakt bereitstellen;
+  die Datei im Repo allein reicht nicht.
+- **Eigene Annahmen offenlegen:** Regeln und Vorgaben, die nicht vom Projektinhaber oder aus dem Repo stammen (z. B.
+  Längengrenzen für Texte), vor der Verwendung als eigene Annahme kennzeichnen und bestätigen lassen; nie still an
+  Agenten weitergeben.
