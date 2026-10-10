@@ -1,0 +1,34 @@
+{
+  "saves": [
+    {
+      "id": "s1",
+      "name": "Tutorial – 3:20",
+      "savedAt": "2026-10-08T17:42:10.000Z",
+      "tick": 2000,
+      "mode": "mission",
+      "mission": "tutorial",
+      "seed": 1,
+      "players": 2,
+      "fog": true,
+      "thumb": null,
+      "size": 2048,
+      "auto": false,
+      "etag": "v1"
+    },
+    {
+      "id": "s2",
+      "name": "Freies Spiel, Karte 42 – 12:05",
+      "savedAt": "2026-10-09T09:15:00.000Z",
+      "tick": 7250,
+      "mode": "free",
+      "mission": null,
+      "seed": 42,
+      "players": 2,
+      "fog": true,
+      "thumb": null,
+      "size": 4096,
+      "auto": false,
+      "etag": "v1"
+    }
+  ]
+}

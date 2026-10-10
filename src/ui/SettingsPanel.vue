@@ -155,6 +155,9 @@
       </button>
     </section>
 
+    <!-- Sources of level packs (loaded on demand, src/ui/net) -->
+    <SourcesSettings />
+
     <div class="st-foot">
       <button class="ghost" data-testid="settings-reset" @click="reset">{{ $t('set.reset') }}</button>
       <button class="primary" data-testid="settings-done" @click="$emit('close')">{{ $t('set.done') }}</button>
@@ -167,9 +170,11 @@ import { settings, set, DEFAULTS, MUSIC_PAUSE_OPTIONS, BARK_OPTIONS, TRACK_OPTIO
 import { LANGS } from '../i18n/index.js';
 import { devState, setDevMode } from '../dev/state.js';
 import { PLAYER_COLOR_IDS, PLAYER_COLOR_CSS } from '../render/playerColors.js';
+import { defineAsyncComponent } from 'vue';
 
 export default {
   name: 'SettingsPanel',
+  components: { SourcesSettings: defineAsyncComponent(() => import('./net/SourcesSettings.vue')) },
   props: {
     inGame: Boolean,
     /** Mode of the running level when it fixes the tracks (world.tracks.mode), otherwise null */

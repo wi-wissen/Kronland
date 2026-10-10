@@ -5,6 +5,8 @@
   "kind": "mission",
   "end": "script",
   "order": 1,
+  "difficulty": "normal",
+  "minutes": 30,
   "title": { "de": "Der Überfall", "en": "The Raid" },
   "summary": {
     "de": "Eine Beispielmission, ganz in Python geschrieben: Räuber bedrohen den Hof.",

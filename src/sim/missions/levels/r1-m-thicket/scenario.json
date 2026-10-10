@@ -5,6 +5,8 @@
   "kind": "adventure",
   "end": "script",
   "order": 19,
+  "difficulty": "easy",
+  "minutes": 20,
   "title": { "de": "Heimweg durchs Unterholz", "en": "Home through the Undergrowth" },
   "summary": {
     "de": "Meisterstück der Reihe I: ohne fertiges Programm durch den Wald – erst ein gewundener Pfad, dann Abzweigungen und Sackgassen mit der rechten Hand. Drei Wälder, ein Programm.",

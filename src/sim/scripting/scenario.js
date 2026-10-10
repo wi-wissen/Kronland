@@ -8,6 +8,8 @@ export const SCENARIO_FORMAT = 'kronland-scenario';
 export const SCENARIO_VERSION = 2;
 /** How a level ends: by its objectives (all primary done, castle lost) or only by victory()/defeat(). */
 export const END_RULES = ['objectives', 'script'];
+/** Difficulty of a level (optional field `difficulty`; library filter). */
+export const LEVEL_DIFFICULTIES = ['easy', 'normal', 'hard'];
 
 import { assetPathOk } from '../../paths.js';
 import { BALANCE } from '../data/balance.js';
@@ -39,6 +41,8 @@ export function validateScenario(s) {
   if (s.version !== SCENARIO_VERSION) out.push(`version ${s.version} is not supported`);
   if (s.end !== undefined && !END_RULES.includes(s.end)) out.push(`end must be ${END_RULES.join(' or ')}`);
   if (s.reset !== undefined && typeof s.reset !== 'boolean') out.push('reset must be true or false');
+  if (s.difficulty !== undefined && !LEVEL_DIFFICULTIES.includes(s.difficulty)) out.push(`difficulty must be ${LEVEL_DIFFICULTIES.join(', ')}`);
+  if (s.minutes !== undefined && !(Number.isInteger(s.minutes) && s.minutes >= 1 && s.minutes <= 6000)) out.push('minutes must be a whole number from 1 to 6000');
   if (typeof s.id !== 'string' || !/^[\w-]+$/.test(s.id)) out.push('id missing or contains invalid characters');
   if (!Array.isArray(s.players) || !s.players.length) out.push('players missing');
   else if (s.players[0].kind !== 'human') out.push('players[0] must be the human');
@@ -163,6 +167,8 @@ export function scenarioToDef(s) {
     id: s.id,
     order: s.order ?? 100,
     kind: s.kind ?? 'mission',
+    difficulty: s.difficulty ?? null,
+    minutes: s.minutes ?? null,
     title: s.title ?? { de: s.id, en: s.id },
     summary: s.summary ?? null,
     briefing: s.briefing ?? null,

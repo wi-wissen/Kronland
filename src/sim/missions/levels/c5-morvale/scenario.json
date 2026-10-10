@@ -5,6 +5,8 @@
   "kind": "campaign",
   "end": "objectives",
   "order": 5,
+  "difficulty": "hard",
+  "minutes": 70,
   "next": "c6",
   "title": {
     "de": "Morvale",

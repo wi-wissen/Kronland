@@ -6,7 +6,7 @@ Desktop und Handy, Einzelspieler gegen Computergegner, Multiplayer (Lockstep) vo
 ## Stack
 - Reines JavaScript mit JSDoc – **kein TypeScript**.
 - Vite, Vue 3 **Options API** (keine Composition API), Three.js, Vitest, Playwright.
-- Einstieg: README.md, docs/ARCHITEKTUR.md (Aufbau, Steuerung), docs/SPIELREGELN.md (Mechaniken), docs/MODELLE.md + docs/STIL.md (Figuren), docs/TESTS.md (Tests, CI).
+- Einstieg: README.md, docs/ARCHITEKTUR.md (Aufbau, Steuerung), docs/SPIELREGELN.md (Mechaniken), docs/MODELLE.md + docs/STIL.md (Figuren), docs/TESTS.md (Tests, CI), docs/SERVER.md (Quellen, Levelpakete, Server-Anmeldung, Mock-Server; Vertrag in `contract/`).
 
 ## Befehle
 ```bash
@@ -21,6 +21,8 @@ node scripts/asset-gen/music.mjs gen|rate|process  # Musik per Lyria 3 (siehe do
 node scripts/asset-gen/sfx-cc0.mjs                # CC0-Effekte (Kenney, Freesound) schneiden (docs/AUDIO.md)
 node scripts/load-report.mjs [szenario]           # geladene Datenmengen messen (nach npm run build, docs/PERFORMANCE.md)
 node scripts/assets-src.mjs status|fetch|pack      # Rohdateien in assets-src/ (nur lokal, nicht in Git, docs/ROHDATEIEN.md)
+node scripts/mock-server.mjs [--port 4400]        # Mock-Server für Quellen/Anmeldung/Cloud (docs/SERVER.md)
+node scripts/build-pack.mjs --id x.y --title "De|En" --out site level.zip   # Levelpaket + catalog.json für eine statische Quelle
 ```
 In der Cloud-Umgebung nimmt Node-`fetch` den Proxy (und damit die injizierten API-Schlüssel für OpenRouter/Meshy) nur mit `NODE_USE_ENV_PROXY=1`; `curl` geht direkt.
 E2E läuft headless über SwiftShader (Software-WebGL) und ist langsam (passt die Playwright-Version nicht zum vorinstallierten Browser: `PW_CHROMIUM=/opt/pw-browsers/chromium`): großzügige Timeouts, nur betroffene Specs laufen lassen, eigenen Port wählen, wenn mehrere Sitzungen parallel testen.

@@ -484,16 +484,16 @@ def run(pw):
         save(shoot(page), 'programming')
         ctx.close()
 
-    # ---------- Course menu: missions grouped by rows ----------
+    # ---------- Course series: the missions of a row, one button each ----------
     if want('course'):
         ctx = b.new_context(**DESK, locale='de-DE')
         ctx.add_init_script(init % 'de')
         page = ctx.new_page()
         page.set_default_timeout(600000)
         page.goto(f'{BASE}/play/')
-        page.get_by_test_id('menu-adventures').click()
-        page.get_by_test_id('adventure-r1-4').click()
-        page.get_by_test_id('adventure-brief').wait_for()
+        page.get_by_test_id('menu-kind-code').click()
+        page.get_by_test_id('series-course-1').click()
+        page.get_by_test_id('series-detail').wait_for()
         page.wait_for_timeout(2500)
         save(page.screenshot(type='png'), 'course')
         ctx.close()

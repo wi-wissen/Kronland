@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
+import { openWorkshop, playLevel } from './menu.js';
 
 // Coding adventure, code panel with debugger and world editor (desktop and mobile).
 
@@ -49,16 +50,18 @@ test('Course missions in the menu by row: start I.2, run the maid\'s program, th
   test.setTimeout(180_000); // the intro line comes before the program, then a whole stage runs
   const errors = await fresh(page);
   await page.goto(playUrl());
-  await page.getByTestId('menu-adventures').click();
-  await expect(page.getByTestId('adventure-menu')).toBeVisible();
-  // Rows with their missions, I.2 first and selected
-  await expect(page.getByTestId('adventure-row-1')).toHaveText('Reihe I · Spuren im Schnee');
-  await expect(page.getByTestId('adventure-row-3')).toBeVisible();
-  await expect(page.getByTestId('adventure-r1-2')).toHaveClass(/active/);
-  await expect(page.getByTestId('adventure-r1-m').locator('.seal')).toHaveText('M');
-  await expect(page.getByTestId('adventure-brief')).toContainText('Mission I.2');
+  await page.getByTestId('menu-kind-code').click();
+  await expect(page.getByTestId('library-menu')).toBeVisible();
+  // Course rows are series of their own, each with its missions
+  await expect(page.getByTestId('series-course-1')).toContainText('Reihe I · Spuren im Schnee');
+  await expect(page.getByTestId('series-course-3')).toBeVisible();
+  await page.getByTestId('series-course-1').click();
+  // I.2 is the first open mission and carries the big button; the master piece is I.M
+  await expect(page.getByTestId('series-play')).toContainText('Taler für die Mägde');
+  await expect(page.getByTestId('level-row-r1-m').locator('.sd-no')).toHaveText('I.M');
+  await expect(page.getByTestId('level-row-r1-2')).toContainText('Taler für die Mägde');
   await page.screenshot({ path: test.info().outputPath('menu.png') });
-  await page.getByTestId('adventure-start').click();
+  await playLevel(page, 'r1-2');
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await openPanel(page);
   // World setup is folded and locked; the maid's program replaces the text of the own program
@@ -197,8 +200,7 @@ test('print() to the console, notify() as a notice, error clears after editing, 
 test('World editor: paint forest, place a spot, test play and back', async ({ page }) => {
   const errors = await fresh(page);
   await page.goto(playUrl());
-  await page.getByTestId('menu-adventures').click();
-  await page.getByTestId('open-editor').click();
+  await openWorkshop(page);
   await expect(page.getByTestId('world-editor')).toBeVisible();
   await page.waitForFunction(() => !!window.__kronlandEditor, null, SLOW);
   // Grid in the editor too
@@ -231,7 +233,7 @@ test('World editor: paint forest, place a spot, test play and back', async ({ pa
   const places = await page.evaluate(() => Object.keys(window.__kronland.sim.mission.script.state.places));
   expect(places).toContain('goal');
   await page.evaluate(() => window.__kronland.sim.mission.finish(window.__kronland.sim, true, 'test'));
-  await page.getByTestId('to-campaign').click({ timeout: 20_000 });
+  await page.getByTestId('to-library').click({ timeout: 20_000 });
   await expect(page.getByTestId('world-editor')).toBeVisible(SLOW);
   expect(errors).toEqual([]);
 });

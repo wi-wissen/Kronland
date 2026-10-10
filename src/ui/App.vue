@@ -1,8 +1,7 @@
 <template>
-  <StartMenu v-if="screen === 'menu'" :latest="latest" :recovered="recovered" @start="newGame" @load="loadDoc" @saves-changed="refreshLatest" @tutorial="startMission('tutorial')" @campaign="screen = 'campaign'" @adventures="screen = 'adventures'" @special="screen = 'special'" />
-  <CampaignMenu v-else-if="screen === 'campaign'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" @tutorial="startMission('tutorial')" />
-  <SpecialMapsMenu v-else-if="screen === 'special'" :lang="$i18n.lang" @back="screen = 'menu'" @start="startMission" />
-  <AdventureMenu v-else-if="screen === 'adventures'" :lang="$i18n.lang" :notice="levelError" @back="screen = 'menu'" @start="startMission" @editor="openEditor()" @open="openLevel($event)" @link="openLink($event)" />
+  <StartMenu v-if="screen === 'menu'" :latest="latest" :saves="saveList" :recovered="recovered" :notice="netNotice" @load="loadDoc" @saves-changed="refreshLatest" @library="openLibrary" @free="screen = 'free'" @workshop="openEditor()" />
+  <LibraryMenu v-else-if="screen === 'library'" :lang="$i18n.lang" :kind="libraryKind" :notice="levelError" :preselect="libraryPick" :extra="libraryExtra" :saves="saveList" @back="screen = 'menu'" @start="startMission" @load="loadDoc" @play-pack="openLevel($event, 'pack')" @open="openLevel($event)" @link="openLink($event)" @edit="editFromServer" />
+  <FreePlay v-else-if="screen === 'free'" @back="screen = 'menu'" @start="newGame" @mission="startMission" />
   <WorldEditor v-else-if="screen === 'editor'" :initial="editorScenario" :touch="touchDevice" @back="closeEditor" @play="openLevel($event, 'editor')" @change="editorScenario = $event" />
 
   <div v-else-if="screen === 'loading' || finishing" class="loading backdrop" data-testid="loading">
@@ -74,10 +73,10 @@
         :objectives="ui.mission.objectives"
         :record="record"
         :lang="$i18n.lang"
-        :origin="origin ?? 'campaign'"
+        :origin="origin === 'pack' ? 'library' : origin ?? 'library'"
         @next="startMission"
         @retry="retry"
-        @campaign="toCampaign"
+        @library="toLibrary"
         @menu="quit"
       />
 
@@ -101,7 +100,7 @@
         </div>
       </Teleport>
 
-      <GameMenu v-if="menuOpen" :engine="engine" :touch="ui.touch" :share="share" :update="appUpdate.available" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" @update="installUpdate" />
+      <GameMenu v-if="menuOpen" :read-only="readOnly" :engine="engine" :touch="ui.touch" :share="share" :update="appUpdate.available" @close="closeMenu" @saved="onSaved" @load="loadDoc" @quit="quit" @update="installUpdate" />
     </template>
   </div>
 
@@ -123,6 +122,9 @@
     @width="codeW = $event"
   />
 
+  <!-- ?source=<url>: ask before a link adds a source -->
+  <ConfirmDialog v-if="sourceAsk" :title="$t('src.confirm.title')" :text="$t('src.confirm.text', { url: sourceAsk })" :confirm-label="$t('src.confirm.ok')" @cancel="sourceAsk = ''" @confirm="acceptSource" />
+
   <Tooltip :touch="!!ui?.touch" />
 </template>
 
@@ -139,11 +141,11 @@ import PauseBanner from './hud/PauseBanner.vue';
 import StartMenu from './StartMenu.vue';
 import GameMenu from './GameMenu.vue';
 import Tooltip from './Tooltip.vue';
-import CampaignMenu from './mission/CampaignMenu.vue';
-import SpecialMapsMenu from './mission/SpecialMapsMenu.vue';
+import LibraryMenu from './library/LibraryMenu.vue';
+import FreePlay from './FreePlay.vue';
 import MissionHud from './mission/MissionHud.vue';
 import MissionResult from './mission/MissionResult.vue';
-import AdventureMenu from './script/AdventureMenu.vue';
+import ConfirmDialog from './saves/ConfirmDialog.vue';
 import { recordWin, loadProgress } from './mission/progress.js';
 import { getMission, SPECIAL_MAPS } from '../sim/missions/registry.js';
 import { setMenuMusic } from '../audio/index.js';
@@ -152,7 +154,9 @@ import { clock } from './plugin.js';
 import { getStore, autosaveDue, autosaveStart, snapshotText, whenIdle, AUTO_ID, SaveError } from '../save/index.js';
 import { defaultSaveName } from '../save/format.js';
 import { makeThumb } from './saves/thumb.js';
-import { t } from '../i18n/index.js';
+import { t, has } from '../i18n/index.js';
+import { errorMessage } from '../net/errors.js';
+import { setPendingServerPack } from './editor/serverDraft.js';
 import { devState, setDevMode, isDevHotkey } from '../dev/state.js';
 import { missing, pauseBannerVisible } from './hud/hudLayout.js';
 import { buildStartLink, parseStartLink, normalizeFree, addressFor, shareUrl } from './startLink.js';
@@ -167,14 +171,14 @@ const COMPACT = 760;
 /** sessionStorage: page was reloaded from the error dialog */
 const CRASH_FLAG = 'kronland-crash';
 /** Screens on which a new version may reload the page by itself (nothing running, nothing unsaved) */
-const IDLE_SCREENS = ['menu', 'campaign', 'adventures', 'special'];
+const IDLE_SCREENS = ['menu', 'library', 'free'];
 const MID = 1100;
 const NARROW = 1500;
 
 export default {
   name: 'App',
   components: {
-    TopBar, CommandBar, ToastFeed, PauseBanner, StartMenu, GameMenu, Tooltip, CampaignMenu, SpecialMapsMenu, MissionHud, MissionResult, AdventureMenu,
+    TopBar, CommandBar, ToastFeed, PauseBanner, StartMenu, GameMenu, Tooltip, ConfirmDialog, LibraryMenu, FreePlay, MissionHud, MissionResult,
     // Code panel and world editor: loaded only on demand
     ScriptPanel: defineAsyncComponent(() => import('./script/ScriptPanel.vue')),
     WorldEditor: defineAsyncComponent(() => import('./editor/WorldEditor.vue')),
@@ -193,8 +197,9 @@ export default {
       /** Game built, loading screen still up while cached on-demand models arrive (boot) */
       finishing: false,
       menuOpen: false,
-      /** Latest save game (entry) for "Continue" */
+      /** Latest save game (entry) for "Continue" and all save games (newest first) */
       latest: null,
+      saveList: [],
       /** New best time in the mission just won */
       record: false,
       settings,
@@ -208,14 +213,26 @@ export default {
       watching: false,
       tipNo: 1,
       dev: devState,
-      /** Where the running game comes from: 'campaign' | 'adventures' | 'editor' | null */
+      /** Where the running game comes from: 'library' | 'pack' (level of a pack) | 'free' (special map) | 'editor' | null */
       origin: null,
       /** Scenario in the world editor (kept during test play) */
       editorScenario: null,
       /** Level opened from a .zip, a link or the world editor: { scenario, assets: Map, base } (outside reactivity) */
       levelPackage: null,
-      /** Why a level from a file or link could not be opened (shown in the adventure menu) */
+      /** Why a level from a file or link could not be opened (shown in the library) */
       levelError: '',
+      /** Level pack of the running level from the library: { id, hash, level } (progress events) or null */
+      packRef: null,
+      /** Tab of the library to show first, series to open (?play=) and a pack found by id that is in no catalog */
+      libraryKind: 'all',
+      libraryPick: '',
+      libraryExtra: null,
+      /** Address from ?source= waiting for the player's yes */
+      sourceAsk: '',
+      /** Why a network link (?save=) failed (start menu) */
+      netNotice: '',
+      /** Save game opened read-only (?save= of someone else): no saving */
+      readOnly: false,
       touchDevice: globalThis.matchMedia?.('(pointer: coarse)').matches ?? false,
       /** Game halted after a permanent error (Engine.crash): error dialog */
       crash: null,
@@ -276,7 +293,7 @@ export default {
     screen: {
       immediate: true,
       handler(s) {
-        if (['menu', 'campaign', 'adventures', 'special', 'editor'].includes(s)) setMenuMusic(true); else if (s === 'loading') setMenuMusic(false);
+        if (['menu', 'library', 'free', 'editor'].includes(s)) setMenuMusic(true); else if (s === 'loading') setMenuMusic(false);
         // Back in the menus after a game: a pending update loads now
         if (IDLE_SCREENS.includes(s)) updateIfIdle();
       },
@@ -291,6 +308,10 @@ export default {
     'ui.mission.result'(r) {
       if (!r || this.recorded) return;
       this.recorded = true;
+      if (this.packRef) {
+        const ref = this.packRef;
+        import('../net/index.js').then((m) => m.track.finish(r.won ? 'completed' : 'failed', ref));
+      }
       if (!r.won || this.engine?.sim.mission?.def.custom) return;
       const id = this.ui.mission.id;
       const before = loadProgress().done[id]?.best;
@@ -338,6 +359,8 @@ export default {
     if (link?.kind === 'level') this.openLink(link.url, link.noAssets);
     else if (link?.kind === 'mission') this.startMission(link.id, { noAssets: link.noAssets, seed: link.seed });
     else if (link) this.newGame({ ...link, noAssets: link.noAssets });
+    // Server, sources and network links (loaded on demand)
+    this.netStart();
   },
   beforeUnmount() {
     this.engine?.stop();
@@ -355,6 +378,7 @@ export default {
     },
     clock,
     async boot(opts) {
+      this.readOnly = !!opts.readOnly;
       this.scriptOpen = false;
       this.engine?.stop();
       this.engine = null;
@@ -378,6 +402,7 @@ export default {
       e.start();
       if (devState.on) e.setDevMode(true);
       this.screen = 'game';
+      this.trackLevel();
       this.$nextTick(this.layout);
       if (!opts.noAssets) {
         // Models the first frames request on demand (hero, workers, other buildings): if they are all cached
@@ -419,9 +444,9 @@ export default {
       if (!def) return;
       this.recorded = false;
       this.record = false;
-      // Special maps (showcase, stress test) have their own menu: return there
-      // Campaign chapters and the tutorial return to the campaign, even when they are level folders
-      this.origin = SPECIAL_MAPS.includes(def) ? 'special' : def.scenario && !['campaign', 'tutorial'].includes(def.kind) ? 'adventures' : 'campaign';
+      this.packRef = null;
+      // Special maps (showcase, stress test) belong to free play: return there; everything else returns to the library
+      this.origin = SPECIAL_MAPS.includes(def) ? 'free' : 'library';
       const players = def.players.filter((p) => p.kind !== 'bandits').length + (def.players.some((p) => p.kind === 'bandits') ? 1 : 0);
       // Fixed mission map: link only ?mission=<id>; a deviating seed comes along with it
       const seed = extra.seed !== undefined && extra.seed !== def.seed ? extra.seed : undefined;
@@ -433,29 +458,32 @@ export default {
      * Play a level from a .zip, a scenario file, a link or the world editor.
      * @param {{ scenario: any, assets?: Map<string, Blob>, base?: string|null }} pkg
      */
-    openLevel(pkg, origin = 'adventures', extra = {}) {
+    openLevel(pkg, origin = 'library', extra = {}) {
       this.levelError = '';
+      if (pkg.pack && origin === 'pack') this.libraryPick = pkg.pack.id;
       this.levelPackage = markRaw({ assets: new Map(), base: null, ...pkg });
       this.startScenario(pkg.scenario, origin, { ...extra, ...(pkg.world ? { world: pkg.world } : {}) });
     },
     /** Open a level by link (?level=…): a .zip or a folder on a static host. */
     async openLink(url, noAssets = false) {
       this.levelError = '';
-      this.screen = 'adventures';
+      this.screen = 'library';
       let pkg;
       try {
         const { fetchLevel } = await import('../levels/package.js');
         pkg = await fetchLevel(url);
       } catch (e) { pkg = { scenario: null, problems: [e.message] }; }
       if (!pkg.scenario) { this.levelError = t('adv.loadFailed', { why: pkg.problems?.[0] ?? '?' }); return; }
-      this.openLevel(pkg, 'adventures', { noAssets });
+      this.openLevel(pkg, 'library', { noAssets });
       // A link describes the start: reloading the page opens the level again
       this.setStart({ kind: 'level', url });
     },
     /** Play scenario JSON (file or world editor). */
-    startScenario(json, origin = 'adventures', extra = {}) {
+    startScenario(json, origin = 'library', extra = {}) {
       this.recorded = false;
       this.record = false;
+      // Level of a pack: progress events (src/net/progress.js)
+      this.packRef = this.levelPackage?.pack ?? null;
       this.origin = origin;
       // Scenario file / world editor: is in no directory, hence no start link
       this.setStart(null);
@@ -471,7 +499,7 @@ export default {
       const world = this.engine?.sim.mission?.state.world ?? undefined;
       if (def?.custom) {
         const start = this.start;
-        this.startScenario(def.scenario, this.origin ?? 'adventures', { world });
+        this.startScenario(def.scenario, this.origin ?? 'library', { world });
         if (start?.kind === 'level') this.setStart(start);
       }
       else this.startMission(this.ui.mission.id, { seed: this.start?.kind === 'mission' ? this.start.seed : undefined, world });
@@ -480,26 +508,87 @@ export default {
       if (scenario) this.editorScenario = scenario;
       this.screen = 'editor';
     },
-    closeEditor() { this.screen = 'adventures'; },
-    toCampaign() {
-      const back = ['editor', 'adventures', 'special'].includes(this.origin) ? this.origin : 'campaign';
+    closeEditor() { this.screen = 'menu'; },
+    openLibrary(kind = 'all') {
+      this.libraryKind = kind;
+      this.libraryPick = '';
+      this.screen = 'library';
+    },
+    /** Own pack from "Discover levels" into the world editor. @param {{ id: string, scenario: any, files: Map<string, Blob> }} own */
+    editFromServer(own) {
+      setPendingServerPack({ id: own.id, files: own.files });
+      this.editorScenario = own.scenario;
+      this.screen = 'editor';
+    },
+    /** Progress events for the running level if it comes from a pack. */
+    trackLevel() {
+      if (!this.packRef) {
+        if (this.tracking) { this.tracking = false; import('../net/index.js').then((m) => m.track.stop()); }
+        return;
+      }
+      this.tracking = true;
+      const ref = this.packRef;
+      this.engine.onRun = (sections) => { import('../net/index.js').then((m) => m.track.run(sections)); };
+      import('../net/index.js').then((m) => m.track.start(ref));
+    },
+    /**
+     * Network layer at start: configuration, sign-in answer (?code=&state=) and the links ?source=, ?play=, ?save=
+     * (docs/SERVER.md). Runs in the background; without server and sources it only reads the configuration.
+     */
+    async netStart() {
+      try {
+        const net = await import('../net/index.js');
+        await net.initNet();
+        // Packs of all sources for the library and the "New" badges (in the background)
+        net.refreshLibrary();
+        const links = net.netLinks(location.search);
+        if (links.source) {
+          if (net.knownSource(links.source)) this.openLibrary();
+          else this.sourceAsk = links.source;
+        }
+        if (links.play) {
+          this.libraryPick = links.play;
+          this.libraryExtra = await net.findPack(links.play).catch(() => null);
+          this.libraryKind = 'all';
+          this.screen = 'library';
+        }
+        if (links.save) {
+          try {
+            const { doc, readOnly } = await net.openSave(links.save);
+            this.loadDoc(doc, { readOnly });
+          } catch (e) { this.netNotice = errorMessage(e, t, has); }
+        }
+      } catch (e) { console.warn('Net: start failed', e); }
+    },
+    async acceptSource() {
+      const url = this.sourceAsk;
+      this.sourceAsk = '';
+      try { (await import('../net/index.js')).addSource(url); } catch (e) { this.levelError = errorMessage(e, t, has); }
+      this.openLibrary();
+    },
+    toLibrary() {
+      const back = this.origin === 'editor' ? 'editor' : this.origin === 'free' ? 'free' : 'library';
       this.quit();
       this.screen = back;
     },
-    /** Determine the latest save game for "Continue". */
+    /** Read the save games: the newest one for "Continue", all of them for the lists. */
     async refreshLatest() {
-      try { this.latest = await (await getStore({ legacyName: t('saves.legacyName') })).latest(); } catch { this.latest = null; }
+      try {
+        this.saveList = await (await getStore({ legacyName: t('saves.legacyName') })).list();
+        this.latest = this.saveList[0] ?? null;
+      } catch { this.saveList = []; this.latest = null; }
     },
     /** Load a checked envelope (src/save/format.js). */
-    loadDoc(doc) {
+    loadDoc(doc, { readOnly = false } = {}) {
       this.menuOpen = false;
       this.recorded = false;
       this.record = false;
+      this.packRef = null;
       // Save game: cannot be rebuilt from a seed – no start link
       this.setStart(null);
       // Files of the level (portraits, recordings): bundled ones or those of the package still open; otherwise placeholders
       useLevelAssets(this.levelPackage, doc.state.mission?.scenario ?? null);
-      this.boot({ load: doc.state });
+      this.boot({ load: doc.state, readOnly });
     },
     onSaved(entry) {
       this.latest = entry;
@@ -517,6 +606,8 @@ export default {
     async autosave({ idle = false, force = false } = {}) {
       const e = this.engine;
       if (!e || (!settings.autosave && !force) || this.screen !== 'game') return;
+      // A save game of someone else is only for looking
+      if (this.readOnly) return;
       // Never save after a crash: the state may be broken, the last good save is kept
       if (e.crash) return;
       this.lastAutoTick = e.sim.tick;
@@ -600,7 +691,7 @@ export default {
       this.engine = null;
       this.ui = null;
       // Test play from the world editor: back to the editor
-      this.screen = this.origin === 'editor' ? 'editor' : 'menu';
+      this.screen = this.origin === 'editor' ? 'editor' : this.origin === 'pack' ? 'library' : 'menu';
       this.origin = null;
       this.start = null;
       if (location.search) history.replaceState(null, '', location.pathname);

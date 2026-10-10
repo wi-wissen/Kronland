@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kronland.wi7.net/contract/schemas/pack-document.schema.json",
+  "title": "kronland-pack-document",
+  "description": "Editor view of an own pack: GET/PUT /api/v1/packs/{id}. Like pack.json, but the levels carry their scenario inline (no hash file names) and media are referenced by their hash name (uploaded beforehand via POST /api/v1/packs/{id}/media). The server turns this into pack.json and level files.",
+  "type": "object",
+  "required": ["format", "version", "id", "title", "levels"],
+  "properties": {
+    "format": { "const": "kronland-pack" },
+    "version": { "type": "integer", "minimum": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$", "maxLength": 64 },
+    "title": { "type": "object", "required": ["de", "en"], "properties": { "de": { "type": "string", "maxLength": 2000 }, "en": { "type": "string", "maxLength": 2000 } }, "additionalProperties": false },
+    "summary": { "type": "object", "required": ["de", "en"], "properties": { "de": { "type": "string", "maxLength": 2000 }, "en": { "type": "string", "maxLength": 2000 } }, "additionalProperties": false },
+    "author": { "type": "string", "maxLength": 100 },
+    "license": { "type": "string", "maxLength": 100 },
+    "minClient": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "preview": { "type": "string", "pattern": "^[0-9a-f]{64}\\.(png|jpe?g|webp|mp3|ogg|glb)$" },
+    "levels": {
+      "type": "array", "minItems": 1, "maxItems": 100,
+      "items": {
+        "type": "object", "required": ["id", "scenario"],
+        "properties": { "id": { "type": "string", "pattern": "^[\\w-]+$", "maxLength": 64 }, "scenario": { "type": "object", "required": ["format", "version", "id"], "properties": { "format": { "const": "kronland-scenario" } } } },
+        "additionalProperties": false
+      }
+    },
+    "media": {
+      "type": "object", "maxProperties": 500,
+      "patternProperties": {
+        "^[0-9a-f]{64}\\.(png|jpe?g|webp|mp3|ogg|glb)$": {
+          "type": "object", "required": ["type", "bytes"],
+          "properties": {
+            "type": { "enum": ["image/png", "image/jpeg", "image/webp", "audio/mpeg", "audio/ogg", "model/gltf-binary"] },
+            "bytes": { "type": "integer", "minimum": 0, "maximum": 20000000 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "mediaBase": { "type": "string", "maxLength": 500, "description": "Only in GET answers: media files are at {mediaBase}{name} (signed or public URLs)." }
+  },
+  "additionalProperties": false
+}

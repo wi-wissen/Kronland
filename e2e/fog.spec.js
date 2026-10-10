@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
+import { openFreePlay } from './menu.js';
 
 // Fog of war: minimap, enemy castle, selection, fog off (start menu and URL).
 
@@ -97,6 +98,7 @@ test('Fog off via URL: everything visible', async ({ page }) => {
 
 test('Start menu: switch off fog of war', async ({ page }) => {
   await page.goto(playUrl());
+  await openFreePlay(page);
   await expect(page.getByTestId('fog-on')).toHaveAttribute('aria-checked', 'true');
   await page.getByTestId('fog-off').click();
   await expect(page.getByTestId('fog-off')).toHaveAttribute('aria-checked', 'true');

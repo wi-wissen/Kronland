@@ -21,7 +21,7 @@ Bezeichner sind englisch, Oberfläche, Erklärungen und Fehlermeldungen deutsch 
 | Oberfläche | `src/ui/script/`, `src/ui/editor/`, `src/game/EditorView.js` | Code-Panel, Debugger, Abenteuer-Menü, Welteneditor |
 | Level | `src/sim/missions/levels/<ordner>/` | ein Ordner je Level: Kursmissionen (`r1-2` … `r3-m`), Skript-Mission „Der Überfall“, Kampagne: Tutorial und die Kapitel 1–6 |
 
-Spielen: Startmenü → **Programmier-Abenteuer**. Direktstart: `?mission=r1-2` (Kursmissionen `r1-2`, `r1-4`, `r1-5`, `r1-m`, `r2-1`, `r3-m`), `?mission=m1`,
+Spielen: Startmenü → **Programmieren** (Bibliothek, Reihen als Serien). Direktstart: `?mission=r1-2` (Kursmissionen `r1-2`, `r1-4`, `r1-5`, `r1-m`, `r2-1`, `r3-m`), `?mission=m1`,
 ein Level von einem anderen Server mit `?level=https://…/lindgrund.zip` (siehe [Level-Ordner](#level-ordner)).
 
 ## Die Sprache
@@ -438,6 +438,7 @@ lindgrund/
 | Feld | Bedeutung |
 |---|---|
 | `kind` | `adventure` (Code-Panel sichtbar) oder `mission` (Code unsichtbar, normales Spiel) |
+| `difficulty`, `minutes` | optional: `easy`/`normal`/`hard` und geschätzte Spieldauer in Minuten – die Bibliothek zeigt sie und filtert danach (Serien: Durchschnitt, Summe) |
 | `end` | `objectives` (Standard): gewonnen, wenn alle Hauptziele erfüllt sind; verloren mit der Burg oder einem gescheiterten Hauptziel. `script`: nur `victory()`/`defeat()` |
 | `world.base` | `flat` (Wiese, `width`/`height`), `generate` (Zufallskarte, `seed`/`size`) oder `terrain` (Editor-Karte in `world.terrain`) |
 | `world.places` | benannte Orte (Kreise), im Code `place("name")`; mit `make_place` eine gemeinsame Tabelle |
@@ -834,7 +835,7 @@ höchstens 200 KB, Windows-Zeilenenden und BOM werden bereinigt).
 
 ## Welteneditor
 
-Startmenü → Programmier-Abenteuer → **Welteneditor**. Die Vorschau-Simulation läuft nie; Werkzeuge ändern sie
+Startmenü → **Werkstatt** (Welteneditor). Die Vorschau-Simulation läuft nie; Werkzeuge ändern sie
 über `applyEdit()` (`src/sim/editor/edit.js`), der Renderer bekommt dieselben Ereignisse wie im Spiel.
 
 - **Werkzeuge:** Kamera, Heben, Senken, Ebnen, Glätten (gedrückt halten wirkt weiter), Wasser und Land (Wasser

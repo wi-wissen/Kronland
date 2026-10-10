@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kronland.wi7.net/contract/schemas/saves.schema.json",
+  "title": "cloud saves",
+  "description": "GET /api/v1/saves (list), POST/PUT body (write) and the entry returned by writes. GET /api/v1/saves/{id} returns the save envelope (format kronland-save, src/save/format.js) unchanged.",
+  "$ref": "#/$defs/list",
+  "$defs": {
+    "list": {
+      "type": "object", "required": ["saves"],
+      "properties": { "saves": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/entry" } } },
+      "additionalProperties": false
+    },
+    "entry": {
+      "type": "object",
+      "required": ["id", "name", "savedAt", "tick", "mode", "mission", "seed", "players", "fog", "etag"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+        "name": { "type": "string", "maxLength": 80 },
+        "savedAt": { "type": "string" },
+        "tick": { "type": "integer", "minimum": 0 },
+        "mode": { "enum": ["free", "mission"] },
+        "mission": { "type": ["string", "null"] },
+        "seed": { "type": "integer" },
+        "players": { "type": "integer", "minimum": 0 },
+        "fog": { "type": "boolean" },
+        "thumb": { "type": ["string", "null"], "description": "Preview image as data: URL or address." },
+        "size": { "type": "integer", "minimum": 0 },
+        "auto": { "type": "boolean" },
+        "etag": { "type": "string", "description": "Also sent as the ETag header; PUT/DELETE need it as If-Match." }
+      },
+      "additionalProperties": false
+    },
+    "write": {
+      "type": "object", "required": ["envelope"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$", "description": "POST only: id proposed by the game; the server may choose another one." },
+        "envelope": { "type": "object", "required": ["format", "formatVersion", "meta", "state"], "properties": { "format": { "const": "kronland-save" } } },
+        "thumb": { "type": ["string", "null"], "description": "Preview image; left out = keep the stored one." }
+      },
+      "additionalProperties": false
+    }
+  }
+}

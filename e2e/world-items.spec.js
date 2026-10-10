@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
+import { openWorkshop } from './menu.js';
 
 // Items and tracks on tiles (coins, flowers, paths) and hints in the code panel – desktop and phone.
 
@@ -94,8 +95,7 @@ test('Hint in the code panel: amber line and box, the program keeps running, edi
 test('World editor: lay coins and flowers, paint and erase tracks, test play keeps them', async ({ page }) => {
   const errors = await fresh(page);
   await page.goto(playUrl());
-  await page.getByTestId('menu-adventures').click();
-  await page.getByTestId('open-editor').click();
+  await openWorkshop(page);
   await expect(page.getByTestId('world-editor')).toBeVisible();
   await page.waitForFunction(() => !!window.__kronlandEditor, null, SLOW);
   const ed = (fn) => page.evaluate(fn);
@@ -130,7 +130,7 @@ test('World editor: lay coins and flowers, paint and erase tracks, test play kee
   expect(await page.evaluate(() => window.__kronland.sim.map.items.size)).toBe(2);
   expect(await page.evaluate(() => window.__kronland.sim.map.tracks.reduce((a, b) => a + (b > 0), 0))).toBe(painted);
   await page.evaluate(() => window.__kronland.sim.mission.finish(window.__kronland.sim, true, 'test'));
-  await page.getByTestId('to-campaign').click({ timeout: 20_000 });
+  await page.getByTestId('to-library').click({ timeout: 20_000 });
   await expect(page.getByTestId('world-editor')).toBeVisible(SLOW);
   await page.waitForFunction(() => !!window.__kronlandEditor?.sim, null, SLOW);
   await expect.poll(() => ed(() => window.__kronlandEditor.sim.map.items.size), SLOW).toBe(2);

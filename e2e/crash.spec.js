@@ -70,7 +70,7 @@ test('persistent simulation error: dialog, load autosave, after reload "Weitersp
   const dialog = page.getByTestId('crash-dialog');
   await expect(dialog).toBeVisible({ timeout: 60_000 });
   await expect(dialog).toContainText('Das Spiel ist hängen geblieben');
-  await expect(page.getByTestId('crash-latest')).toContainText('Freies Spiel Seed 42');
+  await expect(page.getByTestId('crash-latest')).toContainText('Freies Spiel, Karte 42');
   await expect(page.getByTestId('crash-message')).toContainText('Test error simulation');
   expect(await page.evaluate(() => window.__kronland.paused)).toBe(true);
   await page.screenshot({ path: `${DIR}/dialog-${info.project.name}.png` });
@@ -88,7 +88,7 @@ test('persistent simulation error: dialog, load autosave, after reload "Weitersp
   await page.getByTestId('crash-reload').click();
   await expect(page.getByTestId('start-menu')).toBeVisible({ timeout: 120_000 });
   await expect(page.getByTestId('recovered-hint')).toContainText('Weiterspielen');
-  await expect(page.getByTestId('continue-name')).toContainText('Autosave');
+  await expect(page.getByTestId('continue-card')).toContainText('Automatisch gespeichert');
   await page.screenshot({ path: `${DIR}/start-menu-${info.project.name}.png` });
   await page.getByTestId('continue').click();
   await page.waitForFunction(() => !!window.__kronland && window.__kronland.sim.tick >= 300, null, { timeout: 300_000 });

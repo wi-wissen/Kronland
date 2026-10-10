@@ -137,10 +137,10 @@ step("camera", ui="camera", next=True, …)                              # Prüf
 
 ## Sonderkarten
 
-Einzelne fertige Karten außerhalb der Kampagne, im Startmenü unter **Sonderkarten**
-(`src/ui/mission/SpecialMapsMenu.vue`). Die Liste ist `SPECIAL_MAPS` in `src/sim/missions/registry.js`; sie
+Einzelne fertige Karten außerhalb der Kampagne, im Startmenü unter **Freies Spiel → Karte auswählen**
+(`src/ui/FreePlay.vue`). Die Liste ist `SPECIAL_MAPS` in `src/sim/missions/registry.js`; sie
 erscheinen mit Titel, Zusammenfassung, Briefing und den Wegweisern als „Orte auf der Karte“. Nach dem Ende führt
-„Zurück“ wieder ins Sonderkarten-Menü.
+„Zurück“ wieder ins Freie Spiel.
 
 Schaukasten und Gewimmel sind **Entwicklerwerkzeuge** und bleiben JS-Module im Repo (nie aus einer Level-Datei
 erreichbar). Sie haben dieselben Datenfelder wie `scenario.json` (`players`, `weatherCycle`, `fog`, `noDefeat` …) und
@@ -160,7 +160,7 @@ einen kleinen Haken statt Python:
 wird ein Rechteck eingeebnet, darauf steht alles, was das Spiel zeichnen kann. Kein Nebel (`fog: false`), alle
 Parteien neutral, keine Hauptziele (kein Sieg), `noDefeat`.
 
-- Laden: `play/?mission=showcase` (gern mit `&quality=high`) oder Startmenü → **Sonderkarten** → „Schaukasten“.
+- Laden: `play/?mission=showcase` (gern mit `&quality=high`) oder Startmenü → **Freies Spiel** → „Karte auswählen“ → „Schaukasten“.
 - Finden: Die Ziele-Liste ist ein Wegweiser – jedes Feld ist ein Nebenziel mit „Ziel zeigen“ (Kamerasprung).
 - Felder (von oben nach unten): Helden, Feldgeschütz, Fußangeln, zwei Gesprächsfiguren · jede Truppe (alle Linien
   und Stufen) mit Hauptmann · Gebäude in allen Ausbaustufen (je Typ links Stufe 1) · Arbeiter jedes Berufs (stehen
@@ -178,7 +178,7 @@ Parteien neutral, keine Hauptziele (kein Sieg), `noDefeat`.
 `src/sim/missions/stress.js` (ID `bustle`): Karte 160×160 (Seed 11), vier Spieler (Mensch + drei KI „schwer“),
 kein Nebel, `noDefeat`, kein Sieg. Zweck: Darstellung und Simulation unter Last prüfen.
 
-- Laden: `play/?mission=bustle` oder Startmenü → **Sonderkarten** → „Gewimmel“. Messen mit F3/`?dev=1`
+- Laden: `play/?mission=bustle` oder Startmenü → **Freies Spiel** → „Karte auswählen“ → „Gewimmel“. Messen mit F3/`?dev=1`
   (Bilder/s, Zeichenaufrufe, Dreiecke, Figuren je Stufe).
 - Aufbau (`setup`): je Spieler eine Stadt aus `TOWN` (Wohnhäuser und Höfe in Stufe 3, alle Werkstätten,
   Militärgebäude, Türme, Zierden, vier Schächte) mit allen Arbeitsplätzen besetzt, 50 Leibeigene im Wald, ein
@@ -198,7 +198,7 @@ kein Nebel, `noDefeat`, kein Sieg. Zweck: Darstellung und Simulation unter Last 
 
 `Engine.uiState().mission` liefert `{ objectives, tutorial, messages, tributes, camera, result, pointer }`
 (`pointer`: Knöpfe, auf die gerade gezeigt wird – Tutorial-Schritt oder erstes Ziel mit `hint.ui`).
-Komponenten in `src/ui/mission/`: `CampaignMenu`, `MissionHud` (Coach, Ziele, Angebote, Dialog, Zeiger),
+Komponenten in `src/ui/mission/`: `MissionHud` (Coach, Ziele, Angebote, Dialog, Zeiger),
 `MissionResult`.
 
 **Dialoge** (`DialogBox.vue`): eine Mitteilung nach der anderen. Weiter geht es erst, wenn die Anzeigezeit um ist

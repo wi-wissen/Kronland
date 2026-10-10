@@ -28,6 +28,21 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Server and sources come from the repository variables (Settings > Variables), not from Git; unset = stage 0
+      - name: Write kronland.config.json
+        env:
+          KRONLAND_SERVER: ${{ vars.KRONLAND_SERVER }}
+          KRONLAND_SOURCES: ${{ vars.KRONLAND_SOURCES }}
+        run: |
+          node -e '
+            const e = process.env;
+            const server = (e.KRONLAND_SERVER || "").trim().replace(/\/+$/, "");
+            const sources = [...new Set((e.KRONLAND_SOURCES || "").split(/[\s,]+/).filter(Boolean))];
+            if (!server && !sources.length) process.exit(0);
+            for (const u of [server, ...sources].filter(Boolean)) if (!/^https?:\/\/\S+$/.test(u)) throw new Error("not an http(s) address: " + u);
+            const doc = { format: "kronland-config", version: 1, ...(server && { server }), sources };
+            require("fs").writeFileSync("public/kronland.config.json", JSON.stringify(doc, null, 2) + "\n");
+          '
       - run: npm run build
         env:
           KRONLAND_SITE_URL: https://kronland.wi7.net/

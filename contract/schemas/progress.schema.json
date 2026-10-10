@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kronland.wi7.net/contract/schemas/progress.schema.json",
+  "title": "progress events",
+  "description": "POST /api/v1/progress. The id (UUID) makes repeated sending harmless. `code` holds the editable code sections (section id -> code), all together up to 64 KB.",
+  "type": "object",
+  "required": ["events"],
+  "properties": {
+    "events": { "type": "array", "minItems": 1, "maxItems": 100, "items": { "$ref": "#/$defs/event" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "event": {
+      "type": "object",
+      "required": ["id", "at", "pack", "level", "type"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+        "at": { "type": "string", "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(\\.\\d+)?Z$" },
+        "pack": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$", "maxLength": 64 },
+        "packHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "level": { "type": "string", "pattern": "^[\\w-]+$", "maxLength": 64 },
+        "type": { "enum": ["started", "completed", "failed", "run"] },
+        "attempts": { "type": "integer", "minimum": 0 },
+        "seconds": { "type": "integer", "minimum": 0 },
+        "score": { "type": "integer" },
+        "code": { "type": "object", "maxProperties": 32, "additionalProperties": { "type": "string", "maxLength": 65536 } }
+      },
+      "additionalProperties": false
+    }
+  }
+}

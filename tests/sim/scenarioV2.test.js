@@ -353,3 +353,20 @@ describe('Outline without running the code', () => {
     expect(scenarioToDef(LEVELS.find((l) => l.id === 'm1')).goals.map((g) => g.id)).toEqual(['barracks', 'army', 'camp']);
   });
 });
+
+describe('library fields difficulty and minutes', () => {
+  const base = () => ({ format: 'kronland-scenario', version: 2, id: 'x', players: [{ kind: 'human' }], sections: [] });
+  it('are optional and checked when present', () => {
+    expect(validateScenario(base())).toEqual([]);
+    expect(validateScenario({ ...base(), difficulty: 'hard', minutes: 45 })).toEqual([]);
+    expect(validateScenario({ ...base(), difficulty: 'brutal' })).toHaveLength(1);
+    for (const minutes of [0, -3, 2.5, '20', 100000]) expect(validateScenario({ ...base(), minutes }), String(minutes)).toHaveLength(1);
+  });
+  it('reach the mission definition', () => {
+    expect(scenarioToDef({ ...base(), difficulty: 'easy', minutes: 12 })).toMatchObject({ difficulty: 'easy', minutes: 12 });
+    expect(scenarioToDef(base())).toMatchObject({ difficulty: null, minutes: null });
+  });
+  it('every bundled level has a valid value', () => {
+    for (const l of LEVELS) { expect(['easy', 'normal', 'hard'], l.id).toContain(l.difficulty); expect(l.minutes, l.id).toBeGreaterThan(0); }
+  });
+});

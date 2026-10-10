@@ -1,0 +1,216 @@
+openapi: 3.1.0
+info:
+  title: Kronland game API
+  version: 1.0.0   # = contract/VERSION
+  description: |
+    Everything the game (a static web app) uses from a server - nothing else. Paths are relative to the server
+    base URL from public/kronland.config.json. The data formats are the JSON Schemas in `schemas/`; this file only
+    says which endpoint takes and returns which.
+
+    Authentication: OAuth 2 Authorization Code with PKCE (public client `kronland-game`, scope `play`;
+    `packs:write` for the editor). Bearer token in the `Authorization` header.
+
+    Errors: every 4xx/5xx answer has the body of `schemas/error.schema.json`:
+    `{ "error": { "code": "packs.err.schema", "params": { "path": "/levels/0/id" } } }`.
+    `code` is an i18n key of the game; the game shows its own text for it.
+
+    Files of a pack delivered by `GET /api/v1/packs/{id}/manifest` are at `…/api/v1/packs/{id}/files/{name}`
+    (the server may redirect to signed storage URLs). For static sources they lie next to pack.json.
+    CORS: every endpoint answers `Access-Control-Allow-Origin` for the game's origin; static sources need `*`.
+servers:
+  - url: https://api.kronland.example
+security:
+  - bearer: []
+paths:
+  /catalog.json:
+    get:
+      summary: Public catalog of the server (first source of the game)
+      security: []
+      responses:
+        '200': { description: Catalog, content: { application/json: { schema: { $ref: 'schemas/catalog.schema.json' } } } }
+  /api/v1/me:
+    get:
+      summary: Who is signed in
+      responses:
+        '200': { description: Name and account page, content: { application/json: { schema: { $ref: 'schemas/me.schema.json' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/packs:
+    get:
+      summary: Catalog entries for the signed-in player (unlocked packs with manifest, own packs with own=true)
+      responses:
+        '200': { description: Catalog, content: { application/json: { schema: { $ref: 'schemas/catalog.schema.json' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/packs/{id}:
+    parameters: [{ $ref: '#/components/parameters/PackId' }]
+    get:
+      summary: Own pack for the editor (levels inline)
+      responses:
+        '200': { description: Pack document, content: { application/json: { schema: { $ref: 'schemas/pack-document.schema.json' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      summary: Create or replace an own pack (private on creation). Media must be uploaded first.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: 'schemas/pack-document.schema.json' } } } }
+      responses:
+        '200': { description: Catalog entry of the saved pack, content: { application/json: { schema: { $ref: 'schemas/catalog.schema.json#/$defs/entry' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Delete an own pack
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/packs/{id}/media:
+    parameters: [{ $ref: '#/components/parameters/PackId' }]
+    post:
+      summary: Upload a media file (multipart field `file`); the answer names it after its SHA-256
+      requestBody: { required: true, content: { multipart/form-data: { schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } } } } }
+      responses:
+        '200':
+          description: Stored file
+          content: { application/json: { schema: { type: object, required: [name, type, bytes], properties: { name: { type: string, description: '<sha256>.<ext>' }, type: { type: string }, bytes: { type: integer } } } } }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/v1/packs/{id}/manifest:
+    parameters: [{ $ref: '#/components/parameters/PackId' }]
+    get:
+      summary: pack.json of a pack (unlisted links work without a token; own private packs with one)
+      security: [{}, { bearer: [] }]
+      responses:
+        '200': { description: Manifest, content: { application/json: { schema: { $ref: 'schemas/pack.schema.json' } } } }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/packs/{id}/files/{name}:
+    parameters: [{ $ref: '#/components/parameters/PackId' }, { name: name, in: path, required: true, schema: { type: string } }]
+    get:
+      summary: Level or media file of a pack named after its SHA-256 (may redirect to a signed URL)
+      security: [{}, { bearer: [] }]
+      responses:
+        '200': { description: File }
+        '302': { description: Signed URL }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/saves:
+    get:
+      summary: Own save games (metadata and preview)
+      responses:
+        '200': { description: List, content: { application/json: { schema: { $ref: 'schemas/saves.schema.json' } } } }
+    post:
+      summary: Create a save game
+      requestBody: { required: true, content: { application/json: { schema: { $ref: 'schemas/saves.schema.json#/$defs/write' } } } }
+      responses:
+        '201': { description: Created, headers: { ETag: { schema: { type: string } } }, content: { application/json: { schema: { $ref: 'schemas/saves.schema.json#/$defs/entry' } } } }
+  /api/v1/saves/{id}:
+    parameters: [{ $ref: '#/components/parameters/SaveId' }]
+    get:
+      summary: The save envelope unchanged (format kronland-save). Without a token only with a valid signature (`expires`, `signature`).
+      security: [{}, { bearer: [] }]
+      parameters:
+        - { name: expires, in: query, schema: { type: integer } }
+        - { name: signature, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Envelope, headers: { ETag: { schema: { type: string } } }, content: { application/json: { schema: { type: object, required: [format, meta, state] } } } }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      summary: Overwrite a save game; `If-Match` must carry the ETag last seen
+      parameters: [{ name: If-Match, in: header, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: 'schemas/saves.schema.json#/$defs/write' } } } }
+      responses:
+        '200': { description: Saved, headers: { ETag: { schema: { type: string } } }, content: { application/json: { schema: { $ref: 'schemas/saves.schema.json#/$defs/entry' } } } }
+        '412': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Delete a save game
+      parameters: [{ name: If-Match, in: header, schema: { type: string } }]
+      responses:
+        '204': { description: Deleted }
+        '412': { $ref: '#/components/responses/Error' }
+  /api/v1/progress:
+    post:
+      summary: Progress events (idempotent by event id)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: 'schemas/progress.schema.json' } } } }
+      responses:
+        '204': { description: Stored }
+        '422': { $ref: '#/components/responses/Error' }
+  /oauth/authorize:
+    get:
+      summary: Sign-in page of the server (browser redirect, not fetch). Redirects back to `redirect_uri?code=…&state=…`.
+      security: []
+      parameters:
+        - { name: response_type, in: query, required: true, schema: { const: code } }
+        - { name: client_id, in: query, required: true, schema: { const: kronland-game } }
+        - { name: redirect_uri, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge_method, in: query, required: true, schema: { const: S256 } }
+        - { name: state, in: query, required: true, schema: { type: string } }
+        - { name: scope, in: query, schema: { type: string, example: 'play packs:write' } }
+      responses:
+        '302': { description: Redirect back to the game }
+  /oauth/token:
+    post:
+      summary: Exchange the code for tokens (grant_type authorization_code) or refresh them (grant_type refresh_token)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type, client_id]
+              properties:
+                grant_type: { enum: [authorization_code, refresh_token] }
+                client_id: { const: kronland-game }
+                code: { type: string }
+                redirect_uri: { type: string }
+                code_verifier: { type: string }
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: Tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, refresh_token, token_type, expires_in]
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+                  token_type: { const: Bearer }
+                  expires_in: { type: integer, description: seconds }
+        '400': { description: 'OAuth error (invalid_grant), body {"error":"invalid_grant"}' }
+  /oauth/revoke:
+    post:
+      summary: Revoke a token on sign-out (RFC 7009)
+      description: >
+        The game sends the refresh token (`token_type_hint=refresh_token`), without one the access token (`access_token`).
+        The server must revoke the whole grant: revoking the refresh token also invalidates the access tokens issued
+        for the same grant, and the refresh token can no longer be used at `/oauth/token`. Unknown or already invalid
+        tokens are answered with 200 as well (RFC 7009 section 2.2), so the answer reveals nothing about a token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [token, client_id]
+              properties:
+                token: { type: string }
+                token_type_hint: { enum: [refresh_token, access_token] }
+                client_id: { const: kronland-game }
+      responses:
+        '200': { description: Revoked (or the token was not known); empty body }
+        '400': { description: 'OAuth error as in RFC 6749 section 5.2, body {"error":"invalid_request"} (token missing) or {"error":"unsupported_token_type"}' }
+  /broadcasting/auth:
+    post:
+      summary: Relay channel authorisation (Laravel standard, multiplayer - not used by the game yet)
+      responses:
+        '200': { description: Pusher auth signature }
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer }
+  parameters:
+    PackId: { name: id, in: path, required: true, schema: { type: string, pattern: '^[a-z0-9]+([.-][a-z0-9]+)*$' } }
+    SaveId: { name: id, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$' } }
+  responses:
+    Error:
+      description: Error in the game's error format
+      content: { application/json: { schema: { $ref: 'schemas/error.schema.json' } } }
