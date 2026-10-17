@@ -99,7 +99,7 @@ Drehung des einzelnen Baums), projiziert den Bildpunkt in die Bildebene jeder Au
 gespeicherten Normalen mit dem Spiellicht; Nebel und Farbton je Baum wirken wie beim Modell (Winter: Farbton abgeschwächt).
 
 - Kosten: 2 statt ~250 Dreiecke je fernem Baum; kein Download (Atlas wird zur Laufzeit gerendert, 768² auf „hoch“, 512²
-  sonst, je Modell zwei Atlanten). Auf „niedrig“ (Handy) im mittleren Zoom 281 000 → 90 000 Dreiecke, flach 523 000 → 325 000.
+  sonst, je Modell zwei Atlanten; ohne echte GPU 256² ohne Kantenglättung, ~0,1 statt ~0,8 s für alle Arten). Auf „niedrig“ (Handy) im mittleren Zoom 281 000 → 90 000 Dreiecke, flach 523 000 → 325 000.
 - Vergleich: `?impostor=off` (wird beim Laden des Moduls gelesen, die App räumt die Adresse danach auf).
 - Prüfung: `tests/render/impostor.test.js` (Abbildung der Halbkugel, Auswahl der Aufnahmen), `e2e/winter.spec.js`,
   `e2e/camera.spec.js` (Natur-Detailstufen).

@@ -17,8 +17,13 @@ const OFF = typeof location !== 'undefined' && new URLSearchParams(location.sear
 /** Impostors switched off? (?impostor=off for comparison: then the farthest level stays the reduced model) */
 export const impostorsOff = () => OFF;
 
-/** Pixels per view by graphics level (atlas = 8 × cell: 768² on "high", 512² otherwise). */
-export const impostorCell = (tier) => (tier === 'high' ? 96 : 64);
+/**
+ * Bake settings by graphics level: pixels per view (atlas = 8 × cell: 768² on "high", 512² otherwise) and
+ * multisampling. Without a real GPU (software rasterizer, quality.software) small and without multisampling:
+ * ~0.1 s instead of ~0.8 s for all kinds, the far trees are tiny there anyway.
+ * @param {{ tier: string, software?: boolean }} q
+ */
+export const impostorBake = (q) => (q.software ? { cell: 32, samples: 0 } : { cell: q.tier === 'high' ? 96 : 64, samples: 4 });
 
 /**
  * Upper-hemisphere direction (y ≥ 0) → hemi-octahedral coordinates in [−1, 1]².
@@ -101,7 +106,7 @@ void impBasis(vec3 d, out vec3 r, out vec3 u) {
  * @param {THREE.WebGLRenderer} renderer
  * @param {THREE.BufferGeometry} geometry level 0 of the model (game units)
  * @param {THREE.Material} source material of the model (map, normalMap)
- * @param {{ grid?: number, cell?: number }} [opts]
+ * @param {{ grid?: number, cell?: number, samples?: number }} [opts]
  * @returns {{ albedo: THREE.Texture, normal: THREE.Texture, center: THREE.Vector3, radius: number, grid: number, dispose: () => void }}
  */
 export function bakeImpostor(renderer, geometry, source, opts = {}) {
@@ -109,7 +114,7 @@ export function bakeImpostor(renderer, geometry, source, opts = {}) {
   if (!geometry.boundingSphere) geometry.computeBoundingSphere();
   const center = geometry.boundingSphere.center.clone(), radius = geometry.boundingSphere.radius;
   const make = () => {
-    const rt = new THREE.WebGLRenderTarget(size, size, { samples: 4, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
+    const rt = new THREE.WebGLRenderTarget(size, size, { samples: opts.samples ?? 4, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
     rt.scissorTest = true;
     return rt;
   };

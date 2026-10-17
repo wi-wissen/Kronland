@@ -48,7 +48,7 @@ import { COMBAT } from '../sim/data/combat.js';
 import { wrapAngle } from './angle.js';
 import { pickFigure, inDepth } from './pick.js';
 import { findSpinners, turnParts } from './movingParts.js';
-import { withImpostor, impostorsOff, impostorCell } from './impostor.js';
+import { withImpostor, impostorsOff, impostorBake } from './impostor.js';
 
 /** Player colour; figures without owner (conversation figures) in neutral brown. */
 /**
@@ -390,7 +390,7 @@ export class Renderer {
     // farthest level of the model trees as impostor: photographed once per kind (no download); a reduced
     // crown of ~250 triangles looked like crumpled paper
     cache.trees.imp ??= cache.trees.variants.map((v) => (v.model && v.levels.length > 1 && !impostorsOff()
-      ? withImpostor(this.renderer, v, { cell: impostorCell(q.tier) }) : v));
+      ? withImpostor(this.renderer, v, impostorBake(q)) : v));
     const variants = cache.trees.imp;
     const byKind = { leafy: [], birch: [], conifer: [] };
     variants.forEach((v, i) => byKind[v.kind].push(i));
@@ -543,7 +543,7 @@ export class Renderer {
     const kinds = this.natureCache.scatter ??= scatterKinds(this.natureUniforms);
     // bush model: farthest level as impostor like the trees
     if (kinds.bush?.model && kinds.bush.levels?.length > 1 && !kinds.bush.materials && !impostorsOff()) {
-      const b = withImpostor(this.renderer, { levels: kinds.bush.levels, material: kinds.bush.material, winter: kinds.bush.season ?? null }, { cell: impostorCell(this.quality.tier) });
+      const b = withImpostor(this.renderer, { levels: kinds.bush.levels, material: kinds.bush.material, winter: kinds.bush.season ?? null }, impostorBake(this.quality));
       kinds.bush = { ...kinds.bush, geometry: b.levels[0], levels: b.levels, materials: b.materials, season: b.winter };
     }
     const dens = this.quality.scatter;

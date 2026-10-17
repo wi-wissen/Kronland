@@ -1,7 +1,7 @@
 // Impostor math (src/render/impostor.js): hemi-octahedral layout covers every camera tilt and rotation; the view
 // selection blends the views around the actual direction.
 import { describe, it, expect } from 'vitest';
-import { hemiOctEncode, hemiOctDecode, viewDir, viewBasis, viewBlend, IMPOSTOR_GRID } from '../../src/render/impostor.js';
+import { hemiOctEncode, hemiOctDecode, viewDir, viewBasis, viewBlend, impostorBake, IMPOSTOR_GRID } from '../../src/render/impostor.js';
 
 const norm = (v) => Math.hypot(...v);
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -62,5 +62,13 @@ describe('view selection', () => {
     const { cells, weights } = viewBlend(/** @type {any} */ (d));
     const best = cells[weights.indexOf(Math.max(...weights))];
     expect(viewDir(best[0], best[1])[1]).toBeLessThan(0.35);
+  });
+});
+
+describe('bake settings', () => {
+  it('software rendering bakes small and without multisampling (start time in CI), real GPUs sharper', () => {
+    expect(impostorBake({ tier: 'low', software: true })).toEqual({ cell: 32, samples: 0 });
+    expect(impostorBake({ tier: 'low' })).toEqual({ cell: 64, samples: 4 });
+    expect(impostorBake({ tier: 'high' })).toEqual({ cell: 96, samples: 4 });
   });
 });
