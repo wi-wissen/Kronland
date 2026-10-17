@@ -33,8 +33,8 @@ const AUDITION_DIR = path.join(VOICE_DIR, 'audition');
 export const LOUDNESS = 'loudnorm=I=-18:TP=-1.5:LRA=11';
 /** Inner pauses above this length (s) reject a recording (regenerated). */
 export const MAX_PAUSE = Number(process.env.VOICE_MAX_PAUSE ?? 0.8);
-/** Safety net for the pauses the model still makes: inner silences over 0.5 s are cut down to about 0.5 s (silenceremove keeps stop_silence on both sides). */
-export const TRIM = 'silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-40dB:stop_silence=0.2';
+/** Safety net for the pauses the model still makes: inner silences over 0.6 s end up at about 0.9 s (silenceremove leaves stop_duration + stop_silence), shorter ones stay as they are. */
+export const TRIM = 'silenceremove=stop_periods=-1:stop_duration=0.6:stop_threshold=-40dB:stop_silence=0.3';
 const TRIES = Number(process.env.VOICE_TRIES ?? 6);
 const PARALLEL = Number(process.env.VOICE_PARALLEL ?? 5);
 
@@ -315,12 +315,12 @@ async function trim(only) {
   console.log(`${n} recordings trimmed`);
 }
 
-/** Table of the inner pauses (over MAX_PAUSE) per role over the game files. */
+/** Table of the inner pauses over 1.0 s (what trim leaves is about 0.9 s) per role over the game files. */
 async function pauses(only) {
   const { lines: all } = await collectLines();
   const rows = {};
   for (const l of all.filter((x) => (!only.length || only.includes(x.voice)) && fs.existsSync(path.join(GAME_DIR, x.file)))) {
-    const g = innerPauses(path.join(GAME_DIR, l.file)), r = (rows[l.voice] ??= { files: 0, withPause: 0, longest: 0 });
+    const g = innerPauses(path.join(GAME_DIR, l.file), 1.0), r = (rows[l.voice] ??= { files: 0, withPause: 0, longest: 0 });
     r.files++;
     if (g.length) { r.withPause++; r.longest = Math.max(r.longest, ...g); }
   }

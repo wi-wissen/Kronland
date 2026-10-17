@@ -325,8 +325,8 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
    (EBU R128, −18 LUFS, Spitze −1,5 dBTP) und als MP3 (mono, 48 kbit/s) abgelegt.
 8. **Pausen.** Das Klonen übernimmt die Pausen der Vorlage und setzt eigene zwischen die Sätze (gemessen: bis zu
    11,7 s). Aufnahmen mit inneren Pausen über 0,8 s (`silencedetect`, −40 dB; `VOICE_MAX_PAUSE`) werden verworfen
-   und neu erzeugt (außer im letzten Versuch). Danach kürzt `silenceremove` jede innere Pause über 0,5 s auf etwa
-   0,5 s (vor der Lautheitsangleichung). Vorlagen mit langen Pausen (gemessen: nelia, taran, soldierF, serf,
+   und neu erzeugt (außer im letzten Versuch). Danach kürzt `silenceremove` jede innere Pause über 0,6 s auf etwa
+   0,9 s (kürzere bleiben, vor der Lautheitsangleichung). Vorlagen mit langen Pausen (gemessen: nelia, taran, soldierF, serf,
    serfF, cannon) sollten beim nächsten Neuaufnehmen gekürzt werden.
 
 ### Modelle
@@ -353,7 +353,7 @@ node scripts/asset-gen/voice.mjs audition [rolle …]          # Hörproben je B
 node scripts/asset-gen/voice.mjs pick <rolle> <nr> [quelle]  # Entwurf als Vorlage übernehmen
 node scripts/asset-gen/voice.mjs lines [rolle …]             # alle Dialoge und Sprüche vertonen (fortsetzbar)
 node scripts/asset-gen/voice.mjs trim [rolle …]              # innere Pausen kürzen: raw/ → Spieldateien, neu auf −18 LUFS
-node scripts/asset-gen/voice.mjs pauses [rolle …]            # Tabelle: Dateien mit inneren Pausen über 0,8 s je Rolle
+node scripts/asset-gen/voice.mjs pauses [rolle …]            # Tabelle: Dateien mit inneren Pausen über 1,0 s je Rolle
 ```
 
 Neue oder geänderte Texte: `lines` erzeugt nur, was fehlt (der Schlüssel hängt am Text). Fehlt eine Aufnahme,
