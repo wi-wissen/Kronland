@@ -167,10 +167,10 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
       const a = s.spawnLeader(0, defId, x, y);
       s.spawnLeader(1, defId, x + (fight ? 5 : 3), y + 2);
       if (fight) {
-        // both squads hold their ground and fire at each other; camera between them, side-on
+        // both squads hold their ground and fire at each other; camera between them
         for (let k = 0; k < 30; k++) e.stepOnce();
         e.paused = false;
-        return { x: x + 2.5, y: y + 1, yaw: 0.7 + Math.PI / 2 };
+        return { x: x + 2.5, y: y + 1, yaw: 0.7 };
       }
       for (let k = 0; k < 5; k++) e.stepOnce();
       if (march) {
