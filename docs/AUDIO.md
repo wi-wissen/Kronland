@@ -324,6 +324,14 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
 7. **Vertonen.** Alle Sätze werden aus der Vorlage geklont, geprüft, auf dieselbe Lautheit gebracht
    (EBU R128, −18 LUFS, Spitze −1,5 dBTP) und als MP3 (mono, 48 kbit/s) abgelegt.
 
+**Pausen.** Das Klonen übernimmt lange Pausen (2–3,5 s, Spitze 11,7 s). `voice.mjs` kürzt innere Stille über 0,5 s
+auf etwa 0,4 s (`TRIM_PAUSES`, ffmpeg `silenceremove`) vor der Lautheitsanpassung, erzeugt Aufnahmen mit einer
+Roh-Pause über 2,5 s neu (`VOICE_PAUSE_REGENERATE`) und lehnt Ergebnisse mit Pause über 0,8 s ab. Vorhandene
+Dateien: `node scripts/asset-gen/voice.mjs trim [rolle …]` (nimmt `raw/`, sonst die Spieldatei). Messung:
+`node scripts/asset-gen/pauses.mjs [ordner]`. Stand: Dateien mit Pause > 0,7 s de 136 → 27, en 131 → 24, längste
+Pause 0,8–0,9 s. Dieser Lauf kürzte die Spieldateien (kein `assets-src/` vorhanden); ob die Vorlagen selbst lange
+Pausen haben, ist noch ungeprüft.
+
 ### Modelle
 
 | Zweck | Modell (über OpenRouter, `/api/v1/audio/speech` bzw. `/chat/completions`) |
