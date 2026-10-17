@@ -8,6 +8,7 @@ import { instancedParts } from './assets.js';
 import { getQuality } from './quality.js';
 import { natureDetailTexture } from './naturetex.js';
 import { TREE_MODELS, BUSH_MODEL, TREE_LOD_FILES, BUSH_LOD_FILES, seasonLevels } from './treeModels.js';
+import { IMPOSTOR, impostorAtlas, impostorMaterial } from './impostor.js';
 
 /**
  * Texture per nature kind (bush also uses the broadleaf trees' texture): packed channels (R, G), repetitions per tile, strength per channel, mask and colour accent.
@@ -327,11 +328,12 @@ export function treeVariants(detail, shared) {
  * far], low level [simple, far].
  * @param {boolean} detail
  * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
- * @param {{ models?: boolean }} [opts] models: false forces the procedural trees
+ * @param {{ models?: boolean, gl?: THREE.WebGLRenderer }} [opts] models: false forces the procedural trees; gl: renderer
+ *   for baking the impostors (far level of the models)
  */
 export function treeLodVariants(detail, shared, opts = {}) {
   if (opts.models !== false) {
-    const m = treeModelVariants(detail, shared);
+    const m = treeModelVariants(detail, shared, opts.gl);
     if (m) return m;
   }
   const near = treeVariants(detail, shared);
@@ -416,15 +418,49 @@ export function natureModelLevels(model, height, files) {
   if (!base) return null;
   const material = base[0].material;
   for (const p of base) p.geometry.dispose();
-  const geos = files.map((k) => {
-    const parts = instancedParts(modelFile(model.name, k));
-    if (!parts) return null;
-    const g = fitNatureGeometry(bareParts(parts), ref, height, !!model.cross);
-    for (const p of parts) p.geometry.dispose();
-    return g;
-  });
+  const geos = files.map((k) => natureModelGeometry(model, ref, height, k));
   const levels = seasonLevels(geos);
   return levels && { levels, material };
+}
+
+/** One LOD file of a model as fitted geometry, or null if not loaded. */
+function natureModelGeometry(model, ref, height, k) {
+  const parts = instancedParts(modelFile(model.name, k));
+  if (!parts) return null;
+  const g = fitNatureGeometry(bareParts(parts), ref, height, !!model.cross);
+  for (const p of parts) p.geometry.dispose();
+  return g;
+}
+
+/**
+ * Levels and materials of a model variant: the mesh levels (files) with the model material, then the far level as an
+ * impostor baked from the original (impostor.js). Without WebGL or if baking fails, the last mesh level stays as the
+ * far level (same level count, so the LOD thresholds keep their meaning).
+ * @param {{name: string, cross?: boolean}} model @param {number} height @param {number[]} files
+ * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
+ * @param {{ wind: number, bend: number, snowCap: boolean, tintMix?: number }} matOpts
+ * @param {THREE.WebGLRenderer} [gl]
+ * @returns {{ levels: THREE.BufferGeometry[], materials: THREE.Material[], material: THREE.Material }|null}
+ */
+export function natureModelVariant(model, height, files, shared, matOpts, gl) {
+  const m = natureModelLevels(model, height, files);
+  if (!m) return null;
+  const material = natureModelMaterial(shared, m.material, matOpts);
+  const levels = [...m.levels], materials = levels.map(() => material);
+  const cellW = IMPOSTOR.cellWidth[getQuality().tier] ?? IMPOSTOR.cellWidth.high;
+  const atlas = impostorAtlas(gl, `${model.name}:${cellW}`, () => {
+    // bake from the original (also on "low", where it is not drawn itself)
+    const g = files[0] === 0 ? null : natureModelGeometry(model, modelBox(model.name), height, 0);
+    return { geometry: g ?? m.levels[0], material: m.material, dispose: !!g };
+  }, cellW);
+  if (atlas) {
+    levels.push(atlas.geometry);
+    materials.push(impostorMaterial(shared, atlas, { snowCap: matOpts.snowCap, tintMix: matOpts.tintMix ?? 1 }));
+  } else {
+    levels.push(levels[levels.length - 1]);
+    materials.push(material);
+  }
+  return { levels, materials, material };
 }
 
 /**
@@ -444,32 +480,29 @@ function natureModelMaterial(shared, src, opts) {
  * Tree variants from the own models (summer) including winter version, or null if a summer model is missing.
  * winter() only builds the winter levels when they are needed (models are reloaded on demand).
  * @param {boolean} detail @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
+ * @param {THREE.WebGLRenderer} [gl] for the impostors
  */
-export function treeModelVariants(detail, shared) {
+export function treeModelVariants(detail, shared, gl) {
   const files = detail ? TREE_LOD_FILES.detail : TREE_LOD_FILES.simple;
   const out = [];
   for (const t of TREE_MODELS) {
-    const m = natureModelLevels(t, t.height, files);
-    if (!m) return null;
     // summer: shader snow cap on – only applies while the winter version is still loading or missing
-    const material = natureModelMaterial(shared, m.material, { wind: 0.03, bend: t.bend, snowCap: true });
+    const m = natureModelVariant(t, t.height, files, shared, { wind: 0.03, bend: t.bend, snowCap: true }, gl);
+    if (!m) return null;
     out.push({
-      kind: t.kind, model: t.name, geometry: m.levels[0], levels: m.levels, material, scale: 1,
-      winter: seasonVariant(t, files, shared, 0.03),
+      kind: t.kind, model: t.name, geometry: m.levels[0], levels: m.levels, material: m.material, materials: m.materials, scale: 1,
+      winter: seasonVariant(t, files, shared, 0.03, gl),
     });
   }
   return out;
 }
 
-/** Winter version of a kind (lazy): {levels, material} or null while/if the model is missing. */
-function seasonVariant(t, files, shared, wind) {
+/** Winter version of a kind (lazy): {levels, material, materials} or null while/if the model is missing. */
+function seasonVariant(t, files, shared, wind, gl) {
   let made = null;
   return () => {
-    if (made) return made;
-    const m = natureModelLevels(t.winter, t.height, files);
-    if (!m) return null;
     // snow is in the model; colour variation only weak (otherwise yellow-tinted snow with autumn dabs)
-    made = { levels: m.levels, material: natureModelMaterial(shared, m.material, { wind, bend: t.bend, snowCap: false, tintMix: 0.3 }) };
+    made ??= natureModelVariant(t.winter, t.height, files, shared, { wind, bend: t.bend, snowCap: false, tintMix: 0.3 }, gl);
     return made;
   };
 }
@@ -477,15 +510,12 @@ function seasonVariant(t, files, shared, wind) {
 /**
  * Bush from the own model (summer, winter lazy) for the decoration scatter, or null.
  * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
+ * @param {THREE.WebGLRenderer} [gl] for the impostor
  */
-export function bushModelVariant(shared) {
-  const m = natureModelLevels(BUSH_MODEL, BUSH_MODEL.height, BUSH_LOD_FILES);
+export function bushModelVariant(shared, gl) {
+  const m = natureModelVariant(BUSH_MODEL, BUSH_MODEL.height, BUSH_LOD_FILES, shared, { wind: 0.02, bend: BUSH_MODEL.bend, snowCap: true }, gl);
   if (!m) return null;
-  return {
-    levels: m.levels,
-    material: natureModelMaterial(shared, m.material, { wind: 0.02, bend: BUSH_MODEL.bend, snowCap: true }),
-    winter: seasonVariant(BUSH_MODEL, BUSH_LOD_FILES, shared, 0.02),
-  };
+  return { ...m, winter: seasonVariant(BUSH_MODEL, BUSH_LOD_FILES, shared, 0.02, gl) };
 }
 
 export function stumpVariant(shared) {
@@ -588,7 +618,7 @@ function rockGeo(seed, size = 1) {
  * Scatter kinds. Each: { name, geometry, material, winter: visible in winter }; the bush model additionally with
  * levels (LOD levels) and season() (winter version).
  * @param {{ uTime: {value:number}, uSnow: {value:number} }} shared
- * @param {{ models?: boolean }} [opts] models: false = procedural bushes
+ * @param {{ models?: boolean, gl?: THREE.WebGLRenderer }} [opts] models: false = procedural bushes; gl: for the bush impostor
  */
 export function scatterKinds(shared, opts = {}) {
   // distance at which small decoration is faded out (set by the renderer per graphics level and field of view)
@@ -629,9 +659,9 @@ export function scatterKinds(shared, opts = {}) {
   for (const n of ['A', 'B', 'C', 'D', 'E']) kay(`nature/rock_single_${n}`, 'kk' + n, true, true, kayRock);
   for (const n of ['A', 'B', 'C']) kay(`nature/mountain_${n}`, 'mt' + n, true, true, kayRock);
   // own bush model instead of the procedural bushes (LOD levels and winter version, see bushModelVariant)
-  const bush = opts.models === false ? null : bushModelVariant(shared);
+  const bush = opts.models === false ? null : bushModelVariant(shared, opts.gl);
   if (bush) {
-    kinds.bush = { geometry: bush.levels[0], levels: bush.levels, material: bush.material, winter: true, season: bush.winter, model: true };
+    kinds.bush = { geometry: bush.levels[0], levels: bush.levels, material: bush.material, materials: bush.materials, winter: true, season: bush.winter, model: true };
     delete kinds.bushB;
   }
   return kinds;

@@ -157,7 +157,7 @@ Aufteilung beim freien Spiel (Desktop):
 |---|--:|--:|
 | Figuren, Spielmodell (mit Skelett und Animationen) | 7 | 6,5 |
 | Gebäude der ersten Stufe, Gerüst, Felsen (je mit 2 Detailstufen) | 25 | 4,5 |
-| Bäume und Büsche (Sommer, 3 Stufen) | 18 | 3,8 |
+| Bäume und Büsche (Sommer, Original und `.lod2`; Fernstufe als Impostor zur Laufzeit) | 12 | 3,8 |
 | Code, Seiten | 8 | 2,0 |
 | Boden- und Naturtexturen | 12 | 1,6 |
 | Oberflächenbilder | 8 | 1,0 |
@@ -234,10 +234,19 @@ Detailstufen aller 66 eigenen Gebäudemodelle neu erzeugt: lod2 zusammen 6,00 �
 gewichtet, weniger Verschmieren) 13,5 → 15,0 MB. Je Gebäude im Spiel ~+20 KB bei lod1, lod2 etwa gleich
 (Burg: lod1 139 → 150 KB, lod2 57 → 53 KB). Geladen wird wie bisher (Original und Stufen bei Bedarf).
 
+### Fernstufe der Bäume als Impostor
+
+Die `.lod3` der Bäume und des Buschs ist durch Impostors ersetzt, die das Spiel beim Laden aus dem Original backt
+(docs/MODELLE.md#impostors-fernstufe-der-bäume-und-des-buschs). Ladebericht (`node scripts/load-report.mjs game phone`):
+Bäume und Büsche 18 → 12 Dateien beim Start, 3,80 → 3,74 MB (die sechs Sommer-`.lod3` waren nur 59 KB, die fünf
+Winter-`.lod3` 37 KB); Gesamt Desktop 21,8 → 21,7 MB, Handy 16,2 MB. Der Gewinn liegt im Bild und bei den Dreiecken
+(Handy „niedrig“ weit herausgezoomt 108 000 → 42 000), nicht im Download; dafür belegen die Tafeln Grafikspeicher
+(„hoch“ ~58 MB, „niedrig“ ~26 MB für die Sommerfassungen).
+
 ## Aufgeräumt
 
 Nie geladen und darum entfernt: `chapel3_old` (ersetzt durch `chapel3`), die `.lod1`-Stufen der Bäume und des
-Buschs (benutzt werden Original, `.lod2`, `.lod3`), die 1024er-Naturtexturen (geladen wird nur `-512`; die große
+Buschs (benutzt werden Original und `.lod2`; die `.lod3` ist inzwischen durch Impostors ersetzt und ebenfalls entfernt), die 1024er-Naturtexturen (geladen wird nur `-512`; die große
 Fassung schreibt `ground.mjs` jetzt nach `assets-src/nature/`). Zusammen ~3 MB.
 
 ## Große Karten im laufenden Spiel (Gewimmel)

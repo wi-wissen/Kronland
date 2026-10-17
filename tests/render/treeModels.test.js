@@ -99,6 +99,15 @@ describe('applySeason (winter swap)', () => {
     expect(g.meshes[0].material).toBe('mS');
   });
 
+  it('per-level materials (impostor far level): each level gets its own, summer and winter', () => {
+    const g = group(() => ({ levels: ['w0', 'w1', 'wI'], material: 'mW', materials: ['mW', 'mW', 'iW'] }));
+    g.userData.summer.materials = ['mS', 'mS', 'iS'];
+    expect(applySeason([g], true).materials.sort()).toEqual(['iW', 'mW']);
+    expect(g.meshes.map((m) => m.material)).toEqual(['mW', 'mW', 'iW']);
+    applySeason([g], false);
+    expect(g.meshes.map((m) => m.material)).toEqual(['mS', 'mS', 'iS']);
+  });
+
   it('if the winter version is missing (not yet loaded), summer stays and missing reports it', () => {
     const g = group(() => null);
     expect(applySeason([g], true).missing).toBe(true);

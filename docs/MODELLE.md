@@ -8,7 +8,7 @@ Detailstufen (LOD) funktionieren.
 | Was | Wo | Wie gezeichnet |
 |---|---|---|
 | Gebäude | `public/models/buildings/*.glb` (+ `.lod1.glb`, `.lod2.glb`) | eigenes Objekt je Gebäude, Stufe nach Abstand |
-| Bäume, Busch | eigene Meshy-Modelle `public/models/buildings/tree_*.glb`, `bush.glb` (+ Winterfassung, `.lod2`/`.lod3`), siehe [Bäume und Büsche](#bäume-und-büsche); ohne Modelle prozedural (`src/render/nature.js`) | instanziert in Chunks (8×8 Kacheln), Stufe je Chunk |
+| Bäume, Busch | eigene Meshy-Modelle `public/models/buildings/tree_*.glb`, `bush.glb` (+ Winterfassung, `.lod2`; Fernstufe als Impostor zur Laufzeit), siehe [Bäume und Büsche](#bäume-und-büsche); ohne Modelle prozedural (`src/render/nature.js`) | instanziert in Chunks (8×8 Kacheln), Stufe je Chunk |
 | Deko | prozedural (`src/render/nature.js`) + KayKit-Felsen und -Felsgipfel; Felsbrocken, Stümpfe, Rohstoffhaufen und Schächte mit gemalter Struktur (Fels, Rinde; `natureDetail`, triplanar, [Naturtexturen](BODEN.md#naturtexturen-bäume-büsche-felsen); Vergleich: `?nature=off`) | instanziert in Chunks (12×12 bzw. 6×6 Kacheln) |
 | Figuren | `public/models/characters/*.glb` + `manifest.json` | instanziert, GPU-Skinning aus gebackener Knochen-Textur |
 | Rückfall | `src/render/models.js` (prozedurale Figuren) | dieselbe Instanzierung, Körperteile als „Knochen“ |
@@ -24,8 +24,8 @@ Stufe, auf Handy wie Desktop. Eine Hysterese von ±10–12 % verhindert Flackern
 | Gruppe | Grenzen (Kacheln, Stufe „hoch“) | Stufen |
 |---|---|---|
 | Gebäude | 38 / 72 | Original → lod1 (~50–80 %, Textur des Originals) → lod2 (~15–45 %, **Eckfarben statt Textur**, eigenständig). Ist das Original noch nicht geladen, die lod2 aber schon, steht sie für das ganze Gebäude (`assetState` = 1) |
-| Bäume | Bildschirmhöhe 80 / 40 px, gerechnet mit einem Teil der Baumhöhe (`TREE_LOD_HEIGHT`: hoch 0,5, mittel 0,4, niedrig 0,6) – Modellbäume sind doppelt so hoch wie die früheren und wechseln so bei denselben Abständen (Desktop ~30 / 62 Kacheln), mittel früher; niedrig spart über die gröberen Stufen und den Stufenfaktor 0,8 (0,6 · 0,8 ≈ 0,5), sonst wären auf dem Handy hochkant in Spielhöhe alle Bäume Fernform | Modell (~1000–2100 Dreiecke) → `.lod2` (~550–1400) → `.lod3` (~170–450, ohne Schattenwurf). Auf „niedrig“ fehlt das Original: `.lod2`, dann `.lod3`. Prozeduraler Rückfall: detailliert → einfach → Fernform (≈20–40 Dreiecke) |
-| Busch (Modell) | 26 | `.lod2` (~950 Dreiecke, mit Schatten) → `.lod3` (~200, ohne Schattenwurf) |
+| Bäume | Bildschirmhöhe 80 / 40 px, gerechnet mit einem Teil der Baumhöhe (`TREE_LOD_HEIGHT`: hoch 0,5, mittel 0,4, niedrig 0,6) – Modellbäume sind doppelt so hoch wie die früheren und wechseln so bei denselben Abständen (Desktop ~30 / 62 Kacheln), mittel früher; niedrig spart über die gröberen Stufen und den Stufenfaktor 0,8 (0,6 · 0,8 ≈ 0,5), sonst wären auf dem Handy hochkant in Spielhöhe alle Bäume Fernform | Modell (~1000–2100 Dreiecke) → `.lod2` (~550–1400) → **Impostor** (2 Dreiecke, ohne Schattenwurf, siehe [Impostors](#impostors-fernstufe-der-bäume-und-des-buschs)). Auf „niedrig“ fehlt das Original: `.lod2`, dann Impostor. Ohne Impostor (kein WebGL, Backen fehlgeschlagen) bleibt `.lod2` auch in der Ferne. Prozeduraler Rückfall: detailliert → einfach → Fernform (≈20–40 Dreiecke) |
+| Busch (Modell) | 26 | `.lod2` (~950 Dreiecke, mit Schatten) → Impostor (2 Dreiecke, ohne Schattenwurf) |
 | Figuren | Bildschirmhöhe 80 / 28 / 12 px (unter 3 px weg) | **Nahmodell**, flüssig → **Spielmodell** (lod1), 24 Bilder/s ohne Mischung → Spielmodell, 8 Bilder/s → starr. Wechsel Nah ↔ Spiel mit 0,35 s Dither-Überblendung |
 | Felsen (prozedurale Büsche) | 62 | mit Schatten → ohne Schattenwurf (gleiche Geometrie) |
 | Kleine Deko (Gras, Blumen, Kiesel) | ab 66 weg | schrumpft vorher im Shader in den Boden (kein Aufploppen); ein Chunk fällt weg, sobald er ganz hinter dem Ende des Schrumpfens liegt |
@@ -68,9 +68,11 @@ deckungsgleich sind).
 - **Kreuz für flache Modelle**: Kahle Winter-Laubbäume und die Sommerbirke sind fast flach; Original und eine um 90°
   gedrehte Kopie werden zu einer Geometrie zusammengeführt (`crossGeometry`) – von allen Seiten voll, ein
   Zeichenaufruf, doppelte Dreiecke.
-- **Detailstufen**: `.lod2` (vorhanden) und `.lod3` (Fernform, `node scripts/build-lods.mjs <datei> --ratios 0.1
-  --errors 0.6 --out <name>.lod3.glb`). Nur Original, `.lod2` und `.lod3` werden geladen (Textur und
-  Normalen-Textur 1024 stecken im Original); ein `.lod1` erzeugt `build-lods.mjs` mit, es wird nicht ausgeliefert (löschen).
+- **Detailstufen**: `.lod2` (vorhanden) und als Fernstufe ein **Impostor**, den das Spiel beim Laden aus dem Original
+  backt (siehe unten). Nur Original und `.lod2` werden geladen (Textur und Normalen-Textur 1024 stecken im Original);
+  ein `.lod1` erzeugt `build-lods.mjs` mit, es wird nicht ausgeliefert (löschen). Die frühere `.lod3`
+  (~250 Dreiecke, meshoptimizer) ist entfernt: Kronen aus Kugelbüscheln lassen sich so nicht reduzieren (der Eiche
+  fehlte der Stamm, rote Streifen), ein neu gebackenes 250-Dreiecke-Netz war ebenso schlecht.
 - **Material**: Textur und Normalen-Textur des Modells, weich schattiert, beidseitig; Wind über `natureMaterial`
   (Krone wiegt ab der Biegehöhe `bend`, der Stamm darunter steht fest), Farbton je Instanz.
 - **Winter**: `applyWeather` → `setNatureSeason` tauscht je Chunk-Gruppe nur Geometrie und Material der
@@ -80,10 +82,63 @@ deckungsgleich sind).
   aus) und eine nur schwache Farbvariation (kein gelb getönter Schnee).
 - **Leistung** (Karte Seed 42, 611 Bäume, Burg im Blick, Dreiecke samt Schattenpass, Zoom 28): hoch Desktop
   ~1,4 Mio. (vorher ~0,33 Mio.), niedrig Handy ~48 000 (vorher ~27 000), niedrig Desktop ~140 000 (vorher ~36 000) – vor allem die Bäume der mittleren
-  Stufe. Download: Sommerfassungen (Original, `.lod2`, `.lod3`) 3,8 MB beim Start, Winterfassungen 3,4 MB beim
-  ersten Winter.
+  Stufe. Download: Sommerfassungen (Original, `.lod2`) 3,8 MB beim Start, Winterfassungen 3,4 MB beim
+  ersten Winter (die `.lod3` sparte nur ~0,1 MB, sie fehlt jetzt).
 - **Rückfall**: Fehlt ein Sommermodell (`?no-models`, Ladefehler), zeichnet das Spiel die prozeduralen Bäume
   und Büsche wie früher.
+
+
+### Impostors (Fernstufe der Bäume und des Buschs)
+
+Code: `src/render/impostor.js` (reine Funktionen getestet in `tests/render/impostor.test.js`), eingebunden in
+`natureModelVariant` (`src/render/nature.js`). Eine Bildtafel je Modell statt eines reduzierten Netzes: in Spielgröße
+(Fernstufe unter ~80 px) vom Original kaum zu unterscheiden, 2 Dreiecke statt ~250.
+
+- **Backen beim Laden**, kein Download: je Modell (Sommer- und Winterfassung, Kreuz-Modelle eingeschlossen, Busch)
+  einmal ein Atlas aus **16 Blickrichtungen × 2 Schrägen** (0,5 und 0,95 rad; 0,95 = Standard-`pitch` in
+  `CameraRig.js`, ferne Bäume hinter dem Blickpunkt sieht man flacher). Orthografisch, transparenter Hintergrund,
+  Mipmaps; Zellen 128 px breit („mittel“ 112, „niedrig“ 80), Höhe nach dem Umriss des Modells (Zylinder aus Radius
+  und Höhe, bei allen Schrägen gleich groß skaliert, höchstens 256), 6 px Rand je Zelle gegen Übersprechen der
+  Mipmaps; 8 Spalten. Eine Zeichnung je Tafel: alle 32 Ansichten als Instanzen einer InstancedMesh (Modell je Zelle
+  gedreht statt Kamera bewegt), mit 4×MSAA in ein Zwischenziel, dann ohne MSAA und Tiefe in die bleibende Tafel
+  kopiert. Quelle ist immer das Original (auch auf „niedrig“, wo es selbst nicht gezeichnet wird).
+- **Licht nicht eingebacken**: zwei Tafeln je Modell – Albedo (Textur, sRGB-Speicher) und Normalen (mit
+  Normalen-Textur, im Sichtraum der Aufnahme). Der Shader (MeshStandardMaterial, Rauheit wie `natureMaterial`)
+  dreht die Normale zurück ins Modell, dann mit der Instanz-Drehung in die Welt und beleuchtet mit dem Spiellicht
+  (Tageszeit, Wetter); Nebel per `patchFog`, Farbton je Instanz (`colors`, im Winter abgeschwächt), Schneekappe aus
+  dem Shader wie beim Netz. Die Tafeln sind vormultipliziert (Hintergrund 0): Farbe und Normale werden durch die
+  Deckung geteilt, darum keine dunklen Säume aus den Mipmaps.
+- **Zeichnen** als Instanz-Quad in `ChunkedInstances` (letzte Stufe, ohne Schattenwurf und -empfang): im
+  Vertex-Shader zur Kamera gedreht (senkrecht zur Blickrichtung, Drehpunkt halbe Modellhöhe), Größe aus der
+  Instanz-Matrix. Zelle nach **Kamera-Azimut minus Instanz-Drehung** (Bäume sind zufällig gedreht), die zwei
+  nächsten Richtungen gemischt; zwischen den Schrägen nur im mittleren Teil gemischt (sonst Doppelbilder),
+  außerhalb geklemmt. Deckung unter 0,4 wird verworfen (`alphaTest`).
+- **Winter**: eigener Atlas der Winterfassung, Tausch wie bei den Netzen über `applySeason` (Material je Stufe,
+  `materials`).
+- **Kosten**: je Modell vier Zeichenaufrufe beim Laden; unter Software-Grafik (SwiftShader) 20–50 ms je Modell
+  (`lodStats().impostors`), auf echter Grafik ein Bruchteil. Die erste Winterfassung wartet zusätzlich auf das
+  Hochladen der neu geladenen Wintertexturen (unter SwiftShader 1–9 s, das zahlt das Netz-Modell sonst beim ersten
+  Zeichnen). Grafikspeicher (zwei Tafeln je Modell, mit Mipmaps): Sommerfassungen „hoch“ ~58 MB (Tafeln 1024 × 608–1024),
+  „niedrig“ ~26 MB (640 × 384–992); Winterfassungen beim ersten Winter noch einmal so viel. Atlanten hängen am WebGL-Renderer (`impostorAtlas`), überleben Neustart und Weltwechsel
+  (`sharedImpostorTextures`) und werden mit dem Renderer freigegeben.
+- **Messung** (Seed 42, Kamera auf der Burg, `?fog=off`, Dreiecke samt Schattenpass, `lodStats()`; vorher = `.lod3`):
+
+  | Ansicht | Dreiecke vorher | nachher | Zeichenaufrufe |
+  |---|--:|--:|--:|
+  | Handy „niedrig“, Zoom 28 | 72 500 | 55 000 | 56 → 56 |
+  | Handy „niedrig“, Zoom 50 (fast alle Bäume fern) | 107 600 | 42 000 | 68 → 68 |
+  | Desktop „niedrig“, Zoom 50 | 318 100 | 253 400 | 94 → 95 |
+  | Desktop „hoch“, Zoom 50 | 1 306 100 | 1 101 900 | 169 → 169 |
+  | Handy „niedrig“, Winter, Zoom 50 | 109 200 | 42 000 | 68 → 68 |
+
+  ![Original, alte .lod3, Impostor (Fernstufe erzwungen, Zoom 28)](images/impostor-compare-d28.webp)
+  ![Handy „niedrig“, Zoom 50: vorher .lod3, nachher Impostor](images/impostor-phone-low.webp)
+  ![Desktop „hoch“, Winter, Zoom 50: vorher/nachher](images/impostor-winter-desktop.webp)
+- **Rückfall**: ohne WebGL oder wenn das Backen scheitert bleibt die letzte Netzstufe (`.lod2`) auch fern, die Zahl
+  der Stufen bleibt gleich (LOD-Grenzen unverändert).
+- **Grenzen**: aus der Nähe (künstlich erzwungen) wirken die Kronen weicher als das Netz, weil die Selbstverschattung
+  fehlt (Impostors empfangen keinen Schatten); senkrecht von oben (Neigung bis 1,5) zeigt die Tafel die Ansicht aus
+  0,95 rad.
 
 
 **Verteilung der Arten** (`treeSpecies` in `src/render/treeModels.js`, nur Darstellung): gleiche Arten stehen in

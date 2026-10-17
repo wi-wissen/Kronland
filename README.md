@@ -103,7 +103,7 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   Sichtweiten und Regeln: [Spielregeln §12](docs/SPIELREGELN.md#12-sicht-und-nebel-des-krieges).
 - Grafikstufe: automatisch (Handy/ohne Grafikkarte niedrig, Desktop hoch), erzwingbar per `?quality=low|medium|high`
   (wird gemerkt; im Code: `setQuality()` aus `src/render/quality.js`). Objekte werden je nach Abstand/Zoom
-  vereinfacht (Detailstufen; Figuren und Bäume nach ihrer Größe auf dem Bildschirm, kleine Deko schrumpft in der
+  vereinfacht (Detailstufen; Figuren und Bäume nach ihrer Größe auf dem Bildschirm, ferne Bäume und Büsche als beim Laden gebackene Bildtafeln (Impostors), kleine Deko schrumpft in der
   Ferne in den Boden und wird dann gar nicht mehr gezeichnet), Figuren sind instanziert und GPU-animiert. Figuren haben zwei Darstellungen:
   ein detailliertes Nahmodell beim Heranzoomen und ein flach gefärbtes, gut lesbares Spielmodell, umgeschaltet
   nach ihrer Bildschirmhöhe mit kurzer Überblendung – Details in [Modelle](docs/MODELLE.md). Der Boden ist gemalt

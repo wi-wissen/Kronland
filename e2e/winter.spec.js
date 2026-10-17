@@ -73,18 +73,25 @@ test('Trees in winter: deciduous bare, conifers snowy - swap without rebuild', a
       model: g.userData.summer?.model ?? null,
       winter: !!g.userData.summer && g.meshes[0].material !== g.userData.summer.material,
       chunks: g.chunks.length,
+      // far level: impostor quad baked at load time (2 triangles, own material per season, no shadow casting)
+      far: (() => { const m = g.meshes.at(-1); return { impostor: !!m.material.userData.impostor, tris: m.geometry.index.count / 3, shadow: m.castShadow, mat: m.material.uuid }; })(),
     }));
   });
   const summer = await state();
   // own models loaded (five kinds), at first summer
   expect(summer.map((s) => s.model)).toEqual(['tree_oak', 'tree_beech', 'tree_birch', 'tree_spruce', 'tree_pine']);
   expect(summer.every((s) => !s.winter)).toBe(true);
+  expect(summer.map((s) => s.far)).toEqual(summer.map((s) => ({ impostor: true, tris: 2, shadow: false, mat: s.far.mat })));
+  const baked = await page.evaluate(() => window.__kronland.renderer.lodStats().impostors);
+  expect(baked.filter((b) => !b.failed).length).toBeGreaterThanOrEqual(6); // five trees and the bush
   const groups = await page.evaluate(() => window.__kronland.renderer.treeGroups.length);
   await page.evaluate(() => window.__kronland.renderer.applyWeather('winter'));
   // Winter versions are loaded later at the first winter
   await page.waitForFunction(() => window.__kronland.renderer.treeGroups.every((g) => g.meshes[0].material !== g.userData.summer.material), null, { timeout: 90_000 });
   const winter = await state();
   expect(winter.map((s) => s.chunks)).toEqual(summer.map((s) => s.chunks)); // same chunk groups, only swapped
+  // winter impostors (own atlas of the winter version)
+  winter.forEach((w, i) => { expect(w.far.impostor).toBe(true); expect(w.far.mat).not.toBe(summer[i].far.mat); });
   expect(await page.evaluate(() => window.__kronland.renderer.treeGroups.length)).toBe(groups);
   await page.waitForTimeout(800);
   await page.screenshot({ path: `test-results/trees-winter-${info.project.name}.png`, timeout: 90_000 });

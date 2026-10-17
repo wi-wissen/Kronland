@@ -93,6 +93,7 @@ docs/         Spielregeln und Architektur
 | `Renderer.js` | liest den Zustand, ordnet Entities Darstellungen zu, Ereignisse (Schüsse, Zerstörung, Bau fertig) |
 | `grid.js` | Kachelraster (`Renderer.setGrid`): Linien folgen dem Boden, jede fünfte kräftig; `overviewDist` für die Übersicht kleiner Karten |
 | `lod.js` | Detailstufen nach Abstand/Sichtfeld bzw. Bildschirmhöhe mit Hysterese, Chunk-Raster mit Sichtprüfung für Instanzen |
+| `impostor.js` | Fernstufe der Modellbäume und des Buschs: Bildtafel (Albedo + Normalen) beim Laden gebacken, im Shader mit dem Spiellicht beleuchtet ([MODELLE.md](MODELLE.md#impostors-fernstufe-der-bäume-und-des-buschs)) |
 | `characters.js` | Figuren aus `manifest.json`, gebackene Animationen, GPU-Skinning, instanziert |
 | `effects.js` | Partikel (Staub, Rauch, Feuer, Spuren), Lebens- und Baufortschrittsbalken, Auswahlmarkierungen |
 | `terrain.js`, `water.js`, `environment.js`, `nature.js` | Gelände, Wasser, Himmel/Licht, Bäume und Deko. Wasser im Winter: Eis ohne Bewegung (keine Wellen, kein Funkeln), klar blau nach Tiefe mit Schollen-Bruchlinien, Reif und Bläschen – deutlich dunkler als Schnee, damit man sieht, wo das Eis endet |

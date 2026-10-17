@@ -32,6 +32,7 @@ import { LevelModels } from './levelModels.js';
 import { sharedModelMaterials } from './models.js';
 import { playerHex } from './playerColors.js';
 import { sharedAssetRoots, assetState, hasAsset, ownAsset, loadNatureModels } from './assets.js';
+import { sharedImpostorTextures, disposeImpostors, impostorInfo } from './impostor.js';
 import { pickTreeVariant, neighborCount, forestType, treeHash, applySeason, WINTER_NATURE_MODELS, MODEL_STUMP_SCALE, TREE_LOD_HEIGHT } from './treeModels.js';
 import { sharedMarkerMaterials } from './nature.js';
 import { sharedTerrainTextures } from './textures.js';
@@ -201,7 +202,7 @@ export class Renderer {
     });
     if (successor) {
       // Keep what other worlds use as well: shared models/materials/textures and everything the successor holds
-      const keep = new Set([...sharedModelMaterials(), ...sharedMarkerMaterials(), ...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), this.arrowMat, this.ballGeo, this.arrowGeo, this.boomGeo]);
+      const keep = new Set([...sharedModelMaterials(), ...sharedMarkerMaterials(), ...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), ...sharedImpostorTextures(this.renderer), this.arrowMat, this.ballGeo, this.arrowGeo, this.boomGeo]);
       collectHeld([...sharedAssetRoots(), ...sharedCharacterRoots(), successor.scene], keep);
       for (const x of keep) seen.add(x);
       freeTree(this.scene);
@@ -222,6 +223,7 @@ export class Renderer {
     for (const root of [...sharedAssetRoots(), ...sharedCharacterRoots(), this.ghost]) freeTree(root);
     for (const m of [...sharedModelMaterials(), ...sharedMarkerMaterials(), this.arrowMat].filter(Boolean)) freeMaterial(m);
     for (const x of [...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), this.ballGeo, this.arrowGeo, this.boomGeo]) free(x);
+    disposeImpostors(this.renderer);
     this.env?.dispose?.();
     this.fog?.dispose();
     this.tracks?.dispose();
@@ -314,7 +316,8 @@ export class Renderer {
   rebuildScatter() {
     const old = new Set(this.scatter);
     // Decoration geometries and materials are created anew per build (scatterKinds) and are disposed with it
-    for (const ci of this.scatter) for (const m of ci.meshes) { m.parent?.remove(m); m.geometry.dispose(); m.material.dispose(); m.dispose(); }
+    // (impostor quads and atlases are cached per renderer and stay)
+    for (const ci of this.scatter) for (const m of ci.meshes) { m.parent?.remove(m); if (!m.material.userData.impostor) m.geometry.dispose(); m.material.dispose(); m.dispose(); }
     this.natureCache.scatter = null;
     this.chunked = this.chunked.filter((c) => !old.has(c));
     this.buildScatter();
@@ -385,7 +388,7 @@ export class Renderer {
     const q = this.quality;
     const trees = [...this.sim.entities.values()].filter((e) => e.kind === 'tree');
     const cache = this.natureCache;
-    if (cache.trees?.detail !== q.treeDetail) cache.trees = { detail: q.treeDetail, variants: treeLodVariants(q.treeDetail, this.natureUniforms) };
+    if (cache.trees?.detail !== q.treeDetail) cache.trees = { detail: q.treeDetail, variants: treeLodVariants(q.treeDetail, this.natureUniforms, { gl: this.renderer }) };
     const variants = cache.trees.variants;
     const byKind = { leafy: [], birch: [], conifer: [] };
     variants.forEach((v, i) => byKind[v.kind].push(i));
@@ -416,7 +419,7 @@ export class Renderer {
       // the same distances (otherwise they would stay in the full model far out, ~2000 triangles per tree)
       height: (v.geometry.boundingBox ?? (v.geometry.computeBoundingBox(), v.geometry.boundingBox)).max.y * v.scale * (v.model ? TREE_LOD_HEIGHT[q.tier] ?? 0.5 : 1),
       // farthest level without shadow casting: saves the expensive shadow pass for the horizon
-      levels: v.levels.map((g, i) => ({ geometry: g, material: v.material, castShadow: i < v.levels.length - 1 || v.levels.length === 1, receiveShadow: i === 0 })),
+      levels: v.levels.map((g, i) => ({ geometry: g, material: v.materials?.[i] ?? v.material, castShadow: i < v.levels.length - 1 || v.levels.length === 1, receiveShadow: i === 0 })),
     }));
     /** @type {Map<number, {v:number, h:any, x:number, z:number, s:number}>} */
     this.treeIndex = new Map();
@@ -535,7 +538,7 @@ export class Renderer {
     const { map } = this.sim;
     const W = map.width, H = map.height;
     const t = this.terrain;
-    const kinds = this.natureCache.scatter ??= scatterKinds(this.natureUniforms);
+    const kinds = this.natureCache.scatter ??= scatterKinds(this.natureUniforms, { gl: this.renderer });
     const dens = this.quality.scatter;
     const r = rng(this.sim.seed * 13 + 1);
     /** @type {Record<string, {x:number,z:number,s:number,rot:number,tile:number}[]>} */
@@ -617,7 +620,7 @@ export class Renderer {
         name: 'scatter-' + name, chunkSize: kind.small ? 6 : 12, kind: kind.small ? 'scatterSmall' : kind.levels ? 'bush' : 'scatterLarge',
         // bush model: own LOD levels (far without shadows); rocks and bushes otherwise without
         // shadow casting in the distance (second level, same geometry)
-        levels: kind.levels ? kind.levels.map((g, i) => ({ geometry: g, material: kind.material, castShadow: i === 0, receiveShadow: true }))
+        levels: kind.levels ? kind.levels.map((g, i) => ({ geometry: g, material: kind.materials?.[i] ?? kind.material, castShadow: i === 0, receiveShadow: i < kind.levels.length - 1 }))
           : big ? [level, { ...level, castShadow: false }] : [level],
       });
       for (const it of list) {
@@ -639,7 +642,7 @@ export class Renderer {
       ci.finalize(this.scene);
       for (const m of ci.meshes) patchFog(m.material);
       ci.userData.winter = kind.winter;
-      if (kind.season) { ci.userData.summer = { levels: kind.levels, material: kind.material }; ci.userData.season = kind.season; }
+      if (kind.season) { ci.userData.summer = { levels: kind.levels, material: kind.material, materials: kind.materials }; ci.userData.season = kind.season; }
       this.chunked.push(ci);
       this.scatter.push(ci);
     }
@@ -1128,7 +1131,7 @@ export class Renderer {
   }
 
   /** LOD counters (for tests and measurements). */
-  lodStats() { return { ...this.debugStats(), lod: structuredClone(this.lodCounter.groups) }; }
+  lodStats() { return { ...this.debugStats(), lod: structuredClone(this.lodCounter.groups), impostors: impostorInfo(this.renderer) }; }
 
   /** Pre-bake frequent figures (avoids hitches at first appearance). */
   prepareFigures() {

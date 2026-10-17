@@ -40,14 +40,15 @@ export const TREE_LOD_HEIGHT = { high: 0.5, medium: 0.4, low: 0.6 };
 export const MODEL_STUMP_SCALE = 1.8;
 
 /**
- * LOD files per graphics level (0 = original with texture, k = <name>.lod<k>.glb). Trees: close the original,
- * medium .lod2, far .lod3 (~200 triangles); on "low" close already .lod2. Bushes are small: .lod2, far .lod3.
+ * Mesh LOD files per graphics level (0 = original with texture, k = <name>.lod<k>.glb). Trees: close the original,
+ * medium .lod2; on "low" close already .lod2. Bushes are small: .lod2. The far level behind them is an impostor
+ * baked at load time from the original (impostor.js, 2 triangles); without it the last mesh level stays.
  */
-export const TREE_LOD_FILES = { detail: [0, 2, 3], simple: [2, 3] };
-export const BUSH_LOD_FILES = [2, 3];
+export const TREE_LOD_FILES = { detail: [0, 2], simple: [2] };
+export const BUSH_LOD_FILES = [2];
 
-/** All LOD levels that are loaded (original for texture and material, plus the used levels). */
-export const NATURE_MODEL_LODS = [2, 3];
+/** All LOD levels that are loaded (original for texture, material and impostor, plus the used levels). */
+export const NATURE_MODEL_LODS = [2];
 
 /** Summer versions (preloaded at start) and winter versions (loaded on demand), without folder. */
 export const SUMMER_NATURE_MODELS = [...TREE_MODELS.map((t) => t.name), BUSH_MODEL.name];
@@ -161,10 +162,10 @@ export function seasonLevels(winter) {
 }
 
 /**
- * Apply the season to chunk groups (ChunkedInstances): per level set geometry and material of the summer or
- * winter version; the instances (matrices, colours) stay untouched. Groups without seasons
+ * Apply the season to chunk groups (ChunkedInstances): per level set geometry and material (`materials[level]`,
+ * otherwise `material`) of the summer or winter version; the instances (matrices, colours) stay untouched. Groups without seasons
  * (userData.summer/season) stay as they are.
- * @param {{ meshes: {geometry: any, material: any}[], userData: {summer?: {levels: any[], material: any}, season?: () => ({levels: any[], material: any}|null)} }[]} groups
+ * @param {{ meshes: {geometry: any, material: any}[], userData: {summer?: {levels: any[], material: any, materials?: any[]}, season?: () => ({levels: any[], material: any, materials?: any[]}|null)} }[]} groups
  * @param {boolean} winter
  * @returns {{ missing: boolean, materials: any[] }} missing: a winter version is missing (not yet loaded)
  */
@@ -178,10 +179,11 @@ export function applySeason(groups, winter) {
     if (winter && !w) missing = true;
     const use = w ?? summer;
     ci.meshes.forEach((m, i) => {
-      m.geometry = use.levels[Math.min(i, use.levels.length - 1)];
-      m.material = use.material;
+      const k = Math.min(i, use.levels.length - 1);
+      m.geometry = use.levels[k];
+      m.material = use.materials?.[k] ?? use.material;
+      materials.add(m.material);
     });
-    materials.add(use.material);
   }
   return { missing, materials: [...materials] };
 }
