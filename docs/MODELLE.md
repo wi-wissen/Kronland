@@ -17,16 +17,18 @@ Detailstufen (LOD) funktionieren.
 
 Code: `src/render/lod.js`. Gebäude und Deko bekommen einen *effektiven Abstand*: echter Abstand zur
 Kamera, korrigiert um das Sichtfeld (Handy hochkant = weiteres Sichtfeld = Objekte kleiner) und die Grafikstufe
-(`niedrig` vereinfacht früher). **Figuren und Bäume** richten sich nach ihrer **Bildschirmhöhe** in CSS-Pixeln
+(`niedrig` vereinfacht früher). **Figuren und Bäume** richten sich nach ihrer **Bildschirmhöhe**
 (`screenHeightPx`, wie Unitys „Screen Relative Transition Height“): Gleich groß auf dem Bildschirm heißt gleiche
-Stufe, auf Handy wie Desktop. Eine Hysterese von ±10–12 % verhindert Flackern an den Grenzen.
+Stufe, auf Handy wie Desktop. Bäume rechnen in CSS-Pixeln, Figuren in **gerenderten Pixeln** (CSS-Pixel × Pixelfaktor des
+Renderers, `maxPixelRatio`: hoch 2, mittel 1,5, niedrig 1,25) – sonst zeigte ein Handy oder ein skalierter Bildschirm das
+Spielmodell bis zu doppelt so groß wie vorgesehen (Handy „hoch“, Zoom „nah“: 80 CSS-px = 160 gerenderte px). Eine Hysterese von ±10–12 % verhindert Flackern an den Grenzen.
 
 | Gruppe | Grenzen (Kacheln, Stufe „hoch“) | Stufen |
 |---|---|---|
 | Gebäude | 38 / 72 | Original → lod1 (~50–80 %, Textur des Originals) → lod2 (~15–45 %, **Eckfarben statt Textur**, eigenständig). Ist das Original noch nicht geladen, die lod2 aber schon, steht sie für das ganze Gebäude (`assetState` = 1) |
 | Bäume | Bildschirmhöhe 80 / 40 px, gerechnet mit einem Teil der Baumhöhe (`TREE_LOD_HEIGHT`: hoch 0,5, mittel 0,4, niedrig 0,6) – Modellbäume sind doppelt so hoch wie die früheren und wechseln so bei denselben Abständen (Desktop ~30 / 62 Kacheln), mittel früher; niedrig spart über die gröberen Stufen und den Stufenfaktor 0,8 (0,6 · 0,8 ≈ 0,5), sonst wären auf dem Handy hochkant in Spielhöhe alle Bäume Fernform | Modell (~1000–2100 Dreiecke) → `.lod2` (~550–1400) → `.lod3` (~170–450, ohne Schattenwurf). Auf „niedrig“ fehlt das Original: `.lod2`, dann `.lod3`. Prozeduraler Rückfall: detailliert → einfach → Fernform (≈20–40 Dreiecke) |
 | Busch (Modell) | 26 | `.lod2` (~950 Dreiecke, mit Schatten) → `.lod3` (~200, ohne Schattenwurf) |
-| Figuren | Bildschirmhöhe 80 / 28 / 12 px (unter 3 px weg) | **Nahmodell**, flüssig → **Spielmodell** (lod1), 24 Bilder/s ohne Mischung → Spielmodell, 8 Bilder/s → starr. Wechsel Nah ↔ Spiel mit 0,35 s Dither-Überblendung |
+| Figuren | Bildschirmhöhe 80 / 28 / 12 gerenderte px (unter 3 px weg) | **Nahmodell**, flüssig → **Spielmodell** (lod1), 24 Bilder/s ohne Mischung → Spielmodell, 8 Bilder/s → starr. Wechsel Nah ↔ Spiel mit 0,35 s Dither-Überblendung |
 | Felsen (prozedurale Büsche) | 62 | mit Schatten → ohne Schattenwurf (gleiche Geometrie) |
 | Kleine Deko (Gras, Blumen, Kiesel) | ab 66 weg | schrumpft vorher im Shader in den Boden (kein Aufploppen); ein Chunk fällt weg, sobald er ganz hinter dem Ende des Schrumpfens liegt |
 
@@ -290,6 +292,29 @@ Skelett und denselben Animationen:
 | Datei | `<Modell>.glb` (ohne Animationen) | `<Modell>.lod1.glb` (mit Skelett, Werkzeugen und **allen Animationen**) |
 | geladen | erst, wenn eine Figur die Nahstufe bräuchte (heranzoomen, Dialogkamera) | sobald die Rolle auftaucht |
 
+### Spielmodell aus dem Nahmodell (`gamemesh/`)
+
+Der Meshy-Remesh (`<id>_far`) verliert Form: Hutkrempen, Kopfsilhouette und Nase werden eckig, und seine eigene Textur
+weicht in Farbe und Licht ab. `scripts/asset-gen/gamemesh/run.mjs` baut das Spielmodell stattdessen aus dem Nahmodell,
+mit gleich vielen Dreiecken wie bisher:
+
+1. `simplify.mjs`: Nahmodell nach Lage verschweißen, mit meshoptimizer vereinfachen (`Permissive`, `Regularize`). Der Kopf
+   (Skin-Gewicht auf Head/neck) zählt im Fehlermaß ×2,5 und behält so ~40 % der Dreiecke; die Ecken sind Ecken des
+   Nahmodells, die Form bleibt.
+2. `uv.py`: neue UV mit xatlas, Kopf-Inseln ×1,6 größer (mehr Texel fürs Gesicht).
+3. `bake.py` (Blender): Farbe und Normal-Map vom Nahmodell backen (Selected to Active, Käfig 1,5 %; größer gibt dunkle
+   Streifen am Bart), Export mit Normalen und MikkTSpace-Tangenten.
+4. `assemble.mjs`: Netz und Bilder (1024, JPEG) in eine Kopie von `<Modell>.lod1.glb`; Skelett, Animationen, Material
+   und Teamfarbe (Magenta mitgebacken) bleiben, Gewichte vom nächsten Nahmodell-Punkt (`farmesh.mjs`).
+
+```bash
+BLENDER=/pfad/blender node scripts/asset-gen/gamemesh/run.mjs Taran Swordsman [--out review/x] [--tris 2000]
+node scripts/asset-gen/gamemesh/sheet.mjs …   # Vergleichsbild Nah- / Spielmodell
+```
+
+Voraussetzungen: Blender 4.x (headless, Cycles auf der CPU), Python mit `pip install xatlas numpy`. Braucht nur die Dateien
+in `public/models/characters/`, keine Rohdateien. ~20 s je Figur, keine Meshy-Credits. Zwischenstände in `review/gamemesh/`.
+
 **Nahmodell bei Bedarf.** Das Spiel backt die Knochen-Textur aus der Datei mit den Animationen – das ist das
 Spielmodell (~0,8 MB statt 0,6 MB + 2,4 MB). Das Nahmodell (2048er-Textur, ~2,2 MB) fordert `requestNearModel`
 an, sobald eine Figur dieses Modells die Stufe 0 erreicht; bis dahin zeigt sie auch nah das Spielmodell. Kommt
@@ -413,6 +438,9 @@ Arbeitsbewegungen: Holzhacken und Spitzhacke als Text-Bewegung, Hämmern aus der
   InstancedMesh je (Rolle, Stufe). Der Vertex-Shader liest die Knochen per `texelFetch` (WebGL 2).
 - Sichtprüfung je Figur (Kugel gegen Frustum), Stufe nach Bildschirmhöhe mit Hysterese,
   Animation ab Stufe 1 ohne Bildmischung, ab Stufe 2 mit 8 Bildern/s, Stufe 3 starr.
+- Tangenten: Die Normal-Maps sind gegen die MikkTSpace-Tangenten der Datei gebacken; `mergeCharacterGeometry` übernimmt sie, und
+  der Shader dreht sie mit den Knochen mit. Ohne sie leitet three.js die Tangente je Dreieck aus Bildschirm-Ableitungen
+  her, Gesichter wirken dann facettiert. Teile ohne Tangente (Werkzeuge) bekommen eine neutrale.
 - Wechselt eine Figur das Netz (Nah- ↔ Spielmodell), zeichnet das Spiel 0,35 s lang beide: Die kommende Stufe
   zeigt die Bildpunkte unter dem Überblendwert eines 4×4-Bayer-Musters, die gehende die übrigen (`aFade`).
   Ohne Transparenz und ohne Sortierung, kein sichtbares Umschalten.
@@ -481,6 +509,38 @@ node scripts/asset-gen/building.mjs build house     # → public/models/building
   Ruinen je Typ (`RUIN_ASSETS`: `village_ruin`, `house_ruin`, sonst Trümmer); Siedlungsplätze (nur dort darf ein
   Dorfzentrum stehen) zeigen die Dorfzentrum-Ruine – wie im Vorbild ein verlassenes Dorfzentrum zum Wiederaufbau; Lagerfeuer (`campfire`) mit Flammen als
   Partikel. Alle werden bei Bedarf nachgeladen.
+
+### Detailstufen neu aufbauen (`lodbake/`)
+
+Die Meshy-Gebäude sind aus einem Bild geschätzt: Auch ebene Wände sind im Netz leicht wellig, und der Texturatlas hat
+Hunderte Inseln. `build-lods.mjs` muss die Inseln schonen und verschmiert sonst Farben (Risse, fremde Flecken, besonders
+bei stark reduzierten Modellen wie der Burg). `scripts/asset-gen/lodbake/lodbake.mjs` baut die Stufen neu auf und backt
+die Textur darauf:
+
+1. `lowmesh.mjs`: Original nur nach Lage verschweißen, Quadrik-Vereinfachung mit verschobenen Ecken (meshoptimizer
+   `simplifyWithUpdate`), echte Wimpelflächen (Teamfarbe) gesperrt.
+2. `uv_xatlas.py`: neuer UV-Atlas (xatlas).
+3. `bake.py` (Blender): Farbe (lod1 auch Normal-Map) vom Original backen, Käfig knapp über dem Vereinfachungsfehler
+   (größer: Strahlen treffen Nachbarteile).
+4. `finalize.mjs`: Lücken im Atlas füllen (sonst läuft Schwarz über die Mipmaps in die Kanten), Magenta außerhalb der
+   Wimpel löschen, JPEG oder WebP, meshopt.
+
+Budget nach Bildschirmgröße beim Umschalten (38 / 72 Kacheln, auf „niedrig“ ab 21, Retina doppelt): Formfehler ≤ 1,5 px
+(`PX_ERR`), lod1 ≤ 40 %, lod2 ≤ 25 % (max. 2 000) der Dreiecke, Textur ~3,5 Texel je Pixel Modellhöhe (lod1 ≤ 512 + Normal-Map
+256, lod2 ≤ 256). Jede Stufe bringt damit ihre eigene Textur mit.
+
+```bash
+BLENDER=/pfad/blender node scripts/asset-gen/lodbake/lodbake.mjs castle house --out review/lodbake
+node scripts/asset-gen/lodbake/lodbake.mjs all --out review/lodbake            # alle in OWN_BUILDING_ASSETS
+node scripts/asset-gen/lodbake/lodbake.mjs tree_oak --levels lod3:250:128 --fp 2,2   # Stufen von Hand
+node scripts/asset-gen/lodbake/sheet.mjs out.png --fp 3,3 "Original=public/models/buildings/house.glb" "neu|lod2=review/lodbake/house.lod2.glb"
+```
+
+Vergleich (Oktober 2026, SSIM in Wechselgröße): Burg lod1 0,79 → 0,86 (5 782 → 4 824 Dreiecke), lod2 0,64 → 0,75
+(2 533 → 1 991). Bei kaum reduzierten Stufen (Wohnhaus, Kapelle lod1: 73–78 % der Dreiecke) ist die neue Stufe ein Tausch
+(halbe Dreiecke, −0,05 SSIM). Eiche: lod3 neu deutlich besser (der alten fehlte der Stamm), lod2 etwa gleich.
+Instant Meshes (Quad-Remesh) und Blender-Decimate waren schlechter. Bewegliche Teile (`MOVING_PARTS`) brauchen eine
+Sperre, sonst verschmilzt der Rotor mit dem Turm.
 
 ### Bewegliche Teile (Flügel, Räder, Wetterhahn)
 

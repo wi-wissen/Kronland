@@ -291,6 +291,7 @@ export class Renderer {
     this.quality = q;
     this.lodTier = LOD_TIERS[q.tier] ?? LOD_TIERS.high;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, q.maxPixelRatio));
+    this.chars.pixelRatio = this.renderer.getPixelRatio();
     if (this.viewport) this.renderer.setSize(this.viewport.w, this.viewport.h, false);
     if (this.env.setQuality(q)) {
       // shadows on/off: recompile the shaders of all materials
@@ -358,7 +359,10 @@ export class Renderer {
     this.camera.fov = w < h ? 55 : 40;
     this.camera.updateProjectionMatrix();
     this.viewport = { w, h };
-    this.chars.viewH = h; // LOD levels of the figures by screen height (CSS pixels)
+    // LOD levels of the figures by screen height in rendered pixels (CSS pixels × pixel ratio): on a phone or a
+    // scaled display the game model would otherwise be shown up to twice as large as intended
+    this.chars.viewH = h;
+    this.chars.pixelRatio = this.renderer.getPixelRatio();
   }
 
   // ---------- Static objects ----------
