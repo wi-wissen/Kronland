@@ -48,6 +48,7 @@ import { COMBAT } from '../sim/data/combat.js';
 import { wrapAngle } from './angle.js';
 import { pickFigure, inDepth } from './pick.js';
 import { findSpinners, turnParts } from './movingParts.js';
+import { withImpostor, impostorsOff, impostorCell } from './impostor.js';
 
 /** Player colour; figures without owner (conversation figures) in neutral brown. */
 /**
@@ -386,7 +387,11 @@ export class Renderer {
     const trees = [...this.sim.entities.values()].filter((e) => e.kind === 'tree');
     const cache = this.natureCache;
     if (cache.trees?.detail !== q.treeDetail) cache.trees = { detail: q.treeDetail, variants: treeLodVariants(q.treeDetail, this.natureUniforms) };
-    const variants = cache.trees.variants;
+    // farthest level of the model trees as impostor: photographed once per kind (no download); a reduced
+    // crown of ~250 triangles looked like crumpled paper
+    cache.trees.imp ??= cache.trees.variants.map((v) => (v.model && v.levels.length > 1 && !impostorsOff()
+      ? withImpostor(this.renderer, v, { cell: impostorCell(q.tier) }) : v));
+    const variants = cache.trees.imp;
     const byKind = { leafy: [], birch: [], conifer: [] };
     variants.forEach((v, i) => byKind[v.kind].push(i));
     const byModel = {};
@@ -416,7 +421,7 @@ export class Renderer {
       // the same distances (otherwise they would stay in the full model far out, ~2000 triangles per tree)
       height: (v.geometry.boundingBox ?? (v.geometry.computeBoundingBox(), v.geometry.boundingBox)).max.y * v.scale * (v.model ? TREE_LOD_HEIGHT[q.tier] ?? 0.5 : 1),
       // farthest level without shadow casting: saves the expensive shadow pass for the horizon
-      levels: v.levels.map((g, i) => ({ geometry: g, material: v.material, castShadow: i < v.levels.length - 1 || v.levels.length === 1, receiveShadow: i === 0 })),
+      levels: v.levels.map((g, i) => ({ geometry: g, material: v.materials?.[i] ?? v.material, castShadow: i < v.levels.length - 1 || v.levels.length === 1, receiveShadow: i === 0 })),
     }));
     /** @type {Map<number, {v:number, h:any, x:number, z:number, s:number}>} */
     this.treeIndex = new Map();
@@ -536,6 +541,11 @@ export class Renderer {
     const W = map.width, H = map.height;
     const t = this.terrain;
     const kinds = this.natureCache.scatter ??= scatterKinds(this.natureUniforms);
+    // bush model: farthest level as impostor like the trees
+    if (kinds.bush?.model && kinds.bush.levels?.length > 1 && !kinds.bush.materials && !impostorsOff()) {
+      const b = withImpostor(this.renderer, { levels: kinds.bush.levels, material: kinds.bush.material, winter: kinds.bush.season ?? null }, { cell: impostorCell(this.quality.tier) });
+      kinds.bush = { ...kinds.bush, geometry: b.levels[0], levels: b.levels, materials: b.materials, season: b.winter };
+    }
     const dens = this.quality.scatter;
     const r = rng(this.sim.seed * 13 + 1);
     /** @type {Record<string, {x:number,z:number,s:number,rot:number,tile:number}[]>} */
@@ -617,7 +627,7 @@ export class Renderer {
         name: 'scatter-' + name, chunkSize: kind.small ? 6 : 12, kind: kind.small ? 'scatterSmall' : kind.levels ? 'bush' : 'scatterLarge',
         // bush model: own LOD levels (far without shadows); rocks and bushes otherwise without
         // shadow casting in the distance (second level, same geometry)
-        levels: kind.levels ? kind.levels.map((g, i) => ({ geometry: g, material: kind.material, castShadow: i === 0, receiveShadow: true }))
+        levels: kind.levels ? kind.levels.map((g, i) => ({ geometry: g, material: kind.materials?.[i] ?? kind.material, castShadow: i === 0, receiveShadow: true }))
           : big ? [level, { ...level, castShadow: false }] : [level],
       });
       for (const it of list) {
@@ -639,7 +649,7 @@ export class Renderer {
       ci.finalize(this.scene);
       for (const m of ci.meshes) patchFog(m.material);
       ci.userData.winter = kind.winter;
-      if (kind.season) { ci.userData.summer = { levels: kind.levels, material: kind.material }; ci.userData.season = kind.season; }
+      if (kind.season) { ci.userData.summer = { levels: kind.levels, material: kind.material, materials: kind.materials }; ci.userData.season = kind.season; }
       this.chunked.push(ci);
       this.scatter.push(ci);
     }
