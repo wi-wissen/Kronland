@@ -4,17 +4,20 @@
 //   node scripts/asset-gen/voice.mjs audition [role …]   audition samples: per draft one sentence designed, one sentence cloned
 //   node scripts/asset-gen/voice.mjs pick <role> <nr> [source]   adopt draft nr (0, 1, …) as the template
 //   node scripts/asset-gen/voice.mjs lines [role …]      voice all mission dialogues and barks (de/en, resumable)
+//   node scripts/asset-gen/voice.mjs trim [role …]       cut inner pauses of existing recordings (raw/ if present, else the game file), re-normalise
 //
 // Roles and descriptions: assets-src/voices/cast.json. One folder per role assets-src/voices/<role>/ with the
 // template (voice.wav, voice.json) and the unprocessed recordings (raw/). Game files: public/audio/voice/.
 // Every recording is listened to again by a second model (Gemini 3.8 Flash); if the spoken text deviates, it is
-// regenerated. All recordings are brought to the same loudness (EBU R128, ffmpeg loudnorm).
+// regenerated; so is one with an inner pause over PAUSE_REGENERATE, shorter pauses are cut to ~0.4 s (TRIM_PAUSES).
+// All recordings are brought to the same loudness (EBU R128, ffmpeg loudnorm).
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ROOT, reexecWithProxy } from './lib.mjs';
 import { requireAssetsSrc } from '../require-assets-src.mjs';
+import { longestPause, PAUSE_MAX } from './pauses.mjs';
 
 const API = 'https://openrouter.ai/api/v1';
 const TTS_MODEL = 'bytedance-seed/seed-audio-1-0';
@@ -28,6 +31,10 @@ const SPEAKER_ALIAS = { kunz: 'bandit', guard: 'collector' };
 const AUDITION_DIR = path.join(VOICE_DIR, 'audition');
 /** Target loudness (LUFS) and peak level of all recordings */
 export const LOUDNESS = 'loudnorm=I=-18:TP=-1.5:LRA=11';
+/** Inner pauses (> 0.5 s of silence) are cut down to about 0.4 s: the clone adopts long pauses from the template */
+export const TRIM_PAUSES = 'silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-40dB:stop_silence=0.2';
+/** A raw recording with a longer inner pause than this is regenerated instead of trimmed (the model dropped out) */
+const PAUSE_REGENERATE = Number(process.env.VOICE_PAUSE_REGENERATE ?? 2.5);
 const TRIES = Number(process.env.VOICE_TRIES ?? 6);
 const PARALLEL = Number(process.env.VOICE_PARALLEL ?? 5);
 
@@ -121,7 +128,13 @@ export async function speakChecked(make, text, wav, lang) {
   for (let i = 1; i <= TRIES; i++) {
     try {
       fs.writeFileSync(mp3, await make());
-      ffmpeg(['-i', mp3, '-af', LOUDNESS, '-ar', '24000', '-ac', '1', tmp]);
+      // Gate on the raw recording: a long dropout is regenerated; shorter pauses are trimmed below
+      const gap = longestPause(mp3);
+      if (gap > PAUSE_REGENERATE) { last = { ok: false, tries: i, heard: `pause of ${gap.toFixed(1)} s`, score: 0 }; continue; }
+      ffmpeg(['-i', mp3, '-af', `${TRIM_PAUSES},${LOUDNESS}`, '-ar', '24000', '-ac', '1', tmp]);
+      // after trimming no inner pause may remain above the limit (the filter is the only way to get there)
+      const left = longestPause(tmp);
+      if (left > PAUSE_MAX) { last = { ok: false, tries: i, heard: `pause of ${left.toFixed(1)} s after trimming`, score: 0 }; continue; }
       const answer = await hear(tmp, lang);
       const noisy = answer.includes('[NOISE]');
       const heard = answer.replace('[NOISE]', '').trim();
@@ -273,6 +286,29 @@ async function lines(only) {
   console.log(`done: ${done} new, ${failed.length} failed`);
 }
 
+/**
+ * Cut the inner pauses of existing recordings and bring them back to the target loudness. Source is the unprocessed
+ * recording in assets-src/voices/<role>/raw/ when there is one, otherwise the game file itself (one more MP3 generation).
+ */
+function trim(only) {
+  const index = JSON.parse(fs.readFileSync(path.join(GAME_DIR, 'index.json'), 'utf8')).files;
+  let n = 0, still = 0;
+  for (const [key, file] of Object.entries(index)) {
+    const [voice] = key.split('|');
+    if (only.length && !only.includes(voice)) continue;
+    const dest = path.join(GAME_DIR, file);
+    if (longestPause(dest) <= PAUSE_MAX) continue;
+    const raw = path.join(roleDir(voice), 'raw', `${file.slice(0, 2)}-${path.basename(file, '.mp3').slice(voice.length + 1)}.mp3`);
+    const src = fs.existsSync(raw) ? raw : dest;
+    const tmp = `${dest}.trim.mp3`;
+    ffmpeg(['-i', src, '-af', `${TRIM_PAUSES},${LOUDNESS}`, '-ar', '24000', '-ac', '1', '-b:a', '48k', tmp]);
+    if (longestPause(tmp) > PAUSE_MAX) { still++; console.log(`still long: ${file} (${longestPause(tmp).toFixed(1)} s)`); }
+    fs.renameSync(tmp, dest);
+    n++;
+  }
+  console.log(`trimmed ${n} recordings, ${still} still have a pause over ${PAUSE_MAX} s`);
+}
+
 /** Index of the existing game files: key (voice|language|text) → file. */
 function writeIndex(all) {
   const files = {};
@@ -281,11 +317,13 @@ function writeIndex(all) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  requireAssetsSrc('voices');
-  if (reexecWithProxy()) process.exit(0);
   const [cmd, ...rest] = process.argv.slice(2);
+  // trimming works on the game files alone; raw recordings are used when assets-src/ is present
+  if (cmd !== 'trim') requireAssetsSrc('voices');
+  if (reexecWithProxy()) process.exit(0);
   if (cmd === 'audition') await audition(rest);
   else if (cmd === 'pick') pick(rest[0], rest[1], rest[2]);
   else if (cmd === 'lines') await lines(rest);
-  else console.log('Usage: node scripts/asset-gen/voice.mjs audition [role …] | pick <role> <nr> [source] | lines [role …]');
+  else if (cmd === 'trim') trim(rest);
+  else console.log('Usage: node scripts/asset-gen/voice.mjs audition [role …] | pick <role> <nr> [source] | lines [role …] | trim [role …]');
 }
