@@ -206,6 +206,14 @@ erscheinen. Beim Backen bekommt jedes Werkzeug einen eigenen „Knochen“: die 
 (darf eigene Animation haben, z. B. zwischen beiden Händen ausgerichtet). In anderen Clips wird er auf
 einen Punkt zusammengezogen. Kein Shader-Zweig, keine zusätzlichen Zeichenaufrufe.
 
+**Bögen und Armbrüste** sind dagegen Teil des Meshy-Netzes (kein `props`-Teil, an die Hand gewichtet): Form und Lage
+in der Hand kommen aus Konzept und Meshy-Modell. Der Bogen der Bogenschützen und Bogenräuber ist ein flaches, geknicktes
+Band ohne Sehne, der Griff sitzt im oberen Drittel. Im Spielmodell (lod1) ist er mit Hand und Körper zu einem Netz
+verschweißt, ein sauberer Tausch geht nur über die Rohdateien (`assets-src/`, lokal): Bogen im Nahmodell abtrennen bzw.
+Konzept ohne Bogen neu erzeugen, dann einen Bogen als Werkzeug (`TOOLS` in `props.mjs`, Griff in der linken Hand, Wurfarme
+quer zur Schussrichtung) über `spec.props` anhängen und `postprocess.mjs` neu laufen lassen. Ausrichtung und Takt des
+Schusses regelt das Spiel unabhängig davon (`shots`, unten).
+
 **Rollen**, die das Spiel verwendet (Schlüssel werden von hinten gekürzt, bis einer passt:
 `soldier.bow.leader` → `soldier.bow` → `soldier`):
 
@@ -222,6 +230,14 @@ einen Punkt zusammengezogen. Kein Shader-Zweig, keine zusätzlichen Zeichenaufru
 **Animations-Schlüssel** und Rückfälle (fehlt einer, wird der nächste genommen):
 `mine → chop → attack → idle`, `build → hammer → chop`, `run → walk → idle`, `carry → walk`,
 `shoot → attack`, `cheer/sit → idle`. `die` wird einmal abgespielt und bleibt auf dem letzten Bild.
+
+**Schuss-Clips (`shots`):** Schützen (Bogen, Armbrust zu Pferd, Bogenräuber) spielen im Gefecht den Schuss-Clip in
+Schleife – ein Durchlauf je Schuss (Abstand der letzten beiden Schüsse, sonst `cooldown`), der Lösezeitpunkt fällt auf
+den Abflug des Pfeils (`syncShot`). Erst im Gefecht, beim Laufen nicht. `shots: { <Animation>: { release, yaw } }` im
+Manifest: `release` = Anteil des Clips beim Lösen, `yaw` = Drehung der Figur, damit der Schuss zum Ziel geht – die
+Meshy-Bogenschützen stehen seitlich und zielen über die linke Schulter (~95° zur Seite, `aimYaw`, mit der
+Clip-Überblendung). `node scripts/asset-gen/shots.mjs` misst beides (Bogen: Hände auf Kopfhöhe am weitesten auseinander,
+Ende dieses Auszugs, Richtung Zughand → Bogenhand) und schreibt das Manifest; nach neuen Clips erneut laufen lassen.
 
 ## Format für eigene Figuren (Tripo u. a.)
 
@@ -541,8 +557,22 @@ node scripts/asset-gen/horse.mjs --preview out.glb  # nur Rig + Clips (für rend
 - **Angriff im Sattel:** Die Meshy-Angriffe der Reiter sind im Stehen aufgenommen (Hüfte dreht bis ~40°, Beine stehen) –
   auf dem Pferd saßen Reiter damit quer. `node scripts/asset-gen/ride-clips.mjs` schreibt je Reiter-Figur den Clip
   `rideAttack` (Oberkörper aus `attack`, Hüfte und Beine aus der Reitpose, Brustdrehung auf 30 % gedämpft); die
-  Reiter-Rollen nehmen ihn für `attack`/`shoot`, Jubeln wird zur Reitpose. Prüfung: Hüfte und Brust weichen in keinem
+  schwere Reiterei nimmt ihn für `attack`/`shoot`, Jubeln wird zur Reitpose. Prüfung: Hüfte und Brust weichen in keinem
   Sattel-Clip mehr als 25° vom Pferd ab (`mount.test.js`, `CharacterSystem.facing` im E2E).
+- **Schuss im Sattel:** Die leichten Reiter tragen eine Armbrust (rechte Hand); ihr Meshy-`attack` reißt sie über den Kopf.
+  Dasselbe Skript schreibt `rideShoot` (2 s): Reitpose, die Arme heben die Waffe per IK vor das Gesicht, sie zeigt nach vorn
+  (leicht abwärts), die linke Hand stützt den Schaft, Rückstoß beim Lösen (50 %), dann sinkt sie wieder. Die Lage der Waffe
+  in der Hand misst `heldAxis` aus den Ecken an der Hand (Mitte → Schaft, Streuung quer → Bogen der Armbrust). Rollen
+  `soldier.lightCav*`: `shoot → rideShoot`. Der Pfeil startet auf Sitzhöhe (`variant.seat` + 0,6).
+- **Sitz neben dem Pferd:** Die Meshy-Reitpose (`ride`) saß seitlich versetzt (±4 cm), teils 5 cm zu tief, und Knie und Füße
+  steckten 5–7 cm im Pferdeleib (Figuren 0,81 hoch, das Pferd 0,4 breit). `ride-clips.mjs` richtet vor `rideAttack` den
+  Clip `ride` ein (`fitSeat`/`applySeat`, Spielmaße aus dem Manifest, Rumpf des Pferds als Querschnitt je Höhe und Länge,
+  `barrel`): Hüfte mittig über dem Sattel, Hüftgelenke `SEAT_LIFT` (2 cm) darüber; je Bein liegt das Knie seitlich am Rumpf
+  vor der Hüfte, der Unterschenkel hängt an der Flanke herab, der Fuß behält seine Lage. Der Abstand zur Flanke wächst, bis
+  unter dem Sattelpolster (`PAD`) keine Bein-Ecke mehr im Pferd liegt (98,5-%-Quantil, einzelne Riemen zählen nicht), für
+  beide Beine gleich. Wiederholbar: ein zweiter Lauf ändert nichts. Prüfung: `tests/render/shooters.test.js`.
+  Vorschau Reiter auf Pferd: `node scripts/asset-gen/render.mjs out.png public/models/characters/LightRider.lod1.glb
+  --mount public/models/characters/Horse.lod1.glb --clip rideShoot --t 0.4`.
 - **Teamfarbe:** Satteldecke in Magenta (`teamMarker`). Magenta-Sprenkel von Meshy außerhalb der Decke (Mähne,
   Schweif, Hufe) übermalt `cleanMarker` (Bereich `CLOTH_BOX`), auch die Lücken zwischen den UV-Inseln.
 - **Dateien:** Nahmodell 11 400 Dreiecke, Textur und Normal-Map 2048 (~1,6 MB, erst beim Heranzoomen); Spielmodell

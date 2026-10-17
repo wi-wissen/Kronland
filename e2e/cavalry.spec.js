@@ -75,15 +75,16 @@ test('Riders sit on the horse model and gallop in rhythm', async ({ page }, info
     window.__foe = foe.id;
   }, ids);
   const seen = new Set();
-  let worst = 0;
+  let worst = 0, arrows = 0;
   for (let k = 0; k < 16; k++) {
     await page.waitForTimeout(400);
     const f = await page.evaluate(() => {
       const c = window.__kronland.renderer.chars, out = [];
       for (const r of c.records.values()) if (/Cav/.test(r.roleKey) && !r.dying) { const x = c.facing(r.id); if (x?.horse !== null) out.push(x); }
-      return out;
+      return { out, arrows: window.__kronland.renderer.projectiles?.length ?? 0 };
     });
-    for (const x of f) {
+    arrows = Math.max(arrows, f.arrows);
+    for (const x of f.out) {
       seen.add(x.clip);
       const d = Math.abs(Math.atan2(Math.sin(x.rider - x.horse), Math.cos(x.rider - x.horse)));
       worst = Math.max(worst, (d * 180) / Math.PI);
@@ -91,5 +92,8 @@ test('Riders sit on the horse model and gallop in rhythm', async ({ page }, info
   }
   console.log('Rider clips seen:', [...seen].join(', '), 'largest deviation', worst.toFixed(1), '°');
   expect(worst, 'Rider and horse look the same way').toBeLessThan(25);
+  // mounted crossbowmen shoot: aimed shot in the saddle (the standing red squad fires at the blue riders), arrows fly
+  expect([...seen], 'shot in the saddle').toContain('rideShoot');
+  expect(arrows).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });

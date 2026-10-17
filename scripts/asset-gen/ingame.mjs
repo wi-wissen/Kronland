@@ -5,6 +5,7 @@
 //                                     [--root <other checkout>] [--focus tree|site] [--pitch 0.95] [--yaw 0.7] [--query nature=off]
 //                                     [--weather winter|rain] (switch the rendering's weather, wait for winter models)
 //                                     [--lineup [--heroes nelia,orrin,taran,malvor]] (size comparison, heroes next to serfs)
+//                                     [--army lightCav1 [--march | --fight]] (squad: riding off, or two squads firing at each other)
 //
 // Starts Vite (port 4391 or PREVIEW_PORT) with the checkout `--root` (default: this repo), a game with
 // ?quality=high (GLB characters even without a real GPU), sends serfs to the nearest tree and to a construction site,
@@ -28,6 +29,7 @@ const buildType = opt('--build'); // building test: place finished buildings of 
 const buildLevels = Number(opt('--levels', 3));
 const lineup = args.includes('--lineup') && (args.splice(args.indexOf('--lineup'), 1), true); // size comparison: hero, serfs, captain side by side at the village centre
 const march = args.includes('--march') && (args.splice(args.indexOf('--march'), 1), true); // squads set off (walking/riding motion), camera follows the blue captain
+const fight = args.includes('--fight') && (args.splice(args.indexOf('--fight'), 1), true); // blue and red squad within range, the simulation runs: shooting, striking
 const heroes = opt('--heroes'); // lineup with several heroes, e.g. nelia,orrin,taran,malvor (hero comparison)
 const army = opt('--army'); // character test: captain with a squad of this unit (e.g. sword1) in blue and red next to the castle // blue in level 1 … levels (upgrade levels side by side)
 const hpPercent = opt('--hp'); // building test: hit points of the levels in percent, e.g. 40,20 (smoke, fire)
@@ -123,6 +125,8 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`${url}?seed=42&quality=high&fog=off${query ? '&' + query : ''}`);
   await page.waitForFunction(() => !!window.__kronland?.sim, null, { timeout: 180000 });
+  // the shots hold the simulation; the pause greying would hide the colours
+  await page.addStyleTag({ content: '.game canvas.paused-gray { filter: none !important; }' });
   const info = await page.evaluate(SETUP);
   if (buildType) {
     info.build = await page.evaluate(({ type, levels, hp, def }) => {
@@ -156,12 +160,18 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
     }, { type: buildType, levels: buildLevels, hp: hpPercent ? hpPercent.split(',').map(Number) : [], def: { w: BUILDINGS[buildType].w, h: BUILDINGS[buildType].h } });
   }
   if (army) {
-    info.army = await page.evaluate(({ defId, march }) => {
+    info.army = await page.evaluate(({ defId, march, fight }) => {
       const e = window.__kronland, s = e.sim;
       const hq = s.findBuilding(0, 'headquarters');
       const x = hq.x + hq.w + 3, y = hq.y + 1;
       const a = s.spawnLeader(0, defId, x, y);
-      s.spawnLeader(1, defId, x + 3, y + 2);
+      s.spawnLeader(1, defId, x + (fight ? 5 : 3), y + 2);
+      if (fight) {
+        // both squads hold their ground and fire at each other; camera between them, side-on
+        for (let k = 0; k < 30; k++) e.stepOnce();
+        e.paused = false;
+        return { x: x + 2.5, y: y + 1, yaw: 0.7 + Math.PI / 2 };
+      }
       for (let k = 0; k < 5; k++) e.stepOnce();
       if (march) {
         // blue walks far away (on the move during all shots), red stays put
@@ -174,7 +184,7 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
         window.__marchLeader = a.id;
       }
       return { x: x + 1.5, y: y + 1.5, yaw: 0.7 };
-    }, { defId: army, march });
+    }, { defId: army, march, fight });
   }
   if (lineup) {
     info.army = await page.evaluate(({ LINE_YAW, heroes }) => {

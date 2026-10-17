@@ -1466,16 +1466,19 @@ export class Renderer {
       return;
     }
     const hit = this.hitAt?.get(e.id);
-    const shotAt = this.shotAt?.get(e.id);
-    const attacking = (hit !== undefined && this.time - hit < 0.7) || (shotAt !== undefined && this.time - shotAt < 0.7);
+    const shot = this.shotAt?.get(e.id);
     const line = e.kind === 'hero' ? null : UNITS[e.def]?.line;
     const ranged = line === 'bow' || line === 'lightCav';
+    // shooters stay in the shot loop while they keep firing (draw – release – reach for the next arrow, one cycle per
+    // shot, release in time with the arrow); melee strikes and single shots show briefly
+    const cycle = shot ? shotCycle(shot, UNITS[e.def]?.cooldown) : 0;
+    const attacking = (hit !== undefined && this.time - hit < 0.7) || (shot !== undefined && this.time - shot.at < (ranged ? Math.max(0.7, cycle * 1.6) : 0.7));
     const ground = this.groundSpeed(e, prev);
     // cavalry: walk when advancing slowly, otherwise gallop (horse and legs in time with the ground speed)
     const gait = line === 'lightCav' || line === 'heavyCav' ? cavalryGait(ground, this.chars.records.get(e.id)?.clip) : 'walk';
-    const clip = e.down ? 'die' : attacking ? (ranged ? 'shoot' : 'attack') : moving ? gait : 'idle';
+    const clip = e.down ? 'die' : attacking && !(ranged && moving) ? (ranged ? 'shoot' : 'attack') : moving ? gait : 'idle';
     const role = this.roleOf(e);
-    const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: playerHex(e.owner), speed: line === 'cannon' ? 0.6 : 1, ground });
+    const rec = this.chars.set(e.id, role, { x, y, z, yaw, clip, team: playerHex(e.owner), speed: line === 'cannon' ? 0.6 : 1, ground, ...(clip === 'shoot' && shot ? { shotAt: shot.at, cycle } : {}) });
     // hoof dust
     if (moving && (line === 'lightCav' || line === 'heavyCav') && this.fx.chance(0.22) && rec.lod.level >= 0 && rec.lod.level <= 1) this.fx.hoofDust(x, y, z);
     // health bars: captains (squad as a whole) and heroes
@@ -1495,11 +1498,17 @@ export class Renderer {
   addProjectile(ev) {
     const from = new THREE.Vector3(ev.from.x / UNIT, 0, ev.from.y / UNIT);
     const to = new THREE.Vector3(ev.to.x / UNIT, 0, ev.to.y / UNIT);
-    from.y = this.terrain.heightAt(from.x, from.z) + (ev.kind === 'bolt' ? 2.6 : 0.6);
+    // shooter: shot animation (the firing unit itself, otherwise the fighter at the firing position)
+    const by = this.sim.entities.get(ev.by);
+    const shooter = by && (by.kind === 'leader' || by.kind === 'soldier' || by.kind === 'hero') ? by.id : this.nearestFighter(ev.from.x, ev.from.y, ev.owner);
+    if (shooter) {
+      const m = (this.shotAt ??= new Map()), last = m.get(shooter), now = this.time ?? 0;
+      m.set(shooter, { at: now, gap: last && now - last.at < 6 ? now - last.at : last?.gap ?? 0 });
+    }
+    // arrows leave at chest height – riders from the saddle
+    const seat = shooter ? this.chars.records.get(shooter)?.variant?.seat ?? 0 : 0;
+    from.y = this.terrain.heightAt(from.x, from.z) + (ev.kind === 'bolt' ? 2.6 : 0.6 + seat);
     to.y = this.terrain.heightAt(to.x, to.z) + 0.4;
-    // shooter: shot animation
-    const shooter = this.nearestFighter(ev.from.x, ev.from.y, ev.owner);
-    if (shooter) (this.shotAt ??= new Map()).set(shooter, this.time ?? 0);
     const geo = ev.kind === 'ball' ? (this.ballGeo ??= new THREE.SphereGeometry(0.08, 8, 6)) : (this.arrowGeo ??= arrowGeometry());
     const m = new THREE.Mesh(geo, ev.kind === 'ball' ? mat(0x2a2a2e) : (this.arrowMat ??= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })));
     m.position.copy(from); m.lookAt(to);
@@ -1813,6 +1822,15 @@ const CHIMNEY = {
 };
 
 /** Arrow with tip and fletching (corners coloured). */
+/**
+ * Seconds per shot of a shooter: the measured gap between its last two shots (follows the game speed), before that
+ * the unit's cooldown (ticks of 100 ms).
+ * @param {{ at: number, gap: number }} shot @param {number} [cooldown]
+ */
+export function shotCycle(shot, cooldown) {
+  return shot.gap > 0.3 ? shot.gap : (cooldown ?? 20) / 10;
+}
+
 function arrowGeometry() {
   const parts = [];
   const shaft = new THREE.CylinderGeometry(0.012, 0.012, 0.42, 4).rotateX(Math.PI / 2);

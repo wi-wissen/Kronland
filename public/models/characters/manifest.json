@@ -122,6 +122,12 @@
         "idle": "idle",
         "run": "run",
         "walk": "walk"
+      },
+      "shots": {
+        "attack": {
+          "release": 0.8,
+          "yaw": -1.647
+        }
       }
     },
     "ArcherF": {
@@ -135,6 +141,12 @@
         "idle": "idle",
         "run": "run",
         "walk": "walk"
+      },
+      "shots": {
+        "attack": {
+          "release": 0.8,
+          "yaw": -1.627
+        }
       }
     },
     "Gunner": {
@@ -187,6 +199,12 @@
         "idle": "idle",
         "run": "run",
         "walk": "walk"
+      },
+      "shots": {
+        "attack": {
+          "release": 0.8,
+          "yaw": -1.715
+        }
       }
     },
     "BanditArcherF": {
@@ -200,6 +218,12 @@
         "idle": "idle",
         "run": "run",
         "walk": "walk"
+      },
+      "shots": {
+        "attack": {
+          "release": 0.783,
+          "yaw": -1.671
+        }
       }
     },
     "BanditF": {
@@ -296,7 +320,14 @@
         "ride": "ride",
         "rideAttack": "rideAttack",
         "run": "run",
-        "walk": "walk"
+        "walk": "walk",
+        "rideShoot": "rideShoot"
+      },
+      "shots": {
+        "rideShoot": {
+          "release": 0.5,
+          "yaw": 0
+        }
       }
     },
     "LightRiderF": {
@@ -310,7 +341,14 @@
         "ride": "ride",
         "rideAttack": "rideAttack",
         "run": "run",
-        "walk": "walk"
+        "walk": "walk",
+        "rideShoot": "rideShoot"
+      },
+      "shots": {
+        "rideShoot": {
+          "release": 0.5,
+          "yaw": 0
+        }
       }
     },
     "Taran": {
@@ -881,7 +919,7 @@
         "run": "ride",
         "idle": "ride",
         "attack": "rideAttack",
-        "shoot": "rideAttack",
+        "shoot": "rideShoot",
         "cheer": "ride"
       },
       "attach": [
@@ -906,7 +944,7 @@
         "run": "ride",
         "idle": "ride",
         "attack": "rideAttack",
-        "shoot": "rideAttack",
+        "shoot": "rideShoot",
         "cheer": "ride"
       },
       "attach": [

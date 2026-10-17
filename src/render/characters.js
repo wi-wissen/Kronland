@@ -1118,6 +1118,8 @@ export class Variant {
     this.alias = opts.alias ?? {};
     /** @type {Record<string, number>|null} natural ground speed per clip key (model units/s) */
     this.stride = opts.stride ?? null;
+    /** @type {Record<string, {release: number, yaw?: number}>|null} shot clips per animation name (manifest `shots`) */
+    this.shots = opts.shots ?? null;
     /** @type {{variant: Variant, offset: number[], scale: number, alias: Record<string,string>}[]} */
     this.attach = [];
     this.meshes = [];
@@ -1132,7 +1134,7 @@ export class Variant {
     let c = this.clipCache.get(key);
     if (c === undefined) {
       const k = resolveClip(this.alias[key] ?? key, this.has) ?? resolveClip(key, this.has);
-      c = k ? { key: k, ...this.bake.clips[this.names[k]], loop: !ONE_SHOT.has(k) } : { key: '__bind', ...this.bake.clips.__bind, loop: true };
+      c = k ? { key: k, ...this.bake.clips[this.names[k]], loop: !ONE_SHOT.has(k), shot: this.shots?.[this.names[k]] ?? null } : { key: '__bind', ...this.bake.clips.__bind, loop: true, shot: null };
       this.clipCache.set(key, c);
     }
     return c;
@@ -1414,7 +1416,7 @@ export class CharacterSystem {
     };
     const materials = built.map((x) => materialFor(x.sc, x.lvl, x.geo));
     const v = new Variant(roleKey, levels, bake, materials[0], characterDepthMaterial(bake.texture), names, {
-      yaw: def.yaw, scale, alias: role.clipAlias, worldHeight: (def.height ?? 1) * (role.scale ?? 1), stride: def.stride,
+      yaw: def.yaw, scale, alias: role.clipAlias, worldHeight: (def.height ?? 1) * (role.scale ?? 1), stride: def.stride, shots: def.shots,
     });
     v.materials = materials;
     v.tintColor = tint?.color ? new THREE.Color(tint.color) : null;
@@ -1509,6 +1511,8 @@ export class CharacterSystem {
     // and phase-continuous (the legs do not jump when the pace changes)
     let rate = s.speed ?? 1;
     if (s.ground > 0 && r.variant && MOVE_CLIPS.has(r.clip)) rate = strideRate(r.variant.moveSpeed(r.clip), s.ground, rate);
+    // shot loop: one clip cycle per shot, the release frame on the arrow's departure
+    if (r.clip === 'shoot' && s.shotAt !== undefined && r.variant) syncShot(r, r.variant.clip('shoot'), s.shotAt, s.cycle);
     if (MOVE_CLIPS.has(r.clip)) {
       const old = r.speed ?? rate;
       const next = old + (rate - old) * 0.25;
@@ -1521,6 +1525,7 @@ export class CharacterSystem {
   switchClip(r, clip) {
     if (r.clip) { r.prevClip = r.clip; r.prevT0 = r.clipT0; r.fadeT0 = this.time; }
     r.clip = clip;
+    r.shotSync = undefined;
     // start looping clips phase-shifted (no masses moving in lockstep)
     r.clipT0 = this.time - (ONE_SHOT.has(clip) ? 0 : r.phase);
   }
@@ -1607,7 +1612,7 @@ export class CharacterSystem {
         let i = 0;
         for (const [r, rl, sink, a, fv] of list) {
           const host = r.variant;
-          const yaw = r.yaw + v.yaw;
+          const yaw = r.yaw + v.yaw + (a ? 0 : aimYaw(v, r, time));
           tmpP.copy(r.position);
           if (a) {
             // attachment relative to the figure (rotated with it)
@@ -1666,7 +1671,7 @@ export class CharacterSystem {
     if (!v) return null;
     const [fa] = animFrames(v, r, null, 0, this.time);
     const m = v.mount;
-    return { rider: r.yaw + v.yaw + v.bodyYaw(fa), horse: m ? r.yaw + m.variant.yaw : null, clip: v.clip(r.clip).key };
+    return { rider: r.yaw + v.yaw + aimYaw(v, r, this.time) + v.bodyYaw(fa), horse: m ? r.yaw + m.variant.yaw : null, clip: v.clip(r.clip).key };
   }
 
   /** Make all variants visible once (precompile shaders). */
@@ -1730,12 +1735,39 @@ export class CharacterSystem {
 function animFrames(v, r, a, step, time) {
   const key = a ? (a.alias[r.clip] ?? r.clip) : r.clip;
   const cur = v.clip(key);
-  let t = (time - r.clipT0) * (MOVE_CLIPS.has(cur.key) || MOVE_CLIPS.has(r.clip) ? r.speed : 1);
+  let t = (time - r.clipT0) * (MOVE_CLIPS.has(cur.key) || MOVE_CLIPS.has(r.clip) ? r.speed : !a && r.clip === 'shoot' ? r.shotRate ?? 1 : 1);
   if (step === Infinity) t = cur.loop ? 0 : cur.duration;
   else if (step > 0) t = Math.floor(t / step + 1e-4) * step;
   const f = clipFrames(cur, t, v.bake.fps, cur.loop);
   if (step > 0) f[2] = 0;
   return f;
+}
+
+/**
+ * Shot loop of a figure: playback rate so that one clip cycle lasts one shot interval (`cycle`, seconds) and, with a
+ * known release frame (manifest `shots`), the clip start so that the release falls on the shot at `shotAt`.
+ * Without a new shot nothing changes – the loop keeps running in rhythm.
+ * @param {{ clipT0: number, shotRate?: number, shotSync?: number }} r record
+ * @param {{ duration: number, shot: { release: number } | null }} clip
+ */
+export function syncShot(r, clip, shotAt, cycle) {
+  if (!(clip.duration > 0)) return;
+  r.shotRate = Math.min(4, Math.max(0.5, clip.duration / (cycle > 0 ? cycle : clip.duration)));
+  if (r.shotSync === shotAt) return;
+  r.shotSync = shotAt;
+  if (clip.shot) r.clipT0 = shotAt - (clip.shot.release * clip.duration) / r.shotRate;
+}
+
+/**
+ * Turn of the body for the shown clip (manifest `shots[…].yaw`: archers stand side-on so the bow arm points at
+ * the target), cross-faded like the clips. Radians, 0 for clips without it.
+ */
+export function aimYaw(v, r, time) {
+  const cur = r.clip ? v.clip(r.clip).shot?.yaw ?? 0 : 0;
+  const k = r.fadeT0 >= 0 ? (time - r.fadeT0) / 0.22 : 1;
+  if (k >= 1 || !r.prevClip) return cur;
+  const prev = v.clip(r.prevClip).shot?.yaw ?? 0;
+  return prev + (cur - prev) * Math.max(0, k);
 }
 
 /** Procedural kind from a role key if the manifest is missing. */
