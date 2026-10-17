@@ -147,6 +147,20 @@ Effekte 0,2 MB, je Musikstück ~2 MB, je Satz einer Stimme ~30 KB.
 „vorher“: Messung vor dem Umbau der Figuren (Nahmodelle wurden mit jeder Rolle sofort geladen). Ein Nahmodell
 (~2,2 MB) kommt jetzt erst, wenn eine Figur dieses Modells nah genug für die Nahstufe ist (siehe unten).
 
+**Neue Spielmodelle und Detailstufen** (gamemesh/lodbake, [MODELLE.md](MODELLE.md#detailstufen-neu-aufbauen-lodbake),
+Oktober 2026; gleiche Messung vorher/nachher, 1. Besuch):
+
+| Szenario | vorher | nachher | Figuren | Gebäude, Felsen | Bäume, Büsche |
+|---|--:|--:|--:|--:|--:|
+| Freies Spiel, Desktop „hoch“ | 21,8 MB | **20,8 MB** | 6,5 → 6,2 | 6,4 → 5,6 (31 → 25 Dateien) | 3,8 → 3,9 |
+| Freies Spiel, Handy „niedrig“ | 16,2 MB | **15,5 MB** | 2,1 → 2,1 | 6,4 → 5,6 | 3,8 → 3,9 |
+| Kampagne Mission 1 | 26,1 MB | **25,1 MB** | 7,3 → 7,0 | 6,4 → 5,6 | 7,3 → 7,3 |
+| Schaukasten | 120,2 MB | **118,3 MB** | 32,9 → 31,3 | 78,3 → 78,0 | 3,8 → 3,9 |
+
+Spielmodelle aus dem Nahmodell sind ~5 % kleiner als der Remesh. Die texturierten lod2 kosten je Gebäude 15–25 KB mehr,
+die neun neuen lod1 sparen dafür; beim Start entfallen die nie gezeichneten Stufen von Ruine und Lagerfeuer
+(`ownAsset` lädt keine Stufen mehr). Die neuen `.lod3` der Bäume bringen je eine 128er-Textur mit (+0,1 MB).
+
 Bei längerem Spiel kommen nach und nach weitere Gebäudestufen, Berufe und Truppen dazu (Obergrenze: alles
 zusammen, ~250 MB). Zum Vergleich: Alles in `public/` sind ~250 MB – geladen wird davon beim Start weniger als ein
 Zehntel.

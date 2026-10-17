@@ -170,7 +170,9 @@ export function withImpostor(renderer, v, opts = {}) {
     return {
       ...src,
       levels: [...src.levels.slice(0, last), impostorGeometry(baked)],
-      materials: src.levels.map((_, i) => (i === last ? material : src.material)),
+      // the other levels keep their material (own per level from lodbake, else the shared one)
+      materials: src.levels.map((_, i) => (i === last ? material : src.materials?.[i] ?? src.material)),
+      impostor: true,
     };
   };
   let winterMade = null;

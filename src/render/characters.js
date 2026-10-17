@@ -520,6 +520,9 @@ export function mergeCharacterGeometry(scene, bake, role, grid, maskImgs = {}, d
     const uv = src.attributes.uv ? floatAttr(src.attributes.uv) : new THREE.BufferAttribute(new Float32Array(pos.count * 2), 2);
     g.setAttribute('position', pos);
     if (nrm) g.setAttribute('normal', nrm);
+    // MikkTSpace tangents from the file: the normal maps are baked against them (without, three.js derives
+    // a tangent per triangle from screen derivatives and faces look faceted)
+    if (nrm && src.attributes.tangent) g.setAttribute('tangent', floatAttr(src.attributes.tangent));
     g.setAttribute('uv', uv);
     // vertex colours (game model without texture): always RGB
     if (src.attributes.color) {
@@ -595,6 +598,10 @@ export function mergeCharacterGeometry(scene, bake, role, grid, maskImgs = {}, d
   // Vertex colours: if some parts have them, the others get white (otherwise they cannot be merged)
   if (parts.some((p) => p.attributes.color)) {
     for (const p of parts) if (!p.attributes.color) p.setAttribute('color', new THREE.BufferAttribute(new Float32Array(p.attributes.position.count * 3).fill(1), 3));
+  }
+  // tangents: if some parts have them, the others get a neutral one (otherwise they cannot be merged)
+  if (parts.some((p) => p.attributes.tangent)) {
+    for (const p of parts) if (!p.attributes.tangent) { const t = new Float32Array(p.attributes.position.count * 4); for (let i = 0; i < t.length; i += 4) { t[i] = 1; t[i + 3] = 1; } p.setAttribute('tangent', new THREE.BufferAttribute(t, 4)); }
   }
   // all parts indexed or none
   const allIndexed = parts.every((p) => p.index);
@@ -810,7 +817,7 @@ varying float vFade;`)
       .replace('#include <beginnormal_vertex>', `kSkin = charSkin();
 vec3 objectNormal = normalize((kSkin * vec4(normal, 0.0)).xyz);
 #ifdef USE_TANGENT
-vec3 objectTangent = vec3(tangent.xyz);
+vec3 objectTangent = normalize((kSkin * vec4(tangent.xyz, 0.0)).xyz);
 #endif`)
       .replace('#include <begin_vertex>', `vec3 transformed = (kSkin * vec4(position, 1.0)).xyz;
 #ifdef USE_ALPHAHASH
@@ -1568,7 +1575,8 @@ export class CharacterSystem {
     const time = this.time;
     const camPos = camera.position;
     const bias = this.lodSettings.bias;
-    const viewH = this.viewH ?? 800;
+    // screen height in rendered pixels (CSS height × pixel ratio, set by the renderer)
+    const viewH = (this.viewH ?? 800) * (this.pixelRatio ?? 1);
     /** @type {Map<Variant, any[][]>} variant → level → [record, level, sinking, attachment, cross-fade] */
     const buckets = new Map();
     const push = (v, lvl, item) => {

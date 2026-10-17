@@ -292,6 +292,7 @@ export class Renderer {
     this.quality = q;
     this.lodTier = LOD_TIERS[q.tier] ?? LOD_TIERS.high;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, q.maxPixelRatio));
+    this.chars.pixelRatio = this.renderer.getPixelRatio();
     if (this.viewport) this.renderer.setSize(this.viewport.w, this.viewport.h, false);
     if (this.env.setQuality(q)) {
       // shadows on/off: recompile the shaders of all materials
@@ -359,7 +360,10 @@ export class Renderer {
     this.camera.fov = w < h ? 55 : 40;
     this.camera.updateProjectionMatrix();
     this.viewport = { w, h };
-    this.chars.viewH = h; // LOD levels of the figures by screen height (CSS pixels)
+    // LOD levels of the figures by screen height in rendered pixels (CSS pixels × pixel ratio): on a phone or a
+    // scaled display the game model would otherwise be shown up to twice as large as intended
+    this.chars.viewH = h;
+    this.chars.pixelRatio = this.renderer.getPixelRatio();
   }
 
   // ---------- Static objects ----------
@@ -542,9 +546,9 @@ export class Renderer {
     const t = this.terrain;
     const kinds = this.natureCache.scatter ??= scatterKinds(this.natureUniforms);
     // bush model: farthest level as impostor like the trees
-    if (kinds.bush?.model && kinds.bush.levels?.length > 1 && !kinds.bush.materials && !impostorsOff()) {
-      const b = withImpostor(this.renderer, { levels: kinds.bush.levels, material: kinds.bush.material, winter: kinds.bush.season ?? null }, impostorBake(this.quality));
-      kinds.bush = { ...kinds.bush, geometry: b.levels[0], levels: b.levels, materials: b.materials, season: b.winter };
+    if (kinds.bush?.model && kinds.bush.levels?.length > 1 && !kinds.bush.impostor && !impostorsOff()) {
+      const b = withImpostor(this.renderer, { levels: kinds.bush.levels, material: kinds.bush.material, materials: kinds.bush.materials, winter: kinds.bush.season ?? null }, impostorBake(this.quality));
+      kinds.bush = { ...kinds.bush, geometry: b.levels[0], levels: b.levels, materials: b.materials, season: b.winter, impostor: true };
     }
     const dens = this.quality.scatter;
     const r = rng(this.sim.seed * 13 + 1);

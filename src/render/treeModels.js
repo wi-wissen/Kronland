@@ -180,7 +180,7 @@ export function applySeason(groups, winter) {
     ci.meshes.forEach((m, i) => {
       const k = Math.min(i, use.levels.length - 1);
       m.geometry = use.levels[k];
-      // own material per level (impostor as the farthest level), otherwise the shared one
+      // levels with an own texture (lodbake) and the impostor level have their own material
       m.material = use.materials?.[k] ?? use.material;
       materials.add(m.material);
     });
