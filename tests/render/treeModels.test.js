@@ -99,6 +99,16 @@ describe('applySeason (winter swap)', () => {
     expect(g.meshes[0].material).toBe('mS');
   });
 
+  it('levels with an own texture (lodbake far level) get their own material', () => {
+    const winter = { levels: ['w0', 'w1', 'w2'], material: 'mW', materials: ['mW', 'mW', 'mW3'] };
+    const g = group(() => winter);
+    g.userData.summer.materials = ['mS', 'mS', 'mS3'];
+    expect(applySeason([g], true).materials).toEqual(['mW', 'mW3']);
+    expect(g.meshes.map((m) => m.material)).toEqual(['mW', 'mW', 'mW3']);
+    applySeason([g], false);
+    expect(g.meshes.map((m) => m.material)).toEqual(['mS', 'mS', 'mS3']);
+  });
+
   it('if the winter version is missing (not yet loaded), summer stays and missing reports it', () => {
     const g = group(() => null);
     expect(applySeason([g], true).missing).toBe(true);

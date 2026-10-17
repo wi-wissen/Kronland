@@ -420,7 +420,7 @@ export class Renderer {
       // the same distances (otherwise they would stay in the full model far out, ~2000 triangles per tree)
       height: (v.geometry.boundingBox ?? (v.geometry.computeBoundingBox(), v.geometry.boundingBox)).max.y * v.scale * (v.model ? TREE_LOD_HEIGHT[q.tier] ?? 0.5 : 1),
       // farthest level without shadow casting: saves the expensive shadow pass for the horizon
-      levels: v.levels.map((g, i) => ({ geometry: g, material: v.material, castShadow: i < v.levels.length - 1 || v.levels.length === 1, receiveShadow: i === 0 })),
+      levels: v.levels.map((g, i) => ({ geometry: g, material: v.materials?.[i] ?? v.material, castShadow: i < v.levels.length - 1 || v.levels.length === 1, receiveShadow: i === 0 })),
     }));
     /** @type {Map<number, {v:number, h:any, x:number, z:number, s:number}>} */
     this.treeIndex = new Map();
@@ -621,7 +621,7 @@ export class Renderer {
         name: 'scatter-' + name, chunkSize: kind.small ? 6 : 12, kind: kind.small ? 'scatterSmall' : kind.levels ? 'bush' : 'scatterLarge',
         // bush model: own LOD levels (far without shadows); rocks and bushes otherwise without
         // shadow casting in the distance (second level, same geometry)
-        levels: kind.levels ? kind.levels.map((g, i) => ({ geometry: g, material: kind.material, castShadow: i === 0, receiveShadow: true }))
+        levels: kind.levels ? kind.levels.map((g, i) => ({ geometry: g, material: kind.materials?.[i] ?? kind.material, castShadow: i === 0, receiveShadow: true }))
           : big ? [level, { ...level, castShadow: false }] : [level],
       });
       for (const it of list) {
@@ -643,7 +643,7 @@ export class Renderer {
       ci.finalize(this.scene);
       for (const m of ci.meshes) patchFog(m.material);
       ci.userData.winter = kind.winter;
-      if (kind.season) { ci.userData.summer = { levels: kind.levels, material: kind.material }; ci.userData.season = kind.season; }
+      if (kind.season) { ci.userData.summer = { levels: kind.levels, material: kind.material, materials: kind.materials }; ci.userData.season = kind.season; }
       this.chunked.push(ci);
       this.scatter.push(ci);
     }

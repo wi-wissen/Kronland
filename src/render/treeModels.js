@@ -164,7 +164,7 @@ export function seasonLevels(winter) {
  * Apply the season to chunk groups (ChunkedInstances): per level set geometry and material of the summer or
  * winter version; the instances (matrices, colours) stay untouched. Groups without seasons
  * (userData.summer/season) stay as they are.
- * @param {{ meshes: {geometry: any, material: any}[], userData: {summer?: {levels: any[], material: any}, season?: () => ({levels: any[], material: any}|null)} }[]} groups
+ * @param {{ meshes: {geometry: any, material: any}[], userData: {summer?: {levels: any[], material: any, materials?: any[]}, season?: () => ({levels: any[], material: any, materials?: any[]}|null)} }[]} groups
  * @param {boolean} winter
  * @returns {{ missing: boolean, materials: any[] }} missing: a winter version is missing (not yet loaded)
  */
@@ -178,10 +178,12 @@ export function applySeason(groups, winter) {
     if (winter && !w) missing = true;
     const use = w ?? summer;
     ci.meshes.forEach((m, i) => {
-      m.geometry = use.levels[Math.min(i, use.levels.length - 1)];
-      m.material = use.material;
+      const k = Math.min(i, use.levels.length - 1);
+      m.geometry = use.levels[k];
+      // levels with an own texture (lodbake) have their own material
+      m.material = use.materials?.[k] ?? use.material;
+      materials.add(m.material);
     });
-    materials.add(use.material);
   }
   return { missing, materials: [...materials] };
 }

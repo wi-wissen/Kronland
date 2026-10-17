@@ -38,13 +38,33 @@ for (const s of prim.listSemantics()) prim.setAttribute(s, null);
 prim.setAttribute('POSITION', acc('VEC3', pos));
 prim.setAttribute('NORMAL', acc('VEC3', arr(lp.getAttribute('NORMAL'))));
 prim.setAttribute('TANGENT', acc('VEC4', arr(lp.getAttribute('TANGENT'))));
-prim.setAttribute('TEXCOORD_0', acc('VEC2', arr(lp.getAttribute('TEXCOORD_0'))));
+// Tool strip (Serf, SerfF): the texture is taller than wide, the body uses the top square, the tool meshes (`*_netz`,
+// same material) the rows below. Keep those rows and squeeze the new body UV into the top square.
+const mat = prim.getMaterial();
+const oldMeta = await sharp(Buffer.from(mat.getBaseColorTexture().getImage())).metadata();
+const strip = Math.max(0, oldMeta.height - oldMeta.width);
+const uv = arr(lp.getAttribute('TEXCOORD_0'));
+if (strip) for (let i = 1; i < uv.length; i += 2) uv[i] *= oldMeta.width / oldMeta.height;
+prim.setAttribute('TEXCOORD_0', acc('VEC2', uv));
 prim.setAttribute('JOINTS_0', acc('VEC4', new Uint8Array(joints)));
 prim.setAttribute('WEIGHTS_0', acc('VEC4', weights));
 prim.setIndices(acc('SCALAR', new Uint32Array(lp.getIndices().getArray())));
-const mat = prim.getMaterial();
+// game models without a normal map (LightRiderF) get one
+if (!mat.getNormalTexture()) mat.setNormalTexture(doc.createTexture('normal').setMimeType('image/jpeg'));
 for (const [tex, kind] of [[mat.getBaseColorTexture(), 'color'], [mat.getNormalTexture(), 'normal']]) {
-  const jpg = await sharp(`${dir}/out.${kind}.png`).removeAlpha().jpeg({ quality: 90, mozjpeg: true }).toBuffer();
+  let img = sharp(`${dir}/out.${kind}.png`).removeAlpha();
+  if (strip) {
+    const W = oldMeta.width;
+    const square = await img.resize(W, W).raw().toBuffer();
+    // old strip rows; a new normal map gets a flat strip
+    const old = tex.getImage() ? await sharp(Buffer.from(tex.getImage())).removeAlpha().resize(W, oldMeta.height).raw().toBuffer() : null;
+    const full = Buffer.alloc(W * oldMeta.height * 3);
+    square.copy(full, 0);
+    if (old) old.copy(full, W * W * 3, W * W * 3);
+    else for (let i = W * W * 3; i < full.length; i += 3) full.set([128, 128, 255], i);
+    img = sharp(full, { raw: { width: W, height: oldMeta.height, channels: 3 } });
+  }
+  const jpg = await img.jpeg({ quality: 90, mozjpeg: true }).toBuffer();
   tex.setImage(new Uint8Array(jpg)).setMimeType('image/jpeg');
 }
 for (const a of doc.getRoot().listAccessors()) if (!a.listParents().some((p) => p.propertyType !== 'Root')) a.dispose();

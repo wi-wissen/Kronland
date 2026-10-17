@@ -1,6 +1,7 @@
 // Low-poly shell from a building GLB: weld by position only (UV/normal seams ignored, we re-bake later),
 // then quadric simplification (meshoptimizer) of the pure geometry. Output: OBJ (positions + faces).
-// usage: node lowmesh.mjs in.glb out.obj targetTris [flags,comma] [maxError]   env LM_MAXTRIS, LM_UPDATE=0 (plain collapse), LM_LOCKTEAM=0
+// usage: node lowmesh.mjs in.glb out.obj targetTris [flags,comma] [maxError]   env LM_MAXTRIS, LM_UPDATE=0 (plain collapse), LM_LOCKTEAM=0,
+//   LM_PARTS=<model> (moving parts simplified on their own)
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dequantize } from '@gltf-transform/functions';
@@ -87,39 +88,78 @@ for (let i = 0; i < I.length; i += 3) {
   const a = remap[I[i]], b = remap[I[i + 1]], c = remap[I[i + 2]];
   if (a !== b && b !== c && a !== c) tri.push(a, b, c);
 }
-const positions = new Float32Array(WP), indices = new Uint32Array(tri);
-const target = Math.min(indices.length, Number(tgt) * 3);
+// moving parts (LM_PARTS = model name in MOVING_PARTS, src/render/movingParts.js): rotor and building are simplified
+// separately (own vertices), so no collapse joins a sail to the tower and the game's cylinder cut still works
+const groupOf = new Uint8Array(tri.length / 3);
+if (process.env.LM_PARTS) {
+  const { MOVING_PARTS, partAt } = await import('../../../src/render/movingParts.js');
+  const { Vector3 } = await import('three');
+  const parts = MOVING_PARTS[process.env.LM_PARTS] ?? [];
+  const q = new Vector3();
+  for (let t = 0; t < tri.length / 3; t++) {
+    q.set(0, 0, 0);
+    for (let k = 0; k < 3; k++) { const v = tri[t * 3 + k]; q.x += WP[v * 3] / 3; q.y += WP[v * 3 + 1] / 3; q.z += WP[v * 3 + 2] / 3; }
+    groupOf[t] = partAt(parts, q) + 1;
+  }
+}
+const nGroups = Math.max(...groupOf) + 1;
+const totalTris = tri.length / 3;
 const flags = flagStr ? flagStr.split(',') : [];
-function simplify(target, maxErr) {
-  const idx = indices.slice(), pos = positions.slice();
+// one group: own compact vertex list, simplified on its own share of the target
+function simplifyGroup(g, targetTris, maxErr) {
+  const vmap = new Map(), gp = [], gl = [], gi = [];
+  for (let t = 0; t < totalTris; t++) {
+    if (groupOf[t] !== g) continue;
+    for (let k = 0; k < 3; k++) {
+      const v = tri[t * 3 + k];
+      let j = vmap.get(v);
+      if (j === undefined) { j = vmap.size; vmap.set(v, j); gp.push(WP[v * 3], WP[v * 3 + 1], WP[v * 3 + 2]); gl.push(lock[v]); }
+      gi.push(j);
+    }
+  }
+  const idx = new Uint32Array(gi), pos = new Float32Array(gp), lk = new Uint8Array(gl);
+  const target = Math.min(idx.length, Math.max(3, Math.round(targetTris) * 3));
   if (process.env.LM_UPDATE !== '0') {
     // simplifyWithUpdate: collapsed vertices move to the quadric optimum (flatter walls, straighter edges)
-    const [n, e] = MeshoptSimplifier.simplifyWithUpdate(idx, pos, 3, new Float32Array(0), 0, [], lock, target, maxErr, flags);
-    return { out: idx.subarray(0, n), err: e, pos };
+    const [n, e] = MeshoptSimplifier.simplifyWithUpdate(idx, pos, 3, new Float32Array(0), 0, [], lk, target, maxErr, flags);
+    return { out: idx.subarray(0, n), err: e, pos, lock: lk };
   }
-  const [o, e] = MeshoptSimplifier.simplifyWithAttributes(idx, pos, 3, new Float32Array(WP.length / 3), 1, [0], lock, target, maxErr, flags);
-  return { out: o, err: e, pos };
+  const [o, e] = MeshoptSimplifier.simplifyWithAttributes(idx, pos, 3, new Float32Array(pos.length / 3), 1, [0], lk, target, maxErr, flags);
+  return { out: o, err: e, pos, lock: lk };
+}
+function simplify(targetTris, maxErr) {
+  const res = [];
+  for (let g = 0; g < nGroups; g++) {
+    const n = groupOf.reduce((a, x) => a + (x === g), 0);
+    if (n) res.push(simplifyGroup(g, (targetTris * n) / totalTris, maxErr));
+  }
+  return res;
 }
 // target: triangle count; maxError: relative error budget (stops at whichever comes first); LM_MAXTRIS caps the count
-let res = simplify(target, Number(errStr));
+let res = simplify(Math.min(totalTris, Number(tgt)), Number(errStr));
+const count = (r) => r.reduce((a, g) => a + g.out.length / 3, 0);
 const maxTris = Number(process.env.LM_MAXTRIS ?? 0);
-if (maxTris && res.out.length / 3 > maxTris) res = simplify(maxTris * 3, 1);
-const { out, err } = res;
-positions.set(res.pos);
+if (maxTris && count(res) > maxTris) res = simplify(maxTris, 1);
+const err = Math.max(...res.map((g) => g.err));
 // compact
-const used = new Map(), V = [];
-const F = [];
-for (let i = 0; i < out.length; i++) {
-  let j = used.get(out[i]);
-  if (j === undefined) { j = used.size; used.set(out[i], j); V.push(positions[out[i] * 3], positions[out[i] * 3 + 1], positions[out[i] * 3 + 2]); }
-  F.push(j + 1);
+const V = [], F = [], teamPos = [];
+for (const g of res) {
+  const used = new Map();
+  for (let i = 0; i < g.out.length; i++) {
+    let j = used.get(g.out[i]);
+    if (j === undefined) {
+      j = V.length / 3; used.set(g.out[i], j);
+      const k = g.out[i] * 3;
+      V.push(g.pos[k], g.pos[k + 1], g.pos[k + 2]);
+      // positions of the team-coloured (locked) vertices that survived: finalize.mjs keeps magenta only on triangles made of them
+      if (g.lock[g.out[i]]) teamPos.push([g.pos[k], g.pos[k + 1], g.pos[k + 2]]);
+    }
+    F.push(j + 1);
+  }
 }
 let s = '';
 for (let i = 0; i < V.length; i += 3) s += `v ${V[i]} ${V[i + 1]} ${V[i + 2]}\n`;
 for (let i = 0; i < F.length; i += 3) s += `f ${F[i]} ${F[i + 1]} ${F[i + 2]}\n`;
 writeFileSync(dst, s);
-// positions of the team-coloured (locked) vertices that survived: finalize.mjs keeps magenta only on triangles made of them
-const teamPos = [];
-for (const [src, j] of used) if (lock[src]) teamPos.push([V[j * 3], V[j * 3 + 1], V[j * 3 + 2]]);
 writeFileSync(dst.replace(/\.obj$/, '.team.json'), JSON.stringify(teamPos));
-console.log(`team-locked ${nLock}, in ${tri.length / 3} tris (${WP.length / 3} welded verts) -> ${out.length / 3} tris, rel. error ${(err).toFixed(4)}`);
+console.log(`team-locked ${nLock}, in ${tri.length / 3} tris (${WP.length / 3} welded verts) -> ${F.length / 3} tris, rel. error ${(err).toFixed(4)}`);

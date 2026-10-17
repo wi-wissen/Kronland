@@ -105,8 +105,9 @@ Aufbau, Erweitern von Handbuch und Kompendium, Pfade, PWA, Linkvorschau und Ver�
   (wird gemerkt; im Code: `setQuality()` aus `src/render/quality.js`). Objekte werden je nach Abstand/Zoom
   vereinfacht (Detailstufen; Figuren und Bäume nach ihrer Größe auf dem Bildschirm, kleine Deko schrumpft in der
   Ferne in den Boden und wird dann gar nicht mehr gezeichnet), Figuren sind instanziert und GPU-animiert. Figuren haben zwei Darstellungen:
-  ein detailliertes Nahmodell beim Heranzoomen und ein flach gefärbtes, gut lesbares Spielmodell, umgeschaltet
-  nach ihrer Bildschirmhöhe mit kurzer Überblendung – Details in [Modelle](docs/MODELLE.md). Der Boden ist gemalt
+  ein detailliertes Nahmodell beim Heranzoomen und ein aus ihm vereinfachtes Spielmodell (Textur vom Nahmodell gebacken), umgeschaltet
+  nach ihrer Bildschirmhöhe mit kurzer Überblendung; die Fernstufen der Gebäude und Bäume haben eigene gebackene Texturen
+  – Details in [Modelle](docs/MODELLE.md). Der Boden ist gemalt
   (sechs nahtlose Texturen aus der Bild-KI, [Bodentexturen](docs/BODEN.md)), mit Rückfall auf im Code gemalte Texturen;
   Bäume und Büsche sind eigene Modelle (Eiche, Buche, Birke, Fichte, Kiefer, Busch), die im Winter gegen kahle bzw.
   verschneite Fassungen getauscht werden; Felsen, Stümpfe, Rohstoffhaufen und Schächte tragen gemalte Fels- und
@@ -217,6 +218,8 @@ scripts/build-assets.sh <Pfad Hexagon-Paket>
 ```
 
 Das Skript optimiert die Modelle und erzeugt die Detailstufen `*.lod1.glb`, `*.lod2.glb` (`scripts/build-lods.mjs`).
+Eigene Gebäude und Bäume bekommen ihre Fernstufen mit gebackener Textur aus `scripts/asset-gen/lodbake/`, die Spielmodelle
+der Figuren aus `scripts/asset-gen/gamemesh/` (beide brauchen Blender, [docs/MODELLE.md](docs/MODELLE.md)).
 Bäume und Büsche sind eigene Meshy-Modelle (`public/models/buildings/tree_*.glb`, `bush*.glb`, mit Winterfassung,
 siehe [docs/MODELLE.md](docs/MODELLE.md#bäume-und-büsche)).
 Zuordnung Gebäudetyp → Modell: `src/render/assets.js`; Figuren: `public/models/characters/manifest.json`.
