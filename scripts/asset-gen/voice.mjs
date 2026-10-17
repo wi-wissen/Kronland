@@ -4,6 +4,8 @@
 //   node scripts/asset-gen/voice.mjs audition [role …]   audition samples: per draft one sentence designed, one sentence cloned
 //   node scripts/asset-gen/voice.mjs pick <role> <nr> [source]   adopt draft nr (0, 1, …) as the template
 //   node scripts/asset-gen/voice.mjs lines [role …]      voice all mission dialogues and barks (de/en, resumable)
+//   node scripts/asset-gen/voice.mjs trim [role …]       shorten inner pauses of the existing recordings (raw/ → game files)
+//   node scripts/asset-gen/voice.mjs pauses [role …]     measure inner pauses of the game files
 //
 // Roles and descriptions: assets-src/voices/cast.json. One folder per role assets-src/voices/<role>/ with the
 // template (voice.wav, voice.json) and the unprocessed recordings (raw/). Game files: public/audio/voice/.
@@ -12,6 +14,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { ROOT, reexecWithProxy } from './lib.mjs';
 import { requireAssetsSrc } from '../require-assets-src.mjs';
@@ -28,6 +31,10 @@ const SPEAKER_ALIAS = { kunz: 'bandit', guard: 'collector' };
 const AUDITION_DIR = path.join(VOICE_DIR, 'audition');
 /** Target loudness (LUFS) and peak level of all recordings */
 export const LOUDNESS = 'loudnorm=I=-18:TP=-1.5:LRA=11';
+/** Inner pauses above this length (s) reject a recording (regenerated). */
+export const MAX_PAUSE = Number(process.env.VOICE_MAX_PAUSE ?? 0.8);
+/** Safety net for the pauses the model still makes: inner silences over 0.5 s are cut down to about 0.5 s (silenceremove keeps stop_silence on both sides). */
+export const TRIM = 'silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-40dB:stop_silence=0.2';
 const TRIES = Number(process.env.VOICE_TRIES ?? 6);
 const PARALLEL = Number(process.env.VOICE_PARALLEL ?? 5);
 
@@ -107,6 +114,19 @@ export function similarity(a, b) {
   return 1 - d[x.length][y.length] / Math.max(x.length, y.length);
 }
 
+/** Lengths (s) of the inner silences (-40 dB) over `min` seconds; leading and trailing silence does not count. */
+export function innerPauses(file, min = MAX_PAUSE) {
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-i', file, '-af', `silencedetect=n=-40dB:d=${min}`, '-f', 'null', '-'], { encoding: 'utf8' });
+  const out = [];
+  let start = null;
+  for (const line of r.stderr.split(/\r?\n/)) {
+    const s = line.match(/silence_start: (-?[\d.]+)/), e = line.match(/silence_duration: ([\d.]+)/);
+    if (s) start = Number(s[1]);
+    if (e) { if (start !== null && start > 0.05) out.push(Number(e[1])); start = null; }
+  }
+  return out;
+}
+
 export const ffmpeg = (args) => { const r = spawnSync('ffmpeg', ['-loglevel', 'error', '-y', ...args]); if (r.status) throw new Error(`ffmpeg: ${r.stderr}`); };
 
 /**
@@ -115,13 +135,16 @@ export const ffmpeg = (args) => { const r = spawnSync('ffmpeg', ['-loglevel', 'e
  * @returns {Promise<{ok:boolean, tries:number, heard:string, score:number}>}
  */
 export async function speakChecked(make, text, wav, lang) {
-  // attempts go into an intermediate file; the target file is only replaced on success (a good recording is kept)
+  // attempts go into an intermediate file; the target file is only replaced on success (a good recording is kept).
+  // Recordings with long inner pauses are regenerated (except on the last attempt, where the trim is the remedy).
   const mp3 = `${wav}.src.mp3`, tmp = `${wav}.try.wav`;
   let last = { ok: false, tries: 0, heard: '', score: 0 };
   for (let i = 1; i <= TRIES; i++) {
     try {
       fs.writeFileSync(mp3, await make());
-      ffmpeg(['-i', mp3, '-af', LOUDNESS, '-ar', '24000', '-ac', '1', tmp]);
+      const gaps = innerPauses(mp3);
+      if (gaps.length && i < TRIES) { last = { ...last, tries: i, heard: `[pause ${Math.max(...gaps).toFixed(1)} s]` }; continue; }
+      ffmpeg(['-i', mp3, '-af', `${TRIM},${LOUDNESS}`, '-ar', '24000', '-ac', '1', tmp]);
       const answer = await hear(tmp, lang);
       const noisy = answer.includes('[NOISE]');
       const heard = answer.replace('[NOISE]', '').trim();
@@ -146,7 +169,7 @@ export async function pool(jobs, n = PARALLEL) {
 
 /** Two sample sentences per role: real mission sentences (speakers) or barks (serfs, troops). */
 export async function sampleLines(role) {
-  const { BARKS } = await import(path.join(ROOT, 'src/audio/barks.js'));
+  const { BARKS } = await import(pathToFileURL(path.join(ROOT, 'src/audio/barks.js')).href);
   // Voice roles without barks of their own (e.g. soldierF) speak the barks assigned to them
   const speakers = cast().speakers ?? {};
   const b = BARKS[role] ?? BARKS[Object.keys(speakers).find((k) => k !== '_info' && speakers[k].includes(role))];
@@ -154,7 +177,7 @@ export async function sampleLines(role) {
   // short templates clone badly), plus a bark or a mission sentence
   const refLine = cast().roles[role]?.refLine;
   if (b && refLine) return [refLine, (b.grumble ?? b.attack ?? b.select)[0].de];
-  const { missionLines } = await import(path.join(ROOT, 'src/sim/missions/dialogLines.js'));
+  const { missionLines } = await import(pathToFileURL(path.join(ROOT, 'src/sim/missions/dialogLines.js')).href);
   const lines = missionLines().filter((l) => l.speaker === role && typeof l.text?.de === 'string').map((l) => l.text.de);
   // Prefer short and medium-length sentences; with only one sentence add a bark
   const out = lines.sort((x, y) => Math.abs(x.length - 60) - Math.abs(y.length - 60)).slice(0, 2);
@@ -223,8 +246,8 @@ const fnv = (str) => { let h = 0x811c9dc5; for (const ch of str) { h ^= ch.codeP
  */
 export async function collectLines() {
   const c = cast();
-  const { missionLines } = await import(path.join(ROOT, 'src/sim/missions/dialogLines.js'));
-  const { BARKS } = await import(path.join(ROOT, 'src/audio/barks.js'));
+  const { missionLines } = await import(pathToFileURL(path.join(ROOT, 'src/sim/missions/dialogLines.js')).href);
+  const { BARKS } = await import(pathToFileURL(path.join(ROOT, 'src/audio/barks.js')).href);
   const out = new Map(), skipped = new Set();
   const add = (voice, text) => {
     for (const lang of ['de', 'en']) {
@@ -273,6 +296,37 @@ async function lines(only) {
   console.log(`done: ${done} new, ${failed.length} failed`);
 }
 
+/**
+ * Shorten inner pauses of the existing recordings: unprocessed recording (raw/) → trim → loudness → game file.
+ * Game files without a raw recording are processed from the game file itself.
+ */
+async function trim(only) {
+  const { lines: all } = await collectLines();
+  let n = 0;
+  for (const l of all.filter((x) => !only.length || only.includes(x.voice))) {
+    const game = path.join(GAME_DIR, l.file);
+    if (!fs.existsSync(game)) continue;
+    const raw = path.join(roleDir(l.voice), 'raw', `${l.lang}-${path.basename(l.file, '.mp3').slice(l.voice.length + 1)}.mp3`);
+    const tmp = `${game}.tmp.mp3`;
+    ffmpeg(['-i', fs.existsSync(raw) ? raw : game, '-af', `${TRIM},${LOUDNESS}`, '-ar', '24000', '-ac', '1', '-b:a', '48k', '-f', 'mp3', tmp]);
+    fs.renameSync(tmp, game);
+    n++;
+  }
+  console.log(`${n} recordings trimmed`);
+}
+
+/** Table of the inner pauses (over MAX_PAUSE) per role over the game files. */
+async function pauses(only) {
+  const { lines: all } = await collectLines();
+  const rows = {};
+  for (const l of all.filter((x) => (!only.length || only.includes(x.voice)) && fs.existsSync(path.join(GAME_DIR, x.file)))) {
+    const g = innerPauses(path.join(GAME_DIR, l.file)), r = (rows[l.voice] ??= { files: 0, withPause: 0, longest: 0 });
+    r.files++;
+    if (g.length) { r.withPause++; r.longest = Math.max(r.longest, ...g); }
+  }
+  console.table(rows);
+}
+
 /** Index of the existing game files: key (voice|language|text) → file. */
 function writeIndex(all) {
   const files = {};
@@ -280,12 +334,14 @@ function writeIndex(all) {
   fs.writeFileSync(path.join(GAME_DIR, 'index.json'), JSON.stringify({ version: 1, files }, null, 1) + '\n');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   requireAssetsSrc('voices');
   if (reexecWithProxy()) process.exit(0);
   const [cmd, ...rest] = process.argv.slice(2);
   if (cmd === 'audition') await audition(rest);
   else if (cmd === 'pick') pick(rest[0], rest[1], rest[2]);
   else if (cmd === 'lines') await lines(rest);
-  else console.log('Usage: node scripts/asset-gen/voice.mjs audition [role …] | pick <role> <nr> [source] | lines [role …]');
+  else if (cmd === 'trim') await trim(rest);
+  else if (cmd === 'pauses') await pauses(rest);
+  else console.log('Usage: node scripts/asset-gen/voice.mjs audition [role …] | pick <role> <nr> [source] | lines [role …] | trim [role …] | pauses [role …]');
 }

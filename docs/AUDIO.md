@@ -323,6 +323,11 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
    Rolle eine Stimme oder beschreibt neu. Die gewählte Aufnahme wird die Vorlage der Rolle.
 7. **Vertonen.** Alle Sätze werden aus der Vorlage geklont, geprüft, auf dieselbe Lautheit gebracht
    (EBU R128, −18 LUFS, Spitze −1,5 dBTP) und als MP3 (mono, 48 kbit/s) abgelegt.
+8. **Pausen.** Das Klonen übernimmt die Pausen der Vorlage und setzt eigene zwischen die Sätze (gemessen: bis zu
+   11,7 s). Aufnahmen mit inneren Pausen über 0,8 s (`silencedetect`, −40 dB; `VOICE_MAX_PAUSE`) werden verworfen
+   und neu erzeugt (außer im letzten Versuch). Danach kürzt `silenceremove` jede innere Pause über 0,5 s auf etwa
+   0,5 s (vor der Lautheitsangleichung). Vorlagen mit langen Pausen (gemessen: nelia, taran, soldierF, serf,
+   serfF, cannon) sollten beim nächsten Neuaufnehmen gekürzt werden.
 
 ### Modelle
 
@@ -347,6 +352,8 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
 node scripts/asset-gen/voice.mjs audition [rolle …]          # Hörproben je Beschreibung (Entwurf + Klon)
 node scripts/asset-gen/voice.mjs pick <rolle> <nr> [quelle]  # Entwurf als Vorlage übernehmen
 node scripts/asset-gen/voice.mjs lines [rolle …]             # alle Dialoge und Sprüche vertonen (fortsetzbar)
+node scripts/asset-gen/voice.mjs trim [rolle …]              # innere Pausen kürzen: raw/ → Spieldateien, neu auf −18 LUFS
+node scripts/asset-gen/voice.mjs pauses [rolle …]            # Tabelle: Dateien mit inneren Pausen über 0,8 s je Rolle
 ```
 
 Neue oder geänderte Texte: `lines` erzeugt nur, was fehlt (der Schlüssel hängt am Text). Fehlt eine Aufnahme,
