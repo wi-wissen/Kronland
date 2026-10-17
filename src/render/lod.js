@@ -24,7 +24,7 @@ export const LOD_PROFILES = {
   // tall tree switches on desktop at ~30/62 tiles; on the phone in portrait the same screen size applies
   // (earlier the wide field of view there made almost every tree a far model)
   tree: { pixels: [80, 40], minBias: 0.8 },
-  // Figures by screen height in rendered pixels (CSS pixels × pixel ratio of the renderer, see
+  // Figures by screen height in rendered pixels (CSS pixels × pixel ratio of the renderer, at least 1, see
   // CharacterSystem.render), see screenHeightPx: near model from 80 px (even the phone on
   // "low" shows it when zoomed "close"), below that the game model; below 28 px animation throttled, below
   // 12 px rigid, below 3 px not drawn at all
