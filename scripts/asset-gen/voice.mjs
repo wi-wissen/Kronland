@@ -7,7 +7,7 @@
 //
 // Roles and descriptions: assets-src/voices/cast.json. One folder per role assets-src/voices/<role>/ with the
 // template (voice.wav, voice.json) and the unprocessed recordings (raw/). Game files: public/audio/voice/.
-// Every recording is listened to again by a second model (Gemini 3.8 Flash); if the spoken text deviates, it is
+// Long pauses inside a recording are shortened (pauses.mjs). Every recording is listened to again by a second model (Gemini 3.8 Flash); if the spoken text deviates, it is
 // regenerated. All recordings are brought to the same loudness (EBU R128, ffmpeg loudnorm).
 
 import fs from 'node:fs';
@@ -15,6 +15,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ROOT, reexecWithProxy } from './lib.mjs';
 import { requireAssetsSrc } from '../require-assets-src.mjs';
+import { PAUSE_FILTER } from './pauses.mjs';
 
 const API = 'https://openrouter.ai/api/v1';
 const TTS_MODEL = 'bytedance-seed/seed-audio-1-0';
@@ -121,7 +122,7 @@ export async function speakChecked(make, text, wav, lang) {
   for (let i = 1; i <= TRIES; i++) {
     try {
       fs.writeFileSync(mp3, await make());
-      ffmpeg(['-i', mp3, '-af', LOUDNESS, '-ar', '24000', '-ac', '1', tmp]);
+      ffmpeg(['-i', mp3, '-af', `${PAUSE_FILTER},${LOUDNESS}`, '-ar', '24000', '-ac', '1', tmp]);
       const answer = await hear(tmp, lang);
       const noisy = answer.includes('[NOISE]');
       const heard = answer.replace('[NOISE]', '').trim();

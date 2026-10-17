@@ -315,7 +315,9 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
 4. **Klonen.** Ein zweiter Satz wird aus dem Entwurf geklont – so klingt die Figur später in allen Sätzen.
 5. **Prüfen lassen.** Ein zweites Modell hört jede Aufnahme nach: Stimmt der gesprochene Wortlaut mit dem Text
    überein (Wort-Ähnlichkeit ≥ 0,85) und ist nur die Stimme zu hören? Sonst wird die Aufnahme neu erzeugt (bis zu
-   sechs Versuche). Ersetzt wird eine Datei nur durch einen bestandenen Versuch. Der Prüfer erfährt die Sprache
+   sechs Versuche). Ersetzt wird eine Datei nur durch einen bestandenen Versuch. Vorher kürzt `pauses.mjs` jede
+   innere Pause ab 0,3 s auf eine natürliche Satzpause (~0,45 s): Das Klonen übernimmt das Tempo der Vorlage, und
+   manche Vorlagen hatten 2–3 s Stille zwischen den Satzteilen. Der Prüfer erfährt die Sprache
    (sonst hört er englisches „Aye“ als „Hi“); längere Wörter dürfen um einen Buchstaben abweichen (Namen wie
    „Orrin“). Auslassungspunkte gehen als Komma bzw. Punkt an Seed – lange Pausen lassen das Modell abbrechen
    oder Geräusche einfügen.
@@ -323,6 +325,16 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
    Rolle eine Stimme oder beschreibt neu. Die gewählte Aufnahme wird die Vorlage der Rolle.
 7. **Vertonen.** Alle Sätze werden aus der Vorlage geklont, geprüft, auf dieselbe Lautheit gebracht
    (EBU R128, −18 LUFS, Spitze −1,5 dBTP) und als MP3 (mono, 48 kbit/s) abgelegt.
+
+### Pausen in den Aufnahmen
+
+`node scripts/asset-gen/pauses.mjs` kürzt alle `public/audio/voice/*/*.mp3` mit einer inneren Pause über 0,7 s
+direkt in der Datei (nur diese werden neu kodiert, ein zweiter Lauf ändert nichts); `--check` zeigt sie nur an.
+Neue Aufnahmen aus `voice.mjs lines` durchlaufen denselben Filter (`PAUSE_FILTER`) vor der Lautheitsanpassung.
+Messung am Bestand (Stille unter −40 dB): 309 von 468 Aufnahmen hatten Pausen über 0,7 s (bis 11,7 s, meist
+2–3,5 s bei Nelia, Taran, Orrin und den Leibeigenen); danach nur noch eine (1,3 s); Gesamtlänge 2588 s → 2061 s, Ordner
+16,2 → 13,1 MB. Stichprobe mit dem Hörprüfer (15 Aufnahmen): Wortlaut unverändert. Ursache vermutlich das Tempo
+der Vorlagen (`assets-src/voices/<rolle>/voice.wav`); ließe sich dort mit `--check`-Logik (`innerPauses`) prüfen.
 
 ### Modelle
 
