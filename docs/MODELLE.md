@@ -258,28 +258,28 @@ Nahmodell und Spielmodell, nach `gamemesh/run.mjs` erneut ausführen:
 node scripts/asset-gen/weapons.mjs [Modell …] [--dry]
 ```
 
-Stand Oktober 2026: 46 Dateien von 27 Figuren angepasst (u. a. Schwertkämpfer, schwere und leichte Reiter, Bogenschützen, Taran,
-Orrin, Malvor, Steinmetz, Schmiedin); Figuren ohne Riss bleiben unverändert. Der Schmied bleibt im Meshy-Stand (sein
-Hammer reißt nicht, die Bindung ließ ihn schweben). Flache Werkzeuge (Bügelsäge: zweite Ausdehnung mindestens halb so
-groß wie die erste, quer dazu dünn) füllt das Skript statt um eine Achse in einer dünnen Scheibe um ihre Ebene.
+Stand Oktober 2026: 46 Dateien von 27 Figuren angepasst (u. a. Schwertkämpfer, schwere und leichte Reiter, Bogenschützen,
+Taran, Orrin, Malvor, Steinmetz, Schmiedin); Figuren ohne Riss bleiben unverändert. Sägewerker und Schmied bleiben im
+Meshy-Stand (Bügelsäge zerfiel, der Hammer schwebte); ohne Modellangabe lässt das Skript sie aus.
 
-**Speer als Stange, Säge als Rahmen** (`scripts/asset-gen/pole.mjs`): Meshys Speere sind flache, gebogene Bretter,
-das Sägeblatt des Sägewerkers ist mit dem Oberschenkel verschweißt; auch an der Hand gebunden wirken sie seltsam. Das
-Skript sucht das Gehaltene wie `weapons.mjs`, schneidet jedes Dreieck mit einem Punkt davon jenseits der Finger heraus
-(dazu alles nah an Achse bzw. Ebene und kleine abgetrennte Reste daneben, etwa die Speerspitze am Fuß) und setzt an
-dieselbe Stelle, 100 % an der Hand:
-
-- `pole`: runde Stange (8 Seiten) mit Metallspitze entlang der Achse (Speerkämpfer, Speerkämpferin);
-- `saw`: Bügelsäge – zwei Holzarme, Mittelsteg, Schnur, Metallblatt – im kleinsten Rechteck um die alte Säge, der Arm
-  an der Hand läuft als Griff bis ins Handgelenk (Sägewerker). Zusätzlich löst es die Hand vom Oberschenkel: Meshy
-  gewichtet Finger und Unterarm dort teils aufs Bein, das zog beim Jubeln einen Hautstreifen.
-
-Farben kommen aus der Textur des alten Werkzeugs (UV), die Textur bleibt; danach wird wie bei den anderen Modellen
+**Speer als Stange** (`scripts/asset-gen/pole.mjs`): Meshys Speere sind flache, gebogene Bretter, auch an der Hand
+gebunden wirken sie seltsam. Das Skript sucht die Waffe wie `weapons.mjs` und schneidet sie heraus: jedes Dreieck mit
+einem Waffenpunkt jenseits der Faust (13 % der Figurenhöhe ums Handgelenk – Meshys Faust ist groß), alles nah an der
+Achse, an der Faust nur die alten Schaftteile außerhalb der Faust oder an anderen Knochen, lange Splitter von der
+Faust zum Fuß und kleine abgetrennte Reste (Speerspitze am Fuß). Entlang derselben Achse setzt es eine runde Stange
+(8 Seiten) mit Metallspitze ein, 100 % an der Hand; Farben aus der Textur der alten Waffe (UV), danach wieder
 quantisiert. Nah- und Spielmodell:
 
 ```bash
-node scripts/asset-gen/pole.mjs <Modell> [RightHand] [pole|saw]
+node scripts/asset-gen/pole.mjs <Modell> [RightHand]
+node scripts/asset-gen/hold.mjs <Modell> [RightHand]
 ```
+
+**Haltung der Stange** (`scripts/asset-gen/hold.mjs`): Die Meshy-Clips sind für die leere Hand gemacht – beim Jubeln
+dreht die Hand so weit, dass der Speer kopfüber hängt, im Angriff schwingt die Spitze nach hinten. Eine feste Haltung
+in der Hand passt nicht für alle Clips. Das Skript dreht deshalb nur die Schlüssel der Hand (kleinste Drehung, der Arm
+bleibt): Jubeln – Spitze nach oben; Angriff – sobald der Speer nicht mehr aufrecht steht, Spitze dorthin, wohin die
+Brust zeigt (Stoß von oben). Clips stehen nur im Spielmodell. Erst `pole.mjs`, dann `hold.mjs`.
 
 Tests: `tests/tools/weapons.test.js`, `characterBake.test.js`, `shooters.test.js`.
 
