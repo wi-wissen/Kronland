@@ -1,12 +1,12 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
-// Far level of the buildings (scripts/build-lods.mjs, "bake"): at the widest zoom the castle shows its lod2 with corner colours
-// (self-contained, without UV and texture) - formerly the texture smeared across the island borders of the atlas.
+// Far level of the buildings: at the widest zoom the castle shows its lod2 with an own baked texture (scripts/asset-gen/lodbake)
+// or corner colours (older scripts/build-lods.mjs) - self-contained; formerly the shared atlas smeared across island borders.
 
 const SHOTS = process.env.LOD_SHOTS ?? 'test-results';
 
-test('Castle at the far level: corner colours instead of smeared texture', async ({ page }, info) => {
+test('Castle at the far level: own texture instead of smeared atlas', async ({ page }, info) => {
   test.setTimeout(180_000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -33,14 +33,19 @@ test('Castle at the far level: corner colours instead of smeared texture', async
   }, null, { timeout: 30_000 });
   const far = await page.evaluate(() => {
     const e = window.__kronland, hq = e.sim.findBuilding(0, 'headquarters');
-    const lod = e.renderer.buildings.get(hq.id).userData.lods[2], out = [];
-    lod.traverse((m) => {
-      if (m.isMesh) out.push({ color: !!m.geometry.attributes.color, uv: !!m.geometry.attributes.uv, map: !!m.material.map, vc: !!m.material.vertexColors, visible: lod.visible });
+    const { lods } = e.renderer.buildings.get(hq.id).userData, out = [];
+    let origMap = null;
+    lods[0].traverse((m) => { if (m.isMesh && m.material.map) origMap = m.material.map.source; });
+    lods[2].traverse((m) => {
+      if (!m.isMesh) return;
+      const own = !!m.material.map && m.material.map.source !== origMap && !!m.geometry.attributes.uv;
+      const corners = !!m.geometry.attributes.color && !m.geometry.attributes.uv && m.material.vertexColors;
+      out.push({ selfContained: own || corners, visible: lods[2].visible });
     });
     return out;
   });
   expect(far.length).toBeGreaterThan(0);
-  for (const m of far) expect(m).toEqual({ color: true, uv: false, map: false, vc: true, visible: true });
+  for (const m of far) expect(m).toEqual({ selfContained: true, visible: true });
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${SHOTS}/lod-castle-far-${info.project.name}.png` });
 

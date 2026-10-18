@@ -17,6 +17,8 @@ E2E_PORT=4310 npx playwright test e2e/<spec>.js   # E2E, Desktop + Handy (Pixel 
 node scripts/ai-match.js 1 60 hard easy           # KI gegen KI
 node scripts/campaign-matrix.js                   # alle Missionen auf mehreren Seeds
 node scripts/asset-gen/model.mjs all <id>         # Figur per Meshy (siehe docs/MODELLE.md, docs/STIL.md)
+node scripts/asset-gen/gamemesh/run.mjs <Modell>   # Spielmodell der Figur aus dem Nahmodell (Blender, xatlas; docs/MODELLE.md)
+node scripts/asset-gen/lodbake/lodbake.mjs <name>  # Gebäude-/Baumstufen neu aufbauen und backen (docs/MODELLE.md)
 node scripts/asset-gen/music.mjs gen|rate|process  # Musik per Lyria 3 (siehe docs/AUDIO.md#musik-lyria-3)
 node scripts/asset-gen/sfx-cc0.mjs                # CC0-Effekte (Kenney, Freesound) schneiden (docs/AUDIO.md)
 node scripts/load-report.mjs [szenario]           # geladene Datenmengen messen (nach npm run build, docs/PERFORMANCE.md)

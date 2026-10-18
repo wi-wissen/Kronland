@@ -170,7 +170,7 @@ export function fittedModel(name, w, d, fill = 0.9, fitTo = name, pit = null) {
   const a = cache.get(name);
   if (!a) return null;
   const obj = a.scene.clone(true);
-  // LOD levels have no texture of their own: take over the material of the original
+  // LOD levels without a texture of their own take over the material of the original
   if (fitTo !== name && cache.has(fitTo)) shareMaterials(obj, cache.get(fitTo).scene);
   const box = boxOf(fitTo);
   const size = box.getSize(new THREE.Vector3());
@@ -310,16 +310,19 @@ function boxOf(name) {
 
 /**
  * Transfer the materials of the original to a LOD level (same mesh names, otherwise first material).
- * Levels with vertex colours instead of UV (far level of the buildings, scripts/build-lods.mjs) keep their own material.
+ * Levels with an own look keep their material: vertex colours instead of UV (older far levels, scripts/build-lods.mjs)
+ * or an own baked texture (scripts/asset-gen/lodbake).
  */
 function shareMaterials(obj, src) {
   const byName = new Map();
   let first = null;
   src.traverse((m) => { if (m.isMesh) { byName.set(m.name, m.material); first ??= m.material; } });
-  obj.traverse((m) => { if (m.isMesh && !isBakedGeometry(m.geometry)) m.material = byName.get(m.name) ?? first; });
+  obj.traverse((m) => { if (m.isMesh && !hasOwnLook(m)) m.material = byName.get(m.name) ?? first; });
 }
 /** Mesh with vertex colours and without UV (standalone far level)? */
 export const isBakedGeometry = (g) => !!g?.attributes?.color && !g.attributes.uv;
+/** Mesh of a LOD level that needs nothing from the original: vertex colours or an own texture (lodbake). */
+export const hasOwnLook = (m) => isBakedGeometry(m.geometry) || !!m.material?.map;
 
 /** Existing LOD levels of a model (names), level 0 = original. */
 export function assetLods(name) {
@@ -328,13 +331,13 @@ export function assetLods(name) {
   return out;
 }
 
-/** Can a loaded model be displayed without the original (only meshes with vertex colours, e.g. the far level)? */
+/** Can a loaded model be displayed without the original (only meshes with an own look, e.g. the far level)? */
 function standalone(name) {
   const a = cache.get(name);
   if (!a) return false;
   if (a.standalone === undefined) {
     let ok = true, any = false;
-    a.scene.traverse((m) => { if (m.isMesh) { any = true; ok &&= isBakedGeometry(m.geometry); } });
+    a.scene.traverse((m) => { if (m.isMesh) { any = true; ok &&= hasOwnLook(m); } });
     a.standalone = ok && any;
   }
   return a.standalone;
@@ -363,12 +366,13 @@ export function buildingAssetName(type, level, owner) {
 /** Reload on demand (own building models including LOD levels); the building rebuilds at the next reconciliation. */
 let lazy = null, useLods = true;
 const pending = new Set();
-function requestAsset(n) {
+/** @param {string} n @param {boolean} [withLods] false: models drawn without LOD levels (ruins, bridge, campfire, cannon) */
+function requestAsset(n, withLods = true) {
   if (!lazy || pending.has(n) || cache.has(n)) return;
   pending.add(n);
   const load = (name) => lazy.loader.loadAsync(assetUrl(`${base}${name}${lazy.ext}`)).then((g) => store(name, g));
   // LOD levels first, so that the original only becomes visible when everything is there
-  const lodNames = useLods ? Array.from({ length: BUILDING_LODS }, (_, k) => `${n}.lod${k + 1}`) : [];
+  const lodNames = useLods && withLods ? Array.from({ length: BUILDING_LODS }, (_, k) => `${n}.lod${k + 1}`) : [];
   const done = Promise.all(lodNames.map((f) => load(f).catch(() => {}))).then(() => load(n)).catch(() => {}).finally(() => pending.delete(n));
   // the loading screen may wait for it (src/render/lazyLoads.js)
   trackLoad(done, [...lodNames, n].map((f) => assetUrl(`${base}${f}${lazy.ext}`)));
@@ -376,11 +380,11 @@ function requestAsset(n) {
 /** Own bridge model (a whole bridge, models.js stretches the middle part). */
 export const BRIDGE_ASSET = 'bridge';
 
-/** Own building model (scene) or null – then it is reloaded (ruins, bridge). */
+/** Own model without LOD levels (scene) or null – then it is reloaded (ruins, bridge, campfire, cannon). */
 export function ownAsset(file) {
   const n = `buildings/${file}`;
   if (cache.has(n)) return cache.get(n).scene;
-  requestAsset(n);
+  requestAsset(n, false);
   return null;
 }
 

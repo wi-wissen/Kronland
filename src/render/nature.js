@@ -407,8 +407,10 @@ function modelBox(name) {
 
 /**
  * LOD levels of a model as finished geometries (per entry in files, 0 = original) and the material of the
- * original, or null if the original is not loaded. Missing levels: next coarser available.
+ * original, or null if the original is not loaded. Missing levels: next coarser available. A level with a texture of
+ * its own (scripts/asset-gen/lodbake) brings its own source material (`sources`, per level), the others share the original's.
  * @param {{name: string, cross?: boolean}} model @param {number} height @param {number[]} files
+ * @returns {{levels: THREE.BufferGeometry[], material: THREE.Material, sources: THREE.Material[]}|null}
  */
 export function natureModelLevels(model, height, files) {
   const ref = modelBox(model.name);
@@ -416,15 +418,25 @@ export function natureModelLevels(model, height, files) {
   if (!base) return null;
   const material = base[0].material;
   for (const p of base) p.geometry.dispose();
-  const geos = files.map((k) => {
+  const found = files.map((k) => {
     const parts = instancedParts(modelFile(model.name, k));
     if (!parts) return null;
     const g = fitNatureGeometry(bareParts(parts), ref, height, !!model.cross);
+    const own = k && parts[0].material?.map ? parts[0].material : material;
     for (const p of parts) p.geometry.dispose();
-    return g;
+    return { g, own };
   });
-  const levels = seasonLevels(geos);
-  return levels && { levels, material };
+  const levels = seasonLevels(found);
+  return levels && { levels: levels.map((l) => l.g), material, sources: levels.map((l) => l.own) };
+}
+
+/** Per level the game material: one per distinct source material (shared by levels without own texture). */
+function levelMaterials(sources, make) {
+  const made = new Map();
+  return sources.map((src) => {
+    if (!made.has(src)) made.set(src, make(src));
+    return made.get(src);
+  });
 }
 
 /**
@@ -452,16 +464,16 @@ export function treeModelVariants(detail, shared) {
     const m = natureModelLevels(t, t.height, files);
     if (!m) return null;
     // summer: shader snow cap on – only applies while the winter version is still loading or missing
-    const material = natureModelMaterial(shared, m.material, { wind: 0.03, bend: t.bend, snowCap: true });
+    const materials = levelMaterials(m.sources, (src) => natureModelMaterial(shared, src, { wind: 0.03, bend: t.bend, snowCap: true }));
     out.push({
-      kind: t.kind, model: t.name, geometry: m.levels[0], levels: m.levels, material, scale: 1,
+      kind: t.kind, model: t.name, geometry: m.levels[0], levels: m.levels, material: materials[0], materials, scale: 1,
       winter: seasonVariant(t, files, shared, 0.03),
     });
   }
   return out;
 }
 
-/** Winter version of a kind (lazy): {levels, material} or null while/if the model is missing. */
+/** Winter version of a kind (lazy): {levels, material, materials} or null while/if the model is missing. */
 function seasonVariant(t, files, shared, wind) {
   let made = null;
   return () => {
@@ -469,7 +481,8 @@ function seasonVariant(t, files, shared, wind) {
     const m = natureModelLevels(t.winter, t.height, files);
     if (!m) return null;
     // snow is in the model; colour variation only weak (otherwise yellow-tinted snow with autumn dabs)
-    made = { levels: m.levels, material: natureModelMaterial(shared, m.material, { wind, bend: t.bend, snowCap: false, tintMix: 0.3 }) };
+    const materials = levelMaterials(m.sources, (src) => natureModelMaterial(shared, src, { wind, bend: t.bend, snowCap: false, tintMix: 0.3 }));
+    made = { levels: m.levels, material: materials[0], materials };
     return made;
   };
 }
@@ -481,9 +494,11 @@ function seasonVariant(t, files, shared, wind) {
 export function bushModelVariant(shared) {
   const m = natureModelLevels(BUSH_MODEL, BUSH_MODEL.height, BUSH_LOD_FILES);
   if (!m) return null;
+  const materials = levelMaterials(m.sources, (src) => natureModelMaterial(shared, src, { wind: 0.02, bend: BUSH_MODEL.bend, snowCap: true }));
   return {
     levels: m.levels,
-    material: natureModelMaterial(shared, m.material, { wind: 0.02, bend: BUSH_MODEL.bend, snowCap: true }),
+    material: materials[0],
+    materials,
     winter: seasonVariant(BUSH_MODEL, BUSH_LOD_FILES, shared, 0.02),
   };
 }
@@ -631,7 +646,7 @@ export function scatterKinds(shared, opts = {}) {
   // own bush model instead of the procedural bushes (LOD levels and winter version, see bushModelVariant)
   const bush = opts.models === false ? null : bushModelVariant(shared);
   if (bush) {
-    kinds.bush = { geometry: bush.levels[0], levels: bush.levels, material: bush.material, winter: true, season: bush.winter, model: true };
+    kinds.bush = { geometry: bush.levels[0], levels: bush.levels, material: bush.material, materials: bush.materials, winter: true, season: bush.winter, model: true };
     delete kinds.bushB;
   }
   return kinds;
