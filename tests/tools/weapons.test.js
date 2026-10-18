@@ -109,3 +109,76 @@ describe('flat tools', () => {
     expect(Math.max(...ys)).toBeCloseTo(0.35, 6);
   });
 });
+
+describe('bow', () => {
+  // points on a parabola s = 0.3·t² in a tilted plane: t along a, s along b
+  const a = [0, 0.8, 0.6], b = [1, 0, 0], o = [0.4, 0.8, 0.1];
+  const on = (t, off = 0) => [0, 1, 2].map((k) => o[k] + a[k] * t + b[k] * (0.3 * t * t + off));
+
+  it('fitBow finds the plane and the bend; bowDistance measures from the curve', async () => {
+    const { fitBow, bowDistance, bowPoint } = await import('../../scripts/asset-gen/pole.mjs');
+    const pts = Array.from({ length: 41 }, (_, i) => on(-0.4 + i * 0.02));
+    const fit = fitBow(pts);
+    expect(Math.abs(fit.k[2])).toBeCloseTo(0.3, 3);
+    for (const p of pts) expect(bowDistance(fit, p).d).toBeLessThan(1e-6);
+    // a point beside the curve, across the plane
+    const n = [0, 0.6, -0.8], q = on(0.1).map((x, k) => x + n[k] * 0.02);
+    expect(bowDistance(fit, q).d).toBeCloseTo(0.02, 4);
+    // bowPoint lies on the curve
+    expect(bowDistance(fit, bowPoint(fit, 0.17)).d).toBeLessThan(1e-9);
+  });
+
+  it('fitBow keeps the bend within maxBend', async () => {
+    const { fitBow } = await import('../../scripts/asset-gen/pole.mjs');
+    const pts = Array.from({ length: 41 }, (_, i) => { const t = -0.4 + i * 0.02; return [0, 1, 2].map((k) => o[k] + a[k] * t + b[k] * 4 * t * t); });
+    const fit = fitBow(pts, 0.2);
+    let half = 0;
+    for (const p of pts) half = Math.max(half, Math.abs((p[0] - fit.c[0]) * fit.u[0] + (p[1] - fit.c[1]) * fit.u[1] + (p[2] - fit.c[2]) * fit.u[2]));
+    expect(Math.abs(fit.k[2]) * half * half).toBeLessThanOrEqual(0.2 * half + 1e-9);
+  });
+
+  it('bowGeometry: tips behind the grip, straight string between them, closed outward faces', async () => {
+    const { bowGeometry } = await import('../../scripts/asset-gen/pole.mjs');
+    const grip = [1, 2, 3], up = [0, 1, 0], back = [0, 0, 1], L = 1, sag = 0.12;
+    const g = bowGeometry({ grip, a: up, back, length: L, sag, limb: 0.02, tip: 0.008, string: 0.004 });
+    const n = g.pos.length / 3, P = (i) => [g.pos[i * 3], g.pos[i * 3 + 1], g.pos[i * 3 + 2]];
+    expect(g.nrm.length).toBe(g.pos.length);
+    expect(g.part.length).toBe(n);
+    expect(new Set(g.part)).toEqual(new Set([0, 1, 2]));
+    expect(Math.max(...g.idx)).toBe(n - 1);
+    const wood = [...Array(n).keys()].filter((i) => g.part[i] === 0), ys = wood.map((i) => P(i)[1]);
+    expect(Math.max(...ys)).toBeCloseTo(grip[1] + L / 2, 2);
+    expect(Math.min(...ys)).toBeCloseTo(grip[1] - L / 2, 2);
+    // the tips bend away from the back (towards the archer), the grip is the deepest point of the back
+    const top = wood[ys.indexOf(Math.max(...ys))];
+    expect(P(top)[2]).toBeLessThan(grip[2] - sag * 0.9);
+    // the string runs straight at the height of the tips, the wrap sits at the grip
+    for (let i = 0; i < n; i++) if (g.part[i] === 2) expect(Math.abs(P(i)[2] - (grip[2] - sag * 0.98 ** 2))).toBeLessThan(0.0041);
+    for (let i = 0; i < n; i++) if (g.part[i] === 1) expect(Math.abs(P(i)[1] - grip[1])).toBeLessThan(0.08);
+    // every face turns outwards: its normal agrees with its vertex normals
+    for (let t = 0; t < g.idx.length; t += 3) {
+      const [p0, p1, p2] = [g.idx[t], g.idx[t + 1], g.idx[t + 2]].map(P);
+      const e1 = p1.map((x, k) => x - p0[k]), e2 = p2.map((x, k) => x - p0[k]);
+      const fn = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+      const vn = [0, 1, 2].map((k) => g.nrm[g.idx[t] * 3 + k] + g.nrm[g.idx[t + 1] * 3 + k] + g.nrm[g.idx[t + 2] * 3 + k]);
+      expect(fn[0] * vn[0] + fn[1] * vn[1] + fn[2] * vn[2]).toBeGreaterThan(0);
+    }
+  });
+
+  it('pickUv: inside the triangle closest to the colour, or the typical colour of the chosen ones', async () => {
+    const { pickUv } = await import('../../scripts/asset-gen/pole.mjs');
+    // four triangles side by side in UV; the texture is dark left, light right, red in the third quarter
+    const UV = [], I = [];
+    for (let q = 0; q < 4; q++) { const u = q * 0.25; UV.push(u, 0, u + 0.2, 0, u, 0.2); I.push(q * 3, q * 3 + 1, q * 3 + 2); }
+    const tex = (u) => (u < 0.25 ? [60, 40, 30] : u < 0.5 ? [120, 90, 60] : u < 0.75 ? [200, 30, 30] : [225, 215, 185]);
+    const light = pickUv(I, UV, tex, null, [230, 220, 190]);
+    expect(light[0]).toBeGreaterThan(0.75);
+    expect(light[1]).toBeGreaterThan(0);
+    const dark = pickUv(I, UV, tex, null, [70, 45, 30]);
+    expect(dark[0]).toBeLessThan(0.25);
+    // median over the first, second and fourth triangle: the brown one in the middle
+    const typical = pickUv(I, UV, tex, (tri) => tri[0] !== 6, 'median');
+    expect(typical[0]).toBeGreaterThan(0.25);
+    expect(typical[0]).toBeLessThan(0.5);
+  });
+});

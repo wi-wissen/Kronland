@@ -263,8 +263,9 @@ Orrin, Malvor, Steinmetz, Schmiedin); Figuren ohne Riss bleiben unverändert. De
 Hammer reißt nicht, die Bindung ließ ihn schweben). Flache Werkzeuge (Bügelsäge: zweite Ausdehnung mindestens halb so
 groß wie die erste, quer dazu dünn) füllt das Skript statt um eine Achse in einer dünnen Scheibe um ihre Ebene.
 
-**Speer als Stange, Säge als Rahmen** (`scripts/asset-gen/pole.mjs`): Meshys Speere sind flache, gebogene Bretter,
-das Sägeblatt des Sägewerkers ist mit dem Oberschenkel verschweißt; auch an der Hand gebunden wirken sie seltsam. Das
+**Speer als Stange, Säge als Rahmen, Bogen mit Sehne** (`scripts/asset-gen/pole.mjs`): Meshys Speere und Bögen sind
+flache, gebogene Bretter, das Sägeblatt des Sägewerkers ist mit dem Oberschenkel verschweißt; auch an der Hand
+gebunden wirken sie seltsam. Das
 Skript sucht das Gehaltene wie `weapons.mjs`, schneidet jedes Dreieck mit einem Punkt davon jenseits der Finger heraus
 (dazu alles nah an Achse bzw. Ebene und kleine abgetrennte Reste daneben, etwa die Speerspitze am Fuß) und setzt an
 dieselbe Stelle, 100 % an der Hand:
@@ -273,12 +274,25 @@ dieselbe Stelle, 100 % an der Hand:
 - `saw`: Bügelsäge – zwei Holzarme, Mittelsteg, Schnur, Metallblatt – im kleinsten Rechteck um die alte Säge, der Arm
   an der Hand läuft als Griff bis ins Handgelenk (Sägewerker). Zusätzlich löst es die Hand vom Oberschenkel: Meshy
   gewichtet Finger und Unterarm dort teils aufs Bein, das zog beim Jubeln einen Hautstreifen.
+- `bow`: Bogen aus zwei sich verjüngenden Wurfarmen auf einer Parabel, Lederwicklung am Griff und gerader Sehne
+  (Bogenschützen, Banditen mit Bogen; Hand `LeftHand`). Meshy hängt Wurfarme und Sehne teils an Unterarm und
+  Oberschenkel, daher sucht das Skript den alten Bogen breiter: Ausgangspunkte sind das in der Hand Gehaltene und
+  Unterarm-Punkte weit außerhalb des Arms; daran passt es Ebene und Parabel an (in der Faust verankert, Biegung
+  begrenzt) und folgt der Oberfläche in einem Schlauch um Kurve und Sehne. Was zwischen Arm und Bein in `attack` oder
+  `cheer` über das 2,5-Fache reißt (Reste von Wurfarm und Sehne am Bein), fällt ebenfalls weg. Die Richtung des neuen
+  Bogens kommt aus dem Angriffs-Clip: im Bild mit der höchsten Bogenhand (voll ausgezogen) steht er senkrecht, der
+  Rücken zeigt zum Ziel, die Sehne zum Schützen – Meshys Hände sind je Figur verschieden gedreht, die alte Richtung
+  taugt dafür nicht. Länge wie der alte Bogen (50–72 % der Figurenhöhe). Holzfarbe ist die typische des alten Bogens,
+  Griff und Sehne nehmen dunkles Leder und helles Leinen von anderen Stellen der Textur. Das Nahmodell hat keine
+  eigenen Clips und leiht sich die des Spielmodells, daher bearbeitet das Skript es zuerst. Stand Oktober 2026 für
+  alle vier Bogenfiguren angewandt; die Meshy-Rohnetze waren nicht mehr abrufbar, das Skript braucht sie aber nicht.
 
 Farben kommen aus der Textur des alten Werkzeugs (UV), die Textur bleibt; danach wird wie bei den anderen Modellen
 quantisiert. Nah- und Spielmodell:
 
 ```bash
-node scripts/asset-gen/pole.mjs <Modell> [RightHand] [pole|saw]
+node scripts/asset-gen/pole.mjs <Modell> [RightHand] [pole|saw|bow]
+node scripts/asset-gen/pole.mjs Archer LeftHand bow   # ebenso ArcherF, BanditArcher, BanditArcherF
 ```
 
 Tests: `tests/tools/weapons.test.js`, `characterBake.test.js`, `shooters.test.js`.

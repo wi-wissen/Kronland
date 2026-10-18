@@ -1,15 +1,17 @@
-// Replace a held weapon or tool of the Meshy mesh by a simple one: a round pole with a metal tip (spearmen) or a
-// frame saw (sawyer).
+// Replace a held weapon or tool of the Meshy mesh by a simple one: a round pole with a metal tip (spearmen), a
+// frame saw (sawyer) or a bow with a string (archers).
 //
-// Meshy's spears are flat, bent planks and the saw's blade is welded into the thigh; even bound to the hand
-// (weapons.mjs) they look odd. This script finds what the hand holds as weapons.mjs does (axis or, for a flat
-// tool, plane of the held vertices, surface fill around it), cuts it out (every triangle with a vertex of it beyond
-// the fingers, plus loose leftovers) and adds the new one in the same place, 100 % on the hand: an 8-sided shaft with
-// a cone tip along the axis, or a saw frame along the old saw's smallest rectangle with a handle into the hand. For
-// the saw the hand is also detached from the thigh it was welded to. Colours come from the old tool's texture (UVs),
-// so no texture changes.
+// Meshy's spears are flat, bent planks, the saw's blade is welded into the thigh and the bows are bent planks whose
+// limbs and string hang partly on the forearm and the thigh; even bound to the hand (weapons.mjs) they look odd. This
+// script finds what the hand holds as weapons.mjs does (axis or, for a flat tool, plane of the held vertices, surface
+// fill around it), cuts it out (every triangle with a vertex of it beyond the fingers, plus loose leftovers) and adds
+// the new one in the same place, 100 % on the hand: an 8-sided shaft with a cone tip along the axis, or a saw frame
+// along the old saw's smallest rectangle with a handle into the hand. For the saw the hand is also detached from the
+// thigh it was welded to. The bow follows the old one's curve over the surface (plane and parabola, anchored in the
+// fist), also cuts what tears between arm and leg in attack and cheer, and stands upright at full draw with its back
+// to the target. Colours come from the old tool's texture (UVs), so no texture changes.
 //
-//   node scripts/asset-gen/pole.mjs <Model> [hand=RightHand] [pole|saw]     (near and game model)
+//   node scripts/asset-gen/pole.mjs <Model> [hand=RightHand] [pole|saw|bow]     (near and game model)
 //
 // Docs: docs/MODELLE.md#waffen-an-der-hand.
 import { NodeIO } from '@gltf-transform/core';
@@ -20,7 +22,7 @@ import * as THREE from 'three';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { threeOf, pose } from './rig3.mjs';
-import { weaponVertices, mainAxis, lineDistance, flatPart, mainMesh, skinned, dominantBones, neighbours, GRIP } from './weapons.mjs';
+import { weaponVertices, mainAxis, lineDistance, flatPart, mainMesh, skinned, dominantBones, neighbours, GRIP, BRIDGE_STRETCH } from './weapons.mjs';
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'public', 'models', 'characters');
 const SIDES = 8;
@@ -144,14 +146,206 @@ export function sawGeometry({ u, v, n, at, u0, u1, vb, vc, vm, r, blade, bladeTh
   return g;
 }
 
+/** Principal axes of points, largest spread first. @param {number[][]} pts */
+function principalAxes(pts) {
+  const c = [0, 1, 2].map((k) => pts.reduce((s, p) => s + p[k], 0) / pts.length);
+  const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (const p of pts) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i][j] += (p[i] - c[i]) * (p[j] - c[j]);
+  const power = (M) => {
+    let a = [1, 0.7, 0.3], l = 0;
+    for (let it = 0; it < 100; it++) { const b = [0, 1, 2].map((i) => M[i][0] * a[0] + M[i][1] * a[1] + M[i][2] * a[2]); l = Math.hypot(...b) || 1; a = b.map((x) => x / l); }
+    return [a, l];
+  };
+  const [u, l1] = power(C);
+  const [v] = power(C.map((r, i) => r.map((x, j) => x - l1 * u[i] * u[j])));
+  return { c, u, v, n: cross(u, v) };
+}
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const unit = (a) => { const l = Math.hypot(...a) || 1; return a.map((x) => x / l); };
+
+/**
+ * Bow as a curve through points: its plane (main axes) and a parabola s(t) = k0 + k1·t + k2·t² in it (t along the
+ * bow, s across), bent at most `maxBend` × half the length deep. Pure (tested). @param {number[][]} pts @param {number} [maxBend]
+ * @returns {{ c: number[], u: number[], v: number[], n: number[], k: number[] }}
+ */
+export function fitBow(pts, maxBend = Infinity) {
+  const { c, u, v, n } = principalAxes(pts);
+  // least squares for k: normal equations of [1, t, t²]
+  const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], r = [0, 0, 0];
+  for (const p of pts) {
+    const d = [p[0] - c[0], p[1] - c[1], p[2] - c[2]];
+    const t = d[0] * u[0] + d[1] * u[1] + d[2] * u[2], s = d[0] * v[0] + d[1] * v[1] + d[2] * v[2], e = [1, t, t * t];
+    for (let i = 0; i < 3; i++) { r[i] += e[i] * s; for (let j = 0; j < 3; j++) A[i][j] += e[i] * e[j]; }
+  }
+  const det = (M) => M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) - M[0][1] * (M[1][0] * M[2][2] - M[1][2] * M[2][0]) + M[0][2] * (M[1][0] * M[2][1] - M[1][1] * M[2][0]);
+  const D = det(A);
+  const k = Math.abs(D) < 1e-18 ? [0, 0, 0] : [0, 1, 2].map((col) => det(A.map((row, i) => row.map((x, j) => (j === col ? r[i] : x)))) / D);
+  // a bow bends gently: at most `maxBend` × half its length deep (refit k0, k1 with k2 held)
+  let half = 0;
+  for (const p of pts) half = Math.max(half, Math.abs((p[0] - c[0]) * u[0] + (p[1] - c[1]) * u[1] + (p[2] - c[2]) * u[2]));
+  const kMax = half > 0 ? maxBend / half : Infinity;
+  if (Math.abs(k[2]) > kMax) {
+    k[2] = Math.sign(k[2]) * kMax;
+    let st = 0, stt = 0, ss = 0, sts = 0;
+    for (const p of pts) {
+      const d = [p[0] - c[0], p[1] - c[1], p[2] - c[2]];
+      const t = d[0] * u[0] + d[1] * u[1] + d[2] * u[2], s = d[0] * v[0] + d[1] * v[1] + d[2] * v[2] - k[2] * t * t;
+      st += t; stt += t * t; ss += s; sts += t * s;
+    }
+    const m = pts.length, den = m * stt - st * st;
+    k[1] = den ? (m * sts - st * ss) / den : 0; k[0] = (ss - k[1] * st) / m;
+  }
+  return { c, u, v, n, k };
+}
+
+/** Point of a fitted bow at t. */
+export function bowPoint(fit, t) {
+  const s = fit.k[0] + fit.k[1] * t + fit.k[2] * t * t;
+  return [0, 1, 2].map((i) => fit.c[i] + fit.u[i] * t + fit.v[i] * s);
+}
+
+/** Position along a fitted bow (t) and distance from its curve. Pure (tested). */
+export function bowDistance(fit, p) {
+  const d = [p[0] - fit.c[0], p[1] - fit.c[1], p[2] - fit.c[2]], dot = (e) => d[0] * e[0] + d[1] * e[1] + d[2] * e[2];
+  const t = dot(fit.u), s = dot(fit.v), w = dot(fit.n), slope = fit.k[1] + 2 * fit.k[2] * t;
+  return { t, d: Math.hypot(w, (s - fit.k[0] - fit.k[1] * t - fit.k[2] * t * t) / Math.sqrt(1 + slope * slope)) };
+}
+
+/**
+ * Bow around the grip: two tapered limbs on a parabola (tips `sag` behind the grip, against `back`), a leather wrap
+ * at the grip and a straight string between the tips. Pure (tested).
+ * @param {{ grip: number[], a: number[], back: number[], length: number, sag: number, limb: number, tip: number, string: number }} o
+ *   a = unit along the bow, back = unit across it in its plane (the side facing away from the string)
+ * @returns {{ pos: number[], nrm: number[], part: number[], idx: number[] }} part: 0 wood, 1 grip wrap, 2 string
+ */
+export function bowGeometry({ grip, a, back, length, sag, limb, tip, string }) {
+  const n = unit(cross(a, back)), half = length / 2, SEG = 16, SIDES_B = 6, WIDE = 1.4;
+  const g = { pos: [], nrm: [], part: [], idx: [] };
+  const world = (x, y, z) => [0, 1, 2].map((k) => grip[k] + a[k] * x + back[k] * y + n[k] * z);
+  const dirW = (x, y, z) => unit([0, 1, 2].map((k) => a[k] * x + back[k] * y + n[k] * z));
+  const yOf = (x) => -sag * (x / half) ** 2;
+  /** ring around the centre (x, y) with tangent (tx, ty) in the bow plane; `wide` stretches it across the plane */
+  const ring = (x, y, tx, ty, r, wide, part, sides) => {
+    const l = Math.hypot(tx, ty), ex = -ty / l, ey = tx / l, base = g.pos.length / 3;
+    for (let k = 0; k < sides; k++) {
+      const ang = (k / sides) * Math.PI * 2, cs = Math.cos(ang), sn = Math.sin(ang);
+      g.pos.push(...world(x + ex * r * cs, y + ey * r * cs, r * wide * sn));
+      g.nrm.push(...dirW(ex * cs, ey * cs, (sn / wide)));
+      g.part.push(part);
+    }
+    return base;
+  };
+  const tube = (b0, b1, sides) => { for (let k = 0; k < sides; k++) { const k1 = (k + 1) % sides; g.idx.push(b0 + k, b0 + k1, b1 + k, b1 + k, b0 + k1, b1 + k1); } };
+  const cap = (b, x, y, tx, ty, part, sides, end) => {
+    const c = g.pos.length / 3, l = Math.hypot(tx, ty) * end;
+    g.pos.push(...world(x, y, 0)); g.nrm.push(...dirW(tx / l, ty / l, 0)); g.part.push(part);
+    for (let k = 0; k < sides; k++) { const k1 = (k + 1) % sides; if (end > 0) g.idx.push(c, b + k, b + k1); else g.idx.push(c, b + k1, b + k); }
+  };
+  // limbs, tip to tip
+  let prev = -1;
+  for (let i = 0; i <= SEG; i++) {
+    const x = -half + (length * i) / SEG, r = limb + (tip - limb) * Math.abs(x) / half;
+    const b = ring(x, yOf(x), 1, (-2 * sag * x) / (half * half), r, WIDE, 0, SIDES_B);
+    if (prev >= 0) tube(prev, b, SIDES_B); else cap(b, x, yOf(x), 1, (-2 * sag * x) / (half * half), 0, SIDES_B, -1);
+    if (i === SEG) cap(b, x, yOf(x), 1, (-2 * sag * x) / (half * half), 0, SIDES_B, 1);
+    prev = b;
+  }
+  // leather wrap at the grip
+  const wl = length * 0.07;
+  prev = -1;
+  for (const x of [-wl, 0, wl]) {
+    const b = ring(x, yOf(x), 1, (-2 * sag * x) / (half * half), limb * 1.35, WIDE * 0.9, 1, SIDES_B);
+    if (prev >= 0) tube(prev, b, SIDES_B); else cap(b, x, yOf(x), 1, (-2 * sag * x) / (half * half), 1, SIDES_B, -1);
+    if (x === wl) cap(b, x, yOf(x), 1, (-2 * sag * x) / (half * half), 1, SIDES_B, 1);
+    prev = b;
+  }
+  // string between the tips, a little inside so it starts in the wood
+  const sx = half * 0.98, s0 = ring(-sx, yOf(sx), 1, 0, string, 1, 2, 4), s1 = ring(sx, yOf(sx), 1, 0, string, 1, 2, 4);
+  tube(s0, s1, 4);
+  return g;
+}
+
+/** Colour lookup in the base colour texture of a primitive: (u, v) → mean RGB of 3×3 texels. */
+async function texelReader(prim) {
+  const { default: sharp } = await import('sharp');
+  const t = prim.getMaterial().getBaseColorTexture();
+  const { data, info } = await sharp(Buffer.from(t.getImage())).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const W = info.width, H = info.height;
+  return (u, v) => {
+    const x0 = Math.floor((((u % 1) + 1) % 1) * W), y0 = Math.floor((((v % 1) + 1) % 1) * H), c = [0, 0, 0];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const o = (Math.min(H - 1, Math.max(0, y0 + dy)) * W + Math.min(W - 1, Math.max(0, x0 + dx))) * 3;
+      for (let k = 0; k < 3; k++) c[k] += data[o + k] / 9;
+    }
+    return c;
+  };
+}
+
+/**
+ * UV inside a triangle whose texture colour is closest to `target` (RGB, or 'median': the typical colour of the
+ * triangles passing `filter`). Only triangles at least half the median size in UV space count, so the point lies well
+ * inside a texture island. Pure apart from `tex` (tested).
+ * @param {ArrayLike<number>} I @param {ArrayLike<number>} UV @param {(u: number, v: number) => number[]} tex
+ * @param {((tri: number[]) => boolean)|null} filter @param {number[]|'median'} target @returns {number[]}
+ */
+export function pickUv(I, UV, tex, filter, target) {
+  const cand = [];
+  for (let t = 0; t < I.length; t += 3) {
+    const tri = [I[t], I[t + 1], I[t + 2]];
+    if (filter && !filter(tri)) continue;
+    const [a, b, c] = tri.map((i) => [UV[i * 2], UV[i * 2 + 1]]);
+    const area = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]));
+    const uv = [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3];
+    cand.push({ area, uv, col: tex(uv[0], uv[1]) });
+  }
+  if (!cand.length) return [0, 0];
+  const areas = cand.map((x) => x.area).sort((x, y) => x - y), minArea = areas[Math.floor(areas.length / 2)] * 0.5;
+  const big = cand.filter((x) => x.area >= minArea);
+  const goal = target === 'median' ? [0, 1, 2].map((k) => big.map((x) => x.col[k]).sort((x, y) => x - y)[Math.floor(big.length / 2)]) : target;
+  let best = big[0], bd = Infinity;
+  for (const x of big) { const d = Math.hypot(x.col[0] - goal[0], x.col[1] - goal[1], x.col[2] - goal[2]); if (d < bd) { bd = d; best = x; } }
+  return best.uv;
+}
+
+/**
+ * Bow directions in the rest pose of the hand's bone from the attack clip at full draw (bow hand highest):
+ * upright there, its back facing the target (from the drawing hand to the bow hand, level). Returns null without
+ * the clip. Poses `g` (rest pose afterwards).
+ * @returns {{ up: number[], back: number[] }|null}
+ */
+function drawFrame(g, hand) {
+  const clip = g.animations.find((x) => x.name === 'attack');
+  if (!clip) return null;
+  const other = hand.startsWith('Left') ? 'RightHand' : 'LeftHand';
+  const bone = (name) => { let b = null; g.scene.traverse((o) => { if (o.isBone && o.name === name && !b) b = o; }); return b; };
+  const hb = bone(hand), ob = bone(other);
+  pose(g, null);
+  const rest = hb.matrixWorld.clone();
+  let best = null;
+  for (let k = 0; k <= 40; k++) {
+    pose(g, 'attack', (clip.duration * k) / 40);
+    const ph = hb.getWorldPosition(new THREE.Vector3()), po = ob.getWorldPosition(new THREE.Vector3());
+    if (!best || ph.y > best.y) best = { y: ph.y, m: hb.matrixWorld.clone(), aim: ph.sub(po) };
+  }
+  pose(g, null);
+  const aim = new THREE.Vector3(best.aim.x, 0, best.aim.z).normalize();
+  // drawn world → rest: through the hand's rotation at full draw and at rest
+  const toRest = new THREE.Matrix4().extractRotation(rest).multiply(new THREE.Matrix4().extractRotation(best.m).invert());
+  const up = new THREE.Vector3(0, 1, 0).applyMatrix4(toRest).normalize(), back = aim.applyMatrix4(toRest).normalize();
+  return { up: up.toArray(), back: back.toArray() };
+}
+
 /**
  * Replace the weapon or tool of `hand` in one file by a pole or a frame saw.
- * @param {string} file @param {string} hand @param {'pole'|'saw'} kind @returns {Promise<string>}
+ * @param {string} file @param {string} hand @param {'pole'|'saw'|'bow'} kind @returns {Promise<string>}
  */
-export async function replaceHeld(file, hand = 'RightHand', kind = 'pole') {
+export async function replaceHeld(file, hand = 'RightHand', kind = 'pole', clipFile = null) {
   const doc = await io.read(file);
   await doc.transform(dequantize());
   const g = await threeOf(io, doc);
+  // the near model has no clips of its own: the game model's skeleton and clips stand in
+  if (kind === 'bow' && !g.animations.length && clipFile) g.animations = (await threeOf(io, await io.read(clipFile))).animations;
+  const clipSource = kind === 'bow' && g.animations.some((x) => x.name === 'attack') ? g : null;
   pose(g, null);
   const mesh = mainMesh(g);
   const rest = skinned(mesh), idx = mesh.geometry.index.array, boneOf = dominantBones(mesh), bones = mesh.skeleton.bones.map((b) => b.name);
@@ -160,9 +354,9 @@ export async function replaceHeld(file, hand = 'RightHand', kind = 'pole') {
   const height = ymax - ymin;
   const wrist = mesh.skeleton.bones[bones.indexOf(hand)].getWorldPosition(new THREE.Vector3()).toArray();
   const w = weaponVertices(rest, boneOf, neighbours(rest, idx), hand, wrist, height);
-  if (!w) return `${hand}: no weapon found`;
+  if (!w && kind !== 'bow') return `${hand}: no weapon found`;
   // the weapon beyond the fingers (the hand itself stays)
-  const far = new Set(w.verts.filter((i) => Math.hypot(rest[i * 3] - wrist[0], rest[i * 3 + 1] - wrist[1], rest[i * 3 + 2] - wrist[2]) > GRIP * height * 0.6));
+  const far = new Set((w?.verts ?? []).filter((i) => Math.hypot(rest[i * 3] - wrist[0], rest[i * 3 + 1] - wrist[1], rest[i * 3 + 2] - wrist[2]) > GRIP * height * 0.6));
   // document primitive: the main skinned mesh; local (mesh space) arrays, same vertex order as three
   const node = doc.getRoot().listNodes().filter((x) => x.getMesh() && x.getSkin())
     .sort((a, b) => b.getMesh().listPrimitives()[0].getAttribute('POSITION').getCount() - a.getMesh().listPrimitives()[0].getAttribute('POSITION').getCount())[0];
@@ -172,9 +366,14 @@ export async function replaceHeld(file, hand = 'RightHand', kind = 'pole') {
   for (let i = 1; i < P.length; i += 3) { lymin = Math.min(lymin, P[i]); lymax = Math.max(lymax, P[i]); }
   const lh = lymax - lymin, farList = [...far], loc = farList.map((i) => [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]]);
   const beyondGrip = (i) => Math.hypot(rest[i * 3] - wrist[0], rest[i * 3 + 1] - wrist[1], rest[i * 3 + 2] - wrist[2]) > GRIP * height * 0.6;
-  /** @type {{ pos: number[], nrm: number[], tip: boolean[], idx: number[] }} */
+  /** @type {{ pos: number[], nrm: number[], tip?: boolean[], part?: number[], idx: number[] }} */
   let geo;
   let woodUv, metalUv;
+  /** @type {number[][]|null} UV per part (bow) */
+  let partUvs = null;
+  const I0 = prim.getIndices().getArray();
+  /** triangles (first index) torn open in the clips (bow) */
+  const torn = new Set();
   /** distance of a vertex from the old tool's line or plane, relative to the height (loose leftovers) */
   let offTool;
   if (kind === 'saw') {
@@ -214,6 +413,108 @@ export async function replaceHeld(file, hand = 'RightHand', kind = 'pole') {
     const out = (i) => { const d = rel(i), pu = dot(d, u), pvv = dot(d, v); return Math.max(0, box[0] - pu, pu - box[1], box[2] - pvv, pvv - box[3]); };
     for (let i = 0; i < P.length / 3; i++) if (!far.has(i) && Math.abs(dot(rel(i), n)) < flat.thick && out(i) < m && beyondGrip(i)) far.add(i);
     offTool = (i) => Math.max(Math.abs(dot(rel(i), n)), out(i)) / lh;
+  } else if (kind === 'bow') {
+    const side = hand.slice(0, -4), RP = (i) => [rest[i * 3], rest[i * 3 + 1], rest[i * 3 + 2]];
+    const bonePos = (name) => mesh.skeleton.bones[bones.indexOf(name)].getWorldPosition(new THREE.Vector3()).toArray();
+    const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+    const segDist = (p, s0, s1) => {
+      const ab = [s1[0] - s0[0], s1[1] - s0[1], s1[2] - s0[2]], ap = [p[0] - s0[0], p[1] - s0[1], p[2] - s0[2]];
+      const t = Math.max(0, Math.min(1, (ab[0] * ap[0] + ab[1] * ap[1] + ab[2] * ap[2]) / (ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2 || 1)));
+      return dist(p, [s0[0] + ab[0] * t, s0[1] + ab[1] * t, s0[2] + ab[2] * t]);
+    };
+    // seeds: what the hand holds beyond the fingers, and arm vertices far out of the limb (Meshy weights a bow's
+    // limb partly to the forearm)
+    const seeds = new Set(far), grip = GRIP * height;
+    const limbs = { [`${side}ForeArm`]: [bonePos(`${side}ForeArm`), wrist], [`${side}Arm`]: [bonePos(`${side}Arm`), bonePos(`${side}ForeArm`)] };
+    for (let i = 0; i < boneOf.length; i++) {
+      const s = limbs[boneOf[i]];
+      if (s && segDist(RP(i), s[0], s[1]) > 0.12 * height && dist(RP(i), wrist) > grip) seeds.add(i);
+    }
+    if (seeds.size < 12) return `${hand}: no bow found`;
+    // follow the bow over the surface: within a tube around the fitted curve or around the string between its ends;
+    // inside the fist only what weaponVertices already took (never the fingers)
+    const nbr = neighbours(rest, idx), held = new Set(w?.verts ?? []);
+    const otherArm = new RegExp(`^${side === 'Left' ? 'Right' : 'Left'}(Hand|ForeArm|Arm|Shoulder)$`);
+    const tube = 0.03 * height, stringTube = 0.015 * height, armOrLeg = new RegExp(`^${side}(Hand|ForeArm|UpLeg|Leg)$`);
+    let set = [...seeds], fit, tmin = 0, tmax = 0;
+    // the bow runs through the fist: the palm anchors the fit (a quarter of the weight)
+    const hd = unit([wrist[0] - bonePos(`${side}ForeArm`)[0], wrist[1] - bonePos(`${side}ForeArm`)[1], wrist[2] - bonePos(`${side}ForeArm`)[2]]);
+    const palm = wrist.map((x, k) => x + hd[k] * 0.035 * height);
+    for (let it = 0; it < 12; it++) {
+      const pts = set.map(RP);
+      fit = fitBow([...pts, ...Array(Math.max(5, Math.ceil(pts.length / 4))).fill(palm)], 0.5);
+      const ts = [...set.map((i) => bowDistance(fit, RP(i)).t), bowDistance(fit, palm).t];
+      tmin = Math.min(...ts); tmax = Math.max(...ts);
+      const t0 = tmin - 0.08 * height, t1 = tmax + 0.08 * height, e0 = bowPoint(fit, tmin), e1 = bowPoint(fit, tmax);
+      const inside = new Uint8Array(boneOf.length), queue = [...set];
+      for (const i of set) inside[i] = 1;
+      // across the fist the surface breaks off: limb vertices right on the curve continue it (the lower limb on the
+      // thigh), once the found part is long enough to trust the curve
+      if (tmax - tmin > 0.15 * height) {
+        for (let j = 0; j < boneOf.length; j++) {
+          if (inside[j] || !armOrLeg.test(boneOf[j]) || dist(RP(j), wrist) < grip) continue;
+          const b = bowDistance(fit, RP(j));
+          if (b.t >= t0 && b.t <= t1 && b.d < tube * 0.4) { inside[j] = 1; queue.push(j); }
+        }
+      }
+      const before = set.length;
+      while (queue.length) {
+        const x = queue.pop();
+        for (const j of nbr[x]) {
+          if (inside[j] || otherArm.test(boneOf[j])) continue;
+          const p = RP(j), dw = dist(p, wrist);
+          if (dw < grip * 0.6 || (dw < grip && boneOf[j] === hand && !held.has(j))) continue;
+          const b = bowDistance(fit, p);
+          if (b.t < t0 || b.t > t1 || (b.d > tube && segDist(p, e0, e1) > stringTube)) continue;
+          inside[j] = 1; queue.push(j);
+        }
+      }
+      set = [];
+      for (let i = 0; i < inside.length; i++) if (inside[i]) set.push(i);
+      if (set.length === before) break;
+    }
+    for (const i of set) far.add(i);
+    // what is left of the old bow and string between hand and leg tears open when the arm rises: triangles joining
+    // the bow arm and the leg that stretch beyond BRIDGE_STRETCH in attack or cheer
+    if (clipSource) {
+      const armSide = new RegExp(`^${side}(Hand|ForeArm)$`), legSide = new RegExp(`^${side}(UpLeg|Leg)$`), frames = [];
+      for (const name of ['attack', 'cheer']) {
+        const clip = g.animations.find((x) => x.name === name);
+        if (clip) for (let k = 0; k <= 10; k++) { pose(g, name, (clip.duration * k) / 10); frames.push(skinned(mesh)); }
+      }
+      pose(g, null);
+      const edge = (A, i, j) => Math.hypot(A[i * 3] - A[j * 3], A[i * 3 + 1] - A[j * 3 + 1], A[i * 3 + 2] - A[j * 3 + 2]);
+      for (let t = 0; t < I0.length; t += 3) {
+        const tri = [I0[t], I0[t + 1], I0[t + 2]];
+        if (!tri.some((i) => armSide.test(boneOf[i])) || !tri.some((i) => legSide.test(boneOf[i]))) continue;
+        const r0 = Math.max(edge(rest, tri[0], tri[1]), edge(rest, tri[1], tri[2]), edge(rest, tri[2], tri[0])) || 1e-9;
+        if (frames.some((F) => Math.max(edge(F, tri[0], tri[1]), edge(F, tri[1], tri[2]), edge(F, tri[2], tri[0])) > BRIDGE_STRETCH * r0)) torn.add(t);
+      }
+    }
+    // new bow: centred on the curve where the fist holds it, as long as the old one (bounded), bulging like it
+    const tg = bowDistance(fit, palm).t, slope = fit.k[1] + 2 * fit.k[2] * tg;
+    let a = unit(fit.u.map((x, k) => x + fit.v[k] * slope)), across = unit(fit.v.map((x, k) => x - fit.u[k] * slope));
+    // the tips lie on the side the parabola opens to; the back faces the other way
+    let back = fit.k[2] > 0 ? across.map((x) => -x) : across;
+    // better: upright at full draw in the attack clip, the back towards the target (Meshy's hands are turned
+    // differently per figure, the old bow's direction does not tell)
+    const draw = clipSource && drawFrame(clipSource, hand);
+    if (draw) { a = draw.up; back = draw.back; }
+    const length = Math.min(0.72 * height, Math.max(0.5 * height, tmax - tmin));
+    const world = bowGeometry({ grip: bowPoint(fit, tg), a, back, length, sag: 0.12 * length, limb: 0.011 * height, tip: 0.005 * height, string: 0.0025 * height });
+    // world (rest pose) → mesh space
+    const M = worldToMesh(rest, P), N = new THREE.Matrix3().getNormalMatrix(M);
+    geo = { ...world, pos: [], nrm: [] };
+    for (let k = 0; k < world.pos.length; k += 3) {
+      geo.pos.push(...new THREE.Vector3(world.pos[k], world.pos[k + 1], world.pos[k + 2]).applyMatrix4(M).toArray());
+      geo.nrm.push(...new THREE.Vector3(world.nrm[k], world.nrm[k + 1], world.nrm[k + 2]).applyMatrix3(N).normalize().toArray());
+    }
+    // colours: the old bow's typical texel for the wood, dark leather and light cord from elsewhere on the figure
+    const tex = await texelReader(prim);
+    const oldBow = new Set(set);
+    partUvs = [pickUv(I0, UV, tex, (tri) => tri.every((i) => oldBow.has(i)), 'median'), pickUv(I0, UV, tex, null, [70, 45, 30]), pickUv(I0, UV, tex, null, [225, 215, 185])];
+    const e0 = bowPoint(fit, tmin), e1 = bowPoint(fit, tmax);
+    offTool = (i) => Math.min(bowDistance(fit, RP(i)).d, segDist(RP(i), e0, e1)) / height;
   } else {
     // axis in mesh space from the weapon's vertices; ends = extent along it; tip = the end higher up in the rest pose
     const { c, a } = mainAxis(loc);
@@ -260,7 +561,7 @@ export async function replaceHeld(file, hand = 'RightHand', kind = 'pole') {
   let cut = 0;
   for (let t = 0; t < I.length; t += 3) {
     const n = (far.has(I[t]) ? 1 : 0) + (far.has(I[t + 1]) ? 1 : 0) + (far.has(I[t + 2]) ? 1 : 0);
-    if (n >= 1) { cut++; continue; } // one is enough: a single old weapon vertex would stretch the rest into a strand
+    if (n >= 1 || torn.has(t)) { cut++; continue; } // one is enough: a single old weapon vertex would stretch the rest into a strand
     const tri = [I[t], I[t + 1], I[t + 2]];
     if (loose.size && tri.some((i) => loose.has(i)) && tri.some((i) => legDominant(i))) { cut++; continue; }
     kept.push(I[t], I[t + 1], I[t + 2]);
@@ -294,7 +595,7 @@ export async function replaceHeld(file, hand = 'RightHand', kind = 'pole') {
       const o = (n0 + k) * size;
       if (sem === 'POSITION') out.set(geo.pos.slice(k * 3, k * 3 + 3), o);
       else if (sem === 'NORMAL') out.set(geo.nrm.slice(k * 3, k * 3 + 3), o);
-      else if (sem === 'TEXCOORD_0') out.set(geo.tip[k] ? metalUv : woodUv, o);
+      else if (sem === 'TEXCOORD_0') out.set(partUvs ? partUvs[geo.part[k]] : geo.tip[k] ? metalUv : woodUv, o);
       else if (sem === 'TANGENT') { const nx = geo.nrm[k * 3], ny = geo.nrm[k * 3 + 1], nz = geo.nrm[k * 3 + 2]; const t = Math.abs(ny) < 0.9 ? [nz, 0, -nx] : [1, 0, 0]; const l = Math.hypot(...t) || 1; out.set([t[0] / l, t[1] / l, t[2] / l, 1], o); }
       else if (sem === 'JOINTS_0') out.set([handIdx, 0, 0, 0], o);
       else if (sem === 'WEIGHTS_0') out.set([old instanceof Uint8Array ? 255 : old instanceof Uint16Array ? 65535 : 1, 0, 0, 0], o);
@@ -308,10 +609,11 @@ export async function replaceHeld(file, hand = 'RightHand', kind = 'pole') {
   prim.getIndices().setArray(total > 65535 ? new Uint32Array(newIdx) : new Uint16Array(newIdx));
   await doc.transform(meshopt({ encoder: MeshoptEncoder, level: 'medium' })); // quantized again like the other models
   await io.write(file, doc);
-  return `${hand}: cut ${cut} triangles of the old ${kind === 'saw' ? 'tool' : 'weapon'}, ${kind} ${geo.idx.length / 3} triangles`;
+  return `${hand}: cut ${cut} triangles of the old ${kind === 'saw' ? 'tool' : kind === 'bow' ? 'bow' : 'weapon'}, ${kind} ${geo.idx.length / 3} triangles`;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [model, hand = 'RightHand', kind = 'pole'] = process.argv.slice(2);
-  for (const f of [`${model}.lod1.glb`, `${model}.glb`]) console.log(`${f}: ${await replaceHeld(path.join(DIR, f), hand, kind)}`);
+  // first the near model: it takes the clips from the game model before that changes
+  for (const f of [`${model}.glb`, `${model}.lod1.glb`]) console.log(`${f}: ${await replaceHeld(path.join(DIR, f), hand, kind, path.join(DIR, `${model}.lod1.glb`))}`);
 }
