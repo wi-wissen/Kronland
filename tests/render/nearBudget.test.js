@@ -1,7 +1,7 @@
 // Near-model budget and spread-out variant rebuilds of the figures (crowd mission on high-density displays).
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { CharacterSystem, limitNear, NEAR_KEEP } from '../../src/render/characters.js';
+import { CharacterSystem, limitNear, NEAR_KEEP, REBUILD_MS } from '../../src/render/characters.js';
 import { lodSettings } from '../../src/render/lod.js';
 import { QUALITY_PRESETS } from '../../src/render/quality.js';
 
@@ -70,12 +70,14 @@ describe('CharacterSystem', () => {
     expect(chars.records.get(60).drawLvl).toBe(1);
   });
 
-  it('rebuilds at most one stale rendering per frame', () => {
+  it('rebuilds stale renderings within a time budget per frame, at least one', () => {
     const chars = new CharacterSystem(new THREE.Scene(), QUALITY_PRESETS.high, { procedural: {} });
-    let built = 0;
+    let built = 0, clock = 0;
+    // every rebuild "takes" longer than the budget of the frame
+    chars.now = () => clock;
     let stale = true;
     // the renderings of the first appearance wait for a model; rebuilt ones are complete
-    chars.buildVariant = (k) => { const n = ++built; return { ...fakeVariant(k), pendingCheck: () => stale && n <= 2 }; };
+    chars.buildVariant = (k) => { const n = ++built; clock += REBUILD_MS + 1; return { ...fakeVariant(k), pendingCheck: () => stale && n <= 2 }; };
     const s = { x: 0, y: 0, z: 0, yaw: 0, clip: 'idle', team: 0 };
     chars.begin(0);
     chars.set(1, 'a', s); chars.set(2, 'b', s); chars.set(3, 'a', s);
@@ -88,6 +90,19 @@ describe('CharacterSystem', () => {
     chars.begin(0.2);
     chars.set(2, 'b', s);
     expect(built).toBe(3); // 'b' is no longer stale
+  });
+
+  it('fast rebuilds: several in one frame', () => {
+    const chars = new CharacterSystem(new THREE.Scene(), QUALITY_PRESETS.high, { procedural: {} });
+    let built = 0;
+    chars.now = () => 0;
+    chars.buildVariant = (k) => { const n = ++built; return { ...fakeVariant(k), pendingCheck: () => n <= 3 }; };
+    const s = { x: 0, y: 0, z: 0, yaw: 0, clip: 'idle', team: 0 };
+    chars.begin(0);
+    for (const [id, k] of [[1, 'a'], [2, 'b'], [3, 'c']]) chars.set(id, k, s);
+    chars.begin(0.1);
+    for (const [id, k] of [[1, 'a'], [2, 'b'], [3, 'c']]) chars.set(id, k, s);
+    expect(built).toBe(6);
   });
 });
 

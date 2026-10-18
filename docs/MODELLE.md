@@ -378,8 +378,10 @@ Skelett und denselben Animationen:
 Obergrenze (`LOD_PROFILES.character.nearMax`, `limitNear` in `src/render/characters.js`): Auf Bildschirmen mit
 Pixeldichte 2 (Retina, Handy) wäre beim Heranzoomen an eine Schlacht sonst jede Figur ein Nahmodell (Gewimmel: 114 statt 2,
 siehe [PERFORMANCE.md](PERFORMANCE.md#ruckeln-im-gewimmel-nahmodelle-und-shader)). Wer schon ein Nahmodell zeigt, behält
-es gegen eine bis zu 15 % größere Figur (kein Flackern an der Grenze). Kommen Nahmodelle an, baut das Spiel je Bild
-höchstens eine Figurendarstellung neu (Netz zusammenführen, Texturen hochladen).
+es gegen eine bis zu 15 % größere Figur (kein Flackern an der Grenze). Kommen Nahmodelle an, baut das Spiel je Bild nur so
+viele Figurendarstellungen neu (Netz zusammenführen, Texturen hochladen), wie in ~6 ms passen (`REBUILD_MS`, mindestens
+eine). Die Nahstufe wird erst gezeigt, wenn ihr Shader im Hintergrund übersetzt ist (`precompileNear`, `compileAsync`);
+bis dahin bleibt das Spielmodell.
 
 ### Spielmodell aus dem Nahmodell (`gamemesh/`)
 

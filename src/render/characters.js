@@ -1250,8 +1250,10 @@ export class CharacterSystem {
     this.blob = quality.tier === 'low' || quality.shadows === false;
     this.stats = { drawn: 0, levels: [0, 0, 0, 0], culled: 0 };
     this.modelBakes = new Map();
-    /** variant rebuilds still allowed in this frame (begin: one per frame) */
-    this.rebuilds = Infinity;
+    /** variant rebuilds in this frame: the first always, more until rebuildUntil (begin; before the first frame unlimited) */
+    this.rebuildFirst = true;
+    this.rebuildUntil = Infinity;
+    this.now = () => performance.now();
     /** @type {((obj: THREE.Object3D) => Promise<any>)|null} compile shaders in the background (renderer.compileAsync) */
     this.compile = null;
     if (this.blob) this.initBlobs();
@@ -1527,10 +1529,10 @@ export class CharacterSystem {
       const fresh = this.variants.get(roleKey);
       // already rebuilt this frame for another figure of the role: take it over
       if (fresh && fresh !== r.variant && !variantStale(fresh)) r.variant = fresh;
-      // at most one rebuild per frame: arriving near models (mesh merge, texture upload) spread over the frames
-      // instead of a dozen at once when zooming into a battle
-      else if (this.rebuilds > 0) {
-        this.rebuilds--;
+      // rebuilds per frame within a time budget (at least one): arriving near models (mesh merge, texture upload)
+      // spread over the frames instead of a dozen at once when zooming into a battle
+      else if (this.rebuildFirst || this.now() < this.rebuildUntil) {
+        this.rebuildFirst = false;
         // also rebuild reloaded attachments (crew, mount)
         for (const [k, v] of this.variants) {
           if (v && v !== r.variant && r.variant.attach.some((a) => a.variant === v) && variantStale(v)) this.dropVariant(k, v);
@@ -1593,7 +1595,10 @@ export class CharacterSystem {
     }
   }
 
-  begin(time) { this.time = time; this.frameNo = (this.frameNo ?? 0) + 1; this.rebuilds = 1; }
+  begin(time) {
+    this.time = time; this.frameNo = (this.frameNo ?? 0) + 1;
+    this.rebuildFirst = true; this.rebuildUntil = this.now() + REBUILD_MS;
+  }
 
   /**
    * Work beat of a figure for the sound (read only): shown clip, seconds since clip start, cycle length and
@@ -1802,6 +1807,9 @@ function animFrames(v, r, a, step, time) {
 
 /** Near level of a rendering and its attachments compiled (or never compiled in the background)? */
 const nearReady = (v) => v.nearReady !== false && v.attach.every((a) => a.variant.nearReady !== false);
+
+/** Time per frame for rebuilding figure renderings (ms; one rebuild always). */
+export const REBUILD_MS = 6;
 
 /** Advantage of a figure that already shows the near model when the slots are handed out (no flickering at the edge). */
 export const NEAR_KEEP = 1.15;
