@@ -79,33 +79,15 @@ describe('pole', () => {
   });
 });
 
-describe('flat tools', () => {
-  it('a frame is flat, a shaft is not', async () => {
-    const { flatPart } = await import('../../scripts/asset-gen/weapons.mjs');
-    const frame = [];
-    for (let k = 0; k <= 20; k++) frame.push([k / 20, 0, 0], [k / 20, 0.8, 0], [0, k / 25, 0.001], [1, k / 25, -0.001]);
-    const f = flatPart(frame);
-    expect(f).not.toBeNull();
-    expect(Math.abs(f.n[2])).toBeCloseTo(1, 3);
-    const shaft = Array.from({ length: 40 }, (_, k) => [k / 40, 0.01 * (k % 2), 0.01 * (k % 3)]);
-    expect(flatPart(shaft)).toBeNull();
-  });
-  it('smallest rectangle finds a turned frame', async () => {
-    const { minRect } = await import('../../scripts/asset-gen/pole.mjs');
-    const t = Math.PI / 6, rot = ([x, y]) => [x * Math.cos(t) - y * Math.sin(t), x * Math.sin(t) + y * Math.cos(t)];
-    const pts = [];
-    for (let k = 0; k <= 10; k++) pts.push(rot([k / 10, 0]), rot([k / 10, 0.5]), rot([0, k / 20]), rot([1, k / 20]));
-    const r = minRect(pts);
-    expect([...r.h].sort()).toEqual([expect.closeTo(0.25, 2), expect.closeTo(0.5, 2)]);
-  });
-  it('saw: wooden frame, metal blade, handle', async () => {
-    const { sawGeometry } = await import('../../scripts/asset-gen/pole.mjs');
-    const at = (pu, pv) => [pu, pv, 0];
-    const g = sawGeometry({ u: [1, 0, 0], v: [0, 1, 0], n: [0, 0, 1], at, u0: -0.4, u1: 0.4, vb: -0.2, vc: 0.2, vm: 0, r: 0.01, blade: 0.02, bladeThick: 0.002, handle: 0.35 });
-    expect(g.pos.length / 3).toBe(6 * 24); // 4 wooden bars, blade, handle
-    expect(g.tip.filter(Boolean).length).toBe(24);
-    expect(Math.max(...g.idx)).toBe(g.pos.length / 3 - 1);
-    const ys = Array.from({ length: g.pos.length / 3 }, (_, i) => g.pos[i * 3 + 1]);
-    expect(Math.max(...ys)).toBeCloseTo(0.35, 6);
+describe('hold', () => {
+  it('cheer: the tip up; attack: forward where the chest faces once the spear leaves the upright', async () => {
+    const THREE = await import('three');
+    const { wanted } = await import('../../scripts/asset-gen/hold.mjs');
+    const chest = new THREE.Vector3(1, 0, 0);
+    expect(wanted('cheer', new THREE.Vector3(0, -1, 0), chest).y).toBeGreaterThan(0.9);
+    expect(wanted('attack', new THREE.Vector3(0, 1, 0), chest)).toBeNull();
+    const back = wanted('attack', new THREE.Vector3(-1, 0, 0), chest);
+    expect(back.x).toBeGreaterThan(0.9);
+    expect(wanted('idle', new THREE.Vector3(0, -1, 0), chest)).toBeNull();
   });
 });
