@@ -260,7 +260,9 @@ test.describe('phone sheet', () => {
 
     // Run: the game is shown with the run strip
     const ta = page.getByTestId('section-player').getByTestId('code-input');
-    await ta.fill('for i in range(4):\n    nelia.step()\n');
+    // Back and forth between two free tiles and long enough: on r1-m a tree stands 4 tiles east of the start, a
+    // straight walk ends in a GameError (or the run ends) before the "Code" button of the run strip is clicked
+    await ta.fill('for i in range(40):\n    nelia.step()\n    nelia.turn_left()\n    nelia.turn_left()\n');
     await page.getByTestId('script-run').click();
     await expect(panel).toBeHidden();
     await expect(page.getByTestId('script-watch-strip')).toBeVisible();
