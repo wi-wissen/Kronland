@@ -113,3 +113,32 @@ describe('Renderer.shadersReady', () => {
     expect(ready('ruin:villageCenter')).toBe(true);
   });
 });
+
+describe('Near level compiled in the background', () => {
+  it('figures keep the game model until the shader of the near level is compiled', async () => {
+    const chars = new CharacterSystem(new THREE.Scene(), QUALITY_PRESETS.high, { procedural: {} });
+    let builds = 0, finish, compiled = 0;
+    // the first rendering waits for the near model, the second has it
+    chars.buildVariant = (k) => ({ ...fakeVariant(k), pendingCheck: builds++ === 0 ? () => true : undefined });
+    chars.compile = (m) => { compiled++; expect(m.visible).toBe(true); return new Promise((r) => { finish = r; }); };
+    chars.viewH = 900; chars.pixelRatio = 1;
+    const cam = new THREE.PerspectiveCamera(40, 1.6, 0.3, 700);
+    cam.position.set(0, 0.5, 0); cam.lookAt(0, 0.5, -10); cam.updateMatrixWorld();
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    const s = { x: 0, y: 0, z: -3, yaw: 0, clip: 'idle', team: 0 };
+    chars.begin(0); chars.set(1, 'serf', s);
+    chars.begin(0.1); chars.set(1, 'serf', s); // near model arrived: rebuilt, compiling starts
+    expect(compiled).toBe(1);
+    const v = chars.variants.get('serf');
+    expect(v.nearReady).toBe(false);
+    expect(v.meshes[0].count).toBe(0); // drew one instance only for the compilation
+    chars.render(cam, frustum);
+    expect(chars.stats.levels[0]).toBe(0);
+    expect(chars.stats.levels[1]).toBe(1);
+    finish();
+    await new Promise((r) => setTimeout(r, 0));
+    chars.begin(0.2); chars.set(1, 'serf', s); chars.render(cam, frustum);
+    expect(chars.stats.levels[0]).toBe(1);
+    expect(compiled).toBe(1);
+  });
+});

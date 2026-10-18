@@ -55,7 +55,7 @@ test('Bustle: stress test runs, battles and towns in the picture', async ({ page
   expect(st.c.building).toBeGreaterThanOrEqual(150);
   expect((st.c.unit ?? 0) + (st.c.worker ?? 0) + (st.c.leader ?? 0) + (st.c.soldier ?? 0)).toBeGreaterThanOrEqual(1000);
   const stats = {};
-  for (const [name, at, dist] of [['battle', st.refs.battle1, 34], ['town', st.refs.town1, 30], ['overview', { x: 80, y: 80 }, 90]]) {
+  for (const [name, at, dist] of [['battle', st.refs.battle1, 34], ['near', st.refs.battle1, 12], ['town', st.refs.town1, 30], ['overview', { x: 80, y: 80 }, 90]]) {
     await page.evaluate(([x, y, d]) => {
       const r = window.__kronland.renderer.rig;
       r.dist = d; r.lookAt(x, y); r.clamp?.(); r.update(0);
@@ -67,6 +67,9 @@ test('Bustle: stress test runs, battles and towns in the picture', async ({ page
   }
   // Figures are drawn (instanced: few calls for very many figures)
   expect(stats.battle.calls).toBeGreaterThan(0);
+  // close to the battle at most 32 figures with the near model (docs/MODELLE.md), the others the game model
+  expect(stats.near.chars.levels[0]).toBeLessThanOrEqual(32);
+  expect(stats.near.chars.drawn).toBeGreaterThan(32);
   console.log(`Bustle (${info.project.name}):`, JSON.stringify(stats));
   expect(errors).toEqual([]);
 });

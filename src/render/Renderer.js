@@ -143,6 +143,7 @@ export class Renderer {
     this.chunked = [];
     this.chars = new CharacterSystem(this.scene, q, { procedural: proceduralFigures() });
     if (opts.from?.chars) this.chars.adoptVariants(opts.from.chars);
+    this.chars.compile = (obj) => this.renderer.compileAsync(obj, this.camera, this.scene);
     this.fx = new Effects(this.scene, q);
     this.bars = new HealthBars(this.scene);
     this.marks = new GroundMarks(this.scene);

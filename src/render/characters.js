@@ -1252,6 +1252,8 @@ export class CharacterSystem {
     this.modelBakes = new Map();
     /** variant rebuilds still allowed in this frame (begin: one per frame) */
     this.rebuilds = Infinity;
+    /** @type {((obj: THREE.Object3D) => Promise<any>)|null} compile shaders in the background (renderer.compileAsync) */
+    this.compile = null;
     if (this.blob) this.initBlobs();
   }
 
@@ -1494,6 +1496,24 @@ export class CharacterSystem {
   }
 
   /**
+   * Near level of a rebuilt rendering (near model arrived): compile its shader in the background; until then the
+   * figures keep the game model (render). Compiling at the first draw stopped the game when zooming in.
+   * @param {Variant|null} v
+   */
+  precompileNear(v) {
+    if (!v) return;
+    for (const a of v.attach) this.precompileNear(a.variant);
+    if (!this.compile || v.levels.length < 2 || v.nearReady !== undefined) return;
+    v.nearReady = false;
+    const m = this.meshFor(v, 0, 1);
+    const visible = m.visible, count = m.count;
+    m.visible = true; m.count = 1;
+    try {
+      this.compile(m).catch(() => {}).finally(() => { v.nearReady = true; });
+    } catch { v.nearReady = true; } finally { m.visible = visible; m.count = count; }
+  }
+
+  /**
    * Report a figure for this frame.
    * @param {number} id entity
    * @param {string} roleKey
@@ -1517,6 +1537,7 @@ export class CharacterSystem {
         }
         if (this.variants.get(roleKey) === r.variant) this.dropVariant(roleKey, r.variant);
         r.variant = this.variantFor(roleKey);
+        this.precompileNear(r.variant);
       }
     }
     if (!r || r.roleKey !== roleKey) {
@@ -1619,7 +1640,9 @@ export class CharacterSystem {
       const lvl = r.lod.update(pixelMetric(px), this.lodSettings);
       if (lvl < 0) { st.culled++; r.meshLvl = -1; r.nearSlot = false; continue; }
       r.lodPx = px; r.drawLvl = lvl;
-      if (lvl === 0) near++;
+      // near level still compiling: game model meanwhile
+      if (lvl === 0 && !nearReady(v)) r.drawLvl = 1;
+      if (r.drawLvl === 0) near++;
       shown.push(r);
     }
     limitNear(shown, near, this.lodSettings.nearMax ?? Infinity);
@@ -1776,6 +1799,9 @@ function animFrames(v, r, a, step, time) {
   if (step > 0) f[2] = 0;
   return f;
 }
+
+/** Near level of a rendering and its attachments compiled (or never compiled in the background)? */
+const nearReady = (v) => v.nearReady !== false && v.attach.every((a) => a.variant.nearReady !== false);
 
 /** Advantage of a figure that already shows the near model when the slots are handed out (no flickering at the edge). */
 export const NEAR_KEEP = 1.15;
