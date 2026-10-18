@@ -369,11 +369,17 @@ Skelett und denselben Animationen:
 
 | | Nahmodell (Stufe 0) | Spielmodell (Stufe 1, darunter nur gedrosselt) |
 |---|---|---|
-| wann | Figur über ~80 px hoch (Zoom „nah“, auch am Handy) | mittlerer Zoom und weiter (Standardzoom: ~25 px) |
+| wann | Figur über ~80 px hoch (gerenderte Pixel, Zoom „nah“, auch am Handy); höchstens **32 Figuren** zugleich, die größten im Bild | mittlerer Zoom und weiter (Standardzoom: ~25 px) und alle Figuren über der Obergrenze |
 | Netz | Meshy 7.1 mit PBR, ~11 000 Dreiecke | das Nahmodell vereinfacht auf ~2 000 Dreiecke ([gamemesh](#spielmodell-aus-dem-nahmodell-gamemesh), Kopf mit ~40 % der Dreiecke), Gewichte exakt vom Nahmodell; nur LightRiderF noch Meshy-Remesh |
 | Aussehen | Textur 2048 + Normal-Map, Farben wie von Meshy | Textur 1024 + Normal-Map vom Nahmodell gebacken (MikkTSpace-Tangenten) |
 | Datei | `<Modell>.glb` (ohne Animationen) | `<Modell>.lod1.glb` (mit Skelett, Werkzeugen und **allen Animationen**) |
 | geladen | erst, wenn eine Figur die Nahstufe bräuchte (heranzoomen, Dialogkamera) | sobald die Rolle auftaucht |
+
+Obergrenze (`LOD_PROFILES.character.nearMax`, `limitNear` in `src/render/characters.js`): Auf Bildschirmen mit
+Pixeldichte 2 (Retina, Handy) wäre beim Heranzoomen an eine Schlacht sonst jede Figur ein Nahmodell (Gewimmel: 114 statt 2,
+siehe [PERFORMANCE.md](PERFORMANCE.md#ruckeln-im-gewimmel-nahmodelle-und-shader)). Wer schon ein Nahmodell zeigt, behält
+es gegen eine bis zu 15 % größere Figur (kein Flackern an der Grenze). Kommen Nahmodelle an, baut das Spiel je Bild
+höchstens eine Figurendarstellung neu (Netz zusammenführen, Texturen hochladen).
 
 ### Spielmodell aus dem Nahmodell (`gamemesh/`)
 
