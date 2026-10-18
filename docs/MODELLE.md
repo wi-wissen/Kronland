@@ -239,7 +239,28 @@ Band ohne Sehne, der Griff sitzt im oberen Drittel. Im Spielmodell (lod1) ist er
 verschweißt, ein sauberer Tausch geht nur über die Rohdateien (`assets-src/`, lokal): Bogen im Nahmodell abtrennen bzw.
 Konzept ohne Bogen neu erzeugen, dann einen Bogen als Werkzeug (`TOOLS` in `props.mjs`, Griff in der linken Hand, Wurfarme
 quer zur Schussrichtung) über `spec.props` anhängen und `postprocess.mjs` neu laufen lassen. Ausrichtung und Takt des
-Schusses regelt das Spiel unabhängig davon (`shots`, unten).
+Schusses regelt das Spiel unabhängig davon (`shots`, unten). Achtung: `assets-src/characters/<id>/` enthält für die
+meisten Figuren nur Konzept, `spec.json` und `job.json`; die Meshy-Netze (`rigged.glb`) müssen dafür erst mit
+`MESHY_API_KEY` aus den Aufträgen in `job.json` neu geladen werden (`model.mjs`).
+
+**Waffen an der Hand** (`scripts/asset-gen/weapons.mjs`): Meshy liefert jede Figur als **ein** zusammenhängendes Netz
+und gewichtet nach Abstand. Wo Klinge, Speer, Bogen oder Werkzeug in der Grundhaltung am Oberschenkel anliegen, folgt
+dieser Teil dem Bein; hebt die Figur den Arm (Angriff, Jubeln), wird die Waffe zu einer langen Haut gedehnt und wirkt
+zersplittert. Das Skript spielt alle Clips (außer `die`) und repariert nur Hände, an denen etwas mehr als 6-fach reißt:
+Die Teile klar an der Hand, weiter vom Handgelenk als die Finger, geben die Achse der Waffe (Hauptachse, zweimal aus
+dem Gefundenen verfeinert); von dort sammelt eine Suche über die Oberfläche alles im Radius um diese Achse (höchstens
+5 % der Figurenhöhe, nie etwas vom anderen Arm) und bindet es zu 100 % an die Hand. Danach fallen die Dreiecke weg, die
+Hand und Körper noch verbinden und sich stark dehnen (Kante > 2,5-fach oder Fläche > 3-fach; am Handgelenk nicht) – die
+Schweißnaht zwischen Waffe und Bein. Nur Gewichte und Dreiecksliste ändern sich, Positionen und Speicherformat bleiben.
+Nahmodell und Spielmodell, nach `gamemesh/run.mjs` erneut ausführen:
+
+```bash
+node scripts/asset-gen/weapons.mjs [Modell …] [--dry]
+```
+
+Stand Oktober 2026: 29 Dateien angepasst (u. a. Schwert- und Speerkämpfer, schwere und leichte Reiter, Bogenschützen,
+Taran, Orrin, Malvor, Steinmetz, Sägewerker, Schmiedin); Figuren ohne Riss bleiben unverändert. Tests:
+`tests/tools/weapons.test.js`, `characterBake.test.js`, `shooters.test.js`.
 
 **Rollen**, die das Spiel verwendet (Schlüssel werden von hinten gekürzt, bis einer passt:
 `soldier.bow.leader` → `soldier.bow` → `soldier`):
