@@ -104,7 +104,9 @@ test('Phone: the goals sheet covers the run strip of a running program', async (
   await page.goto(playUrl('?mission=r1-m&no-models'), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !!window.__kronland, null, SLOW);
   await page.getByTestId('script-open').click();
-  await page.getByTestId('section-player').getByTestId('code-input').fill('for i in range(40):\n    nelia.step()\n');
+  // Back and forth between two free tiles: on r1-m a tree stands 4 tiles east of the start, a straight walk ends in a
+  // GameError, which ends the run and brings the code sheet back over the goals button
+  await page.getByTestId('section-player').getByTestId('code-input').fill('for i in range(40):\n    nelia.step()\n    nelia.turn_left()\n    nelia.turn_left()\n');
   await page.getByTestId('script-run').click();
   const strip = page.getByTestId('script-watch-strip');
   await expect(strip).toBeVisible(SLOW);
