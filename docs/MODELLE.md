@@ -21,7 +21,7 @@ Kamera, korrigiert um das Sichtfeld (Handy hochkant = weiteres Sichtfeld = Objek
 (`screenHeightPx`, wie Unitys „Screen Relative Transition Height“): Gleich groß auf dem Bildschirm heißt gleiche
 Stufe, auf Handy wie Desktop. Bäume rechnen in CSS-Pixeln, Figuren in **gerenderten Pixeln** (CSS-Pixel × Pixelfaktor des
 Renderers, `maxPixelRatio`: hoch 2, mittel 1,5, niedrig 1,25) – sonst zeigte ein Handy oder ein skalierter Bildschirm das
-Spielmodell bis zu doppelt so groß wie vorgesehen (Handy „hoch“, Zoom „nah“: 80 CSS-px = 160 gerenderte px). Eine Hysterese von ±10–12 % verhindert Flackern an den Grenzen.
+Spielmodell bis zu doppelt so groß wie vorgesehen (Handy „hoch“, Zoom „nah“: 80 CSS-px = 160 gerenderte px). Ein Faktor unter 1 (Software-Grafik rendert mit 0,5) zählt als 1 (`lodViewHeight`): Die Figur ist auf dem Bildschirm nicht kleiner, das Nahmodell bleibt beim Heranzoomen erreichbar. Eine Hysterese von ±10–12 % verhindert Flackern an den Grenzen.
 
 | Gruppe | Grenzen (Kacheln, Stufe „hoch“) | Stufen |
 |---|---|---|

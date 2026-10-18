@@ -1219,6 +1219,13 @@ const tmpC = new THREE.Color();
  * Runtime management of all figures.
  * Per frame: set(id, …) for every visible unit, then render(camera, frustum, time).
  */
+/**
+ * Screen height for the figure LOD in rendered pixels (CSS height × pixel ratio of the renderer). A ratio below 1
+ * (reduced resolution, software rendering) does not make a figure smaller on screen, so it never pushes the near model away.
+ * @param {number} cssH @param {number} pixelRatio
+ */
+export const lodViewHeight = (cssH, pixelRatio) => cssH * Math.max(1, pixelRatio);
+
 export class CharacterSystem {
   /**
    * @param {THREE.Scene} scene
@@ -1575,8 +1582,7 @@ export class CharacterSystem {
     const time = this.time;
     const camPos = camera.position;
     const bias = this.lodSettings.bias;
-    // screen height in rendered pixels (CSS height × pixel ratio, set by the renderer)
-    const viewH = (this.viewH ?? 800) * (this.pixelRatio ?? 1);
+    const viewH = lodViewHeight(this.viewH ?? 800, this.pixelRatio ?? 1);
     /** @type {Map<Variant, any[][]>} variant → level → [record, level, sinking, attachment, cross-fade] */
     const buckets = new Map();
     const push = (v, lvl, item) => {
