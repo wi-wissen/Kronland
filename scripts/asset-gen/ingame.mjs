@@ -2,7 +2,7 @@
 // at several zoom levels.
 //
 //   node scripts/asset-gen/ingame.mjs [output-folder=review] [--stops closest:3,close:6,medium:12,game:28,far:50,farthest:75]
-//                                     [--root <other checkout>] [--focus tree|site] [--pitch 0.95] [--yaw 0.7] [--query nature=off]
+//                                     [--root <other checkout>] [--focus tree|site] [--pitch 0.95] [--yaw 0.7] [--query nature=off] [--quality low]
 //                                     [--weather winter|rain] (switch the rendering's weather, wait for winter models)
 //                                     [--lineup [--heroes nelia,orrin,taran,malvor]] (size comparison, heroes next to serfs)
 //                                     [--army lightCav1 [--march | --fight]] (squad: riding off, or two squads firing at each other)
@@ -34,6 +34,7 @@ const heroes = opt('--heroes'); // lineup with several heroes, e.g. nelia,orrin,
 const army = opt('--army'); // character test: captain with a squad of this unit (e.g. sword1) in blue and red next to the castle // blue in level 1 … levels (upgrade levels side by side)
 const hpPercent = opt('--hp'); // building test: hit points of the levels in percent, e.g. 40,20 (smoke, fire)
 const query = opt('--query', ''); // further URL parameters, e.g. nature=off
+const quality = opt('--quality', 'high'); // graphics level (low: phone level, LOD levels switch earlier)
 const weather = opt('--weather'); // e.g. winter: snow, bare deciduous trees (rendering only)
 const pitchOpt = opt('--pitch');
 const pitch = pitchOpt === undefined ? null : Number(pitchOpt); // without argument: pitch as in the game
@@ -123,7 +124,9 @@ for (const [name, ctx] of [['desktop', { viewport: { width: 1440, height: 900 } 
   const page = await browser.newPage(ctx);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(`${url}?seed=42&quality=high&fog=off${query ? '&' + query : ''}`);
+  await page.goto(`${url}?seed=42&quality=${quality}&fog=off${query ? '&' + query : ''}`);
+  // the pause (held position) greys the picture out; photos show the colours
+  await page.addStyleTag({ content: 'canvas.paused-gray{filter:none!important}' });
   await page.waitForFunction(() => !!window.__kronland?.sim, null, { timeout: 180000 });
   // the shots hold the simulation; the pause greying would hide the colours
   await page.addStyleTag({ content: '.game canvas.paused-gray { filter: none !important; }' });

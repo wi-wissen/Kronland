@@ -1,13 +1,14 @@
 // Renderer.setSize only does work on a real size change (split screen with the code panel: ResizeObserver and
 // layout passes must not reallocate buffers or touch the camera every frame).
 import { describe, it, expect } from 'vitest';
+import { lodViewHeight } from '../../src/render/characters.js';
 import { Renderer } from '../../src/render/Renderer.js';
 
 function fake() {
   const calls = [];
   return {
     calls,
-    renderer: { setSize: (w, h) => calls.push([w, h]) },
+    renderer: { setSize: (w, h) => calls.push([w, h]), getPixelRatio: () => 2 },
     camera: { aspect: 1, fov: 40, updateProjectionMatrix() { calls.push('proj'); } },
     chars: { viewH: 0 },
     applyViewport(w, h) { return Renderer.prototype.applyViewport.call(this, w, h); },
@@ -27,5 +28,15 @@ describe('Renderer.setSize', () => {
     expect(r.calls).toEqual([[800, 600], 'proj', [700, 600], 'proj']);
     expect(r.viewport).toEqual({ w: 700, h: 600 });
     expect(r.chars.viewH).toBe(600);
+    // figure LOD in rendered pixels: the pixel ratio of the drawing buffer goes along
+    expect(r.chars.pixelRatio).toBe(2);
+  });
+});
+
+describe('lodViewHeight (figure LOD in rendered pixels)', () => {
+  it('counts the pixel ratio, but a reduced resolution below 1 does not shrink the figure', () => {
+    expect(lodViewHeight(800, 2)).toBe(1600);
+    expect(lodViewHeight(800, 1.25)).toBe(1000);
+    expect(lodViewHeight(800, 0.5)).toBe(800); // software rendering: near model still reachable when zoomed in
   });
 });
