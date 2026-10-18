@@ -26,8 +26,8 @@ Spielmodell bis zu doppelt so groß wie vorgesehen (Handy „hoch“, Zoom „na
 | Gruppe | Grenzen (Kacheln, Stufe „hoch“) | Stufen |
 |---|---|---|
 | Gebäude | 38 / 72 (niedrig: lod1 ab 21) | Original → lod1 (meist ~50–80 % mit der Textur des Originals; 9 stark reduzierte Modelle mit **eigener gebackener Textur**, [lodbake](#detailstufen-neu-aufbauen-lodbake)) → lod2 (~25–45 %, **eigene 256er-Textur**, eigenständig; smithy2, stable2, weather_plant noch mit Eckfarben). Ist das Original noch nicht geladen, die lod2 aber schon, steht sie für das ganze Gebäude (`assetState` = 1). Ruinen, Brücke, Lagerfeuer und Kanone haben keine Stufen (`ownAsset` lädt keine) |
-| Bäume | Bildschirmhöhe 80 / 40 px, gerechnet mit einem Teil der Baumhöhe (`TREE_LOD_HEIGHT`: hoch 0,5, mittel 0,4, niedrig 0,6) – Modellbäume sind doppelt so hoch wie die früheren und wechseln so bei denselben Abständen (Desktop ~30 / 62 Kacheln), mittel früher; niedrig spart über die gröberen Stufen und den Stufenfaktor 0,8 (0,6 · 0,8 ≈ 0,5), sonst wären auf dem Handy hochkant in Spielhöhe alle Bäume Fernform | Modell (~1000–2100 Dreiecke) → `.lod2` (~550–1400) → `.lod3` (~230–470, eigene 128er-Textur, ohne Schattenwurf). Auf „niedrig“ fehlt das Original: `.lod2`, dann `.lod3`. Prozeduraler Rückfall: detailliert → einfach → Fernform (≈20–40 Dreiecke) |
-| Busch (Modell) | 26 | `.lod2` (~950 Dreiecke, mit Schatten) → `.lod3` (~220, eigene Textur, ohne Schattenwurf) |
+| Bäume | Bildschirmhöhe 80 / 40 px, gerechnet mit einem Teil der Baumhöhe (`TREE_LOD_HEIGHT`: hoch 0,5, mittel 0,4, niedrig 0,6) – Modellbäume sind doppelt so hoch wie die früheren und wechseln so bei denselben Abständen (Desktop ~30 / 62 Kacheln), mittel früher; niedrig spart über die gröberen Stufen und den Stufenfaktor 0,8 (0,6 · 0,8 ≈ 0,5), sonst wären auf dem Handy hochkant in Spielhöhe alle Bäume Fernform | Modell (~1000–2100 Dreiecke) → `.lod2` (~550–1400) → **Impostor** (Bildtafel, 2 Dreiecke, ohne Schattenwurf; siehe [unten](#ferne-bäume-als-impostor); Rückfall `.lod3` mit eigener 128er-Textur). Auf „niedrig“ fehlt das Original: `.lod2`, dann Impostor. Prozeduraler Rückfall: detailliert → einfach → Fernform (≈20–40 Dreiecke) |
+| Busch (Modell) | 26 | `.lod2` (~950 Dreiecke, mit Schatten) → Impostor (2 Dreiecke, ohne Schattenwurf; Rückfall `.lod3`) |
 | Figuren | Bildschirmhöhe 80 / 28 / 12 gerenderte px (unter 3 px weg) | **Nahmodell**, flüssig → **Spielmodell** (lod1), 24 Bilder/s ohne Mischung → Spielmodell, 8 Bilder/s → starr. Wechsel Nah ↔ Spiel mit 0,35 s Dither-Überblendung |
 | Felsen (prozedurale Büsche) | 62 | mit Schatten → ohne Schattenwurf (gleiche Geometrie) |
 | Kleine Deko (Gras, Blumen, Kiesel) | ab 66 weg | schrumpft vorher im Shader in den Boden (kein Aufploppen); ein Chunk fällt weg, sobald er ganz hinter dem Ende des Schrumpfens liegt |
@@ -70,7 +70,8 @@ deckungsgleich sind).
 - **Kreuz für flache Modelle**: Kahle Winter-Laubbäume und die Sommerbirke sind fast flach; Original und eine um 90°
   gedrehte Kopie werden zu einer Geometrie zusammengeführt (`crossGeometry`) – von allen Seiten voll, ein
   Zeichenaufruf, doppelte Dreiecke.
-- **Detailstufen**: `.lod2` (Textur des Originals, `build-lods.mjs`) und `.lod3` (Fernform mit eigener 128er-Textur,
+- **Detailstufen**: `.lod2` (Textur des Originals, `build-lods.mjs`), als Fernstufe der [Impostor](#ferne-bäume-als-impostor);
+  `.lod3` (Rückfall mit `?impostor=off` und ohne Render-Ziele, eigene 128er-Textur,
   `node scripts/asset-gen/lodbake/lodbake.mjs tree_oak --levels lod3:250:128 --fp 2,2`, Birke 480 Dreiecke, sonst
   verliert sie den Stamm). Nur Original, `.lod2` und `.lod3` werden geladen. Die alte `.lod3` aus `build-lods.mjs`
   teilte den Atlas des Originals: Farben verschmierten, der Eiche fehlte der Stamm (SSIM in Fernansicht 0,2–0,3 → 0,4–0,7,
@@ -90,6 +91,24 @@ deckungsgleich sind).
   ersten Winter.
 - **Rückfall**: Fehlt ein Sommermodell (`?no-models`, Ladefehler), zeichnet das Spiel die prozeduralen Bäume
   und Büsche wie früher.
+
+
+### Ferne Bäume als Impostor
+
+Eine Baumkrone aus Kugelbüscheln lässt sich nicht sinnvoll auf ~250 Dreiecke reduzieren: Die alte `.lod3` sah aus wie
+zerknülltes Papier, der Eiche fehlte der Stamm. Darum ist die Fernstufe der Modellbäume und des Busches ein **Impostor**
+(`src/render/impostor.js`): Beim Aufbau der Welt fotografiert das Spiel jedes Modell (Sommer, Winterfassung beim ersten
+Winter) einmal aus 8 × 8 Richtungen über die ganze obere Halbkugel in zwei Atlanten – Farbe und Normalen
+(hemi-oktaedrisch angeordnet, damit jede Drehung und Neigung der freien Kamera abgedeckt ist, auch die flache Nahansicht).
+Gezeichnet wird je Baum ein zur Kamera gedrehtes Viereck; der Shader mischt die vier nächsten Aufnahmen (bezogen auf die
+Drehung des einzelnen Baums), projiziert den Bildpunkt in die Bildebene jeder Aufnahme (kein Verschwimmen) und beleuchtet die
+gespeicherten Normalen mit dem Spiellicht; Nebel und Farbton je Baum wirken wie beim Modell (Winter: Farbton abgeschwächt).
+
+- Kosten: 2 statt ~250 Dreiecke je fernem Baum; kein Download (Atlas wird zur Laufzeit gerendert, 768² auf „hoch“, 512²
+  sonst, je Modell zwei Atlanten; ohne echte GPU 256² ohne Kantenglättung, ~0,1 statt ~0,8 s für alle Arten). Auf „niedrig“ (Handy) im mittleren Zoom 281 000 → 90 000 Dreiecke, flach 523 000 → 325 000.
+- Vergleich: `?impostor=off` (wird beim Laden des Moduls gelesen, die App räumt die Adresse danach auf).
+- Prüfung: `tests/render/impostor.test.js` (Abbildung der Halbkugel, Auswahl der Aufnahmen), `e2e/winter.spec.js`,
+  `e2e/camera.spec.js` (Natur-Detailstufen).
 
 
 **Verteilung der Arten** (`treeSpecies` in `src/render/treeModels.js`, nur Darstellung): gleiche Arten stehen in

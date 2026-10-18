@@ -48,6 +48,7 @@ import { COMBAT } from '../sim/data/combat.js';
 import { wrapAngle } from './angle.js';
 import { pickFigure, inDepth } from './pick.js';
 import { findSpinners, turnParts } from './movingParts.js';
+import { withImpostor, impostorsOff, impostorBake } from './impostor.js';
 
 /** Player colour; figures without owner (conversation figures) in neutral brown. */
 /**
@@ -390,7 +391,11 @@ export class Renderer {
     const trees = [...this.sim.entities.values()].filter((e) => e.kind === 'tree');
     const cache = this.natureCache;
     if (cache.trees?.detail !== q.treeDetail) cache.trees = { detail: q.treeDetail, variants: treeLodVariants(q.treeDetail, this.natureUniforms) };
-    const variants = cache.trees.variants;
+    // farthest level of the model trees as impostor: photographed once per kind (no download); a reduced
+    // crown of ~250 triangles looked like crumpled paper
+    cache.trees.imp ??= cache.trees.variants.map((v) => (v.model && v.levels.length > 1 && !impostorsOff()
+      ? withImpostor(this.renderer, v, impostorBake(q)) : v));
+    const variants = cache.trees.imp;
     const byKind = { leafy: [], birch: [], conifer: [] };
     variants.forEach((v, i) => byKind[v.kind].push(i));
     const byModel = {};
@@ -540,6 +545,11 @@ export class Renderer {
     const W = map.width, H = map.height;
     const t = this.terrain;
     const kinds = this.natureCache.scatter ??= scatterKinds(this.natureUniforms);
+    // bush model: farthest level as impostor like the trees
+    if (kinds.bush?.model && kinds.bush.levels?.length > 1 && !kinds.bush.impostor && !impostorsOff()) {
+      const b = withImpostor(this.renderer, { levels: kinds.bush.levels, material: kinds.bush.material, materials: kinds.bush.materials, winter: kinds.bush.season ?? null }, impostorBake(this.quality));
+      kinds.bush = { ...kinds.bush, geometry: b.levels[0], levels: b.levels, materials: b.materials, season: b.winter, impostor: true };
+    }
     const dens = this.quality.scatter;
     const r = rng(this.sim.seed * 13 + 1);
     /** @type {Record<string, {x:number,z:number,s:number,rot:number,tile:number}[]>} */
