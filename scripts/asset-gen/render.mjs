@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './lib.mjs';
 
-export async function renderPreview(out, files, { clip, t = 0, ts, hide, team, zoom, az, width = 1200, rowHeight = 360, views = 4 } = {}) {
+export async function renderPreview(out, files, { clip, t = 0, ts, hide, team, zoom, az, mount, mclip, seat, width = 1200, rowHeight = 360, views = 4 } = {}) {
   const port = Number(process.env.PREVIEW_PORT || 4390);
   const server = await createServer({ root: ROOT, server: { port, strictPort: false }, logLevel: 'error' });
   await server.listen();
@@ -21,7 +21,7 @@ export async function renderPreview(out, files, { clip, t = 0, ts, hide, team, z
   try {
     const page = await browser.newPage({ viewport: { width, height: rowHeight * files.length } });
     const f = files.map((x) => '/' + path.relative(ROOT, path.resolve(x))).join(',');
-    const qs = new URLSearchParams({ f, views: String(views), ...(clip ? { clip, t: String(t) } : {}), ...(ts ? { ts } : {}), ...(hide ? { hide } : {}), ...(team ? { team } : {}), ...(zoom ? { zoom } : {}), ...(az ? { az } : {}) });
+    const qs = new URLSearchParams({ f, views: String(views), ...(clip ? { clip, t: String(t) } : {}), ...(ts ? { ts } : {}), ...(hide ? { hide } : {}), ...(team ? { team } : {}), ...(zoom ? { zoom } : {}), ...(az ? { az } : {}), ...(mount ? { mount: '/' + path.relative(ROOT, path.resolve(mount)) } : {}), ...(mclip ? { mclip } : {}), ...(seat ? { seat } : {}) });
     await page.goto(`${url}tools/figure-preview.html?${qs}`);
     await page.waitForFunction(() => document.title === 'ready', null, { timeout: 120000 });
     console.log((await page.evaluate(() => window.__info)).join('\n'));
@@ -36,6 +36,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
   const opt = (n) => { const i = args.indexOf(n); if (i < 0) return undefined; const v = args[i + 1]; args.splice(i, 2); return v; };
   const clip = opt('--clip'), t = Number(opt('--t') ?? 0), ts = opt('--ts'), hide = opt('--hide'), team = opt('--team'), zoom = opt('--zoom'), az = opt('--az');
+  const mount = opt('--mount'), mclip = opt('--mclip'), seat = opt('--seat');
   const [out, ...files] = args;
-  await renderPreview(out, files, { clip, t, ts, hide, team, zoom, az });
+  await renderPreview(out, files, { clip, t, ts, hide, team, zoom, az, mount, mclip, seat });
 }
