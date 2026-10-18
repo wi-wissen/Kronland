@@ -36,6 +36,8 @@ export const BRIDGE_STRETCH = 2.5;
 /** … or its area grew beyond this factor (long thin triangles along a weapon open up rather than stretch). */
 export const BRIDGE_AREA = 3;
 const SAMPLES = 12;
+/** Flat tool: second main extent (variance) at least this share of the first. */
+const FLAT_RATIO = 0.5;
 
 /**
  * Main axis of points (power iteration on the covariance). @param {number[][]} pts
@@ -52,6 +54,32 @@ export function mainAxis(pts) {
     a = b.map((v) => v / l);
   }
   return { c, a };
+}
+
+/**
+ * The held part as a flat piece, if it is one: both main extents similar (a frame, not a blade or shaft) and thin
+ * across. Pure (tested). @param {number[][]} pts
+ * @returns {{ c: number[], u: number[], v: number[], n: number[], box: number[], thick: number }|null}
+ */
+export function flatPart(pts) {
+  const c = [0, 1, 2].map((k) => pts.reduce((s, p) => s + p[k], 0) / pts.length);
+  const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (const p of pts) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i][j] += (p[i] - c[i]) * (p[j] - c[j]);
+  const power = (M) => {
+    let a = [1, 0.7, 0.3], l = 0;
+    for (let it = 0; it < 100; it++) { const b = [0, 1, 2].map((i) => M[i][0] * a[0] + M[i][1] * a[1] + M[i][2] * a[2]); l = Math.hypot(...b) || 1; a = b.map((x) => x / l); }
+    return [a, l];
+  };
+  const [u, l1] = power(C);
+  const [v, l2] = power(C.map((r, i) => r.map((x, j) => x - l1 * u[i] * u[j])));
+  const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  const dots = (e) => pts.map((p) => (p[0] - c[0]) * e[0] + (p[1] - c[1]) * e[1] + (p[2] - c[2]) * e[2]);
+  const across = dots(n).map(Math.abs).sort((x, y) => x - y);
+  const thick90 = across[Math.floor(across.length * 0.9)];
+  const sd2 = Math.sqrt(l2 / pts.length);
+  if (l2 / l1 < FLAT_RATIO || thick90 > sd2 * 0.3) return null;
+  const pu = dots(u), pv = dots(v);
+  return { c, u, v, n, box: [Math.min(...pu), Math.max(...pu), Math.min(...pv), Math.max(...pv)], thick: Math.max(thick90 * 1.6, across.at(-1) * 1.1) };
 }
 
 /** Distance of p from the line c + t·a. */
@@ -96,6 +124,29 @@ export function weaponVertices(pos, boneOf, nbr, hand, wrist, height) {
     for (let i = 0; i < inside.length; i++) if (inside[i]) verts.push(i);
     return verts;
   };
+  // flat tools (a frame saw): the held part spans a plane rather than a line – fill within a thin slab
+  // around that plane and inside the held part's extent
+  const flat = flatPart(seeds.map(P));
+  if (flat) {
+    const { c, u, v, n, box, thick } = flat, m = 0.02 * height;
+    const inside = new Uint8Array(boneOf.length);
+    const queue = [...seeds];
+    for (const s of seeds) inside[s] = 1;
+    while (queue.length) {
+      const x = queue.pop();
+      for (const w of nbr[x]) {
+        if (inside[w] || otherArm.test(boneOf[w])) continue;
+        const p = P(w), d = [p[0] - c[0], p[1] - c[1], p[2] - c[2]], dot = (e) => d[0] * e[0] + d[1] * e[1] + d[2] * e[2];
+        const pu = dot(u), pv = dot(v);
+        if (Math.abs(dot(n)) > thick || pu < box[0] - m || pu > box[1] + m || pv < box[2] - m || pv > box[3] + m) continue;
+        inside[w] = 1;
+        queue.push(w);
+      }
+    }
+    const verts = [];
+    for (let i = 0; i < inside.length; i++) if (inside[i]) verts.push(i);
+    return { verts, radius: thick, flat: true };
+  }
   // the first axis also sees glove and fingers; refine it from the weapon part found so far (beyond the grip)
   let held = seeds, verts = seeds, radius = 0;
   for (let it = 0; it < 3; it++) {
