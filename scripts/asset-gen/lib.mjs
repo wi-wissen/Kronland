@@ -6,9 +6,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-export const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
+export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const SRC_DIR = path.join(ROOT, 'assets-src/characters');
 export const OUT_DIR = path.join(ROOT, 'public/models/characters');
 const LEDGER = path.join(ROOT, 'assets-src/credits.json');
