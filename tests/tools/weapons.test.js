@@ -58,3 +58,23 @@ describe('bridges', () => {
     expect(findBridges(idx, rest, [up], b, { RightHand: [0.3, 0.3, 0] }, 1)).toEqual([]);
   });
 });
+
+describe('pole', () => {
+  it('shaft from butt to tip, closed, tip marked', async () => {
+    const { poleGeometry } = await import('../../scripts/asset-gen/pole.mjs');
+    const g = poleGeometry([0, 0, 0], [0, 2, 0], 0.05);
+    const n = g.pos.length / 3;
+    expect(g.nrm.length).toBe(g.pos.length);
+    expect(g.tip.length).toBe(n);
+    expect(g.idx.length % 3).toBe(0);
+    expect(Math.max(...g.idx)).toBe(n - 1);
+    const ys = Array.from({ length: n }, (_, i) => g.pos[i * 3 + 1]);
+    expect(Math.min(...ys)).toBeCloseTo(0, 6);
+    expect(Math.max(...ys)).toBeCloseTo(2, 6);
+    // the point is metal, the butt is wood; the shaft keeps its radius
+    expect(g.tip[ys.indexOf(Math.max(...ys))]).toBe(true);
+    expect(g.tip[ys.indexOf(Math.min(...ys))]).toBe(false);
+    const r = Math.hypot(g.pos[0], g.pos[2]);
+    expect(r).toBeCloseTo(0.05, 6);
+  });
+});

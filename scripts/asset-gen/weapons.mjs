@@ -151,7 +151,7 @@ export function findBridges(idx, rest, posed, boneOf, wrists = {}, height = 1, l
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
 
-function mainMesh(g) {
+export function mainMesh(g) {
   let mesh = null;
   g.scene.traverse((o) => { if (o.isSkinnedMesh && (!mesh || o.geometry.attributes.position.count > mesh.geometry.attributes.position.count)) mesh = o; });
   return mesh;
@@ -162,14 +162,14 @@ function mainPrim(doc) {
   return { node, prim: node.getMesh().listPrimitives()[0] };
 }
 /** Skinned positions of a mesh in world space. */
-function skinned(mesh) {
+export function skinned(mesh) {
   mesh.skeleton.update();
   mesh.updateMatrixWorld(true);
   const n = mesh.geometry.attributes.position.count, a = new Float32Array(n * 3), v = new THREE.Vector3();
   for (let i = 0; i < n; i++) { mesh.getVertexPosition(i, v).applyMatrix4(mesh.matrixWorld); a[i * 3] = v.x; a[i * 3 + 1] = v.y; a[i * 3 + 2] = v.z; }
   return a;
 }
-function dominantBones(mesh) {
+export function dominantBones(mesh) {
   const si = mesh.geometry.attributes.skinIndex, sw = mesh.geometry.attributes.skinWeight, names = mesh.skeleton.bones.map((b) => b.name);
   const out = [];
   for (let i = 0; i < si.count; i++) {
@@ -180,7 +180,7 @@ function dominantBones(mesh) {
   return out;
 }
 /** Neighbours over the mesh surface; vertices at the same position (UV seams) count as one. */
-function neighbours(pos, idx) {
+export function neighbours(pos, idx) {
   const n = pos.length / 3, key = new Map(), rep = new Int32Array(n);
   for (let i = 0; i < n; i++) {
     const k = `${Math.round(pos[i * 3] * 1e4)},${Math.round(pos[i * 3 + 1] * 1e4)},${Math.round(pos[i * 3 + 2] * 1e4)}`;

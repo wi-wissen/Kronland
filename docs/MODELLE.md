@@ -258,9 +258,22 @@ Nahmodell und Spielmodell, nach `gamemesh/run.mjs` erneut ausführen:
 node scripts/asset-gen/weapons.mjs [Modell …] [--dry]
 ```
 
-Stand Oktober 2026: 29 Dateien angepasst (u. a. Schwert- und Speerkämpfer, schwere und leichte Reiter, Bogenschützen,
-Taran, Orrin, Malvor, Steinmetz, Sägewerker, Schmiedin); Figuren ohne Riss bleiben unverändert. Tests:
-`tests/tools/weapons.test.js`, `characterBake.test.js`, `shooters.test.js`.
+Stand Oktober 2026: 25 Dateien angepasst (u. a. Schwertkämpfer, schwere und leichte Reiter, Bogenschützen, Taran,
+Orrin, Malvor, Steinmetz, Schmiedin); Figuren ohne Riss bleiben unverändert. Sägewerker und Schmied sind bewusst im
+Meshy-Stand geblieben (mit Bindung sahen Säge und Hammer schlechter aus).
+
+**Speer als Stange** (`scripts/asset-gen/pole.mjs`): Meshys Speere sind flache, gebogene Bretter, auch an der Hand
+gebunden wirken sie seltsam. Das Skript sucht die Waffe wie `weapons.mjs`, schneidet jedes Dreieck mit einem Waffenpunkt
+jenseits der Finger heraus (dazu alles nah an der Achse und kleine abgetrennte Reste daneben, etwa die Spitze am Fuß)
+und setzt entlang derselben Achse eine runde Stange (8 Seiten) mit Metallspitze ein, 100 % an der Hand. Farben kommen
+aus der Textur der alten Waffe (Schaftmitte, Spitze), die Textur bleibt. Speerkämpfer und -kämpferin, Nah- und
+Spielmodell:
+
+```bash
+node scripts/asset-gen/pole.mjs <Modell> [RightHand]
+```
+
+Tests: `tests/tools/weapons.test.js`, `characterBake.test.js`, `shooters.test.js`.
 
 **Rollen**, die das Spiel verwendet (Schlüssel werden von hinten gekürzt, bis einer passt:
 `soldier.bow.leader` → `soldier.bow` → `soldier`):
