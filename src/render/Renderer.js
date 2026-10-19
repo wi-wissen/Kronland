@@ -143,6 +143,7 @@ export class Renderer {
     this.chunked = [];
     this.chars = new CharacterSystem(this.scene, q, { procedural: proceduralFigures() });
     if (opts.from?.chars) this.chars.adoptVariants(opts.from.chars);
+    this.chars.compile = (obj) => this.renderer.compileAsync(obj, this.camera, this.scene);
     this.fx = new Effects(this.scene, q);
     this.bars = new HealthBars(this.scene);
     this.marks = new GroundMarks(this.scene);
@@ -265,6 +266,13 @@ export class Renderer {
       if (!this.adopted) for (const make of [() => campfireModel(), () => scaffold(3, 3), () => constructionStage(0, 2.6, 2.6), () => constructionStage(1, 2.6, 2.6), () => constructionStage(2, 2.6, 2.6), () => ruinModel(3, 3, 'residence')]) {
         try { const g = make(); if (g) { patchFogTree(g); extras.add(g); } } catch { /* model missing: then later */ }
       }
+      // arrows, bolts and cannon balls, the hint marker of the missions: shaders compiled in the middle of a battle
+      // otherwise (measured on the crowd mission)
+      if (!this.adopted) {
+        for (const kind of ['arrow', 'ball']) { const m = this.projectileMesh(kind); m.castShadow = true; extras.add(m); }
+      }
+      const hint = (this.hintMarker ??= new HintMarker(this.scene, this.terrain));
+      if (!hint.group.visible) { hidden.push(hint.group); hint.group.visible = true; }
       extras.position.copy(this.rig.target ?? new THREE.Vector3());
       this.scene.add(extras);
       this.scene.traverse((o) => { if (o.frustumCulled) { cull.push(o); o.frustumCulled = false; } });
@@ -1339,8 +1347,9 @@ export class Renderer {
     const old = m.get(e.id);
     // own ruin model is being reloaded: then rebuild once
     if (old && !(old.userData.pending && hasAsset(`buildings/${RUIN_ASSETS[e.type]}`))) return;
-    if (old) this.scene.remove(old);
     const w = e.w ?? 3, h = e.h ?? 3;
+    if (old && !this.shadersReady(`ruin:${e.type}`, () => ruinModel(w, h, e.type))) return;
+    if (old) this.scene.remove(old);
     const g = ruinModel(w, h, e.type);
     g.position.set(e.x + w / 2, this.footY(e.x, e.y, w, h), e.y + h / 2);
     patchFogTree(g);
@@ -1523,8 +1532,7 @@ export class Renderer {
     const seat = shooter ? this.chars.records.get(shooter)?.variant?.seat ?? 0 : 0;
     from.y = this.terrain.heightAt(from.x, from.z) + (ev.kind === 'bolt' ? 2.6 : 0.6 + seat);
     to.y = this.terrain.heightAt(to.x, to.z) + 0.4;
-    const geo = ev.kind === 'ball' ? (this.ballGeo ??= new THREE.SphereGeometry(0.08, 8, 6)) : (this.arrowGeo ??= arrowGeometry());
-    const m = new THREE.Mesh(geo, ev.kind === 'ball' ? mat(0x2a2a2e) : (this.arrowMat ??= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })));
+    const m = this.projectileMesh(ev.kind);
     m.position.copy(from); m.lookAt(to);
     m.castShadow = true;
     this.scene.add(m);
@@ -1532,6 +1540,32 @@ export class Renderer {
     (this.projectiles ??= []).push({ m, from, to, t: 0, dur: Math.max(0.15, dist / (ev.kind === 'ball' ? 16 : 22)), arc: ev.kind === 'ball' ? 0.25 + dist * 0.06 : 0.15 + dist * 0.05, kind: ev.kind, trail: 0 });
     if (ev.kind === 'ball') this.fx.smokePuff(from.x, from.y + 0.1, from.z, 0.3, 0.3);
     else if (ev.kind === 'bullet') this.fx.smokePuff(from.x, from.y + 0.35, from.z, 0.15, 0.18);
+  }
+
+  /** Mesh of a projectile (shared geometry and material). @param {string} kind ball | arrow | bolt | bullet */
+  projectileMesh(kind) {
+    const geo = kind === 'ball' ? (this.ballGeo ??= new THREE.SphereGeometry(0.08, 8, 6)) : (this.arrowGeo ??= arrowGeometry());
+    return new THREE.Mesh(geo, kind === 'ball' ? mat(0x2a2a2e) : (this.arrowMat ??= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })));
+  }
+
+  /**
+   * Compile the shaders of a model that only arrives in the middle of the game (reloaded ruin) in the background
+   * (KHR_parallel_shader_compile); until then the caller keeps its placeholder. Compiling at the first draw stopped
+   * the game for a moment (crowd mission).
+   * @param {string} key one per kind of model @param {() => THREE.Object3D} make built only for the compilation
+   * @returns {boolean} true once compiled (or not possible)
+   */
+  shadersReady(key, make) {
+    const c = (this.compiledModels ??= new Map());
+    const st = c.get(key);
+    if (st !== undefined) return st;
+    c.set(key, false);
+    try {
+      const g = make();
+      patchFogTree(g);
+      this.renderer.compileAsync(g, this.camera, this.scene).catch(() => {}).finally(() => c.set(key, true));
+    } catch { c.set(key, true); return true; }
+    return false;
   }
 
   /**
