@@ -288,6 +288,38 @@ Spiel verhält sich genau wie zuvor, es rechnet nur weniger.
 - **Spielschleife**: Zeitbudget je Bild und verworfener Rückstand statt Todesspirale, Fehler abgefangen
   (docs/ARCHITEKTUR.md#spielschleife-und-fehler).
 
+## Ruckeln im Gewimmel: Nahmodelle und Shader
+
+Nach dem Austausch der Figuren (#79) ruckelte das Gewimmel spürbar. Gemessen alt (vor #79) gegen neu im Browser
+(Chromium, Software-Grafik, 1440×900, Qualität „hoch“; Bildraten sind unter Software-Grafik bedeutungslos, verglichen
+werden Dreiecke, Detailstufen der Figuren, JS-Zeit je Bild und neu übersetzte Shader):
+
+- **Modelle sind es nicht.** Spielmodelle ~2 070 statt ~2 080 Dreiecke und weniger Eckpunkte (Leibeigener 4 093 → 3 064),
+  mehrere Gebäudestufen deutlich schlanker. Bei Pixeldichte 1 zeichnet die neue Fassung 2–10 % weniger Dreiecke, gleich
+  viele Zeichenaufrufe, gleiche Detailstufen.
+- **Pixeldichte.** Seit #79 zählen für die Detailstufe der Figuren gerenderte Pixel (CSS-Pixel × Pixeldichte). Auf
+  Retina-Bildschirmen und Handys (Pixeldichte 2) gilt jede Figur als doppelt so groß: Nah an einer Schlacht zeigten
+  111 statt 2 Figuren das Nahmodell (~11 000 Dreiecke, 2048er-Textur), in der Übersicht waren alle 496 Figuren animiert
+  statt starr.
+- **Shader mitten im Spiel.** In beiden Fassungen wurden während der Schlacht fünf Shader erstmals übersetzt (Pfeile,
+  Hinweismarker, nachgeladene Ruine u. a.) – unter Software-Grafik je Bild 2–17 s Stillstand, auf echter Grafikkarte
+  kurze Hänger.
+
+Was jetzt gilt:
+
+| | ohne | mit |
+|---|---|---|
+| **Obergrenze Nahmodelle** (32, die größten im Bild; [MODELLE.md](MODELLE.md#zwei-darstellungen-je-figur)), gleiches pausiertes Bild, Pixeldichte 2, nah an der Schlacht | 110 Nahmodelle, JS 29 ms je Bild, 3,68 Mio Dreiecke | 32 Nahmodelle, **JS 13 ms**, 3,30 Mio |
+| **Neubau der Figurendarstellungen** (Nahmodell angekommen) | alle im selben Bild | je Bild so viele, wie in 6 ms passen (mindestens einer) |
+| **Nahstufe** | Shader beim ersten Zeichnen | erst gezeigt, wenn `compileAsync` fertig ist |
+| **Pfeile, Kugeln, Hinweismarker** | Shader beim ersten Auftauchen | beim Aufwärmen mitgezeichnet |
+| **Nachgeladene Ruine** | Shader beim ersten Zeichnen | Platzhalter bleibt, bis `compileAsync` fertig ist (`Renderer.shadersReady`) |
+
+Sonde: Kamera nah an die Schlacht, 60 s – vorher 5 neue Shader im laufenden Spiel, jetzt keiner. Ein erster großer
+Bildsprung beim Heranzoomen bleibt unter Software-Grafik (Texturen der Nahmodelle und Gebäude hochladen); auf echter
+Grafikkarte ist das ein Bruchteil davon. Tests: `tests/render/nearBudget.test.js`, `e2e/special-maps.spec.js` (Gewimmel:
+nah an der Schlacht höchstens 32 Nahmodelle).
+
 ## Schnell neu starten (je Etappe und Weltwechsel)
 
 „Ausführen“ ab dem zweiten Lauf einer Etappe und der Weltumschalter tauschen die Simulation und bauten bis dahin den
