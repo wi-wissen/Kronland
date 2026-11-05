@@ -15,12 +15,15 @@
         @pointercancel="up"
         @contextmenu.prevent
       ></canvas>
-      <i class="mm-north" aria-hidden="true">N</i>
+      <CameraCompass v-if="compass" :engine="engine" />
+      <i v-else class="mm-north" aria-hidden="true">N</i>
     </div>
   </div>
 </template>
 
 <script>
+import CameraCompass from './CameraCompass.vue';
+import { settings } from '../settings.js';
 import { playerColor } from '../plugin.js';
 import { fitMap, toTile, MAP_CORNER } from './hudLayout.js';
 import { ALERT_MS } from '../../game/alerts.js';
@@ -33,12 +36,14 @@ const RES_DOT = { clay: '#e08a55', stone: '#d8d2c8', iron: '#9fb4c6', sulfur: '#
 
 export default {
   name: 'Minimap',
+  components: { CameraCompass },
   props: {
     /** Engine (markRaw) – only minimapTerrain()/minimapDynamic() are read, controlled via jumpTo() */
     engine: { type: Object, required: true },
     touch: Boolean,
   },
   data: () => ({ orderAt: null }),
+  computed: { compass() { return settings.compass; } },
   mounted() {
     this.terrainCanvas = document.createElement('canvas');
     this.fogCanvas = document.createElement('canvas');

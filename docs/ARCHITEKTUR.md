@@ -459,10 +459,11 @@ Prüfung im Editor, ohne Build-Schritt.
 | Auswählen | Linksklick, Rahmen ziehen, Umschalt oder Strg fügt hinzu bzw. nimmt heraus | Tippen |
 | Alle sichtbaren derselben Art | Doppelklick auf eigene Figur (Umschalt/Strg: hinzufügen) | doppelt tippen |
 | Befehl (laufen, bauen, abbauen) | Rechtsklick | Tippen mit Auswahl |
-| Kamera verschieben | mittlere Taste ziehen (greift den Boden), WASD/Pfeile, Bildschirmrand | 1 Finger ziehen (greift den Boden) |
-| Kamera drehen | Q/E, Einfg/Entf, rechte Taste seitlich ziehen | 2 Finger umeinander drehen (ab 25 px Drehweg) |
-| Kamera neigen | R/F, Pos1/Ende, rechte Taste hoch/runter, Umschalt+Mausrad | 2 Finger parallel hoch/runter |
-| Zoomen (bis ganz nah, Blick dann flacher) | Mausrad zum Mauszeiger, Bild↑/↓ zur Bildmitte | 2 Finger spreizen, zur Fingermitte |
+| Kamera verschieben | mittlere Taste ziehen (greift den Boden), Touchpad: mit zwei Fingern wischen, WASD/Pfeile, Bildschirmrand | 1 Finger ziehen (greift den Boden) |
+| Kamera drehen | Q/E, Einfg/Entf, rechte Taste seitlich ziehen, Alt + linke Taste ziehen (Touchpad), Kompass-Knöpfe | 2 Finger umeinander drehen (ab 25 px Drehweg) |
+| Kamera neigen | R/F, Pos1/Ende, rechte Taste hoch/runter, Alt + linke Taste hoch/runter, Umschalt+Mausrad, Kompass-Knöpfe | 2 Finger parallel hoch/runter |
+| Zoomen (bis ganz nah, Blick dann flacher) | Mausrad zum Mauszeiger, Touchpad: Spreizen, Bild↑/↓ zur Bildmitte | 2 Finger spreizen, zur Fingermitte |
+| Kamera-Knöpfe | kleiner Kompass an der Minikarte (zeigt Norden): Klick öffnet Links/Rechts drehen, Steiler/Flacher, Näher/Weiter, Norden oben, Burg; Tippen = ein Schritt, Halten = fortlaufend (Einstellung „Kompass an der Minikarte“) | derselbe Kompass an der Minikarte |
 | Bauen | Leibeigene: Aktionsleiste „Bauen“ (B) → Baumenü, Klick setzt, Rechtsklick bricht ab | „Bauen“ → Baumenü, Tippen, „Hier bauen“ |
 | Gebäude-Infos (Infoleiste über der Tafel) | Maus über die Kachel | Kachel lang drücken, Loslassen blendet aus |
 | Untätige Leibeigene | Taste . | Knopf „Untätige“ |
@@ -528,3 +529,12 @@ ein Zoom nicht nebenbei dreht. Randscrollen läuft sanft an und endet, sobald di
 (auch nach oben in die Browserleiste). Es wirkt nur im Spielbereich und nie mit gedrückter Taste; ein Druck
 außerhalb des Spielbereichs (z. B. Trennlinie des Programmfensters) sperrt es, und kommt der Zeiger von dort
 direkt in den Randstreifen, scrollt es erst, nachdem er einmal auf der Karte war (`src/game/edgeScroll.js`).
+
+### Maus oder Touchpad
+
+Der Browser meldet Mausrad und Touchpad-Wischen gleich als `wheel`. `src/game/wheelKind.js` unterscheidet sie nach der
+Form der Ereignisse: ganze, große Schritte (≥ 50 px) oder Zeilenmodus = Mausrad (zoomt), kleine oder bruchzahlige
+Schritte und seitliche Bewegung = Touchpad (verschiebt die Karte, Alt + Wischen dreht), Strg = Spreizen (zoomt). Ein
+laufendes Wischen bleibt 600 ms ein Touchpad (Auslaufen). Das bleibt eine Schätzung: Die Einstellung `wheelDevice`
+(Automatisch, Maus, Touchpad) legt es fest. Alt + linke Taste ziehen dreht und neigt wie die rechte Taste, damit
+Laptops ohne mittlere und bequeme rechte Taste die Kamera ganz steuern können.
