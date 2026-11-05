@@ -9,7 +9,10 @@ const SLOW = { timeout: 20_000 };
 async function boot(page, isMobile) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.addInitScript(() => { localStorage.removeItem('kronland-settings'); localStorage.setItem('kronland-lang', 'de'); });
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('e2e-compass-init')) return;
+    localStorage.removeItem('kronland-settings'); localStorage.setItem('kronland-lang', 'de'); sessionStorage.setItem('e2e-compass-init', '1');
+  });
   await page.goto(playUrl('?seed=42&no-models'));
   await page.waitForFunction(() => !!window.__kronland);
   await expect(page.getByTestId('res-gold')).toHaveText('500', SLOW);
@@ -24,16 +27,20 @@ test('compass: opens the camera buttons, rotates, zooms and puts north up', asyn
   const errors = await boot(page, isMobile);
   const toggle = page.getByTestId('compass-toggle');
   await expect(toggle).toBeVisible(SLOW);
-  await expect(page.getByTestId('compass-panel')).toHaveCount(0);
-  await toggle.click();
   const panel = page.getByTestId('compass-panel');
-  await expect(panel).toBeVisible();
-  const vp = page.viewportSize(), b = await panel.boundingBox();
-  expect(b.x).toBeGreaterThanOrEqual(0);
-  expect(b.y).toBeGreaterThanOrEqual(0);
-  expect(b.x + b.width).toBeLessThanOrEqual(vp.width);
-  // Desktop: the tooltip teaches the way without the button
-  if (!isMobile) {
+  // Desktop: knobs sit in the minimap frame and a normal map starts closed; phone: panel opens at the badge
+  const closed = isMobile ? () => expect(panel).toHaveCount(0) : () => expect(page.getByTestId('compass')).not.toHaveClass(/open/);
+  const opened = isMobile ? () => expect(panel).toBeVisible() : () => expect(page.getByTestId('compass')).toHaveClass(/open/);
+  await closed();
+  await toggle.click();
+  await opened();
+  if (isMobile) {
+    const vp = page.viewportSize(), b = await panel.boundingBox();
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.y).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width).toBeLessThanOrEqual(vp.width);
+  } else {
+    // Desktop: the tooltip teaches the way without the knob
     await page.getByTestId('compass-left').hover();
     await expect(page.getByTestId('tooltip')).toContainText('Q und E', SLOW);
   }
@@ -46,9 +53,14 @@ test('compass: opens the camera buttons, rotates, zooms and puts north up', asyn
   await expect.poll(async () => (await rig(page)).dist, SLOW).toBeLessThan(r0.dist);
   await page.getByTestId('compass-north').click();
   await expect.poll(async () => Math.abs((await rig(page)).yaw), SLOW).toBeLessThan(0.01);
-  // The panel folds with a second click
+  // Closes with a second click; the desktop remembers the state over a reload
+  if (!isMobile) {
+    await page.reload();
+    await page.waitForFunction(() => !!window.__kronland);
+    await opened();
+  }
   await toggle.click();
-  await expect(panel).toHaveCount(0);
+  await closed();
   expect(errors).toEqual([]);
 });
 

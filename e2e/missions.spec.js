@@ -34,6 +34,8 @@ test('Start the tutorial from the menu, see the first step, complete a step, ski
   // Reading step: "Weiter"
   await page.getByTestId('tutorial-next').click();
   await expect(page.getByTestId('tutorial-title')).toHaveText('Umsehen', SLOW);
+  // The camera step points at the compass and shows the camera knobs, although a normal map starts with them closed
+  if (page.viewportSize().width >= 760) await expect(page.getByTestId('compass')).toHaveClass(/open/, SLOW);
   // Camera step via "Weiter" (equivalent to dragging on phones)
   await page.getByTestId('tutorial-next').click();
   await expect(page.getByTestId('tutorial-title')).toHaveText('Leibeigene', SLOW);

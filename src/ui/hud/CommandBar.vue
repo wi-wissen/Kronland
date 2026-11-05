@@ -45,7 +45,7 @@
       </div>
       <!-- Desktop: quick access left, minimap right on the map panel -->
       <template v-if="!compact">
-        <Minimap :engine="engine" :touch="ui.touch" class="cb-disc" />
+        <Minimap :engine="engine" :touch="ui.touch" :knobs-hint="!!ui.mission?.pointer?.includes('compass-toggle')" class="cb-disc" />
         <div class="cb-quick" role="toolbar" :aria-label="$t('quick.title')">
           <button
             v-for="q in quickBtns"

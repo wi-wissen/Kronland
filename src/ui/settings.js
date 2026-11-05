@@ -31,6 +31,7 @@ const QUALITY_KEY = 'kronland.quality';
  * @property {number} playerColor colour of the human (index in PLAYER_COLOR_IDS: 0 blue, 1 red, 2 green, 3 ochre); applies from the next game start
  * @property {'off'|'rare'|'often'} barks how often figures say something when selected and on commands
  * @property {'auto'|'mouse'|'touchpad'} wheelDevice how wheel events are read: mouse wheel = zoom, touchpad swipe = move the map
+ * @property {boolean} cameraKnobs the brass camera knobs in the minimap frame are shown (default: closed; a tutorial step can open them)
  * @property {boolean} compass show the small compass at the minimap (click: camera buttons)
  * @property {'off'|'fading'|'permanent'} tracks footpaths and footprints: game option of the simulation, taken at
  *   the game start and sent as a command when changed during the game (a level may fix it, docs/SPIELREGELN.md §14)
@@ -45,7 +46,7 @@ export const WHEEL_DEVICE_OPTIONS = ['auto', 'mouse', 'touchpad'];
 const coarse = () => { try { return globalThis.matchMedia?.('(pointer: coarse)').matches ?? false; } catch { return false; } };
 
 /** @type {Omit<Settings, 'lang'|'quality'>} */
-export const DEFAULTS = { master: 0.8, music: 0.6, effects: 0.8, uiScale: 1, edgeScroll: true, hints: true, labels: coarse(), speech: true, dialogCamera: true, autosave: true, muted: false, musicPause: 'normal', playerColor: 0, barks: 'rare', wheelDevice: 'auto', compass: true, tracks: BALANCE.ground.tracks.defaultMode, serfBuildView: true, serfBuildTab: 'home' };
+export const DEFAULTS = { master: 0.8, music: 0.6, effects: 0.8, uiScale: 1, edgeScroll: true, hints: true, labels: coarse(), speech: true, dialogCamera: true, autosave: true, muted: false, musicPause: 'normal', playerColor: 0, barks: 'rare', wheelDevice: 'auto', compass: true, cameraKnobs: false, tracks: BALANCE.ground.tracks.defaultMode, serfBuildView: true, serfBuildTab: 'home' };
 
 export const MUSIC_PAUSE_OPTIONS = ['off', 'short', 'normal', 'long'];
 export const BARK_OPTIONS = ['off', 'rare', 'often'];
@@ -82,7 +83,7 @@ function sanitize(key, value) {
   if (key === 'barks') return BARK_OPTIONS.includes(value) ? value : DEFAULTS.barks;
   if (key === 'wheelDevice') return WHEEL_DEVICE_OPTIONS.includes(value) ? value : DEFAULTS.wheelDevice;
   if (key === 'tracks') return TRACK_OPTIONS.includes(value) ? value : DEFAULTS.tracks;
-  if (key === 'edgeScroll' || key === 'compass' || key === 'hints' || key === 'labels' || key === 'speech' || key === 'dialogCamera' || key === 'autosave' || key === 'muted' || key === 'serfBuildView') return !!value;
+  if (key === 'edgeScroll' || key === 'compass' || key === 'cameraKnobs' || key === 'hints' || key === 'labels' || key === 'speech' || key === 'dialogCamera' || key === 'autosave' || key === 'muted' || key === 'serfBuildView') return !!value;
   return value;
 }
 
