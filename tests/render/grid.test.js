@@ -1,7 +1,7 @@
 // Tile grid (learning adventure, world editor): lines follow the ground, every fifth is bold.
 
 import { describe, it, expect } from 'vitest';
-import { gridLines, overviewDist } from '../../src/render/grid.js';
+import { gridLines, overviewDist, TileGrid, GRID_LOOK } from '../../src/render/grid.js';
 
 describe('Tile grid', () => {
   it('one line per tile edge, two segments per tile, height from the ground', () => {
@@ -19,5 +19,14 @@ describe('Tile grid', () => {
     expect(overviewDist(10, 8)).toBe(16);
     expect(overviewDist(24, 13)).toBeGreaterThan(overviewDist(20, 10));
     expect(overviewDist(500, 500)).toBe(60);
+  });
+
+  it('lines turn dark on snow and light again on grass', () => {
+    const g = new TileGrid({ heightAt: () => 0 }, 4, 4);
+    g.setSnow(true);
+    expect(g.minor.material.color.getHex()).toBe(GRID_LOOK.snow.color);
+    expect(g.major.material.opacity).toBe(GRID_LOOK.snow.major);
+    g.setSnow(false);
+    expect(g.minor.material.color.getHex()).toBe(GRID_LOOK.summer.color);
   });
 });

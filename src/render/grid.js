@@ -6,6 +6,12 @@ import * as THREE from 'three';
 
 const LIFT = 0.04;
 
+/** Line look: light on grass, dark bluish on snow (light lines vanish on white ground). */
+export const GRID_LOOK = {
+  summer: { color: 0xfff6dc, minor: 0.28, major: 0.6 },
+  snow: { color: 0x2b3f5c, minor: 0.5, major: 0.85 },
+};
+
 /**
  * Line positions for the grid (without three.js, tested with Vitest).
  * @param {number} w width in tiles @param {number} h height in tiles
@@ -50,6 +56,13 @@ export class TileGrid {
     this.major = new THREE.LineSegments(new THREE.BufferGeometry(), mat(0.6));
     this.group.add(this.minor, this.major);
     this.rebuild();
+  }
+
+  /** Switch the line look for snow-covered ground (winter) or grass. */
+  setSnow(snow) {
+    const look = snow ? GRID_LOOK.snow : GRID_LOOK.summer;
+    this.minor.material.color.setHex(look.color); this.minor.material.opacity = look.minor;
+    this.major.material.color.setHex(look.color); this.major.material.opacity = look.major;
   }
 
   /** Height of a grid point: above the ground, on the water surface over water. */
