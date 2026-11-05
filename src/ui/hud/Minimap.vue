@@ -15,8 +15,8 @@
         @pointercancel="up"
         @contextmenu.prevent
       ></canvas>
-      <CameraCompass v-if="compass" :engine="engine" />
-      <i v-else class="mm-north" aria-hidden="true">N</i>
+      <CameraCompass v-if="badge && compass" :engine="engine" variant="badge" />
+      <i v-else-if="!badge || !compass" class="mm-north" aria-hidden="true">N</i>
     </div>
   </div>
 </template>
@@ -41,6 +41,8 @@ export default {
     /** Engine (markRaw) – only minimapTerrain()/minimapDynamic() are read, controlled via jumpTo() */
     engine: { type: Object, required: true },
     touch: Boolean,
+    /** Phone: the N badge is the compass button (on the desktop the compass sits in the top bar) */
+    badge: Boolean,
   },
   data: () => ({ orderAt: null }),
   computed: { compass() { return settings.compass; } },

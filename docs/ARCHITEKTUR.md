@@ -463,7 +463,7 @@ Prüfung im Editor, ohne Build-Schritt.
 | Kamera drehen | Q/E, Einfg/Entf, rechte Taste seitlich ziehen, Alt + linke Taste ziehen (Touchpad), Kompass-Knöpfe | 2 Finger umeinander drehen (ab 25 px Drehweg) |
 | Kamera neigen | R/F, Pos1/Ende, rechte Taste hoch/runter, Alt + linke Taste hoch/runter, Umschalt+Mausrad, Kompass-Knöpfe | 2 Finger parallel hoch/runter |
 | Zoomen (bis ganz nah, Blick dann flacher) | Mausrad zum Mauszeiger, Touchpad: Spreizen, Bild↑/↓ zur Bildmitte | 2 Finger spreizen, zur Fingermitte |
-| Kamera-Knöpfe | kleiner Kompass an der Minikarte (zeigt Norden): Klick öffnet Links/Rechts drehen, Steiler/Flacher, Näher/Weiter, Norden oben, Burg; Tippen = ein Schritt, Halten = fortlaufend (Einstellung „Kompass an der Minikarte“) | derselbe Kompass an der Minikarte |
+| Kamera-Knöpfe | runder Kompass oben rechts in der Leiste (Nadel zeigt Norden): Klick öffnet Links/Rechts drehen, Steiler/Flacher, Näher/Weiter, Norden oben, Burg; Tippen = ein Schritt, Halten = fortlaufend; Hover zeigt, wie es ohne Knopf geht (Einstellung „Kompass“) | kleines N an der Minikarte, öffnet dasselbe Menü |
 | Bauen | Leibeigene: Aktionsleiste „Bauen“ (B) → Baumenü, Klick setzt, Rechtsklick bricht ab | „Bauen“ → Baumenü, Tippen, „Hier bauen“ |
 | Gebäude-Infos (Infoleiste über der Tafel) | Maus über die Kachel | Kachel lang drücken, Loslassen blendet aus |
 | Untätige Leibeigene | Taste . | Knopf „Untätige“ |

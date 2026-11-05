@@ -20,7 +20,7 @@
     <canvas ref="canvas" data-testid="game-canvas" :class="{ 'paused-gray': showPause }"></canvas>
 
     <template v-if="ui && engine">
-      <TopBar ref="top" :ui="ui" :need="need" @speed="engine.setSpeed($event)" @pause="engine.togglePause()" @menu="openMenu" />
+      <TopBar ref="top" :ui="ui" :need="need" :engine="engine" :compact="compact" @speed="engine.setSpeed($event)" @pause="engine.togglePause()" @menu="openMenu" />
 
       <CommandBar
         :ui="ui"

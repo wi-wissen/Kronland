@@ -58,6 +58,7 @@
     </div>
 
     <div ref="sys" class="tb-sys">
+      <CameraCompass v-if="engine && !compact && cfg.compass" :engine="engine" variant="coin" />
       <button
         v-tip="{ text: ui.paused ? $t('top.resume') : $t('top.pause'), key: $t('key.space') }"
         class="coin"
@@ -141,6 +142,7 @@
 <script>
 import { RESOURCES } from '../sim/data/resources.js';
 import Ring from './Ring.vue';
+import CameraCompass from './hud/CameraCompass.vue';
 import { settings, set as setSetting } from './settings.js';
 import { shortAmount, topbarMode } from './hud/hudLayout.js';
 
@@ -151,11 +153,14 @@ export const SPEEDS = [1, 2, 4];
 
 export default {
   name: 'TopBar',
-  components: { Ring },
+  components: { Ring, CameraCompass },
   props: {
     ui: { type: Object, required: true },
     /** Resources missing for the currently shown building (red) */
     need: { type: Object, default: null },
+    /** Engine for the camera compass (desktop only) */
+    engine: { type: Object, default: null },
+    compact: Boolean,
   },
   emits: ['speed', 'pause', 'menu'],
   data() { return { resources: RESOURCES, speeds: SPEEDS, speedOpen: false, soundOpen: false, flash: false, mode: 'one', terse: false, cfg: settings }; },

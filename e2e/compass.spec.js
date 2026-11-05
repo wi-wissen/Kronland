@@ -32,6 +32,11 @@ test('compass: opens the camera buttons, rotates, zooms and puts north up', asyn
   expect(b.x).toBeGreaterThanOrEqual(0);
   expect(b.y).toBeGreaterThanOrEqual(0);
   expect(b.x + b.width).toBeLessThanOrEqual(vp.width);
+  // Desktop: the tooltip teaches the way without the button
+  if (!isMobile) {
+    await page.getByTestId('compass-left').hover();
+    await expect(page.getByTestId('tooltip')).toContainText('Q und E', SLOW);
+  }
   await page.screenshot({ path: test.info().outputPath('compass.png') });
 
   const r0 = await rig(page);
