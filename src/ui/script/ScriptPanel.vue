@@ -51,7 +51,7 @@
           <button v-tip="$t('script.stepTip')" :aria-label="$t('script.step')" data-testid="script-step" @click="step('into')"><span class="sp-glyph" aria-hidden="true">⤵</span><span class="sp-lbl">{{ $t('script.step') }}</span></button>
           <button v-tip="$t('script.overTip')" :aria-label="$t('script.over')" :disabled="!paused" data-testid="script-over" @click="step('over')"><span class="sp-glyph" aria-hidden="true">↷</span><span class="sp-lbl sp-lbl-dbg">{{ $t('script.over') }}</span></button>
           <button v-tip="$t('script.outTip')" :aria-label="$t('script.out')" :disabled="!paused" data-testid="script-out" @click="step('out')"><span class="sp-glyph" aria-hidden="true">↥</span><span class="sp-lbl sp-lbl-dbg">{{ $t('script.out') }}</span></button>
-          <button v-tip="$t('script.stopTip')" :aria-label="$t('script.stop')" :disabled="!busy" data-testid="script-stop" @click="stop"><span class="sp-glyph" aria-hidden="true">■</span><span class="sp-lbl">{{ $t('script.stop') }}</span></button>
+          <button v-tip="$t('script.stopTip')" :aria-label="$t('script.stop')" :disabled="!canStop" data-testid="script-stop" @click="stop"><span class="sp-glyph" aria-hidden="true">■</span><span class="sp-lbl">{{ $t('script.stop') }}</span></button>
           <span v-if="listening" v-tip="$t('script.status.listening')" class="sp-listen" role="status" :aria-label="$t('script.status.listening')" data-testid="script-listening"><i aria-hidden="true"></i><span class="sp-listen-lbl">{{ $t('script.status.listening') }}</span></span>
           <span class="sp-sep" aria-hidden="true"></span>
           <button v-tip="$t('script.downloadTip')" class="ghost" :disabled="!fileSection" :aria-label="$t('script.download')" data-testid="script-download" @click="download"><Icon name="download" /><span class="sp-lbl sp-lbl-file">{{ $t('script.download') }}</span></button>
@@ -204,7 +204,7 @@
               <button :aria-label="$t('script.over')" data-testid="script-over" @click="step('over')"><span class="sp-glyph" aria-hidden="true">↷</span></button>
               <button :aria-label="$t('script.out')" data-testid="script-out" @click="step('out')"><span class="sp-glyph" aria-hidden="true">↥</span></button>
             </template>
-            <button :aria-label="$t('script.stop')" :disabled="!busy" data-testid="script-stop" @click="stop"><span class="sp-glyph" aria-hidden="true">■</span></button>
+            <button :aria-label="$t('script.stop')" :disabled="!canStop" data-testid="script-stop" @click="stop"><span class="sp-glyph" aria-hidden="true">■</span></button>
             <button :aria-label="$t('script.more')" :aria-expanded="menu" data-testid="script-menu" @click="menu = !menu"><span class="sp-glyph" aria-hidden="true">⋯</span></button>
             <div v-if="menu" class="sp-menu" role="menu" data-testid="script-menu-list">
               <button role="menuitem" :disabled="!fileSection" data-testid="script-download" @click="menu = false; download()"><Icon name="download" />{{ $t('script.download') }}<small>.py</small></button>
@@ -328,6 +328,8 @@ export default {
     /** Section a loaded program goes into: the first editable section of the player program */
     loadSection() { return (this.scenario.sections ?? []).find((s) => s.level === 'player' && s.editable)?.id ?? null; },
     busy() { return this.status === 'running' || this.status === 'paused'; },
+    /** Stop also puts a finished or failed run back to the start of the stage. */
+    canStop() { return this.busy || ['done', 'error', 'stopped'].includes(this.status); },
     paused() { return this.status === 'paused'; },
     vars() { return this.paused ? this.player.vars : null; },
     error() { return shownError(this.player, this.dirty); },

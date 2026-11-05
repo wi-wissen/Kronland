@@ -110,6 +110,8 @@ test('Events in the player program: the panel shows "waits for events"', async (
   else await expect(page.getByTestId('script-listening')).toBeVisible(SLOW);
   await openPanel(page);
   await page.getByTestId('script-stop').click();
-  await expect.poll(() => status(page), SLOW).toBe('stopped');
+  // Stop ends the program and restores the world as it was before the first run
+  await expect.poll(() => page.evaluate(() => window.__kronland.sim.mission.script.state.player.listening), SLOW).toBeFalsy();
+  await expect.poll(() => status(page), SLOW).not.toBe('running');
   expect(errors).toEqual([]);
 });

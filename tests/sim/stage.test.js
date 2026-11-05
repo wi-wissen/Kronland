@@ -52,6 +52,22 @@ describe('Stage restart', () => {
     expect(sim.map.items.size).toBe(1);
   });
 
+  it('Stop restores the world of the first run; without a run there is nothing to restore', () => {
+    let sim = scenario();
+    run(sim, 3);
+    const stage = new StageSnapshot();
+    expect(stage.restoreForStop(sim)).toBeNull();
+    stage.beforeRun(sim);
+    const hash = sim.hash();
+    runCode(sim, 'nelia.step(2)\nnelia.take()\n');
+    run(sim, 80);
+    expect(tile(sim)).toEqual([6, 8]);
+    sim = stage.restoreForStop(sim);
+    expect(sim.hash()).toBe(hash);
+    expect(tile(sim)).toEqual([4, 8]);
+    expect(sim.map.items.size).toBe(1);
+  });
+
   it('the same program gives the same run after every restart', () => {
     let sim = scenario();
     run(sim, 3);
