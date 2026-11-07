@@ -83,13 +83,19 @@ async function clickEmpty(page, info, { serf, other }, name) {
   const mobile = info.project.name === 'mobile';
   const spots = await emptySpots(page, 8);
   expect(spots.length).toBeGreaterThanOrEqual(4);
+  let clicked = 0;
   for (const p of spots) {
+    // Building models load while the test runs and change what is under a spot: look again right before the click
+    const onBuilding = await page.evaluate(({ x, y }) => { const k = window.__kronland, id = k.renderer.pickEntity(x, y); return !!id && k.sim.entities.get(id)?.kind === 'building'; }, p);
+    if (onBuilding) continue;
+    clicked++;
     await page.evaluate(() => { const k = window.__kronland; k.selected.clear(); k.emitUi(); });
     if (mobile) await page.touchscreen.tap(p.x, p.y); else await page.mouse.click(p.x, p.y);
     await page.waitForTimeout(450); // no double click with the next one
     const sel = await page.evaluate(() => [...window.__kronland.selected]);
     expect(sel, `Click on empty ground at ${p.x},${p.y} (figure under the camera: ${serf})`).toEqual([]);
   }
+  expect(clicked).toBeGreaterThanOrEqual(3);
   await page.screenshot({ path: `${SHOTS}/picking-${name}-${info.project.name}.png` });
   // A figure in the picture stays selectable where it is drawn
   const vis = await page.evaluate((id) => {
