@@ -127,6 +127,22 @@
       <button class="switch" role="switch" :aria-checked="s.edgeScroll" data-testid="edge-scroll" @click="set('edgeScroll', !s.edgeScroll)">
         <span class="st-sl-label"><Icon name="edge" />{{ $t('set.edgeScroll') }}</span><span class="track"></span>
       </button>
+      <span class="st-sl-label st-sub"><Icon name="edge" />{{ $t('set.wheelDevice') }}</span>
+      <div class="seg" role="radiogroup" :aria-label="$t('set.wheelDevice')">
+        <button
+          v-for="w in wheelModes"
+          :key="w"
+          role="radio"
+          :aria-checked="s.wheelDevice === w"
+          :class="{ active: s.wheelDevice === w }"
+          :data-testid="'wheel-' + w"
+          @click="set('wheelDevice', w)"
+        >{{ $t('set.wheelDevice.' + w) }}</button>
+      </div>
+      <p class="st-note">{{ $t('set.wheelDeviceNote') }}</p>
+      <button class="switch" role="switch" :aria-checked="s.compass" data-testid="compass-setting" @click="set('compass', !s.compass)">
+        <span class="st-sl-label"><Icon name="map" />{{ $t('set.compass') }}</span><span class="track"></span>
+      </button>
       <button class="switch" role="switch" :aria-checked="s.hints" data-testid="hints" @click="set('hints', !s.hints)">
         <span class="st-sl-label"><Icon name="hint" />{{ $t('set.hints') }}</span><span class="track"></span>
       </button>
@@ -163,7 +179,7 @@
 </template>
 
 <script>
-import { settings, set, DEFAULTS, MUSIC_PAUSE_OPTIONS, BARK_OPTIONS, TRACK_OPTIONS } from './settings.js';
+import { settings, set, DEFAULTS, MUSIC_PAUSE_OPTIONS, BARK_OPTIONS, TRACK_OPTIONS, WHEEL_DEVICE_OPTIONS } from './settings.js';
 import { LANGS } from '../i18n/index.js';
 import { devState, setDevMode } from '../dev/state.js';
 import { PLAYER_COLOR_IDS, PLAYER_COLOR_CSS } from '../render/playerColors.js';
@@ -176,7 +192,7 @@ export default {
     trackFixed: { type: String, default: null },
   },
   emits: ['close', 'quality'],
-  data() { return { s: settings, langs: LANGS, qualities: ['auto', 'low', 'medium', 'high'], pauses: MUSIC_PAUSE_OPTIONS, barkModes: BARK_OPTIONS, trackModes: TRACK_OPTIONS, preview: null, dev: devState, colorIds: PLAYER_COLOR_IDS, colorCss: PLAYER_COLOR_CSS }; },
+  data() { return { s: settings, langs: LANGS, qualities: ['auto', 'low', 'medium', 'high'], pauses: MUSIC_PAUSE_OPTIONS, barkModes: BARK_OPTIONS, wheelModes: WHEEL_DEVICE_OPTIONS, trackModes: TRACK_OPTIONS, preview: null, dev: devState, colorIds: PLAYER_COLOR_IDS, colorCss: PLAYER_COLOR_CSS }; },
   computed: {
     /** Fixed by the level: its mode, otherwise the setting */
     trackShown() { return this.trackFixed ?? this.s.tracks; },

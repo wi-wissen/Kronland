@@ -1363,7 +1363,13 @@ export class Engine {
     this.emitUi();
   }
 
-  scriptStop() { this.issue({ type: 'script', action: 'stop' }); this.emitUi(); }
+  /** "Stop": ends the program and, like a taught environment, puts the stage back to its start (when it was run before). */
+  scriptStop() {
+    const next = this.stage.restoreForStop(this.sim);
+    if (next) this.restart(next);
+    else this.issue({ type: 'script', action: 'stop' });
+    this.emitUi();
+  }
 
   /**
    * World switcher (docs/SKRIPTE.md#welten): the same mission in another world, started at the current stage. A new

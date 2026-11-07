@@ -84,6 +84,16 @@ export class StageSnapshot {
     return null;
   }
 
+  /**
+   * "Stop": a fresh copy of the remembered world of this stage (before the first run), or null when there is none
+   * (never run, stage changed, reset switched off) – then only the program is stopped.
+   * @param {import('./sim.js').Sim} sim @returns {import('./sim.js').Sim|null}
+   */
+  restoreForStop(sim) {
+    if (!resetEnabled(sim) || !this.data || this.key !== stageKey(sim)) return null;
+    return restoreStage(this.data, sim);
+  }
+
   clear() { this.key = null; this.data = null; }
 
   /** For the save game envelope. */

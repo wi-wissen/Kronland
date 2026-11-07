@@ -126,7 +126,7 @@ step("workers", until=lambda: count("worker") >= 1, next=True,          # next=T
 step("camera", ui="camera", next=True, …)                              # Prüfung, die nur die Oberfläche sieht
 ```
 
-- `hint["ui"]`: `data-testid`-Werte; der Zeiger (`UiPointer.vue`, auch für Missionsziele) umrandet das erste sichtbare Element der Liste.
+- `hint["ui"]`: `data-testid`-Werte (`compass-toggle` öffnet außerdem die Kamera-Knöpfe am Minikarten-Rahmen, siehe ARCHITEKTUR.md); der Zeiger (`UiPointer.vue`, auch für Missionsziele) umrandet das erste sichtbare Element der Liste.
 - `hint["entity"]` / `hint["area"]`: 3D-Marke auf der Karte (`src/render/hints.js`).
 - `ui="camera"`/`"selectSerfs"`: Die Engine liest die Prüfung aus `uiState().tutorial.watch` und meldet sie einmal als
   Befehl `{ type: 'mission', action: 'ui', check }`; nur Meldungen nach Beginn des Schritts zählen.

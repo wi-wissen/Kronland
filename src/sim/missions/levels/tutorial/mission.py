@@ -59,8 +59,9 @@ step("camera",
      ui="camera",
      next=True,
      title={"de": "Umsehen", "en": "Look around"},
-     de="Bewege die Kamera: WASD oder mittlere Maustaste ziehen, Q/E dreht, das Mausrad zoomt.",
-     en="Move the camera: WASD or drag with the middle mouse button, Q/E rotates, the mouse wheel zooms.",
+     de="Bewege die Kamera: WASD oder mittlere Maustaste ziehen, Q/E dreht, das Mausrad zoomt. Am Touchpad wischst du mit zwei Fingern. Auch ohne Maus geht es: Die Knöpfe im Rahmen der Minikarte drehen, neigen und zoomen.",
+     en="Move the camera: WASD or drag with the middle mouse button, Q/E rotates, the mouse wheel zooms. On a touchpad, swipe with two fingers. No mouse needed: the knobs in the minimap frame rotate, tilt and zoom.",
+     hint={"ui": ["compass-toggle"]},
      touch={"de": "Ziehe mit einem Finger, um die Karte zu verschieben. Mit zwei Fingern drehst und zoomst du.", "en": "Drag with one finger to move the map. Use two fingers to rotate and zoom."})
 
 step("select",

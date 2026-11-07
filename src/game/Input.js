@@ -7,6 +7,8 @@
 //           left drag = selection box, right click = command,
 //           right drag = rotate (sideways) and tilt (up/down), middle button drag = grab
 //           the map, wheel = zoom to the mouse pointer (tilt follows), Shift+wheel = tilt,
+//           Alt + left drag = rotate and tilt (touchpad without a right or middle button),
+//           touchpad: two-finger swipe = move the map, pinch = zoom, Alt + swipe = rotate (setting wheelDevice),
 //           WASD/arrows = pan, Q/E or Ins/Del = rotate, R/F or Home/End = tilt.
 // Touch:    1 finger drag = grab the map, tap = select or command, double tap on own
 //           figure = all visible of the same kind,
@@ -16,6 +18,7 @@
 import { get as setting, set as setSetting } from '../ui/settings.js';
 import { escapeStep } from './escape.js';
 import { pinchMode, twistUnlocked, wrapAngle } from './gestures.js';
+import { wheelKind } from './wheelKind.js';
 import { isDoubleClick } from './sameType.js';
 import { dragRect } from './boxSelect.js';
 import { edgeScrollDir, nextArmed } from './edgeScroll.js';
@@ -41,6 +44,8 @@ export class Input {
     /** @type {Map<number, {x:number,y:number,sx:number,sy:number,button:number,type:string}>} */
     this.pointers = new Map();
     this.gesture = null;
+    /** Memory of the wheel classification (src/game/wheelKind.js) */
+    this.wheelState = { pad: false, at: 0 };
     // Selection box: one element that stays in the page with its own compositor layer (style.css .selbox);
     // dragging only moves it (transform) and resizes it, showing and hiding toggles a class – no element or
     // layer is created or removed at the start of a drag.
@@ -164,7 +169,7 @@ export class Input {
 
   down(e) {
     this.canvas.setPointerCapture?.(e.pointerId);
-    const p = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, button: e.button, type: e.pointerType };
+    const p = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, button: e.button, type: e.pointerType, alt: e.altKey };
     this.pointers.set(e.pointerId, p);
     this.engine.touch = e.pointerType === 'touch';
     if (e.pointerType === 'touch') {
@@ -238,7 +243,7 @@ export class Input {
     }
 
     // mouse
-    if (p.button === 2 && moved) { this.rig.rotate(-dx * 0.006, dy * 0.004); this.gesture = { kind: 'rotate' }; }
+    if ((p.button === 2 || (p.button === 0 && p.alt)) && moved) { this.rig.rotate(-dx * 0.006, dy * 0.004); this.gesture = { kind: 'rotate' }; }
     else if (p.button === 1 && this.gesture?.kind === 'pan') this.panTo(p.x, p.y);
     else if (p.button === 0 && moved && !this.engine.placing) {
       this.gesture = { kind: 'box' };
@@ -317,7 +322,10 @@ export class Input {
     const d = Math.max(-300, Math.min(300, (e.shiftKey ? e.deltaY || e.deltaX : e.deltaY) * unit));
     // Shift+wheel tilts the camera (touchpad, without right mouse button), otherwise zoom to the mouse pointer.
     // Touchpad pinch comes as a wheel with Ctrl and small steps: weight more strongly.
+    const kind = wheelKind(e, setting('wheelDevice'), this.wheelState, performance.now());
     if (e.shiftKey) this.rig.rotate(0, -d * 0.0006);
+    else if (e.altKey && kind === 'touchpad') this.rig.rotate(-e.deltaX * unit * 0.006, e.deltaY * unit * 0.004);
+    else if (kind === 'touchpad') this.rig.pan(-e.deltaX * unit, -e.deltaY * unit, this.canvas.clientHeight || 1);
     else this.rig.zoomAt(Math.exp(d * (e.ctrlKey && Math.abs(d) < 50 ? 0.01 : 0.001)), ...this.ndc(e.clientX, e.clientY));
   }
 

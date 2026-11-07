@@ -45,7 +45,7 @@
       </div>
       <!-- Desktop: quick access left, minimap right on the map panel -->
       <template v-if="!compact">
-        <Minimap :engine="engine" :touch="ui.touch" class="cb-disc" />
+        <Minimap :engine="engine" :touch="ui.touch" :knobs-hint="!!ui.mission?.pointer?.includes('compass-toggle')" class="cb-disc" />
         <div class="cb-quick" role="toolbar" :aria-label="$t('quick.title')">
           <button
             v-for="q in quickBtns"
@@ -84,7 +84,7 @@
           ><Icon :name="mapOpen ? 'close' : 'map'" /><span class="cb-qlbl">{{ $t('quick.minimap') }}</span></button>
         </div>
         <div v-if="mapOpen" class="cb-pop frame" role="group" :aria-label="$t('quick.title')" data-testid="map-panel">
-          <Minimap :engine="engine" :touch="ui.touch" class="cb-disc" />
+          <Minimap :engine="engine" :touch="ui.touch" badge class="cb-disc" />
           <div class="cb-quick" role="toolbar" :aria-label="$t('quick.title')">
             <button
               v-for="q in quickBtns"

@@ -807,6 +807,7 @@ export class Renderer {
     if (this.grid) return;
     this.grid = new TileGrid(this.terrain, this.sim.map.width, this.sim.map.height);
     this.scene.add(this.grid.group);
+    this.grid.setSnow(this.weather === 'winter');
   }
 
   // ---------- Events ----------
@@ -1625,6 +1626,7 @@ export class Renderer {
     if (this.rain) { this.scene.remove(this.rain); this.rain.geometry.dispose(); this.rain = null; }
     const snow = state === 'winter';
     this.weather = state;
+    this.grid?.setSnow(snow);
     this.env.setMood(state);
     this.terrain.uniforms.uSnow.value = snow ? 1 : 0;
     this.terrain.uniforms.uWet.value = state === 'rain' ? 1 : 0;
