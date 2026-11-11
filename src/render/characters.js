@@ -1250,6 +1250,12 @@ export class CharacterSystem {
     this.blob = quality.tier === 'low' || quality.shadows === false;
     this.stats = { drawn: 0, levels: [0, 0, 0, 0], culled: 0 };
     this.modelBakes = new Map();
+    /** variant rebuilds in this frame: the first always, more until rebuildUntil (begin; before the first frame unlimited) */
+    this.rebuildFirst = true;
+    this.rebuildUntil = Infinity;
+    this.now = () => performance.now();
+    /** @type {((obj: THREE.Object3D) => Promise<any>)|null} compile shaders in the background (renderer.compileAsync) */
+    this.compile = null;
     if (this.blob) this.initBlobs();
   }
 
@@ -1492,6 +1498,24 @@ export class CharacterSystem {
   }
 
   /**
+   * Near level of a rebuilt rendering (near model arrived): compile its shader in the background; until then the
+   * figures keep the game model (render). Compiling at the first draw stopped the game when zooming in.
+   * @param {Variant|null} v
+   */
+  precompileNear(v) {
+    if (!v) return;
+    for (const a of v.attach) this.precompileNear(a.variant);
+    if (!this.compile || v.levels.length < 2 || v.nearReady !== undefined) return;
+    v.nearReady = false;
+    const m = this.meshFor(v, 0, 1);
+    const visible = m.visible, count = m.count;
+    m.visible = true; m.count = 1;
+    try {
+      this.compile(m).catch(() => {}).finally(() => { v.nearReady = true; });
+    } catch { v.nearReady = true; } finally { m.visible = visible; m.count = count; }
+  }
+
+  /**
    * Report a figure for this frame.
    * @param {number} id entity
    * @param {string} roleKey
@@ -1502,12 +1526,21 @@ export class CharacterSystem {
     let r = this.records.get(id);
     // reloaded model is there: replace the placeholder rendering of this role
     if (r?.roleKey === roleKey && variantStale(r.variant)) {
-      // also rebuild reloaded attachments (crew, mount)
-      for (const [k, v] of this.variants) {
-        if (v && v !== r.variant && r.variant.attach.some((a) => a.variant === v) && variantStale(v)) this.dropVariant(k, v);
+      const fresh = this.variants.get(roleKey);
+      // already rebuilt this frame for another figure of the role: take it over
+      if (fresh && fresh !== r.variant && !variantStale(fresh)) r.variant = fresh;
+      // rebuilds per frame within a time budget (at least one): arriving near models (mesh merge, texture upload)
+      // spread over the frames instead of a dozen at once when zooming into a battle
+      else if (this.rebuildFirst || this.now() < this.rebuildUntil) {
+        this.rebuildFirst = false;
+        // also rebuild reloaded attachments (crew, mount)
+        for (const [k, v] of this.variants) {
+          if (v && v !== r.variant && r.variant.attach.some((a) => a.variant === v) && variantStale(v)) this.dropVariant(k, v);
+        }
+        if (this.variants.get(roleKey) === r.variant) this.dropVariant(roleKey, r.variant);
+        r.variant = this.variantFor(roleKey);
+        this.precompileNear(r.variant);
       }
-      if (this.variants.get(roleKey) === r.variant) this.dropVariant(roleKey, r.variant);
-      r.variant = this.variantFor(roleKey);
     }
     if (!r || r.roleKey !== roleKey) {
       r = { id, roleKey, variant: this.variantFor(roleKey), lod: new LodState(), clip: null, clipT0: 0, prevClip: null, prevT0: 0, fadeT0: -1, seen: 0, dying: false, phase: (((id * 2654435761) >>> 0) / 4294967296) * 3 };
@@ -1562,7 +1595,10 @@ export class CharacterSystem {
     }
   }
 
-  begin(time) { this.time = time; this.frameNo = (this.frameNo ?? 0) + 1; }
+  begin(time) {
+    this.time = time; this.frameNo = (this.frameNo ?? 0) + 1;
+    this.rebuildFirst = true; this.rebuildUntil = this.now() + REBUILD_MS;
+  }
 
   /**
    * Work beat of a figure for the sound (read only): shown clip, seconds since clip start, cycle length and
@@ -1596,16 +1632,28 @@ export class CharacterSystem {
       (b[Math.min(lvl, v.levels.length - 1)] ??= []).push(item);
     };
     const st = this.stats; st.drawn = 0; st.culled = 0; st.levels = [0, 0, 0, 0];
+    const shown = (this.shown ??= []);
+    shown.length = 0;
+    let near = 0;
     for (const r of this.records.values()) {
       const v = r.variant;
       if (!v || !r.visible) continue;
-      const sink = r.dying ? Math.max(0, (time - r.dieAt - 2.6) / 1.6) : 0;
       const p = r.position;
-      if (!sphereVisible(frustum, p.x, p.y + 0.5, p.z, 0.9)) { st.culled++; r.meshLvl = -1; continue; }
+      if (!sphereVisible(frustum, p.x, p.y + 0.5, p.z, 0.9)) { st.culled++; r.meshLvl = -1; r.nearSlot = false; continue; }
       // level by screen height of the figure (phone and desktop equal), graphics level shifts the thresholds
       const px = screenHeightPx(v.worldHeight, camPos.distanceTo(p), camera.fov, viewH) * bias;
       const lvl = r.lod.update(pixelMetric(px), this.lodSettings);
-      if (lvl < 0) { st.culled++; r.meshLvl = -1; continue; }
+      if (lvl < 0) { st.culled++; r.meshLvl = -1; r.nearSlot = false; continue; }
+      r.lodPx = px; r.drawLvl = lvl;
+      // near level still compiling: game model meanwhile
+      if (lvl === 0 && !nearReady(v)) r.drawLvl = 1;
+      if (r.drawLvl === 0) near++;
+      shown.push(r);
+    }
+    limitNear(shown, near, this.lodSettings.nearMax ?? Infinity);
+    for (const r of shown) {
+      const v = r.variant, lvl = r.drawLvl;
+      const sink = r.dying ? Math.max(0, (time - r.dieAt - 2.6) / 1.6) : 0;
       st.levels[lvl]++; st.drawn++;
       if (lvl === 0) { if (v.nearPending) requestNearModel(v.nearPending); for (const a of v.attach) if (a.variant.nearPending) requestNearModel(a.variant.nearPending); }
       counter?.add('character', lvl);
@@ -1755,6 +1803,31 @@ function animFrames(v, r, a, step, time) {
   const f = clipFrames(cur, t, v.bake.fps, cur.loop);
   if (step > 0) f[2] = 0;
   return f;
+}
+
+/** Near level of a rendering and its attachments compiled (or never compiled in the background)? */
+const nearReady = (v) => v.nearReady !== false && v.attach.every((a) => a.variant.nearReady !== false);
+
+/** Time per frame for rebuilding figure renderings (ms; one rebuild always). */
+export const REBUILD_MS = 6;
+
+/** Advantage of a figure that already shows the near model when the slots are handed out (no flickering at the edge). */
+export const NEAR_KEEP = 1.15;
+
+/**
+ * Near model only for the `max` figures that are largest on screen; the others draw the game model (level 1).
+ * Sets `drawLvl` and `nearSlot` of the records.
+ * @param {{ drawLvl: number, lodPx: number, nearSlot?: boolean }[]} shown visible figures of this frame
+ * @param {number} near number of them at level 0 @param {number} max
+ */
+export function limitNear(shown, near, max) {
+  if (near > max) {
+    const want = shown.filter((r) => r.drawLvl === 0);
+    const score = (r) => r.lodPx * (r.nearSlot ? NEAR_KEEP : 1);
+    want.sort((a, b) => score(b) - score(a));
+    for (let i = max; i < want.length; i++) want[i].drawLvl = 1;
+  }
+  for (const r of shown) r.nearSlot = r.drawLvl === 0;
 }
 
 /**

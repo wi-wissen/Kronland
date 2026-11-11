@@ -28,7 +28,9 @@ export const LOD_PROFILES = {
   // CharacterSystem.render), see screenHeightPx: near model from 80 px (even the phone on
   // "low" shows it when zoomed "close"), below that the game model; below 28 px animation throttled, below
   // 12 px rigid, below 3 px not drawn at all
-  character: { pixels: [80, 28, 12], cullPixels: 3, minBias: 0.8 },
+  // At most nearMax figures at once get the near model (~11k triangles, 2048 texture each): the largest on screen.
+  // On a high-density display (pixel ratio 2) a whole battle would otherwise switch to it (crowd mission)
+  character: { pixels: [80, 28, 12], cullPixels: 3, minBias: 0.8, nearMax: 32 },
   // Small decoration: base value of the fade-out; the renderer converts it into real distance (shrinking in the
   // shader) and only culls chunks once they lie entirely beyond it
   scatterSmall: { thresholds: [], cull: 66 },
@@ -128,7 +130,7 @@ export function lodSettings(kind, tier) {
   const bias = Math.max(t.bias, p.minBias ?? 0);
   // pixel profiles: thresholds as pixelMetric (larger = smaller on screen); the caller passes
   // pixelMetric(pixel height · bias)
-  if (p.pixels) return { thresholds: p.pixels.map(pixelMetric), cull: pixelMetric(p.cullPixels ?? 1), h: t.hysteresis, bias, pixels: true };
+  if (p.pixels) return { thresholds: p.pixels.map(pixelMetric), cull: pixelMetric(p.cullPixels ?? 1), h: t.hysteresis, bias, pixels: true, nearMax: p.nearMax ?? Infinity };
   return { thresholds: p.thresholds, cull: p.cull, h: t.hysteresis, bias };
 }
 
