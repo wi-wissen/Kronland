@@ -2,7 +2,7 @@ import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 import { readFileSync } from 'node:fs';
 
-// Save games: save, list, load, rename, delete, export, import, error messages.
+// Save games: save, list, continue, overwrite, delete, download, upload, error messages.
 // Without models so that the start is quick even with software graphics.
 
 test.describe.configure({ timeout: 600_000 });
@@ -34,7 +34,7 @@ async function saveAs(page, name) {
   await page.getByTestId('menu').click();
   await page.getByTestId('save').click();
   const input = page.getByTestId('save-name');
-  await expect(input).toHaveValue(/Freies Spiel Seed 42 – \d+:\d\d/);
+  await expect(input).toHaveValue(/Freies Spiel, Karte 42 – \d+:\d\d/);
   await input.fill(name);
   await page.getByTestId('save-new').click();
   // Menu closes, notice appears
@@ -59,9 +59,10 @@ test('save, list with preview image, load with confirmation', async ({ page }) =
   const item = page.getByTestId('save-item').filter({ hasText: 'Testburg' });
   await expect(item).toHaveCount(1);
   await expect(item.locator('.sv-thumb img')).toHaveAttribute('src', /^data:image\/(webp|png)/);
-  await expect(item).toContainText('Freies Spiel Seed 42');
-  await expect(page.getByTestId('save-store')).toContainText('IndexedDB');
-  await expect(page.getByTestId('save-usage')).toContainText(/MB/);
+  // The row says what it is in the player's words: the typed name, then kind, opponents and map
+  await expect(item).toContainText('Freies Spiel · 1 Gegner · Karte 42');
+  await expect(item).toContainText('Spielzeit');
+  await expect(page.getByTestId('save-store')).toHaveCount(0);
   await item.getByTestId('save-load').click();
   // own confirmation dialog, cancel leaves everything as it was
   await expect(page.getByTestId('confirm-dialog')).toBeVisible();
@@ -75,7 +76,7 @@ test('save, list with preview image, load with confirmation', async ({ page }) =
   expect(errors).toEqual([]);
 });
 
-test('overwrite, rename and delete', async ({ page }) => {
+test('overwrite and delete', async ({ page }) => {
   await boot(page);
   await saveAs(page, 'Erster Stand');
   await page.getByTestId('menu').click();
@@ -89,29 +90,29 @@ test('overwrite, rename and delete', async ({ page }) => {
   await page.getByTestId('menu').click();
   await page.getByTestId('load').click();
   await expect(page.getByTestId('save-item')).toHaveCount(1);
-  await page.getByTestId('save-rename').click();
-  await page.getByTestId('rename-input').fill('Umbenannt');
-  await page.getByTestId('rename-ok').click();
-  await expect(page.getByTestId('save-item-name')).toHaveText('Umbenannt');
+  await expect(page.getByTestId('save-item-name')).toHaveText('Erster Stand');
 
+  await page.getByTestId('save-more').click();
   await page.getByTestId('save-delete').click();
-  await expect(page.getByTestId('confirm-dialog')).toContainText('Umbenannt');
+  await expect(page.getByTestId('confirm-dialog')).toContainText('Erster Stand');
   // Esc closes only the confirmation dialog, not the menu
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('confirm-dialog')).toBeHidden();
   await expect(page.getByTestId('save-browser')).toBeVisible();
+  await page.getByTestId('save-more').click();
   await page.getByTestId('save-delete').click();
   await page.getByTestId('confirm-ok').click();
   await expect(page.getByTestId('save-empty')).toBeVisible();
 });
 
-test('export (download) and import again', async ({ page }) => {
+test('download and upload again', async ({ page }) => {
   await boot(page);
   await setGold(page, 4321);
   await saveAs(page, 'Exportburg');
   await page.getByTestId('menu').click();
   await page.getByTestId('load').click();
 
+  await page.getByTestId('save-more').click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('save-export').click()]);
   expect(download.suggestedFilename()).toMatch(/^kronland-exportburg-\d{4}-\d\d-\d\d\.json$/);
   const text = readFileSync(await download.path(), 'utf8');
@@ -123,11 +124,12 @@ test('export (download) and import again', async ({ page }) => {
   expect(text).toContain('\n  "meta": {');
 
   // Delete the save and restore it from the file
+  await page.getByTestId('save-more').click();
   await page.getByTestId('save-delete').click();
   await page.getByTestId('confirm-ok').click();
   await expect(page.getByTestId('save-empty')).toBeVisible();
   await page.getByTestId('save-file').setInputFiles({ name: 'my-save.json', mimeType: 'application/json', buffer: Buffer.from(text) });
-  await expect(page.getByTestId('save-message')).toContainText('Importiert: Exportburg', { timeout: 30_000 });
+  await expect(page.getByTestId('save-message')).toContainText('Hinzugefügt: Exportburg', { timeout: 30_000 });
   await expect(page.getByTestId('save-item')).toHaveCount(1);
   // Preview image also for imported files (computed from the state)
   await expect(page.locator('.sv-thumb img')).toHaveAttribute('src', /^data:image\/(webp|png)/);
@@ -144,7 +146,7 @@ test('Start menu: continue (autosave on leaving) and error messages on import', 
   await quitToMenu(page);
   const cont = page.getByTestId('continue');
   await expect(cont).toBeVisible();
-  await expect(page.getByTestId('continue-name')).toContainText('Freies Spiel Seed 42');
+  await expect(page.getByTestId('continue-name')).toContainText('Freies Spiel');
 
   await page.getByTestId('menu-saves').click();
   await expect(page.getByTestId('saves-dialog')).toBeVisible();
@@ -184,6 +186,7 @@ test('Import via drag & drop (desktop)', async ({ page }, info) => {
   await saveAs(page, 'Ziehburg');
   await page.getByTestId('menu').click();
   await page.getByTestId('load').click();
+  await page.getByTestId('save-more').click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('save-export').click()]);
   const text = readFileSync(await download.path(), 'utf8');
   const drop = async (content) => {
@@ -198,7 +201,7 @@ test('Import via drag & drop (desktop)', async ({ page }, info) => {
     await target.dispatchEvent('drop', { dataTransfer: dt });
   };
   await drop(text);
-  await expect(page.getByTestId('save-message')).toContainText('Importiert: Ziehburg', { timeout: 30_000 });
+  await expect(page.getByTestId('save-message')).toContainText('Hinzugefügt: Ziehburg', { timeout: 30_000 });
   await expect(page.getByTestId('save-item')).toHaveCount(2);
   await drop('broken');
   await expect(page.getByTestId('save-message')).toContainText('keine lesbare JSON-Datei');

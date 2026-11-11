@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
+import { openWorkshop } from './menu.js';
 
 // World editor: code from the map (double-click on the desktop, long press on phones) and building blocks in the
 // code tab, preview with error and hint marks. Screenshots also go to $SHOT_DIR if set.
@@ -30,8 +31,7 @@ async function openEditor(page) {
   });
   if (!isMobile(page)) await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(playUrl('?no-models'));
-  await page.getByTestId('menu-adventures').click();
-  await page.getByTestId('open-editor').click();
+  await openWorkshop(page);
   await expect(page.getByTestId('world-editor')).toBeVisible(SLOW);
   await page.waitForFunction(() => !!window.__kronlandEditor, null, SLOW);
   return errors;

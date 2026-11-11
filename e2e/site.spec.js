@@ -3,6 +3,7 @@ import { BUILDINGS } from '../src/sim/data/buildings.js';
 import de from '../src/i18n/de.js';
 import en from '../src/i18n/en.js';
 import { PLAY } from './paths.js';
+import { openFreePlay } from './menu.js';
 
 // Website: home page, manual, compendium and the way into the game. German as browser language so the texts are fixed.
 test.use({ locale: 'de-DE' });
@@ -219,6 +220,7 @@ test('Language switch applies to all pages and the game', async ({ page }) => {
   await expect(page.getByTestId('home-play')).toHaveText(/Play now/);
   // The game takes over the chosen language
   await page.goto(PLAY);
+  await openFreePlay(page);
   await expect(page.getByTestId('start')).toHaveText(en['menu.start']);
   await page.goto('/');
   await page.getByTestId('site-lang-de').click();

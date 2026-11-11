@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures.js';
 import { playUrl, SHOT_QUALITY } from './paths.js';
+import { openFreePlay } from './menu.js';
 
 // Showcase: all buildings, figures and map objects on one map, without fog. Start via the URL and
 // via the "Sonderkarten" menu; screenshots of the areas (desktop 1440×900, phone with E2E_ALL_PROJECTS=1) under
@@ -87,15 +88,17 @@ test('Showcase via URL: no fog, everything drawn, areas reachable via signposts'
   expect(errors).toEqual([]);
 });
 
-test('Start the showcase from the "Sonderkarten" menu', async ({ page }) => {
+test('Start the showcase from the map choice of free play', async ({ page }) => {
   const errors = await fresh(page);
   await page.goto(playUrl('?quality=low'));
-  await page.getByTestId('menu-special').click();
-  const btn = page.getByTestId('special-showcase');
+  await openFreePlay(page);
+  await page.getByTestId('map-choose').click();
+  const btn = page.getByTestId('map-showcase');
   await expect(btn).toBeVisible();
   await expect(btn).toContainText('Schaukasten');
   await btn.click();
-  await page.getByTestId('special-start').click();
+  await page.getByTestId('map-take').click();
+  await page.getByTestId('start').click();
   await running(page);
   expect(await page.evaluate(() => window.__kronland.sim.mission.state.id)).toBe('showcase');
   expect(errors).toEqual([]);

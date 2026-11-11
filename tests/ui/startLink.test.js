@@ -44,7 +44,8 @@ describe('Start links', () => {
   it('invalid values → default', () => {
     expect(strip(parseStartLink('?seed=abc&ai=extreme&players=9&hero=gandalf&fog=maybe'))).toEqual(
       { kind: 'free', seed: 1, difficulty: 'normal', players: 4, hero: 'nelia', fog: true });
-    expect(strip(parseStartLink('?seed=-3&players=1'))).toMatchObject({ seed: 1, players: 2 });
+    expect(strip(parseStartLink('?seed=-3&players=1'))).toMatchObject({ seed: 1, players: 1 });
+    expect(strip(parseStartLink('?seed=5&players=0'))).toMatchObject({ players: 1 });
     expect(parseStartLink('?seed=42&fog=off').fog).toBe(false);
     expect(parseStartLink('?seed=42&fog=0').fog).toBe(false);
     expect(parseStartLink('?seed=42&ai=hard').difficulty).toBe('hard');

@@ -5,6 +5,8 @@
   "kind": "campaign",
   "end": "objectives",
   "order": 1,
+  "difficulty": "easy",
+  "minutes": 40,
   "next": "c2",
   "title": {
     "de": "Lindgrund",

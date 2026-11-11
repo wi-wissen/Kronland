@@ -19,6 +19,7 @@
         <button data-testid="editor-new" @click="newOpen = true"><Icon name="plus" /><span class="ed-lbl">{{ $t('editor.new') }}</span></button>
         <label class="ed-file-btn" data-testid="editor-open"><Icon name="load" /><span class="ed-lbl">{{ $t('editor.open') }}</span><input type="file" accept=".zip,.json,application/zip,application/json" data-testid="editor-open-file" @change="openFile"></label>
         <button data-testid="editor-save" @click="save"><Icon name="save" /><span class="ed-lbl">{{ $t('editor.save') }}</span></button>
+        <button v-if="net.signedIn" v-tip="$t('editor.toServerTip')" :disabled="serverBusy" data-testid="editor-to-server" @click="toServer"><Icon name="cloud" /><span class="ed-lbl">{{ $t('editor.toServer') }}</span></button>
         <button class="primary" data-testid="editor-play" @click="play"><Icon name="play" />{{ $t('editor.play') }}</button>
       </div>
     </header>
@@ -246,6 +247,10 @@ import { scriptErrorText, i18n } from '../../i18n/index.js';
 import { planInsert, applyPlan, targetSnippet, menuSnippet, FREE_MENU } from './codeInsert.js';
 import { BLOCKS, buildBlock, talkBlock } from './blocks.js';
 import { shownHints } from '../script/panelState.js';
+import { net } from '../../net/state.js';
+import { errorMessage } from '../../net/errors.js';
+import { has, t } from '../../i18n/index.js';
+import { takePendingServerPack } from './serverDraft.js';
 
 const DRAFT = 'kronland-editor-draft';
 /**
@@ -253,6 +258,8 @@ const DRAFT = 'kronland-editor-draft';
  * is open (also across test play) and travel in the .zip.
  */
 const files = new Map();
+/** Id of the server pack this level was opened from / saved to (stays while the page is open, like `files`) */
+let serverId = null;
 const TOOLS = [
   { id: 'camera', glyph: '✥' }, { id: 'raise', glyph: '▲' }, { id: 'lower', glyph: '▼' }, { id: 'flatten', glyph: '▬' },
   { id: 'smooth', glyph: '≈' }, { id: 'water', glyph: '≋' }, { id: 'land', glyph: '◭' }, { id: 'forest', icon: 'wood' },
@@ -286,8 +293,14 @@ export default {
     touch: Boolean,
   },
   emits: ['back', 'play', 'change'],
+  created() {
+    // Own pack opened from "Discover levels": its media become the level's files
+    const p = takePendingServerPack();
+    if (p) { files.clear(); for (const [k, v] of p.files) files.set(k, v); serverId = p.id; }
+  },
   data() {
     return {
+      net, serverBusy: false,
       scenario: normalize(this.initial ?? loadDraft() ?? emptyScenario({ size: 32 })),
       ui: null, view: null, loading: true, tab: 'scenario', sideOpen: false, grid: false,
       newOpen: false, newBase: 'flat', newSize: 32, newSeed: 42,
@@ -561,6 +574,7 @@ export default {
         s.sections = s.sections.filter((x) => x.level === 'mission');
       }
       this.scenario = s;
+      serverId = null;
       files.clear();
       this.fileVersion++;
       this.newOpen = false;
@@ -569,6 +583,7 @@ export default {
       this.view.load(this.plainScenario());
     },
     openExample(ex) {
+      serverId = null;
       files.clear();
       this.fileVersion++;
       this.scenario = normalize(ex);
@@ -594,6 +609,7 @@ export default {
           pkg = { scenario: problems.length ? null : json, assets: new Map(), problems };
         }
         if (!pkg.scenario) { this.flash(this.$t('adv.loadFailed', { why: pkg.problems[0] })); return; }
+        serverId = null;
         files.clear();
         for (const [k, v] of pkg.assets) files.set(k, v);
         this.fileVersion++;
@@ -604,6 +620,21 @@ export default {
         this.useFiles();
         this.flash(this.$t('editor.opened', { name: this.$tr(pkg.scenario.title) || pkg.scenario.id }));
       } catch (e) { this.flash(this.$t('adv.loadFailed', { why: e.message })); }
+    },
+    /** "Save to server": the level becomes a pack with one level in the player's account (docs/SERVER.md). */
+    async toServer() {
+      const full = this.fullScenario();
+      const problems = validateScenario(full);
+      if (problems.length) { this.flash(problems[0]); return; }
+      this.serverBusy = true;
+      try {
+        const sp = await (await import('../../net/index.js')).serverPacks();
+        serverId ||= sp.newId();
+        await sp.save(full, files, serverId);
+        this.flash(this.$t('editor.toServerDone', { id: serverId }));
+      } catch (e) {
+        this.flash(this.$t('editor.toServerFailed', { why: errorMessage(e, t, has) }));
+      } finally { this.serverBusy = false; }
     },
     /** Save as .zip: scenario.json, one .py file per section, assets/ – the same folder as the bundled levels. */
     async save() {
@@ -723,7 +754,7 @@ export default {
 .editor.compact .ed-lbl { display: none; }
 .editor.compact .ed-top { gap: 0.25rem; padding: 0.25rem; }
 .editor.compact .ed-title { min-width: 0; width: 0; flex: 1; font-size: var(--fs-md); }
-.editor.compact .ed-actions { gap: 0.2rem; }
+.editor.compact .ed-actions { gap: 0.2rem; min-width: 0; overflow-x: auto; } /* more buttons than a phone is wide: scroll, never widen the page */
 .editor.compact .ed-actions > button, .editor.compact .ed-file-btn { min-height: 2.25rem; padding: 0 0.45rem; }
 .editor.compact .ed-actions .icon-btn { min-width: 2.25rem; }
 .editor.compact .ed-side-fab { bottom: calc(5.75rem + var(--safe-b)); }

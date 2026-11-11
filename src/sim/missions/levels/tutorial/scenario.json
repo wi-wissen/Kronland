@@ -5,6 +5,8 @@
   "kind": "tutorial",
   "end": "script",
   "order": 0,
+  "difficulty": "easy",
+  "minutes": 20,
   "next": "c1",
   "noDefeat": true,
   "title": {

@@ -5,6 +5,8 @@
   "kind": "campaign",
   "end": "objectives",
   "order": 6,
+  "difficulty": "hard",
+  "minutes": 80,
   "next": null,
   "title": {
     "de": "Der Thronsee",

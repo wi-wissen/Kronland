@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kronland.wi7.net/contract/schemas/config.schema.json",
+  "title": "kronland-config",
+  "description": "public/kronland.config.json: the server (optional) and further static sources. Both missing or empty = stage 0 (game without network).",
+  "type": "object",
+  "required": ["format", "version"],
+  "properties": {
+    "format": { "const": "kronland-config" },
+    "version": { "type": "integer", "minimum": 1 },
+    "server": { "type": "string", "pattern": "^https?://[^\\s]+[^/\\s]$", "description": "Base URL of the server without trailing slash. {server}/catalog.json is the first source; the game signs in there." },
+    "sources": { "type": "array", "maxItems": 20, "items": { "type": "string", "pattern": "^https?://[^\\s]+$" }, "description": "Further catalog.json addresses (static hosting)." }
+  },
+  "additionalProperties": false
+}

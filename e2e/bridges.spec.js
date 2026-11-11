@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
+import { openFreePlay } from './menu.js';
 
 // Bridges and ornaments (taken over from the extensions): start menu without extension switch, build a bridge at a
 // bridge site, fountain/monument in the build menu, bridges in the walkability grid of the dev mode.
@@ -39,6 +40,8 @@ test('Start menu: no extension switch, the four heroes selectable', async ({ pag
   await expect(page.getByTestId('start-menu')).toBeVisible();
   await expect(page.getByTestId('addon-on')).toHaveCount(0);
   await expect(page.getByTestId('addon-off')).toHaveCount(0);
+  await openFreePlay(page);
+  await page.getByTestId('hero-change').click();
   for (const h of ['nelia', 'orrin', 'taran', 'malvor']) await expect(page.getByTestId(`hero-pick-${h}`)).toBeVisible();
   await expect(page.getByTestId('hero-pick-nelia')).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('hero-pick-taran').click();

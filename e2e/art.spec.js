@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures.js';
 import { playUrl, hashed } from './paths.js';
+import { openFreePlay } from './menu.js';
 
 // Painted images from scripts/art/ (docs/SYMBOLE.md, "single images"): menu backdrop, loading image,
 // ability icons, menu icons and herald portrait.
@@ -30,8 +31,8 @@ test('Start menu and loading screen show the painted backdrop', async ({ page },
   const bg = await menu.evaluate((el) => getComputedStyle(el).backgroundImage);
   expect(bg).toMatch(hashed('art/title.webp'));
   expect(bg).toContain('linear-gradient'); // darkening gradient and fallback gradients remain
-  // Menu icons coding adventure and special maps: painted single images like tutorial and campaign
-  for (const [id, file] of [['menu-adventures', 'mode-adventure'], ['menu-special', 'mode-special']]) {
+  // Menu icon of the coding adventures: a painted single image like the first steps and the stories
+  for (const [id, file] of [['menu-kind-code', 'mode-adventure']]) {
     const ico = page.getByTestId(id).locator('.sm-seal img.ico');
     await expect(ico).toHaveAttribute('src', hashed(`icons/${file}.webp`, '$'));
     await expect.poll(() => ico.evaluate((el) => el.complete && el.naturalWidth), SLOW).toBe(128);
@@ -39,7 +40,8 @@ test('Start menu and loading screen show the painted backdrop', async ({ page },
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${SHOTS}/art-title-${info.project.name}.png` });
 
-  await menu.getByRole('button', { name: /Neues Spiel starten/ }).click();
+  await openFreePlay(page);
+  await page.getByTestId('start').click();
   const loading = page.getByTestId('loading');
   await expect(loading).toBeVisible(SLOW);
   const lbg = await loading.evaluate((el) => getComputedStyle(el).backgroundImage);

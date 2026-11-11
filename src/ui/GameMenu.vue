@@ -16,7 +16,8 @@
             <button class="gm-btn" data-testid="gmenu-update-reload" @click="$emit('update')"><Icon name="load" />{{ $t('update.reload') }}</button>
           </div>
           <button ref="resume" class="primary gm-btn" data-testid="resume" @click="$emit('close')"><Icon name="play" />{{ $t('gmenu.resume') }}</button>
-          <button class="gm-btn" data-testid="save" @click="view = 'save'"><Icon name="save" />{{ $t('gmenu.save') }}</button>
+          <p v-if="readOnly" class="gm-update-text" role="status" data-testid="read-only"><Icon name="info" />{{ $t('saves.readOnly') }}</p>
+          <button v-else class="gm-btn" data-testid="save" @click="view = 'save'"><Icon name="save" />{{ $t('gmenu.save') }}</button>
           <button class="gm-btn" data-testid="load" @click="view = 'load'"><Icon name="load" />{{ $t('gmenu.load') }}</button>
           <button class="gm-btn" data-testid="open-settings" @click="view = 'settings'"><Icon name="settings" />{{ $t('gmenu.settings') }}</button>
           <button class="gm-btn" data-testid="open-controls" @click="view = 'controls'"><Icon name="keyboard" />{{ $t('gmenu.controls') }}</button>
@@ -60,6 +61,8 @@ export default {
   name: 'GameMenu',
   components: { SettingsPanel, SaveBrowser },
   props: {
+    /** Save game of someone else opened for viewing: no saving */
+    readOnly: Boolean,
     touch: Boolean,
     engine: { type: Object, default: null },
     /** Start link of the running map ({ url, name }) or null (save game, scenario file) */

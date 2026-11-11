@@ -1,0 +1,7 @@
+{
+  "format": "kronland-save",
+  "formatVersion": 1,
+  "gameVersion": "1.0.0",
+  "meta": { "name": "Tutorial – 3:20", "savedAt": "2026-10-08T17:42:10.000Z", "tick": 2000, "mode": "mission", "mission": "tutorial", "seed": 1, "players": 2, "fog": true },
+  "state": {}
+}

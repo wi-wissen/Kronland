@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { API_DOC } from '../src/sim/scripting/api.js';
 import { PY_DOC } from '../src/ui/script/reference.js';
 import { playUrl } from './paths.js';
+import { playLevel } from './menu.js';
 
 // Scripting reference (scripting/): chapters, one entry per command with example and real VM output, search,
 // deep links, language switch; links from the header, the adventure menu and the in-game command help.
@@ -83,11 +84,13 @@ test('Reference is linked from the home page, the adventure menu and the in-game
 
   await page.goto(playUrl());
   await expect(page.getByTestId('menu-link-scripting')).toHaveAttribute('href', '../scripting/');
-  await page.getByTestId('menu-adventures').click();
+  await page.getByTestId('menu-kind-code').click();
+  await page.getByTestId('lib-mine').locator('summary').click();
   await expect(page.getByTestId('open-reference')).toHaveAttribute('href', '../scripting/');
+  await page.getByTestId('series-course-1').click();
 
   // Code panel: "Reference" (toolbar on the desktop, "⋯" menu on phones) links to the website
-  await page.getByTestId('adventure-start').click();
+  await playLevel(page, 'r1-2');
   await page.waitForFunction(() => !!window.__kronland, null, { timeout: 30_000 });
   await expect(page.getByTestId('script-panel')).toBeAttached({ timeout: 30_000 });
   const fab = page.getByTestId('script-open');

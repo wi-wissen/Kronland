@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kronland.wi7.net/contract/schemas/me.schema.json",
+  "title": "me",
+  "description": "GET /api/v1/me. The game learns nothing about groups, classes, subscriptions or prices - only a name to show and where the account is managed.",
+  "type": "object",
+  "required": ["displayName", "accountUrl"],
+  "properties": {
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "accountUrl": { "type": "string", "pattern": "^https?://[^\\s]+$" },
+    "relay": { "type": "object", "description": "Connection data for multiplayer (stage 3, not used yet)." }
+  },
+  "additionalProperties": false
+}

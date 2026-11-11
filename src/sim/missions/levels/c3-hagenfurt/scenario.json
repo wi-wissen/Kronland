@@ -5,6 +5,8 @@
   "kind": "campaign",
   "end": "objectives",
   "order": 3,
+  "difficulty": "normal",
+  "minutes": 60,
   "next": "c4",
   "title": {
     "de": "Das Wetterwerk",

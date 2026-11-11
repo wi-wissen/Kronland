@@ -5,6 +5,8 @@
   "kind": "campaign",
   "end": "objectives",
   "order": 2,
+  "difficulty": "normal",
+  "minutes": 50,
   "next": "c3",
   "title": {
     "de": "Beaucroix",

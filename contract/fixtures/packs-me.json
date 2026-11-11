@@ -1,0 +1,58 @@
+{
+  "format": "kronland-catalog",
+  "version": 1,
+  "packs": [
+    {
+      "id": "wi7.adventures-2",
+      "title": {
+        "de": "Programmier-Abenteuer 2",
+        "en": "Coding Adventures 2"
+      },
+      "summary": {
+        "de": "Fünf Lernabenteuer: Schleifen, Bedingungen und Funktionen mit Nelia.",
+        "en": "Five learning adventures: loops, conditions and functions with Nelia."
+      },
+      "minClient": "1.0.0",
+      "access": "open",
+      "manifest": "packs/wi7.adventures-2/pack.json",
+      "sha256": "0b8bb25a8110a291247a4b947bd2638c602be57dec5caece5554cdf3fa1dd26a",
+      "levels": 5,
+      "preview": "packs/wi7.adventures-2/996c3d8a4b7769dbe098d763d05512054dd321215cddb89c003954c40e54b7f0.png",
+      "kind": "code",
+      "difficulty": "normal",
+      "minutes": 90,
+      "added": "2026-09-20"
+    },
+    {
+      "id": "wi7.python-pro",
+      "title": {
+        "de": "Python für Fortgeschrittene",
+        "en": "Advanced Python"
+      },
+      "levels": 12,
+      "minClient": "1.0.0",
+      "access": "locked",
+      "link": "https://api.kronland.example/packs/wi7.python-pro",
+      "kind": "code",
+      "difficulty": "hard",
+      "minutes": 240,
+      "added": "2026-10-01"
+    },
+    {
+      "id": "k7m2q9",
+      "title": {
+        "de": "Mein erstes Level",
+        "en": "My first level"
+      },
+      "summary": {
+        "de": "",
+        "en": ""
+      },
+      "levels": 1,
+      "access": "open",
+      "own": true,
+      "manifest": "/api/v1/packs/k7m2q9/manifest",
+      "kind": "stories"
+    }
+  ]
+}

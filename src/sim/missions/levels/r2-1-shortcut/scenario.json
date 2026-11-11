@@ -5,6 +5,8 @@
   "kind": "adventure",
   "end": "script",
   "order": 21,
+  "difficulty": "normal",
+  "minutes": 20,
   "title": { "de": "Orrins Abkürzung", "en": "Orrin's Shortcut" },
   "summary": {
     "de": "Eigene Befehle mit def: Orrins Umweg um die Ruine, eine geänderte Funktion und Taler links und rechts vom Weg.",

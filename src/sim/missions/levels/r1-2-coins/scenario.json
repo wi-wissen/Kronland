@@ -5,6 +5,8 @@
   "kind": "adventure",
   "end": "script",
   "order": 12,
+  "difficulty": "easy",
+  "minutes": 10,
   "title": {
     "de": "Taler für die Mägde",
     "en": "Coins for the Maids"

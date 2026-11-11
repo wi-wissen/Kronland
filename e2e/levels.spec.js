@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures.js';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import { playUrl } from './paths.js';
+import { openWorkshop } from './menu.js';
 
 // Levels as .zip: opened by link from another server, with a talk figure, an own speaker with portrait and a
 // 3D model that does not load (stand-in); in the world editor opened, listed and saved again.
@@ -109,13 +110,16 @@ test('Level by link: zip from another server, talk figure, own speaker, stand-in
 test('Level as zip in the world editor: open, files tab, save again; goals in the adventure menu', async ({ page }) => {
   const errors = await fresh(page);
   await page.goto(playUrl());
-  await page.getByTestId('menu-adventures').click();
-  // The objectives of a script mission are read from its code
-  await page.getByTestId('adventure-m1').click();
-  await expect(page.getByTestId('adventure-goals')).toContainText('Baue eine Kaserne');
+  await page.getByTestId('menu-kind-code').click();
+  await page.getByTestId('lib-mine').locator('summary').click();
   await expect(page.getByTestId('level-link')).toBeVisible();
-  await page.screenshot({ path: test.info().outputPath('adventure-menu.png'), fullPage: true });
-  await page.getByTestId('open-editor').click();
+  await page.screenshot({ path: test.info().outputPath('library.png'), fullPage: true });
+  // A script mission of the game is a series of its own
+  await page.getByTestId('series-script-missions').click();
+  await expect(page.getByTestId('level-row-m1')).toContainText('Der Überfall');
+  await page.getByTestId('library-back').click();
+  await page.getByTestId('library-back').click();
+  await openWorkshop(page);
   await page.waitForFunction(() => !!window.__kronlandEditor, null, SLOW);
   await page.getByTestId('editor-open-file').setInputFiles({ name: 'alchemist.zip', mimeType: 'application/zip', buffer: levelZip() });
   if (page.viewportSize().width < 900) await page.getByTestId('editor-panel-open').click();
