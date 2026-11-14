@@ -51,7 +51,7 @@ describe('Campaign: setup and texts', () => {
     expect(texts[find + 1]).toMatch(/^Bei allen Märkten/);
     expect(texts.at(-1)).toMatch(/^Holz zuerst/);
     // the three serfs come back with the cheering villager (after the princess is proclaimed)
-    expect(at).toMatch(/^Die Prinzessin!/);
+    expect(at).toMatch(/^Eine Prinzessin\?/);
     // every line is a script line: the dialogue box shows it for its time (dur), lines of a conversation never mix
     expect(sim.mission.state.messages.slice(-12).every((m) => m.dur > 0)).toBe(true);
   });

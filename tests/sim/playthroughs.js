@@ -70,15 +70,16 @@ export function playTutorial(seed) {
   expectStep('recruit');
   act(sim, { type: 'recruit', building: ref(sim, 'barracks'), line: 'sword', full: true });
   sim.step();
+  // the hero power comes first: rally, then attack while it lasts
+  expectStep('ability');
+  act(sim, { type: 'ability', hero: hero(sim).id, ability: 'courage' });
+  sim.step();
   expectStep('fight');
   const army = [...leaders(sim).map((l) => l.id), hero(sim).id];
   const foes = refIds(sim, 'bandits');
   const target = sim.entities.get(foes[0]);
   attackMove(sim, army, tileOf(target));
   waitStep('fight', 2500);
-  expectStep('ability');
-  act(sim, { type: 'ability', hero: hero(sim).id, ability: 'courage' });
-  sim.step();
   expectStep('end');
   act(sim, { type: 'mission', action: 'next' });
   log.push('result');

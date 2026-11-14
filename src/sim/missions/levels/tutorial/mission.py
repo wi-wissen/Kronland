@@ -180,20 +180,20 @@ leader = bandits[0] if bandits else None
 if leader:
     reveal(leader)
     camera.jump_to(leader)
-step("fight",
-     until=lambda: alive(bandits) == 0,
-     title={"de": "Erstes Gefecht", "en": "First skirmish"},
-     de="Da sind sie! Wähle deine Truppe und Nelia und rechtsklicke auf die Räuber.",
-     en="There they are! Select your troop and Nelia, then right-click the bandits.",
-     touch={"de": "Da sind sie! Wähle deine Truppe und Nelia und tippe auf die Räuber.", "en": "There they are! Select your troop and Nelia, then tap the bandits."},
-     hint={"entity": leader})
-
 step("ability",
      until=after("ability"),
      title={"de": "Heldenkraft", "en": "Hero power"},
-     de="Helden haben besondere Fähigkeiten. Wähle Nelia und nutze „Mut machen“: Truppen in ihrer Nähe kämpfen eine Weile doppelt so stark.",
-     en="Heroes have special abilities. Select Nelia and use “Rally”: troops near her fight twice as hard for a while.",
+     de="Da sind sie! Bevor es losgeht: Helden haben besondere Fähigkeiten. Wähle Nelia und nutze „Mut machen“ – eine Minute lang kämpfen Truppen in ihrer Nähe doppelt so stark.",
+     en="There they are! Before it starts: heroes have special abilities. Select Nelia and use “Rally” – for a minute, troops near her fight twice as hard.",
      hint={"ui": "ability-courage", "entity": nelia})
+
+step("fight",
+     until=lambda: alive(bandits) == 0,
+     title={"de": "Erstes Gefecht", "en": "First skirmish"},
+     de="Jetzt los! Wähle deine Truppe und Nelia und rechtsklicke auf die Räuber.",
+     en="Now go! Select your troop and Nelia, then right-click the bandits.",
+     touch={"de": "Jetzt los! Wähle deine Truppe und Nelia und tippe auf die Räuber.", "en": "Now go! Select your troop and Nelia, then tap the bandits."},
+     hint={"entity": leader})
 
 say("orrin", de="Na bitte! Ich sage es ja immer: Mit dem richtigen Lehrer wird aus jedem Holzklotz ein Fürst.",
              en="There you go! I always say: with the right teacher, every blockhead becomes a lord.", wait=False)

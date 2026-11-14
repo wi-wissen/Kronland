@@ -6,6 +6,7 @@ shard = False     # the mine master has handed over the shard
 recruited = 0     # own troops trained since the start
 miner = None      # the mine master in the town (after the siege)
 met_taran = False
+taran_gone = False   # Taran has been beaten and has withdrawn
 
 
 def gone(units):
@@ -95,8 +96,8 @@ def trained(troop):
 @on_objective("army", "done")
 def army(id, status):
     give(HUMAN, iron=300)
-    say("miner", de="Gute Leute! Nehmt Eisen für ihre Klingen.",
-                 en="Good people! Take iron for their blades.")
+    say("miner", de="Gute Leute habt ihr da! Durch den alten Stollen schicken wir euch Eisen für ihre Klingen.",
+                 en="Good people you have there! Through the old gallery we are sending you iron for their blades.")
 
 
 # The iron pit stands: Orrin introduces research (archers)
@@ -128,8 +129,10 @@ if "siegeA" in places():
 
 @on_start
 def taran_falls():
+    global taran_gone
     wait_until(lambda: taran_foe is not None and not taran_foe.alive)
     remove(taran_foe)
+    taran_gone = True
     say("taran", de="Genug! Rückzug! … Wir sehen uns wieder, Prinzessin.",
                  en="Enough! Fall back! … We’ll meet again, princess.")
 
@@ -146,8 +149,13 @@ def sorties():
             return
         wave = spawn(BANDITS, "sword1", place("siegeB"), count=2, soldiers=3)
         attack(wave, base)
-        say("taran", de="Schlagt das Lager dieser Prinzessin, bevor es wächst!",
-                     en="Hit this princess’s camp before it grows!")
+        # Taran only gives the order as long as he is there; after his retreat his men go on without him
+        if taran_gone:
+            say("guard", de="Der Hauptmann ist fort, aber sein Befehl gilt: Schlagt ihr Lager!",
+                         en="The captain is gone, but his order stands: strike their camp!")
+        else:
+            say("taran", de="Schlagt das Lager dieser Prinzessin, bevor es wächst!",
+                         en="Hit this princess’s camp before it grows!")
 
 
 def done_siege():
