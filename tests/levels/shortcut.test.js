@@ -1,5 +1,5 @@
 // Mission II.1 "Orrins Abkürzung": one road, three stages as consecutive legs of one journey (three detours round the
-// first walls of the ruin, three round the rest past a thorn hedge in the south, then the road with Orrin's coins).
+// first heaps of rubble of the ruin, three round the rest past a thorn hedge in the south, then the road with Orrin's coins).
 // The loaded program stays and grows; the three worlds are three complete maps (the ruin is the same, the road beyond
 // it differs). Played like the engine does it (snapshot before every run, src/sim/stage.js).
 import { describe, it, expect } from 'vitest';
@@ -72,7 +72,7 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
       let cliffs = 0;
       for (let y = 0; y < sim.map.height; y++) for (let x = 0; x < sim.map.width; x++) if (tileKind(sim, x, y) === 'cliff') cliffs++;
       expect(cliffs, w).toBe(0);
-      // Six wall remains on the road, free north of them; in the south the thorn hedge stands along the second
+      // Six heaps of rubble (beams) on the road, free north of them; in the south the thorn hedge stands along the second
       // half of the ruin from the start (nothing grows in the middle of the game)
       for (const x of [3, 5, 7, 9, 11, 13]) expect(tileKind(sim, x, 5), `${w} ${x}`).toBe('pile');
       for (let x = 2; x <= 14; x++) { expect(sim.map.walkable(x, 4), `${w} north ${x}`).toBe(true); expect(sim.map.walkable(x, 6), `${w} south ${x}`).toBe(x <= 8); }
@@ -200,7 +200,7 @@ describe('Mission II.1 "Prüfen"', () => {
   it('the hedge is the same in every world; the swapped function solves it, the unchanged one does not', () => {
     expect(by(check('hedge', LEFT))).toEqual({ normal: 'solved', near: 'solved', far: 'solved' });
     expect(by(check('hedge', LOADED))).toEqual({ normal: 'error', near: 'error', far: 'error' });
-    // Walking straight on instead of round the walls: the first wall blocks the road
+    // Walking straight on instead of round the rubble: the first heap blocks the road
     expect(by(check('hedge', 'nelia.step(6)\n'))).toEqual({ normal: 'error', near: 'error', far: 'error' });
   });
 

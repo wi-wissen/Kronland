@@ -115,8 +115,8 @@ def brook():
     objective("brook", solved, all_worlds=True,
               de="Ändere das Programm: Nelia biegt nach Süden ab und geht bis ans Eis des Bachs (vorn ist \"ice\"), zählt die Schritte in steps, dreht um und geht genauso viele Schritte zurück zur Kreuzung – in allen Welten (Prüfen).",
               en="Change the program: Nelia turns south and walks up to the ice of the brook (ahead is \"ice\"), counts the steps in steps, turns around and walks just as many steps back to the crossing – in every world (Check).")
-    say("woodcutter", de="Am Baum ist Schluss, weiter hat der Händler nichts verloren. Hier biegt der Pfad nach Süden zum Bach ab – Wasser braucht ihr in der Hütte auch, es fließt unter dem Eis. Wie weit ist es bis dorthin? Zähl die Schritte und komm genauso weit zurück.",
-                      en="The tree is the end, the merchant lost nothing beyond it. Here the path turns south to the brook – you need water in the hut too, it runs under the ice. How far is it? Count the steps and come back just as far.", wait=False)
+    say("woodcutter", de="Am Baum geht es nicht weiter nach Osten. Hier biegt der Pfad nach Süden zum Bach ab – Wasser braucht ihr in der Hütte auch, es fließt unter dem Eis. Wie weit ist es bis dorthin? Zähl die Schritte und komm genauso weit zurück.",
+                      en="At the tree the way east ends. Here the path turns south to the brook – you need water in the hut too, it runs under the ice. How far is it? Count the steps and come back just as far.", wait=False)
     until_checked("brook", solved, hint)
     if BROOK == 0:
         say("nelia", de="Der Bach liegt gleich neben dem Weg: kein Schritt hin, keiner zurück.",

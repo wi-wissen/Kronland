@@ -1,5 +1,5 @@
-# Eine Straße nach Osten, drei Wegstücke einer Reise: die Ruine mit ihren sechs Mauerresten (Etappen „predict“ und
-# „hedge“: je drei Umwege um die Mauern), dahinter die Straße bis zum Wald, auf der Orrins Taler verstreut liegen
+# Eine Straße nach Osten, drei Wegstücke einer Reise: die Ruine mit ihren sechs Trümmerhaufen (Etappen „predict“ und
+# „hedge“: je drei Schlenker um die Trümmer), dahinter die Straße bis zum Wald, auf der Orrins Taler verstreut liegen
 # (Etappe „coins“). Südlich der zweiten Hälfte der Ruine steht von Anfang an eine Dornenhecke: Dort geht Orrins
 # Schlenker nur links herum.
 # Drei Welten (scenario.json "worlds"): die Ruine ist in jeder gleich, die Straße dahinter nicht. „Ganz nah“: kurzer
@@ -24,11 +24,13 @@ for x in HEDGE:
     add_tree(x, ROAD + 1)
 
 
-# Die Ruine: sechs Mauerreste auf der Straße (zwischen ihnen je eine freie Kachel), ein paar Steine daneben
+# Die Ruine: sechs Trümmerhaufen auf der Straße (zwischen ihnen je eine freie Kachel), ein paar Balken daneben. Balken
+# der eingestürzten Häuser, nicht Steine: Braunes Holz hebt sich vom Schnee ab, verschneite Steinhaufen sieht man nicht.
+# Volle Haufen: Sie sind die Hindernisse der Aufgabe und müssen von oben gut zu sehen sein.
 for x in (3, 5, 7, 9, 11, 13):
-    add_pile("stone", x, ROAD, 60)
+    add_pile("wood", x, ROAD, 400)
 for x, y in [(4, 2), (10, 2), (6, 8), (12, 8), (16, 9)]:
-    add_pile("stone", x, y, 40)
+    add_pile("wood", x, y, 120)
 
 # Orrins Taler links (Norden) und rechts (Süden) von der Straße hinter der Ruine
 for x in COINS_LEFT:

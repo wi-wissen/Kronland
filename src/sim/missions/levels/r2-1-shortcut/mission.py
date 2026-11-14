@@ -1,5 +1,5 @@
 # II.1 „Orrins Abkürzung“: eine Straße nach Osten in drei Etappen (Funktion ohne Parameter), in drei Welten (world.py).
-# Die Etappen sind aufeinanderfolgende Wegstücke derselben Karte: dreimal um die Mauern der Ruine (predict), dreimal um
+# Die Etappen sind aufeinanderfolgende Wegstücke derselben Karte: dreimal um die Trümmer der Ruine (predict), dreimal um
 # den zweiten Teil, wo im Süden eine Dornenhecke steht (hedge), dann die Straße mit Orrins Talern (coins). Das Programm
 # bleibt und wächst; nichts wird geladen oder versetzt. Geschichte: Orrins Geldkatze hat ein Loch, seine Taler liegen
 # hinter der Ruine – unterwegs (I.2, I.5) hat Nelia schon welche von ihm gefunden.
@@ -44,10 +44,10 @@ def predict():
 def hedge():
     # Zuerst das Ziel, dann die Worte (das Ziel macht den Schnappschuss der Etappe möglich)
     objective("hedge", lambda: nelia.is_at(place("ruin_end")),
-              de="Ändere around_ruin(): Nelia soll links herum um die Mauerreste gehen. Die drei Aufrufe unten bleiben gleich.",
-              en="Change around_ruin(): Nelia should go round the left of the walls. The three calls below stay the same.")
-    say("orrin", de="Jetzt der Rest der Ruine. Aber Vorsicht: Ab hier ist die Südseite mit Dornen zugewachsen. Der Schlenker muss diesmal links herum, nördlich an den Mauern vorbei.",
-                 en="Now the rest of the ruin. But careful: from here on the south side is overgrown with thorns. This time the swerve has to go round the left, north past the walls.", wait=False)
+              de="Ändere around_ruin(): Nelia soll links herum um die Trümmer gehen. Die drei Aufrufe unten bleiben gleich.",
+              en="Change around_ruin(): Nelia should go round the left of the rubble. The three calls below stay the same.")
+    say("orrin", de="Jetzt der Rest der Ruine. Aber Vorsicht: Ab hier ist die Südseite mit Dornen zugewachsen. Der Schlenker muss diesmal links herum, nördlich an den Trümmern vorbei.",
+                 en="Now the rest of the ruin. But careful: from here on the south side is overgrown with thorns. This time the swerve has to go round the left, north past the rubble.", wait=False)
     while not nelia.is_at(place("ruin_end")):
         runs = program.runs
         wait_until(lambda: nelia.is_at(place("ruin_end")) or (program.runs > runs and program.status in ENDED))
@@ -104,8 +104,8 @@ def story():
         if world.stage is None:
             say("orrin", de="Orrin, Händler in Bändern, Knöpfen und guten Ratschlägen. Meine Geldkatze hat ein Loch – hinter der Ruine dort liegen meine Taler an der Straße. Holst du sie mir, Mädchen?",
                          en="Orrin, merchant of ribbons, buttons and good advice. My purse has a hole – beyond that ruin my coins lie along the road. Will you fetch them for me, girl?")
-            say("orrin", de="Um jede Mauer geht es mit demselben Schlenker. Den habe ich mir als Funktion aufgeschrieben.",
-                         en="The same swerve gets you round every wall. I wrote it down as a function.")
+            say("orrin", de="Die Balken der eingestürzten Häuser liegen quer über der Straße. Um jeden Haufen geht es mit demselben Schlenker. Den habe ich mir als Funktion aufgeschrieben.",
+                         en="The beams of the collapsed houses lie right across the road. The same swerve gets you round every heap. I wrote it down as a function.")
         program.load(PROGRAM)
         predict()
     if first <= 1:

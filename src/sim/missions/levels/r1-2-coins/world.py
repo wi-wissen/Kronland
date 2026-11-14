@@ -57,7 +57,7 @@ for x in range(XE, HX + SIDE + 2):
 
 # Der Holzstoß des alten Lagerplatzes: liegt wirklich da (und steht einer Schleife im Weg, die zu oft läuft)
 for x, y in woodpile:
-    add_pile("wood", x, y, 60)
+    add_pile("wood", x, y, 400)
 
 # Wald und Gestrüpp ringsum: nur der Weg (fünf Reihen breit) und der Platz um das Lager bleiben frei
 for x in range(1, world.width - 1):
