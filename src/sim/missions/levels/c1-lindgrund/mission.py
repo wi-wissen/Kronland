@@ -105,7 +105,7 @@ def prong(id, status):
     say("nelia", de="Ich bin eine Leibeigene, Orrin. Mein Vater schlägt Holz.",
                  en="I’m a serf, Orrin. My father chops wood.")
     say("orrin", de="Pflegeeltern, Kind! König Edrian ertrank, aber seine kleine Tochter … He, ihr da im Wald! Die verlorene Prinzessin ist zurück!",
-                 en="Foster parents, child! King Edrian drowned, but his little daughter … Hey, you there in the woods! The lost princess has returned!")
+                 en="Foster parents, child! King Edrian drowned, but his little daughter … You people in the woods, listen: the lost princess has returned!")
     spawn_serfs(HUMAN, 3)
     say("villager", de="Eine Prinzessin? In Lindgrund? Dann kommen wir aus dem Wald zurück – dann wird alles gut!",
                     en="A princess? In Lindgrund? Then we’re coming back out of the woods – then all will be well!")

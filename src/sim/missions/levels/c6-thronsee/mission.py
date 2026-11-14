@@ -185,7 +185,7 @@ def castle_hurt():
 # ---------- The castle falls: Malvor's last words before the epilogue ----------
 @on_objective("castle", "done")
 def castle_fallen(id, status):
-    say("malvor", de="Nimm sie, die fünfte Zacke. Du wirst sehen, wie schwer Ordnung wiegt.",
-                  en="Take it, the fifth shard. You will see how heavy order weighs.")
+    say("malvor", de="Nimm die Zacke, Nelia. Ordnung ist schwerer zu tragen, als du glaubst.",
+                  en="Take the shard, Nelia. Order is harder to carry than you think.")
     say("nelia", de="Nicht schwerer als Hunger.",
                  en="No heavier than hunger.")

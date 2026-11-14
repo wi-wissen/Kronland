@@ -114,7 +114,8 @@ if "siegeA" in places():
     @on_enter(place("siegeA"), who="nelia")
     def meet_taran(who):
         global met_taran
-        if met_taran:
+        # Taran only speaks while he is there: after his retreat the camp is just a camp
+        if met_taran or taran_gone:
             return
         met_taran = True
         say("taran", de="Du bist also die Prinzessin. Geh nach Hause, Mädchen. Hier wird gekämpft.",
