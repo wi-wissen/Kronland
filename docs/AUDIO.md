@@ -315,7 +315,7 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
 4. **Klonen.** Ein zweiter Satz wird aus dem Entwurf geklont – so klingt die Figur später in allen Sätzen.
 5. **Prüfen lassen.** Ein zweites Modell hört jede Aufnahme nach: Stimmt der gesprochene Wortlaut mit dem Text
    überein (Wort-Ähnlichkeit ≥ 0,85) und ist nur die Stimme zu hören? Sonst wird die Aufnahme neu erzeugt (bis zu
-   sechs Versuche). Ersetzt wird eine Datei nur durch einen bestandenen Versuch. Der Prüfer erfährt die Sprache
+   drei Versuche, `VOICE_TRIES`; jeder verworfene Versuch kostet wie ein behaltener). Ersetzt wird eine Datei nur durch einen bestandenen Versuch. Der Prüfer erfährt die Sprache
    (sonst hört er englisches „Aye“ als „Hi“); längere Wörter dürfen um einen Buchstaben abweichen (Namen wie
    „Orrin“). Auslassungspunkte gehen als Komma bzw. Punkt an Seed – lange Pausen lassen das Modell abbrechen
    oder Geräusche einfügen.
@@ -351,10 +351,20 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
 ```bash
 node scripts/asset-gen/voice.mjs audition [rolle …]          # Hörproben je Beschreibung (Entwurf + Klon)
 node scripts/asset-gen/voice.mjs pick <rolle> <nr> [quelle]  # Entwurf als Vorlage übernehmen
-node scripts/asset-gen/voice.mjs lines [rolle …]             # alle Dialoge und Sprüche vertonen (fortsetzbar)
+node scripts/asset-gen/voice.mjs lines [--campaign] [--dry] [rolle …]   # fehlende Dialoge und Sprüche vertonen (fortsetzbar)
 node scripts/asset-gen/voice.mjs trim [rolle …]              # innere Pausen kürzen: raw/ → Spieldateien, neu auf −18 LUFS
 node scripts/asset-gen/voice.mjs pauses [rolle …]            # Tabelle: Dateien mit inneren Pausen über 1,0 s je Rolle
 ```
+
+**Kosten im Blick** (Seed Audio rechnet je erzeugter Minute, auch für verworfene Versuche – am 14. Nov. 2026 blieben
+von rund 22 $ nur 13 Minuten brauchbare Aufnahmen, weil jede Zeile bis zu zwölfmal versucht wurde und der Lauf auch die
+Kursmissionen mitnahm):
+
+- `lines --dry` listet, was erzeugt würde, ohne eine Anfrage zu senden – immer zuerst.
+- `lines --campaign` vertont nur Kampagne und Tutorial (was der Stimmentest verlangt) und die Sprüche.
+- Höchstens `VOICE_TRIES` = 3 Versuche je Zeile und `VOICE_MAX_CALLS` = 150 Anfragen je Lauf; danach beginnt keine neue Zeile.
+- Am Ende steht, was der Lauf angefordert und behalten hat, mit Schätzpreis (`VOICE_PRICE`, Standard 0,15 $ je Minute).
+- Scheitert eine Zeile dreimal an der Hörprüfung, hilft meist eine ruhigere Formulierung, nicht ein vierter Versuch.
 
 Neue oder geänderte Texte: `lines` erzeugt nur, was fehlt (der Schlüssel hängt am Text). Fehlt eine Aufnahme,
 liest der Browser den Dialog vor (Einstellung „Dialoge vorlesen“), Sprüche bleiben dann still.
