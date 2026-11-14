@@ -324,8 +324,7 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
 7. **Vertonen.** Alle Sätze werden aus der Vorlage geklont, geprüft, auf dieselbe Lautheit gebracht
    (EBU R128, −18 LUFS, Spitze −1,5 dBTP) und als MP3 (mono, 48 kbit/s) abgelegt.
 8. **Pausen.** Das Klonen übernimmt die Pausen der Vorlage und setzt eigene zwischen die Sätze (gemessen: bis zu
-   11,7 s). Aufnahmen mit inneren Pausen über 0,8 s (`silencedetect`, −40 dB; `VOICE_MAX_PAUSE`) werden verworfen
-   und neu erzeugt (außer im letzten Versuch). Danach kürzt `silenceremove` jede innere Pause über 0,6 s auf etwa
+   11,7 s). Verworfen wird deswegen nichts mehr; `silenceremove` kürzt jede innere Pause über 0,6 s auf etwa
    0,9 s (kürzere bleiben, vor der Lautheitsangleichung). Vorlagen mit langen Pausen (gemessen: nelia, taran, soldierF, serf,
    serfF, cannon) sollten beim nächsten Neuaufnehmen gekürzt werden.
 
@@ -365,6 +364,13 @@ Kursmissionen mitnahm):
 - Höchstens `VOICE_TRIES` = 3 Versuche je Zeile und `VOICE_MAX_CALLS` = 150 Anfragen je Lauf; danach beginnt keine neue Zeile.
 - Am Ende steht, was der Lauf angefordert und behalten hat, mit Schätzpreis (`VOICE_PRICE`, Standard 0,15 $ je Minute).
 - Scheitert eine Zeile dreimal an der Hörprüfung, hilft meist eine ruhigere Formulierung, nicht ein vierter Versuch.
+- Aufnahmen mit inneren Pausen werden nicht mehr neu erzeugt, sondern gekürzt (`silenceremove`) und dann geprüft:
+  Lange Zeilen haben fast immer eine Pause, das Neuerzeugen warf zwei von drei bezahlten Versuchen weg.
+- Zeilen mit Programmcode (`nelia.can_step()`, `"coin"`) werden nicht vertont – gesprochen stimmen sie nie mit dem Text
+  überein; der Browser liest sie vor.
+- Nebenfiguren ohne eigene Stimme leihen sich eine vorhandene Rolle (`SPEAKER_VOICE` in `src/audio/voiceLines.js`,
+  dieselbe Tabelle in `voice.mjs`): Kunz den Räuber, Wachen den Eintreiber, die Mägde der Kursmissionen die Leibeigene,
+  Ilse die Dorfbewohnerin, die Geflohenen den Leibeigenen, der Holzfäller den Bergmeister, der Fremde Orrin.
 
 Neue oder geänderte Texte: `lines` erzeugt nur, was fehlt (der Schlüssel hängt am Text). Fehlt eine Aufnahme,
 liest der Browser den Dialog vor (Einstellung „Dialoge vorlesen“), Sprüche bleiben dann still.

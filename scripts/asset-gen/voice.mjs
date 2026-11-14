@@ -27,7 +27,7 @@ const CAST_FILE = path.join(VOICE_DIR, 'cast.json');
 const roleDir = (role) => path.join(VOICE_DIR, role);
 const GAME_DIR = path.join(ROOT, 'public/audio/voice');
 /** Mission speakers without a voice of their own (example script mission) */
-const SPEAKER_ALIAS = { kunz: 'bandit', guard: 'collector' };
+const SPEAKER_ALIAS = { kunz: 'bandit', guard: 'collector', maid: 'serfF', hedda: 'serfF', ilse: 'villager', runaways: 'serf', woodcutter: 'miner', stranger: 'orrin' };
 const AUDITION_DIR = path.join(VOICE_DIR, 'audition');
 /** Target loudness (LUFS) and peak level of all recordings */
 export const LOUDNESS = 'loudnorm=I=-18:TP=-1.5:LRA=11';
@@ -148,7 +148,8 @@ export const ffmpeg = (args) => { const r = spawnSync('ffmpeg', ['-loglevel', 'e
  */
 export async function speakChecked(make, text, wav, lang) {
   // attempts go into an intermediate file; the target file is only replaced on success (a good recording is kept).
-  // Recordings with long inner pauses are regenerated (except on the last attempt, where the trim is the remedy).
+  // Inner pauses are no reason to throw a recording away: the trim below shortens them. (Regenerating because of a
+  // pause discarded two of three paid attempts on 14 Nov 2026 – long lines almost always contain one.)
   const mp3 = `${wav}.src.mp3`, tmp = `${wav}.try.wav`;
   let last = { ok: false, tries: 0, heard: '', score: 0 };
   for (let i = 1; i <= TRIES; i++) {
@@ -156,8 +157,6 @@ export async function speakChecked(make, text, wav, lang) {
       fs.writeFileSync(mp3, await make());
       const len = seconds(mp3);
       usage.seconds += len;
-      const gaps = innerPauses(mp3);
-      if (gaps.length && i < TRIES) { last = { ...last, tries: i, heard: `[pause ${Math.max(...gaps).toFixed(1)} s]` }; continue; }
       ffmpeg(['-i', mp3, '-af', `${TRIM},${LOUDNESS}`, '-ar', '24000', '-ac', '1', tmp]);
       usage.checks++;
       const answer = await hear(tmp, lang);
@@ -295,7 +294,9 @@ async function lines(args) {
     campaign = new Set(CAMPAIGN_LEVELS.map((x) => x.id));
   }
   const wanted = (l) => !campaign || l.missions.size === 0 || [...l.missions].some((m) => campaign.has(m));
-  const todo = all.filter((l) => (!only.length || only.includes(l.voice)) && wanted(l) && !fs.existsSync(path.join(GAME_DIR, l.file)));
+  // Lines with program code in them (nelia.can_step(), "coin") cannot be spoken to match their text: the browser reads them
+  const speakable = (l) => !/\w\(\)|\w\.\w+\(|"\w+"/.test(l.text);
+  const todo = all.filter((l) => (!only.length || only.includes(l.voice)) && wanted(l) && speakable(l) && !fs.existsSync(path.join(GAME_DIR, l.file)));
   console.log(`${all.length} recordings, of which ${todo.length} to generate (at most ${TRIES} attempts each, at most ${MAX_CALLS} requests in this run)`);
   if (flags.has('--dry')) { for (const l of todo) console.log(`  ${l.voice} ${l.lang} [${[...l.missions].join(',') || 'bark'}] ${l.text}`); return; }
   const failed = [];

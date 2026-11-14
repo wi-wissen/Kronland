@@ -4,8 +4,11 @@
 
 import { siteUrl } from '../paths.js';
 
-/** Speakers of the missions without their own voice */
-export const SPEAKER_VOICE = { kunz: 'bandit', guard: 'collector' };
+/**
+ * Speakers of the missions without their own voice: they borrow the voice of a fitting role (the maids of the course
+ * missions speak as the serf woman, the stranger at the forest edge is Orrin). Same table in scripts/asset-gen/voice.mjs.
+ */
+export const SPEAKER_VOICE = { kunz: 'bandit', guard: 'collector', maid: 'serfF', hedda: 'serfF', ilse: 'villager', runaways: 'serf', woodcutter: 'miner', stranger: 'orrin' };
 
 /** Voice of a mission speaker. */
 export const speakerVoice = (speaker) => SPEAKER_VOICE[speaker] ?? speaker;

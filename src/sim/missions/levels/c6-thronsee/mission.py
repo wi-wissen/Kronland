@@ -169,6 +169,9 @@ def raids():
         wait_until(lambda: time() >= first + 300 * n)
         n += 1
         attack(spawn(ENEMY, [("sword1", 2, 4), ("bow1", 1, 4)], place("northGate")), base)
+        # Malvor announces his guard once – the same sentence every five minutes for forty minutes wears thin
+        if n > 1:
+            continue
         say("malvor", de="Hagenfurts Garde! Zeigt dieser Bauernmagd, was Ordnung heißt.",
                       en="Guard of Hagenfurt! Show this peasant girl what order means.")
 
