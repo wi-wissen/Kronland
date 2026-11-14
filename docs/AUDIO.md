@@ -364,6 +364,9 @@ Kursmissionen mitnahm):
 - Höchstens `VOICE_TRIES` = 3 Versuche je Zeile und `VOICE_MAX_CALLS` = 150 Anfragen je Lauf; danach beginnt keine neue Zeile.
 - Am Ende steht, was der Lauf angefordert und behalten hat, mit Schätzpreis (`VOICE_PRICE`, Standard 0,15 $ je Minute).
 - Scheitert eine Zeile dreimal an der Hörprüfung, hilft meist eine ruhigere Formulierung, nicht ein vierter Versuch.
+- Die Hörprüfung lehnt nur noch ab, wenn der **Wortlaut** nicht stimmt. Meldet sie ein Hintergrundgeräusch, wird die
+  Aufnahme trotzdem genommen (nach Anhören entschieden: gemeldete Aufnahmen waren in Ordnung oder hatten ein leises
+  Knacken; die Hälfte aller Versuche fiel sonst durch). `VOICE_STRICT=1` stellt die strenge Regel wieder her.
 - Aufnahmen mit inneren Pausen werden nicht mehr neu erzeugt, sondern gekürzt (`silenceremove`) und dann geprüft:
   Lange Zeilen haben fast immer eine Pause, das Neuerzeugen warf zwei von drei bezahlten Versuchen weg.
 - Zeilen mit Programmcode (`nelia.can_step()`, `"coin"`) werden nicht vertont – gesprochen stimmen sie nie mit dem Text

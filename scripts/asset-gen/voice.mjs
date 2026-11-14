@@ -40,6 +40,8 @@ export const TRIM = 'silenceremove=stop_periods=-1:stop_duration=0.6:stop_thresh
 const TRIES = Number(process.env.VOICE_TRIES ?? 3);
 // Budget of one run: no new line is started once this many recordings were requested (VOICE_MAX_CALLS)
 const MAX_CALLS = Number(process.env.VOICE_MAX_CALLS ?? 150);
+// VOICE_STRICT=1: also reject recordings in which the checker hears background sounds
+const STRICT = process.env.VOICE_STRICT === '1';
 // Price per generated minute for the estimate at the end of a run (VOICE_PRICE, US dollars)
 const PRICE = Number(process.env.VOICE_PRICE ?? 0.15);
 /** What a run requested and what it kept: printed at the end, so the waste is visible. */
@@ -165,7 +167,10 @@ export async function speakChecked(make, text, wav, lang) {
       let score = similarity(heard, text);
       // The checker easily mishears short sentences ("Aye" → "I"): then ask specifically
       if (!noisy && score < 0.85 && words(text).length <= 3 && await confirms(tmp, text, lang)) score = 1;
-      last = { ok: score >= 0.85 && !noisy, tries: i, heard: noisy ? `[noise] ${heard}` : heard, score };
+      // What counts is the wording. A background sound the checker reports does not reject a recording any more
+      // (decided 14 Nov 2026 after listening: flagged recordings were fine or had a faint click, and half of all
+      // attempts were thrown away for it). VOICE_STRICT=1 brings the old rule back.
+      last = { ok: score >= 0.85 && !(noisy && STRICT), tries: i, heard: noisy ? `[noise] ${heard}` : heard, score };
       if (last.ok) { usage.kept++; usage.keptSeconds += len; fs.renameSync(tmp, wav); break; }
     } catch (e) {
       last = { ...last, tries: i, heard: String(e.message) };
