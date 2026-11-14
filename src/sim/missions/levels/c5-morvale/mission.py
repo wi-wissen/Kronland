@@ -175,7 +175,8 @@ def the_order():
 
 def reinforce():
     global loyalists
-    if "taranCamp" not in places():
+    # No reinforcements once Malvor's troops have been driven off: the objective is done and stays done
+    if driven or "taranCamp" not in places():
         return
     wave = spawn(BANDITS, "sword1", place("taranCamp"), count=2, soldiers=4)
     loyalists = loyalists + wave
