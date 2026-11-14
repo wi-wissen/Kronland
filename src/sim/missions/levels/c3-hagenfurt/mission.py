@@ -142,7 +142,11 @@ def works_down(id, status):
 @on_objective("works", "done")
 def cut_off(id, status):
     wait(5)
-    attack(spawn(BANDITS, "spear1", place("gateCamp"), count=2, soldiers=3), place("landing"))
+    # They come from the land side (the ruins), not across the lake: heroes waiting on the bank turn towards them on
+    # their own, and that must lead them further inland – never back onto the ice that is about to thaw
+    inland = toward(place("landing"), place("ruinsArea"), 8)
+    inland = find_open(inland, max_r=5) or place("ruinsArea")
+    attack(spawn(BANDITS, "spear1", inland, count=2, soldiers=3), place("landing"))
     say("guard", de="Das Werk brennt! Fangt sie am Ufer ab, bevor sie entkommen!",
                  en="The works is burning! Catch them at the shore before they escape!")
 
