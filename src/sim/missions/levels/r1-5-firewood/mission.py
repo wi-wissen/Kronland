@@ -1,4 +1,5 @@
-# I.5 „Holz für die erste Nacht“: eine Reise in vier Etappen (Variablen) auf einem Weg durch den Winterwald, in drei Welten
+# I.5 „Holz für die erste Nacht“ (Geschichte: Die Taler am Weg gehören einem Händler; Nelia sammelt und zählt sie für
+# den Holzfäller und nimmt am Ende genau sechs als Finderlohn – sechs Scheite für die Hütte der Geflohenen): eine Reise in vier Etappen (Variablen) auf einem Weg durch den Winterwald, in drei Welten
 # (world.py). Jede Etappe ist ein Unterziel; Ausführen beginnt sie von vorn (Schnappschuss beim ersten Ausführen).
 # Nichts wird geladen oder versetzt: Wo eine Etappe endet, beginnt die nächste, und das Programm wächst mit.
 # Christrosen, Bach und die sechs Taler zählen erst, wenn „Prüfen“ das Programm in allen Welten bestanden hat
@@ -57,7 +58,7 @@ def predict():
               en="What does Nelia say at the end? Run the program and listen.")
     wait_until(lambda: objective_status("predict") == "done")
     count = program.get("count")
-    say("woodcutter", de=f"{count} Taler, {count} Scheite.", en=f"{count} coins, {count} logs.", wait=False)
+    say("woodcutter", de=f"{count} Taler. Merk dir die Zahl – der Händler zählt nach.", en=f"{count} coins. Remember the number – the merchant will count them again.", wait=False)
 
 
 def roses():
@@ -83,11 +84,15 @@ def roses():
     objective("roses", solved, all_worlds=True,
               de="Ändere das Programm: Nelia hebt bis zum Baum alles auf und zählt Taler in count und Christrosen in flowers – in allen Welten (Prüfen).",
               en="Change the program: Nelia picks up everything up to the tree and counts coins in count and Christmas roses in flowers – in every world (Check).")
-    say("nelia", de="Christrosen zwischen den Talern! Die nehme ich mit für die Hütte – aber wie viele sind es?",
-                 en="Christmas roses between the coins! I will take them along for the hut – but how many are there?", wait=False)
+    say("nelia", de="Christrosen zwischen den Talern! Die Taler sind für den Händler, die Christrosen nehme ich mit in die Hütte – aber wie viele sind es von jedem?",
+                 en="Christmas roses between the coins! The coins are for the merchant, the Christmas roses I will take to the hut – but how many are there of each?", wait=False)
     until_checked("roses", solved, hint)
-    say("nelia", de=f"{coins} Taler und {flowers} Christrosen. Zwei Zahlen, zwei Variablen.",
-                 en=f"{coins} coins and {flowers} Christmas roses. Two numbers, two variables.", wait=False)
+    if coins + flowers == 0:
+        say("nelia", de="Hier liegt gar nichts bis zum Baum. Null Taler, null Christrosen – auch das hat mein Programm richtig gezählt.",
+                     en="There is nothing at all up to the tree. Zero coins, zero Christmas roses – my program counted that right too.", wait=False)
+    else:
+        say("nelia", de=f"{coins} Taler für den Händler, {flowers} Christrosen für die Hütte. Zwei Zahlen, zwei Variablen.",
+                     en=f"{coins} coins for the merchant, {flowers} Christmas roses for the hut. Two numbers, two variables.", wait=False)
 
 
 def brook():
@@ -110,11 +115,15 @@ def brook():
     objective("brook", solved, all_worlds=True,
               de="Ändere das Programm: Nelia biegt nach Süden ab und geht bis ans Eis des Bachs (vorn ist \"ice\"), zählt die Schritte in steps, dreht um und geht genauso viele Schritte zurück zur Kreuzung – in allen Welten (Prüfen).",
               en="Change the program: Nelia turns south and walks up to the ice of the brook (ahead is \"ice\"), counts the steps in steps, turns around and walks just as many steps back to the crossing – in every world (Check).")
-    say("woodcutter", de="Der Baum steht im Weg – hier biegt der Pfad nach Süden zum Bach ab. Wasser brauchst du auch, unter dem Eis. Wie weit ist es bis dorthin? Zähl die Schritte und komm genauso weit zurück.",
-                      en="The tree blocks the way – here the path turns south to the brook. You need water too, under the ice. How far is it? Count the steps and come back just as far.", wait=False)
+    say("woodcutter", de="Am Baum ist Schluss, weiter hat der Händler nichts verloren. Hier biegt der Pfad nach Süden zum Bach ab – Wasser braucht ihr in der Hütte auch, es fließt unter dem Eis. Wie weit ist es bis dorthin? Zähl die Schritte und komm genauso weit zurück.",
+                      en="The tree is the end, the merchant lost nothing beyond it. Here the path turns south to the brook – you need water in the hut too, it runs under the ice. How far is it? Count the steps and come back just as far.", wait=False)
     until_checked("brook", solved, hint)
-    say("nelia", de=f"{BROOK} Schritte hin, {BROOK} zurück. Den Weg finde ich auch im Dunkeln.",
-                 en=f"{BROOK} steps there, {BROOK} back. I can find that way in the dark too.", wait=False)
+    if BROOK == 0:
+        say("nelia", de="Der Bach liegt gleich neben dem Weg: kein Schritt hin, keiner zurück.",
+                     en="The brook is right beside the path: not a step there, not a step back.", wait=False)
+    else:
+        say("nelia", de=f"{BROOK} Schritte hin, {BROOK} zurück. Den Weg finde ich auch im Dunkeln.",
+                     en=f"{BROOK} steps there, {BROOK} back. I can find that way in the dark too.", wait=False)
 
 
 def six():
@@ -134,11 +143,13 @@ def six():
     objective("six", solved, all_worlds=True,
               de="Nelia hebt genau 6 Taler auf: Sie geht weiter, solange count kleiner als 6 ist – in allen Welten (Prüfen).",
               en="Nelia picks up exactly 6 coins: she goes on as long as count is less than 6 – in every world (Check).")
-    say("woodcutter", de="Sechs Scheite reichen für die Nacht. Nach Norden liegt noch eine Reihe Taler – nimm nicht mehr als sechs, die anderen gehören den Händlern.",
-                      en="Six logs are enough for the night. More coins lie in a row to the north – do not take more than six, the others belong to the merchants.", wait=False)
+    say("woodcutter", de="Jetzt dein Lohn. Der Händler zahlt sechs Taler Finderlohn, und sechs Scheite reichen für die Nacht. Nach Norden liegt noch eine Reihe von seinen Talern – nimm dir sechs, keinen mehr. Die anderen gehören ihm.",
+                      en="Now your pay. The merchant gives six coins as a finder's reward, and six logs are enough for the night. More of his coins lie in a row to the north – take six, not one more. The others are his.", wait=False)
     until_checked("six", solved, hint)
     say("woodcutter", de="Sechs Taler, sechs Scheite. Heute Nacht friert in der Hütte niemand.",
-                      en="Six coins, six logs. Nobody will freeze in the hut tonight.", wait=False)
+                      en="Six coins, six logs. Nobody will freeze in the hut tonight.")
+    say("nelia", de="Und die übrigen Taler hebe ich dem Händler auf, bis ich ihn treffe.",
+                 en="And the other coins I will keep for the merchant until I meet him.")
 
 
 @on_start
@@ -146,8 +157,8 @@ def story():
     # Umschalter und „Prüfen“ starten eine Welt bei einer Etappe (world.stage): world.py hat sie schon vorbereitet
     camera.jump_to(place("view"))
     if first == 0 and world.stage is None:
-        say("woodcutter", de="Brennholz? Ein Scheit für einen Taler. Die Händler haben auf dem Weg welche verloren – mein Lehrling sammelt sie so ein.",
-                          en="Firewood? One log for one coin. The merchants lost some on the path – my apprentice collects them like this.", wait=False)
+        say("woodcutter", de="Brennholz? Ein Scheit für einen Taler, umsonst gibt es bei mir nichts – der Eintreiber will auch von mir seinen Teil. Aber du kannst dir Taler verdienen: Ein Händler hat hier auf dem Weg welche verloren und zahlt Finderlohn. Mein Lehrling sammelt sie so ein.",
+                          en="Firewood? One log for one coin, I give nothing away – the collector wants his share from me too. But you can earn coins: a merchant lost some here on the path and pays a finder's reward. My apprentice collects them like this.", wait=False)
     if first == 0:
         program.load(PROGRAM)
         predict()

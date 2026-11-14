@@ -7,12 +7,12 @@
   "order": 21,
   "title": { "de": "Orrins Abkürzung", "en": "Orrin's Shortcut" },
   "summary": {
-    "de": "Eigene Befehle mit def: Orrins Umweg um die Ruine, eine geänderte Funktion und Taler links und rechts vom Weg.",
-    "en": "Your own commands with def: Orrin's detour round the ruin, a changed function and coins left and right of the path."
+    "de": "Eigene Befehle mit def: Orrins Schlenker um die Mauerreste, eine geänderte Funktion und Taler links und rechts vom Weg.",
+    "en": "Your own commands with def: Orrin's swerve round the wall remains, a changed function and coins left and right of the path."
   },
   "briefing": {
-    "de": "Auf dem Dorfplatz von Lindgrund wartet Orrin, ein Händler. Er kennt eine Abkürzung um die alte Ruine und hat sie als Funktion aufgeschrieben: „def around_ruin():“ gibt einer Folge von Befehlen einen Namen, „around_ruin()“ führt sie aus – so oft man will. nelia.left() und nelia.right() verraten, was neben Nelia liegt, ohne dass sie sich dreht. Ausführen beginnt die Etappe jedes Mal von vorn. Die Straße mit der Ruine gibt es in drei Welten – die Ruine ist überall gleich, die Straße dahinter nicht. „Prüfen“ zeigt, ob deine Befehle in allen klappen.",
-    "en": "Orrin, a merchant, is waiting on the village square of Lindgrund. He knows a shortcut round the old ruin and wrote it down as a function: “def around_ruin():” gives a sequence of commands a name, “around_ruin()” runs it – as often as you like. nelia.left() and nelia.right() tell what lies beside Nelia without turning her. Run starts the stage over every time. The road with the ruin comes in three worlds – the ruin is the same everywhere, the road beyond it is not. “Check” shows whether your commands work in all of them."
+    "de": "Der Fremde auf dem Dorfplatz von Lindgrund ist Orrin, ein Händler. Seine Geldkatze hat ein Loch: Die Taler liegen an der Straße hinter der alten Ruine, und deren Mauerreste versperren den Weg. Den Schlenker um eine Mauer hat Orrin als Funktion aufgeschrieben: „def around_ruin():“ gibt einer Folge von Befehlen einen Namen, „around_ruin()“ führt sie aus – so oft man will. Eine Abkürzung, nicht für die Füße, sondern fürs Schreiben. nelia.left() und nelia.right() verraten, was neben Nelia liegt, ohne dass sie sich dreht. Ausführen beginnt die Etappe jedes Mal von vorn. Die Straße mit der Ruine gibt es in drei Welten – die Ruine ist überall gleich, die Straße dahinter nicht. „Prüfen“ zeigt, ob deine Befehle in allen klappen.",
+    "en": "The stranger on the village square of Lindgrund is Orrin, a merchant. His purse has a hole: the coins lie along the road beyond the old ruin, and its wall remains block the way. Orrin wrote the swerve round one wall down as a function: “def around_ruin():” gives a sequence of commands a name, “around_ruin()” runs it – as often as you like. A shortcut, not for the feet but for the writing. nelia.left() and nelia.right() tell what lies beside Nelia without turning her. Run starts the stage over every time. The road with the ruin comes in three worlds – the ruin is the same everywhere, the road beyond it is not. “Check” shows whether your commands work in all of them."
   },
   "victoryText": {
     "de": "Orrin hat seine Taler wieder – und Nelia einen Partner, der mehr weiß, als er sagt.",

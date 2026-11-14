@@ -676,13 +676,29 @@ usw.; `order` = 10 × Reihe + Nummer (Meisterstück 9) reiht sie, die Registry v
 Mission wie in der Kampagne. `courseNumber(id)` (`levels/index.js`) liefert die Nummer („I.2“, „I.M“); das Menü
 ordnet nach Reihen („Reihe I · Spuren im Schnee“), Website und Handbuch nennen die Nummer vor dem Titel.
 
+**Die Geschichte** (eine Erzählung über alle Kursmissionen, Vorgeschichte und Anfang von „Krone aus Eis“; wer eine
+Mission ändert oder ergänzt, hält sie ein):
+
+| Nr. | Was geschieht | Warum die Aufgabe so ist |
+|---|---|---|
+| I.2 | Nelia läuft aus Malvors Kornlager davon. Die Mägde Hedda und Ilse können erst nachts weg, wenn der Aufseher schläft. | Der Wind verweht Fußspuren, Taler glänzen im Mondlicht. Heddas Erspartes reicht für das erste Stück, Ilses Beutel nur für jede zweite Kachel; oben am alten Lagerplatz liegt der verlorene Beutel eines Händlers. Am Ende stehen beide Mägde am Holzstoß. |
+| I.4 | Schneetreiben, Ilse ist erschöpft. Nelia sucht die Hütte, in der sich Geflohene verstecken. | Niemand sieht, wie weit der Wald ist (`while`). Der Taler im Schnee zeigt, dass jemand hier war; daneben beginnt die Spur der Geflohenen (Leute aus Lindgrund, sie kennen Nelia). |
+| I.5 | In der Hütte ist das Holz aus. Der Holzfäller gibt nichts umsonst (der Eintreiber will seinen Teil). | Die Taler am Weg gehören einem Händler, der Finderlohn zahlt: darum genau zählen (`count`), Christrosen getrennt (`flowers`), und am Ende **genau sechs** Taler Lohn für sechs Scheite – die übrigen gehören ihm. |
+| I.M | Hedda und Ilse bleiben in der Hütte, Nelia geht allein nach Hause. | Niemand schreibt ihr mehr ein Programm. Am Waldrand liegt Lindgrund, leer; ein Fremder ruft sie zum Dorfplatz (dieselben Worte wie in Kapitel 1). |
+| II.1 | Der Fremde ist Orrin. Seine Geldkatze hat ein Loch – er ist der Händler, dessen Taler Nelia unterwegs fand. | Seine Taler liegen hinter der Ruine; der Schlenker um eine Mauer ist eine Funktion („Abkürzung“ fürs Schreiben, nicht für die Füße). |
+| III.M | Orrins Gerücht von der Prinzessin bringt die Leute zurück, das Dorf wird aufgebaut. | Schluss: Orrin nennt Nelia „Prinzessin“ und will nach Beaucroix (Kapitel 2), Nelia widerspricht. |
+
+Regeln dafür: Wer spricht, steht auch dort (keine Figur redet über die halbe Karte oder kündigt sich selbst an); was
+im Text vorkommt, liegt auf der Karte (Holzstoß, Hecke); nichts erscheint ohne Grund mitten im Spiel; jede Zahl einer
+Aufgabe hat einen Grund in der Geschichte; Übergänge nennen, wo die Begleiter bleiben.
+
 | Nr. | ID | Titel | Lernziel | Etappen (Unterziele) | Welten |
 |---|---|---|---|---|---|
-| I.2 | `r1-2` | Taler für die Mägde | Zählschleife `for … in range()` | `predict` wie viele Taler (einmal ausführen), `path` 18 Kacheln, jede zweite mit Taler (9 im Beutel), `slope` Zickzack den Hang hinauf, `fire` Rechteck um den Holzstoß – eine Reise ohne Wände: Schnee, Weg, Hang, Lagerfeuer | 3, alle Etappen je Welt |
+| I.2 | `r1-2` | Taler für die Mägde | Zählschleife `for … in range()` | `predict` wie viele Taler (einmal ausführen), `path` 18 Kacheln, jede zweite mit Taler (9 im Beutel), `slope` Zickzack den Hang hinauf, `fire` Rechteck um den Holzstoß – eine Reise ohne Wände: Schnee, Weg, Hang, Lagerplatz (eine Lichtung mit Holzstoß) | 3, alle Etappen je Welt |
 | I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen | `predict` Schritte bis zum Waldrand (einmal ausführen), `coin` am Waldrand entlang auf dem Taler stehen bleiben, `hut` der Spur bis zur Hütte folgen (siehe unten) | 3, `coin` und `hut` in allen |
 | I.5 | `r1-5` | Holz für die erste Nacht | Variablen | `predict` was sagt Nelia (einmal ausführen), `roses` zweite Variable `flowers`, `brook` Schritte bis zum Eis zählen und zurück (`steps`), `six` genau 6 Taler (`while count < 6`) – ein Weg mit Kreuzung: Taler und Christrosen nach Osten bis zum Baum, nach Süden der Bach, nach Norden die Talerreihe | 3, `roses`, `brook`, `six` in allen |
 | I.M | `r1-m` | Heimweg durchs Unterholz | Meisterstück I: `while`, `if/elif/else`, Sensoren | `path` gewundener Pfad bis zur Lichtung (geradeaus, sonst rechts); `thicket` Abzweigungen und Sackgassen bis zum Ausgang (Rechte-Hand-Regel mit `nelia.right()`) | 3 Wälder, `thicket` in allen |
-| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()` (einmal ausführen), `hedge` im zweiten Teil der Ruine wächst eine Dornenhecke: Funktion links herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` auf der Straße dahinter | 3, `coins` in allen |
+| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()` (einmal ausführen), `hedge` am zweiten Teil der Ruine steht im Süden eine Dornenhecke: Funktion links herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` auf der Straße dahinter | 3, `coins` in allen |
 | III.M | `r3-m` | Lindgrund steht wieder | Meisterstück III: Listen, Funktionen, `wait_until` | `center`, `homes`, `farms` nebeneinander; Holz und Lehm aus Haufen, `reset: false` | 1 |
 
 **I.2 und I.5 sind Reisen ohne Wände** (`world.py` je Mission, Tests `tests/levels/course.test.js`, Abschnitte „every stage starts where the one before ended“): Die Etappen sind aufeinanderfolgende Wegstücke **einer** offenen Landschaft je Welt – kein `set_cliff`, kein Teleport, kein Abschnittswechsel. Wo eine Etappe endet, beginnt die nächste, und das Programm des Spielers wächst mit. I.2: Nelia startet im Schnee, die Vorhersage legt Taler und endet auf Kachel `PE`; der Weg führt von dort bis zu den Bäumen (`XE`), hinter denen ein sanfter Hang (Höhen statt Felswand) mit Dickicht und Zickzackpfad aufsteigt; oben liegt der Holzstoß, die Taler des Beutels am Ziel kommen beim Aufheben des Beutels (`remove`, `give`). I.5: eine Reihe Taler, nahtlos gefolgt von Taler und Christrosen bis zu einem Baum; dort ist eine Wegkreuzung: nach Süden der Pfad zum zugefrorenen Bach (die Etappe verlangt zuerst `nelia.turn_right()`), nach Norden die Talerreihe der letzten Etappe (Nelia schaut nach dem Rückweg nach Norden).
@@ -693,7 +709,7 @@ Gemeinsames Muster (Vorbild `r1-4`): **Welten sind dieselbe Aufgabe auf verschie
 Aufgabe in derselben Welt.** Je Welt gibt es eine offene, zusammenhängende Landschaft ohne Felsbänder; die Etappen
 sind aufeinanderfolgende Wegstücke einer Reise, jede beginnt dort, wo die vorige endete. Zwischen den Etappen wird
 nichts neu geladen und nichts versetzt – das Programm des Spielers wächst, Nelia wendet sich höchstens (`turn_to`), und
-die Welt ändert sich höchstens an Ort und Stelle (II.1: eine Hecke wächst). Ein Spiel, das bei Etappe k beginnt
+die Welt ändert sich höchstens an Ort und Stelle (I.2: der Beutel am Lagerplatz wird aufgehoben). Ein Spiel, das bei Etappe k beginnt
 (Umschalter, „Prüfen“: `world.stage`), baut die Welt schon so auf, wie sie dort ist: `world.py` setzt Nelia im
 Weltaufbau mit `nelia.teleport` (vor dem ersten Takt, nicht sichtbar) und baut frühere Änderungen mit; die
 Blickrichtung setzt `mission.py` beim Start mit `turn_to`. (Ein `turn_to` im Weltaufbau hielte das Missionsprogramm
@@ -748,7 +764,7 @@ einem genannten Randfall).
 | I.M | Spirale nach außen (vier Rechtskurven) zur Lichtung, dahinter ein Kamm mit vier Sackgassen | Baum direkt vor Nelia, Lichtung nach zwei Kurven, Ausgang nach einer Sackgasse gleich dahinter | lange Gänge (37 Aktionen bis zur Lichtung), weiter Kamm mit Sackgassen | ausgeschriebener Weg (Fehler in Zeile 1), „sonst rechts drehen“ in `thicket` (läuft zu lange) |
 | II.1 | die Ruine ist in allen Welten gleich (sechs Mauerreste, Umweg 3× frei: 6 Kacheln); Straße bis zum Wald bei 32, Taler beidseitig | Wald bei 21, Taler gleich beim ersten Schritt auf beiden Seiten und am letzten Feld | Wald bei 34, Taler fast nur rechts, zwei am letzten Feld | ausgeschriebener Gang (Waldrand, `take()` ins Leere), „erst schauen, dann gehen“ verpasst das letzte Feld |
 
-Die Hecke von II.1 wächst in allen Welten gleich (Ändern einer Funktion, kein Randfall). I.2 hat bewusst kein
+Die Hecke von II.1 steht in allen Welten gleich und von Anfang an (Ändern einer Funktion, kein Randfall; nichts wächst mitten im Spiel). I.2 hat bewusst kein
 `all_worlds`: Eine Zählschleife ohne Sensoren kann nicht allgemein sein – der Umschalter zeigt, dass sich je Welt nur
 die Zahl in `range()` ändert, und „Prüfen“ zeigt, dass sie nur in ihre Welt passt (Brücke zu `while` in I.4).
 **III.M** bleibt bei einer Welt: Die Bauaufgabe läuft ohne Neustart (`reset: false`) über viele Spielminuten, weit

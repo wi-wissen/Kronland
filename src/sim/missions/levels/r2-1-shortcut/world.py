@@ -1,7 +1,7 @@
 # Eine Straße nach Osten, drei Wegstücke einer Reise: die Ruine mit ihren sechs Mauerresten (Etappen „predict“ und
 # „hedge“: je drei Umwege um die Mauern), dahinter die Straße bis zum Wald, auf der Orrins Taler verstreut liegen
-# (Etappe „coins“). Die Hecke wächst erst bei Etappe 2 (grow_hedge, mission.py) – ein Spielstart bei Etappe 2 oder 3
-# baut sie gleich mit.
+# (Etappe „coins“). Südlich der zweiten Hälfte der Ruine steht von Anfang an eine Dornenhecke: Dort geht Orrins
+# Schlenker nur links herum.
 # Drei Welten (scenario.json "worlds"): die Ruine ist in jeder gleich, die Straße dahinter nicht. „Ganz nah“: kurzer
 # Weg bis zum Wald, Taler schon beim ersten Schritt auf beiden Seiten. „Weit weg“: langer Weg, Taler fast nur rechts, der
 # letzte ganz am Ende.
@@ -17,10 +17,11 @@ make_place("view_ruin", 10, ROAD, 6)
 make_place("view_road", 24, ROAD, 6)
 
 
-# Die Dornenhecke südlich der zweiten Hälfte der Ruine: versperrt den Umweg nach rechts (Süden)
-def grow_hedge():
-    for x in range(8, 15):
-        add_tree(x, ROAD + 1)
+# Die Dornenhecke südlich der zweiten Hälfte der Ruine: versperrt den Schlenker nach rechts (Süden). Sie beginnt hinter
+# der Kachel, auf der der dritte Schlenker der ersten Etappe zurück auf die Straße biegt.
+HEDGE = range(9, 15)
+for x in HEDGE:
+    add_tree(x, ROAD + 1)
 
 
 # Die Ruine: sechs Mauerreste auf der Straße (zwischen ihnen je eine freie Kachel), ein paar Steine daneben
@@ -48,8 +49,6 @@ for x, y in [(1, 0), (6, 1), (15, 0), (21, 2), (0, 8), (9, 9), (18, 8), (23, 1),
 
 # Spielstart: Nelia steht am Anfang der Straße; bei Etappe 2 und 3 schon dort, wo die vorige endet – im Weltaufbau
 # gesetzt, also vor dem ersten Takt und ohne Weg
-if world.stage == "hedge" or world.stage == "coins":
-    grow_hedge()
 if world.stage == "hedge":
     nelia.teleport((8, ROAD))
 if world.stage == "coins":

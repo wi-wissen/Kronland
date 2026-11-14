@@ -42,14 +42,22 @@ woodpile = []
 for x in range(HX + 1, HX + SIDE):
     for y in range(HY - SIDE + 1, HY):
         woodpile.append((x, y))
-PURSE_AT = (HX - 1, HY)    # der vergessene Beutel neben dem Ziel
+PURSE_AT = (HX - 1, HY)    # der verlorene Beutel neben dem Ziel
+# Hier stehen am Ende die Mägde: am Nordrand der Lichtung, gleich hinter dem Rechteck (Figuren brauchen ringsum frei)
+MAIDS_AT = [(HX, HY - SIDE - 2), (HX + SIDE, HY - SIDE - 2)]
 
-# Das Dickicht: dicht bewachsen bis auf Zickzackpfad, Lagerplatz und Beutel
+# Das Dickicht: dicht bewachsen bis auf Zickzackpfad, Beutel und Lagerplatz. Der Lagerplatz ist eine Lichtung: Nach
+# Norden und Osten und eine Reihe nach Süden steht nichts, damit man Holzstoß und Rechteck von oben gut sieht.
 for x in range(XE, HX + SIDE + 2):
     for y in range(HY - SIDE - 1, Y0 + 2):
         t = (x, y)
-        if t not in zigzag and t not in RING and t not in woodpile and t != PURSE_AT:
+        glade = x > HX and y <= HY + 1 or y < HY - SIDE or x == HX and y < HY
+        if t not in zigzag and t != PURSE_AT and not glade:
             add_tree(x, y)
+
+# Der Holzstoß des alten Lagerplatzes: liegt wirklich da (und steht einer Schleife im Weg, die zu oft läuft)
+for x, y in woodpile:
+    add_pile("wood", x, y, 60)
 
 # Wald und Gestrüpp ringsum: nur der Weg (fünf Reihen breit) und der Platz um das Lager bleiben frei
 for x in range(1, world.width - 1):
@@ -58,7 +66,7 @@ for x in range(1, world.width - 1):
             continue
         if x <= XE + 1 and Y0 - 2 <= y <= Y0 + 2:
             continue
-        if x >= HX - 1 and x <= HX + SIDE + 2 and y >= HY - SIDE - 2 and y <= HY + 1:
+        if x >= HX - 1 and x <= HX + SIDE + 2 and y >= HY - SIDE - 3 and y <= HY + 1:
             continue
         if world.noise(x, y, 2, 11) < 240:
             add_tree(x, y)

@@ -10,16 +10,16 @@
     "en": "Coins for the Maids"
   },
   "summary": {
-    "de": "Die Zählschleife: Nelia legt den Mägden einen Weg aus Talern – fünf, neun, im Zickzack den Hang hinauf und rund ums Feuer.",
-    "en": "The counting loop: Nelia lays a path of coins for the maids – five, nine, in a zigzag up the slope and around the fire."
+    "de": "Die Zählschleife: Nelia legt den Mägden eine Spur aus Talern – über den Schnee, den Weg entlang, im Zickzack den Hang hinauf und rund um den Holzstoß.",
+    "en": "The counting loop: Nelia lays a trail of coins for the maids – across the snow, along the path, in a zigzag up the slope and around the woodpile."
   },
   "briefing": {
-    "de": "Nelia ist aus dem Kornlager entkommen. Zwei Mägde wollen nachkommen und brauchen ein Zeichen im Schnee: Taler. nelia.put() legt einen Taler auf die Kachel, auf der Nelia steht. Statt zehnmal dasselbe zu schreiben, wiederholt „for i in range(10):“ die eingerückten Zeilen zehnmal. Die vier Etappen sind eine Reise: Schnee, Weg, Hang, Lagerfeuer – wo die eine endet, beginnt die nächste, und dein Programm wächst mit. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Die Reise gibt es in drei Welten – mit dem Umschalter siehst du, wie sich nur die Zahl in range() ändert.",
-    "en": "Nelia has escaped from the granary. Two maids want to follow and need a sign in the snow: coins. nelia.put() lays a coin on the tile Nelia stands on. Instead of writing the same thing ten times, “for i in range(10):” repeats the indented lines ten times. The four stages are one journey: snow, path, slope, campfire – where one ends the next begins, and your program grows along. Run starts the stage over every time: think first, then run. The journey comes in three worlds – the switcher shows how only the number in range() changes."
+    "de": "Nelia läuft aus Malvors Kornlager davon. Die Mägde Hedda und Ilse wollen nach, können aber erst in der Nacht weg, wenn der Aufseher schläft – bis dahin hat der Wind jede Fußspur verweht. Taler aber glänzen auch im Mondlicht. nelia.put() legt einen Taler auf die Kachel, auf der Nelia steht. Statt zehnmal dasselbe zu schreiben, wiederholt „for i in range(10):“ die eingerückten Zeilen zehnmal. Die vier Etappen sind eine Reise: Schnee, Weg, Hang, Lagerplatz – wo die eine endet, beginnt die nächste, und dein Programm wächst mit. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Die Reise gibt es in drei Welten – mit dem Umschalter siehst du, wie sich nur die Zahl in range() ändert.",
+    "en": "Nelia is running away from Malvor's granary. The maids Hedda and Ilse want to follow, but can only get away at night, when the overseer is asleep – by then the wind will have blown every footprint away. Coins, however, glitter even in moonlight. nelia.put() lays a coin on the tile Nelia stands on. Instead of writing the same thing ten times, “for i in range(10):” repeats the indented lines ten times. The four stages are one journey: snow, path, slope, campsite – where one ends the next begins, and your program grows along. Run starts the stage over every time: think first, then run. The journey comes in three worlds – the switcher shows how only the number in range() changes."
   },
   "victoryText": {
-    "de": "Die Mägde haben den Weg aus Talern gefunden – zu dritt geht es weiter durch den Schnee.",
-    "en": "The maids found the path of coins – the three of them go on through the snow."
+    "de": "Hedda und Ilse haben den Lagerplatz gefunden. Zu dritt geht es weiter durch den Schnee – fort von Malvors Kornlager.",
+    "en": "Hedda and Ilse have found the campsite. The three of them go on through the snow – away from Malvor's granary."
   },
   "learn": {
     "de": [

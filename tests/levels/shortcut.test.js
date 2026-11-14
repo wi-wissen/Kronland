@@ -1,5 +1,5 @@
 // Mission II.1 "Orrins Abkürzung": one road, three stages as consecutive legs of one journey (three detours round the
-// first walls of the ruin, three round the rest while a thorn hedge grows in place, then the road with Orrin's coins).
+// first walls of the ruin, three round the rest past a thorn hedge in the south, then the road with Orrin's coins).
 // The loaded program stays and grows; the three worlds are three complete maps (the ruin is the same, the road beyond
 // it differs). Played like the engine does it (snapshot before every run, src/sim/stage.js).
 import { describe, it, expect } from 'vitest';
@@ -72,9 +72,11 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
       let cliffs = 0;
       for (let y = 0; y < sim.map.height; y++) for (let x = 0; x < sim.map.width; x++) if (tileKind(sim, x, y) === 'cliff') cliffs++;
       expect(cliffs, w).toBe(0);
-      // Six wall remains on the road, free north of them, no hedge yet in the south
+      // Six wall remains on the road, free north of them; in the south the thorn hedge stands along the second
+      // half of the ruin from the start (nothing grows in the middle of the game)
       for (const x of [3, 5, 7, 9, 11, 13]) expect(tileKind(sim, x, 5), `${w} ${x}`).toBe('pile');
-      for (let x = 2; x <= 14; x++) { expect(sim.map.walkable(x, 4), `${w} north ${x}`).toBe(true); expect(sim.map.walkable(x, 6), `${w} south ${x}`).toBe(true); }
+      for (let x = 2; x <= 14; x++) { expect(sim.map.walkable(x, 4), `${w} north ${x}`).toBe(true); expect(sim.map.walkable(x, 6), `${w} south ${x}`).toBe(x <= 8); }
+      for (let x = 9; x <= 14; x++) expect(tileKind(sim, x, 6), `${w} hedge ${x}`).toBe('tree');
       expect(tile(sim)).toEqual([2, 5]);
       roads.add([...sim.map.items.keys()].sort((a, b) => a - b).join());
     }
@@ -102,9 +104,9 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
     runAs(state, program);
     until(state.sim, () => active(state.sim).includes('hedge'));
     expect(tile(state.sim)).toEqual([8, 5]);
-    // The world changed in place: a thorn hedge south of the second half of the ruin; nobody was moved, nothing loaded
+    // Nobody was moved, nothing loaded, nothing grew: the world is the one the game started with
     expect(state.loads).toHaveLength(1);
-    for (let x = 8; x <= 14; x++) expect(tileKind(state.sim, x, 6), `hedge ${x}`).toBe('tree');
+    expect(trees(state.sim)).toBe(trees(createMissionSim('r2-1')));
     for (let i = 0; i < 5; i++) state.sim.step();
     const end1 = situation(state.sim);
     expect(situation(startAt('normal', 'hedge'))).toEqual(end1);
@@ -112,7 +114,8 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
     // Stage 2: the unchanged function fails at the hedge – swapped left and right it goes round the north
     runAs(state, program);
     until(state.sim, () => said(state.sim, /links und rechts tauschen/));
-    expect(tile(state.sim)).toEqual([8, 5]);
+    // one step south is still free, the two steps east run into the thorns
+    expect(tile(state.sim)).toEqual([8, 6]);
     runAs(state, LEFT);
     until(state.sim, () => active(state.sim).includes('coins'));
     expect(tile(state.sim)).toEqual([14, 5]);
@@ -130,18 +133,18 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
     expect(playerErrors(state.sim)).toEqual([]);
   });
 
-  it('Run pressed right after a stage ended (during the closing line) snapshots the world with the new stage\'s changes', () => {
+  it('Run pressed right after a stage ended (during the closing line) restarts at the new stage', () => {
     const state = play('normal');
     until(state.sim, () => active(state.sim).includes('predict'));
     runAs(state, state.loads[0]);
-    // The moment the new goal exists – the closing line is still being spoken – the hedge stands already
+    // The moment the new goal exists – the closing line is still being spoken – Run restarts from the end of stage 1
     until(state.sim, () => active(state.sim).includes('hedge'));
-    for (let x = 8; x <= 14; x++) expect(tileKind(state.sim, x, 6)).toBe('tree');
+    for (let x = 9; x <= 14; x++) expect(tileKind(state.sim, x, 6)).toBe('tree');
     runAs(state, state.loads[0]);
     for (let i = 0; i < 40; i++) state.sim.step();
     runAs(state, state.loads[0]);
     expect(tile(state.sim)).toEqual([8, 5]);
-    for (let x = 8; x <= 14; x++) expect(tileKind(state.sim, x, 6), `restart ${x}`).toBe('tree');
+    for (let x = 9; x <= 14; x++) expect(tileKind(state.sim, x, 6), `restart ${x}`).toBe('tree');
     expect(active(state.sim)).toEqual(['hedge']);
   });
 
