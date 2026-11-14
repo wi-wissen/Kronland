@@ -1,6 +1,6 @@
 # II.1 „Orrins Abkürzung“: eine Straße nach Osten in drei Etappen (Funktion ohne Parameter), in drei Welten (world.py).
 # Die Etappen sind aufeinanderfolgende Wegstücke derselben Karte: dreimal um die Trümmer der Ruine (predict), dreimal um
-# den zweiten Teil, wo im Süden eine Dornenhecke steht (hedge), dann die Straße mit Orrins Talern (coins). Das Programm
+# den zweiten Teil, wo im Norden eine Dornenhecke steht (hedge), dann die Straße mit Orrins Talern (coins). Das Programm
 # bleibt und wächst; nichts wird geladen oder versetzt. Geschichte: Orrins Geldkatze hat ein Loch, seine Taler liegen
 # hinter der Ruine – unterwegs (I.2, I.5) hat Nelia schon welche von ihm gefunden.
 # Die Taler zählen erst, wenn „Prüfen“ das Programm in allen Welten bestanden hat (all_worlds=True).
@@ -12,13 +12,13 @@ AHEAD = 6
 
 PROGRAM = "\n".join([
     "def around_ruin():",
-    "    nelia.turn_right()",
-    "    nelia.step()",
     "    nelia.turn_left()",
+    "    nelia.step()",
+    "    nelia.turn_right()",
     "    nelia.step(2)",
-    "    nelia.turn_left()",
-    "    nelia.step()",
     "    nelia.turn_right()",
+    "    nelia.step()",
+    "    nelia.turn_left()",
     "",
     "around_ruin()",
     "around_ruin()",
@@ -44,10 +44,10 @@ def predict():
 def hedge():
     # Zuerst das Ziel, dann die Worte (das Ziel macht den Schnappschuss der Etappe möglich)
     objective("hedge", lambda: nelia.is_at(place("ruin_end")),
-              de="Ändere around_ruin(): Nelia soll links herum um die Trümmer gehen. Die drei Aufrufe unten bleiben gleich.",
-              en="Change around_ruin(): Nelia should go round the left of the rubble. The three calls below stay the same.")
-    say("orrin", de="Jetzt der Rest der Ruine. Aber Vorsicht: Ab hier ist die Südseite mit Dornen zugewachsen. Der Schlenker muss diesmal links herum, nördlich an den Trümmern vorbei.",
-                 en="Now the rest of the ruin. But careful: from here on the south side is overgrown with thorns. This time the swerve has to go round the left, north past the rubble.", wait=False)
+              de="Ändere around_ruin(): Nelia soll rechts herum um die Trümmer gehen. Die drei Aufrufe unten bleiben gleich.",
+              en="Change around_ruin(): Nelia should go round the right of the rubble. The three calls below stay the same.")
+    say("orrin", de="Jetzt der Rest der Ruine. Aber Vorsicht: Ab hier ist die Nordseite mit Dornen zugewachsen. Der Schlenker muss diesmal rechts herum, südlich an den Trümmern vorbei.",
+                 en="Now the rest of the ruin. But careful: from here on the north side is overgrown with thorns. This time the swerve has to go round the right, south past the rubble.", wait=False)
     while not nelia.is_at(place("ruin_end")):
         runs = program.runs
         wait_until(lambda: nelia.is_at(place("ruin_end")) or (program.runs > runs and program.status in ENDED))
@@ -79,7 +79,7 @@ def coins(fly):
         if objective_status("coins") == "done":
             break
         if len(items("coin")) == 0:
-            say("nelia", de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Welten?",
+            say(None, de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Welten?",
                          en="It worked here! Now press “Check” – does it work in the other worlds too?")
         else:
             say("nelia", de="Es liegen noch Taler neben dem Weg. Schau bei jedem Schritt mit nelia.left() und nelia.right() nach \"coin\".",

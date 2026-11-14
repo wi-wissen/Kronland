@@ -1,7 +1,7 @@
 # Eine Straße nach Osten, drei Wegstücke einer Reise: die Ruine mit ihren sechs Trümmerhaufen (Etappen „predict“ und
 # „hedge“: je drei Schlenker um die Trümmer), dahinter die Straße bis zum Wald, auf der Orrins Taler verstreut liegen
-# (Etappe „coins“). Südlich der zweiten Hälfte der Ruine steht von Anfang an eine Dornenhecke: Dort geht Orrins
-# Schlenker nur links herum.
+# (Etappe „coins“). Nördlich der zweiten Hälfte der Ruine steht von Anfang an eine Dornenhecke: Dort geht Orrins
+# Schlenker nur rechts herum.
 # Drei Welten (scenario.json "worlds"): die Ruine ist in jeder gleich, die Straße dahinter nicht. „Ganz nah“: kurzer
 # Weg bis zum Wald, Taler schon beim ersten Schritt auf beiden Seiten. „Weit weg“: langer Weg, Taler fast nur rechts, der
 # letzte ganz am Ende.
@@ -17,11 +17,12 @@ make_place("view_ruin", 10, ROAD, 6)
 make_place("view_road", 24, ROAD, 6)
 
 
-# Die Dornenhecke südlich der zweiten Hälfte der Ruine: versperrt den Schlenker nach rechts (Süden). Sie beginnt hinter
-# der Kachel, auf der der dritte Schlenker der ersten Etappe zurück auf die Straße biegt.
+# Die Dornenhecke nördlich der zweiten Hälfte der Ruine: versperrt den Schlenker nach links (Norden). Sie beginnt hinter
+# der Kachel, auf der der dritte Schlenker der ersten Etappe zurück auf die Straße biegt. Im Norden, weil die Kamera von
+# Süden schaut: Eine Hecke südlich der Straße verdeckte die Trümmer, um die es geht.
 HEDGE = range(9, 15)
 for x in HEDGE:
-    add_tree(x, ROAD + 1)
+    add_tree(x, ROAD - 1)
 
 
 # Die Ruine: sechs Trümmerhaufen auf der Straße (zwischen ihnen je eine freie Kachel), ein paar Balken daneben. Balken

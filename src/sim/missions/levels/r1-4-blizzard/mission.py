@@ -29,7 +29,7 @@ def until_checked(goal, solved, de, en):
         if objective_status(goal) == "done":
             break
         if solved():
-            say("nelia", de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Welten?",
+            say(None, de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Welten?",
                          en="It worked here! Now press “Check” – does it work in the other worlds too?")
         else:
             say("nelia", de=de, en=en)

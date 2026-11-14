@@ -689,8 +689,9 @@ Mission ändert oder ergänzt, hält sie ein):
 | III.M | Orrins Gerücht von der Prinzessin bringt die Leute zurück, das Dorf wird aufgebaut. | Schluss: Orrin nennt Nelia „Prinzessin“ und will nach Beaucroix (Kapitel 2), Nelia widerspricht. |
 
 Regeln dafür: Wer spricht, steht auch dort (keine Figur redet über die halbe Karte oder kündigt sich selbst an); was
-im Text vorkommt, liegt auf der Karte (Holzstoß, Hecke); nichts erscheint ohne Grund mitten im Spiel; jede Zahl einer
-Aufgabe hat einen Grund in der Geschichte; Übergänge nennen, wo die Begleiter bleiben.
+im Text vorkommt, liegt auf der Karte und ist von oben zu sehen (Holzstoß, Hecke, Trümmer); nichts erscheint ohne Grund mitten im Spiel; jede Zahl einer
+Aufgabe hat einen Grund in der Geschichte; Übergänge nennen, wo die Begleiter bleiben. Hinweise zur Bedienung („Drück
+jetzt Prüfen“) spricht der Erzähler (`say(None, …)`), nicht eine Figur.
 
 | Nr. | ID | Titel | Lernziel | Etappen (Unterziele) | Welten |
 |---|---|---|---|---|---|
@@ -698,7 +699,7 @@ Aufgabe hat einen Grund in der Geschichte; Übergänge nennen, wo die Begleiter 
 | I.4 | `r1-4` | Im Schneetreiben | `while` mit Bedingung, Zählen | `predict` Schritte bis zum Waldrand (einmal ausführen), `coin` am Waldrand entlang auf dem Taler stehen bleiben, `hut` der Spur bis zur Hütte folgen (siehe unten) | 3, `coin` und `hut` in allen |
 | I.5 | `r1-5` | Holz für die erste Nacht | Variablen | `predict` was sagt Nelia (einmal ausführen), `roses` zweite Variable `flowers`, `brook` Schritte bis zum Eis zählen und zurück (`steps`), `six` genau 6 Taler (`while count < 6`) – ein Weg mit Kreuzung: Taler und Christrosen nach Osten bis zum Baum, nach Süden der Bach, nach Norden die Talerreihe | 3, `roses`, `brook`, `six` in allen |
 | I.M | `r1-m` | Heimweg durchs Unterholz | Meisterstück I: `while`, `if/elif/else`, Sensoren | `path` gewundener Pfad bis zur Lichtung (geradeaus, sonst rechts); `thicket` Abzweigungen und Sackgassen bis zum Ausgang (Rechte-Hand-Regel mit `nelia.right()`) | 3 Wälder, `thicket` in allen |
-| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()` (einmal ausführen), `hedge` am zweiten Teil der Ruine steht im Süden eine Dornenhecke: Funktion links herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` auf der Straße dahinter | 3, `coins` in allen |
+| II.1 | `r2-1` | Orrins Abkürzung | Funktion ohne Parameter (`def`) | `predict` wo steht Nelia nach dreimal `around_ruin()` (einmal ausführen), `hedge` am zweiten Teil der Ruine steht im Norden eine Dornenhecke (hinter der Straße, damit sie von der Kamera aus nichts verdeckt): Funktion rechts herum, `coins` eigene `turn_around()`, `fetch_left()`, `fetch_right()` auf der Straße dahinter | 3, `coins` in allen |
 | III.M | `r3-m` | Lindgrund steht wieder | Meisterstück III: Listen, Funktionen, `wait_until` | `center`, `homes`, `farms` nebeneinander; Holz und Lehm aus Haufen, `reset: false` | 1 |
 
 **I.2 und I.5 sind Reisen ohne Wände** (`world.py` je Mission, Tests `tests/levels/course.test.js`, Abschnitte „every stage starts where the one before ended“): Die Etappen sind aufeinanderfolgende Wegstücke **einer** offenen Landschaft je Welt – kein `set_cliff`, kein Teleport, kein Abschnittswechsel. Wo eine Etappe endet, beginnt die nächste, und das Programm des Spielers wächst mit. I.2: Nelia startet im Schnee, die Vorhersage legt Taler und endet auf Kachel `PE`; der Weg führt von dort bis zu den Bäumen (`XE`), hinter denen ein sanfter Hang (Höhen statt Felswand) mit Dickicht und Zickzackpfad aufsteigt; oben liegt der Holzstoß, die Taler des Beutels am Ziel kommen beim Aufheben des Beutels (`remove`, `give`). I.5: eine Reihe Taler, nahtlos gefolgt von Taler und Christrosen bis zu einem Baum; dort ist eine Wegkreuzung: nach Süden der Pfad zum zugefrorenen Bach (die Etappe verlangt zuerst `nelia.turn_right()`), nach Norden die Talerreihe der letzten Etappe (Nelia schaut nach dem Rückweg nach Norden).

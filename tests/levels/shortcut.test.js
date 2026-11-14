@@ -1,5 +1,5 @@
 // Mission II.1 "Orrins Abkürzung": one road, three stages as consecutive legs of one journey (three detours round the
-// first heaps of rubble of the ruin, three round the rest past a thorn hedge in the south, then the road with Orrin's coins).
+// first heaps of rubble of the ruin, three round the rest past a thorn hedge in the north, then the road with Orrin's coins).
 // The loaded program stays and grows; the three worlds are three complete maps (the ruin is the same, the road beyond
 // it differs). Played like the engine does it (snapshot before every run, src/sim/stage.js).
 import { describe, it, expect } from 'vitest';
@@ -58,8 +58,9 @@ function startAt(world, stage) {
   return sim;
 }
 
-const LOADED = `\ndef around_ruin():\n    nelia.turn_right()\n    nelia.step()\n    nelia.turn_left()\n    nelia.step(2)\n    nelia.turn_left()\n    nelia.step()\n    nelia.turn_right()\n\naround_ruin()\naround_ruin()\naround_ruin()\n`;
-const LEFT = LOADED.replace(/turn_right/g, 'TMP').replace(/turn_left/g, 'turn_right').replace(/TMP/g, 'turn_left');
+// The program Orrin loads swerves round the north (left); SWAPPED swaps left and right and goes round the south
+const LOADED = `\ndef around_ruin():\n    nelia.turn_left()\n    nelia.step()\n    nelia.turn_right()\n    nelia.step(2)\n    nelia.turn_right()\n    nelia.step()\n    nelia.turn_left()\n\naround_ruin()\naround_ruin()\naround_ruin()\n`;
+const SWAPPED = LOADED.replace(/turn_right/g, 'TMP').replace(/turn_left/g, 'turn_right').replace(/TMP/g, 'turn_left');
 const FETCH = (lang) => refExample('fetch', lang);
 
 describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
@@ -72,11 +73,11 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
       let cliffs = 0;
       for (let y = 0; y < sim.map.height; y++) for (let x = 0; x < sim.map.width; x++) if (tileKind(sim, x, y) === 'cliff') cliffs++;
       expect(cliffs, w).toBe(0);
-      // Six heaps of rubble (beams) on the road, free north of them; in the south the thorn hedge stands along the second
+      // Six heaps of rubble (beams) on the road, free south of them; in the north the thorn hedge stands along the second
       // half of the ruin from the start (nothing grows in the middle of the game)
       for (const x of [3, 5, 7, 9, 11, 13]) expect(tileKind(sim, x, 5), `${w} ${x}`).toBe('pile');
-      for (let x = 2; x <= 14; x++) { expect(sim.map.walkable(x, 4), `${w} north ${x}`).toBe(true); expect(sim.map.walkable(x, 6), `${w} south ${x}`).toBe(x <= 8); }
-      for (let x = 9; x <= 14; x++) expect(tileKind(sim, x, 6), `${w} hedge ${x}`).toBe('tree');
+      for (let x = 2; x <= 14; x++) { expect(sim.map.walkable(x, 6), `${w} south ${x}`).toBe(true); expect(sim.map.walkable(x, 4), `${w} north ${x}`).toBe(x <= 8); }
+      for (let x = 9; x <= 14; x++) expect(tileKind(sim, x, 4), `${w} hedge ${x}`).toBe('tree');
       expect(tile(sim)).toEqual([2, 5]);
       roads.add([...sim.map.items.keys()].sort((a, b) => a - b).join());
     }
@@ -111,12 +112,12 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
     const end1 = situation(state.sim);
     expect(situation(startAt('normal', 'hedge'))).toEqual(end1);
 
-    // Stage 2: the unchanged function fails at the hedge – swapped left and right it goes round the north
+    // Stage 2: the unchanged function fails at the hedge – swapped left and right it goes round the south
     runAs(state, program);
     until(state.sim, () => said(state.sim, /links und rechts tauschen/));
-    // one step south is still free, the two steps east run into the thorns
-    expect(tile(state.sim)).toEqual([8, 6]);
-    runAs(state, LEFT);
+    // one step north is still free, the two steps east run into the thorns
+    expect(tile(state.sim)).toEqual([8, 4]);
+    runAs(state, SWAPPED);
     until(state.sim, () => active(state.sim).includes('coins'));
     expect(tile(state.sim)).toEqual([14, 5]);
     for (let i = 0; i < 5; i++) state.sim.step();
@@ -139,12 +140,12 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
     runAs(state, state.loads[0]);
     // The moment the new goal exists – the closing line is still being spoken – Run restarts from the end of stage 1
     until(state.sim, () => active(state.sim).includes('hedge'));
-    for (let x = 9; x <= 14; x++) expect(tileKind(state.sim, x, 6)).toBe('tree');
+    for (let x = 9; x <= 14; x++) expect(tileKind(state.sim, x, 4)).toBe('tree');
     runAs(state, state.loads[0]);
     for (let i = 0; i < 40; i++) state.sim.step();
     runAs(state, state.loads[0]);
     expect(tile(state.sim)).toEqual([8, 5]);
-    for (let x = 9; x <= 14; x++) expect(tileKind(state.sim, x, 6), `restart ${x}`).toBe('tree');
+    for (let x = 9; x <= 14; x++) expect(tileKind(state.sim, x, 4), `restart ${x}`).toBe('tree');
     expect(active(state.sim)).toEqual(['hedge']);
   });
 
@@ -153,7 +154,7 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
     until(state.sim, () => active(state.sim).includes('predict'));
     runAs(state, state.loads[0]);
     until(state.sim, () => active(state.sim).includes('hedge'));
-    runAs(state, LEFT);
+    runAs(state, SWAPPED);
     until(state.sim, () => active(state.sim).includes('coins'));
     runAs(state, FETCH('de'));
     for (let i = 0; i < 30; i++) state.sim.step();
@@ -167,7 +168,7 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
     until(state.sim, () => active(state.sim).includes('predict'));
     runAs(state, state.loads[0]);
     until(state.sim, () => active(state.sim).includes('hedge'));
-    runAs(state, LEFT);
+    runAs(state, SWAPPED);
     until(state.sim, () => active(state.sim).includes('coins'));
     expect(checkAs(state, FETCH('de')).passed).toBe(true);
     until(state.sim, () => !!state.sim.mission.state.result, 6000);
@@ -180,11 +181,11 @@ describe('Mission II.1 "Orrins Abkürzung": one road with a ruin', () => {
     const hedge = startAt(w, 'hedge');
     expect(tile(hedge)).toEqual([8, 5]);
     expect(hedge.mission.state.objectives.map((o) => o.id)).toEqual(['hedge']);
-    expect(tileKind(hedge, 10, 6)).toBe('tree');
+    expect(tileKind(hedge, 10, 4)).toBe('tree');
     const coins = startAt(w, 'coins');
     expect(tile(coins)).toEqual([14, 5]);
     expect(coins.mission.state.objectives.map((o) => o.id)).toEqual(['coins']);
-    expect(tileKind(coins, 10, 6)).toBe('tree');
+    expect(tileKind(coins, 10, 4)).toBe('tree');
     expect(coins.map.items.size).toBeGreaterThan(0);
   });
 });
@@ -198,7 +199,7 @@ describe('Mission II.1 "Prüfen"', () => {
   });
 
   it('the hedge is the same in every world; the swapped function solves it, the unchanged one does not', () => {
-    expect(by(check('hedge', LEFT))).toEqual({ normal: 'solved', near: 'solved', far: 'solved' });
+    expect(by(check('hedge', SWAPPED))).toEqual({ normal: 'solved', near: 'solved', far: 'solved' });
     expect(by(check('hedge', LOADED))).toEqual({ normal: 'error', near: 'error', far: 'error' });
     // Walking straight on instead of round the rubble: the first heap blocks the road
     expect(by(check('hedge', 'nelia.step(6)\n'))).toEqual({ normal: 'error', near: 'error', far: 'error' });

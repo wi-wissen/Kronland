@@ -27,7 +27,7 @@ def until_done(goal, solved, check, de, en):
         if objective_status(goal) == "done":
             break
         if solved() and check:
-            say("nelia", de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Wäldern?",
+            say(None, de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Wäldern?",
                          en="It worked here! Now press “Check” – does it work in the other forests too?")
         elif not solved():
             say("nelia", de=de, en=en)
