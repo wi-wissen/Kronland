@@ -2,8 +2,8 @@
 def intro():
     camera.fly_to(place("camp"), seconds=3)
     reveal(place("camp"), seconds=20)
-    say("kunz", de="Hört ihr das? Das ist das Lager von Kunz dem Roten. Bald holen wir uns eure Vorräte!",
-                en="Do you hear that? That is the camp of Kunz the Red. Soon we will take your supplies!")
+    say("kunz", de="Seht ihr die Feuer im Wald? Das ist mein Lager – Kunz der Rote. Bald holen wir uns eure Vorräte!",
+                en="Do you see the fires in the forest? That is my camp – Kunz the Red. Soon we will take your supplies!")
     camera.fly_to(hq(), seconds=2)
     say("nelia", de="Wir brauchen eine Kaserne und mindestens drei Trupps. Dann räuchern wir das Lager aus.",
                  en="We need a barracks and at least three troops. Then we smoke out the camp.")

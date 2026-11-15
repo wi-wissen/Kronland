@@ -23,6 +23,7 @@ def intro():
     wait_until(lambda: count("villageCenter") >= 1 and count("residence") >= 2 and count("farm") >= 2)
     say("elder", de="Lindgrund steht wieder. Das hätte ich nicht mehr zu sehen geglaubt.",
                  en="Lindgrund stands again. I never thought I would see that.")
-    say("herald", de="Ein Herold aus Morvale! Ist hier die Prinzessin, von der alle reden? Mein Herr bittet um Hilfe.",
-                  en="A herald from Morvale! Is the princess everyone talks about here? My lord asks for help.")
+    say("orrin", de="Ein Dorf hätten wir. Morgen, Prinzessin, zeige ich dir in Beaucroix, wie man einen Markt aufzieht.",
+                 en="That is one village. Tomorrow, princess, I will show you in Beaucroix how to set up a market.")
+    say("nelia", de="Nenn mich nicht so, Orrin.", en="Don't call me that, Orrin.")
     victory()

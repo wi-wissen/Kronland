@@ -315,7 +315,7 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
 4. **Klonen.** Ein zweiter Satz wird aus dem Entwurf geklont – so klingt die Figur später in allen Sätzen.
 5. **Prüfen lassen.** Ein zweites Modell hört jede Aufnahme nach: Stimmt der gesprochene Wortlaut mit dem Text
    überein (Wort-Ähnlichkeit ≥ 0,85) und ist nur die Stimme zu hören? Sonst wird die Aufnahme neu erzeugt (bis zu
-   sechs Versuche). Ersetzt wird eine Datei nur durch einen bestandenen Versuch. Der Prüfer erfährt die Sprache
+   drei Versuche, `VOICE_TRIES`; jeder verworfene Versuch kostet wie ein behaltener). Ersetzt wird eine Datei nur durch einen bestandenen Versuch. Der Prüfer erfährt die Sprache
    (sonst hört er englisches „Aye“ als „Hi“); längere Wörter dürfen um einen Buchstaben abweichen (Namen wie
    „Orrin“). Auslassungspunkte gehen als Komma bzw. Punkt an Seed – lange Pausen lassen das Modell abbrechen
    oder Geräusche einfügen.
@@ -324,8 +324,7 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
 7. **Vertonen.** Alle Sätze werden aus der Vorlage geklont, geprüft, auf dieselbe Lautheit gebracht
    (EBU R128, −18 LUFS, Spitze −1,5 dBTP) und als MP3 (mono, 48 kbit/s) abgelegt.
 8. **Pausen.** Das Klonen übernimmt die Pausen der Vorlage und setzt eigene zwischen die Sätze (gemessen: bis zu
-   11,7 s). Aufnahmen mit inneren Pausen über 0,8 s (`silencedetect`, −40 dB; `VOICE_MAX_PAUSE`) werden verworfen
-   und neu erzeugt (außer im letzten Versuch). Danach kürzt `silenceremove` jede innere Pause über 0,6 s auf etwa
+   11,7 s). Verworfen wird deswegen nichts mehr; `silenceremove` kürzt jede innere Pause über 0,6 s auf etwa
    0,9 s (kürzere bleiben, vor der Lautheitsangleichung). Vorlagen mit langen Pausen (gemessen: nelia, taran, soldierF, serf,
    serfF, cannon) sollten beim nächsten Neuaufnehmen gekürzt werden.
 
@@ -351,10 +350,30 @@ Englisch. Alle Stimmen sind für dieses Projekt erzeugt.
 ```bash
 node scripts/asset-gen/voice.mjs audition [rolle …]          # Hörproben je Beschreibung (Entwurf + Klon)
 node scripts/asset-gen/voice.mjs pick <rolle> <nr> [quelle]  # Entwurf als Vorlage übernehmen
-node scripts/asset-gen/voice.mjs lines [rolle …]             # alle Dialoge und Sprüche vertonen (fortsetzbar)
+node scripts/asset-gen/voice.mjs lines [--campaign] [--dry] [rolle …]   # fehlende Dialoge und Sprüche vertonen (fortsetzbar)
 node scripts/asset-gen/voice.mjs trim [rolle …]              # innere Pausen kürzen: raw/ → Spieldateien, neu auf −18 LUFS
 node scripts/asset-gen/voice.mjs pauses [rolle …]            # Tabelle: Dateien mit inneren Pausen über 1,0 s je Rolle
 ```
+
+**Kosten im Blick** (Seed Audio rechnet je erzeugter Minute, auch für verworfene Versuche – am 14. Nov. 2026 blieben
+von rund 22 $ nur 13 Minuten brauchbare Aufnahmen, weil jede Zeile bis zu zwölfmal versucht wurde und der Lauf auch die
+Kursmissionen mitnahm):
+
+- `lines --dry` listet, was erzeugt würde, ohne eine Anfrage zu senden – immer zuerst.
+- `lines --campaign` vertont nur Kampagne und Tutorial (was der Stimmentest verlangt) und die Sprüche.
+- Höchstens `VOICE_TRIES` = 3 Versuche je Zeile und `VOICE_MAX_CALLS` = 150 Anfragen je Lauf; danach beginnt keine neue Zeile.
+- Am Ende steht, was der Lauf angefordert und behalten hat, mit Schätzpreis (`VOICE_PRICE`, Standard 0,15 $ je Minute).
+- Scheitert eine Zeile dreimal an der Hörprüfung, hilft meist eine ruhigere Formulierung, nicht ein vierter Versuch.
+- Die Hörprüfung lehnt nur noch ab, wenn der **Wortlaut** nicht stimmt. Meldet sie ein Hintergrundgeräusch, wird die
+  Aufnahme trotzdem genommen (nach Anhören entschieden: gemeldete Aufnahmen waren in Ordnung oder hatten ein leises
+  Knacken; die Hälfte aller Versuche fiel sonst durch). `VOICE_STRICT=1` stellt die strenge Regel wieder her.
+- Aufnahmen mit inneren Pausen werden nicht mehr neu erzeugt, sondern gekürzt (`silenceremove`) und dann geprüft:
+  Lange Zeilen haben fast immer eine Pause, das Neuerzeugen warf zwei von drei bezahlten Versuchen weg.
+- Zeilen mit Programmcode (`nelia.can_step()`, `"coin"`) werden nicht vertont – gesprochen stimmen sie nie mit dem Text
+  überein; der Browser liest sie vor.
+- Nebenfiguren ohne eigene Stimme leihen sich eine vorhandene Rolle (`SPEAKER_VOICE` in `src/audio/voiceLines.js`,
+  dieselbe Tabelle in `voice.mjs`): Kunz den Räuber, Wachen den Eintreiber, die Mägde der Kursmissionen die Leibeigene,
+  Ilse die Dorfbewohnerin, die Geflohenen den Leibeigenen, der Holzfäller den Bergmeister, der Fremde Orrin.
 
 Neue oder geänderte Texte: `lines` erzeugt nur, was fehlt (der Schlüssel hängt am Text). Fehlt eine Aufnahme,
 liest der Browser den Dialog vor (Einstellung „Dialoge vorlesen“), Sprüche bleiben dann still.

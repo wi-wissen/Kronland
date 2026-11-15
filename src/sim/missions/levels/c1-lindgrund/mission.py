@@ -104,11 +104,11 @@ def prong(id, status):
                  en="By all the markets! That’s a shard of the crown! Only royal blood finds such a thing!")
     say("nelia", de="Ich bin eine Leibeigene, Orrin. Mein Vater schlägt Holz.",
                  en="I’m a serf, Orrin. My father chops wood.")
-    say("orrin", de="Pflegeeltern, Kind! Die Königin ertrank, aber die kleine Prinzessin … Leute! Die verlorene Prinzessin ist zurück!",
-                 en="Foster parents, child! The queen drowned, but the little princess … everyone! The lost princess has returned!")
+    say("orrin", de="Pflegeeltern, Kind! König Edrian ertrank, aber seine kleine Tochter … He, ihr da im Wald! Die verlorene Prinzessin ist zurück!",
+                 en="Foster parents, child! King Edrian drowned, but his little daughter … You people in the woods, listen: the lost princess has returned!")
     spawn_serfs(HUMAN, 3)
-    say("villager", de="Die Prinzessin! In Lindgrund! Dann wird alles gut!",
-                    en="The princess! In Lindgrund! Then all will be well!")
+    say("villager", de="Eine Prinzessin? In Lindgrund? Dann kommen wir aus dem Wald zurück – dann wird alles gut!",
+                    en="A princess? In Lindgrund? Then we’re coming back out of the woods – then all will be well!")
     # Only now, quietly between the two of them: why the shard matters (and why Malvor wants it)
     say("nelia", de="Orrin! Warum erzählst du so etwas?",
                  en="Orrin! Why would you say such a thing?")
@@ -165,7 +165,8 @@ def farms(id, status):
 
 @on_start
 def first_worker():
-    wait_until(lambda: count("worker") >= 1)
+    # only once there really is a bed and a farm to eat at – the line speaks of both
+    wait_until(lambda: count("worker") >= 1 and count("residence") >= 1 and count("farm") >= 1)
     say("nelia", de="Der erste Arbeiter! Wer ein Bett und eine warme Suppe hat, bleibt.",
                  en="Our first worker! Whoever has a bed and warm soup stays.")
 
@@ -230,8 +231,8 @@ def elder_talk(visitor):
     elder.stop_talking()
     say("orrin", de="Ehrwürdige Mutter! Ihr habt es gehört: Die Prinzessin ist zurück, und sie friert in Lindgrund.",
                  en="Honoured mother! You have heard: the princess has returned, and she is freezing in Lindgrund.")
-    say("elder", de="Ob Prinzessin oder nicht – sie hat Malvor die Stirn geboten. Wir schicken Leute und Holz.",
-                 en="Princess or not – she stood up to Malvor. We’ll send people and wood.")
+    say("elder", de="Ob Prinzessin oder nicht – sie ist Malvor davongelaufen und baut ihr Dorf wieder auf. Wir schicken Leute und Holz.",
+                 en="Princess or not – she ran away from Malvor and is rebuilding her village. We’ll send people and wood.")
     set_diplomacy(HUMAN, player("neighbors"), "allied")
     spawn_serfs(HUMAN, 3)
     give(HUMAN, wood=300)

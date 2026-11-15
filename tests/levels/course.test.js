@@ -8,7 +8,7 @@ import { courseNumber } from '../../src/sim/missions/levels/index.js';
 import { refExample } from '../../src/ui/script/reference.js';
 import { checkProgram } from '../../src/sim/check.js';
 import { stageKey } from '../../src/sim/stage.js';
-import { faceOf } from '../../src/sim/systems/ground.js';
+import { faceOf, tileKind } from '../../src/sim/systems/ground.js';
 
 const LANGS = ['de', 'en'];
 
@@ -167,9 +167,18 @@ describe('I.2 "Taler für die Mägde"', () => {
     // The world was never cut by walls
     const sim = createMissionSim('r1-2', { world: w });
     expect(sim.map.flags.some((f) => f & 8)).toBe(false);
+    // What the story names lies on the map: the woodpile in the middle of the rectangle
+    const [tx, ty] = e.top;
+    expect(tileKind(sim, tx + 1, ty - 1), `${w} woodpile`).toBe('pile');
     runAs(real, sol.fire);
     until(real.sim, () => !!real.sim.mission.state.result, 4000);
     expect(real.sim.mission.state.result).toMatchObject({ won: true });
+    // The end of the story: both maids stand at the campsite right behind the rectangle, nobody is left down at
+    // the granary, and each of them speaks herself
+    const npcs = [...real.sim.entities.values()].filter((n) => n.kind === 'npc');
+    expect(npcs.map((n) => n.npc).sort(), w).toEqual(['hedda', 'ilse']);
+    expect(npcs.map((n) => [Math.floor(n.px / 1000), Math.floor(n.py / 1000)]).sort((a, b) => a[0] - b[0]), w).toEqual([[tx, ty - e.side - 2], [tx + e.side, ty - e.side - 2]]);
+    expect(real.sim.mission.state.messages.slice(-2).map((m) => m.speaker)).toEqual(['hedda', 'ilse']);
   });
 
   it('Run right after a stage ended, during the closing line, restarts into the new stage with its in-place changes', () => {
@@ -357,7 +366,9 @@ describe('III.M "Lindgrund steht wieder"', () => {
     runAs(state, refExample('village', lang));
     until(sim, () => !!sim.mission.state.result, 20000);
     expect(sim.mission.state.result).toMatchObject({ won: true });
-    expect(sim.mission.state.messages.some((m) => m.speaker === 'herald')).toBe(true);
+    // The closing lines lead on to the campaign: Orrin's "princess", and Nelia who does not want to hear it
+    expect(sim.mission.state.messages.some((m) => m.speaker === 'orrin')).toBe(true);
+    expect(sim.mission.state.messages.at(-1).speaker).toBe('nelia');
     expect(playerErrors(sim)).toEqual([]);
   });
 });

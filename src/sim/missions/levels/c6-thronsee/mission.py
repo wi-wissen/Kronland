@@ -30,8 +30,8 @@ def on_ice():
 # ---------- Objectives (in the order of the objectives panel) ----------
 
 objective("plant", lambda: (count("weatherPlant"), 1),
-          de="Baue den Wetterturm (Wetterkraftwerk; Forschung: Wettervorhersage, Meteorologie)",
-          en="Build the weather tower (weather plant; research: Weather Forecast, Meteorology)")
+          de="Baue ein Wetterkraftwerk (Forschung: erst Wettervorhersage, dann Meteorologie)",
+          en="Build a weather plant (research: first Weather Forecast, then Meteorology)")
 objective("freeze", lambda: frozen,
           de="Lass den Thronsee zufrieren",
           en="Make the Throne Lake freeze")
@@ -63,8 +63,8 @@ def arrival():
                   en="A serf with a merchant and a traitor. You have gathered four shards; the fifth I wear. Come and take it, Nelia – the lake is deep.")
     say("taran", de="Er hat recht, der See ist tief. Aber im Winter trägt er.",
                  en="He’s right, the lake is deep. But in winter it holds.")
-    say("orrin", de="Hrimgars Pläne! Ein Wetterturm, Nelia. Dafür brauchen wir eine Alchimistenhütte, Wissen – oder Geld. Ich kenne Gelehrte in Beaucroix …",
-                 en="Hrimgar’s plans! A weather tower, Nelia. For that we need an alchemist’s hut, knowledge – or money. I know scholars in Beaucroix …")
+    say("orrin", de="Hrimgars Pläne! Ein eigenes Wetterkraftwerk, Nelia. Dafür brauchen wir eine Alchimistenhütte, Wissen – oder Geld. Ich kenne Gelehrte in Beaucroix …",
+                 en="Hrimgar’s plans! A weather plant of our own, Nelia. For that we need an alchemist’s hut, knowledge – or money. I know scholars in Beaucroix …")
     say("taran", de="Malvor hat sein eigenes Kraftwerk, dort auf der kleinen Insel vor dem Schloss. Ist es geladen, taut er den See, sobald wir aufs Eis gehen. Aber vom Ufer aus treffen es Bogenschützen und Kanonen.",
                  en="Malvor has his own weather plant, there on the small island in front of the castle. Once it is charged, he thaws the lake as soon as we step onto the ice. But archers and cannons can hit it from the shore.")
 
@@ -91,6 +91,13 @@ def army(id, status):
                  en="Good people. They know what they fight for.")
 
 
+# Our plant stands: Orrin says in one sentence how it is used (explain when it is needed)
+@on_objective("plant", "done")
+def plant_built(id, status):
+    say("orrin", de="Das Kraftwerk steht! Jetzt laden es die Wettertechniker auf. Ist es voll, wähl es aus und ruf den Winter.",
+                 en="The plant stands! Now the weather technicians charge it. Once it is full, select it and call the winter.")
+
+
 # ---------- Winter on the lake ----------
 
 @on_start
@@ -98,10 +105,15 @@ def lake_frozen():
     global frozen
     wait_until(lambda: weather() == "winter")
     frozen = True
-    say("taran", de="Der See trägt. Aber seht auf Malvors Kraftwerk: Solange es geladen ist, taut er, sobald wir auf dem Eis stehen.",
-                 en="The lake holds. But watch Malvor’s plant: as long as it is charged, he will thaw as soon as we stand on the ice.")
-    say("nelia", de="Dann locken wir ihn – oder wir schießen sein Kraftwerk vom Ufer aus zusammen.",
-                 en="Then we lure him – or we shoot his plant to pieces from the shore.")
+    # Taran only warns of Malvor's plant while it still stands
+    if plant_up():
+        say("taran", de="Der See trägt. Aber seht auf Malvors Kraftwerk: Solange es geladen ist, taut er, sobald wir auf dem Eis stehen.",
+                     en="The lake holds. But watch Malvor’s plant: as long as it is charged, he will thaw as soon as we stand on the ice.")
+        say("nelia", de="Dann locken wir ihn – oder wir schießen sein Kraftwerk vom Ufer aus zusammen.",
+                     en="Then we lure him – or we shoot his plant to pieces from the shore.")
+    else:
+        say("taran", de="Der See trägt, und Malvors Kraftwerk liegt in Trümmern. Jetzt hält uns nichts mehr auf.",
+                     en="The lake holds, and Malvor’s plant lies in ruins. Nothing can stop us now.")
 
 
 # Fixed scene: Orrin is hit in the assault on the island – carried off the ice wounded, out of the game
@@ -140,7 +152,11 @@ def malvor_thaws():
     thawed_once = True
     say("malvor", de="Tauwetter!",
                   en="Thaw!")
-    if first:
+    # Orrin explains – unless he already lies wounded on the bank, then Taran does
+    if first and orrin_wounded:
+        say("taran", de="Sein Kraftwerk ist leer – er muss jetzt nachladen und warten wie wir. Frieren wir den See wieder ein, sobald unseres bereit ist, kann er nichts tun.",
+                     en="His plant is empty – now he has to recharge and wait, just like us. If we freeze the lake again as soon as ours is ready, he can do nothing.")
+    elif first:
         say("orrin", de="Sein Kraftwerk ist leer – er muss jetzt nachladen und warten wie wir. Frieren wir den See wieder ein, sobald unseres bereit ist, kann er nichts tun.",
                      en="His plant is empty – now he has to recharge and wait, just like us. If we freeze the lake again as soon as ours is ready, he can do nothing.")
 
@@ -165,6 +181,9 @@ def raids():
         wait_until(lambda: time() >= first + 300 * n)
         n += 1
         attack(spawn(ENEMY, [("sword1", 2, 4), ("bow1", 1, 4)], place("northGate")), base)
+        # Malvor announces his guard once – the same sentence every five minutes for forty minutes wears thin
+        if n > 1:
+            continue
         say("malvor", de="Hagenfurts Garde! Zeigt dieser Bauernmagd, was Ordnung heißt.",
                       en="Guard of Hagenfurt! Show this peasant girl what order means.")
 
@@ -176,3 +195,12 @@ def castle_hurt():
                   en="I saved this land from chaos! Without me, you’ll all starve!")
     say("nelia", de="Wir haben gehungert. Wegen dir.",
                  en="We did starve. Because of you.")
+
+
+# ---------- The castle falls: Malvor's last words before the epilogue ----------
+@on_objective("castle", "done")
+def castle_fallen(id, status):
+    say("malvor", de="Nimm die Zacke, Nelia. Ordnung ist schwerer zu tragen, als du glaubst.",
+                  en="Take the shard, Nelia. Order is harder to carry than you think.")
+    say("nelia", de="Nicht schwerer als Hunger.",
+                 en="No heavier than hunger.")

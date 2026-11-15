@@ -58,7 +58,7 @@ nah am Original.
 | Mit Figuren reden | Gesprächsfiguren mit Ausrufezeichen, bestimmter Held spricht sie an. |
 | Taran wechselt die Seite | Kein Seitenwechsel einer Figur: Taran wird beim Gegner entfernt und beim Spieler neu eingesetzt (Mission 5). |
 | Orrins Tod | Er wird beim Sturm übers Eis aus dem Spiel genommen (feste Szene), stirbt im Abspann. |
-| Wetterturm, Tauwetter | Wetterkraftwerk (Alchimist: Wettervorhersage → Meteorologie); bei Tauwetter ertrinkt, wer auf dem Eis steht. Malvor hat in Mission 6 ein eigenes Kraftwerk und dieselben Regeln (Ladung, Wartezeit). |
+| Wetterturm der Vorgabe, Tauwetter | heißt im Spiel durchgehend **Wetterkraftwerk** (der Wetterturm ist ein anderes Gebäude: die Vorhersage; Hrimgars altes Werk heißt „das Wetterwerk“) (Alchimist: Wettervorhersage → Meteorologie); bei Tauwetter ertrinkt, wer auf dem Eis steht. Malvor hat in Mission 6 ein eigenes Kraftwerk und dieselben Regeln (Ladung, Wartezeit). |
 | Söldner | Tribut „Söldner anheuern“ (Truppen erscheinen sofort), kein Wirtshaus. |
 
 ## Die sechs Karten
@@ -94,7 +94,7 @@ Aufbau- und Echtzeitstrategiespielen.
 | Zacke | Wo | Malvors Anteil | Weg |
 |---|---|---|---|
 | 1 | Lindgrund, unter dem alten Baum | Eintreiber fordern „was ihr unter dem Baum gefunden habt“ | Fund, Eintreiber vertreiben |
-| 2 | Beaucroix, Räuber im Flusswald | Herold bietet 1000 Taler, die Räuber rüsten mit seinem Geld auf | freikaufen oder stürmen |
+| 2 | Beaucroix, Räuber im Flusswald | Herold bietet 1000 Taler; die Räuber verkaufen trotzdem lieber an Orrin (Malvor hängt Räuber, bevor er zahlt) und überfallen das Lager der „Prinzessin“ | freikaufen oder stürmen |
 | – | Wetterwerk | Abspann: Malvor trägt selbst eine Zacke an einer Kette | – |
 | 3 | Eisenhain, tiefster Stollen | Taran belagert die Stadt, damit die Bergleute sie herausgeben | Belagerung brechen, Bergmeister |
 | 4 | Morvale, Dorfälteste | Herold verlangt sie nach der Enthüllung der Lüge | Dörfer halten und zurückgewinnen |
@@ -182,6 +182,21 @@ Malvor hält sich an dieselben Regeln wie der Spieler:
 
 Wege zum Sieg: das Kraftwerk vom Ufer aus zerstören und dann einfrieren, **oder** Malvor mit einem Leibeigenen auf
 dem Eis zum Tauen verleiten und den See wieder einfrieren, sobald das eigene Kraftwerk bereit ist.
+
+## Stimmigkeit (Durchsicht vom 14. Nov. 2026)
+
+Regeln, die beim Überarbeiten galten und für neue Zeilen weiter gelten:
+
+- **Niemand redet über etwas, das noch nicht geschehen ist.** Die Dorfälteste in Mission 1 hilft, weil Nelia davongelaufen
+  ist und ihr Dorf aufbaut – nicht, weil sie „Malvor die Stirn geboten“ hat (das Gespräch kann vor den Eintreibern liegen).
+- **Wer fort ist, spricht nicht mehr.** Tarans Ausfälle in Mission 4 befiehlt nach seinem Rückzug ein Wachposten; in
+  Mission 6 erklärt Taran Malvors leeres Kraftwerk, wenn Orrin schon verwundet am Ufer liegt.
+- **Jede Wendung hat einen Anlass.** Die drei Leibeigenen in Mission 1 hatten sich im Wald versteckt (das Dorf ist sonst
+  leer); Malvors Brandbefehl in Mission 5 nennt seinen Grund (Lieferungen bzw. die verweigerte Zacke); die Räuber in
+  Mission 2 verkaufen nicht an Malvor, weil er Räuber hängt.
+- **Ein Name je Sache:** Zacke, Wetterwerk (Hrimgars), Wetterkraftwerk (Gebäude). König Edrian ertrank, nicht die Königin.
+- **Erst erklären, dann brauchen:** Im Tutorial kommt „Mut machen“ vor dem Gefecht, nicht nach dem letzten Räuber.
+- Mission 6 endet mit Malvors letzten Worten, erst dann folgt die Nachgeschichte.
 
 ## Offene Punkte
 

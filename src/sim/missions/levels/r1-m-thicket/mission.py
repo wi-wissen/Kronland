@@ -27,7 +27,7 @@ def until_done(goal, solved, check, de, en):
         if objective_status(goal) == "done":
             break
         if solved() and check:
-            say("nelia", de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Wäldern?",
+            say(None, de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Wäldern?",
                          en="It worked here! Now press “Check” – does it work in the other forests too?")
         elif not solved():
             say("nelia", de=de, en=en)
@@ -68,12 +68,13 @@ def story():
         nelia.turn_to(CLEARING_FACE)
     camera.jump_to(place("view"))
     if world.stage is None:
-        say("nelia", de="Lindgrund liegt hinter dem Wald. Einen Weg gibt es nicht, nur Unterholz – und keine Magd, die mir ein Programm schreibt.",
-                     en="Lindgrund lies beyond the forest. There is no path, only undergrowth – and no maid to write me a program.")
+        say("nelia", de="Lindgrund liegt hinter dem Wald. Einen Weg gibt es nicht, nur Unterholz – und Hedda mit ihren Programmen ist in der Hütte geblieben. Dieses hier schreibe ich selbst.",
+                     en="Lindgrund lies beyond the forest. There is no path, only undergrowth – and Hedda with her programs stayed behind in the hut. This one I will write myself.")
     if first == 0:
         path()
     thicket()
-    say("stranger", de="Da kommt ja jemand aus dem Wald. Ich habe auf dich gewartet, Mädchen.",
-                    en="Someone is coming out of the forest. I have been waiting for you, girl.")
-    say("nelia", de="Auf mich? Wer bist du?", en="For me? Who are you?")
+    say("nelia", de="Lindgrund. Kein Rauch, kein Hund, der bellt.", en="Lindgrund. No smoke, no barking dog.")
+    say("stranger", de="He! Du da, die aus dem Wald kommt! Komm her zum Dorfplatz – ich beiße nicht, ich handle nur.",
+                    en="Hey! You there, coming out of the forest! Come over to the square – I don't bite, I only trade.")
+    say("nelia", de="Ein Händler? Hier wohnt doch keiner mehr.", en="A merchant? But nobody lives here any more.")
     victory()

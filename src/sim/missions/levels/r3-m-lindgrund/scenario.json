@@ -16,8 +16,8 @@
     "en": "The rumour of the lost princess brings the serfs back to Lindgrund. The village elder wants to rebuild the village, this time without a single mouse click. serfs() returns the list of serfs, piles_near(hq(), 12, \"wood\") the wood piles nearby, serf.work_on(…) sends one to work – at a pile or a construction site. find_spot(…) finds a building site, build(…) lays out the site, stock(\"wood\") shows the supply. Run restarts nothing here: what stands, stays."
   },
   "victoryText": {
-    "de": "Lindgrund steht wieder. Am Abend kommt ein Herold aus Morvale – und fragt nach der Prinzessin.",
-    "en": "Lindgrund stands again. In the evening a herald arrives from Morvale – and asks for the princess."
+    "de": "Lindgrund steht wieder. Und Orrin redet schon vom nächsten Geschäft: einem Markt in Beaucroix.",
+    "en": "Lindgrund stands again. And Orrin is already talking about the next deal: a market in Beaucroix."
   },
   "learn": {
     "de": ["Listen durchlaufen", "Funktionen mit Rückgabe", "Objekte und Methoden", "Warten mit wait_until"],

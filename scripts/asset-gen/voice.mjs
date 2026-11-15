@@ -27,7 +27,7 @@ const CAST_FILE = path.join(VOICE_DIR, 'cast.json');
 const roleDir = (role) => path.join(VOICE_DIR, role);
 const GAME_DIR = path.join(ROOT, 'public/audio/voice');
 /** Mission speakers without a voice of their own (example script mission) */
-const SPEAKER_ALIAS = { kunz: 'bandit', guard: 'collector' };
+const SPEAKER_ALIAS = { kunz: 'bandit', guard: 'collector', maid: 'serfF', hedda: 'serfF', ilse: 'villager', runaways: 'serf', woodcutter: 'miner', stranger: 'orrin' };
 const AUDITION_DIR = path.join(VOICE_DIR, 'audition');
 /** Target loudness (LUFS) and peak level of all recordings */
 export const LOUDNESS = 'loudnorm=I=-18:TP=-1.5:LRA=11';
@@ -35,13 +35,27 @@ export const LOUDNESS = 'loudnorm=I=-18:TP=-1.5:LRA=11';
 export const MAX_PAUSE = Number(process.env.VOICE_MAX_PAUSE ?? 0.8);
 /** Safety net for the pauses the model still makes: inner silences over 0.6 s end up at about 0.9 s (silenceremove leaves stop_duration + stop_silence), shorter ones stay as they are. */
 export const TRIM = 'silenceremove=stop_periods=-1:stop_duration=0.6:stop_threshold=-40dB:stop_silence=0.3';
-const TRIES = Number(process.env.VOICE_TRIES ?? 6);
+// Attempts per line. Three, not more: a line the model cannot speak cleanly in three attempts rarely succeeds in the
+// next nine, and every rejected attempt is paid for (a run with 6–12 attempts threw away four fifths of its audio).
+const TRIES = Number(process.env.VOICE_TRIES ?? 3);
+// Budget of one run: no new line is started once this many recordings were requested (VOICE_MAX_CALLS)
+const MAX_CALLS = Number(process.env.VOICE_MAX_CALLS ?? 150);
+// VOICE_STRICT=1: also reject recordings in which the checker hears background sounds
+const STRICT = process.env.VOICE_STRICT === '1';
+// Price per generated minute for the estimate at the end of a run (VOICE_PRICE, US dollars)
+const PRICE = Number(process.env.VOICE_PRICE ?? 0.15);
+/** What a run requested and what it kept: printed at the end, so the waste is visible. */
+export const usage = { calls: 0, seconds: 0, checks: 0, kept: 0, keptSeconds: 0 };
+const seconds = (file) => Number(spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { encoding: 'utf8' }).stdout) || 0;
+export const usageText = () => `${usage.calls} recordings requested (${(usage.seconds / 60).toFixed(1)} min, about $${(usage.seconds / 60 * PRICE).toFixed(2)} at $${PRICE}/min), `
+  + `${usage.checks} listening checks, ${usage.kept} kept (${(usage.keptSeconds / 60).toFixed(1)} min)`;
 const PARALLEL = Number(process.env.VOICE_PARALLEL ?? 5);
 
 const headers = () => ({ 'Content-Type': 'application/json', ...(process.env.OPENROUTER_API_KEY ? { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` } : {}) });
 export const cast = () => JSON.parse(fs.readFileSync(CAST_FILE, 'utf8'));
 
 async function speech(body) {
+  usage.calls++;
   const res = await fetch(`${API}/audio/speech`, { method: 'POST', headers: headers(), body: JSON.stringify({ model: TTS_MODEL, response_format: 'mp3', ...body }) });
   if (!res.ok) throw new Error(`TTS ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return Buffer.from(await res.arrayBuffer());
@@ -136,23 +150,28 @@ export const ffmpeg = (args) => { const r = spawnSync('ffmpeg', ['-loglevel', 'e
  */
 export async function speakChecked(make, text, wav, lang) {
   // attempts go into an intermediate file; the target file is only replaced on success (a good recording is kept).
-  // Recordings with long inner pauses are regenerated (except on the last attempt, where the trim is the remedy).
+  // Inner pauses are no reason to throw a recording away: the trim below shortens them. (Regenerating because of a
+  // pause discarded two of three paid attempts on 14 Nov 2026 – long lines almost always contain one.)
   const mp3 = `${wav}.src.mp3`, tmp = `${wav}.try.wav`;
   let last = { ok: false, tries: 0, heard: '', score: 0 };
   for (let i = 1; i <= TRIES; i++) {
     try {
       fs.writeFileSync(mp3, await make());
-      const gaps = innerPauses(mp3);
-      if (gaps.length && i < TRIES) { last = { ...last, tries: i, heard: `[pause ${Math.max(...gaps).toFixed(1)} s]` }; continue; }
+      const len = seconds(mp3);
+      usage.seconds += len;
       ffmpeg(['-i', mp3, '-af', `${TRIM},${LOUDNESS}`, '-ar', '24000', '-ac', '1', tmp]);
+      usage.checks++;
       const answer = await hear(tmp, lang);
       const noisy = answer.includes('[NOISE]');
       const heard = answer.replace('[NOISE]', '').trim();
       let score = similarity(heard, text);
       // The checker easily mishears short sentences ("Aye" → "I"): then ask specifically
       if (!noisy && score < 0.85 && words(text).length <= 3 && await confirms(tmp, text, lang)) score = 1;
-      last = { ok: score >= 0.85 && !noisy, tries: i, heard: noisy ? `[noise] ${heard}` : heard, score };
-      if (last.ok) { fs.renameSync(tmp, wav); break; }
+      // What counts is the wording. A background sound the checker reports does not reject a recording any more
+      // (decided 14 Nov 2026 after listening: flagged recordings were fine or had a faint click, and half of all
+      // attempts were thrown away for it). VOICE_STRICT=1 brings the old rule back.
+      last = { ok: score >= 0.85 && !(noisy && STRICT), tries: i, heard: noisy ? `[noise] ${heard}` : heard, score };
+      if (last.ok) { usage.kept++; usage.keptSeconds += len; fs.renameSync(tmp, wav); break; }
     } catch (e) {
       last = { ...last, tries: i, heard: String(e.message) };
     }
@@ -249,17 +268,18 @@ export async function collectLines() {
   const { missionLines } = await import(pathToFileURL(path.join(ROOT, 'src/sim/missions/dialogLines.js')).href);
   const { BARKS } = await import(pathToFileURL(path.join(ROOT, 'src/audio/barks.js')).href);
   const out = new Map(), skipped = new Set();
-  const add = (voice, text) => {
+  const add = (voice, text, mission = null) => {
     for (const lang of ['de', 'en']) {
       const t = text?.[lang];
       if (!t) continue;
       const key = lineKey(voice, lang, t);
-      if (!out.has(key)) out.set(key, { voice, lang, text: t, file: `${lang}/${voice}-${fnv(key)}.mp3` });
+      if (!out.has(key)) out.set(key, { voice, lang, text: t, file: `${lang}/${voice}-${fnv(key)}.mp3`, missions: new Set() });
+      if (mission) out.get(key).missions.add(mission);
     }
   };
   for (const l of missionLines()) {
     const voice = SPEAKER_ALIAS[l.speaker] ?? l.speaker;
-    if (c.roles[voice]) add(voice, l.text); else skipped.add(l.speaker);
+    if (c.roles[voice]) add(voice, l.text, l.mission); else skipped.add(l.speaker);
   }
   for (const [textRole, events] of Object.entries(BARKS)) {
     for (const voice of c.speakers?.[textRole] ?? [textRole]) for (const lines of Object.values(events)) lines.forEach((l) => add(voice, l));
@@ -267,14 +287,27 @@ export async function collectLines() {
   return { lines: [...out.values()], skipped: [...skipped] };
 }
 
-async function lines(only) {
+async function lines(args) {
+  // --campaign: only lines the campaign and the tutorial speak (the voice test demands exactly these) plus barks;
+  // --dry: only list what would be generated, no request is sent
+  const flags = new Set(args.filter((a) => a.startsWith('--'))), only = args.filter((a) => !a.startsWith('--'));
   const { lines: all, skipped } = await collectLines();
   if (skipped.length) console.log('Without voice:', skipped.join(', '));
-  const todo = all.filter((l) => (!only.length || only.includes(l.voice)) && !fs.existsSync(path.join(GAME_DIR, l.file)));
-  console.log(`${all.length} recordings, of which ${todo.length} to generate`);
+  let campaign = null;
+  if (flags.has('--campaign')) {
+    const { CAMPAIGN_LEVELS } = await import(pathToFileURL(path.join(ROOT, 'src/sim/missions/levels/index.js')).href);
+    campaign = new Set(CAMPAIGN_LEVELS.map((x) => x.id));
+  }
+  const wanted = (l) => !campaign || l.missions.size === 0 || [...l.missions].some((m) => campaign.has(m));
+  // Lines with program code in them (nelia.can_step(), "coin") cannot be spoken to match their text: the browser reads them
+  const speakable = (l) => !/\w\(\)|\w\.\w+\(|"\w+"/.test(l.text);
+  const todo = all.filter((l) => (!only.length || only.includes(l.voice)) && wanted(l) && speakable(l) && !fs.existsSync(path.join(GAME_DIR, l.file)));
+  console.log(`${all.length} recordings, of which ${todo.length} to generate (at most ${TRIES} attempts each, at most ${MAX_CALLS} requests in this run)`);
+  if (flags.has('--dry')) { for (const l of todo) console.log(`  ${l.voice} ${l.lang} [${[...l.missions].join(',') || 'bark'}] ${l.text}`); return; }
   const failed = [];
   let done = 0;
   await pool(todo.map((l) => async () => {
+    if (usage.calls >= MAX_CALLS) { failed.push({ ...l, why: 'budget of this run used up (VOICE_MAX_CALLS)' }); return; }
     const dir = roleDir(l.voice), ref = path.join(dir, 'voice.wav');
     if (!fs.existsSync(ref)) { failed.push({ ...l, why: 'no template' }); return; }
     const refText = JSON.parse(fs.readFileSync(path.join(dir, 'voice.json'), 'utf8')).text;
@@ -294,6 +327,7 @@ async function lines(only) {
   writeIndex(all);
   for (const f of failed) console.log(`ERROR ${f.voice} ${f.lang} "${f.text}": ${f.why}`);
   console.log(`done: ${done} new, ${failed.length} failed`);
+  console.log(usageText());
 }
 
 /**
@@ -343,5 +377,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   else if (cmd === 'lines') await lines(rest);
   else if (cmd === 'trim') await trim(rest);
   else if (cmd === 'pauses') await pauses(rest);
-  else console.log('Usage: node scripts/asset-gen/voice.mjs audition [role …] | pick <role> <nr> [source] | lines [role …] | trim [role …] | pauses [role …]');
+  else console.log('Usage: node scripts/asset-gen/voice.mjs audition [role …] | pick <role> <nr> [source] | lines [--campaign] [--dry] [role …] | trim [role …] | pauses [role …]');
 }

@@ -70,7 +70,7 @@ for x, y in [(1, 0), (5, 7), (8, 1), (2, 10), (9, 13), (15, 6), (21, 8), (14, 12
         free = False
     if x >= FOREST and x < FOREST + 3 and y <= BAND:
         free = False
-    if (x, y) == (2, 3) or (x, y) == (1, 2) or (x, y) == HUT or (x, y) == (HUT[0] + 1, HUT[1]):
+    if (x, y) == (2, 3) or (x, y) == (1, 2) or (x, y) == (1, 3) or (x, y) == HUT or (x, y) == (HUT[0] + 1, HUT[1]):
         free = False
     if free:
         add_tree(x, y)

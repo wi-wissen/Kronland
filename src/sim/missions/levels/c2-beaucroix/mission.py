@@ -48,6 +48,14 @@ def arrival():
                  en="That’s why we listen. At the market you learn everything – you just need something to trade.")
 
 
+# The market stands: Orrin says in one sentence how trading works (explain when it is needed)
+@on_objective("market", "done")
+def market_built(id, status):
+    if not traded:
+        say("orrin", de="Der Marktplatz steht! Wähl ihn aus und tausch, was wir übrig haben – Lehm und Stein gegen Taler.",
+                     en="The market stands! Select it and trade what we have to spare – clay and stone for thalers.")
+
+
 # ---------- Milestone: the first trade. Only now does Malvor's herald come – and with him the robbers' shard ----------
 
 @on_event("trade")
@@ -73,6 +81,11 @@ def first_trade(give, take, amount):
                  en="A thousand! The robbers in the river woods have such a piece, everyone here knows it. I’ll bid more – or you go and take it.")
     say("nelia", de="Verkaufen sie an Malvor, ist die Zacke verloren. Wenn wir sie holen müssen, brauchen wir Schwertkämpfer – eine Kaserne bildet sie aus.",
                  en="If they sell to Malvor, the shard is lost. If we have to take it, we need swordsmen – a barracks trains them.")
+    # The merchant now stands at the market of Beaucroix: the player learns why he waves
+    if merchant is not None:
+        reveal(place("townArea"), seconds=40)
+        say("orrin", de="Und der Kaufmann drüben in Beaucroix winkt nach mir. Dem schulde ich noch … eine Kleinigkeit. Ich sollte wohl hingehen.",
+                     en="And the merchant over in Beaucroix is waving at me. I still owe him … a trifle. I suppose I should go and see him.")
 
 
 # ---------- The merchant: Orrin sold him clay he never had ----------
@@ -123,15 +136,15 @@ def got_shard():
 @on_event("tribute", id="buyShard")
 def bought(id):
     got_shard()
-    say("bandit", de="Taler sind Taler. Nimm dein Blechstück, Händler.",
-                  en="Thalers are thalers. Take your bit of tin, merchant.")
+    say("bandit", de="Zu Malvor gehen? Der hängt Räuber, bevor er zahlt. Taler sind Taler – nimm dein Blechstück, Händler.",
+                  en="Go to Malvor? He hangs robbers before he pays. Thalers are thalers – take your bit of tin, merchant.")
 
 
 @on_event("tribute", id="buyShardCheap")
 def bought_cheap(id):
     got_shard()
-    say("bandit", de="Der Kaufmann bürgt für dich? Dann sei’s drum. Nimm dein Blechstück.",
-                  en="The merchant vouches for you? Fine then. Take your bit of tin.")
+    say("bandit", de="Der Kaufmann bürgt für dich? Bei dem stehen wir ohnehin in der Kreide. Nimm dein Blechstück.",
+                  en="The merchant vouches for you? We owe him anyway. Take your bit of tin.")
 
 
 @on_start

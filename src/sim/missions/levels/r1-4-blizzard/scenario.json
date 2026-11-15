@@ -7,16 +7,16 @@
   "order": 14,
   "title": { "de": "Im Schneetreiben", "en": "In the Blizzard" },
   "summary": {
-    "de": "Schleifen mit Bedingung: Wie weit ist es bis zum Waldrand? Ein Programm der Magd, ein Taler im Schnee und eine Spur durch alle Kurven.",
-    "en": "Loops with a condition: how far is it to the edge of the forest? A program from the maid, a coin in the snow and a track through every bend."
+    "de": "Schleifen mit Bedingung: Nelia sucht im Schneetreiben die Hütte der Geflohenen – bis zum Waldrand, zu einem Taler im Schnee und einer Spur nach durch alle Kurven.",
+    "en": "Loops with a condition: in the blizzard Nelia looks for the hut of the runaways – to the forest edge, to a coin in the snow and along a track through every bend."
   },
   "briefing": {
-    "de": "Schneetreiben. Eine Reise über ein Schneefeld in drei Etappen, mit einem Programm, das mitwächst: Niemand weiß, wie weit es bis zum Waldrand ist – „while nelia.can_step():“ läuft, solange vorn frei ist. Am Waldrand entlang liegt ein Taler im Schnee, von dort führt eine Spur zur Hütte. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Das Schneefeld gibt es in drei Welten (drei Karten) – „Prüfen“ zeigt, ob dein Programm auf allen klappt.",
-    "en": "Blizzard. A journey across a snow field in three stages, with a program that grows along: nobody knows how far it is to the edge of the forest – “while nelia.can_step():” runs as long as the way ahead is free. Along the forest edge lies a coin in the snow, from there a track leads to the hut. Run starts the stage over every time: think first, then run. The snow field comes in three worlds (three maps) – “Check” shows whether your program works on all of them."
+    "de": "Schneetreiben, und Ilse kann kaum noch laufen. Hinter dem Wald soll eine Hütte stehen, in der sich Geflohene aus dem Kornlager verstecken. Nelia geht voraus und sucht sie. Niemand weiß, wie weit es bis zum Waldrand ist – „while nelia.can_step():“ läuft, solange vorn frei ist. Am Waldrand entlang liegt ein Taler im Schnee, von dort führt eine Spur zur Hütte. Die drei Etappen sind eine Reise, und dein Programm wächst mit. Ausführen beginnt die Etappe jedes Mal von vorn: erst überlegen, dann ausführen. Das Schneefeld gibt es in drei Welten (drei Karten) – „Prüfen“ zeigt, ob dein Programm auf allen klappt.",
+    "en": "A blizzard, and Ilse can hardly walk any more. Beyond the forest there is said to be a hut where runaways from the granary are hiding. Nelia goes ahead to look for it. Nobody knows how far it is to the edge of the forest – “while nelia.can_step():” runs as long as the way ahead is free. Along the forest edge lies a coin in the snow, from there a track leads to the hut. The three stages are one journey, and your program grows along. Run starts the stage over every time: think first, then run. The snow field comes in three worlds (three maps) – “Check” shows whether your program works on all of them."
   },
   "victoryText": {
-    "de": "Die Geflohenen sind gefunden – gemeinsam geht es weiter nach Lindgrund.",
-    "en": "The runaways are found – together they go on to Lindgrund."
+    "de": "Die Hütte der Geflohenen ist gefunden, Hedda und Ilse kommen nach. Nur warm ist es dort nicht: Das Holz ist aus.",
+    "en": "The hut of the runaways is found, Hedda and Ilse follow. Only it is not warm there: the wood has run out."
   },
   "learn": {
     "de": ["while-Schleife mit Bedingung", "Zählen in der Schleife", "Vorhersagen", "Sensoren in der Bedingung"],

@@ -5,14 +5,19 @@ import { BUILDINGS } from '../../src/sim/data/buildings.js';
 import { P, act, build, gatherWood, idle, serfs, own, leaders, hero, until, attackMove, tileOf, stepId, ref, refIds, talkTo, objective, heroOf } from './missionBot.js';
 
 /** Play the tutorial from start to finish. @returns {{ sim, log: string[] }} */
-export function playTutorial(seed) {
-  const sim = createMissionSim('tutorial', seed ? { seed } : {});
+export function playTutorial(seed, o = {}) {
+  // o.sim: play on an existing game (e.g. the one running in the browser); o.stopAt: return when this step is reached
+  const sim = o.sim ?? createMissionSim('tutorial', seed ? { seed } : {});
   const m = sim.mission;
   const log = [];
+  class Stop extends Error {}
   const expectStep = (id) => {
     if (stepId(sim) !== id) throw new Error(`Expected step ${id}, is ${stepId(sim)} (tick ${sim.tick})`);
     log.push(id);
+    if (o.stopAt === id) throw new Stop();
   };
+  try { return run(); } catch (e) { if (e instanceof Stop) return { sim, log }; throw e; }
+  function run() {
   const waitStep = (id, max = 600) => {
     if (!until(sim, () => stepId(sim) !== id || m.state.result, max)) throw new Error(`Step ${id} hangs (tick ${sim.tick})`);
   };
@@ -70,19 +75,21 @@ export function playTutorial(seed) {
   expectStep('recruit');
   act(sim, { type: 'recruit', building: ref(sim, 'barracks'), line: 'sword', full: true });
   sim.step();
+  // the hero power comes first: rally, then attack while it lasts
+  expectStep('ability');
+  act(sim, { type: 'ability', hero: hero(sim).id, ability: 'courage' });
+  sim.step();
   expectStep('fight');
   const army = [...leaders(sim).map((l) => l.id), hero(sim).id];
   const foes = refIds(sim, 'bandits');
   const target = sim.entities.get(foes[0]);
   attackMove(sim, army, tileOf(target));
   waitStep('fight', 2500);
-  expectStep('ability');
-  act(sim, { type: 'ability', hero: hero(sim).id, ability: 'courage' });
-  sim.step();
   expectStep('end');
   act(sim, { type: 'mission', action: 'next' });
   log.push('result');
   return { sim, log };
+  }
 }
 
 /** Mission 1: put Nelia next to Orrin on the village square and send her to him (tap) until he has joined. */

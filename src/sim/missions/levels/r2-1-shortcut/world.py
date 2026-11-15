@@ -1,7 +1,7 @@
-# Eine Straße nach Osten, drei Wegstücke einer Reise: die Ruine mit ihren sechs Mauerresten (Etappen „predict“ und
-# „hedge“: je drei Umwege um die Mauern), dahinter die Straße bis zum Wald, auf der Orrins Taler verstreut liegen
-# (Etappe „coins“). Die Hecke wächst erst bei Etappe 2 (grow_hedge, mission.py) – ein Spielstart bei Etappe 2 oder 3
-# baut sie gleich mit.
+# Eine Straße nach Osten, drei Wegstücke einer Reise: die Ruine mit ihren sechs Trümmerhaufen (Etappen „predict“ und
+# „hedge“: je drei Schlenker um die Trümmer), dahinter die Straße bis zum Wald, auf der Orrins Taler verstreut liegen
+# (Etappe „coins“). Nördlich der zweiten Hälfte der Ruine steht von Anfang an eine Dornenhecke: Dort geht Orrins
+# Schlenker nur rechts herum.
 # Drei Welten (scenario.json "worlds"): die Ruine ist in jeder gleich, die Straße dahinter nicht. „Ganz nah“: kurzer
 # Weg bis zum Wald, Taler schon beim ersten Schritt auf beiden Seiten. „Weit weg“: langer Weg, Taler fast nur rechts, der
 # letzte ganz am Ende.
@@ -17,17 +17,21 @@ make_place("view_ruin", 10, ROAD, 6)
 make_place("view_road", 24, ROAD, 6)
 
 
-# Die Dornenhecke südlich der zweiten Hälfte der Ruine: versperrt den Umweg nach rechts (Süden)
-def grow_hedge():
-    for x in range(8, 15):
-        add_tree(x, ROAD + 1)
+# Die Dornenhecke nördlich der zweiten Hälfte der Ruine: versperrt den Schlenker nach links (Norden). Sie beginnt hinter
+# der Kachel, auf der der dritte Schlenker der ersten Etappe zurück auf die Straße biegt. Im Norden, weil die Kamera von
+# Süden schaut: Eine Hecke südlich der Straße verdeckte die Trümmer, um die es geht.
+HEDGE = range(9, 15)
+for x in HEDGE:
+    add_tree(x, ROAD - 1)
 
 
-# Die Ruine: sechs Mauerreste auf der Straße (zwischen ihnen je eine freie Kachel), ein paar Steine daneben
+# Die Ruine: sechs Trümmerhaufen auf der Straße (zwischen ihnen je eine freie Kachel), ein paar Balken daneben. Balken
+# der eingestürzten Häuser, nicht Steine: Braunes Holz hebt sich vom Schnee ab, verschneite Steinhaufen sieht man nicht.
+# Volle Haufen: Sie sind die Hindernisse der Aufgabe und müssen von oben gut zu sehen sein.
 for x in (3, 5, 7, 9, 11, 13):
-    add_pile("stone", x, ROAD, 60)
+    add_pile("wood", x, ROAD, 400)
 for x, y in [(4, 2), (10, 2), (6, 8), (12, 8), (16, 9)]:
-    add_pile("stone", x, y, 40)
+    add_pile("wood", x, y, 120)
 
 # Orrins Taler links (Norden) und rechts (Süden) von der Straße hinter der Ruine
 for x in COINS_LEFT:
@@ -48,8 +52,6 @@ for x, y in [(1, 0), (6, 1), (15, 0), (21, 2), (0, 8), (9, 9), (18, 8), (23, 1),
 
 # Spielstart: Nelia steht am Anfang der Straße; bei Etappe 2 und 3 schon dort, wo die vorige endet – im Weltaufbau
 # gesetzt, also vor dem ersten Takt und ohne Weg
-if world.stage == "hedge" or world.stage == "coins":
-    grow_hedge()
 if world.stage == "hedge":
     nelia.teleport((8, ROAD))
 if world.stage == "coins":

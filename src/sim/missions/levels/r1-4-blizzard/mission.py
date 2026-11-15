@@ -1,4 +1,4 @@
-# I.4 „Im Schneetreiben“: eine Reise über ein Schneefeld in drei Etappen (world.py), in drei Welten (drei Karten).
+# I.4 „Im Schneetreiben“ (Geschichte: Ilse ist erschöpft, Nelia sucht die Hütte der Geflohenen): eine Reise über ein Schneefeld in drei Etappen (world.py), in drei Welten (drei Karten).
 # Die Etappen sind aufeinanderfolgende Wegstücke: nach Osten bis zum Waldrand, am Waldrand nach Süden bis zum Taler,
 # vom Taler der Spur bis zur Hütte. Das Programm des Spielers bleibt und wächst; nichts wird geladen oder versetzt,
 # Nelia beginnt jede Etappe dort, wo die vorige endete (und wendet sich nur ins nächste Wegstück).
@@ -17,6 +17,7 @@ PROGRAM = "\n".join([
 ])
 
 npc("maid", look="serf", at=(1, 2), de="Magd Hedda", en="Hedda the maid")
+npc("ilse", look="serf", at=(1, 3), de="Magd Ilse", en="Ilse the maid")
 npc("runaways", look="serf", at=(HUT[0] + 1, HUT[1]), de="Geflohene", en="Runaways")
 
 
@@ -28,7 +29,7 @@ def until_checked(goal, solved, de, en):
         if objective_status(goal) == "done":
             break
         if solved():
-            say("nelia", de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Welten?",
+            say(None, de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Welten?",
                          en="It worked here! Now press “Check” – does it work in the other worlds too?")
         else:
             say("nelia", de=de, en=en)
@@ -52,12 +53,12 @@ def coin():
               de="Ändere das Programm: Nelia soll beim Taler stehen bleiben (nelia.here() == \"coin\") und ihn mit nelia.take() aufheben – in allen Welten (Prüfen).",
               en="Change the program: Nelia should stop on the coin (nelia.here() == \"coin\") and pick it up with nelia.take() – in every world (Check).")
     nelia.turn_to("south")
-    say("nelia", de="Da glitzert ein Taler im Schnee! Das Programm läuft aber immer weiter am Wald entlang …",
-                 en="A coin is glittering in the snow! But the program keeps walking along the forest …")
+    say("nelia", de="Da glitzert etwas im Schnee: ein Taler! Hier war also jemand. Das Programm läuft aber einfach daran vorbei, immer weiter am Wald entlang …",
+                 en="Something is glittering in the snow: a coin! So somebody has been here. But the program just walks past it, on and on along the forest …")
     until_checked("coin", lambda: len(items("coin")) == 0,
                   "Der Taler liegt noch im Schnee. Lauf, solange unter mir kein Taler liegt: while nelia.here() != \"coin\":",
                   "The coin is still lying in the snow. Walk as long as there is no coin under me: while nelia.here() != \"coin\":")
-    say("nelia", de="Hab ihn – in jeder Welt! Den bekommen die Geflohenen.", en="Got it – in every world! That one is for the runaways.", wait=False)
+    say("nelia", de="Hab ihn! Und gleich daneben: Fußspuren.", en="Got it! And right next to it: footprints.", wait=False)
     # Hat „Prüfen“ die Etappe gelöst, ohne dass Nelia ihn hier aufhob: track() lässt sie zu Fuß hingehen
     return len(items("coin")) > 0
 
@@ -72,15 +73,19 @@ def track(walk_to_coin):
         nelia.move_to(place("coin"))
         nelia.take()
     nelia.turn_to("south")
-    say("nelia", de="Spuren im Schnee – hier sind die Geflohenen entlang. Sie biegen mal links, mal rechts ab.",
-                 en="Tracks in the snow – the runaways came this way. They turn left, then right.")
+    say("nelia", de="So viele Füße – das müssen die Geflohenen sein. Die Spur biegt mal links ab, mal rechts.",
+                 en="So many feet – that must be the runaways. The track turns left, then right.")
     until_checked("hut", lambda: nelia.is_at(place("hut")),
                   "Hier endet mein Weg, aber nicht die Spur. Schau vorn, links und rechts nach \"track\".",
                   "My way ends here, but the track does not. Look ahead, left and right for \"track\".")
     if not nelia.is_at(place("hut")):
         nelia.move_to(place("hut"))
-    say("runaways", de="Nelia! Wir dachten schon, die Eintreiber hätten dich erwischt.",
-                    en="Nelia! We thought the collectors had caught you.")
+    say("runaways", de="Nelia? Die Tochter vom Holzfäller aus Lindgrund! Wir dachten, du schuftest noch im Kornlager.",
+                    en="Nelia? The woodcutter's daughter from Lindgrund! We thought you were still slaving away in the granary.")
+    say("nelia", de="Nicht mehr. Draußen im Schnee warten Hedda und Ilse – habt ihr Platz für drei?",
+                 en="Not any more. Hedda and Ilse are waiting out in the snow – do you have room for three?")
+    say("runaways", de="Platz schon. Nur kein Holz mehr für den Ofen.",
+                    en="Room, yes. Just no wood left for the stove.")
 
 
 @on_start
@@ -90,8 +95,8 @@ def story():
     camera.jump_to(place("view"))
     if first == 0:
         if world.stage is None:
-            say("maid", de="Nimm mein Programm, Nelia. Es bringt dich bis zum Waldrand – aber wie weit ist das?",
-                        en="Take my program, Nelia. It takes you to the forest edge – but how far is that?")
+            say("maid", de="Ilse kann nicht mehr, ich bleibe bei ihr. Hinter dem Wald soll eine Hütte sein, in der sich Geflohene verstecken – such sie, Nelia! Mein Programm bringt dich bis zum Waldrand. Aber wie weit ist das?",
+                        en="Ilse cannot go on, I will stay with her. Beyond the forest there is said to be a hut where runaways are hiding – find it, Nelia! My program takes you to the forest edge. But how far is that?")
         program.load(PROGRAM)
         predict()
     late = False

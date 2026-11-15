@@ -173,6 +173,15 @@ step("recruit",
      en="Bandits have been sighted! A barracks is ready. Select it and recruit a full unit of swordsmen.",
      hint={"ui": "recruit-full-sword", "entity": barracks})
 
+# First the hero power, then the bandits: Nelia rallies the new troop while the bandits are still on their way, so the
+# boost (one minute) is running when they arrive – and the fight is the player's, not over before the card is read.
+step("ability",
+     until=after("ability"),
+     title={"de": "Heldenkraft", "en": "Hero power"},
+     de="Die Räuber sind gleich da. Helden haben besondere Fähigkeiten: Wähle Nelia und nutze „Mut machen“ – eine Minute lang kämpfen Truppen in ihrer Nähe doppelt so stark.",
+     en="The bandits will be here any moment. Heroes have special abilities: select Nelia and use “Rally” – for a minute, troops near her fight twice as hard.",
+     hint={"ui": "ability-courage", "entity": nelia})
+
 bandits = spawn(BANDITS, "sword1", place("banditSpot"), soldiers=2)
 say("bandit", de="He, Bauer! Dein Holz gehört jetzt uns!",
               en="Hey, farmer! Your timber belongs to us now!", wait=False)
@@ -187,13 +196,6 @@ step("fight",
      en="There they are! Select your troop and Nelia, then right-click the bandits.",
      touch={"de": "Da sind sie! Wähle deine Truppe und Nelia und tippe auf die Räuber.", "en": "There they are! Select your troop and Nelia, then tap the bandits."},
      hint={"entity": leader})
-
-step("ability",
-     until=after("ability"),
-     title={"de": "Heldenkraft", "en": "Hero power"},
-     de="Helden haben besondere Fähigkeiten. Wähle Nelia und nutze „Mut machen“: Truppen in ihrer Nähe kämpfen eine Weile doppelt so stark.",
-     en="Heroes have special abilities. Select Nelia and use “Rally”: troops near her fight twice as hard for a while.",
-     hint={"ui": "ability-courage", "entity": nelia})
 
 say("orrin", de="Na bitte! Ich sage es ja immer: Mit dem richtigen Lehrer wird aus jedem Holzklotz ein Fürst.",
              en="There you go! I always say: with the right teacher, every blockhead becomes a lord.", wait=False)

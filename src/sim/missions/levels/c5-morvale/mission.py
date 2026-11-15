@@ -155,8 +155,13 @@ def the_order():
     show_objective("drive")
     if "moorbrookArea" in places():
         camera.jump_to(place("moorbrookArea"))
-    say("herald", de="Hauptmann Taran! Befehl des Statthalters: Brennt die Höfe von Moorbrook nieder. Wer nicht gehorcht, soll hungern.",
-                  en="Captain Taran! The governor’s order: burn Moorbrook’s farms. Whoever disobeys shall starve.")
+    # Why now: the villages take gifts from Nelia – or, if nothing was delivered, they still keep the shard
+    if delivered:
+        say("herald", de="Hauptmann Taran! Die Dörfer nehmen Geschenke von der Leibeigenen. Befehl des Statthalters: Brennt die Höfe von Moorbrook nieder. Wer nicht gehorcht, soll hungern.",
+                      en="Captain Taran! The villages are taking gifts from the serf girl. The governor’s order: burn Moorbrook’s farms. Whoever disobeys shall starve.")
+    else:
+        say("herald", de="Hauptmann Taran! Die Dörfer geben die Zacke nicht heraus. Befehl des Statthalters: Brennt die Höfe von Moorbrook nieder. Wer nicht gehorcht, soll hungern.",
+                      en="Captain Taran! The villages will not hand over the shard. The governor’s order: burn Moorbrook’s farms. Whoever disobeys shall starve.")
     say("taran", de="… Nein. Ich habe ein Dorf verhungern sehen. Meine Schwester war sieben. Ich zünde kein Korn an.",
                  en="… No. I watched a village starve. My sister was seven. I will not burn grain.")
     say("taran", de="Wer mit mir geht, kommt mit. Die Leibeigene weiß wenigstens, was Hunger ist.",
@@ -170,7 +175,8 @@ def the_order():
 
 def reinforce():
     global loyalists
-    if "taranCamp" not in places():
+    # No reinforcements once Malvor's troops have been driven off: the objective is done and stays done
+    if driven or "taranCamp" not in places():
         return
     wave = spawn(BANDITS, "sword1", place("taranCamp"), count=2, soldiers=4)
     loyalists = loyalists + wave

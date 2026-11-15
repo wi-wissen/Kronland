@@ -51,7 +51,7 @@ describe('Campaign: setup and texts', () => {
     expect(texts[find + 1]).toMatch(/^Bei allen Märkten/);
     expect(texts.at(-1)).toMatch(/^Holz zuerst/);
     // the three serfs come back with the cheering villager (after the princess is proclaimed)
-    expect(at).toMatch(/^Die Prinzessin!/);
+    expect(at).toMatch(/^Eine Prinzessin\?/);
     // every line is a script line: the dialogue box shows it for its time (dur), lines of a conversation never mix
     expect(sim.mission.state.messages.slice(-12).every((m) => m.dur > 0)).toBe(true);
   });
@@ -177,4 +177,25 @@ describe('Campaign with bot', () => {
     expect(report.won).toBe(false);
     expect(report.reason).toBe('hq');
   }, 180000);
+});
+
+describe('Mission 3: the escape from the thaw is not a coin toss', () => {
+  // The interceptors used to cross the lake; heroes waiting safely on the bank walked towards them on their own,
+  // back onto the ice, and the mission was lost with "ice" although the player had done everything right. A bot
+  // that starts a few seconds late lost two of six games that way.
+  it('the interceptors come from the land side and the bot wins whenever it starts', async () => {
+    const { MissionBot } = await import('./missionBot.js');
+    for (const delay of [0, 37, 100]) {
+      const sim = createMissionSim('c3');
+      for (let i = 0; i < delay; i++) sim.step();
+      const bot = new MissionBot(sim, {});
+      for (let i = 0; i < 12000 && !sim.mission.state.result; i++) { bot.update(); sim.step(); }
+      expect(sim.mission.state.result, `start after ${delay} ticks`).toMatchObject({ won: true });
+    }
+    // The spawn spot of the interceptors is firm ground beyond the landing, seen from the island
+    const sim = createMissionSim('c3');
+    const places = sim.mission.script.state.places;
+    const d2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+    expect(d2(places.ruinsArea, places.isle)).toBeGreaterThan(d2(places.landing, places.isle));
+  });
 });
