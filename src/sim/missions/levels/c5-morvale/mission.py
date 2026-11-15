@@ -130,6 +130,18 @@ def alderfarm_supplied(id):
                  en="Seed from a serf. No king ever sent us that.")
 
 
+# Thalers for the deliveries: taxes alone are slow. If the purse is still too light for Alderfarm four minutes after the
+# herald, Orrin names the way out once (a market: stone for thalers) – otherwise a player may wait twenty minutes.
+@on_start
+def short_of_money():
+    wait_until(lambda: herald_at is not None and time() >= herald_at + 240)
+    wait_until(lambda: diplomacy(HUMAN, player("alderfarm")) == "allied" or stock("gold") < 300)
+    if diplomacy(HUMAN, player("alderfarm")) == "allied":
+        return
+    say("orrin", de="Für Erlenhof fehlen uns Taler, und die Steuern kommen zu langsam. Bau ein Lager zum Marktplatz aus und tausch dort Stein gegen Taler.",
+                 en="We are short of thalers for Alderfarm, and taxes come in too slowly. Upgrade a storehouse to a market and trade stone for thalers there.")
+
+
 # ---------- Malvor's order: Taran refuses and defects ----------
 
 def taran_defects():

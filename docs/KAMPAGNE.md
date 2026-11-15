@@ -197,6 +197,10 @@ Regeln, die beim Überarbeiten galten und für neue Zeilen weiter gelten:
 - **Ein Name je Sache:** Zacke, Wetterwerk (Hrimgars), Wetterkraftwerk (Gebäude). König Edrian ertrank, nicht die Königin.
 - **Erst erklären, dann brauchen:** Im Tutorial kommt „Mut machen“ vor dem Gefecht, nicht nach dem letzten Räuber.
 - Mission 6 endet mit Malvors letzten Worten, erst dann folgt die Nachgeschichte.
+- **Zwei Schritte, zwei Sätze:** In Mission 2 sagt Orrin, sobald das Lager steht, dass der Marktplatz dessen Ausbau ist,
+  und sobald der Marktplatz steht, wie man tauscht.
+- **Kein stilles Warten:** In Mission 5 nennt Orrin den Marktplatz (Stein gegen Taler), wenn vier Minuten nach dem Herold
+  die Taler für Erlenhof fehlen – Steuern allein bringen sie erst nach vielen Zahltagen.
 
 ## Offene Punkte
 

@@ -371,6 +371,8 @@ Kursmissionen mitnahm):
   Lange Zeilen haben fast immer eine Pause, das Neuerzeugen warf zwei von drei bezahlten Versuchen weg.
 - Zeilen mit Programmcode (`nelia.can_step()`, `"coin"`) werden nicht vertont – gesprochen stimmen sie nie mit dem Text
   überein; der Browser liest sie vor.
+- Aufnahmen, die keine Zeile mehr benutzt (umformulierte Sätze), stehen nicht im Index und werden aus `public/audio/voice/`
+  entfernt – sonst liefert das Spiel sie weiter aus.
 - Nebenfiguren ohne eigene Stimme leihen sich eine vorhandene Rolle (`SPEAKER_VOICE` in `src/audio/voiceLines.js`,
   dieselbe Tabelle in `voice.mjs`): Kunz den Räuber, Wachen den Eintreiber, die Mägde der Kursmissionen die Leibeigene,
   Ilse die Dorfbewohnerin, die Geflohenen den Leibeigenen, der Holzfäller den Bergmeister, der Fremde Orrin.

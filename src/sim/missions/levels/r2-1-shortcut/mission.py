@@ -82,8 +82,10 @@ def coins(fly):
             say(None, de="Hier hat es geklappt! Drück jetzt „Prüfen“ – klappt es auch in den anderen Welten?",
                          en="It worked here! Now press “Check” – does it work in the other worlds too?")
         else:
-            say("nelia", de="Es liegen noch Taler neben dem Weg. Schau bei jedem Schritt mit nelia.left() und nelia.right() nach \"coin\".",
-                         en="There are still coins beside the path. At every step look with nelia.left() and nelia.right() for \"coin\".")
+            say("nelia", de="Es liegen noch Taler neben dem Weg. Schau bei jedem Schritt nach links und nach rechts.",
+                         en="There are still coins beside the path. Look left and right at every step.")
+            say(None, de="Tipp: nelia.left() und nelia.right() sagen \"coin\", wenn dort ein Taler liegt.",
+                      en="Tip: nelia.left() and nelia.right() say \"coin\" when a coin lies there.")
     program.stop()
     # Hat „Prüfen“ die Etappe gelöst, ohne dass Nelia hier alle einsammelte: Orrin holt die übrigen selbst
     if len(items("coin")) > 0:
