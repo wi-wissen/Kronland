@@ -32,12 +32,14 @@ export function teamMaterial(src, owner) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform vec3 uTeam;
+float kTeamW; // weight of the player colour, also read by the snow cover (snow.js)
 ${MARKER_PARS}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
 {
   float w = charMarker(diffuseColor.rgb);
   float v = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
   diffuseColor.rgb = mix(diffuseColor.rgb, uTeam * clamp(v / 0.75, 0.45, 1.6), w);
+  kTeamW = w;
 }`);
   };
   m.customProgramCacheKey = () => 'kr-bld-team';

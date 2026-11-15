@@ -95,7 +95,9 @@ export default {
 </script>
 
 <style>
+/* shrinks when offers and a long dialog line fill the column, but the header (title, count) always stays */
 .objpanel { padding: 0; overflow: hidden; display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; }
+.objpanel:not(.chip) { min-height: var(--touch); }
 .op-head {
   display: flex; align-items: center; gap: 0.5rem; width: 100%; border: none; border-radius: 0; box-shadow: none;
   background: transparent; padding: 0.375rem 0.75rem; min-height: var(--touch); text-align: left;

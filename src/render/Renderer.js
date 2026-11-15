@@ -38,6 +38,7 @@ import { sharedTerrainTextures } from './textures.js';
 import { sharedNatureTextures } from './naturetex.js';
 import { HintMarker, NpcMarks } from './hints.js';
 import { FogOfWar, patchFog, patchFogTree } from './fog.js';
+import { snowObject, snowUniforms, snowMaterials, setSnowMelt, settleSnow } from './snow.js';
 import { TrackLayer } from './ground.js';
 import { ItemLayer, itemScale } from './items.js';
 import { TileGrid, overviewDist } from './grid.js';
@@ -88,6 +89,8 @@ export class Renderer {
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.3, 700);
     this.env = new Environment(this.renderer, this.scene, q);
     this.sun = this.env.sun;
+    /** Snow on buildings (snow.js; shared by all renderers, read by tests) */
+    this.snowUniforms = snowUniforms;
     /** Shared uniforms of nature (wind, snow) */
     this.natureUniforms = opts.from?.natureUniforms ?? { uTime: { value: 0 }, uSnow: { value: 0 } };
     /**
@@ -202,7 +205,7 @@ export class Renderer {
     });
     if (successor) {
       // Keep what other worlds use as well: shared models/materials/textures and everything the successor holds
-      const keep = new Set([...sharedModelMaterials(), ...sharedMarkerMaterials(), ...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), this.arrowMat, this.ballGeo, this.arrowGeo, this.boomGeo]);
+      const keep = new Set([...sharedModelMaterials(), ...snowMaterials, ...sharedMarkerMaterials(), ...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), this.arrowMat, this.ballGeo, this.arrowGeo, this.boomGeo]);
       collectHeld([...sharedAssetRoots(), ...sharedCharacterRoots(), successor.scene], keep);
       for (const x of keep) seen.add(x);
       freeTree(this.scene);
@@ -221,7 +224,7 @@ export class Renderer {
     // material and texture. If they stay, the
     // cache holds on to the old renderer including context, canvas, UI and simulation.
     for (const root of [...sharedAssetRoots(), ...sharedCharacterRoots(), this.ghost]) freeTree(root);
-    for (const m of [...sharedModelMaterials(), ...sharedMarkerMaterials(), this.arrowMat].filter(Boolean)) freeMaterial(m);
+    for (const m of [...sharedModelMaterials(), ...snowMaterials, ...sharedMarkerMaterials(), this.arrowMat].filter(Boolean)) freeMaterial(m);
     for (const x of [...sharedTerrainTextures(), ...sharedNatureTextures(), sharedPuffTexture(), this.ballGeo, this.arrowGeo, this.boomGeo]) free(x);
     this.env?.dispose?.();
     this.fog?.dispose();
@@ -263,7 +266,7 @@ export class Renderer {
       // (not for a taken-over WebGL renderer: its programs of these models exist already)
       const extras = new THREE.Group();
       if (!this.adopted) for (const make of [() => campfireModel(), () => scaffold(3, 3), () => constructionStage(0, 2.6, 2.6), () => constructionStage(1, 2.6, 2.6), () => constructionStage(2, 2.6, 2.6), () => ruinModel(3, 3, 'residence')]) {
-        try { const g = make(); if (g) { patchFogTree(g); extras.add(g); } } catch { /* model missing: then later */ }
+        try { const g = make(); if (g) { snowObject(g); patchFogTree(g); extras.add(g); } } catch { /* model missing: then later */ }
       }
       extras.position.copy(this.rig.target ?? new THREE.Vector3());
       this.scene.add(extras);
@@ -718,6 +721,7 @@ export class Renderer {
     const g = ruin ?? spotMarker();
     if (!ruin) g.userData.pending = true;
     g.position.set(s.x + 2, this.terrain.rectHeight(s.x, s.y, 4, 4) - (ruin ? 0 : 0.1), s.y + 2);
+    if (ruin) snowObject(g);
     patchFogTree(g);
     return g;
   }
@@ -827,7 +831,7 @@ export class Renderer {
         }
       }
       else if (ev.type === 'explosion') { if (fog.visibleAt(ev.x / UNIT, ev.y / UNIT)) this.addExplosion(ev.x / UNIT, ev.y / UNIT); }
-      else if (ev.type === 'weather') this.applyWeather(ev.state);
+      else if (ev.type === 'weather') this.applyWeather(ev.state, true);
       else if (ev.type === 'killed') this.onKilled(ev);
       else if (ev.type === 'buildingDestroyed' || ev.type === 'demolished') this.onBuildingGone(ev);
       else if (ev.type === 'buildingDone') this.onBuildingDone(ev);
@@ -868,7 +872,16 @@ export class Renderer {
         const r = ruinModel(e.w, e.h, e.type);
         r.position.set(cx, y, cz);
         r.rotation.y = (ev.building % 4) * (Math.PI / 2);
-        r.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; } });
+        snowObject(r);
+        r.traverse((m) => {
+          if (!m.isMesh) return;
+          const src = m.material;
+          m.material = src.clone();
+          // clone() does not take over the shader additions (painted texture, snow): take them along
+          m.material.onBeforeCompile = src.onBeforeCompile;
+          m.material.customProgramCacheKey = src.customProgramCacheKey;
+          m.material.transparent = true;
+        });
         patchFogTree(r);
         this.scene.add(r);
         this.ruins.push({ g: r, t: 0, x: cx, y, z: cz, w: e.w });
@@ -1020,6 +1033,7 @@ export class Renderer {
     this.syncTerrain();
     this.syncGround();
     this.natureUniforms.uTime.value = this.time;
+    snowUniforms.uBldSnow.value = settleSnow(snowUniforms.uBldSnow.value, this.snowTarget ?? 0, realDt);
     this.water.update(this.time);
     for (const m of this.markers) {
       const b = m.g.getObjectByName('banner');
@@ -1198,6 +1212,7 @@ export class Renderer {
       const cp = CHIMNEY[e.type];
       g.userData.chimney = cp ? new THREE.Vector3(cp[0] * e.w / 2, cp[1] * g.userData.height, cp[2] * e.h / 2) : null;
       g.traverse((m) => { m.userData.entity = e.id; });
+      snowObject(g);
       patchFogTree(g);
       this.scene.add(g);
       this.buildings.set(e.id, g);
@@ -1322,6 +1337,7 @@ export class Renderer {
         if (l.model !== 'ruin' || !BUILDINGS[l.building]) continue;
         const { w, h } = BUILDINGS[l.building];
         const mesh = ruinModel(w, h, l.building);
+        snowObject(mesh);
         patchFogTree(mesh);
         const x = l.at.x + w / 2, z = l.at.y + h / 2;
         mesh.position.set(x, this.footY(l.at.x, l.at.y, w, h), z);
@@ -1344,6 +1360,7 @@ export class Renderer {
     const w = e.w ?? 3, h = e.h ?? 3;
     const g = ruinModel(w, h, e.type);
     g.position.set(e.x + w / 2, this.footY(e.x, e.y, w, h), e.y + h / 2);
+    snowObject(g);
     patchFogTree(g);
     this.scene.add(g);
     m.set(e.id, g);
@@ -1621,10 +1638,16 @@ export class Renderer {
     }
   }
 
-  /** Make weather visible: rain as falling streaks, winter with snow on terrain, trees and ice. */
-  applyWeather(state) {
+  /**
+   * Make weather visible: rain as falling streaks, winter with snow on terrain, trees, buildings and ice.
+   * @param {string} state @param {boolean} [settle] change in the running game: snow on buildings fades in/out
+   */
+  applyWeather(state, settle = false) {
     if (this.rain) { this.scene.remove(this.rain); this.rain.geometry.dispose(); this.rain = null; }
     const snow = state === 'winter';
+    // buildings: the snow settles and thaws over a few seconds when the weather changes in the running game
+    this.snowTarget = snow ? 1 : 0;
+    if (!settle) snowUniforms.uBldSnow.value = this.snowTarget;
     this.weather = state;
     this.grid?.setSnow(snow);
     this.env.setMood(state);
@@ -1992,6 +2015,7 @@ function scorch(g, char, burning, time) {
   const dark = 1 - char * 0.6;
   for (const { m, c, e } of s.mats) {
     m.color.copy(c).lerp(SOOT, char * 0.35).multiplyScalar(dark);
+    setSnowMelt(m, char * 1.5); // the fire thaws the roof
     if (m.emissive) { m.emissive.copy(e ?? new THREE.Color(0)); if (glow > 0) m.emissive.add(new THREE.Color(0xff5a10).multiplyScalar(glow)); }
   }
 }

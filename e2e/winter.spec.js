@@ -2,6 +2,7 @@ import { test, expect } from './fixtures.js';
 import { playUrl } from './paths.js';
 
 // Ice in winter: stands still (no waves) and is blue - easy to tell apart from snow.
+// Buildings carry snow on roofs and wall tops (src/render/snow.js).
 
 /** Read a section in the middle of the picture right after a frame: mean colour and pixels to compare. */
 const grab = (page) => page.evaluate(() => new Promise((res) => requestAnimationFrame(() => {
@@ -90,5 +91,46 @@ test('Trees in winter: deciduous bare, conifers snowy - swap without rebuild', a
   await page.screenshot({ path: `test-results/trees-winter-${info.project.name}.png`, timeout: 90_000 });
   await page.evaluate(() => window.__kronland.renderer.applyWeather('summer'));
   expect((await state()).every((s) => !s.winter)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('Buildings in winter: snow on roofs and wall tops, settles and thaws', async ({ page }, info) => {
+  test.setTimeout(180_000);
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(playUrl('?seed=42&fog=off'));
+  await page.waitForFunction(() => window.__kronland?.renderer?.buildings?.size > 0 && window.__kronland.renderer.frameNo > 2);
+  const snow = () => page.evaluate(() => window.__kronland.renderer.snowUniforms.uBldSnow.value);
+  expect(await snow()).toBe(0);
+  // the castle fills the middle of the picture
+  await page.evaluate(() => {
+    const e = window.__kronland, hq = e.sim.findBuilding(0, 'headquarters'), r = e.renderer;
+    r.rig.lookAt(hq.x + hq.w / 2, hq.y + hq.h / 2); r.rig.dist = 9; r.rig.update(0);
+    r.applyWeather('winter');
+  });
+  // set directly (loaded game, test): full snow at once
+  expect(await snow()).toBe(1);
+  await page.waitForFunction(() => !window.__kronland.renderer.env.envDirty, null, { timeout: 90_000 });
+  await page.waitForTimeout(500);
+  const withSnow = await grab(page);
+  await page.screenshot({ path: `test-results/buildings-winter-${info.project.name}.png`, timeout: 90_000 });
+  // same winter picture without the snow on the building
+  await page.evaluate(() => { const r = window.__kronland.renderer; r.snowTarget = 0; r.snowUniforms.uBldSnow.value = 0; });
+  const bare = await grab(page);
+  let whiter = 0;
+  for (let i = 0; i < bare.px.length; i += 4) {
+    if (withSnow.px[i] + withSnow.px[i + 1] + withSnow.px[i + 2] - bare.px[i] - bare.px[i + 1] - bare.px[i + 2] > 90) whiter++;
+  }
+  // ledges and wall tops are white, the walls (most of the picture) stay as they are
+  const part = whiter / (bare.px.length / 4);
+  expect(part).toBeGreaterThan(0.02);
+  expect(part).toBeLessThan(0.5);
+  // change of weather in the running game: the snow settles over a few seconds and thaws again
+  await page.evaluate(() => window.__kronland.renderer.applyWeather('winter', true));
+  expect(await snow()).toBeLessThan(1);
+  await expect.poll(snow, { timeout: 60_000 }).toBe(1);
+  await page.evaluate(() => window.__kronland.renderer.applyWeather('summer', true));
+  expect(await snow()).toBeGreaterThan(0);
+  await expect.poll(snow, { timeout: 60_000 }).toBe(0);
   expect(errors).toEqual([]);
 });
