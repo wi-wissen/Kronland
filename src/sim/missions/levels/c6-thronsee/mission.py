@@ -91,6 +91,13 @@ def army(id, status):
                  en="Good people. They know what they fight for.")
 
 
+# Our plant stands: Orrin says in one sentence how it is used (explain when it is needed)
+@on_objective("plant", "done")
+def plant_built(id, status):
+    say("orrin", de="Das Kraftwerk steht! Jetzt laden es die Wettertechniker auf. Ist es voll, wähl es aus und ruf den Winter.",
+                 en="The plant stands! Now the weather technicians charge it. Once it is full, select it and call the winter.")
+
+
 # ---------- Winter on the lake ----------
 
 @on_start
@@ -98,10 +105,15 @@ def lake_frozen():
     global frozen
     wait_until(lambda: weather() == "winter")
     frozen = True
-    say("taran", de="Der See trägt. Aber seht auf Malvors Kraftwerk: Solange es geladen ist, taut er, sobald wir auf dem Eis stehen.",
-                 en="The lake holds. But watch Malvor’s plant: as long as it is charged, he will thaw as soon as we stand on the ice.")
-    say("nelia", de="Dann locken wir ihn – oder wir schießen sein Kraftwerk vom Ufer aus zusammen.",
-                 en="Then we lure him – or we shoot his plant to pieces from the shore.")
+    # Taran only warns of Malvor's plant while it still stands
+    if plant_up():
+        say("taran", de="Der See trägt. Aber seht auf Malvors Kraftwerk: Solange es geladen ist, taut er, sobald wir auf dem Eis stehen.",
+                     en="The lake holds. But watch Malvor’s plant: as long as it is charged, he will thaw as soon as we stand on the ice.")
+        say("nelia", de="Dann locken wir ihn – oder wir schießen sein Kraftwerk vom Ufer aus zusammen.",
+                     en="Then we lure him – or we shoot his plant to pieces from the shore.")
+    else:
+        say("taran", de="Der See trägt, und Malvors Kraftwerk liegt in Trümmern. Jetzt hält uns nichts mehr auf.",
+                     en="The lake holds, and Malvor’s plant lies in ruins. Nothing can stop us now.")
 
 
 # Fixed scene: Orrin is hit in the assault on the island – carried off the ice wounded, out of the game
