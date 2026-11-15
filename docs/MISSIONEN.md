@@ -303,6 +303,19 @@ Mission 4 schwankt stark je Karte: Auf 24 weiteren Karten gewinnt der Bot 22-mal
   11–18 Kacheln, ohne Gebäude zu fluten). Malvor taut, sobald jemand auf dem Eis steht (geprüft in jedem Takt).
 - **Mission 3:** Die Wachen am Werk (2 Schwert-, 1 Bogentrupp) und der Alarm (2 Schwerttrupps) schaffen drei
   Trupps nur mit beiden Helden; stärkere Wachen ließen den Bot ohne Helden scheitern und mit Helden sterben.
+- **Mission 3, Flucht:** Die Abfangtrupps nach dem Fall des Werks kommen von der Landseite (Ruinen), nicht über den
+  See. Wartende Helden gehen Angreifern von selbst entgegen; kamen diese übers Eis, liefen die Helden zurück aufs Eis und
+  die Mission ging mit „ice“ verloren, obwohl man alles richtig gemacht hatte (der Bot verlor so zwei von sechs Spielen,
+  sobald er ein paar Sekunden später anfing). Probe dafür: Bot mit Startverzögerung (`tests/sim/campaign.test.js`).
+- **Probe „später Start“:** Ein Kapitel, das der Bot nur gewinnt, wenn er im ersten Takt beginnt, hängt an einem Zufall.
+  Alle sechs Kapitel gewinnt er auch mit 37, 100 und 250 Takten Verzögerung.
+- **Mission 5:** Wer seine Taler anderswo ausgibt, wartet lange auf die 300 Taler für Erlenhof (nur Steuern bringen
+  Geld) – der Marktplatz (Stein gegen Taler) ist der Ausweg. Verstärkung kommt nicht mehr, wenn Malvors Truppen schon
+  vertrieben sind (das Ziel bliebe sonst erfüllt, während neue Gegner anrücken).
+- **Mission 6:** Malvor kündigt seine Garde einmal an, die weiteren Wellen kommen ohne Spruch.
+- **Im Spiel ansehen:** Der Test-Bot lässt sich im Entwicklungsserver in das laufende Spiel hängen
+  (`import('/tests/sim/missionBot.js')`, `bot.update()` vor jedem `sim.step`) – so sieht man eine Mission mit allen
+  Dialogen und Kamerafahrten, ohne sie von Hand zu spielen.
 - **Lagerwachen** bekommen nur dann einen neuen Angriffsbefehl, wenn sie gerade keinen Gegner im Visier haben.
 - **Zeitpunkte:** Wellen und Ausfälle rechnen von einem festen Zeitpunkt aus (`wait_until(lambda: time() >= …)`),
   nicht ab dem Ende der Zeilen davor – sonst verschöbe jede Dialogzeile den Rhythmus.
