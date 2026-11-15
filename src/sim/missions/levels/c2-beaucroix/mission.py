@@ -48,6 +48,20 @@ def arrival():
                  en="That’s why we listen. At the market you learn everything – you just need something to trade.")
 
 
+# The storehouse stands: the market is its upgrade – said once, when it is needed
+storehouse_said = False
+
+
+@on_building_done("storehouse")
+def storehouse_built(building):
+    global storehouse_said
+    if storehouse_said or count("storehouse", level=1) >= 1:
+        return
+    storehouse_said = True
+    say("orrin", de="Das Lager steht. Wähl es aus und bau es zum Marktplatz aus – der Ausbau läuft von selbst.",
+                 en="The storehouse stands. Select it and upgrade it to a market – the upgrade runs on its own.")
+
+
 # The market stands: Orrin says in one sentence how trading works (explain when it is needed)
 @on_objective("market", "done")
 def market_built(id, status):

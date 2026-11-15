@@ -73,8 +73,10 @@ def roses():
 
     def hint():
         if left() > 0:
-            say("nelia", de="Es liegt noch etwas im Schnee. Geh, solange vorn frei ist (nelia.can_step()), und schau bei jedem Schritt mit nelia.here(), was unter dir liegt.",
-                         en="Something is still lying in the snow. Walk as long as the way is free (nelia.can_step()) and check with nelia.here() what lies under you at every step.", wait=False)
+            say("nelia", de="Es liegt noch etwas im Schnee. Geh, solange vorn frei ist, und schau bei jedem Schritt nach, was unter dir liegt.",
+                         en="Something is still lying in the snow. Walk as long as the way is free, and check at every step what lies under you.", wait=False)
+            say(None, de="Tipp: nelia.can_step() sagt, ob vorn frei ist, und nelia.here() sagt, was unter Nelia liegt.",
+                      en="Tip: nelia.can_step() tells whether the way ahead is free, and nelia.here() tells what lies under Nelia.", wait=False)
         elif program.status == "done":
             got_c = program.get("count")
             got_f = program.get("flowers")
