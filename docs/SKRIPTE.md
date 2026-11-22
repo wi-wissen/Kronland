@@ -691,7 +691,8 @@ Mission ändert oder ergänzt, hält sie ein):
 Regeln dafür: Wer spricht, steht auch dort (keine Figur redet über die halbe Karte oder kündigt sich selbst an); was
 im Text vorkommt, liegt auf der Karte und ist von oben zu sehen (Holzstoß, Hecke, Trümmer); nichts erscheint ohne Grund mitten im Spiel; jede Zahl einer
 Aufgabe hat einen Grund in der Geschichte; Übergänge nennen, wo die Begleiter bleiben. Hinweise zur Bedienung („Drück
-jetzt Prüfen“) spricht der Erzähler (`say(None, …)`), nicht eine Figur.
+jetzt Prüfen“) und Tipps mit Programmcode spricht der Erzähler (`say(None, …)`), nicht eine Figur: Figuren reden in
+ganzen Sätzen ohne Code, nur so lassen sich ihre Zeilen vertonen.
 
 | Nr. | ID | Titel | Lernziel | Etappen (Unterziele) | Welten |
 |---|---|---|---|---|---|
